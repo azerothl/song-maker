@@ -5,6 +5,7 @@ pub const SCHEMA_GEN_REQUEST: &str = "songmaker.generation.request";
 pub const SCHEMA_GEN_RESULT: &str = "songmaker.generation.result";
 pub const SCHEMA_SEPARATION: &str = "songmaker.separation";
 pub const SCHEMA_MIX: &str = "songmaker.mix";
+pub const SCHEMA_SCORE: &str = "songmaker.score";
 pub const SCHEMA_VERSION: u32 = 1;
 
 pub const SAMPLE_RATE: u32 = 48_000;

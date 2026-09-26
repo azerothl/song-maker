@@ -21,6 +21,7 @@ export type ProjectDoc = {
   activeGenerationId?: string | null;
   activeSeparationId?: string | null;
   activeMixId?: string | null;
+  activeScoreId?: string | null;
 };
 
 export type LibraryRow = {

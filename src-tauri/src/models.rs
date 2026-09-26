@@ -43,6 +43,8 @@ pub struct ProjectDoc {
     pub active_separation_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_mix_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_score_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

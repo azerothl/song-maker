@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ScorePanel } from "../components/ScorePanel";
 import { api } from "../lib/api";
+import { prepareAbcForGeneration } from "../lib/score";
 import type { FormInput, MixDoc, MixTrack } from "../lib/types";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
@@ -44,6 +46,8 @@ export function SongScreen() {
   const setMix = useAppStore((s) => s.setMix);
   const generations = useAppStore((s) => s.generations);
   const scoreAbc = useAppStore((s) => s.scoreAbc);
+  const scoreDocument = useAppStore((s) => s.scoreDocument);
+  const setScoreDocument = useAppStore((s) => s.setScoreDocument);
   const scoreOpen = useAppStore((s) => s.scoreOpen);
   const setScoreOpen = useAppStore((s) => s.setScoreOpen);
   const audioPath = useAppStore((s) => s.audioPath);
@@ -58,7 +62,11 @@ export function SongScreen() {
   const mixTimer = useRef<number | null>(null);
 
   const formError = useMemo(() => validateForm(form), [form]);
-  const canGenerate = !formError && !busy;
+  const scoreGate = useMemo(
+    () => prepareAbcForGeneration(scoreDocument, form.cot, form.title),
+    [scoreDocument, form.cot, form.title],
+  );
+  const canGenerate = !formError && !busy && !scoreGate.error;
 
   useEffect(() => {
     if (!project) return;
@@ -115,11 +123,11 @@ export function SongScreen() {
   }
 
   async function onGenerate() {
-    if (!project || formError) return;
+    if (!project || formError || scoreGate.error) return;
     setBusy(true);
     setError(null);
     try {
-      await api.startGeneration(project.id, form);
+      await api.startGeneration(project.id, form, scoreGate.abc);
       await openProject(project.id);
     } catch (e) {
       setError(String(e));
@@ -302,12 +310,18 @@ export function SongScreen() {
                 setForm({ seed: null });
                 return;
               }
-              // u32 max — audio.cpp / JSON exigent un entier exact
               setForm({ seed: Math.min(Math.trunc(n), 4294967295) });
             }}
           />
         </label>
         {formError && <p className="hint error">{formError}</p>}
+        {scoreGate.error && <p className="hint error">{scoreGate.error}</p>}
+        {scoreDocument && !scoreGate.error && (
+          <p className="hint ok">{t("score.willSendAbc")}</p>
+        )}
+        {!scoreDocument && (
+          <p className="hint">{t("score.phase1Path")}</p>
+        )}
         {job && job.state !== "idle" && (
           <p className="hint job">{job.label || t("job.generating")}</p>
         )}
@@ -358,6 +372,16 @@ export function SongScreen() {
       </aside>
 
       <section className="song-stage">
+        <ScorePanel
+          projectId={project.id}
+          document={scoreDocument}
+          cot={form.cot}
+          title={form.title}
+          onDocumentChange={setScoreDocument}
+          onProjectRefresh={() => openProject(project.id)}
+          onError={setError}
+        />
+
         <div className="player">
           <button type="button" className="btn" onClick={togglePlay}>
             {playing ? t("player.pause") : t("player.play")}

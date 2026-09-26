@@ -365,6 +365,23 @@ select {
   color: #ffb4b0;
 }
 
+.hint.ok {
+  color: var(--ok);
+}
+
+.banner.warn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: #2a2418;
+  border: 1px solid #5c4b2b;
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
 .banner.error {
   display: flex;
   justify-content: space-between;
@@ -372,6 +389,143 @@ select {
   background: #3a1d1d;
   border-bottom: 1px solid #5c2b2b;
   padding: 0.55rem 1rem;
+}
+
+.score-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.score-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.score-panel-header h2 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.score-issues {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.score-issues .error {
+  color: #ffb4b0;
+}
+
+.score-issues .warning {
+  color: #e3c78a;
+}
+
+.piano-roll {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.piano-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.piano-toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.piano-toolbar input,
+.piano-toolbar select {
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.35rem 0.45rem;
+  color: var(--text);
+}
+
+.section-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.section-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.15rem 0.35rem;
+  font-size: 0.8rem;
+}
+
+.piano-scroll {
+  overflow: auto;
+  max-height: 280px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0b0e13;
+}
+
+.piano-grid {
+  position: relative;
+  min-width: 100%;
+}
+
+.piano-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-bottom: 1px solid #1a2030;
+  background: #10151d;
+}
+
+.piano-row.black {
+  background: #0c1018;
+}
+
+.piano-note {
+  position: absolute;
+  border: 0;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #4d9bff, #2f6fd6);
+  cursor: grab;
+  padding: 0;
+}
+
+.piano-note.selected {
+  outline: 2px solid #f0c674;
+  z-index: 2;
+}
+
+.section-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #7ee787;
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .score {
