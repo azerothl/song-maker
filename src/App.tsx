@@ -51,7 +51,12 @@ function Sidebar() {
         </button>
       </nav>
       <div className="sidebar-meta">
-        <div>{health?.gpuName ?? t("nav.gpuAbsent")}</div>
+        <div>
+          {!health
+            ? "…"
+            : health.gpuName ??
+              (health.cudaAvailable ? "GPU NVIDIA" : t("nav.gpuAbsent"))}
+        </div>
         {job && job.state !== "idle" && <div className="job-step">{job.label}</div>}
         {project && <div className="open-title">{project.title}</div>}
       </div>
@@ -68,8 +73,8 @@ export default function App() {
 
   useEffect(() => {
     void refreshHealth();
-    const id = window.setInterval(() => void refreshJob(), 1500);
-    return () => window.clearInterval(id);
+    const jobId = window.setInterval(() => void refreshJob(), 1500);
+    return () => window.clearInterval(jobId);
   }, [refreshJob, refreshHealth]);
 
   return (

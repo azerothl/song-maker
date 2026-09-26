@@ -18,21 +18,15 @@ pub fn sha256_file(path: &Path) -> Result<String, String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-pub fn verify_sha256(path: &Path, expected: &str) -> Result<(), String> {
-    let got = sha256_file(path)?;
-    if got != expected {
-        return Err(format!(
-            "Hash invalide pour {}.\n  attendu: {}\n  obtenu:  {}",
-            path.display(),
-            expected,
-            got
-        ));
-    }
-    Ok(())
+pub fn random_seed() -> u64 {
+    // audio.cpp parse le seed via JSON (double) ; au-delà de 2^53 ce n'est plus
+    // un entier exact → "seed must be an unsigned integer". La WebUI borne à u32.
+    let mut bytes = [0u8; 4];
+    getrandom::getrandom(&mut bytes).expect("CSPRNG");
+    u32::from_le_bytes(bytes) as u64
 }
 
-pub fn random_seed() -> u64 {
-    let mut bytes = [0u8; 8];
-    getrandom::getrandom(&mut bytes).expect("CSPRNG");
-    u64::from_le_bytes(bytes) & (u64::MAX >> 1)
+/// Borne un seed utilisateur pour qu'il reste un entier JSON exact (et u32 côté UI).
+pub fn normalize_seed(seed: u64) -> u64 {
+    seed.min(u32::MAX as u64)
 }

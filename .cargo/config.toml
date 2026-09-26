@@ -1,0 +1,5 @@
+# Le chemin du repo contient un espace (« song maker ») : l'incrémental Cargo
+# sous Windows produit souvent « Accès refusé (os error 5) » sur les dossiers
+# *-working. Désactiver l'incrémental évite le warning et les races avec tauri dev.
+[build]
+incremental = false

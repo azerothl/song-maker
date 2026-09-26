@@ -1,4 +1,4 @@
-use crate::pins::{ARCHIVE_LINUX, ARCHIVE_WINDOWS};
+use crate::pins::{ARCHIVE_LINUX, ARCHIVE_WINDOWS, ARCHIVE_WINDOWS_CUDART, ARCHIVE_WINDOWS_CUDART_SHA};
 use dirs::{cache_dir, document_dir, home_dir};
 use std::path::{Path, PathBuf};
 
@@ -47,6 +47,15 @@ pub fn pinned_archive_name() -> &'static str {
         ARCHIVE_WINDOWS
     } else {
         ARCHIVE_LINUX
+    }
+}
+
+/// Archive runtime CUDA Windows (DLL à côté du binaire). `None` hors Windows.
+pub fn pinned_cudart_archive() -> Option<(&'static str, &'static str)> {
+    if cfg!(target_os = "windows") {
+        Some((ARCHIVE_WINDOWS_CUDART, ARCHIVE_WINDOWS_CUDART_SHA))
+    } else {
+        None
     }
 }
 

@@ -66,31 +66,48 @@ impl AudioCppServer {
     }
 
     fn find_server_binary(cache: &Path) -> Result<PathBuf, String> {
-        let extract = binaries_dir(cache).join("extracted");
-        if extract.exists() {
+        let candidates = [
+            binaries_dir(cache).join("extracted"),
+            binaries_dir(cache).join("windows-cuda12.4"),
+            binaries_dir(cache).join("linux-cuda12.8-colab"),
+        ];
+        for extract in candidates {
+            if !extract.exists() {
+                continue;
+            }
             for entry in walkdir::WalkDir::new(&extract).max_depth(4) {
                 let entry = entry.map_err(|e| e.to_string())?;
                 let name = entry.file_name().to_string_lossy();
                 if name == "audiocpp_server" || name == "audiocpp_server.exe" {
-                    return Ok(entry.path().to_path_buf());
+                    let bin = entry.path().to_path_buf();
+                    if cfg!(target_os = "windows") {
+                        let dir = bin.parent().unwrap_or(extract.as_path());
+                        if !dir.join("cudart64_12.dll").exists() {
+                            return Err(format!(
+                                "Runtime CUDA manquant à côté de {}. Extrayez {} (SHA {}).",
+                                bin.display(),
+                                crate::pins::ARCHIVE_WINDOWS_CUDART,
+                                crate::pins::ARCHIVE_WINDOWS_CUDART_SHA
+                            ));
+                        }
+                    }
+                    return Ok(bin);
                 }
             }
         }
-        // Also search archive extract folder named after archive
-        let alt = binaries_dir(cache).join("linux-cuda12.8-colab");
-        if alt.exists() {
-            for entry in walkdir::WalkDir::new(&alt).max_depth(4) {
-                let entry = entry.map_err(|e| e.to_string())?;
-                let name = entry.file_name().to_string_lossy();
-                if name == "audiocpp_server" {
-                    return Ok(entry.path().to_path_buf());
-                }
-            }
-        }
-        Err(
-            "audiocpp_server introuvable. Lancez scripts/phase0/download-binaries.sh puis extrayez l'archive."
-                .into(),
-        )
+        let hint = if cfg!(target_os = "windows") {
+            format!(
+                "audiocpp_server.exe introuvable. Téléchargez {} + {} puis extrayez (load-test-cuda.cmd).",
+                crate::pins::ARCHIVE_WINDOWS,
+                crate::pins::ARCHIVE_WINDOWS_CUDART
+            )
+        } else {
+            format!(
+                "audiocpp_server introuvable. Téléchargez {} puis extrayez (./load-test-cuda.sh).",
+                crate::pins::ARCHIVE_LINUX
+            )
+        };
+        Err(hint)
     }
 
     pub fn tcp_health(host: &str, port: u16) -> bool {
@@ -176,21 +193,6 @@ impl AudioCppServer {
         ))
     }
 
-    pub async fn health_async(url: &str) -> bool {
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(2))
-            .build();
-        let Ok(client) = client else {
-            return false;
-        };
-        client
-            .get(format!("{url}/health"))
-            .send()
-            .await
-            .map(|r| r.status().is_success())
-            .unwrap_or(false)
-    }
-
     pub async fn run_task(base_url: &str, body: Value) -> Result<Value, String> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(YUE2_BUSY_TIMEOUT_MS / 1000 + 60))
@@ -211,6 +213,64 @@ impl AudioCppServer {
             return Err(format!("HTTP {status}: {text}"));
         }
         serde_json::from_str(&text).map_err(|e| e.to_string())
+    }
+
+    /// audio.cpp renvoie le WAV en base64 dans `audio` (ou `named_audio_outputs[0].audio`).
+    pub fn extract_wav_bytes(response: &Value) -> Result<Vec<u8>, String> {
+        use base64::Engine;
+        let b64 = response
+            .get("audio")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .or_else(|| {
+                response
+                    .get("named_audio_outputs")
+                    .and_then(|a| a.as_array())
+                    .and_then(|arr| arr.first())
+                    .and_then(|o| o.get("audio"))
+                    .and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty())
+            })
+            .ok_or_else(|| {
+                "Réponse audio.cpp sans champ audio (WAV base64 absent).".to_string()
+            })?;
+        base64::engine::general_purpose::STANDARD
+            .decode(b64)
+            .map_err(|e| format!("Décodage WAV base64: {e}"))
+    }
+
+    /// Score ABC éventuel dans `artifacts[]` (payload base64, format abc).
+    pub fn extract_score_abc(response: &Value) -> Option<String> {
+        use base64::Engine;
+        let arts = response.get("artifacts")?.as_array()?;
+        for art in arts {
+            let meta = art.get("meta");
+            let format = meta
+                .and_then(|m| m.get("format"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let ext = meta
+                .and_then(|m| m.get("extension"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let id = art.get("id").and_then(|v| v.as_str()).unwrap_or("");
+            let looks_abc = format.eq_ignore_ascii_case("abc")
+                || ext.eq_ignore_ascii_case("abc")
+                || id.to_ascii_lowercase().contains("score")
+                || id.to_ascii_lowercase().contains("abc");
+            if !looks_abc {
+                continue;
+            }
+            let payload = art.get("payload")?.as_str()?;
+            if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(payload) {
+                return String::from_utf8(bytes).ok();
+            }
+            // parfois le payload est déjà du texte
+            if payload.contains('[') || payload.contains("X:") {
+                return Some(payload.to_string());
+            }
+        }
+        None
     }
 
     pub async fn unload_all(base_url: &str) -> Result<(), String> {

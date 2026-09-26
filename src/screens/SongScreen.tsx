@@ -291,9 +291,20 @@ export function SongScreen() {
           <input
             placeholder={t("form.seed.placeholder")}
             value={form.seed ?? ""}
-            onChange={(e) =>
-              setForm({ seed: e.target.value ? Number(e.target.value) : null })
-            }
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              if (!raw) {
+                setForm({ seed: null });
+                return;
+              }
+              const n = Number(raw);
+              if (!Number.isFinite(n) || n < 0) {
+                setForm({ seed: null });
+                return;
+              }
+              // u32 max — audio.cpp / JSON exigent un entier exact
+              setForm({ seed: Math.min(Math.trunc(n), 4294967295) });
+            }}
           />
         </label>
         {formError && <p className="hint error">{formError}</p>}

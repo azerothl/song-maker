@@ -23,7 +23,6 @@ case "${1:-}" in
 esac
 
 BASE_URL="$(jq -r '.audioCpp.baseUrl' "$PINS_FILE")"
-HOST="$(uname -s)"
 
 want() {
   local platform="$1"
@@ -32,9 +31,13 @@ want() {
     linux) [[ "$platform" == "linux" ]] ;;
     windows) [[ "$platform" == "windows" ]] ;;
     platform)
-      if [[ "$HOST" == "Linux" ]]; then
+      if [[ "$HOST_OS" == "linux" ]]; then
         [[ "$platform" == "linux" ]]
+      elif [[ "$HOST_OS" == "windows" ]]; then
+        [[ "$platform" == "windows" ]]
       else
+        # macOS / inconnu : pas d'archive native — télécharger Windows par défaut
+        # pour un poste de build croisé ; surcharger avec --linux / --all.
         [[ "$platform" == "windows" ]]
       fi
       ;;
@@ -61,4 +64,4 @@ done
 
 echo
 echo "Terminé. Vérification:"
-"${SCRIPT_DIR}/verify-hashes.sh" --binaries-only
+run_phase0 verify-hashes.sh --binaries-only

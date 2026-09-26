@@ -43,6 +43,7 @@ if [[ "$CHECK_MODELS" -eq 1 ]]; then
   echo "-- YuE2 GGUF + sidecars --"
   jq -c '.yue2.files[]' "$PINS_FILE" | while read -r row; do
     name="$(echo "$row" | jq -r '.name')"
+    remote="$(echo "$row" | jq -r '.remote // .name')"
     sha="$(echo "$row" | jq -r '.sha256')"
     sidecar="$(echo "$row" | jq -r '.sidecar // false')"
     if [[ "$name" == "yue2-3b-q8_0.gguf" && "$PACK" == "q4" ]]; then
@@ -51,14 +52,18 @@ if [[ "$CHECK_MODELS" -eq 1 ]]; then
     if [[ "$name" == "yue2-3b-q4_0.gguf" && "$PACK" == "q8" ]]; then
       continue
     fi
-    path="${YUE2_DIR}/${name}"
+    if [[ "$sidecar" == "true" ]]; then
+      path="${YUE2_DIR}/${remote}"
+    else
+      path="${YUE2_DIR}/${name}"
+    fi
     if [[ ! -f "$path" ]]; then
       echo "MANQUANT: ${name}" >&2
       FAIL=1
       continue
     fi
     if [[ "$sidecar" == "true" ]]; then
-      echo "OK (sidecar présent): ${name}"
+      echo "OK (sidecar présent): ${remote}"
     else
       verify_file "$path" "$sha" "$name" || FAIL=1
     fi

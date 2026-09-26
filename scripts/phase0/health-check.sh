@@ -10,16 +10,22 @@ source "${SCRIPT_DIR}/lib.sh"
 HOST="$(jq -r '.server.host' "$PINS_FILE")"
 PORT="$(jq -r '.server.port' "$PINS_FILE")"
 HEALTH_URL="http://${HOST}:${PORT}/health"
+HEALTH_JSON="${PHASE0_TMP}/songmaker-health.json"
 
 echo "=== Song Maker Phase 0 — health-check ==="
 echo "Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+echo "OS: ${HOST_OS}  Cache: ${CACHE_DIR}"
 echo
 
 OVERALL=0
 
 echo "-- Disque --"
-df -h "${CACHE_DIR}" 2>/dev/null || df -h "$HOME"
-AVAIL_KB="$(df -Pk "${CACHE_DIR}" 2>/dev/null | awk 'NR==2{print $4}')"
+if command -v df >/dev/null 2>&1; then
+  df -h "${CACHE_DIR}" 2>/dev/null || df -h "$HOME" 2>/dev/null || true
+  AVAIL_KB="$(df -Pk "${CACHE_DIR}" 2>/dev/null | awk 'NR==2{print $4}')"
+else
+  AVAIL_KB=""
+fi
 # Besoin indicatif : Q8 (~4 Go) + VAE (~0.3) + HTDemucs + binaire Linux (~60 Mo) + marge
 NEED_KB=$((8 * 1024 * 1024))
 if [[ -n "${AVAIL_KB:-}" && "$AVAIL_KB" -lt "$NEED_KB" ]]; then
@@ -38,8 +44,9 @@ if report_cuda_status; then
   echo "Driver: ${DRIVER_VER}"
   echo "VRAM: ${VRAM_MIB} MiB"
   LINUX_MIN="$(jq -r '.drivers.linuxCuda128ColabMin' "$PINS_FILE")"
-  if [[ "$(uname -s)" == "Linux" ]]; then
-    python3 - "$DRIVER_VER" "$LINUX_MIN" <<'PY'
+  if [[ "$HOST_OS" == "linux" ]]; then
+    set +e
+    "$PYTHON_BIN" - "$DRIVER_VER" "$LINUX_MIN" <<'PY'
 import sys
 def parse(v):
     return tuple(int(x) for x in v.split(".")[:3])
@@ -48,12 +55,13 @@ try:
     ok = parse(drv) >= parse(minimum)
 except Exception:
     ok = False
-print("OK: driver ≥ " + minimum if ok else "ÉCHEC: driver < " + minimum + " (archive cuda12.8-colab)")
+print(("OK: driver >= " + minimum) if ok else ("FAIL: driver < " + minimum + " (archive cuda12.8-colab)"))
 sys.exit(0 if ok else 1)
 PY
     if [[ $? -ne 0 ]]; then
       OVERALL=1
     fi
+    set -e
   fi
   if [[ -n "${VRAM_MIB:-}" ]]; then
     if [[ "$VRAM_MIB" -ge 12288 ]]; then
@@ -70,7 +78,7 @@ fi
 
 echo
 echo "-- Hashes (si fichiers présents) --"
-if "${SCRIPT_DIR}/verify-hashes.sh" --pack both; then
+if run_phase0 verify-hashes.sh --pack both; then
   echo "Hashes: OK ou partiellement absents (voir ci-dessus)"
 else
   echo "Hashes: au moins un fichier présent est invalide, ou modèles manquants"
@@ -79,9 +87,9 @@ fi
 
 echo
 echo "-- Serveur audio.cpp GET /health --"
-if curl -sf --max-time 3 "$HEALTH_URL" >/tmp/songmaker-health.json 2>/dev/null; then
+if curl -sf --max-time 3 "$HEALTH_URL" >"$HEALTH_JSON" 2>/dev/null; then
   echo "OK: ${HEALTH_URL}"
-  cat /tmp/songmaker-health.json
+  cat "$HEALTH_JSON"
   echo
 else
   echo "Serveur non joignable sur ${HEALTH_URL}"

@@ -1,6 +1,6 @@
 use crate::audiocpp::AudioCppServer;
 use crate::form::{guidance_scale, validate_form, validate_title};
-use crate::hashutil::{random_seed, sha256_file};
+use crate::hashutil::{normalize_seed, random_seed, sha256_file};
 use crate::library::{
     default_settings, delete_library_row, load_project, load_settings, project_folder, save_project,
     save_settings, upsert_library_row, list_library,
@@ -270,7 +270,7 @@ pub async fn start_generation(
     save_project(&folder, &doc)?;
 
     let settings = load_settings()?;
-    let seed = form.seed.unwrap_or_else(random_seed);
+    let seed = normalize_seed(form.seed.unwrap_or_else(random_seed));
     let gen_id = next_folder_id(&folder.join("generations"), "gen-")?;
     let gen_dir = folder.join("generations").join(&gen_id);
     ensure_dir(&gen_dir).map_err(|e| e.to_string())?;
@@ -342,16 +342,16 @@ pub async fn start_generation(
                 );
                 let body = json!({
                     "model": "yue2",
-                    "task": "gen",
-                    "options": {
-                        "style": style_sent,
+                    "request": {
                         "lyrics": lyrics_for_req,
-                        "cot": cot,
                         "seed": seed,
-                        "num_inference_steps": NUM_INFERENCE_STEPS,
-                        "guidance_scale": guidance_scale(&cot)
-                    },
-                    "output": out_wav.display().to_string()
+                        "options": {
+                            "style": style_sent,
+                            "cot": cot,
+                            "num_inference_steps": NUM_INFERENCE_STEPS,
+                            "guidance_scale": guidance_scale(&cot)
+                        }
+                    }
                 });
                 let started = now_iso();
                 let api_result = AudioCppServer::run_task(&server_url, body).await;
@@ -373,9 +373,46 @@ pub async fn start_generation(
                     return Err("cancelled".into());
                 }
                 match api_result {
-                    Ok(_) => {
+                    Ok(response) => {
+                        let wav_bytes = match AudioCppServer::extract_wav_bytes(&response) {
+                            Ok(b) => b,
+                            Err(e) => {
+                                let result = json!({
+                                    "schema": SCHEMA_GEN_RESULT,
+                                    "schemaVersion": SCHEMA_VERSION,
+                                    "id": gen_id_for_job,
+                                    "state": "failed",
+                                    "decode": "unsupported",
+                                    "startedAt": started,
+                                    "finishedAt": finished,
+                                    "audio": null,
+                                    "score": null,
+                                    "error": e
+                                });
+                                atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                                return Err(e);
+                            }
+                        };
+                        std::fs::write(&out_wav, &wav_bytes).map_err(|e| e.to_string())?;
                         if !out_wav.exists() {
-                            return Err("WAV de génération absent après l'appel.".into());
+                            let err = "WAV de génération absent après l'appel.".to_string();
+                            let result = json!({
+                                "schema": SCHEMA_GEN_RESULT,
+                                "schemaVersion": SCHEMA_VERSION,
+                                "id": gen_id_for_job,
+                                "state": "failed",
+                                "decode": "unsupported",
+                                "startedAt": started,
+                                "finishedAt": finished,
+                                "audio": null,
+                                "score": null,
+                                "error": err
+                            });
+                            atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                            return Err(err);
+                        }
+                        if let Some(abc) = AudioCppServer::extract_score_abc(&response) {
+                            let _ = std::fs::write(gen_dir_for_job.join("score.abc"), abc);
                         }
                         let duration = wav_duration_ms(&out_wav).unwrap_or(0);
                         let audio_sha = sha256_file(&out_wav)?;

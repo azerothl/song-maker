@@ -50,24 +50,28 @@
       },
       {
         "name": "yue2-model-config.json",
+        "remote": "sidecars/yue2-model-config.json",
         "sha256": null,
         "required": true,
         "sidecar": true
       },
       {
         "name": "yue2-generation-config.json",
+        "remote": "sidecars/yue2-generation-config.json",
         "sha256": null,
         "required": true,
         "sidecar": true
       },
       {
         "name": "yue2-qwen.tiktoken",
+        "remote": "sidecars/yue2-qwen.tiktoken",
         "sha256": null,
         "required": true,
         "sidecar": true
       },
       {
         "name": "yue2-vae-config.json",
+        "remote": "sidecars/yue2-vae-config.json",
         "sha256": null,
         "required": true,
         "sidecar": true
@@ -77,6 +81,7 @@
   "htdemucs": {
     "repo": "audio-cpp/audio.cpp-gguf",
     "file": "htdemucs-q8_0.gguf",
+    "remote": "HTDemucs-GGUF/htdemucs-q8_0.gguf",
     "package": "htdemucs_q8_0",
     "sha256": "b0f532ac6e5f373aeb11fa0df73253251e133832d9c8b9942dc58f50bc5b4388",
     "baseUrl": "https://huggingface.co/audio-cpp/audio.cpp-gguf/resolve/main"

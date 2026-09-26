@@ -64,7 +64,7 @@ Poids, révision Hugging Face `eb116220931de5f373d024d48800338178c7de51`, dépô
 | `yue2-3b-q4_0.gguf` | 2 665 632 320 | `97af67d7f800b362faee6e6bec806bddfcccb93f25fd3f9a1012724d95af6f4a` |
 | `yue2-vae-f16.gguf` | 265 218 656 | `d4f4a05d8f291ae820cd1e43609da3fa91b56465810091a2b08c3350b751719d` |
 
-Sidecars obligatoires, à côté du GGUF : `yue2-model-config.json`, `yue2-generation-config.json`, `yue2-qwen.tiktoken`, `yue2-vae-config.json`.
+Sidecars obligatoires, sous `<cache>/models/Yue2-3B-GGUF/sidecars/` : `yue2-model-config.json`, `yue2-generation-config.json`, `yue2-qwen.tiktoken`, `yue2-vae-config.json` (même arborescence que le dépôt Hugging Face).
 
 Pack par défaut : `yue2-3b-q8_0.gguf` + `yue2-vae-f16.gguf` si la VRAM détectée est ≥ 12 Go ; sinon `yue2-3b-q4_0.gguf` + `yue2-vae-f16.gguf`. L’utilisateur confirme le pack. Un manque de mémoire ne change pas le pack tout seul : message, et bouton pour réessayer en Q4 (§18.4). BF16 n’est pas proposé.
 

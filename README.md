@@ -10,6 +10,8 @@ Application desktop locale pour générer, séparer et mixer un morceau avec **a
 
 ## Phase 0 (scripts, pas de GPU requis pour télécharger)
 
+Linux / macOS / Git Bash :
+
 ```bash
 cd scripts/phase0
 ./download-binaries.sh --linux   # ou --windows / --all
@@ -18,10 +20,21 @@ cd scripts/phase0
 ./health-check.sh
 ```
 
-Load test CUDA Ubuntu (`cuda12.8-colab`) — **GPU NVIDIA requis** :
+Windows (PowerShell / cmd) — nécessite [Git for Windows](https://git-scm.com/download/win) :
+
+```bat
+cd scripts\phase0
+./download-binaries.cmd --windows
+./download-models.cmd --q4
+./verify-hashes.cmd
+./health-check.cmd
+```
+
+Load test CUDA — **GPU NVIDIA requis** (Windows cuda12.4 ou Linux cuda12.8-colab) :
 
 ```bash
 ./load-test-cuda.sh
+# Windows: load-test-cuda.cmd
 ```
 
 Sans `nvidia-smi`, le script se termine en code 2 et **ne déclare pas** un succès CUDA. Voir [`scripts/phase0/README.md`](scripts/phase0/README.md).

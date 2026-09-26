@@ -1,37 +1,85 @@
-use crate::hashutil::verify_sha256;
 use crate::library::load_settings;
 use crate::models::HealthSnapshot;
 use crate::paths::{binaries_dir, htdemucs_path, yue2_dir};
 use crate::pins::*;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
+fn nvidia_smi_candidates() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    out.push(PathBuf::from("nvidia-smi"));
+    #[cfg(windows)]
+    {
+        if let Some(root) = std::env::var_os("SystemRoot") {
+            out.push(Path::new(&root).join("System32").join("nvidia-smi.exe"));
+        }
+        out.push(PathBuf::from(r"C:\Windows\System32\nvidia-smi.exe"));
+        out.push(PathBuf::from(
+            r"C:\Program Files\NVIDIA Corporation\NVSMI\nvidia-smi.exe",
+        ));
+    }
+    out
+}
+
+fn run_nvidia_smi(bin: &Path) -> Option<std::process::Output> {
+    let mut cmd = Command::new(bin);
+    cmd.args([
+        "--query-gpu=name,driver_version,memory.total",
+        "--format=csv,noheader,nounits",
+    ]);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // Évite l'échec silencieux des spawns console depuis une app GUI Tauri.
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd.output().ok()
+}
+
 pub fn detect_gpu() -> (bool, Option<String>, Option<String>, Option<u64>) {
-    let output = Command::new("nvidia-smi")
-        .args([
-            "--query-gpu=name,driver_version,memory.total",
-            "--format=csv,noheader,nounits",
-        ])
-        .output();
-    let Ok(output) = output else {
-        return (false, None, None, None);
-    };
-    if !output.status.success() {
-        return (false, None, None, None);
+    for bin in nvidia_smi_candidates() {
+        let Some(output) = run_nvidia_smi(&bin) else {
+            continue;
+        };
+        if !output.status.success() {
+            continue;
+        }
+        let text = String::from_utf8_lossy(&output.stdout);
+        let line = text.lines().next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+        let parts: Vec<&str> = line.split(',').map(|s| s.trim()).collect();
+        let name = parts
+            .first()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+        let driver = parts
+            .get(1)
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+        let vram = parts.get(2).and_then(|s| {
+            let cleaned = s.replace("MiB", "").replace("MB", "").trim().to_string();
+            cleaned.parse::<f64>().ok().map(|v| v as u64)
+        });
+        if name.is_some() {
+            return (true, name, driver, vram);
+        }
     }
-    let text = String::from_utf8_lossy(&output.stdout);
-    let line = text.lines().next().unwrap_or("").trim();
-    if line.is_empty() {
-        return (false, None, None, None);
-    }
-    let parts: Vec<&str> = line.split(',').map(|s| s.trim()).collect();
-    let name = parts.first().map(|s| (*s).to_string());
-    let driver = parts.get(1).map(|s| (*s).to_string());
-    let vram = parts
-        .get(2)
-        .and_then(|s| s.parse::<f64>().ok())
-        .map(|v| v as u64);
-    (true, name, driver, vram)
+    (false, None, None, None)
+}
+
+/// Présence seule — pas de SHA-256 ici (les archives/GGUF font plusieurs Go ;
+/// un hash sync bloquerait le thread UI Tauri à chaque get_health).
+fn artifact_present(path: &Path) -> bool {
+    path.is_file()
+        && path
+            .metadata()
+            .map(|m| m.len() > 0)
+            .unwrap_or(false)
 }
 
 pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
@@ -44,19 +92,19 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
     };
 
     let cache = PathBuf::from(&settings.cache_dir);
-    let archive = binaries_dir(&cache).join(&settings.binary_archive);
-    let binary_ok = archive.exists()
-        && verify_sha256(&archive, &settings.binary_sha256).is_ok();
+    let bin_dir = binaries_dir(&cache);
+    let archive = bin_dir.join(&settings.binary_archive);
+    let mut binary_ok = artifact_present(&archive);
+    if let Some((cudart_name, _)) = crate::paths::pinned_cudart_archive() {
+        binary_ok = binary_ok && artifact_present(&bin_dir.join(cudart_name));
+    }
 
     let yue2 = yue2_dir(&cache);
     let gguf = yue2.join(&settings.model_gguf);
     let vae = yue2.join(YUE2_VAE);
-    let models_ok = gguf.exists()
-        && verify_sha256(&gguf, &settings.model_sha256).is_ok()
-        && vae.exists()
-        && verify_sha256(&vae, YUE2_VAE_SHA).is_ok()
-        && htdemucs_path(&cache).exists()
-        && verify_sha256(&htdemucs_path(&cache), HTDEMUCS_SHA).is_ok();
+    let models_ok = artifact_present(&gguf)
+        && artifact_present(&vae)
+        && artifact_present(&htdemucs_path(&cache));
 
     let server_healthy = server_url
         .and_then(|url| {

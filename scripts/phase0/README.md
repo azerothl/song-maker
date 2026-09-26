@@ -16,9 +16,19 @@ Fichier : [`pins.json`](./pins.json)
 | `yue2-vae-f16.gguf` | `d4f4a05d…` |
 | `htdemucs-q8_0.gguf` | `b0f532ac…` |
 
-Cache par défaut : `$HOME/.cache/song-maker` (surcharge : `SONG_MAKER_CACHE`).
+Cache par défaut :
+
+| OS | Chemin |
+|---|---|
+| Linux | `$HOME/.cache/song-maker` |
+| macOS | `$HOME/Library/Caches/SongMaker` |
+| Windows (Git Bash / `.cmd`) | `%LOCALAPPDATA%\song-maker` |
+
+Surcharge : `SONG_MAKER_CACHE`.
 
 ## Scripts (pas de GPU requis pour télécharger / vérifier)
+
+### Linux / macOS / Git Bash
 
 ```bash
 cd scripts/phase0
@@ -41,33 +51,67 @@ chmod +x *.sh
 ./health-check.sh
 ```
 
+### Windows (PowerShell / cmd)
+
+Prérequis : [Git for Windows](https://git-scm.com/download/win) (fournit Bash), plus `curl`, `jq`, et Python sur le `PATH`.
+
+Les `.cmd` appellent Git Bash (pas WSL) pour écrire dans le même cache que l’app Tauri :
+
+```bat
+cd scripts\phase0
+download-binaries.cmd
+download-binaries.cmd --windows
+download-models.cmd --q4
+verify-hashes.cmd
+health-check.cmd
+```
+
+Équivalent depuis PowerShell : `.\download-binaries.cmd`.
+
 `health-check.sh` et `load-test-cuda.sh` **refusent de déclarer un succès CUDA** si `nvidia-smi` est absent.
 
-## Load test Ubuntu `cuda12.8-colab` (GPU NVIDIA requis)
+## Load test CUDA (GPU NVIDIA requis)
 
-L’archive Linux CUDA épinglée s’appelle `audio-v0.8.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz`. Le mot `colab` est un fait upstream. Le contrat : la lancer sur un **Ubuntu desktop**, `--backend cuda`, et charger `yue2`. Si ça échoue hors Colab, **Linux CUDA n’est pas livré** sur Vulkan/CPU.
+Le script utilise l’archive **de la plateforme courante** :
+
+| OS | Archive | Driver min |
+|---|---|---|
+| Windows | `audio-v0.8.1-bin-windows-x64-cuda12.4.zip` + cudart | ≥ 551.61 |
+| Linux | `audio-v0.8.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz` | ≥ 570.26 |
+
+Le mot `colab` sur l’archive Linux est un fait upstream. Contrat : `--backend cuda` + chargement `yue2`. Pas de Vulkan / CPU.
 
 ### Prérequis machine
 
-1. Ubuntu x86_64
-2. Driver NVIDIA **≥ 570.26** (CUDA 12.8)
-3. VRAM ≥ 8 Go (Q4) ; ≥ 12 Go pour présélection Q8
-4. ~8 Go libres pour Q4+VAE+HTDemucs, davantage pour Q8
+1. Driver NVIDIA au minimum indiqué ci-dessus
+2. VRAM ≥ 8 Go (Q4) ; ≥ 12 Go pour présélection Q8
+3. ~8 Go libres pour Q4+VAE+HTDemucs, davantage pour Q8
 
 ### Procédure
 
+Linux / Git Bash :
+
 ```bash
 cd scripts/phase0
-./download-binaries.sh --linux
-./download-models.sh --q4          # ou sans --q4 si VRAM ≥ 12 Go
+./download-binaries.sh          # archive de la plateforme
+./download-models.sh --q4       # ou sans --q4 / --q8 si VRAM ≥ 12 Go
 ./load-test-cuda.sh
+```
+
+Windows (PowerShell / cmd) :
+
+```bat
+cd scripts\phase0
+download-binaries.cmd --windows
+download-models.cmd --q8
+load-test-cuda.cmd
 ```
 
 Le script :
 
 1. vérifie `nvidia-smi` ;
-2. vérifie le hash de l’archive ;
-3. extrait `audiocpp_server` ;
+2. vérifie le hash de l’archive (et du cudart Windows) ;
+3. extrait `audiocpp_server` / `audiocpp_server.exe` (+ DLL CUDA Windows) ;
 4. écrit une config avec `max_loaded_models=1`, `lazy_load=true`, port `8765` ;
 5. démarre le serveur `--backend cuda` ;
 6. attend `GET /health` ;

@@ -36,6 +36,7 @@ pub fn resample_soxr(input: &Path, output: &Path, target_rate: u32) -> Result<()
 }
 
 /// Stub documenté : même contrat, pour tests sans ffmpeg — copie refusée.
+#[cfg(test)]
 pub fn resample_stub_unavailable() -> Result<(), String> {
     Err(
         "Stub soxr : utilisez ffmpeg -af aresample=resampler=soxr:precision=28 (chemin FFmpeg)."
