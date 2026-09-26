@@ -1,0 +1,23 @@
+{
+  "name": "@song-maker/remote-worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Phase 4 — remote GPU worker client interface + auth placeholder (§18.2)",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
