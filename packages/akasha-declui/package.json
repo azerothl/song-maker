@@ -1,0 +1,23 @@
+{
+  "name": "@song-maker/akasha-declui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Phase 4 — Akasha / DeclUI integration notes and stubs (§18.5)",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md", "docs"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
