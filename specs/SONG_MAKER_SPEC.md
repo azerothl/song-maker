@@ -1343,14 +1343,18 @@ Pas d’import MIDI. Pas de piano roll.
 - MP3 ;
 - plusieurs candidats et comparateur ;
 - graphe, branches, merge ;
-- dossier `scores/`.
+- dossier `scores/` ;
+- si le binaire épinglé le permet : `stop_after=abc` pour obtenir le score sans WAV, puis plusieurs rendus sur le même ABC ;
+- instrumental par conversion Vocal → Ins sur le dialecte ABC du §7, sans LoRA et sans balise paroles seule ;
+- poursuite depuis un préfixe de tokens sémantiques (`semantic_prefix`), pour un changement de style en cours de morceau.
 
 ### Phase 3 — Production audio
 
 - automation, effets, sidechain, loudness ;
 - guitare et piano, marqués moins fiables ;
 - export de stems déjà couvert par les fichiers du dossier ; des présets de mix peuvent s’y ajouter ;
-- séparateur interchangeable, si un second provider existe alors.
+- séparateur interchangeable, si un second provider existe alors — candidat documenté : BS-RoFormer (`bs_roformer`) via audio.cpp ;
+- packs LoRA optionnels, hors installeur du premier build : AR instrumental et NAR « realaudio » (CC BY-NC), chargés via `yue2.ar_lora` / `yue2.nar_lora` en SafeTensors non ComfyUI.
 
 ### Phase 4 — Agent et collaboration
 
@@ -1358,7 +1362,20 @@ Pas d’import MIDI. Pas de piano roll.
 - assistant d’édition de partition ;
 - worker GPU distant ;
 - intégration hôte (Akasha, DeclUI) selon le §18.5 ;
-- synchronisation optionnelle.
+- synchronisation optionnelle ;
+- catalogue de packs LoRA de style (ex. chanson), seulement s’ils chargent via les session options audio.cpp, avec le même écran licences CC BY-NC.
+
+### Pistes de développement
+
+Ces pistes ne sont **pas** des critères du premier build. Elles prolongent les phases 2 à 4. Le détail sourcé est dans la note de recherche du projet (YuE2 — améliorations d’usage).
+
+1. **Évaluer une future épingle audio.cpp ≥ `v0.8.2`** (release du 24 septembre 2026, hotfix du 25). Le premier build reste sur `v0.8.1`. Avant toute nouvelle épingle : mêmes hashes, mêmes archives CUDA, pas de bascule silencieuse vers Vulkan, CPU ou macOS. Reprendre avec cette évaluation le tuilage NAR pour les longs morceaux.
+2. **`stop_after=abc` et multi-rendu** — phase 2.
+3. **Instrumental Vocal → Ins** (flux skill YuE `yue2-music` 1.2.0, sans LoRA) — phase 2.
+4. **`semantic_prefix` / export sémantique** — phase 2 ou 3.
+5. **BS-RoFormer** comme second séparateur — phase 3.
+6. **Packs LoRA optionnels** (instrumental, NAR realaudio, styles communauté unfused) — phase 3–4 ; toujours hors téléchargement du premier build.
+7. **RTF publiés sur RTX 5090** (fiche GGUF, exemple `tonight-awake`) comme référence documentaire seulement. Ils n’annulent pas le plafond de 30 minutes ni les points non fermés du §27.
 
 macOS, CPU, Vulkan et HIP ne sont pas une phase de ce document. Ils restent hors du premier build.
 
