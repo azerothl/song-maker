@@ -104,6 +104,7 @@ pub fn create_project(input: CreateProjectInput) -> Result<ProjectDoc, String> {
     ensure_dir(&folder.join("separations")).map_err(|e| e.to_string())?;
     ensure_dir(&folder.join("mixes")).map_err(|e| e.to_string())?;
     ensure_dir(&folder.join("exports")).map_err(|e| e.to_string())?;
+    ensure_dir(&folder.join("scores")).map_err(|e| e.to_string())?;
     let now = now_iso();
     let doc = ProjectDoc {
         schema: SCHEMA_PROJECT.into(),
@@ -125,6 +126,7 @@ pub fn create_project(input: CreateProjectInput) -> Result<ProjectDoc, String> {
         active_generation_id: None,
         active_separation_id: None,
         active_mix_id: None,
+        active_score_id: None,
     };
     save_project(&folder, &doc)?;
     upsert_library_row(&LibraryRow {
@@ -254,8 +256,18 @@ pub async fn start_generation(
     state: tauri::State<'_, AppState>,
     id: String,
     form: FormInput,
+    abc: Option<String>,
 ) -> Result<ProjectDoc, String> {
     let style_sent = validate_form(&form).map_err(|e| e.to_string())?;
+    let abc_trimmed = abc
+        .as_ref()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if abc_trimmed.is_some() && form.cot == "off" {
+        return Err(
+            "Un ABC avec cot=off est interdit (erreur locale, avant l'appel).".into(),
+        );
+    }
     let folder = project_folder(&id);
     let mut doc = load_project(&folder)?;
     doc.title = form.title.trim().to_string();
@@ -277,6 +289,13 @@ pub async fn start_generation(
 
     let lyrics_path = gen_dir.join("lyrics.txt");
     std::fs::write(&lyrics_path, &form.lyrics).map_err(|e| e.to_string())?;
+
+    let abc_path_rel = if let Some(ref abc_text) = abc_trimmed {
+        std::fs::write(gen_dir.join("input.abc"), abc_text).map_err(|e| e.to_string())?;
+        Some("input.abc")
+    } else {
+        None
+    };
 
     let (archive, archive_sha) = if cfg!(target_os = "windows") {
         (ARCHIVE_WINDOWS, ARCHIVE_WINDOWS_SHA)
@@ -310,7 +329,7 @@ pub async fn start_generation(
         "styleSent": style_sent,
         "lyricsPath": "lyrics.txt",
         "cot": form.cot,
-        "abcPath": null,
+        "abcPath": abc_path_rel,
         "seed": seed,
         "numInferenceSteps": NUM_INFERENCE_STEPS,
         "guidanceScale": guidance_scale(&form.cot)
@@ -327,6 +346,7 @@ pub async fn start_generation(
     let out_wav = gen_dir.join("audio.wav");
     let cot = form.cot.clone();
     let lyrics_for_req = form.lyrics.clone();
+    let abc_for_req = abc_trimmed.clone();
     let gen_id_for_job = gen_id.clone();
     let gen_dir_for_job = gen_dir.clone();
     let project_id_for_job = id.clone();
@@ -340,17 +360,24 @@ pub async fn start_generation(
                     "Génération en cours",
                     Some(project_id_for_job.clone()),
                 );
+                let mut options = json!({
+                    "style": style_sent,
+                    "cot": cot,
+                    "num_inference_steps": NUM_INFERENCE_STEPS,
+                    "guidance_scale": guidance_scale(&cot)
+                });
+                if let Some(abc_text) = &abc_for_req {
+                    options
+                        .as_object_mut()
+                        .ok_or_else(|| "options invalides".to_string())?
+                        .insert("abc".into(), json!(abc_text));
+                }
                 let body = json!({
                     "model": "yue2",
                     "request": {
                         "lyrics": lyrics_for_req,
                         "seed": seed,
-                        "options": {
-                            "style": style_sent,
-                            "cot": cot,
-                            "num_inference_steps": NUM_INFERENCE_STEPS,
-                            "guidance_scale": guidance_scale(&cot)
-                        }
+                        "options": options
                     }
                 });
                 let started = now_iso();
@@ -413,6 +440,9 @@ pub async fn start_generation(
                         }
                         if let Some(abc) = AudioCppServer::extract_score_abc(&response) {
                             let _ = std::fs::write(gen_dir_for_job.join("score.abc"), abc);
+                        } else if let Some(abc_text) = &abc_for_req {
+                            // Conserve l'ABC envoyé si le modèle n'en renvoie pas.
+                            let _ = std::fs::write(gen_dir_for_job.join("score.abc"), abc_text);
                         }
                         let duration = wav_duration_ms(&out_wav).unwrap_or(0);
                         let audio_sha = sha256_file(&out_wav)?;
@@ -817,6 +847,56 @@ pub fn read_score_abc(id: String, gen_id: String) -> Result<Option<String>, Stri
     Ok(Some(
         std::fs::read_to_string(path).map_err(|e| e.to_string())?,
     ))
+}
+
+#[tauri::command]
+pub fn save_score(
+    id: String,
+    document: serde_json::Value,
+) -> Result<(ProjectDoc, String), String> {
+    let folder = project_folder(&id);
+    let mut doc = load_project(&folder)?;
+    let scores_dir = folder.join("scores");
+    ensure_dir(&scores_dir).map_err(|e| e.to_string())?;
+    let score_id = next_folder_id(&scores_dir, "score-v")?;
+    let path = scores_dir.join(format!("{score_id}.json"));
+    let mut payload = document;
+    if let Some(obj) = payload.as_object_mut() {
+        obj.insert("schema".into(), json!(SCHEMA_SCORE));
+        obj.insert("schemaVersion".into(), json!(SCHEMA_VERSION));
+        obj.insert("id".into(), json!(&score_id));
+    }
+    atomic_write_json(&path, &payload)?;
+    doc.active_score_id = Some(score_id.clone());
+    doc.updated_at = now_iso();
+    save_project(&folder, &doc)?;
+    Ok((doc, score_id))
+}
+
+#[tauri::command]
+pub fn load_score(id: String) -> Result<Option<serde_json::Value>, String> {
+    let folder = project_folder(&id);
+    let doc = load_project(&folder)?;
+    let Some(score_id) = doc.active_score_id else {
+        return Ok(None);
+    };
+    let path = folder.join("scores").join(format!("{score_id}.json"));
+    if !path.exists() {
+        return Ok(None);
+    }
+    let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let value: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    Ok(Some(value))
+}
+
+#[tauri::command]
+pub fn clear_score(id: String) -> Result<ProjectDoc, String> {
+    let folder = project_folder(&id);
+    let mut doc = load_project(&folder)?;
+    doc.active_score_id = None;
+    doc.updated_at = now_iso();
+    save_project(&folder, &doc)?;
+    Ok(doc)
 }
 
 #[tauri::command]

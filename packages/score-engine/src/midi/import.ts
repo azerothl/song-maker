@@ -1,10 +1,10 @@
-import { createHash } from "node:crypto";
 import { INTERNAL_PPQ } from "../constants.js";
 import {
   ScoreEngineError,
   type ScoreIssue,
 } from "../types/errors.js";
 import type { ScoreDocument, ScoreVoice } from "../types/score-document.js";
+import { sha256Hex } from "../util/sha256.js";
 
 export type MidiImportWarningCode =
   | "overlapping_notes"
@@ -198,9 +198,7 @@ export function importMidiToScoreDocument(
     });
   }
 
-  const hash =
-    options.sourceFileHash ??
-    createHash("sha256").update(bytes).digest("hex");
+  const hash = options.sourceFileHash ?? sha256Hex(bytes);
 
   const document: ScoreDocument = {
     id: options.id ?? cryptoRandomId(),

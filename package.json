@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Song Maker — desktop app (phases 0–1) and monorepo packages (phases 2–4)",
+  "description": "Song Maker — desktop app (phases 0–2) and monorepo packages (phases 2–4)",
   "packageManager": "pnpm@10.33.3",
   "scripts": {
     "dev": "vite",
@@ -11,11 +11,13 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts",
     "packages:build": "pnpm -r --filter \"./packages/**\" run build",
     "packages:test": "pnpm -r --filter \"./packages/**\" run test",
     "packages:typecheck": "pnpm -r --filter \"./packages/**\" run typecheck"
   },
   "dependencies": {
+    "@song-maker/score-engine": "workspace:*",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "react": "^19.1.0",
@@ -24,9 +26,11 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
+    "@types/node": "^22.13.10",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.3.4",
+    "tsx": "^4.19.3",
     "typescript": "~5.8.3",
     "vite": "^6.3.5"
   },

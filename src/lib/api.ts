@@ -32,8 +32,12 @@ export const api = {
   revealProject: (id: string) => invoke<string>("reveal_project", { id }),
   getJobStatus: () => invoke<JobStatus>("get_job_status"),
   cancelJob: () => invoke<string>("cancel_job"),
-  startGeneration: (id: string, form: FormInput) =>
-    invoke<ProjectDoc>("start_generation", { id, form }),
+  startGeneration: (id: string, form: FormInput, abc?: string | null) =>
+    invoke<ProjectDoc>("start_generation", {
+      id,
+      form,
+      abc: abc ?? null,
+    }),
   startSeparation: (id: string) => invoke<MixDoc>("start_separation", { id }),
   loadMix: (id: string) => invoke<MixDoc | null>("load_mix", { id }),
   updateMix: (
@@ -60,6 +64,12 @@ export const api = {
     invoke<GenerationSummary[]>("list_generations", { id }),
   readScoreAbc: (id: string, genId: string) =>
     invoke<string | null>("read_score_abc", { id, genId }),
+  saveScore: (id: string, document: unknown) =>
+    invoke<[ProjectDoc, string]>("save_score", { id, document }).then(
+      ([project, scoreId]) => ({ project, scoreId }),
+    ),
+  loadScore: (id: string) => invoke<unknown | null>("load_score", { id }),
+  clearScore: (id: string) => invoke<ProjectDoc>("clear_score", { id }),
   useGeneration: (id: string, genId: string) =>
     invoke<ProjectDoc>("use_generation", { id, genId }),
   undoMix: (id: string) => invoke<MixDoc | null>("undo_mix", { id }),

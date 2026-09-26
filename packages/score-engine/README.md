@@ -2,7 +2,7 @@
 
 Moteur d’édition musicale **phase 2** : `ScoreDocument`, import MIDI, export ABC YuE2, validation de dialecte.
 
-**Ce paquet n’est pas appelé par le premier build (phase 1).** Il peut fusionner sans réécrire l’UI Tauri.
+Branché dans l’app desktop (écran morceau) : import MIDI, piano roll, aperçu ABC, envoi `abc` / `abcPath` à la génération.
 
 ## Rôle
 

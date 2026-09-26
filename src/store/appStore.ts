@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { api } from "../lib/api";
+import type { ScoreDocument } from "../lib/score";
 import type {
   AppSettings,
   FormInput,
@@ -24,6 +25,7 @@ type AppStore = {
   mix: MixDoc | null;
   generations: GenerationSummary[];
   scoreAbc: string | null;
+  scoreDocument: ScoreDocument | null;
   scoreOpen: boolean;
   error: string | null;
   audioPath: string | null;
@@ -34,6 +36,7 @@ type AppStore = {
   openProject: (id: string) => Promise<void>;
   setForm: (patch: Partial<FormInput>) => void;
   setMix: (mix: MixDoc | null) => void;
+  setScoreDocument: (doc: ScoreDocument | null) => void;
   setError: (e: string | null) => void;
   setScoreOpen: (v: boolean) => void;
 };
@@ -50,6 +53,13 @@ const emptyForm = (): FormInput => ({
   seed: null,
 });
 
+function asScoreDocument(raw: unknown): ScoreDocument | null {
+  if (!raw || typeof raw !== "object") return null;
+  const doc = raw as ScoreDocument;
+  if (!Array.isArray(doc.voices) || !Array.isArray(doc.tempoMap)) return null;
+  return doc;
+}
+
 export const useAppStore = create<AppStore>((set, get) => ({
   screen: "splash",
   setScreen: (screen) => set({ screen }),
@@ -62,6 +72,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   mix: null,
   generations: [],
   scoreAbc: null,
+  scoreDocument: null,
   scoreOpen: false,
   error: null,
   audioPath: null,
@@ -94,6 +105,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (project.activeGenerationId) {
       scoreAbc = await api.readScoreAbc(id, project.activeGenerationId);
     }
+    let scoreDocument: ScoreDocument | null = null;
+    try {
+      scoreDocument = asScoreDocument(await api.loadScore(id));
+    } catch {
+      scoreDocument = null;
+    }
     let audioPath: string | null = null;
     try {
       audioPath = await api.renderPreview(id);
@@ -105,6 +122,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       mix,
       generations,
       scoreAbc,
+      scoreDocument,
       audioPath,
       form: {
         title: project.title,
@@ -123,6 +141,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   setForm: (patch) => set({ form: { ...get().form, ...patch } }),
   setMix: (mix) => set({ mix }),
+  setScoreDocument: (scoreDocument) => set({ scoreDocument }),
   setError: (error) => set({ error }),
   setScoreOpen: (scoreOpen) => set({ scoreOpen }),
 }));

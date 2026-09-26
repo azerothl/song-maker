@@ -39,22 +39,23 @@ Load test CUDA — **GPU NVIDIA requis** (Windows cuda12.4 ou Linux cuda12.8-col
 
 Sans `nvidia-smi`, le script se termine en code 2 et **ne déclare pas** un succès CUDA. Voir [`scripts/phase0/README.md`](scripts/phase0/README.md).
 
-## Phase 1 — développement
+## Phase 1–2 — développement
 
 ```bash
-npm install
-npm run tauri dev
+pnpm install
+pnpm run packages:build
+pnpm run tauri dev
 ```
 
 Prérequis : Rust stable, dépendances Linux Tauri, `ffmpeg` avec libsoxr, NVIDIA CUDA pour la génération réelle.
 
-## Paquets monorepo (`packages/`)
+Phase 2 (partition) : import MIDI, piano roll, validation/export ABC YuE2 avant génération. Sans partition utilisateur, le chemin phase 1 (style + paroles) reste inchangé.
 
-Fondations phases 2–4 (non branchées dans l’UI phase 1) :
+## Paquets monorepo (`packages/`)
 
 | Paquet | Phase | Rôle |
 |---|---|---|
-| [`@song-maker/score-engine`](packages/score-engine) | 2 | ScoreDocument, MIDI, export ABC YuE2 |
+| [`@song-maker/score-engine`](packages/score-engine) | 2 | ScoreDocument, MIDI, export ABC YuE2 — **branché dans l’UI** |
 | [`@song-maker/stem-providers`](packages/stem-providers) | 3 | `StemSeparatorProvider`, HTDemucs, stub BS-RoFormer |
 | [`@song-maker/mix-production`](packages/mix-production) | 3 | Automation / effets / sidechain / loudness (stubs) |
 | [`@song-maker/lora-packs`](packages/lora-packs) | 3–4 | Registre LoRA + catalogue styles, porte CC BY-NC |
@@ -66,8 +67,9 @@ Fondations phases 2–4 (non branchées dans l’UI phase 1) :
 pnpm install
 pnpm run packages:test
 pnpm run packages:typecheck
+pnpm test
 ```
 
-## Hors périmètre de ce build
+## Hors périmètre encore stubbé
 
-Piano roll / MIDI / ABC éditable dans l’UI, LoRA avec poids, SheetSage2, worker distant opérationnel, Akasha en production.
+Édition de clips (fondu / trim / move), `stop_after=abc` (audio.cpp ≥ 0.8.2), multi-candidats, MP3, graphe de versions, SheetSage2, worker distant, Akasha.
