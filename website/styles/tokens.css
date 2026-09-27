@@ -1,0 +1,45 @@
+:root {
+  /* Studio sombre + lumière console chaude */
+  --bg-0: #0a0c10;
+  --bg-1: #12151c;
+  --bg-2: #1a1f29;
+  --bg-elevated: #222833;
+  --line: #2e3544;
+  --line-warm: rgba(232, 165, 75, 0.28);
+
+  --text: #f3eee6;
+  --text-soft: #d4cdc2;
+  --muted: #9a9080;
+
+  --console-amber: #e8a54b;
+  --console-warm: #f0c27a;
+  --console-dim: #8a6230;
+  --console-glow: rgba(232, 165, 75, 0.35);
+  --meter-green: #5cb88a;
+  --meter-red: #e07060;
+  --cool-ink: #6a8fad;
+
+  --accent: var(--console-amber);
+  --accent-soft: rgba(232, 165, 75, 0.14);
+  --danger: #e07060;
+  --ok: #5cb88a;
+
+  --font-display: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+  --font-body: var(--font-source-sans), "Source Sans 3", "Segoe UI", sans-serif;
+  --font-mono: var(--font-ibm-plex), "IBM Plex Mono", ui-monospace, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --space-section: clamp(4.5rem, 10vw, 7.5rem);
+  --max-content: 1120px;
+  --nav-h: 4.25rem;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --shadow-console: 0 0 40px rgba(232, 165, 75, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-scale: 0;
+  }
+}

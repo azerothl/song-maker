@@ -1,0 +1,27 @@
+.list {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 44rem;
+}
+
+.item {
+  border-top: 1px solid var(--line);
+  padding: 0.85rem 0;
+}
+
+.item summary {
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  list-style: none;
+}
+
+.item summary::-webkit-details-marker {
+  display: none;
+}
+
+.item p {
+  margin: 0.65rem 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}

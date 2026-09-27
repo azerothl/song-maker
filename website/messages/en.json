@@ -1,0 +1,147 @@
+{
+  "meta": {
+    "title": "Song Maker — local-first music studio",
+    "description": "Generate, edit the score, separate stems, and mix on your GPU. Local desktop with YuE2 — not a cloud Suno clone."
+  },
+  "nav": {
+    "features": "Features",
+    "examples": "Examples",
+    "gallery": "Interface",
+    "docs": "Docs",
+    "download": "Download",
+    "license": "Licenses"
+  },
+  "hero": {
+    "brand": "Song Maker",
+    "headline": "From score to audio, on your machine.",
+    "sentence": "Local-first desktop studio: YuE2, piano roll, stems, and mix — no account required to create.",
+    "ctaDownload": "Download",
+    "ctaDocs": "Read the docs"
+  },
+  "promise": {
+    "eyebrow": "Not a cloud Suno",
+    "title": "Your GPU. Editable score. Zero account.",
+    "body": "Song Maker runs locally with audio.cpp and YuE2 GGUF. You keep control of the score (MIDI, piano roll, ABC), candidates, stems, and mix — before you export."
+  },
+  "features": {
+    "title": "What the app actually does",
+    "body": "A tour aligned with capabilities shipped on main — no marketing promises beyond the engines.",
+    "items": {
+      "yue2": {
+        "title": "YuE2 generation",
+        "body": "Style + lyrics, CoT path (`cot`), local audio.cpp queue."
+      },
+      "score": {
+        "title": "MIDI · piano roll · ABC",
+        "body": "MIDI import, piano-roll editing, YuE2 ABC validation and export."
+      },
+      "candidates": {
+        "title": "Multi-candidate",
+        "body": "Sequential generations and an A/B comparator to pick the take."
+      },
+      "stems": {
+        "title": "Stem separation",
+        "body": "HTDemucs and BS-RoFormer to isolate vocals, drums, bass, other."
+      },
+      "mix": {
+        "title": "Mix, clips, production",
+        "body": "Clip timeline plus production overlay (limiter, loudness)."
+      },
+      "export": {
+        "title": "WAV / FLAC / MP3 export",
+        "body": "Deliver the final mix in the format you need."
+      },
+      "lora": {
+        "title": "Optional LoRAs",
+        "body": "Pack catalog with an explicit CC BY-NC gate — no misleading badge."
+      },
+      "remote": {
+        "title": "Host / remote (phase 4)",
+        "body": "Agent mode and remote GPU worker, with honest guardrails and limits."
+      }
+    }
+  },
+  "examples": {
+    "title": "Listen to excerpts",
+    "body": "Short synthetic demo beds. These are not real YuE2 renders — they exercise the player and waveforms.",
+    "demoBadge": "Synthetic demo",
+    "play": "Play",
+    "pause": "Pause",
+    "items": {
+      "ambient": {
+        "title": "Ambient CoT pad",
+        "meta": "Style: ambient pad · cot · seed n/a"
+      },
+      "piano": {
+        "title": "Piano-roll sketch",
+        "meta": "Simple melodic motif · score demo"
+      },
+      "stems": {
+        "title": "Stem / rhythm bed",
+        "meta": "Kick + bass + lead · separation illustration"
+      },
+      "mix": {
+        "title": "Mix / clips loop",
+        "meta": "Stacked layers · fictional timeline"
+      },
+      "ab": {
+        "title": "Candidate A → B",
+        "meta": "Brightness shift after 2.5 s"
+      }
+    }
+  },
+  "gallery": {
+    "title": "The interface, reconstructed",
+    "body": "Marketing frames inspired by the React UI and maquettes — product-true, not raw screenshots.",
+    "frames": {
+      "splash": "Splash",
+      "library": "Library",
+      "editor": "Song editor",
+      "piano": "Piano roll",
+      "compare": "Comparator",
+      "settings": "Settings"
+    }
+  },
+  "license": {
+    "title": "Licenses — stay honest",
+    "body": "YuE2 / GGUF weights are CC BY-NC 4.0. Song Maker is a personal prototype: no monetization badge, no weight sales, no commercial CC BY-NC claim.",
+    "note": "Optional LoRAs use the same CC BY-NC gate in the app."
+  },
+  "faq": {
+    "title": "Short FAQ",
+    "items": {
+      "gpu": {
+        "q": "Do I need an NVIDIA GPU?",
+        "a": "Yes for real CUDA generation. Phase 0 scripts download without a GPU; the CUDA load-test fails clearly without nvidia-smi."
+      },
+      "suno": {
+        "q": "Is this like Suno?",
+        "a": "No: a local desktop studio with an editable score, stems, and mix. No cloud social feed, no account to create."
+      },
+      "os": {
+        "q": "Windows and Linux?",
+        "a": "Yes — pinned CUDA archives (Windows cuda12.4, Linux cuda12.8-colab). See the install docs."
+      },
+      "commercial": {
+        "q": "Can I monetize outputs?",
+        "a": "GGUF models are CC BY-NC. Do not rely on Song Maker for commercial use."
+      }
+    }
+  },
+  "cta": {
+    "title": "Open the studio.",
+    "body": "Clone the repo, run phase 0, then generate your first song locally.",
+    "download": "Download / clone",
+    "docs": "Start with the docs"
+  },
+  "docs": {
+    "title": "Documentation",
+    "body": "Install, first song, score, mix, remote agent, GPU troubleshooting.",
+    "back": "Back to site",
+    "toc": "Contents"
+  },
+  "footer": {
+    "tagline": "Local-first music studio",
+    "github": "GitHub"
+  }
+}

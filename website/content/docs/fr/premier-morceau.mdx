@@ -1,0 +1,22 @@
+---
+title: Premier morceau
+description: Parcours phase 1 — style, paroles, génération YuE2 locale.
+order: 2
+---
+
+# Premier morceau
+
+Une fois la phase 0 OK et l’app lancée (`pnpm run tauri dev`) :
+
+1. Passez le splash → **Bibliothèque**
+2. Créez un morceau : renseignez **style** + **paroles**
+3. Lancez une génération YuE2 via le serveur local `audiocpp_server` (`max_loaded_models=1`, file FIFO)
+4. Écoutez le candidat, itérez seed / style si besoin
+
+Le chemin phase 1 (style + paroles, CoT `cot`) reste disponible même sans partition utilisateur.
+
+## Conseils
+
+- Commencez en **Q4** pour valider le pipeline GPU
+- Gardez un plafond réaliste : le prototype vise des sessions raisonnables (ordre de grandeur ≤ 30 min mur)
+- Les sorties dépendent des poids **CC BY-NC** — usage personnel / non commercial

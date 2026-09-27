@@ -1,0 +1,147 @@
+{
+  "meta": {
+    "title": "Song Maker — atelier musical local-first",
+    "description": "Générez, éditez la partition, séparez les stems et mixez sur votre GPU. Desktop local avec YuE2 — pas un clone cloud de Suno."
+  },
+  "nav": {
+    "features": "Capacités",
+    "examples": "Exemples",
+    "gallery": "Interface",
+    "docs": "Documentation",
+    "download": "Télécharger",
+    "license": "Licences"
+  },
+  "hero": {
+    "brand": "Song Maker",
+    "headline": "De la partition à l’audio, sur votre machine.",
+    "sentence": "Atelier desktop local-first : YuE2, piano roll, stems et mix — sans compte pour créer.",
+    "ctaDownload": "Télécharger",
+    "ctaDocs": "Voir la doc"
+  },
+  "promise": {
+    "eyebrow": "Pas un Suno cloud",
+    "title": "GPU chez toi. Partition éditable. Zéro compte.",
+    "body": "Song Maker tourne en local avec audio.cpp et YuE2 GGUF. Vous gardez le contrôle de la partition (MIDI, piano roll, ABC), des candidats, des stems et du mix — avant même d’exporter."
+  },
+  "features": {
+    "title": "Ce que fait vraiment l’app",
+    "body": "Tour aligné sur les capacités livrées sur main — pas de promesse marketing hors moteur.",
+    "items": {
+      "yue2": {
+        "title": "Génération YuE2",
+        "body": "Style + paroles, chemin CoT (`cot`), file d’attente locale audio.cpp."
+      },
+      "score": {
+        "title": "MIDI · piano roll · ABC",
+        "body": "Import MIDI, édition piano roll, validation et export ABC YuE2."
+      },
+      "candidates": {
+        "title": "Multi-candidats",
+        "body": "Générations séquentielles et comparateur A/B pour choisir le take."
+      },
+      "stems": {
+        "title": "Séparation stems",
+        "body": "HTDemucs et BS-RoFormer pour isoler voix, batterie, basse, autres."
+      },
+      "mix": {
+        "title": "Mix, clips, production",
+        "body": "Timeline de clips, overlay production (limiteur, loudness)."
+      },
+      "export": {
+        "title": "Export WAV / FLAC / MP3",
+        "body": "Livrez le mix final dans le format dont vous avez besoin."
+      },
+      "lora": {
+        "title": "LoRA optionnels",
+        "body": "Catalogue de packs avec porte explicite CC BY-NC — pas de badge trompeur."
+      },
+      "remote": {
+        "title": "Hôte / remote (phase 4)",
+        "body": "Mode agent et worker GPU distant, avec garde-fous et limites honnêtes."
+      }
+    }
+  },
+  "examples": {
+    "title": "Écouter des extraits",
+    "body": "Lits audio de démonstration (synthèses courtes). Ce ne sont pas des rendus YuE2 réels — utiles pour tester le player et les waveforms.",
+    "demoBadge": "Démo synthétique",
+    "play": "Lecture",
+    "pause": "Pause",
+    "items": {
+      "ambient": {
+        "title": "Pad CoT ambiant",
+        "meta": "Style: ambient pad · cot · seed n/a"
+      },
+      "piano": {
+        "title": "Esquisse piano roll",
+        "meta": "Motif mélodique simple · démo partition"
+      },
+      "stems": {
+        "title": "Lit stems / rythme",
+        "meta": "Kick + basse + lead · illustration séparation"
+      },
+      "mix": {
+        "title": "Boucle mix / clips",
+        "meta": "Couches empilées · timeline fictive"
+      },
+      "ab": {
+        "title": "Candidat A → B",
+        "meta": "Transition de brillance après 2,5 s"
+      }
+    }
+  },
+  "gallery": {
+    "title": "L’interface, reconstituée",
+    "body": "Frames marketing inspirées de l’UI React et des maquettes — cohérentes avec le produit, pas des screenshots bruts.",
+    "frames": {
+      "splash": "Splash",
+      "library": "Bibliothèque",
+      "editor": "Éditeur de morceau",
+      "piano": "Piano roll",
+      "compare": "Comparateur",
+      "settings": "Paramètres"
+    }
+  },
+  "license": {
+    "title": "Licences — rester honnête",
+    "body": "Les poids YuE2 / GGUF sont sous CC BY-NC 4.0. Song Maker est un prototype personnel : pas de badge de monétisation, pas de vente de poids, pas de claim commercial CC BY-NC.",
+    "note": "Les LoRA optionnels passent par la même porte CC BY-NC dans l’app."
+  },
+  "faq": {
+    "title": "FAQ courte",
+    "items": {
+      "gpu": {
+        "q": "Faut-il un GPU NVIDIA ?",
+        "a": "Oui pour la génération CUDA réelle. Les scripts phase 0 téléchargent sans GPU ; le load-test CUDA échoue clairement sans nvidia-smi."
+      },
+      "suno": {
+        "q": "C’est comme Suno ?",
+        "a": "Non : atelier desktop local avec partition éditable, stems et mix. Pas de flux social cloud ni de compte pour créer."
+      },
+      "os": {
+        "q": "Windows et Linux ?",
+        "a": "Oui — archives CUDA épinglées (Windows cuda12.4, Linux cuda12.8-colab). Voir la doc d’install."
+      },
+      "commercial": {
+        "q": "Puis-je monétiser les sorties ?",
+        "a": "Les modèles GGUF sont CC BY-NC. Ne comptez pas sur un usage commercial via Song Maker."
+      }
+    }
+  },
+  "cta": {
+    "title": "Ouvrez l’atelier.",
+    "body": "Clonez le dépôt, lancez phase 0, puis générez votre premier morceau en local.",
+    "download": "Télécharger / clone",
+    "docs": "Commencer par la doc"
+  },
+  "docs": {
+    "title": "Documentation",
+    "body": "Install, premier morceau, partition, mix, agent remote, dépannage GPU.",
+    "back": "Retour au site",
+    "toc": "Sommaire"
+  },
+  "footer": {
+    "tagline": "Atelier musical local-first",
+    "github": "GitHub"
+  }
+}
