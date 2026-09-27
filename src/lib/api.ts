@@ -7,6 +7,7 @@ import type {
   JobStatus,
   LibraryRow,
   MixDoc,
+  Phase3Status,
   PlaybackSources,
   ProjectDoc,
 } from "./types";
@@ -16,6 +17,7 @@ export const api = {
   getSettings: () => invoke<AppSettings>("get_settings"),
   updateSettings: (settings: AppSettings) =>
     invoke<AppSettings>("update_settings", { settings }),
+  getPhase3Status: () => invoke<Phase3Status>("get_phase3_status"),
   confirmModelPack: (pack: string) =>
     invoke<AppSettings>("confirm_model_pack", { pack }),
   listProjects: (query?: string) =>

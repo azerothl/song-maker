@@ -33,6 +33,36 @@ impl AudioCppServer {
         let config_path = bin_dir.join("audiocpp-server.json");
         let yue2 = yue2_dir(&cache);
         let htd = htdemucs_path(&cache);
+        let mut models = vec![
+            json!({
+                "id": "yue2",
+                "family": "yue2",
+                "path": yue2.display().to_string(),
+                "task": "gen",
+                "mode": "offline",
+                "busy_timeout_ms": YUE2_BUSY_TIMEOUT_MS
+            }),
+            json!({
+                "id": "htdemucs",
+                "family": "htdemucs",
+                "path": htd.display().to_string(),
+                "task": "sep",
+                "mode": "offline",
+                "busy_timeout_ms": HTDEMUCS_BUSY_TIMEOUT_MS
+            }),
+        ];
+        // BS-RoFormer only when the optional GGUF is on disk (hors installeur).
+        let bs_path = crate::paths::bs_roformer_path(&cache);
+        if bs_path.is_file() {
+            models.push(json!({
+                "id": "bs_roformer",
+                "family": "bs_roformer",
+                "path": bs_path.display().to_string(),
+                "task": "sep",
+                "mode": "offline",
+                "busy_timeout_ms": HTDEMUCS_BUSY_TIMEOUT_MS
+            }));
+        }
         let cfg = json!({
             "host": settings.server_host,
             "port": settings.server_port,
@@ -42,24 +72,7 @@ impl AudioCppServer {
             "max_loaded_models": MAX_LOADED_MODELS,
             "idle_unload_ms": 0,
             "busy_timeout_ms": BUSY_TIMEOUT_MS,
-            "models": [
-                {
-                    "id": "yue2",
-                    "family": "yue2",
-                    "path": yue2.display().to_string(),
-                    "task": "gen",
-                    "mode": "offline",
-                    "busy_timeout_ms": YUE2_BUSY_TIMEOUT_MS
-                },
-                {
-                    "id": "htdemucs",
-                    "family": "htdemucs",
-                    "path": htd.display().to_string(),
-                    "task": "sep",
-                    "mode": "offline",
-                    "busy_timeout_ms": HTDEMUCS_BUSY_TIMEOUT_MS
-                }
-            ]
+            "models": models
         });
         crate::paths::atomic_write_json(&config_path, &cfg)?;
         Ok(config_path)

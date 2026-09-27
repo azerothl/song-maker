@@ -12,7 +12,8 @@ use crate::mix::{
 };
 use crate::models::*;
 use crate::paths::{
-    atomic_write_json, default_cache_dir, ensure_dir, next_folder_id, now_iso, projects_root,
+    atomic_write_json, default_cache_dir, ensure_dir, htdemucs_path, next_folder_id, now_iso,
+    projects_root,
 };
 use crate::pins::*;
 use crate::queue::JobQueue;
@@ -68,8 +69,41 @@ pub fn get_settings() -> Result<AppSettings, String> {
 
 #[tauri::command]
 pub fn update_settings(settings: AppSettings) -> Result<AppSettings, String> {
-    save_settings(&settings)?;
-    Ok(settings)
+    let mut s = settings;
+    s.stem_separator = normalize_stem_separator(&s.stem_separator).to_string();
+    if s.stem_separator == "bs_roformer" {
+        let cache = PathBuf::from(&s.cache_dir);
+        if !crate::paths::bs_roformer_weights_present(&cache) {
+            return Err(
+                "Impossible d’activer BS-RoFormer : GGUF absent du cache (hors installeur)."
+                    .into(),
+            );
+        }
+    }
+    save_settings(&s)?;
+    Ok(s)
+}
+
+#[tauri::command]
+pub fn get_phase3_status() -> Result<Phase3Status, String> {
+    let settings = load_settings().unwrap_or_else(|_| default_settings());
+    let cache = PathBuf::from(&settings.cache_dir);
+    let bs_present = crate::paths::bs_roformer_weights_present(&cache);
+    Ok(Phase3Status {
+        stem_separator: normalize_stem_separator(&settings.stem_separator).to_string(),
+        htdemucs_available: htdemucs_path(&cache).is_file(),
+        bs_roformer_available: bs_present,
+        bs_roformer_path: crate::paths::bs_roformer_path(&cache)
+            .display()
+            .to_string(),
+        cc_by_nc_accepted: settings.cc_by_nc_accepted,
+        guitar_piano_available: false,
+        honesty_fr: if normalize_stem_separator(&settings.stem_separator) == "bs_roformer" {
+            "BS-RoFormer : voix + instrumental seulement. Batterie, basse, guitare et piano indisponibles.".into()
+        } else {
+            "HTDemucs : quatre stems. Guitare et piano non exposés par audio.cpp.".into()
+        },
+    })
 }
 
 #[tauri::command]
@@ -562,6 +596,21 @@ pub async fn start_separation(
     resample_soxr(&gen_wav, &input_44100, SEPARATOR_SAMPLE_RATE)?;
 
     let settings = load_settings()?;
+    let separator = normalize_stem_separator(&settings.stem_separator);
+    if separator == "bs_roformer" {
+        let cache = PathBuf::from(&settings.cache_dir);
+        if !crate::paths::bs_roformer_weights_present(&cache) {
+            return Err(
+                "BS-RoFormer sélectionné mais le GGUF est absent du cache. \
+                 Téléchargez bs-roformer-ep368-q8_0.gguf (hors installeur) \
+                 ou revenez à HTDemucs dans Paramètres → Production audio."
+                    .into(),
+            );
+        }
+        // Reload server config so bs_roformer is registered.
+        state.server.shutdown();
+    }
+
     let server_url = state.server.ensure_started(&settings)?;
     let queue = state.queue.clone();
     let queue_ref = queue.clone();
@@ -569,6 +618,7 @@ pub async fn start_separation(
     let sep_dir_clone = sep_dir.clone();
     let input_44100_clone = input_44100.clone();
     let project_id_for_job = id.clone();
+    let model_id = separator.to_string();
 
     queue
         .run_exclusive(
@@ -584,7 +634,7 @@ pub async fn start_separation(
                 // avec `audio` = chemin WAV 44,1 kHz. Les stems reviennent en
                 // `named_audio_outputs` (base64), pas via out_dir.
                 let body = json!({
-                    "model": "htdemucs",
+                    "model": model_id,
                     "request": {
                         "audio": input_44100_clone.display().to_string()
                     }
@@ -602,9 +652,39 @@ pub async fn start_separation(
 
     state.queue.set_state("importing_tracks", "Import des pistes", Some(id.clone()));
 
-    let stems_44100 = ["vocals", "drums", "bass", "other"];
+    let (family, package, gguf, sha, roles, warnings) = match separator {
+        "bs_roformer" => (
+            "bs_roformer",
+            BS_ROFORMER_PACKAGE,
+            BS_ROFORMER_GGUF,
+            BS_ROFORMER_SHA,
+            &["vocals", "other"][..],
+            vec![
+                "estimated-separation".into(),
+                "bs-roformer-vocals-instrumental-only".into(),
+                "drums-bass-guitar-piano-unavailable".into(),
+            ],
+        ),
+        _ => (
+            "htdemucs",
+            HTDEMUCS_PACKAGE,
+            HTDEMUCS_GGUF,
+            HTDEMUCS_SHA,
+            &["vocals", "drums", "bass", "other"][..],
+            vec![
+                "estimated-separation".into(),
+                "guitar-piano-unavailable".into(),
+            ],
+        ),
+    };
+
+    // BS-RoFormer writes instrumental.wav — alias to other before lookup.
+    if separator == "bs_roformer" {
+        alias_instrumental_to_other(&sep_dir)?;
+    }
+
     let mut stem_meta = Vec::new();
-    for role in stems_44100 {
+    for role in roles {
         let raw = find_stem_file(&sep_dir, role)?;
         let dest_44100 = sep_dir.join(format!("{role}-44100.wav"));
         if raw != dest_44100 {
@@ -612,16 +692,20 @@ pub async fn start_separation(
         }
         let dest_48000 = sep_dir.join(format!("{role}-48000.wav"));
         resample_soxr(&dest_44100, &dest_48000, SAMPLE_RATE)?;
-        // Ensure stereo without +3 dB: already handled if ffmpeg keeps channels; mono duplicated in mix reader
-        let sha = sha256_file(&dest_48000)?;
+        let sha_stem = sha256_file(&dest_48000)?;
         let dur = wav_duration_ms(&dest_48000).unwrap_or(0);
         stem_meta.push((
             role.to_string(),
             PathBuf::from(format!("separations/{sep_id}/{role}-48000.wav")),
-            sha,
+            sha_stem,
             dur,
         ));
     }
+
+    let unavailable: Vec<&str> = match separator {
+        "bs_roformer" => vec!["drums", "bass", "guitar", "piano"],
+        _ => vec!["guitar", "piano"],
+    };
 
     let sep_json = json!({
         "schema": SCHEMA_SEPARATION,
@@ -629,10 +713,10 @@ pub async fn start_separation(
         "id": sep_id,
         "generationId": gen_id,
         "provider": "audiocpp",
-        "family": "htdemucs",
-        "package": HTDEMUCS_PACKAGE,
-        "gguf": HTDEMUCS_GGUF,
-        "sha256": HTDEMUCS_SHA,
+        "family": family,
+        "package": package,
+        "gguf": gguf,
+        "sha256": sha,
         "inputSha256": input_sha,
         "separatorInput": {
             "path": "input-44100.wav",
@@ -644,12 +728,12 @@ pub async fn start_separation(
             "path": path.file_name().unwrap().to_string_lossy(),
             "sha256": sha
         })).collect::<Vec<_>>(),
-        "warnings": ["estimated-separation"]
+        "unavailableRoles": unavailable,
+        "warnings": warnings
     });
     atomic_write_json(&sep_dir.join("separation.json"), &sep_json)?;
 
     let mix_id = next_folder_id(&folder.join("mixes"), "mix-v")?;
-    // next_folder_id uses prefix "mix-v" → mix-v001
     let mix = new_mix_from_separation(&mix_id, &sep_id, &stem_meta);
     atomic_write_json(&folder.join("mixes").join(format!("{mix_id}.json")), &mix)?;
 
@@ -1133,6 +1217,26 @@ fn find_stem_file(dir: &Path, role: &str) -> Result<PathBuf, String> {
     Err(format!(
         "Stem inconnu ou manquant après séparation : {role}"
     ))
+}
+
+fn normalize_stem_separator(raw: &str) -> &'static str {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "bs_roformer" | "bs-roformer" | "bsroformer" => "bs_roformer",
+        _ => "htdemucs",
+    }
+}
+
+/// BS-RoFormer emits `instrumental.wav` — copy/alias so find_stem_file("other") works.
+fn alias_instrumental_to_other(sep_dir: &Path) -> Result<(), String> {
+    let instrumental = find_stem_file(sep_dir, "instrumental").ok();
+    let other_exists = find_stem_file(sep_dir, "other").is_ok();
+    if let Some(src) = instrumental {
+        if !other_exists {
+            let dest = sep_dir.join("other.wav");
+            std::fs::copy(&src, &dest).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
 }
 
 fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {

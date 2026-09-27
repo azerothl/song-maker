@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
 import { CandidateCompare } from "../components/CandidateCompare";
 import { ClipTimeline } from "../components/ClipTimeline";
+import { Phase3MixPanel } from "../components/Phase3MixPanel";
 import { ScorePanel } from "../components/ScorePanel";
 import { VersionGraph } from "../components/VersionGraph";
 import { Waveform } from "../components/Waveform";
@@ -587,6 +588,8 @@ export function SongScreen() {
         ) : (
           <p className="hint">Stéréo — lancez la séparation pour les quatre pistes.</p>
         )}
+
+        <Phase3MixPanel mix={mix} />
 
         <details
           open={scoreOpen}

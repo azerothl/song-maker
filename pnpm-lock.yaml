@@ -8,9 +8,18 @@ importers:
 
   .:
     dependencies:
+      '@song-maker/lora-packs':
+        specifier: workspace:*
+        version: link:packages/lora-packs
+      '@song-maker/mix-production':
+        specifier: workspace:*
+        version: link:packages/mix-production
       '@song-maker/score-engine':
         specifier: workspace:*
         version: link:packages/score-engine
+      '@song-maker/stem-providers':
+        specifier: workspace:*
+        version: link:packages/stem-providers
       '@tauri-apps/api':
         specifier: ^2
         version: 2.12.0

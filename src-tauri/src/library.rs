@@ -204,6 +204,8 @@ pub fn default_settings() -> AppSettings {
         server_host: DEFAULT_HOST.into(),
         server_port: DEFAULT_PORT,
         output_device: None,
+        stem_separator: DEFAULT_STEM_SEPARATOR.into(),
+        cc_by_nc_accepted: false,
     }
 }
 

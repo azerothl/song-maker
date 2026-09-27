@@ -16,6 +16,18 @@ export default defineConfig(() => ({
         rootDir,
         "packages/score-engine/src/index.ts",
       ),
+      "@song-maker/stem-providers": path.resolve(
+        rootDir,
+        "packages/stem-providers/src/index.ts",
+      ),
+      "@song-maker/mix-production": path.resolve(
+        rootDir,
+        "packages/mix-production/src/index.ts",
+      ),
+      "@song-maker/lora-packs": path.resolve(
+        rootDir,
+        "packages/lora-packs/src/index.ts",
+      ),
     },
   },
 

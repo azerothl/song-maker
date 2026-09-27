@@ -13,6 +13,8 @@ const TRACK_ROLES: &[(&str, &str)] = &[
     ("drums", "Batterie"),
     ("bass", "Basse"),
     ("other", "Accompagnement"),
+    ("guitar", "Guitare"),
+    ("piano", "Piano"),
 ];
 
 pub fn new_mix_from_separation(
@@ -21,29 +23,33 @@ pub fn new_mix_from_separation(
     stem_paths: &[(String, PathBuf, String, i64)],
 ) -> MixDoc {
     let mut tracks = Vec::new();
-    for (role, name) in TRACK_ROLES {
-        let (path, sha, dur) = stem_paths
+    // Only materialize tracks for stems that were actually produced.
+    for (role, path, sha, dur) in stem_paths {
+        if path.as_os_str().is_empty() {
+            continue;
+        }
+        let name = TRACK_ROLES
             .iter()
-            .find(|(r, _, _, _)| r == role)
-            .map(|(_, p, s, d)| (p.display().to_string(), s.clone(), *d))
-            .unwrap_or_else(|| (String::new(), String::new(), 0));
+            .find(|(r, _)| r == role)
+            .map(|(_, n)| (*n).to_string())
+            .unwrap_or_else(|| role.clone());
         let track_id = format!("trk-{role}");
         let clip = Clip {
             id: format!("clip-{}", Uuid::new_v4()),
             track_id: track_id.clone(),
-            source_path: path,
-            source_sha256: sha,
+            source_path: path.display().to_string(),
+            source_sha256: sha.clone(),
             start_ms: 0,
             offset_ms: 0,
-            duration_ms: dur,
+            duration_ms: *dur,
             gain_db: 0.0,
             fade_in_ms: 0,
             fade_out_ms: 0,
         };
         tracks.push(MixTrack {
             id: track_id,
-            role: (*role).into(),
-            name: (*name).into(),
+            role: role.clone(),
+            name,
             gain_db: 0.0,
             pan: 0.0,
             mute: false,

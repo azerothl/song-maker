@@ -42,6 +42,17 @@ pub fn htdemucs_path(cache: &Path) -> PathBuf {
         .join(crate::pins::HTDEMUCS_GGUF)
 }
 
+pub fn bs_roformer_path(cache: &Path) -> PathBuf {
+    cache
+        .join("models")
+        .join("bs_roformer")
+        .join(crate::pins::BS_ROFORMER_GGUF)
+}
+
+pub fn bs_roformer_weights_present(cache: &Path) -> bool {
+    bs_roformer_path(cache).is_file()
+}
+
 pub fn pinned_archive_name() -> &'static str {
     if cfg!(target_os = "windows") {
         ARCHIVE_WINDOWS

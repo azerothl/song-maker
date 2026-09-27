@@ -25,6 +25,7 @@ pub fn run() {
             commands::get_health,
             commands::get_settings,
             commands::update_settings,
+            commands::get_phase3_status,
             commands::confirm_model_pack,
             commands::list_projects,
             commands::create_project,

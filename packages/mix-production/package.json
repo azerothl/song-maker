@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Phase 3 — mix automation, effects, sidechain, loudness stubs (no DSP)",
+  "description": "Phase 3 — mix automation, limiter/compressor, sidechain ducking, loudness meter",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

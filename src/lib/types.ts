@@ -116,6 +116,20 @@ export type AppSettings = {
   serverHost: string;
   serverPort: number;
   outputDevice?: string | null;
+  /** Phase 3: `htdemucs` (default) | `bs_roformer` */
+  stemSeparator?: string;
+  /** CC BY-NC gate for optional LoRA packs */
+  ccByNcAccepted?: boolean;
+};
+
+export type Phase3Status = {
+  stemSeparator: string;
+  htdemucsAvailable: boolean;
+  bsRoformerAvailable: boolean;
+  bsRoformerPath: string;
+  ccByNcAccepted: boolean;
+  guitarPianoAvailable: boolean;
+  honestyFr: string;
 };
 
 export type HealthSnapshot = {

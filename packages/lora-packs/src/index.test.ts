@@ -5,7 +5,9 @@ import {
   gateLoraPackAccess,
   getLoraPack,
   listStyleLoraPacks,
+  planOptionalLoraDownload,
   requestOptionalLoraDownload,
+  statusForLoraPack,
 } from "./index.js";
 
 describe("lora-packs registry", () => {
@@ -66,5 +68,24 @@ describe("lora-packs registry", () => {
       "yue2.ar_lora": "/cache/chnsn_ar.safetensors",
       "yue2.nar_lora": "/cache/chnsn_nar.safetensors",
     });
+  });
+
+  it("plans opt-in HF downloads without shipping weights", () => {
+    const planned = planOptionalLoraDownload("mothersuperior-instrumental-ar", {
+      ccByNcAccepted: true,
+      allowCommercialRedistribution: false,
+    });
+    expect(planned.ok).toBe(true);
+    if (planned.ok && planned.plan) {
+      expect(planned.plan.files[0]?.url).toContain("huggingface.co/");
+      expect(planned.plan.files[0]?.relativeCachePath).toContain("models/lora/");
+      expect(planned.pack.includedInFirstBuildInstaller).toBe(false);
+    }
+    const status = statusForLoraPack(
+      getLoraPack("mothersuperior-instrumental-ar")!,
+      new Set(),
+    );
+    expect(status.installed).toBe(false);
+    expect(status.missingFiles.length).toBeGreaterThan(0);
   });
 });

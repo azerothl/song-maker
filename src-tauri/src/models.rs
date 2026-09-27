@@ -121,6 +121,29 @@ pub struct AppSettings {
     pub server_host: String,
     pub server_port: u16,
     pub output_device: Option<String>,
+    /// Phase 3: `htdemucs` (default) or `bs_roformer` when GGUF is present.
+    #[serde(default = "default_stem_separator")]
+    pub stem_separator: String,
+    /// CC BY-NC acceptance for optional LoRA packs (phase 3).
+    #[serde(default)]
+    pub cc_by_nc_accepted: bool,
+}
+
+fn default_stem_separator() -> String {
+    crate::pins::DEFAULT_STEM_SEPARATOR.to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Phase3Status {
+    pub stem_separator: String,
+    pub htdemucs_available: bool,
+    pub bs_roformer_available: bool,
+    pub bs_roformer_path: String,
+    pub cc_by_nc_accepted: bool,
+    /// Always false until a provider actually emits guitar/piano.
+    pub guitar_piano_available: bool,
+    pub honesty_fr: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
