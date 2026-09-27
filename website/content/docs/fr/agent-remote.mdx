@@ -1,23 +1,14 @@
 ---
 title: Agent / remote
-description: Mode hôte, worker GPU distant et limites honnêtes (phase 4).
+description: Statut actuel du mode de travail distant.
 order: 5
 ---
 
 # Agent / remote
 
-La phase 4 introduit collaboration agent et worker GPU distant (`@song-maker/remote-worker`), plus notes Akasha/DeclUI.
+Le mode worker distant n’est pas une fonctionnalité disponible. Le contrôle présent dans certaines interfaces est un prototype : il place encore le travail dans la file locale et n’envoie aucune requête réseau. Utilisez le parcours local documenté dans ce site.
 
 ## Garde-fous
 
-- Prototype personnel — pas un SaaS multi-tenant
-- Limites et permissions doivent rester **explicites** (pas de contournement silencieux)
-- Invariants de partition (`@song-maker/partition-invariants`) pour garder la cohérence score ↔ audio
-
-## Ce qui n’est pas promis
-
-- Disponibilité cloud garantie
-- File d’attente publique
-- Monetisation ou hébergement de poids CC BY-NC
-
-Utilisez le mode remote seulement si vous contrôlez le worker et acceptez les limites documentées dans l’app.
+- Les modèles nécessaires doivent être installés sur la machine
+- La génération et le traitement du parcours principal s’exécutent localement

@@ -1,31 +1,150 @@
 {
   "meta": {
     "title": "Song Maker — local-first music studio",
-    "description": "Generate, edit the score, separate stems, and mix on your GPU. Local desktop with YuE2 — not a cloud Suno clone."
+    "description": "Generate a take with YuE2, separate tracks with HTDemucs, adjust the mix, and export locally with Song Maker."
+  },
+  "landing": {
+    "eyebrow": "Create · separate · compose · locally",
+    "headline": "Shape your song. Keep it on your computer.",
+    "intro": "Start with a style and lyrics. YuE2 generates a stereo take on your machine; HTDemucs separates the tracks so you can adjust the mix and export your files.",
+    "installCta": "Read the setup guide",
+    "pathCta": "Explore the workflow",
+    "localNote": "Generation and audio work happen on your computer",
+    "diagram": {
+      "kicker": "The workflow at a glance",
+      "title": "From words to mix",
+      "inputLabel": "Start with",
+      "inputStyle": "A musical style",
+      "inputLyrics": "Your lyrics",
+      "renderLabel": "One stereo take",
+      "model": "YuE2",
+      "stereo": "on your GPU",
+      "stemsLabel": "Separated tracks · current example",
+      "stems": {
+        "voice": "Vocals",
+        "drums": "Drums",
+        "bass": "Bass",
+        "other": "Other"
+      },
+      "caption": "Workflow diagram — this is not a screenshot of the application.",
+      "caveat": "Four stems are the current default · output beyond that is being tested."
+    },
+    "facts": {
+      "generation": "YuE2 runs on your NVIDIA GPU",
+      "separation": "HTDemucs separates the take into stems",
+      "privacy": "Projects and exports stay on your computer"
+    },
+    "process": {
+      "eyebrow": "Your creative workflow",
+      "title": "An idea becomes a starting point",
+      "intro": "Keep control of the lyrics, generated takes, and mix from the first try through export.",
+      "steps": {
+        "idea": {
+          "title": "Set your direction",
+          "body": "Choose a style and write the lyrics that guide generation. A requested duration is a target, not an exact promise."
+        },
+        "generation": {
+          "title": "Generate a take",
+          "body": "YuE2 creates a stereo render locally through audio.cpp. Generate multiple takes and compare them."
+        },
+        "separation": {
+          "title": "Work on the mix",
+          "body": "Separate the take with HTDemucs, adjust the tracks and mix, then export in the format you need."
+        }
+      }
+    },
+    "capabilities": {
+      "eyebrow": "Inside the app",
+      "title": "Tools to shape the result",
+      "intro": "A local studio that takes you from generation through editing and export, with production tools available in the application.",
+      "items": {
+        "generation": {
+          "title": "YuE2 generation",
+          "body": "Create a take from a style and lyrics using models stored on your computer."
+        },
+        "score": {
+          "title": "Editable score",
+          "body": "Import a MIDI, edit notes in the piano roll, and prepare a score for generation."
+        },
+        "takes": {
+          "title": "Multiple takes",
+          "body": "Run sequential generations and compare renders to choose a starting point."
+        },
+        "mix": {
+          "title": "Tracks and mix",
+          "body": "Separate stems, work with clips, and adjust levels before export."
+        },
+        "export": {
+          "title": "Audio exports",
+          "body": "Save your mix as WAV, FLAC, or MP3 for your workflow."
+        }
+      }
+    },
+    "setup": {
+      "eyebrow": "Before you start",
+      "title": "Your computer runs the studio.",
+      "intro": "Song Maker is a desktop app. Setup downloads the required executables and models; plan for disk space and a compatible graphics card.",
+      "link": "Read the setup guide",
+      "systemLabel": "Systems",
+      "systems": "Windows or Linux",
+      "gpuLabel": "AI acceleration",
+      "gpu": "NVIDIA GPU · CUDA",
+      "licenseLabel": "YuE2 weights license",
+      "license": "CC BY-NC 4.0",
+      "licenseNote": "This license restricts commercial use. Review the model terms before using them in a commercial project."
+    },
+    "faq": {
+      "eyebrow": "Practical questions",
+      "title": "Before you get started",
+      "link": "Browse the documentation",
+      "items": {
+        "stems": {
+          "question": "Is output limited to four stems?",
+          "answer": "The current HTDemucs output defaults to four stems. We are testing whether separation can produce more; the outcome of those tests is not yet established."
+        },
+        "local": {
+          "question": "Are my songs sent to the cloud?",
+          "answer": "Generation and audio processing in the main workflow run on your computer with local models. No account or cloud generation service is required."
+        },
+        "hardware": {
+          "question": "What computer do I need?",
+          "answer": "The app targets Windows and Linux with an NVIDIA GPU and CUDA. Check the setup guide for versions and dependencies for your configuration."
+        },
+        "license": {
+          "question": "Can I use YuE2 in a commercial project?",
+          "answer": "The YuE2/GGUF weights listed by the project use the CC BY-NC 4.0 license. It restricts commercial use; review the terms before commercial use."
+        }
+      }
+    },
+    "closing": {
+      "eyebrow": "Get started",
+      "title": "Check your setup first.",
+      "body": "The guide walks you through local installation one step at a time."
+    }
   },
   "nav": {
     "features": "Features",
-    "examples": "Examples",
-    "gallery": "Interface",
-    "docs": "Docs",
-    "download": "Download",
-    "license": "Licenses"
+    "examples": "Workflow",
+    "gallery": "Setup",
+    "docs": "Guide",
+    "download": "GitHub",
+    "license": "Details"
   },
   "hero": {
     "brand": "Song Maker",
-    "headline": "From score to audio, on your machine.",
-    "sentence": "Local-first desktop studio: YuE2, piano roll, stems, and mix — no account required to create.",
-    "ctaDownload": "Download",
-    "ctaDocs": "Read the docs"
+    "headline": "Shape your song. Keep it on your computer.",
+    "sentence": "YuE2 generates a take from a style and lyrics. Separate tracks, adjust the mix, and export on your computer.",
+    "ctaDownload": "View the project",
+    "ctaDocs": "Read the guide"
   },
   "promise": {
-    "eyebrow": "Not a cloud Suno",
-    "title": "Your GPU. Editable score. Zero account.",
-    "body": "Song Maker runs locally with audio.cpp and YuE2 GGUF. You keep control of the score (MIDI, piano roll, ABC), candidates, stems, and mix — before you export."
+    "eyebrow": "Make music on your computer",
+    "title": "A starting take to work with, locally.",
+    "body": "From a style and lyrics, Song Maker generates a take with YuE2 through audio.cpp, separates tracks with HTDemucs, and lets you work on the mix before export."
   },
   "features": {
-    "title": "What the app actually does",
-    "body": "A tour aligned with capabilities shipped on main — no marketing promises beyond the engines.",
+    "title": "Tools available in the application",
+    "body": "Generate, edit, compare takes, separate tracks, and export from your computer.",
     "items": {
       "yue2": {
         "title": "YuE2 generation",
@@ -41,7 +160,7 @@
       },
       "stems": {
         "title": "Stem separation",
-        "body": "HTDemucs and BS-RoFormer to isolate vocals, drums, bass, other."
+        "body": "Current HTDemucs output defaults to four stems; capability beyond that is being tested."
       },
       "mix": {
         "title": "Mix, clips, production",
@@ -56,14 +175,14 @@
         "body": "Pack catalog with an explicit CC BY-NC gate — no misleading badge."
       },
       "remote": {
-        "title": "Host / remote (phase 4)",
-        "body": "Agent mode and remote GPU worker, with honest guardrails and limits."
+        "title": "Remote GPU worker (unavailable)",
+        "body": "The prototype control still queues work locally and does not send a network request."
       }
     }
   },
   "examples": {
     "title": "Listen to excerpts",
-    "body": "Short synthetic demo beds. These are not real YuE2 renders — they exercise the player and waveforms.",
+    "body": "These are synthetic player demos; none is presented as a real YuE2 render.",
     "demoBadge": "Synthetic demo",
     "play": "Play",
     "pause": "Pause",
@@ -91,8 +210,8 @@
     }
   },
   "gallery": {
-    "title": "The interface, reconstructed",
-    "body": "Marketing frames inspired by the React UI and maquettes — product-true, not raw screenshots.",
+    "title": "Workflow diagrams",
+    "body": "Design illustrations explain the steps; they do not show the real application interface.",
     "frames": {
       "splash": "Splash",
       "library": "Library",
@@ -136,7 +255,7 @@
   },
   "docs": {
     "title": "Documentation",
-    "body": "Install, first song, score, mix, remote agent, GPU troubleshooting.",
+    "body": "Installation, first song, score, track separation, mix, and GPU troubleshooting.",
     "back": "Back to site",
     "toc": "Contents"
   },

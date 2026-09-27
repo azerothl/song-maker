@@ -5,7 +5,7 @@ import { Link, usePathname } from "@/i18n/navigation";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import styles from "./SiteHeader.module.css";
 
-const DOWNLOAD_URL = "https://github.com/azerothl/song-maker";
+const SOURCE_URL = "https://github.com/azerothl/song-maker";
 
 export function SiteHeader() {
   const t = useTranslations("nav");
@@ -22,16 +22,16 @@ export function SiteHeader() {
           {!onDocs ? (
             <>
               <a href="#features">{t("features")}</a>
-              <a href="#examples">{t("examples")}</a>
-              <a href="#gallery">{t("gallery")}</a>
-              <a href="#license">{t("license")}</a>
+              <a href="#parcours">{t("examples")}</a>
+              <a href="#configuration">{t("gallery")}</a>
+              <a href="#resources">{t("license")}</a>
             </>
           ) : null}
           <Link href="/docs">{t("docs")}</Link>
         </nav>
         <div className={styles.actions}>
           <LocaleSwitcher />
-          <a className="btn btn-primary" href={DOWNLOAD_URL} target="_blank" rel="noreferrer">
+          <a className="btn btn-primary" href={SOURCE_URL} target="_blank" rel="noreferrer">
             {t("download")}
           </a>
         </div>

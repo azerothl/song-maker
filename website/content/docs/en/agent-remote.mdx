@@ -1,23 +1,14 @@
 ---
 title: Agent / remote
-description: Host mode, remote GPU worker, and honest limits (phase 4).
+description: Current status of remote processing.
 order: 5
 ---
 
 # Agent / remote
 
-Phase 4 introduces agent collaboration and a remote GPU worker (`@song-maker/remote-worker`), plus Akasha/DeclUI notes.
+Remote GPU processing is not an available feature. The control present in some interfaces is a prototype: it still queues work locally and does not send a network request. Use the local workflow documented on this site.
 
 ## Guardrails
 
-- Personal prototype — not a multi-tenant SaaS
-- Limits and permissions stay **explicit** (no silent bypass)
-- Partition invariants (`@song-maker/partition-invariants`) keep score ↔ audio coherent
-
-## What is not promised
-
-- Guaranteed cloud availability
-- Public queue
-- Monetization or hosting of CC BY-NC weights
-
-Use remote mode only when you control the worker and accept the limits documented in the app.
+- The required models must be installed on the computer
+- The main generation and audio processing workflow runs locally
