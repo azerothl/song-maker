@@ -1,9 +1,11 @@
 use crate::audiocpp::AudioCppServer;
-use crate::form::{guidance_scale, validate_draft_form, validate_form, validate_title};
+use crate::form::{
+    guidance_scale, validate_draft_form, validate_form, validate_target_duration, validate_title,
+};
 use crate::hashutil::{normalize_seed, random_seed, sha256_file};
 use crate::library::{
-    default_settings, delete_library_row, load_project, load_settings, project_folder, save_project,
-    save_settings, upsert_library_row, list_library,
+    default_settings, delete_library_row, list_library, load_project, load_settings, project_folder,
+    save_project, save_settings, upsert_library_row,
 };
 use crate::mix::{
     export_flac, new_mix_from_separation, render_mix, wav_duration_ms, write_export_json,
@@ -125,6 +127,7 @@ pub fn create_project(input: CreateProjectInput) -> Result<ProjectDoc, String> {
         tempo_bpm: None,
         key: None,
         meter: None,
+        target_duration_sec: DURATION_SEC_DEFAULT,
         active_generation_id: None,
         active_separation_id: None,
         active_mix_id: None,
@@ -163,6 +166,8 @@ pub fn save_project_form(id: String, form: FormInput) -> Result<ProjectDoc, Stri
     doc.tempo_bpm = form.tempo_bpm;
     doc.key = form.key;
     doc.meter = form.meter;
+    doc.target_duration_sec = validate_target_duration(form.target_duration_sec)
+        .map_err(|e| e.to_string())?;
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
     upsert_library_row(&LibraryRow {
@@ -261,6 +266,9 @@ pub async fn start_generation(
     abc: Option<String>,
 ) -> Result<ProjectDoc, String> {
     let style_sent = validate_form(&form).map_err(|e| e.to_string())?;
+    let target_duration_sec =
+        validate_target_duration(form.target_duration_sec).map_err(|e| e.to_string())?;
+    let semantic_max_tokens = semantic_max_tokens_for_duration(target_duration_sec);
     let abc_trimmed = abc
         .as_ref()
         .map(|s| s.trim().to_string())
@@ -280,6 +288,7 @@ pub async fn start_generation(
     doc.tempo_bpm = form.tempo_bpm;
     doc.key = form.key.clone();
     doc.meter = form.meter.clone();
+    doc.target_duration_sec = target_duration_sec;
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
 
@@ -334,7 +343,9 @@ pub async fn start_generation(
         "abcPath": abc_path_rel,
         "seed": seed,
         "numInferenceSteps": NUM_INFERENCE_STEPS,
-        "guidanceScale": guidance_scale(&form.cot)
+        "guidanceScale": guidance_scale(&form.cot),
+        "targetDurationSec": target_duration_sec,
+        "semanticMaxTokens": semantic_max_tokens
     });
     atomic_write_json(&gen_dir.join("request.json"), &request)?;
 
@@ -366,7 +377,8 @@ pub async fn start_generation(
                     "style": style_sent,
                     "cot": cot,
                     "num_inference_steps": NUM_INFERENCE_STEPS,
-                    "guidance_scale": guidance_scale(&cot)
+                    "guidance_scale": guidance_scale(&cot),
+                    "semantic_max_tokens": semantic_max_tokens
                 });
                 if let Some(abc_text) = &abc_for_req {
                     options

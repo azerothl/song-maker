@@ -35,6 +35,8 @@
   "form.cot.off": "off (avancé : pas de partition en retour)",
   "form.language": "Langue du chant",
   "form.tempo": "Tempo (BPM)",
+  "form.duration": "Durée max",
+  "form.duration.hint": "{tokens} tokens sémantiques (≈ {duration})",
   "form.key": "Tonalité",
   "form.meter": "Métrique",
   "form.seed": "Seed (avancé)",

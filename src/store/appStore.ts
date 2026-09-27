@@ -53,8 +53,15 @@ const emptyForm = (): FormInput => ({
   key: null,
   meter: null,
   seed: null,
+  targetDurationSec: 180,
 });
 
+function normalizeDurationSec(raw: number | null | undefined): number {
+  const fallback = 180;
+  if (raw == null || !Number.isFinite(raw)) return fallback;
+  const clamped = Math.min(360, Math.max(30, Math.round(raw)));
+  return Math.round(clamped / 30) * 30;
+}
 function asScoreDocument(raw: unknown): ScoreDocument | null {
   if (!raw || typeof raw !== "object") return null;
   const doc = raw as ScoreDocument;
@@ -145,6 +152,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         key: project.key ?? null,
         meter: project.meter ?? null,
         seed: null,
+        targetDurationSec: normalizeDurationSec(project.targetDurationSec),
       },
       screen: "song",
       error: null,

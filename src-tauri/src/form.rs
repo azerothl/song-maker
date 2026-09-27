@@ -1,4 +1,7 @@
 use crate::models::{FormInput, KeySig, Meter};
+use crate::pins::{
+    normalize_target_duration_sec, DURATION_SEC_MAX, DURATION_SEC_MIN, DURATION_SEC_STEP,
+};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -45,6 +48,7 @@ pub fn validate_lyrics(lyrics: &str) -> Result<(), FormError> {
 pub fn validate_draft_form(input: &FormInput) -> Result<(), FormError> {
     validate_title(&input.title)?;
     validate_cot(&input.cot)?;
+    validate_target_duration(input.target_duration_sec)?;
     if input.lyrics.chars().count() > 4000 {
         return Err(FormError::Message(
             "Les paroles sont limitées à 4000 caractères.".into(),
@@ -70,6 +74,15 @@ pub fn validate_draft_form(input: &FormInput) -> Result<(), FormError> {
         validate_meter(meter)?;
     }
     Ok(())
+}
+
+pub fn validate_target_duration(sec: u32) -> Result<u32, FormError> {
+    if !(DURATION_SEC_MIN..=DURATION_SEC_MAX).contains(&sec) || sec % DURATION_SEC_STEP != 0 {
+        return Err(FormError::Message(format!(
+            "Durée cible : {DURATION_SEC_MIN} à {DURATION_SEC_MAX} s, par pas de {DURATION_SEC_STEP}."
+        )));
+    }
+    Ok(normalize_target_duration_sec(sec))
 }
 
 pub fn validate_style(style: &str) -> Result<(), FormError> {
@@ -191,6 +204,7 @@ pub fn validate_form(input: &FormInput) -> Result<String, FormError> {
     validate_title(&input.title)?;
     validate_lyrics(&input.lyrics)?;
     validate_cot(&input.cot)?;
+    validate_target_duration(input.target_duration_sec)?;
     assemble_style_sent(input)
 }
 
@@ -224,6 +238,7 @@ mod tests {
                 denominator: 4,
             }),
             seed: None,
+            target_duration_sec: 180,
         };
         let s = assemble_style_sent(&input).unwrap();
         assert_eq!(
@@ -252,7 +267,17 @@ mod tests {
             key: None,
             meter: None,
             seed: None,
+            target_duration_sec: 180,
         };
         validate_draft_form(&input).unwrap();
+    }
+
+    #[test]
+    fn accepts_duration_steps() {
+        validate_target_duration(30).unwrap();
+        validate_target_duration(180).unwrap();
+        validate_target_duration(360).unwrap();
+        assert!(validate_target_duration(45).is_err());
+        assert!(validate_target_duration(0).is_err());
     }
 }

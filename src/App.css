@@ -298,6 +298,11 @@ select {
   color: var(--text);
 }
 
+.duration-slider {
+  width: 100%;
+  accent-color: var(--accent, #c45c26);
+}
+
 .counter {
   font-size: 0.75rem;
   align-self: flex-end;

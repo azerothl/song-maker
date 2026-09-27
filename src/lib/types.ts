@@ -18,6 +18,8 @@ export type ProjectDoc = {
   tempoBpm?: number | null;
   key?: KeySig | null;
   meter?: Meter | null;
+  /** Plafond demandé à YuE2 (secondes). */
+  targetDurationSec?: number;
   activeGenerationId?: string | null;
   activeSeparationId?: string | null;
   activeMixId?: string | null;
@@ -46,6 +48,8 @@ export type FormInput = {
   key?: KeySig | null;
   meter?: Meter | null;
   seed?: number | null;
+  /** Plafond de durée en secondes (pas de 30, max 360). */
+  targetDurationSec: number;
 };
 
 export type MixTrack = {

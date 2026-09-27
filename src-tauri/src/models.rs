@@ -37,6 +37,9 @@ pub struct ProjectDoc {
     pub key: Option<KeySig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub meter: Option<Meter>,
+    /// Plafond de durée demandé (secondes), pas de 30 s, max 360.
+    #[serde(default = "crate::pins::default_target_duration_sec")]
+    pub target_duration_sec: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_generation_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -157,6 +160,9 @@ pub struct FormInput {
     pub key: Option<KeySig>,
     pub meter: Option<Meter>,
     pub seed: Option<u64>,
+    /// Plafond de durée (secondes), pas 30, borné 30–360. Défaut 180.
+    #[serde(default = "crate::pins::default_target_duration_sec")]
+    pub target_duration_sec: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

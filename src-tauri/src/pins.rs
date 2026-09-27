@@ -53,6 +53,28 @@ pub const HTDEMUCS_BUSY_TIMEOUT_MS: u64 = 600_000;
 pub const NUM_INFERENCE_STEPS: u32 = 8;
 pub const VRAM_Q8_THRESHOLD_MIB: u64 = 12_288;
 
+/// Cadence des tokens sémantiques YuE2 (1 token ≈ 40 ms).
+pub const SEMANTIC_HZ: u32 = 25;
+pub const DURATION_SEC_MIN: u32 = 30;
+pub const DURATION_SEC_MAX: u32 = 360;
+pub const DURATION_SEC_STEP: u32 = 30;
+pub const DURATION_SEC_DEFAULT: u32 = 180;
+
+pub fn default_target_duration_sec() -> u32 {
+    DURATION_SEC_DEFAULT
+}
+
+/// Arrondit sur le pas de 30 s, borné [30, 360].
+pub fn normalize_target_duration_sec(sec: u32) -> u32 {
+    let clamped = sec.clamp(DURATION_SEC_MIN, DURATION_SEC_MAX);
+    let steps = (clamped + DURATION_SEC_STEP / 2) / DURATION_SEC_STEP;
+    (steps * DURATION_SEC_STEP).clamp(DURATION_SEC_MIN, DURATION_SEC_MAX)
+}
+
+pub fn semantic_max_tokens_for_duration(sec: u32) -> u32 {
+    normalize_target_duration_sec(sec).saturating_mul(SEMANTIC_HZ)
+}
+
 pub const TONICS: &[&str] = &[
     "C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B",
 ];

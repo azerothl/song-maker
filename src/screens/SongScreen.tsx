@@ -10,8 +10,23 @@ import { t } from "../ui/i18n";
 
 const TONICS = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 const METERS = ["", "4/4", "3/4", "6/8", "2/4"];
+const DURATION_SEC_MIN = 30;
+const DURATION_SEC_MAX = 360;
+const DURATION_SEC_STEP = 30;
+const SEMANTIC_HZ = 25;
 
 const TITLE_FORBIDDEN = /[/\\:*?"<>|]/;
+
+function formatDurationLabel(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function snapDurationSec(raw: number): number {
+  const clamped = Math.min(DURATION_SEC_MAX, Math.max(DURATION_SEC_MIN, raw));
+  return Math.round(clamped / DURATION_SEC_STEP) * DURATION_SEC_STEP;
+}
 
 function validateForm(form: FormInput): string | null {
   const title = form.title.trim();
@@ -21,6 +36,15 @@ function validateForm(form: FormInput): string | null {
   if (!form.style.trim()) return "Style obligatoire.";
   const lyrics = form.lyrics.trim();
   if (!lyrics || lyrics.length > 4000) return "Paroles obligatoires (1–4000).";
+  const dur = form.targetDurationSec;
+  if (
+    !Number.isFinite(dur) ||
+    dur < DURATION_SEC_MIN ||
+    dur > DURATION_SEC_MAX ||
+    dur % DURATION_SEC_STEP !== 0
+  ) {
+    return "Durée max : 0:30 à 6:00, par pas de 30 s.";
+  }
   return null;
 }
 
@@ -218,6 +242,26 @@ export function SongScreen() {
               })
             }
           />
+        </label>
+        <label>
+          {t("form.duration")}
+          <input
+            type="range"
+            className="duration-slider"
+            min={DURATION_SEC_MIN}
+            max={DURATION_SEC_MAX}
+            step={DURATION_SEC_STEP}
+            value={form.targetDurationSec}
+            onChange={(e) =>
+              setForm({ targetDurationSec: snapDurationSec(Number(e.target.value)) })
+            }
+          />
+          <span className="counter">
+            {t("form.duration.hint", {
+              duration: formatDurationLabel(form.targetDurationSec),
+              tokens: form.targetDurationSec * SEMANTIC_HZ,
+            })}
+          </span>
         </label>
         <label>
           {t("form.key")}
