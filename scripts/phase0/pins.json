@@ -1,29 +1,29 @@
 {
   "audioCpp": {
-    "tag": "v0.8.1",
-    "commit": "f2b4937306daa25f5c78520f3c626ed31495a37a",
-    "baseUrl": "https://github.com/0xShug0/audio.cpp/releases/download/v0.8.1",
+    "tag": "v0.8.2",
+    "commit": "4d88768fbcae4e6eb3352c6ab1422dabb7d90b58",
+    "baseUrl": "https://github.com/0xShug0/audio.cpp/releases/download/v0.8.2",
     "archives": [
       {
         "id": "windows-cuda12.4",
-        "name": "audio-v0.8.1-bin-windows-x64-cuda12.4.zip",
-        "sha256": "28bbe8ac62a06c5d9d42ba3066b051f433dc9a8f456c544e03e87202f0fa8c52",
-        "bytes": 442303082,
+        "name": "audio-v0.8.2-bin-windows-x64-cuda12.4.zip",
+        "sha256": "6055122c7199897ff21ca6cda9f9207712bd91273d21dc2d137d5fa610c43c86",
+        "bytes": 444938499,
         "platform": "windows"
       },
       {
         "id": "windows-cudart-12.4",
-        "name": "audio-v0.8.1-cudart-windows-x64-cuda12.4.zip",
-        "sha256": "025faacfdc3dec215ee07cb9be7d1ef2016402723f3721a30500ceee02cc4701",
+        "name": "audio-v0.8.2-cudart-windows-x64-cuda12.4.zip",
+        "sha256": "e2a31fb1030423319e686c6ec65da8952b2c095feb8a1e716c2adfbb6c46fac1",
         "bytes": 607273675,
         "platform": "windows",
         "role": "runtime"
       },
       {
         "id": "linux-cuda12.8-colab",
-        "name": "audio-v0.8.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz",
-        "sha256": "f969811783f206b6d1f6566c020211ab9df7b6bb96c6eded6ad7a58deb725025",
-        "bytes": 63859969,
+        "name": "audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz",
+        "sha256": "1190ba46bb45e1acd2ca42edca53074c7935b96de67f3719c8c4943df5fe1b6f",
+        "bytes": 65293844,
         "platform": "linux"
       }
     ]

@@ -6,6 +6,7 @@ import type {
   HealthSnapshot,
   JobStatus,
   LibraryRow,
+  LocalLoraAdapter,
   MixDoc,
   Phase3Status,
   PlaybackSources,
@@ -18,6 +19,9 @@ export const api = {
   updateSettings: (settings: AppSettings) =>
     invoke<AppSettings>("update_settings", { settings }),
   getPhase3Status: () => invoke<Phase3Status>("get_phase3_status"),
+  installHtDemucs6sRuntime: () =>
+    invoke<string>("install_htdemucs_6s_runtime"),
+  listLoraAdapters: () => invoke<LocalLoraAdapter[]>("list_lora_adapters"),
   confirmModelPack: (pack: string) =>
     invoke<AppSettings>("confirm_model_pack", { pack }),
   listProjects: (query?: string) =>

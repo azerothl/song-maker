@@ -31,17 +31,29 @@ impl AudioCppServer {
         let bin_dir = binaries_dir(&cache);
         crate::paths::ensure_dir(&bin_dir).map_err(|e| e.to_string())?;
         let config_path = bin_dir.join("audiocpp-server.json");
-        let yue2 = yue2_dir(&cache);
         let htd = htdemucs_path(&cache);
+        let mut yue2 = json!({
+            "id": "yue2",
+            "family": "yue2",
+            "path": yue2_dir(&cache).display().to_string(),
+            "task": "gen",
+            "mode": "offline",
+            "busy_timeout_ms": YUE2_BUSY_TIMEOUT_MS
+        });
+        let mut session_options = serde_json::Map::new();
+        if let Some(path) = settings.yue2_ar_lora.as_deref() {
+            session_options.insert("yue2.ar_lora".into(), json!(path));
+            session_options.insert("yue2.ar_lora_scale".into(), json!(settings.yue2_ar_lora_scale));
+        }
+        if let Some(path) = settings.yue2_nar_lora.as_deref() {
+            session_options.insert("yue2.nar_lora".into(), json!(path));
+            session_options.insert("yue2.nar_lora_scale".into(), json!(settings.yue2_nar_lora_scale));
+        }
+        if !session_options.is_empty() {
+            yue2.as_object_mut().unwrap().insert("session_options".into(), json!(session_options));
+        }
         let mut models = vec![
-            json!({
-                "id": "yue2",
-                "family": "yue2",
-                "path": yue2.display().to_string(),
-                "task": "gen",
-                "mode": "offline",
-                "busy_timeout_ms": YUE2_BUSY_TIMEOUT_MS
-            }),
+            yue2,
             json!({
                 "id": "htdemucs",
                 "family": "htdemucs",
@@ -337,6 +349,52 @@ impl AudioCppServer {
         None
     }
 
+    /// v0.8.2 semantic artifact metadata reports when the token cap was hit.
+    pub fn semantic_truncated(response: &Value) -> Option<bool> {
+        response
+            .get("artifacts")?
+            .as_array()?
+            .iter()
+            .find_map(|artifact| {
+                let value = artifact.get("meta")?.get("truncated")?;
+                value
+                    .as_bool()
+                    .or_else(|| value.as_str().and_then(|s| s.parse::<bool>().ok()))
+            })
+    }
+
+    /// Persist the semantic-prefix artifact in the format expected by audio.cpp.
+    pub fn write_semantic_artifact(response: &Value, path: &Path) -> Result<bool, String> {
+        use base64::Engine;
+        let Some(artifacts) = response.get("artifacts").and_then(Value::as_array) else {
+            return Ok(false);
+        };
+        for artifact in artifacts {
+            let id = artifact.get("id").and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
+            let meta = artifact.get("meta");
+            let format = meta.and_then(|m| m.get("format")).and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
+            let ext = meta.and_then(|m| m.get("extension")).and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
+            if !(id.contains("semantic") || format.contains("semantic") || ext.contains("semantic")) { continue; }
+            let payload = artifact.get("payload").and_then(Value::as_str).ok_or("Artefact sémantique sans payload.")?;
+            let raw = if payload.trim_start().starts_with('[') {
+                payload.as_bytes().to_vec()
+            } else {
+                base64::engine::general_purpose::STANDARD.decode(payload)
+                    .map_err(|e| format!("Décodage artefact sémantique: {e}"))?
+            };
+            let frames: Vec<u32> = serde_json::from_slice(&raw)
+                .map_err(|e| format!("Artefact sémantique JSON invalide: {e}"))?;
+            if frames.is_empty() || frames.iter().any(|&frame| frame >= 32768) {
+                return Err("Artefact sémantique vide ou contenant un token hors plage.".into());
+            }
+            if let Some(parent) = path.parent() { crate::paths::ensure_dir(parent).map_err(|e| e.to_string())?; }
+            std::fs::write(path, serde_json::to_vec(&frames).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
     pub async fn unload_all(base_url: &str) -> Result<(), String> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
@@ -364,5 +422,36 @@ impl AudioCppServer {
                 let _ = c.kill();
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod semantic_metadata_tests {
+    use super::AudioCppServer;
+    use serde_json::json;
+    use std::path::PathBuf;
+
+    #[test]
+    fn reads_v082_string_encoded_truncation_flag() {
+        let response = json!({
+            "artifacts": [{ "id": "semantic", "meta": { "truncated": "true" } }]
+        });
+        assert_eq!(AudioCppServer::semantic_truncated(&response), Some(true));
+    }
+
+    #[test]
+    fn writes_semantic_artifact_as_valid_json_prefix() {
+        use base64::Engine;
+        let path = std::env::temp_dir().join(format!("song-maker-semantic-{}.json", uuid::Uuid::new_v4()));
+        let encoded = base64::engine::general_purpose::STANDARD.encode(b"[12,34,56]");
+        let response = json!({ "artifacts": [{
+            "id": "semantic",
+            "meta": { "format": "application/vnd.yue2.semantic+json", "truncated": true },
+            "payload": encoded
+        }]});
+        assert!(AudioCppServer::write_semantic_artifact(&response, &path).unwrap());
+        let frames: Vec<u32> = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(frames, vec![12, 34, 56]);
+        let _ = std::fs::remove_file(PathBuf::from(path));
     }
 }

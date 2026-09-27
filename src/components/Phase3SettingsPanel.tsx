@@ -22,6 +22,7 @@ export function Phase3SettingsPanel() {
   const [phase3, setPhase3] = useState<Phase3Status | null>(null);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [installingHtDemucs6s, setInstallingHtDemucs6s] = useState(false);
 
   const refreshPhase3 = async () => {
     try {
@@ -39,8 +40,10 @@ export function Phase3SettingsPanel() {
     () =>
       describeStemProvidersFr({
         bsRoFormerWeightsPresent: phase3?.bsRoformerAvailable ?? false,
+        htdemucs6sRuntimeAvailable:
+          phase3?.htdemucs6sRuntimeAvailable ?? false,
       }),
-    [phase3?.bsRoformerAvailable],
+    [phase3?.bsRoformerAvailable, phase3?.htdemucs6sRuntimeAvailable],
   );
 
   if (!settings) return null;
@@ -69,6 +72,20 @@ export function Phase3SettingsPanel() {
       await refreshPhase3();
     } catch (e) {
       setError(String(e));
+    }
+  };
+
+  const installHtDemucs6s = async () => {
+    setInstallingHtDemucs6s(true);
+    setDownloadNotice(null);
+    try {
+      const path = await api.installHtDemucs6sRuntime();
+      await refreshPhase3();
+      setDownloadNotice(`${t("phase3.separator.onnxInstallOk")}\n${path}`);
+    } catch (e) {
+      setDownloadNotice(String(e));
+    } finally {
+      setInstallingHtDemucs6s(false);
     }
   };
 
@@ -141,7 +158,7 @@ export function Phase3SettingsPanel() {
                 type="radio"
                 name="stem-separator"
                 checked={selected}
-                disabled={!p.runnable && p.id === "bs_roformer"}
+                disabled={!p.runnable && p.id !== "htdemucs"}
                 onChange={() => void selectSeparator(p.id)}
               />
               <span>
@@ -157,11 +174,31 @@ export function Phase3SettingsPanel() {
                     </span>
                   </>
                 )}
+                {!p.runnable && p.id === "htdemucs_6s" && (
+                  <>
+                    <br />
+                    <span className="hint warn">
+                      {t("phase3.separator.onnxRuntimeMissing")}
+                    </span>
+                  </>
+                )}
               </span>
             </label>
           );
         })}
       </div>
+      {!phase3?.htdemucs6sRuntimeAvailable && (
+        <button
+          type="button"
+          className="btn"
+          disabled={installingHtDemucs6s}
+          onClick={() => void installHtDemucs6s()}
+        >
+          {installingHtDemucs6s
+            ? t("phase3.separator.onnxInstalling")
+            : t("phase3.separator.onnxInstall")}
+        </button>
+      )}
       <p className="hint">
         {t("phase3.separator.guitarPiano")}:{" "}
         {phase3?.guitarPianoAvailable

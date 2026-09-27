@@ -11,13 +11,14 @@ import {
   listStemProviderIds,
   mapBsRoFormerStemIds,
   mapHtDemucsStemIds,
+  mapHtDemucs6sStemIds,
   reliabilityForRole,
   type AudiocppSepTransport,
 } from "./index.js";
 
 describe("stem-providers", () => {
-  it("lists both providers without colliding ids", () => {
-    expect(listStemProviderIds()).toEqual(["htdemucs", "bs_roformer"]);
+  it("lists the supported providers without colliding ids", () => {
+    expect(listStemProviderIds()).toEqual(["htdemucs", "htdemucs_6s", "bs_roformer"]);
   });
 
   it("pins HTDemucs package hash from the first-build contract", () => {
@@ -31,7 +32,7 @@ describe("stem-providers", () => {
     expect(BS_ROFORMER_PACKAGE.sha256).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it("marks guitar/piano unavailable for both providers; other stays Accompagnement", () => {
+  it("marks extra stems as experimental or unavailable; other stays Accompagnement", () => {
     expect(reliabilityForRole("guitar")).toBe("less_reliable");
     expect(reliabilityForRole("vocals")).toBe("standard");
     expect(STEM_DISPLAY_NAMES.other).toBe("Accompagnement");
@@ -43,6 +44,9 @@ describe("stem-providers", () => {
       "guitar",
       "piano",
     ]);
+    const providers = describeStemProvidersFr({ htdemucs6sRuntimeAvailable: true });
+    expect(providers.find((provider) => provider.id === "htdemucs_6s")?.runnable).toBe(true);
+    expect(providers.find((provider) => provider.id === "htdemucs_6s")?.unavailableRoles).toEqual([]);
   });
 
   it("maps BS-RoFormer instrumental → other and refuses missing stems", () => {
@@ -56,6 +60,14 @@ describe("stem-providers", () => {
       "bass",
       "other",
     ]);
+  });
+
+  it("maps the six HTDemucs outputs and marks guitar/piano as less reliable", () => {
+    expect(mapHtDemucs6sStemIds([
+      "drums", "bass", "other", "vocals", "guitar", "piano",
+    ])).toEqual(["vocals", "drums", "bass", "other", "guitar", "piano"]);
+    expect(reliabilityForRole("guitar")).toBe("less_reliable");
+    expect(reliabilityForRole("piano")).toBe("less_reliable");
   });
 
   it("BS-RoFormer without transport refuses separate()", async () => {

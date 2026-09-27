@@ -40,14 +40,14 @@ export function Waveform({
       duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
     const playedX = playedRatio * width;
 
-    ctx.fillStyle = muted ? "rgba(120,120,130,0.35)" : "rgba(196,92,38,0.35)";
+    ctx.fillStyle = muted ? "rgba(120,120,130,0.35)" : "rgba(180,154,255,0.32)";
     for (let i = 0; i < peaks.length; i++) {
       const amp = Math.max(1, peaks[i]! * mid * 0.92);
       const x = i * barW;
       ctx.fillRect(x, mid - amp, Math.max(1, barW * 0.85), amp * 2);
     }
 
-    ctx.fillStyle = muted ? "rgba(160,160,170,0.75)" : "rgba(232,140,80,0.9)";
+    ctx.fillStyle = muted ? "rgba(160,160,170,0.75)" : "rgba(105,217,232,0.9)";
     for (let i = 0; i < peaks.length; i++) {
       const x = i * barW;
       if (x > playedX) break;

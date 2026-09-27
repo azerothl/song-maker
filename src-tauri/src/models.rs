@@ -37,9 +37,11 @@ pub struct ProjectDoc {
     pub key: Option<KeySig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub meter: Option<Meter>,
-    /// Plafond de durée demandé (secondes), pas de 30 s, max 360.
+    /// Durée cible (secondes), pas de 30 s, max 360.
     #[serde(default = "crate::pins::default_target_duration_sec")]
     pub target_duration_sec: u32,
+    #[serde(default = "default_prefer_full_lyrics")]
+    pub prefer_full_lyrics: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_generation_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -127,10 +129,25 @@ pub struct AppSettings {
     /// CC BY-NC acceptance for optional LoRA packs (phase 3).
     #[serde(default)]
     pub cc_by_nc_accepted: bool,
+    /// Optional unfused YuE2 adapters selected from the local LoRA library.
+    #[serde(default)]
+    pub yue2_ar_lora: Option<String>,
+    #[serde(default)]
+    pub yue2_nar_lora: Option<String>,
+    #[serde(default = "default_lora_scale")]
+    pub yue2_ar_lora_scale: f32,
+    #[serde(default = "default_lora_scale")]
+    pub yue2_nar_lora_scale: f32,
 }
+
+fn default_lora_scale() -> f32 { 1.0 }
 
 fn default_stem_separator() -> String {
     crate::pins::DEFAULT_STEM_SEPARATOR.to_string()
+}
+
+fn default_prefer_full_lyrics() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -140,8 +157,9 @@ pub struct Phase3Status {
     pub htdemucs_available: bool,
     pub bs_roformer_available: bool,
     pub bs_roformer_path: String,
+    pub htdemucs_6s_runtime_available: bool,
     pub cc_by_nc_accepted: bool,
-    /// Always false until a provider actually emits guitar/piano.
+    /// True only while a selected, usable provider emits guitar/piano.
     pub guitar_piano_available: bool,
     pub honesty_fr: String,
 }
@@ -183,9 +201,14 @@ pub struct FormInput {
     pub key: Option<KeySig>,
     pub meter: Option<Meter>,
     pub seed: Option<u64>,
-    /// Plafond de durée (secondes), pas 30, borné 30–360. Défaut 180.
+    /// Durée cible (secondes), pas 30, borné 30–360. Défaut 180.
     #[serde(default = "crate::pins::default_target_duration_sec")]
     pub target_duration_sec: u32,
+    #[serde(default = "default_prefer_full_lyrics")]
+    pub prefer_full_lyrics: bool,
+    /// Generation to continue from, when its semantic artifact is available.
+    #[serde(default)]
+    pub continuation_generation_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -259,6 +282,18 @@ pub struct GenerationSummary {
     pub parent_generation_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub audio_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semantic_truncated: Option<bool>,
+    #[serde(default)]
+    pub can_continue: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalLoraAdapter {
+    pub name: String,
+    pub path: String,
+    pub size_bytes: u64,
 }
 
 /// Chemins absolus pour la lecture Web Audio (prise ou stems float32).

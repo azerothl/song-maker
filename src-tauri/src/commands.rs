@@ -69,11 +69,11 @@ pub fn get_settings() -> Result<AppSettings, String> {
 }
 
 #[tauri::command]
-pub fn update_settings(settings: AppSettings) -> Result<AppSettings, String> {
+pub fn update_settings(state: tauri::State<'_, AppState>, settings: AppSettings) -> Result<AppSettings, String> {
     let mut s = settings;
+    let cache = PathBuf::from(&s.cache_dir);
     s.stem_separator = normalize_stem_separator(&s.stem_separator).to_string();
     if s.stem_separator == "bs_roformer" {
-        let cache = PathBuf::from(&s.cache_dir);
         if !crate::paths::bs_roformer_weights_present(&cache) {
             return Err(
                 "Impossible d’activer BS-RoFormer : GGUF absent du cache (hors installeur)."
@@ -81,7 +81,28 @@ pub fn update_settings(settings: AppSettings) -> Result<AppSettings, String> {
             );
         }
     }
+    if s.stem_separator == "htdemucs_6s" && !crate::demucs_onnx::is_installed(&cache) {
+        return Err("Installez d’abord le runtime ONNX HTDemucs 6 stems dans Paramètres → Production audio.".into());
+    }
+    if !(0.0..=2.0).contains(&s.yue2_ar_lora_scale) || !(0.0..=2.0).contains(&s.yue2_nar_lora_scale) {
+        return Err("L’échelle LoRA doit être comprise entre 0 et 2.".into());
+    }
+    for path in [&mut s.yue2_ar_lora, &mut s.yue2_nar_lora] {
+        if let Some(raw) = path.as_ref() {
+            let file = PathBuf::from(raw).canonicalize().map_err(|_| format!("Fichier LoRA introuvable : {raw}"))?;
+            let lora_root = cache.join("models").join("lora").canonicalize()
+                .map_err(|_| "Le dossier local models/lora est introuvable dans le cache.".to_string())?;
+            if !file.starts_with(&lora_root) || !file.is_file() || !file.extension().is_some_and(|e| e.eq_ignore_ascii_case("safetensors")) {
+                return Err("Choisissez un fichier .safetensors situé dans cache/models/lora.".into());
+            }
+            *path = Some(file.display().to_string());
+        }
+    }
+    let old = load_settings().ok();
     save_settings(&s)?;
+    if old.as_ref().is_some_and(|o| o.yue2_ar_lora != s.yue2_ar_lora || o.yue2_nar_lora != s.yue2_nar_lora || o.yue2_ar_lora_scale != s.yue2_ar_lora_scale || o.yue2_nar_lora_scale != s.yue2_nar_lora_scale) {
+        state.server.shutdown();
+    }
     Ok(s)
 }
 
@@ -90,21 +111,56 @@ pub fn get_phase3_status() -> Result<Phase3Status, String> {
     let settings = load_settings().unwrap_or_else(|_| default_settings());
     let cache = PathBuf::from(&settings.cache_dir);
     let bs_present = crate::paths::bs_roformer_weights_present(&cache);
+    let onnx_runtime_present = crate::demucs_onnx::is_installed(&cache);
+    let selected = normalize_stem_separator(&settings.stem_separator);
     Ok(Phase3Status {
-        stem_separator: normalize_stem_separator(&settings.stem_separator).to_string(),
+        stem_separator: selected.to_string(),
         htdemucs_available: htdemucs_path(&cache).is_file(),
         bs_roformer_available: bs_present,
         bs_roformer_path: crate::paths::bs_roformer_path(&cache)
             .display()
             .to_string(),
+        htdemucs_6s_runtime_available: onnx_runtime_present,
         cc_by_nc_accepted: settings.cc_by_nc_accepted,
-        guitar_piano_available: false,
-        honesty_fr: if normalize_stem_separator(&settings.stem_separator) == "bs_roformer" {
+        guitar_piano_available: selected == "htdemucs_6s" && onnx_runtime_present,
+        honesty_fr: if selected == "htdemucs_6s" && onnx_runtime_present {
+            "HTDemucs 6 stems via ONNX : guitare et piano estimés séparément. Modèle expérimental ; fuites possibles, surtout sur le piano. Première séparation : téléchargement du modèle (136 Mo environ).".into()
+        } else if selected == "htdemucs_6s" {
+            "HTDemucs 6 stems nécessite le runtime ONNX optionnel. Installez-le ici avant de lancer une séparation.".into()
+        } else if selected == "bs_roformer" {
             "BS-RoFormer : voix + instrumental seulement. Batterie, basse, guitare et piano indisponibles.".into()
         } else {
             "HTDemucs : quatre stems. Guitare et piano non exposés par audio.cpp.".into()
         },
     })
+}
+
+#[tauri::command]
+pub async fn install_htdemucs_6s_runtime() -> Result<String, String> {
+    let settings = load_settings()?;
+    crate::demucs_onnx::install(PathBuf::from(settings.cache_dir)).await
+}
+
+#[tauri::command]
+pub fn list_lora_adapters() -> Result<Vec<LocalLoraAdapter>, String> {
+    let settings = load_settings()?;
+    let root = PathBuf::from(settings.cache_dir).join("models").join("lora");
+    if !root.is_dir() { return Ok(Vec::new()); }
+    let mut adapters = Vec::new();
+    for entry in std::fs::read_dir(root).map_err(|e| e.to_string())? {
+        let path = entry.map_err(|e| e.to_string())?.path();
+        if !path.is_file() || !path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("safetensors")) {
+            continue;
+        }
+        let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?;
+        adapters.push(LocalLoraAdapter {
+            name: path.file_name().unwrap_or_default().to_string_lossy().into_owned(),
+            path: path.canonicalize().unwrap_or(path).display().to_string(),
+            size_bytes: metadata.len(),
+        });
+    }
+    adapters.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(adapters)
 }
 
 #[tauri::command]
@@ -163,6 +219,7 @@ pub fn create_project(input: CreateProjectInput) -> Result<ProjectDoc, String> {
         key: None,
         meter: None,
         target_duration_sec: DURATION_SEC_DEFAULT,
+        prefer_full_lyrics: true,
         active_generation_id: None,
         active_separation_id: None,
         active_mix_id: None,
@@ -203,6 +260,7 @@ pub fn save_project_form(id: String, form: FormInput) -> Result<ProjectDoc, Stri
     doc.meter = form.meter;
     doc.target_duration_sec = validate_target_duration(form.target_duration_sec)
         .map_err(|e| e.to_string())?;
+    doc.prefer_full_lyrics = form.prefer_full_lyrics;
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
     upsert_library_row(&LibraryRow {
@@ -303,8 +361,12 @@ pub async fn start_generation(
     let style_sent = validate_form(&form).map_err(|e| e.to_string())?;
     let target_duration_sec =
         validate_target_duration(form.target_duration_sec).map_err(|e| e.to_string())?;
-    let semantic_max_tokens = semantic_max_tokens_for_duration(target_duration_sec);
-    let abc_trimmed = abc
+    let (mut semantic_min_tokens, mut semantic_max_tokens) = semantic_token_budget(
+        target_duration_sec,
+        &form.lyrics,
+        form.prefer_full_lyrics,
+    );
+    let mut abc_trimmed = abc
         .as_ref()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
@@ -315,18 +377,63 @@ pub async fn start_generation(
     }
     let folder = project_folder(&id);
     let mut doc = load_project(&folder)?;
+    let continuation = form.continuation_generation_id.as_deref();
+    let semantic_prefix_path = if let Some(parent_id) = continuation {
+        let suffix = parent_id.strip_prefix("gen-").unwrap_or("");
+        if suffix.is_empty() || !suffix.chars().all(|c| c.is_ascii_digit()) {
+            return Err("Identifiant de génération parent invalide.".into());
+        }
+        let parent_dir = folder.join("generations").join(parent_id);
+        let semantic = parent_dir.join("semantic.json");
+        if !parent_dir.join("result.json").is_file() || !semantic.is_file() {
+            return Err("Cette génération n’a pas d’artefact sémantique utilisable pour continuer.".into());
+        }
+        let parent_result: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(parent_dir.join("result.json")).map_err(|e| e.to_string())?,
+        ).map_err(|e| e.to_string())?;
+        if parent_result.get("semanticTruncated").and_then(|v| v.as_bool()) != Some(true) {
+            return Err("La continuation est réservée aux générations tronquées.".into());
+        }
+        if form.cot != "off" {
+            if abc_trimmed.is_none() {
+                let score_path = parent_dir.join("score.abc");
+                if score_path.is_file() {
+                    abc_trimmed = Some(std::fs::read_to_string(score_path).map_err(|e| e.to_string())?);
+                }
+            }
+            if abc_trimmed.is_none() {
+                return Err("Cette continuation en mode mélodie nécessite le score ABC de la prise source.".into());
+            }
+        }
+        let prefix: Vec<u32> = serde_json::from_slice(&std::fs::read(&semantic).map_err(|e| e.to_string())?)
+            .map_err(|e| format!("Tokens de continuation invalides : {e}"))?;
+        let frame_count = prefix.len();
+        let token_ceiling = (SEMANTIC_MAX_DURATION_SEC * SEMANTIC_HZ) as usize;
+        if frame_count >= token_ceiling {
+            return Err("Cette prise a déjà atteint la durée maximale prévue pour YuE2.".into());
+        }
+        semantic_min_tokens = semantic_min_tokens.max(frame_count as u32);
+        semantic_max_tokens = semantic_max_tokens
+            .saturating_add(frame_count as u32)
+            .min(token_ceiling as u32)
+            .max(semantic_min_tokens);
+        Some(semantic)
+    } else { None };
     doc.title = form.title.trim().to_string();
     doc.style = form.style.trim().to_string();
-    doc.lyrics = form.lyrics.clone();
+    if continuation.is_some() {
+        doc.lyrics = format!("{}\n\n{}", doc.lyrics.trim_end(), form.lyrics.trim());
+    } else {
+        doc.lyrics = form.lyrics.clone();
+    }
     doc.cot = form.cot.clone();
     doc.singing_language = form.singing_language.clone();
     doc.tempo_bpm = form.tempo_bpm;
     doc.key = form.key.clone();
     doc.meter = form.meter.clone();
     doc.target_duration_sec = target_duration_sec;
+    doc.prefer_full_lyrics = form.prefer_full_lyrics;
     doc.updated_at = now_iso();
-    save_project(&folder, &doc)?;
-
     let settings = load_settings()?;
     let seed = normalize_seed(form.seed.unwrap_or_else(random_seed));
     let gen_id = next_folder_id(&folder.join("generations"), "gen-")?;
@@ -354,7 +461,8 @@ pub async fn start_generation(
         "schemaVersion": SCHEMA_VERSION,
         "id": gen_id,
         "projectId": id,
-        "parentGenerationId": doc.active_generation_id,
+        "parentGenerationId": continuation.or(doc.active_generation_id.as_deref()),
+        "continuationGenerationId": continuation,
         "createdAt": now_iso(),
         "provider": "audiocpp",
         "binary": {
@@ -380,9 +488,18 @@ pub async fn start_generation(
         "numInferenceSteps": NUM_INFERENCE_STEPS,
         "guidanceScale": guidance_scale(&form.cot),
         "targetDurationSec": target_duration_sec,
+        "preferFullLyrics": form.prefer_full_lyrics,
+        "semanticMinTokens": semantic_min_tokens,
         "semanticMaxTokens": semantic_max_tokens
     });
     atomic_write_json(&gen_dir.join("request.json"), &request)?;
+    atomic_write_json(&gen_dir.join("job.json"), &json!({
+        "id": gen_id,
+        "projectId": id,
+        "kind": if continuation.is_some() { "continuation" } else { "generation" },
+        "state": "queued",
+        "updatedAt": now_iso(),
+    }))?;
 
     let queue = state.queue.clone();
     let queue_ref = queue.clone();
@@ -403,6 +520,12 @@ pub async fn start_generation(
             Some(id.clone()),
             "Génération en cours",
             async move {
+                atomic_write_json(&gen_dir_for_job.join("job.json"), &json!({
+                    "id": gen_id_for_job,
+                    "projectId": project_id_for_job,
+                    "state": "running",
+                    "updatedAt": now_iso(),
+                }))?;
                 queue_ref.set_state(
                     "generating",
                     "Génération en cours",
@@ -413,8 +536,14 @@ pub async fn start_generation(
                     "cot": cot,
                     "num_inference_steps": NUM_INFERENCE_STEPS,
                     "guidance_scale": guidance_scale(&cot),
-                    "semantic_max_tokens": semantic_max_tokens
+                    "semantic_min_tokens": semantic_min_tokens,
+                    "semantic_max_tokens": semantic_max_tokens,
+                    "export_semantic": true
                 });
+                if let Some(path) = semantic_prefix_path.as_ref() {
+                    options.as_object_mut().ok_or_else(|| "options invalides".to_string())?
+                        .insert("semantic_prefix_file".into(), json!(path.display().to_string()));
+                }
                 if let Some(abc_text) = &abc_for_req {
                     options
                         .as_object_mut()
@@ -450,6 +579,10 @@ pub async fn start_generation(
                 }
                 match api_result {
                     Ok(response) => {
+                        let semantic_truncated =
+                            AudioCppServer::semantic_truncated(&response);
+                        let semantic_path = gen_dir_for_job.join("semantic.json");
+                        let has_semantic = AudioCppServer::write_semantic_artifact(&response, &semantic_path).unwrap_or(false);
                         let wav_bytes = match AudioCppServer::extract_wav_bytes(&response) {
                             Ok(b) => b,
                             Err(e) => {
@@ -520,6 +653,8 @@ pub async fn start_generation(
                                 "sha256": audio_sha
                             },
                             "score": score,
+                            "semanticTruncated": semantic_truncated,
+                            "semanticPath": if has_semantic { Some("semantic.json") } else { None },
                             "error": null
                         });
                         atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
@@ -552,7 +687,29 @@ pub async fn start_generation(
         )
         .await;
 
-    let duration = result?;
+    let duration = match result {
+        Ok(duration) => {
+            atomic_write_json(&gen_dir.join("job.json"), &json!({
+                "id": gen_id,
+                "projectId": id,
+                "kind": if continuation.is_some() { "continuation" } else { "generation" },
+                "state": "completed",
+                "updatedAt": now_iso(),
+            }))?;
+            duration
+        }
+        Err(error) => {
+            atomic_write_json(&gen_dir.join("job.json"), &json!({
+                "id": gen_id,
+                "projectId": id,
+                "kind": if continuation.is_some() { "continuation" } else { "generation" },
+                "state": if error == "cancelled" { "cancelled" } else { "failed" },
+                "error": error,
+                "updatedAt": now_iso(),
+            }))?;
+            return Err(error);
+        }
+    };
     doc.active_generation_id = Some(gen_id.clone());
     // Detach separation when new take
     doc.active_separation_id = None;
@@ -592,6 +749,14 @@ pub async fn start_separation(
     let sep_id = next_folder_id(&folder.join("separations"), "sep-")?;
     let sep_dir = folder.join("separations").join(&sep_id);
     ensure_dir(&sep_dir).map_err(|e| e.to_string())?;
+    atomic_write_json(&sep_dir.join("job.json"), &json!({
+        "id": sep_id,
+        "projectId": id,
+        "kind": "separation",
+        "generationId": gen_id,
+        "state": "preparing",
+        "updatedAt": now_iso(),
+    }))?;
 
     let input_44100 = sep_dir.join("input-44100.wav");
     resample_soxr(&gen_wav, &input_44100, SEPARATOR_SAMPLE_RATE)?;
@@ -601,53 +766,107 @@ pub async fn start_separation(
     if separator == "bs_roformer" {
         let cache = PathBuf::from(&settings.cache_dir);
         if !crate::paths::bs_roformer_weights_present(&cache) {
-            return Err(
+            return Err(format!(
                 "BS-RoFormer sélectionné mais le GGUF est absent du cache. \
-                 Téléchargez bs-roformer-ep368-q8_0.gguf (hors installeur) \
-                 ou revenez à HTDemucs dans Paramètres → Production audio."
-                    .into(),
-            );
+                 Téléchargez {BS_ROFORMER_REMOTE} (hors installeur) vers \
+                 models/bs_roformer/, ou revenez à HTDemucs dans Paramètres → Production audio."
+            ));
         }
         // Reload server config so bs_roformer is registered.
         state.server.shutdown();
     }
 
-    let server_url = state.server.ensure_started(&settings)?;
+    let server_url = if separator == "htdemucs_6s" {
+        None
+    } else {
+        Some(state.server.ensure_started(&settings)?)
+    };
     let queue = state.queue.clone();
     let queue_ref = queue.clone();
 
     let sep_dir_clone = sep_dir.clone();
     let input_44100_clone = input_44100.clone();
     let project_id_for_job = id.clone();
+    let sep_id_for_job = sep_id.clone();
+    let generation_id_for_job = gen_id.clone();
     let model_id = separator.to_string();
+    let cache_dir = PathBuf::from(&settings.cache_dir);
+    atomic_write_json(&sep_dir.join("job.json"), &json!({
+        "id": sep_id,
+        "projectId": id,
+        "kind": "separation",
+        "generationId": gen_id,
+        "state": "queued",
+        "updatedAt": now_iso(),
+    }))?;
 
-    queue
+    let separator_result = queue
         .run_exclusive(
             Some(id.clone()),
             "Séparation en cours",
             async move {
+                atomic_write_json(&sep_dir_clone.join("job.json"), &json!({
+                    "id": sep_id_for_job,
+                    "projectId": project_id_for_job.clone(),
+                    "kind": "separation",
+                    "generationId": generation_id_for_job,
+                    "state": "running",
+                    "updatedAt": now_iso(),
+                }))?;
                 queue_ref.set_state(
                     "separating",
                     "Séparation en cours",
-                    Some(project_id_for_job),
+                    Some(project_id_for_job.clone()),
                 );
-                // Contrat audiocpp_server /v1/tasks/run : champ `request` (comme le CLI),
-                // avec `audio` = chemin WAV 44,1 kHz. Les stems reviennent en
-                // `named_audio_outputs` (base64), pas via out_dir.
-                let body = json!({
-                    "model": model_id,
-                    "request": {
-                        "audio": input_44100_clone.display().to_string()
-                    }
-                });
-                let response = AudioCppServer::run_task(&server_url, body).await?;
-                AudioCppServer::write_named_audio_outputs(&response, &sep_dir_clone)?;
+                if model_id == "htdemucs_6s" {
+                    crate::demucs_onnx::separate(
+                        cache_dir,
+                        input_44100_clone,
+                        sep_dir_clone,
+                    )
+                    .await?;
+                } else {
+                    // Contrat audiocpp_server /v1/tasks/run : champ `request` avec
+                    // audio = chemin WAV 44,1 kHz, réponses base64 nommées.
+                    let body = json!({
+                        "model": model_id,
+                        "request": {
+                            "audio": input_44100_clone.display().to_string()
+                        }
+                    });
+                    let response = AudioCppServer::run_task(
+                        server_url.as_deref().ok_or("Serveur audio indisponible.")?,
+                        body,
+                    )
+                    .await?;
+                    AudioCppServer::write_named_audio_outputs(&response, &sep_dir_clone)?;
+                }
                 Ok(())
             },
         )
-        .await?;
+        .await;
+    if let Err(error) = separator_result {
+        atomic_write_json(&sep_dir.join("job.json"), &json!({
+            "id": sep_id,
+            "projectId": id,
+            "kind": "separation",
+            "generationId": gen_id,
+            "state": if error == "cancelled" { "cancelled" } else { "failed" },
+            "error": error,
+            "updatedAt": now_iso(),
+        }))?;
+        return Err(error);
+    }
 
     if state.queue.cancel_requested() {
+        atomic_write_json(&sep_dir.join("job.json"), &json!({
+            "id": sep_id,
+            "projectId": id,
+            "kind": "separation",
+            "generationId": gen_id,
+            "state": "cancelled",
+            "updatedAt": now_iso(),
+        }))?;
         return Err("Annulation demandée. L’appel GPU déjà lancé va jusqu’au bout ; les fichiers déjà écrits restent.".into());
     }
 
@@ -664,6 +883,20 @@ pub async fn start_separation(
                 "estimated-separation".to_string(),
                 "bs-roformer-vocals-instrumental-only".to_string(),
                 "drums-bass-guitar-piano-unavailable".to_string(),
+            ],
+        ),
+        "htdemucs_6s" => (
+            "htdemucs_6s_onnx",
+            "htdemucs_6s_fp16weights",
+            "htdemucs_6s_fp16weights.onnx",
+            crate::demucs_onnx::MODEL_SHA256,
+            &[
+                "vocals", "drums", "bass", "other", "guitar", "piano",
+            ][..],
+            vec![
+                "estimated-separation".to_string(),
+                "experimental-guitar-piano".to_string(),
+                "piano-less-reliable".to_string(),
             ],
         ),
         _ => (
@@ -705,6 +938,7 @@ pub async fn start_separation(
 
     let unavailable: Vec<&str> = match separator {
         "bs_roformer" => vec!["drums", "bass", "guitar", "piano"],
+        "htdemucs_6s" => vec![],
         _ => vec!["guitar", "piano"],
     };
 
@@ -713,11 +947,14 @@ pub async fn start_separation(
         "schemaVersion": SCHEMA_VERSION,
         "id": sep_id,
         "generationId": gen_id,
-        "provider": "audiocpp",
+        "provider": if separator == "htdemucs_6s" { "demucs-onnx" } else { "audiocpp" },
         "family": family,
         "package": package,
-        "gguf": gguf,
+        "gguf": if separator == "htdemucs_6s" { serde_json::Value::Null } else { json!(gguf) },
+        "modelArtifact": if separator == "htdemucs_6s" { json!(gguf) } else { serde_json::Value::Null },
+        "modelFormat": if separator == "htdemucs_6s" { "onnx" } else { "gguf" },
         "sha256": sha,
+        "modelRevision": if separator == "htdemucs_6s" { json!(crate::demucs_onnx::MODEL_REVISION) } else { serde_json::Value::Null },
         "inputSha256": input_sha,
         "separatorInput": {
             "path": "input-44100.wav",
@@ -733,6 +970,14 @@ pub async fn start_separation(
         "warnings": warnings
     });
     atomic_write_json(&sep_dir.join("separation.json"), &sep_json)?;
+    atomic_write_json(&sep_dir.join("job.json"), &json!({
+        "id": sep_id,
+        "projectId": id,
+        "kind": "separation",
+        "generationId": gen_id,
+        "state": "completed",
+        "updatedAt": now_iso(),
+    }))?;
 
     let mix_id = next_folder_id(&folder.join("mixes"), "mix-v")?;
     let mix = new_mix_from_separation(&mix_id, &sep_id, &stem_meta);
@@ -1123,7 +1368,7 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
         let req: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(req_path).map_err(|e| e.to_string())?)
                 .map_err(|e| e.to_string())?;
-        let (state, has_score) = if res_path.exists() {
+        let (state, has_score, semantic_truncated) = if res_path.exists() {
             let res: serde_json::Value = serde_json::from_str(
                 &std::fs::read_to_string(&res_path).map_err(|e| e.to_string())?,
             )
@@ -1134,9 +1379,17 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
                 .unwrap_or("unknown")
                 .to_string();
             let score = entry.path().join("score.abc").exists();
-            (st, score)
+            (
+                st,
+                score,
+                res.get("semanticTruncated").and_then(|v| v.as_bool()),
+            )
         } else {
-            ("unknown".into(), false)
+            let job_state = serde_json::from_slice::<serde_json::Value>(
+                &std::fs::read(entry.path().join("job.json")).unwrap_or_default(),
+            ).ok().and_then(|j| j.get("state").and_then(|v| v.as_str()).map(str::to_string))
+                .unwrap_or_else(|| "interrupted".into());
+            (job_state, false, None)
         };
         let gen_id = req
             .get("id")
@@ -1144,6 +1397,9 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
             .unwrap_or("")
             .to_string();
         let audio = entry.path().join("audio.wav");
+        let semantic_frames = std::fs::read(entry.path().join("semantic.json"))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<Vec<u32>>(&bytes).ok());
         out.push(GenerationSummary {
             id: gen_id,
             created_at: req
@@ -1168,6 +1424,11 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
             } else {
                 None
             },
+            semantic_truncated,
+            can_continue: semantic_truncated == Some(true)
+                && semantic_frames.as_ref().is_some_and(|frames| {
+                    !frames.is_empty() && frames.iter().all(|&frame| frame < 32768)
+                }),
         });
     }
     Ok(out)
@@ -1334,6 +1595,7 @@ fn find_stem_file(dir: &Path, role: &str) -> Result<PathBuf, String> {
 fn normalize_stem_separator(raw: &str) -> &'static str {
     match raw.trim().to_ascii_lowercase().as_str() {
         "bs_roformer" | "bs-roformer" | "bsroformer" => "bs_roformer",
+        "htdemucs_6s" | "htdemucs-6s" | "htdemucs6s" => "htdemucs_6s",
         _ => "htdemucs",
     }
 }

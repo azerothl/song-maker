@@ -1,5 +1,8 @@
 use crate::models::{AppSettings, LibraryRow, ProjectDoc};
-use crate::paths::{atomic_write_json, ensure_dir, library_db_path, projects_root, settings_path};
+use crate::paths::{
+    atomic_write_json, ensure_dir, library_db_path, pinned_archive_name, projects_root,
+    settings_path,
+};
 use crate::pins::*;
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
@@ -177,11 +180,79 @@ pub fn load_settings() -> Result<AppSettings, String> {
     let path = settings_path();
     if path.exists() {
         let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        return serde_json::from_str(&text).map_err(|e| e.to_string());
+        let mut settings: AppSettings = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        if migrate_binary_pin(&mut settings) {
+            save_settings(&settings)?;
+        }
+        return Ok(settings);
     }
     let defaults = default_settings();
     save_settings(&defaults)?;
     Ok(defaults)
+}
+
+/// Mark queued/running manifests interrupted after a process restart; GPU work
+/// cannot be replayed safely without the original in-memory request context.
+pub fn recover_generation_jobs() -> Result<(), String> {
+    let root = projects_root();
+    if !root.exists() { return Ok(()); }
+    for project in std::fs::read_dir(root).map_err(|e| e.to_string())? {
+        let project_path = project.map_err(|e| e.to_string())?.path();
+        let generations = project_path.join("generations");
+        if !generations.is_dir() { continue; }
+        for generation in std::fs::read_dir(generations).map_err(|e| e.to_string())? {
+            let generation_path = generation.map_err(|e| e.to_string())?.path();
+            let job_path = generation_path.join("job.json");
+            if !job_path.is_file() { continue; }
+            if generation_path.join("result.json").is_file() { continue; }
+            let mut job: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(&job_path).map_err(|e| e.to_string())?,
+            ).map_err(|e| e.to_string())?;
+            let state = job.get("state").and_then(|v| v.as_str()).unwrap_or("");
+            if state == "queued" || state == "running" {
+                job["state"] = serde_json::Value::String("interrupted".into());
+                job["updatedAt"] = serde_json::Value::String(crate::paths::now_iso());
+                crate::paths::atomic_write_json(&job_path, &job)?;
+            }
+        }
+        let separations = project_path.join("separations");
+        if separations.is_dir() {
+            for separation in std::fs::read_dir(separations).map_err(|e| e.to_string())? {
+                let separation_path = separation.map_err(|e| e.to_string())?.path();
+                let job_path = separation_path.join("job.json");
+                if !job_path.is_file() || separation_path.join("separation.json").is_file() { continue; }
+                let mut job: serde_json::Value = serde_json::from_slice(
+                    &std::fs::read(&job_path).map_err(|e| e.to_string())?,
+                ).map_err(|e| e.to_string())?;
+                let state = job.get("state").and_then(|v| v.as_str()).unwrap_or("");
+                if state == "queued" || state == "running" || state == "preparing" {
+                    job["state"] = serde_json::Value::String("interrupted".into());
+                    job["updatedAt"] = serde_json::Value::String(crate::paths::now_iso());
+                    crate::paths::atomic_write_json(&job_path, &job)?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn migrate_binary_pin(settings: &mut AppSettings) -> bool {
+    let sha = if cfg!(target_os = "windows") {
+        ARCHIVE_WINDOWS_SHA
+    } else {
+        ARCHIVE_LINUX_SHA
+    };
+    let archive = pinned_archive_name();
+    if settings.binary_tag == AUDIOCPP_TAG
+        && settings.binary_archive == archive
+        && settings.binary_sha256 == sha
+    {
+        return false;
+    }
+    settings.binary_tag = AUDIOCPP_TAG.into();
+    settings.binary_archive = archive.into();
+    settings.binary_sha256 = sha.into();
+    true
 }
 
 pub fn default_settings() -> AppSettings {
@@ -206,11 +277,34 @@ pub fn default_settings() -> AppSettings {
         output_device: None,
         stem_separator: DEFAULT_STEM_SEPARATOR.into(),
         cc_by_nc_accepted: false,
+        yue2_ar_lora: None,
+        yue2_nar_lora: None,
+        yue2_ar_lora_scale: 1.0,
+        yue2_nar_lora_scale: 1.0,
     }
 }
 
 pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
     atomic_write_json(&settings_path(), settings)
+}
+
+#[cfg(test)]
+mod settings_tests {
+    use super::{default_settings, migrate_binary_pin};
+    use crate::pins::AUDIOCPP_TAG;
+    use crate::paths::pinned_archive_name;
+
+    #[test]
+    fn upgrades_existing_settings_to_the_current_pinned_binary() {
+        let mut settings = default_settings();
+        settings.binary_tag = "v0.8.1".into();
+        settings.binary_archive = "audio-v0.8.1-bin-windows-x64-cuda12.4.zip".into();
+        settings.binary_sha256 = "old-sha".into();
+
+        assert!(migrate_binary_pin(&mut settings));
+        assert_eq!(settings.binary_tag, AUDIOCPP_TAG);
+        assert_eq!(settings.binary_archive, pinned_archive_name());
+    }
 }
 
 pub fn project_folder(id: &str) -> PathBuf {

@@ -2,6 +2,7 @@ use tauri::Manager;
 
 mod audiocpp;
 mod commands;
+mod demucs_onnx;
 mod form;
 mod hashutil;
 mod health;
@@ -17,6 +18,7 @@ use commands::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _ = library::recover_generation_jobs();
     let state = AppState::default();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -26,6 +28,8 @@ pub fn run() {
             commands::get_settings,
             commands::update_settings,
             commands::get_phase3_status,
+            commands::install_htdemucs_6s_runtime,
+            commands::list_lora_adapters,
             commands::confirm_model_pack,
             commands::list_projects,
             commands::create_project,

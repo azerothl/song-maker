@@ -1,21 +1,23 @@
 :root {
-  --bg0: #0e1116;
-  --bg1: #161b22;
-  --bg2: #1e2530;
-  --line: #2a3340;
-  --text: #e8edf4;
-  --muted: #9aa7b8;
-  --accent: #3d8bfd;
-  --accent-2: #1f6feb;
-  --danger: #f85149;
-  --ok: #3fb950;
+  --bg0: #0c0e18;
+  --bg1: #151827;
+  --bg2: #20243a;
+  --line: #303550;
+  --text: #eff0fb;
+  --muted: #a7aec4;
+  --accent: #b49aff;
+  --accent-2: #8f71e8;
+  --accent-cyan: #69d9e8;
+  --accent-coral: #ff858d;
+  --danger: #ff777e;
+  --ok: #69d6aa;
   --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
   --font-ui: "Source Sans 3", "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   color: var(--text);
   background:
-    radial-gradient(1200px 600px at 10% -10%, #1a2740 0%, transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, #142018 0%, transparent 50%),
+    radial-gradient(1200px 600px at 10% -10%, #252044 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, #17253a 0%, transparent 50%),
     var(--bg0);
   font-family: var(--font-ui);
   font-synthesis: none;
@@ -43,6 +45,11 @@ select {
   color: inherit;
 }
 
+:where(button, input, textarea, select, summary, a):focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 220px 1fr;
@@ -55,7 +62,7 @@ select {
 }
 
 .sidebar {
-  background: linear-gradient(180deg, var(--bg1), #12161c);
+  background: linear-gradient(180deg, var(--bg1), #111321);
   border-right: 1px solid var(--line);
   padding: 1.25rem 1rem;
   display: flex;
@@ -116,7 +123,7 @@ select {
   border: 0;
   cursor: pointer;
   background:
-    radial-gradient(800px 400px at 50% 40%, #243044 0%, transparent 60%),
+    radial-gradient(800px 400px at 50% 40%, #292346 0%, transparent 60%),
     var(--bg0);
   display: grid;
   place-items: center;
@@ -170,7 +177,7 @@ select {
 }
 
 .btn:hover {
-  border-color: #3d4a5c;
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
 }
 
 .btn:disabled {
@@ -189,8 +196,8 @@ select {
 }
 
 .btn.active {
-  background: #2a3a28;
-  border-color: var(--ok);
+  background: color-mix(in srgb, var(--accent-2) 18%, var(--bg2));
+  border-color: var(--accent-2);
 }
 
 .search {
@@ -298,9 +305,40 @@ select {
   color: var(--text);
 }
 
+.song-form label.form-toggle {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.55rem;
+  line-height: 1.4;
+}
+
+.song-form .form-toggle input {
+  flex: 0 0 auto;
+  margin-top: 0.2rem;
+  padding: 0;
+  accent-color: var(--accent-2);
+}
+
+details > summary {
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+details[open] > summary {
+  margin-bottom: 0.65rem;
+}
+
+.score-edit-section,
+.advanced-production,
+.version-history {
+  border-top: 1px solid var(--line);
+  padding-top: 0.65rem;
+}
+
 .duration-slider {
   width: 100%;
-  accent-color: var(--accent, #c45c26);
+  accent-color: var(--accent-2);
 }
 
 .counter {
@@ -356,7 +394,7 @@ select {
 .player-seek {
   flex: 1;
   min-width: 6rem;
-  accent-color: var(--accent, #c45c26);
+  accent-color: var(--accent-2);
 }
 
 .player-time {
@@ -429,8 +467,28 @@ select {
   grid-template-columns: 7.5rem auto auto minmax(10rem, 1.6fr) minmax(6rem, 0.7fr) minmax(6rem, 0.7fr);
   gap: 0.5rem;
   align-items: center;
-  padding: 0.55rem 0;
+  padding: 0.55rem 0.55rem;
   border-bottom: 1px solid var(--line);
+}
+
+.track {
+  border-left: 3px solid var(--line);
+}
+
+.track[data-role="vocals"] {
+  border-left-color: var(--accent-coral);
+}
+
+.track[data-role="drums"] {
+  border-left-color: var(--accent-cyan);
+}
+
+.track[data-role="bass"] {
+  border-left-color: var(--accent-2);
+}
+
+.track[data-role="other"] {
+  border-left-color: var(--accent);
 }
 
 .master {
@@ -443,7 +501,7 @@ select {
 
 .hint.error,
 .banner.error {
-  color: #ffb4b0;
+  color: #ffb8be;
 }
 
 .hint.ok {
@@ -456,8 +514,8 @@ select {
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-  background: #2a2418;
-  border: 1px solid #5c4b2b;
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg1));
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
   border-radius: 8px;
   padding: 0.55rem 0.75rem;
   margin-bottom: 0.75rem;
@@ -467,8 +525,8 @@ select {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  background: #3a1d1d;
-  border-bottom: 1px solid #5c2b2b;
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg1));
+  border-bottom: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line));
   padding: 0.55rem 1rem;
 }
 
@@ -503,11 +561,11 @@ select {
 }
 
 .score-issues .error {
-  color: #ffb4b0;
+  color: #ffb8be;
 }
 
 .score-issues .warning {
-  color: #e3c78a;
+  color: var(--accent-cyan);
 }
 
 .piano-roll {
@@ -589,13 +647,13 @@ select {
   position: absolute;
   border: 0;
   border-radius: 3px;
-  background: linear-gradient(180deg, #4d9bff, #2f6fd6);
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
   cursor: grab;
   padding: 0;
 }
 
 .piano-note.selected {
-  outline: 2px solid #f0c674;
+  outline: 2px solid var(--accent-cyan);
   z-index: 2;
 }
 
@@ -604,7 +662,7 @@ select {
   top: 0;
   bottom: 0;
   width: 2px;
-  background: #7ee787;
+  background: var(--accent-cyan);
   opacity: 0.7;
   pointer-events: none;
 }
@@ -636,13 +694,13 @@ select {
 }
 
 .generations li.active {
-  background: rgba(196, 92, 38, 0.18);
-  border: 1px solid rgba(196, 92, 38, 0.45);
+  background: color-mix(in srgb, var(--accent-2) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .gen-active {
   font-style: normal;
-  color: var(--accent, #e88c50);
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -702,14 +760,14 @@ select {
   bottom: 3px;
   border: 0;
   border-radius: 3px;
-  background: linear-gradient(90deg, #3d6a9e, #2a4f78);
+  background: linear-gradient(90deg, #684db0, #393563);
   cursor: pointer;
   padding: 0;
   overflow: hidden;
 }
 
 .clip-block.active {
-  outline: 2px solid #e3c78a;
+  outline: 2px solid var(--accent-cyan);
   z-index: 2;
 }
 
@@ -815,8 +873,8 @@ select {
 
 .candidate-list li.selected,
 .version-tree li.active {
-  background: rgba(196, 92, 38, 0.18);
-  border: 1px solid rgba(196, 92, 38, 0.45);
+  background: color-mix(in srgb, var(--accent-2) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
   border-radius: 6px;
 }
 
@@ -914,7 +972,31 @@ select {
 }
 
 .hint.warn {
-  color: var(--warn, #c9883a);
+  color: var(--accent-cyan);
+}
+
+.continuation-panel,
+.phase4-lora-active {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2, var(--surface));
+}
+
+.continuation-panel h3,
+.phase4-lora-active h4,
+.continuation-panel p,
+.phase4-lora-active p {
+  margin: 0;
+}
+
+.continuation-panel textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+  resize: vertical;
 }
 
 .phase3-mix label {

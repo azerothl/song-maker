@@ -13,18 +13,18 @@ pub const SEPARATOR_SAMPLE_RATE: u32 = 44_100;
 pub const CHANNELS: u16 = 2;
 pub const BIT_DEPTH: u16 = 24;
 
-pub const AUDIOCPP_TAG: &str = "v0.8.1";
-pub const AUDIOCPP_COMMIT: &str = "f2b4937306daa25f5c78520f3c626ed31495a37a";
+pub const AUDIOCPP_TAG: &str = "v0.8.2";
+pub const AUDIOCPP_COMMIT: &str = "4d88768fbcae4e6eb3352c6ab1422dabb7d90b58";
 
-pub const ARCHIVE_WINDOWS: &str = "audio-v0.8.1-bin-windows-x64-cuda12.4.zip";
+pub const ARCHIVE_WINDOWS: &str = "audio-v0.8.2-bin-windows-x64-cuda12.4.zip";
 pub const ARCHIVE_WINDOWS_SHA: &str =
-    "28bbe8ac62a06c5d9d42ba3066b051f433dc9a8f456c544e03e87202f0fa8c52";
-pub const ARCHIVE_WINDOWS_CUDART: &str = "audio-v0.8.1-cudart-windows-x64-cuda12.4.zip";
+    "6055122c7199897ff21ca6cda9f9207712bd91273d21dc2d137d5fa610c43c86";
+pub const ARCHIVE_WINDOWS_CUDART: &str = "audio-v0.8.2-cudart-windows-x64-cuda12.4.zip";
 pub const ARCHIVE_WINDOWS_CUDART_SHA: &str =
-    "025faacfdc3dec215ee07cb9be7d1ef2016402723f3721a30500ceee02cc4701";
-pub const ARCHIVE_LINUX: &str = "audio-v0.8.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz";
+    "e2a31fb1030423319e686c6ec65da8952b2c095feb8a1e716c2adfbb6c46fac1";
+pub const ARCHIVE_LINUX: &str = "audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz";
 pub const ARCHIVE_LINUX_SHA: &str =
-    "f969811783f206b6d1f6566c020211ab9df7b6bb96c6eded6ad7a58deb725025";
+    "1190ba46bb45e1acd2ca42edca53074c7935b96de67f3719c8c4943df5fe1b6f";
 
 pub const YUE2_REPO: &str = "audio-cpp/Yue2-3B-GGUF";
 pub const YUE2_REVISION: &str = "eb116220931de5f373d024d48800338178c7de51";
@@ -65,6 +65,7 @@ pub const VRAM_Q8_THRESHOLD_MIB: u64 = 12_288;
 
 /// Cadence des tokens sémantiques YuE2 (1 token ≈ 40 ms).
 pub const SEMANTIC_HZ: u32 = 25;
+pub const SEMANTIC_MAX_DURATION_SEC: u32 = 900;
 pub const DURATION_SEC_MIN: u32 = 30;
 pub const DURATION_SEC_MAX: u32 = 360;
 pub const DURATION_SEC_STEP: u32 = 30;
@@ -81,8 +82,65 @@ pub fn normalize_target_duration_sec(sec: u32) -> u32 {
     (steps * DURATION_SEC_STEP).clamp(DURATION_SEC_MIN, DURATION_SEC_MAX)
 }
 
-pub fn semantic_max_tokens_for_duration(sec: u32) -> u32 {
-    normalize_target_duration_sec(sec).saturating_mul(SEMANTIC_HZ)
+/// YuE samples 25 semantic frames per second. In lyrics-first mode the target
+/// is a minimum; max tokens gets a conservative lyric estimate plus headroom.
+pub fn semantic_token_budget(sec: u32, lyrics: &str, prefer_full_lyrics: bool) -> (u32, u32) {
+    let target_sec = normalize_target_duration_sec(sec);
+    let target_tokens = target_sec.saturating_mul(SEMANTIC_HZ);
+    if !prefer_full_lyrics {
+        return (200, target_tokens);
+    }
+
+    let lyric_words = lyrics
+        .lines()
+        .filter(|line| !line.trim().starts_with('['))
+        .flat_map(str::split_whitespace)
+        .count() as u32;
+    // Conservatively budget one second per lyric word, plus 30 seconds for
+    // musical space. Real vocal pacing varies and the old 80 wpm estimate cut
+    // off a full test verse before its final lines.
+    let lyric_estimate_sec = lyric_words.saturating_add(30);
+    let target_with_headroom = target_sec
+        .saturating_add((target_sec / 4).max(DURATION_SEC_STEP));
+    let max_sec = lyric_estimate_sec
+        .max(target_with_headroom)
+        .min(SEMANTIC_MAX_DURATION_SEC);
+    let max_sec = ((max_sec + DURATION_SEC_STEP - 1) / DURATION_SEC_STEP) * DURATION_SEC_STEP;
+    (target_tokens, max_sec.min(SEMANTIC_MAX_DURATION_SEC) * SEMANTIC_HZ)
+}
+
+#[cfg(test)]
+mod semantic_budget_tests {
+    use super::*;
+
+    #[test]
+    fn lyrics_first_mode_keeps_target_as_minimum_and_adds_lyric_headroom() {
+        let lyrics = format!("{}", (0..500).map(|_| "word").collect::<Vec<_>>().join(" "));
+        let (min_tokens, max_tokens) = semantic_token_budget(30, &lyrics, true);
+        assert_eq!(min_tokens, 30 * SEMANTIC_HZ);
+        assert!(max_tokens > min_tokens);
+        assert!(max_tokens >= 6 * 60 * SEMANTIC_HZ);
+    }
+
+    #[test]
+    fn strict_mode_preserves_the_exact_duration_cap() {
+        let (min_tokens, max_tokens) = semantic_token_budget(30, "a very long lyric", false);
+        assert_eq!(min_tokens, 200);
+        assert_eq!(max_tokens, 30 * SEMANTIC_HZ);
+    }
+
+    #[test]
+    fn duration_budget_covers_the_full_song_smoke_test_lyrics() {
+        let lyrics = (0..278).map(|_| "word").collect::<Vec<_>>().join(" ");
+        assert_eq!(semantic_token_budget(30, &lyrics, true), (750, 8_250));
+    }
+
+    #[test]
+    fn section_headers_do_not_inflate_lyric_estimate() {
+        let plain = semantic_token_budget(30, "word word word", true);
+        let tagged = semantic_token_budget(30, "[Verse]\nword word word", true);
+        assert_eq!(plain, tagged);
+    }
 }
 
 pub const TONICS: &[&str] = &[

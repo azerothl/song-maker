@@ -41,7 +41,7 @@ native_path() {
 case "$HOST_OS" in
   linux)
     ARCHIVE_ID="linux-cuda12.8-colab"
-    ARCHIVE_NAME="audio-v0.8.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz"
+    ARCHIVE_NAME="audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz"
     EXTRACT_DIR="${BIN_DIR}/linux-cuda12.8-colab"
     SERVER_NAMES=("audiocpp_server")
     DOWNLOAD_HINT="--linux"
@@ -50,8 +50,8 @@ case "$HOST_OS" in
     ;;
   windows)
     ARCHIVE_ID="windows-cuda12.4"
-    ARCHIVE_NAME="audio-v0.8.1-bin-windows-x64-cuda12.4.zip"
-    CUDART_NAME="audio-v0.8.1-cudart-windows-x64-cuda12.4.zip"
+    ARCHIVE_NAME="audio-v0.8.2-bin-windows-x64-cuda12.4.zip"
+    CUDART_NAME="audio-v0.8.2-cudart-windows-x64-cuda12.4.zip"
     EXTRACT_DIR="${BIN_DIR}/windows-cuda12.4"
     SERVER_NAMES=("audiocpp_server.exe" "audiocpp_server")
     DOWNLOAD_HINT="--windows"

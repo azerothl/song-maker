@@ -18,7 +18,6 @@ const METERS = ["", "4/4", "3/4", "6/8", "2/4"];
 const DURATION_SEC_MIN = 30;
 const DURATION_SEC_MAX = 360;
 const DURATION_SEC_STEP = 30;
-const SEMANTIC_HZ = 25;
 
 const TITLE_FORBIDDEN = /[/\\:*?"<>|]/;
 
@@ -48,7 +47,7 @@ function validateForm(form: FormInput): string | null {
     dur > DURATION_SEC_MAX ||
     dur % DURATION_SEC_STEP !== 0
   ) {
-    return "Durée max : 0:30 à 6:00, par pas de 30 s.";
+    return "Durée cible : 0:30 à 6:00, par pas de 30 s.";
   }
   return null;
 }
@@ -74,6 +73,7 @@ export function SongScreen() {
   const [showFormErrors, setShowFormErrors] = useState(false);
   const [playback, setPlayback] = useState<PlaybackView | null>(null);
   const [candidateCount, setCandidateCount] = useState(2);
+  const [continuationLyrics, setContinuationLyrics] = useState("");
   const saveTimer = useRef<number | null>(null);
   const mixTimer = useRef<number | null>(null);
 
@@ -159,6 +159,27 @@ export function SongScreen() {
     setError(null);
     try {
       await api.startGeneration(project.id, form, scoreGate.abc);
+      await openProject(project.id);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onContinue(generationId: string) {
+    if (!project || !continuationLyrics.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const continuationForm: FormInput = {
+        ...form,
+        lyrics: continuationLyrics.trim(),
+        continuationGenerationId: generationId,
+      };
+      const parentScore = await api.readScoreAbc(project.id, generationId);
+      await api.startGeneration(project.id, continuationForm, scoreGate.abc ?? parentScore);
+      setContinuationLyrics("");
       await openProject(project.id);
     } catch (e) {
       setError(String(e));
@@ -310,10 +331,20 @@ export function SongScreen() {
           <span className="counter">
             {t("form.duration.hint", {
               duration: formatDurationLabel(form.targetDurationSec),
-              tokens: form.targetDurationSec * SEMANTIC_HZ,
             })}
           </span>
         </label>
+        <label className="form-toggle">
+          <input
+            type="checkbox"
+            checked={form.preferFullLyrics}
+            onChange={(e) => setForm({ preferFullLyrics: e.target.checked })}
+          />
+          <span>{t("form.duration.preferLyrics")}</span>
+        </label>
+        {!form.preferFullLyrics && (
+          <p className="hint warn">{t("form.duration.strictHint")}</p>
+        )}
         <label>
           {t("form.key")}
           <div className="row">
@@ -451,17 +482,6 @@ export function SongScreen() {
       </aside>
 
       <section className="song-stage">
-        <ScorePanel
-          projectId={project.id}
-          document={scoreDocument}
-          cot={form.cot}
-          title={form.title}
-          onDocumentChange={setScoreDocument}
-          onProjectRefresh={() => openProject(project.id)}
-          onError={setError}
-          onCotChange={(cot) => setForm({ cot })}
-        />
-
         <AudioPlayer
           projectId={project.id}
           sources={playbackSources}
@@ -469,6 +489,62 @@ export function SongScreen() {
           onError={setError}
           onPlaybackChange={setPlayback}
         />
+
+        <CandidateCompare
+          generations={generations}
+          activeId={project.activeGenerationId}
+          busy={busy}
+          candidateCount={candidateCount}
+          onCandidateCount={setCandidateCount}
+          onGenerateBatch={onGenerateBatch}
+          onUse={(genId) => {
+            void api
+              .useGeneration(project.id, genId)
+              .then(() => openProject(project.id));
+          }}
+        />
+
+        <details className="score-edit-section">
+          <summary>{t("score.editor")}</summary>
+          <ScorePanel
+            projectId={project.id}
+            document={scoreDocument}
+            cot={form.cot}
+            title={form.title}
+            onDocumentChange={setScoreDocument}
+            onProjectRefresh={() => openProject(project.id)}
+            onError={setError}
+            onCotChange={(cot) => setForm({ cot })}
+          />
+        </details>
+
+        {generations.find((g) => g.id === project.activeGenerationId)
+          ?.semanticTruncated && (
+          <section className="continuation-panel" aria-labelledby="continue-title">
+            <h3 id="continue-title">{t("generations.lyricsTruncated")}</h3>
+            <p className="hint">{t("generations.continueHint")}</p>
+            <label>
+              {t("generations.remainingLyrics")}
+              <textarea
+                rows={5}
+                value={continuationLyrics}
+                onChange={(e) => setContinuationLyrics(e.target.value)}
+                placeholder={t("generations.remainingLyricsPlaceholder")}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy || !continuationLyrics.trim() || !generations.find((g) => g.id === project.activeGenerationId)?.canContinue}
+              onClick={() => {
+                const active = generations.find((g) => g.id === project.activeGenerationId);
+                if (active) void onContinue(active.id);
+              }}
+            >
+              {t("generations.continue")}
+            </button>
+          </section>
+        )}
 
         {mix ? (
           <div className="mixer">
@@ -494,7 +570,7 @@ export function SongScreen() {
               const muted = tr.mute || (anySolo && !tr.solo);
               const peaks = playback?.peaksByTrack[tr.id] ?? null;
               return (
-                <div key={tr.id} className="track">
+                <div key={tr.id} className="track" data-role={tr.role.toLowerCase()}>
                   <strong>{tr.name}</strong>
                   <button
                     type="button"
@@ -595,7 +671,12 @@ export function SongScreen() {
           <p className="hint">Stéréo — lancez la séparation pour les quatre pistes.</p>
         )}
 
-        <Phase3MixPanel mix={mix} />
+        {mix && (
+          <details className="advanced-production">
+            <summary>{t("phase3.mix.title")}</summary>
+            <Phase3MixPanel mix={mix} />
+          </details>
+        )}
 
         <details
           open={scoreOpen}
@@ -605,29 +686,18 @@ export function SongScreen() {
           <pre className="score">{scoreAbc ?? t("score.empty")}</pre>
         </details>
 
-        <CandidateCompare
-          generations={generations}
-          activeId={project.activeGenerationId}
-          busy={busy}
-          candidateCount={candidateCount}
-          onCandidateCount={setCandidateCount}
-          onGenerateBatch={onGenerateBatch}
-          onUse={(genId) => {
-            void api
-              .useGeneration(project.id, genId)
-              .then(() => openProject(project.id));
-          }}
-        />
-
-        <VersionGraph
-          generations={generations}
-          activeId={project.activeGenerationId}
-          onUse={(genId) => {
-            void api
-              .useGeneration(project.id, genId)
-              .then(() => openProject(project.id));
-          }}
-        />
+        <details className="version-history">
+          <summary>{t("versions.history", { count: String(generations.length) })}</summary>
+          <VersionGraph
+            generations={generations}
+            activeId={project.activeGenerationId}
+            onUse={(genId) => {
+              void api
+                .useGeneration(project.id, genId)
+                .then(() => openProject(project.id));
+            }}
+          />
+        </details>
       </section>
     </div>
   );
