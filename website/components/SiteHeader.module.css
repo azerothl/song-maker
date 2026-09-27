@@ -60,7 +60,35 @@
 }
 
 @media (max-width: 900px) {
+  .header {
+    height: auto;
+  }
+
+  .inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.45rem 1rem;
+    height: auto;
+    min-height: var(--nav-h);
+    padding-block: 0.55rem;
+  }
+
   .nav {
+    display: flex;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    gap: 1.2rem;
+    margin: 0;
+    padding-bottom: 0.2rem;
+    scrollbar-width: none;
+  }
+
+  .nav::-webkit-scrollbar {
     display: none;
+  }
+
+  .actions {
+    gap: 0.45rem;
+    margin-left: 0;
   }
 }

@@ -1,6 +1,6 @@
 ---
 title: Mix & export
-description: Stems, clips, overlay production, export WAV/FLAC/MP3 (phase 3).
+description: Séparer les pistes, ajuster le mix et exporter en WAV/FLAC/MP3.
 order: 4
 ---
 
@@ -8,17 +8,17 @@ order: 4
 
 ## Stems
 
-Séparation via **HTDemucs** (et **BS-RoFormer** côté providers). Isolez voix / batterie / basse / autres avant de remixer.
+La sortie **HTDemucs** actuelle produit quatre stems par défaut : voix, batterie, basse et autres. Nous testons si la séparation peut en produire davantage ; le résultat n’est pas encore établi. Le provider BS-RoFormer fourni dans le dépôt est un stub et n’est pas un séparateur prêt à l’emploi.
 
 ## Mix & production
 
-- Timeline de **clips**
-- Overlay production : limiteur, loudness (et stubs d’automation / effets dans `@song-maker/mix-production`)
+- Édition des clips et réglage du mix
+- Outils de production disponibles dans l’application
 
 ## Export
 
-Formats livrés : **WAV**, **FLAC**, **MP3**. Vérifiez le chemin ffmpeg (`SONG_MAKER_FFMPEG` si besoin).
+Formats d’export : **WAV**, **FLAC** et **MP3**. Si Song Maker ne trouve pas ffmpeg, configurez son chemin avec `SONG_MAKER_FFMPEG`.
 
 ## LoRA
 
-Les packs LoRA optionnels passent par une **porte CC BY-NC** explicite dans `@song-maker/lora-packs` — pas de badge de monétisation.
+Les poids YuE2/GGUF mentionnés par le projet sont sous licence **CC BY-NC 4.0**. Cette licence comporte une restriction d’usage commercial ; vérifiez les conditions avant tout usage commercial.
