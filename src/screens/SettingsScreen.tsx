@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Phase3SettingsPanel } from "../components/Phase3SettingsPanel";
 import { Phase4SettingsPanel } from "../components/Phase4SettingsPanel";
+import { ProjectSyncPanel } from "../components/ProjectSyncPanel";
 import { api } from "../lib/api";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
@@ -12,6 +13,7 @@ type SettingsPage =
   | "lora"
   | "remote"
   | "host"
+  | "sync"
   | "system";
 
 export function SettingsScreen() {
@@ -36,6 +38,7 @@ export function SettingsScreen() {
     lora: t("settings.lora.title"),
     remote: t("settings.remote.title"),
     host: t("settings.host.title"),
+    sync: t("phase4.sync.title"),
     system: t("settings.system.title"),
   };
   const separatorName =
@@ -89,6 +92,12 @@ export function SettingsScreen() {
               description={t("settings.card.remote")}
               value={t("settings.card.offByDefault")}
               onClick={() => setPage("remote")}
+            />
+            <SettingsCard
+              title={pageTitle.sync}
+              description={t("settings.card.sync")}
+              value={t("settings.card.offByDefault")}
+              onClick={() => setPage("sync")}
             />
             <SettingsCard
               title={pageTitle.host}
@@ -174,6 +183,11 @@ export function SettingsScreen() {
         </div>
       )}
       {page === "remote" && <Phase4SettingsPanel view="remote" />}
+      {page === "sync" && (
+        <div className="settings-detail-page">
+          <ProjectSyncPanel />
+        </div>
+      )}
       {page === "host" && <Phase4SettingsPanel view="host" />}
       {page === "system" && (
         <section className="settings-detail-page settings-system-page">

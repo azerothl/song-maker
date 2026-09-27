@@ -24,6 +24,7 @@
     "@song-maker/lora-packs": "workspace:*",
     "@song-maker/mix-production": "workspace:*",
     "@song-maker/partition-invariants": "workspace:*",
+    "@song-maker/project-sync": "workspace:*",
     "@song-maker/remote-worker": "workspace:*",
     "@song-maker/score-engine": "workspace:*",
     "@song-maker/stem-providers": "workspace:*",

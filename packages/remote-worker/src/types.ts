@@ -33,7 +33,13 @@ export type EncryptedBlobRef = {
   /** Ciphertext path or object key; plaintext never leaves without consent. */
   cipherPath: string;
   contentSha256: string;
-  encryption: "aes-256-gcm-placeholder";
+  /**
+   * `aes-256-gcm` when Web Crypto encrypted the bytes;
+   * `aes-256-gcm-placeholder` only when SubtleCrypto is unavailable (honest).
+   */
+  encryption: "aes-256-gcm" | "aes-256-gcm-placeholder";
+  /** Plaintext byte length before encryption (for retention / UI preview). */
+  byteLength?: number;
 };
 
 export type RemoteJobKind = "yue2_generate" | "htdemucs_separate";

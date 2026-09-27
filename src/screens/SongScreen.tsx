@@ -1,14 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type {
+  BuiltRemotePayload,
+  RemoteWorkerPreferences,
+} from "@song-maker/remote-worker";
 import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
 import { CandidateCompare } from "../components/CandidateCompare";
 import { ClipTimeline } from "../components/ClipTimeline";
+import { MultiRenderFromScore } from "../components/MultiRenderFromScore";
 import { Phase3MixPanel } from "../components/Phase3MixPanel";
+import { RemoteGenerateConfirm } from "../components/RemoteGenerateConfirm";
+import { ScoreOnlyGenerate } from "../components/ScoreOnlyGenerate";
 import { ScorePanel } from "../components/ScorePanel";
 import { VersionGraph } from "../components/VersionGraph";
 import { Waveform } from "../components/Waveform";
 import { api } from "../lib/api";
 import { exportProjectAudio } from "../lib/exportMix";
+import {
+  buildGenerationPayload,
+  loadRemotePrefs,
+  submitRemoteGeneration,
+} from "../lib/remoteGenerate";
 import { prepareAbcForGeneration } from "../lib/score";
+import {
+  generateScoreOnly,
+  renderNFromScore,
+} from "../lib/scoreOnlyApi";
 import type { FormInput, MixDoc, MixTrack, SeparationInfo } from "../lib/types";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
@@ -164,7 +180,15 @@ export function SongScreen() {
   const [showFormErrors, setShowFormErrors] = useState(false);
   const [playback, setPlayback] = useState<PlaybackView | null>(null);
   const [candidateCount, setCandidateCount] = useState(2);
+  const [renderFromScoreCount, setRenderFromScoreCount] = useState(2);
   const [continuationLyrics, setContinuationLyrics] = useState("");
+  const [remoteConfirmOpen, setRemoteConfirmOpen] = useState(false);
+  const [remotePrefs, setRemotePrefs] = useState<RemoteWorkerPreferences | null>(
+    null,
+  );
+  const [remotePayload, setRemotePayload] = useState<BuiltRemotePayload | null>(
+    null,
+  );
   const [advancedSettingsPage, setAdvancedSettingsPage] =
     useState<AdvancedSettingsPage>(null);
   const [separationInfo, setSeparationInfo] = useState<SeparationInfo | null>(
@@ -198,6 +222,9 @@ export function SongScreen() {
     [scoreDocument, form.cot, form.title],
   );
   const canGenerate = !formError && !busy && !scoreGate.error;
+  /** Score-only forbids external ABC and cot=off. */
+  const canGenerateScoreOnly =
+    !formError && form.cot !== "off" && !scoreGate.abc;
 
   useEffect(() => {
     setShowFormErrors(false);
@@ -264,6 +291,12 @@ export function SongScreen() {
 
   if (!project) return null;
 
+  async function onGenerateLocal() {
+    if (!project) return;
+    await api.startGeneration(project.id, form, scoreGate.abc);
+    await openProject(project.id);
+  }
+
   async function onGenerate() {
     if (!project) return;
     if (formError || scoreGate.error) {
@@ -273,8 +306,44 @@ export function SongScreen() {
     setBusy(true);
     setError(null);
     try {
-      await api.startGeneration(project.id, form, scoreGate.abc);
-      await openProject(project.id);
+      const prefs = loadRemotePrefs();
+      if (prefs.remoteEnabled) {
+        const payload = await buildGenerationPayload(
+          project.id,
+          form,
+          scoreGate.abc,
+        );
+        setRemotePrefs(prefs);
+        setRemotePayload(payload);
+        setRemoteConfirmOpen(true);
+        return;
+      }
+      await onGenerateLocal();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onConfirmRemoteGenerate() {
+    if (!project || !remotePrefs || !remotePayload) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const handle = await submitRemoteGeneration(remotePrefs, remotePayload);
+      setRemoteConfirmOpen(false);
+      if (handle.status === "queued" || handle.status === "running" || handle.status === "succeeded") {
+        setError(
+          handle.error
+            ? `${handle.status}: ${handle.error}`
+            : `Worker distant: ${handle.status} (${handle.id}) — pas de repli local automatique.`,
+        );
+      } else {
+        setError(
+          `${handle.status}: ${handle.error ?? "échec distant"} — génération locale non démarrée.`,
+        );
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -337,6 +406,40 @@ export function SongScreen() {
             : { ...form, seed: null };
         await api.startGeneration(project.id, formForCall, scoreGate.abc);
       }
+      await openProject(project.id);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onGenerateScoreOnly() {
+    if (!project || !canGenerateScoreOnly) {
+      setShowFormErrors(true);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await generateScoreOnly(project.id, form);
+      await openProject(project.id);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRenderFromScore(sourceGenId: string, count: number) {
+    if (!project || formError) {
+      setShowFormErrors(true);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await renderNFromScore(project.id, sourceGenId, form, count);
       await openProject(project.id);
     } catch (e) {
       setError(String(e));
@@ -762,7 +865,22 @@ export function SongScreen() {
             </div>
           )}
         </div>
-        {advancedSettingsPage === null && <p className="hint">{t("stopAfter.gated")}</p>}
+        {advancedSettingsPage === null && (
+          <>
+            <ScoreOnlyGenerate
+              canGenerate={canGenerateScoreOnly}
+              busy={busy}
+              onGenerateScoreOnly={onGenerateScoreOnly}
+            />
+            <MultiRenderFromScore
+              generations={generations}
+              busy={busy}
+              renderCount={renderFromScoreCount}
+              onRenderCountChange={setRenderFromScoreCount}
+              onRenderFromScore={onRenderFromScore}
+            />
+          </>
+        )}
       </aside>
 
       <section className="song-stage">
@@ -788,7 +906,7 @@ export function SongScreen() {
           }}
         />
 
-        <details className="score-edit-section">
+        <details className="score-edit-section" open>
           <summary>{t("score.editor")}</summary>
           <ScorePanel
             projectId={project.id}
@@ -799,6 +917,7 @@ export function SongScreen() {
             onProjectRefresh={() => openProject(project.id)}
             onError={setError}
             onCotChange={(cot) => setForm({ cot })}
+            defaultOpen
           />
         </details>
 
@@ -1021,6 +1140,17 @@ export function SongScreen() {
           />
         </details>
       </section>
+
+      {remotePrefs && (
+        <RemoteGenerateConfirm
+          open={remoteConfirmOpen}
+          prefs={remotePrefs}
+          payloadPreview={remotePayload}
+          busy={busy}
+          onCancel={() => setRemoteConfirmOpen(false)}
+          onConfirm={onConfirmRemoteGenerate}
+        />
+      )}
     </div>
   );
 }

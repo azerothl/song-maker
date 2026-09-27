@@ -71,7 +71,7 @@ winget install Gyan.FFmpeg
 
 Puis redémarrer le terminal / Song Maker. Surcharge éventuelle : variable d’environnement `SONG_MAKER_FFMPEG` = chemin vers `ffmpeg.exe`.
 
-Phase 2 (partition + audio) : import MIDI, piano roll, validation/export ABC YuE2, édition de clips sur le mix, multi-candidats séquentiels, export MP3 (livraison), graphe léger des `gen-*`. Sans partition utilisateur, le chemin phase 1 (style + paroles) reste inchangé. `stop_after=abc` reste gated (`v0.8.2`).
+Phase 2 (partition + audio) : import MIDI, piano roll, validation/export ABC YuE2, édition de clips sur le mix, multi-candidats séquentiels, export MP3 (livraison), graphe léger des `gen-*`, `stop_after=abc` (partition seule + multi-rendu). Sans partition utilisateur, le chemin phase 1 (style + paroles) reste inchangé.
 
 ## Paquets monorepo (`packages/`)
 
@@ -94,4 +94,4 @@ pnpm test
 
 ## Hors périmètre encore stubbé / gated
 
-`stop_after=abc` (exige audio.cpp ≥ 0.8.2 — drapeau off), `semantic_prefix`, SheetSage2, worker distant, Akasha, effets phase 3.
+`semantic_prefix`, SheetSage2, worker distant (contrat HTTP, pas de serveur in-repo), synchro projet optionnelle (stub), Akasha, effets phase 3.

@@ -11,7 +11,7 @@ import {
 } from "@song-maker/lora-packs";
 import {
   DEFAULT_RETENTION_POLICY,
-  createConsent,
+  buildProjectPayload,
   createRemoteGpuWorkerClient,
   resolveAuthPlaceholder,
   REMOTE_WORKER_TOKEN_ENV,
@@ -19,10 +19,11 @@ import {
 } from "@song-maker/remote-worker";
 import { useAppStore } from "../store/appStore";
 import { api } from "../lib/api";
+import { REMOTE_PREFS_KEY } from "../lib/remoteGenerate";
 import type { LocalLoraAdapter } from "../lib/types";
 import { t } from "../ui/i18n";
 
-const PREFS_KEY = "song-maker.remote-worker.prefs";
+const PREFS_KEY = REMOTE_PREFS_KEY;
 
 function loadPrefs(): RemoteWorkerPreferences {
   try {
@@ -143,31 +144,30 @@ export function Phase4SettingsPanel({
     const client = createRemoteGpuWorkerClient({
       localFirst: true,
       remoteEnabled: prefs.remoteEnabled,
+      endpointBaseUrl: prefs.endpointBaseUrl,
       accessToken: auth.accessToken,
       retentionAcknowledged: prefs.retentionAcknowledged,
     });
-    const result = await client.submit({
+    // Real hashed probe payload (not blob://probe zeros).
+    const built = await buildProjectPayload({
+      projectId: "settings-probe",
       kind: "yue2_generate",
-      endpoint: {
-        baseUrl: prefs.endpointBaseUrl || "https://worker.example.invalid",
-        requireTls: true,
-      },
-      auth,
-      consent: createConsent({
-        userConsented: prefs.remoteEnabled,
-        scope: "generation",
-        retentionAcknowledged: prefs.retentionAcknowledged,
-      }),
-      payload: {
-        cipherPath: "blob://probe",
-        contentSha256: "0".repeat(64),
-        encryption: "aes-256-gcm-placeholder",
-      },
+      request: { probe: true, style: "probe", lyrics: "[Probe]\n" },
     });
+    const health = await client.probe();
+    if (health.status === "succeeded") {
+      setProbeMsg(
+        t("phase4.remote.probeOk", {
+          sha: built.plaintextSha256.slice(0, 16),
+          enc: built.blob.encryption,
+        }),
+      );
+      return;
+    }
     setProbeMsg(
-      result.status === "queued"
-        ? t("phase4.remote.probeQueued", { id: result.id })
-        : `${result.status}: ${result.error ?? ""}`,
+      `${health.status}: ${health.error ?? ""}\n` +
+        t("phase4.remote.probeContract") +
+        `\npayload sha=${built.plaintextSha256.slice(0, 16)}… (${built.blob.byteLength ?? 0} o)`,
     );
   };
 
@@ -219,6 +219,7 @@ export function Phase4SettingsPanel({
       {view === "remote" && (
         <div className="settings-page-content">
       <p className="hint">{DEFAULT_RETENTION_POLICY.messageFr}</p>
+      <p className="hint">{t("phase4.remote.contractHint")}</p>
       <label className="phase3-check">
         <input
           type="checkbox"

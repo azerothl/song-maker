@@ -24,6 +24,7 @@
       "@song-maker/partition-invariants": [
         "./packages/partition-invariants/src/index.ts"
       ],
+      "@song-maker/project-sync": ["./packages/project-sync/src/index.ts"],
       "@song-maker/remote-worker": ["./packages/remote-worker/src/index.ts"],
       "@song-maker/akasha-declui": ["./packages/akasha-declui/src/index.ts"]
     }

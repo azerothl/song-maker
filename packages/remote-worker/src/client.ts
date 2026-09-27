@@ -1,4 +1,8 @@
 import { resolveAuthPlaceholder } from "./auth.js";
+import {
+  createHttpTransport,
+  type RemoteHttpTransport,
+} from "./http-transport.js";
 import type {
   AuthPlaceholder,
   ConsentRecord,
@@ -48,27 +52,55 @@ function rejectUnauthorized(auth: AuthPlaceholder): RemoteJobHandle | null {
   return null;
 }
 
+export type LocalFirstRemoteGpuWorkerClientOptions = {
+  preferences?: Partial<RemoteWorkerPreferences>;
+  retention?: RetentionPolicy;
+  /**
+   * When true (default if remoteEnabled), use HTTP transport against the
+   * documented contract. When false, keep an in-memory queue for unit tests.
+   */
+  useHttpTransport?: boolean;
+  transport?: RemoteHttpTransport;
+};
+
 /**
  * Local-first client: enforces consent, retention ack, token, TLS.
- * Does not open sockets — queues in memory so the UI can exercise the path
- * without a live worker. Replace transport later without changing the API.
+ * When remote is opted in, submits via HTTP to the contract endpoints.
+ * Opt-out (`remoteEnabled=false`) → zero remote calls (no sockets, no fetch).
+ * Failures are loud — no silent local generation fallback.
  */
 export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
   private readonly jobs = new Map<string, RemoteJobHandle>();
   private seq = 0;
   private readonly preferences: RemoteWorkerPreferences;
   readonly retention: RetentionPolicy;
+  private readonly useHttp: boolean;
+  private readonly transport: RemoteHttpTransport;
 
   constructor(
     preferences: Partial<RemoteWorkerPreferences> = {},
     retention: RetentionPolicy = DEFAULT_RETENTION_POLICY,
+    options: Omit<
+      LocalFirstRemoteGpuWorkerClientOptions,
+      "preferences" | "retention"
+    > = {},
   ) {
     this.preferences = { ...DEFAULT_REMOTE_PREFERENCES, ...preferences };
     this.retention = retention;
+    this.useHttp =
+      options.useHttpTransport ??
+      (this.preferences.remoteEnabled &&
+        Boolean(this.preferences.endpointBaseUrl.trim()));
+    this.transport = options.transport ?? createHttpTransport();
   }
 
   getPreferences(): RemoteWorkerPreferences {
     return { ...this.preferences };
+  }
+
+  /** True when this client will never open a network call (opt-out). */
+  isNetworkIdle(): boolean {
+    return !this.preferences.remoteEnabled;
   }
 
   async authenticate(placeholder: AuthPlaceholder): Promise<AuthPlaceholder> {
@@ -84,7 +116,7 @@ export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
         id: "rejected",
         status: "rejected_local_only",
         error:
-          "Mode local-first (défaut) : activez explicitement le worker distant dans Paramètres.",
+          "Mode local-first (défaut) : activez explicitement le worker distant dans Paramètres. Aucun appel réseau.",
       };
     }
 
@@ -108,16 +140,42 @@ export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
       };
     }
 
+    if (this.useHttp) {
+      const result = await this.transport.submitJob({ ...request, auth });
+      this.jobs.set(result.handle.id, result.handle);
+      return result.handle;
+    }
+
+    // In-memory path for tests / probe without endpoint — not a network send.
     this.seq += 1;
     const handle: RemoteJobHandle = {
       id: `remote-job-${this.seq}`,
       status: "queued",
+      error:
+        "File mémoire locale (pas de socket). Configurez un endpoint https conforme à docs/remote-worker-contract.md pour un vrai transfert.",
     };
     this.jobs.set(handle.id, handle);
     return handle;
   }
 
   async poll(jobId: string): Promise<RemoteJobHandle> {
+    if (this.useHttp && this.preferences.remoteEnabled) {
+      const auth = await this.authenticate({
+        scheme: "bearer_placeholder",
+        accessToken: this.preferences.accessToken,
+        expiresAt: null,
+      });
+      const result = await this.transport.pollJob(
+        {
+          baseUrl: this.preferences.endpointBaseUrl,
+          requireTls: true,
+        },
+        auth,
+        jobId,
+      );
+      this.jobs.set(jobId, result.handle);
+      return result.handle;
+    }
     const job = this.jobs.get(jobId);
     if (!job) {
       return {
@@ -130,6 +188,23 @@ export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
   }
 
   async cancel(jobId: string): Promise<RemoteJobHandle> {
+    if (this.useHttp && this.preferences.remoteEnabled) {
+      const auth = await this.authenticate({
+        scheme: "bearer_placeholder",
+        accessToken: this.preferences.accessToken,
+        expiresAt: null,
+      });
+      const result = await this.transport.cancelJob(
+        {
+          baseUrl: this.preferences.endpointBaseUrl,
+          requireTls: true,
+        },
+        auth,
+        jobId,
+      );
+      this.jobs.set(jobId, result.handle);
+      return result.handle;
+    }
     const job = await this.poll(jobId);
     if (job.status === "queued" || job.status === "running") {
       const cancelled: RemoteJobHandle = {
@@ -142,20 +217,78 @@ export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
     }
     return job;
   }
+
+  /** Probe health over HTTP when an endpoint is set; otherwise refuse. */
+  async probe(): Promise<RemoteJobHandle> {
+    if (!this.preferences.remoteEnabled) {
+      return {
+        id: "probe",
+        status: "rejected_local_only",
+        error: "Worker distant désactivé — aucun appel réseau (opt-out).",
+      };
+    }
+    const auth = await this.authenticate({
+      scheme: "bearer_placeholder",
+      accessToken: this.preferences.accessToken,
+      expiresAt: null,
+    });
+    const unauthorized = rejectUnauthorized(auth);
+    if (unauthorized) return { ...unauthorized, id: "probe" };
+    if (!this.preferences.endpointBaseUrl.trim()) {
+      return {
+        id: "probe",
+        status: "failed",
+        error:
+          "URL manquante. L’endpoint doit implémenter GET /v1/health (docs/remote-worker-contract.md).",
+      };
+    }
+    if (!this.preferences.retentionAcknowledged) {
+      return {
+        id: "probe",
+        status: "rejected_retention",
+        error: DEFAULT_RETENTION_POLICY.messageFr,
+      };
+    }
+    const result = await this.transport.probeHealth(
+      {
+        baseUrl: this.preferences.endpointBaseUrl,
+        requireTls: true,
+      },
+      auth,
+    );
+    return result.handle;
+  }
 }
 
 /** @deprecated Prefer LocalFirstRemoteGpuWorkerClient. */
 export class StubRemoteGpuWorkerClient extends LocalFirstRemoteGpuWorkerClient {
   constructor() {
     // Legacy stub tests expect remote path open when consent+token present.
-    super({ localFirst: false, remoteEnabled: true });
+    super({ localFirst: false, remoteEnabled: true }, DEFAULT_RETENTION_POLICY, {
+      useHttpTransport: false,
+    });
   }
 }
 
 export function createRemoteGpuWorkerClient(
   preferences?: Partial<RemoteWorkerPreferences>,
+  options?: Omit<LocalFirstRemoteGpuWorkerClientOptions, "preferences">,
 ): LocalFirstRemoteGpuWorkerClient {
-  return new LocalFirstRemoteGpuWorkerClient(preferences);
+  const ctorOpts: Omit<
+    LocalFirstRemoteGpuWorkerClientOptions,
+    "preferences" | "retention"
+  > = {};
+  if (options?.useHttpTransport !== undefined) {
+    ctorOpts.useHttpTransport = options.useHttpTransport;
+  }
+  if (options?.transport !== undefined) {
+    ctorOpts.transport = options.transport;
+  }
+  return new LocalFirstRemoteGpuWorkerClient(
+    preferences,
+    options?.retention ?? DEFAULT_RETENTION_POLICY,
+    ctorOpts,
+  );
 }
 
 export function createEmptyAuthPlaceholder(): AuthPlaceholder {

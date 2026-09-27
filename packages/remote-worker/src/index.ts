@@ -25,4 +25,23 @@ export {
   createRemoteGpuWorkerClient,
   createEmptyAuthPlaceholder,
   createConsent,
+  type LocalFirstRemoteGpuWorkerClientOptions,
 } from "./client.js";
+export {
+  buildProjectPayload,
+  type ProjectPayloadInput,
+  type BuiltRemotePayload,
+} from "./payload.js";
+export {
+  encryptPayloadAesGcm,
+  decryptPayloadAesGcm,
+  sha256Hex,
+  type AesGcmCipherBundle,
+} from "./crypto.js";
+export {
+  FetchRemoteHttpTransport,
+  createHttpTransport,
+  REMOTE_WORKER_PATHS,
+  type RemoteHttpTransport,
+  type HttpTransportResult,
+} from "./http-transport.js";
