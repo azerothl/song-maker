@@ -20,6 +20,7 @@ import {
   loadRemotePrefs,
   submitRemoteGeneration,
 } from "../lib/remoteGenerate";
+import { ensureProductionOverlay } from "../lib/productionState";
 import { prepareAbcForGeneration } from "../lib/score";
 import {
   generateScoreOnly,
@@ -229,6 +230,30 @@ export function SongScreen() {
   useEffect(() => {
     setShowFormErrors(false);
   }, [project?.id]);
+
+  useEffect(() => {
+    if (!mix?.id) return;
+    ensureProductionOverlay(mix.id);
+  }, [mix?.id]);
+
+  const roleByTrack = useMemo(() => {
+    const out: Record<string, string> = {};
+    if (!mix) return out;
+    for (const tr of mix.tracks) {
+      out[tr.id] = tr.role.toLowerCase();
+    }
+    return out;
+  }, [mix]);
+
+  const sourceDurationMsByTrack = useMemo(() => {
+    const out: Record<string, number> = {};
+    if (!mix || !playback?.duration || playback.duration <= 0) return out;
+    const ms = Math.round(playback.duration * 1000);
+    for (const tr of mix.tracks) {
+      out[tr.id] = ms;
+    }
+    return out;
+  }, [mix, playback?.duration]);
 
   useEffect(() => {
     if (!project?.id) {
@@ -1033,6 +1058,7 @@ export function SongScreen() {
                       height={40}
                       muted={muted}
                       status={waveStatus}
+                      role={tr.role}
                       ariaLabel={tr.name}
                       onSeek={playback?.seek}
                     />
@@ -1106,7 +1132,13 @@ export function SongScreen() {
             >
               {t("mix.saveVersion")}
             </button>
-            <ClipTimeline mix={mix} onChange={scheduleMixUpdate} />
+            <ClipTimeline
+              mix={mix}
+              onChange={scheduleMixUpdate}
+              peaksByTrack={playback?.peaksByTrack}
+              roleByTrack={roleByTrack}
+              sourceDurationMsByTrack={sourceDurationMsByTrack}
+            />
           </div>
         ) : (
           <p className="hint">{t("mix.needSeparation")}</p>
@@ -1115,7 +1147,7 @@ export function SongScreen() {
         {mix && (
           <details className="advanced-production">
             <summary>{t("phase3.mix.title")}</summary>
-            <Phase3MixPanel mix={mix} />
+            <Phase3MixPanel mix={mix} sources={playbackSources} />
           </details>
         )}
 
