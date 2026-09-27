@@ -28,6 +28,10 @@ export default defineConfig(() => ({
         rootDir,
         "packages/lora-packs/src/index.ts",
       ),
+      "@song-maker/lora-training": path.resolve(
+        rootDir,
+        "packages/lora-training/src/index.ts",
+      ),
       "@song-maker/partition-invariants": path.resolve(
         rootDir,
         "packages/partition-invariants/src/index.ts",
@@ -35,6 +39,10 @@ export default defineConfig(() => ({
       "@song-maker/remote-worker": path.resolve(
         rootDir,
         "packages/remote-worker/src/index.ts",
+      ),
+      "@song-maker/sheetsage": path.resolve(
+        rootDir,
+        "packages/sheetsage/src/index.ts",
       ),
       "@song-maker/akasha-declui": path.resolve(
         rootDir,

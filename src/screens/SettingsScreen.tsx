@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LoraTrainingPanel } from "../components/LoraTrainingPanel";
 import { Phase3SettingsPanel } from "../components/Phase3SettingsPanel";
 import { Phase4SettingsPanel } from "../components/Phase4SettingsPanel";
 import { ProjectSyncPanel } from "../components/ProjectSyncPanel";
@@ -11,6 +12,7 @@ type SettingsPage =
   | "model"
   | "separation"
   | "lora"
+  | "loraTrain"
   | "remote"
   | "host"
   | "sync"
@@ -36,6 +38,7 @@ export function SettingsScreen() {
     model: t("settings.model.title"),
     separation: t("settings.separation.title"),
     lora: t("settings.lora.title"),
+    loraTrain: t("loraTrain.title"),
     remote: t("settings.remote.title"),
     host: t("settings.host.title"),
     sync: t("phase4.sync.title"),
@@ -86,6 +89,12 @@ export function SettingsScreen() {
               description={t("settings.card.lora")}
               value={settings.ccByNcAccepted ? t("settings.card.loraReady") : t("settings.card.optional")}
               onClick={() => setPage("lora")}
+            />
+            <SettingsCard
+              title={pageTitle.loraTrain}
+              description={t("settings.card.loraTrain")}
+              value={t("settings.card.pilotStub")}
+              onClick={() => setPage("loraTrain")}
             />
             <SettingsCard
               title={pageTitle.remote}
@@ -182,6 +191,11 @@ export function SettingsScreen() {
           <Phase4SettingsPanel view="lora" />
         </div>
       )}
+      {page === "loraTrain" && (
+        <div className="settings-detail-page">
+          <LoraTrainingPanel />
+        </div>
+      )}
       {page === "remote" && <Phase4SettingsPanel view="remote" />}
       {page === "sync" && (
         <div className="settings-detail-page">
@@ -256,6 +270,8 @@ export function LicensesScreen() {
           Packs LoRA optionnels (phases 3–4, y compris styles) — CC BY-NC 4.0,
           hors installeur ; voir Paramètres → Production audio / Agent.
         </li>
+        <li>{t("licenses.sheetsage")}</li>
+        <li>{t("licenses.loraTrain")}</li>
         <li>
           Crédit : <strong>{t("licenses.credit")}</strong>
         </li>

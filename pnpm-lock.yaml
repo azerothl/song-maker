@@ -14,6 +14,9 @@ importers:
       '@song-maker/lora-packs':
         specifier: workspace:*
         version: link:packages/lora-packs
+      '@song-maker/lora-training':
+        specifier: workspace:*
+        version: link:packages/lora-training
       '@song-maker/mix-production':
         specifier: workspace:*
         version: link:packages/mix-production
@@ -29,6 +32,9 @@ importers:
       '@song-maker/score-engine':
         specifier: workspace:*
         version: link:packages/score-engine
+      '@song-maker/sheetsage':
+        specifier: workspace:*
+        version: link:packages/sheetsage
       '@song-maker/stem-providers':
         specifier: workspace:*
         version: link:packages/stem-providers
@@ -97,6 +103,15 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.4)(tsx@4.23.15)(yaml@2.9.1)
 
+  packages/lora-training:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.4)(tsx@4.23.15)(yaml@2.9.1)
+
   packages/mix-production:
     devDependencies:
       typescript:
@@ -144,6 +159,15 @@ importers:
       typescript:
         specifier: ^5.8.2
         version: 5.9.3
+
+  packages/sheetsage:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.4)(tsx@4.23.15)(yaml@2.9.1)
 
   packages/stem-providers:
     devDependencies:
