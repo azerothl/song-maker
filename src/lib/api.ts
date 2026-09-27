@@ -66,6 +66,35 @@ export const api = {
       id,
       req: { format, destination: null },
     }),
+  exportPcmAudio: (
+    id: string,
+    req: {
+      format: "wav" | "flac" | "mp3";
+      pcmLe: number[];
+      sampleRate: number;
+      channels: number;
+      peakTrimDb: number;
+      renderPath: string;
+      matchMode: string;
+    },
+  ) =>
+    invoke<string>("export_pcm_audio", {
+      id,
+      req: {
+        format: req.format,
+        destination: null,
+        pcmLe: req.pcmLe,
+        sampleRate: req.sampleRate,
+        channels: req.channels,
+        peakTrimDb: req.peakTrimDb,
+        renderPath: req.renderPath,
+        matchMode: req.matchMode,
+      },
+    }),
+  downloadCacheFile: (url: string, relativeCachePath: string) =>
+    invoke<string>("download_cache_file", {
+      req: { url, relativeCachePath },
+    }),
   listGenerations: (id: string) =>
     invoke<GenerationSummary[]>("list_generations", { id }),
   readScoreAbc: (id: string, genId: string) =>

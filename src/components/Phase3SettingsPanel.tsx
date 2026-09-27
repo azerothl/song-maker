@@ -3,6 +3,7 @@ import {
   LORA_PACK_CATALOG,
   gateLoraPackAccess,
   planOptionalLoraDownload,
+  requestOptionalLoraDownload,
   type LoraPack,
 } from "@song-maker/lora-packs";
 import {
@@ -20,6 +21,7 @@ export function Phase3SettingsPanel() {
   const setError = useAppStore((s) => s.setError);
   const [phase3, setPhase3] = useState<Phase3Status | null>(null);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const refreshPhase3 = async () => {
     try {
@@ -70,17 +72,18 @@ export function Phase3SettingsPanel() {
     }
   };
 
+  const acceptance = () => ({
+    ccByNcAccepted: Boolean(settings.ccByNcAccepted ?? phase3?.ccByNcAccepted),
+    allowCommercialRedistribution: false,
+  });
+
   const onPlanDownload = (pack: LoraPack) => {
-    const acceptance = {
-      ccByNcAccepted: Boolean(settings.ccByNcAccepted ?? phase3?.ccByNcAccepted),
-      allowCommercialRedistribution: false,
-    };
-    const gated = gateLoraPackAccess(pack.id, acceptance);
+    const gated = gateLoraPackAccess(pack.id, acceptance());
     if (!gated.ok) {
       setDownloadNotice(gated.message);
       return;
     }
-    const planned = planOptionalLoraDownload(pack.id, acceptance);
+    const planned = planOptionalLoraDownload(pack.id, acceptance());
     if (!planned.ok || !planned.plan) {
       setDownloadNotice(
         !planned.ok ? planned.message : t("phase3.lora.planFailed"),
@@ -93,6 +96,31 @@ export function Phase3SettingsPanel() {
     setDownloadNotice(
       `${planned.plan.noticeFr}\n\n${lines}\n\n${t("phase3.lora.manualDownload")}`,
     );
+  };
+
+  const onDownloadToCache = async (pack: LoraPack) => {
+    setDownloadingId(pack.id);
+    setDownloadNotice(null);
+    try {
+      const result = await requestOptionalLoraDownload(
+        pack.id,
+        acceptance(),
+        (url, relativeCachePath) =>
+          api.downloadCacheFile(url, relativeCachePath),
+      );
+      if (!result.ok) {
+        setDownloadNotice(result.message);
+        return;
+      }
+      const paths = result.savedPaths?.join("\n") ?? "";
+      setDownloadNotice(
+        `${t("phase3.lora.downloadOk")}\n${paths}\n\n${result.plan?.noticeFr ?? ""}`,
+      );
+    } catch (e) {
+      setDownloadNotice(String(e));
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   return (
@@ -166,13 +194,27 @@ export function Phase3SettingsPanel() {
               <br />
               <span className="hint">{pack.notes}</span>
             </div>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => onPlanDownload(pack)}
-            >
-              {t("phase3.lora.planDownload")}
-            </button>
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => onPlanDownload(pack)}
+              >
+                {t("phase3.lora.planDownload")}
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={
+                  downloadingId === pack.id || !settings.ccByNcAccepted
+                }
+                onClick={() => void onDownloadToCache(pack)}
+              >
+                {downloadingId === pack.id
+                  ? t("phase3.lora.downloading")
+                  : t("phase3.lora.download")}
+              </button>
+            </div>
           </li>
         ))}
       </ul>

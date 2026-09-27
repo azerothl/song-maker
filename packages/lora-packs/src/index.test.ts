@@ -88,4 +88,19 @@ describe("lora-packs registry", () => {
     expect(status.installed).toBe(false);
     expect(status.missingFiles.length).toBeGreaterThan(0);
   });
+
+  it("downloads via injected fetcher after CC BY-NC gate", async () => {
+    const calls: string[] = [];
+    const result = await requestOptionalLoraDownload(
+      "mothersuperior-instrumental-ar",
+      { ccByNcAccepted: true, allowCommercialRedistribution: false },
+      async (url, relativeCachePath) => {
+        calls.push(`${url}|${relativeCachePath}`);
+        return `/cache/${relativeCachePath}`;
+      },
+    );
+    expect(result.ok).toBe(true);
+    expect(calls).toHaveLength(1);
+    expect(result.savedPaths?.[0]).toContain("models/lora/");
+  });
 });

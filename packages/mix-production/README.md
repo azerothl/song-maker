@@ -2,16 +2,28 @@
 
 Phase **3** — automation, effets, sidechain et loudness ([spec §10.3](../../specs/SONG_MAKER_SPEC.md)).
 
-## Sous-ensemble réel (pas des stubs vides)
+## Rôle
 
-| Module | Comportement |
+Sous-ensemble DSP réel + rendu offline partagé :
+
+| API | Comportement |
 |---|---|
-| `MixAutomationEngine.sampleAt` | Interpolation linéaire des points volume / pan |
-| `TrackEffectsRack.process` | Compresseur + limiteur soft (EQ gain shelf) ; réverb = passe-through |
-| `SidechainRouter.applyDucking` | Ducking destination ← enveloppe source |
-| `LoudnessMeter.measurePcm` | True peak dBFS + estimation LUFS intégrée (pas un filtre K BS.1770 complet) |
+| `MixAutomationEngine.sampleAt` | Interpolation linéaire des lanes volume / pan |
+| `TrackEffectsRack.process` | Limiteur soft + compresseur feed-forward (+ shelf EQ) |
+| `SidechainRouter.applyDucking` | Ducking destination depuis enveloppe source |
+| `LoudnessMeter.measurePcm` | True peak dBFS + estimation LUFS (pas filtre K BS.1770) |
+| `placeClipsOnTimeline` | Placement clips (start/offset/durée/fondus) |
+| `renderMixOffline` | Somme §10.5 + overlays production — **même bake** lecture / export |
 
-Le rendu offline phase 1 (formule §10.5) reste la source de vérité pour l’export. Ce paquet alimente le panneau production phase 3.
+## Branchement app
+
+1. Sans overlay production : lecture GainNode live + export Rust §10.5 (phase 1).
+2. Avec overlay : `bakeMixPcm` → buffer Web Audio **et** `export_pcm_audio`.
+3. Correspondance **approximative** (même float32 TS), **pas bit-exact** avec le graphe live ni avec l’exporteur Rust historique.
+
+## Hors périmètre
+
+Réverb convolution, filtre K loudness complet, guitare/piano stems.
 
 ## Tests
 

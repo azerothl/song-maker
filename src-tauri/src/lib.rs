@@ -46,6 +46,8 @@ pub fn run() {
             commands::playback_sources,
             commands::read_preview_audio,
             commands::export_audio,
+            commands::export_pcm_audio,
+            commands::download_cache_file,
             commands::list_generations,
             commands::read_score_abc,
             commands::save_score,

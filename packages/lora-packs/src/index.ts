@@ -18,6 +18,7 @@ export type {
   LoraDownloadPlan,
   LoraDownloadPlanFile,
   LoraPackLocalStatus,
+  CacheFileFetcher,
 } from "./license-gate.js";
 export {
   gateLoraPackAccess,

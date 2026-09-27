@@ -1,4 +1,9 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { bakeMixPcm, type DecodedStem } from "./mixBridge";
+import {
+  getProductionToolkit,
+  productionIsActive,
+} from "./productionState";
 import type { MixDoc, PlaybackSources } from "./types";
 
 export type TrackPeaks = {
@@ -18,6 +23,8 @@ export type PlaybackSnapshot = {
   mode: "generation" | "stems" | "empty";
   peaks: TrackPeaks[];
   mixPeaks: Float32Array | null;
+  /** True when playing a buffer baked by mix-production (matches export bake). */
+  productionBake: boolean;
 };
 
 type TrackNodes = {
@@ -90,6 +97,11 @@ export class MixPlaybackEngine {
   private tracks: TrackNodes[] = [];
   private sources: AudioBufferSourceNode[] = [];
   private generationBuffer: AudioBuffer | null = null;
+  /** Baked stereo from mix-production — used when production overlay is active. */
+  private bakedBuffer: AudioBuffer | null = null;
+  private decodedStems: DecodedStem[] = [];
+  private lastMix: MixDoc | null = null;
+  private productionBake = false;
   private startedAt = 0;
   private offset = 0;
   private playing = false;
@@ -102,6 +114,7 @@ export class MixPlaybackEngine {
   private mixPeaks: Float32Array | null = null;
   private listeners = new Set<() => void>();
   private raf = 0;
+  private bakeTimer: ReturnType<typeof setTimeout> | null = null;
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
@@ -123,7 +136,17 @@ export class MixPlaybackEngine {
       mode: this.mode,
       peaks: this.peaks,
       mixPeaks: this.mixPeaks,
+      productionBake: this.productionBake,
     };
+  }
+
+  /** Re-bake after production overlay changes (debounced). */
+  scheduleProductionBake(mix: MixDoc | null = this.lastMix) {
+    if (this.bakeTimer) clearTimeout(this.bakeTimer);
+    this.bakeTimer = setTimeout(() => {
+      this.bakeTimer = null;
+      this.applyMix(mix);
+    }, 200);
   }
 
   getCurrentTime(): number {
@@ -151,6 +174,10 @@ export class MixPlaybackEngine {
     this.stopSources(false);
     this.tracks = [];
     this.generationBuffer = null;
+    this.bakedBuffer = null;
+    this.decodedStems = [];
+    this.productionBake = false;
+    this.lastMix = mix;
     this.peaks = [];
     this.mixPeaks = null;
     this.ready = false;
@@ -177,10 +204,22 @@ export class MixPlaybackEngine {
         this.mode = "stems";
         const loaded: TrackNodes[] = [];
         const peaks: TrackPeaks[] = [];
+        const decoded: DecodedStem[] = [];
         let maxDur = 0;
         for (const stem of sources.stems) {
           const buffer = await fetchDecode(ctx, stem.path);
           maxDur = Math.max(maxDur, buffer.duration);
+          const left = new Float32Array(buffer.getChannelData(0));
+          const right =
+            buffer.numberOfChannels > 1
+              ? new Float32Array(buffer.getChannelData(1))
+              : new Float32Array(left);
+          decoded.push({
+            trackId: stem.trackId,
+            left,
+            right,
+            sampleRate: buffer.sampleRate,
+          });
           const gain = ctx.createGain();
           const pan = ctx.createStereoPanner();
           gain.connect(pan);
@@ -222,6 +261,7 @@ export class MixPlaybackEngine {
           });
         }
         this.tracks = loaded;
+        this.decodedStems = decoded;
         this.peaks = peaks;
         this.mixPeaks = sumPeaks(peaks);
         this.duration = maxDur;
@@ -257,6 +297,20 @@ export class MixPlaybackEngine {
     }
   }
 
+  private rebuildBakedBuffer(mix: MixDoc): void {
+    if (!this.ctx || this.decodedStems.length === 0) return;
+    const result = bakeMixPcm(mix, this.decodedStems, getProductionToolkit());
+    const buf = this.ctx.createBuffer(2, result.frameCount, mix.sampleRate || 48000);
+    buf.copyToChannel(result.left, 0);
+    buf.copyToChannel(result.right, 1);
+    this.bakedBuffer = buf;
+    this.duration = buf.duration;
+    this.mixPeaks = extractPeaks(buf);
+    this.productionBake = true;
+    if (this.master) this.master.gain.value = 1;
+    if (this.ceiling) this.ceiling.gain.value = 1;
+  }
+
   private applyCeilingFromBuffers() {
     if (!this.ceiling || this.tracks.length === 0) return;
     let peak = 0;
@@ -282,10 +336,31 @@ export class MixPlaybackEngine {
 
   applyMix(mix: MixDoc | null) {
     if (!this.master) return;
+    this.lastMix = mix;
     if (this.mode === "generation" || !mix) {
       this.master.gain.value = 1;
+      this.productionBake = false;
+      this.bakedBuffer = null;
       return;
     }
+
+    // Production overlay → same bake as export (approximate match).
+    if (productionIsActive() && this.decodedStems.length > 0) {
+      const wasPlaying = this.playing;
+      const t = this.getCurrentTime();
+      this.stopSources(false);
+      this.rebuildBakedBuffer(mix);
+      if (wasPlaying) {
+        this.startSources(t);
+        this.playing = true;
+        this.startRaf();
+      }
+      this.notify();
+      return;
+    }
+
+    this.productionBake = false;
+    this.bakedBuffer = null;
     this.master.gain.value = dbToLinear(mix.masterGainDb);
     const anySolo = mix.tracks.some((t) => t.solo);
     let clipsChanged = false;
@@ -316,6 +391,7 @@ export class MixPlaybackEngine {
       }
       this.duration = Math.max(this.duration, end);
     }
+    this.applyCeilingFromBuffers();
     if (clipsChanged && this.playing) {
       const t = this.getCurrentTime();
       this.stopSources(false);
@@ -370,6 +446,19 @@ export class MixPlaybackEngine {
     this.sources = [];
     this.startedAt = this.ctx.currentTime;
     this.offset = offset;
+
+    if (this.productionBake && this.bakedBuffer) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = this.bakedBuffer;
+      const gain = this.ctx.createGain();
+      gain.gain.value = 1;
+      src.connect(gain);
+      gain.connect(this.ceiling);
+      src.onended = () => this.onSourceEnded();
+      src.start(0, offset);
+      this.sources.push(src);
+      return;
+    }
 
     if (this.mode === "stems") {
       for (const track of this.tracks) {
@@ -480,6 +569,7 @@ export class MixPlaybackEngine {
   dispose() {
     this.pause();
     this.stopRaf();
+    if (this.bakeTimer) clearTimeout(this.bakeTimer);
     if (this.ctx) {
       void this.ctx.close();
       this.ctx = null;
@@ -487,6 +577,8 @@ export class MixPlaybackEngine {
     this.master = null;
     this.ceiling = null;
     this.tracks = [];
+    this.decodedStems = [];
+    this.bakedBuffer = null;
     this.listeners.clear();
   }
 }

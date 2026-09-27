@@ -36,3 +36,14 @@ export {
   StubSidechainRouter,
   StubLoudnessMeter,
 } from "./impl.js";
+export {
+  renderMixOffline,
+  interleavedToPlanar,
+  type MixTrackRenderInput,
+  type MixRenderInput,
+  type MixRenderResult,
+} from "./render.js";
+export {
+  placeClipsOnTimeline,
+  type ClipPlacement,
+} from "./clips.js";

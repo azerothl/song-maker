@@ -7,6 +7,7 @@ import { ScorePanel } from "../components/ScorePanel";
 import { VersionGraph } from "../components/VersionGraph";
 import { Waveform } from "../components/Waveform";
 import { api } from "../lib/api";
+import { exportProjectAudio } from "../lib/exportMix";
 import { prepareAbcForGeneration } from "../lib/score";
 import type { FormInput, MixDoc, MixTrack } from "../lib/types";
 import { useAppStore } from "../store/appStore";
@@ -75,6 +76,25 @@ export function SongScreen() {
   const [candidateCount, setCandidateCount] = useState(2);
   const saveTimer = useRef<number | null>(null);
   const mixTimer = useRef<number | null>(null);
+
+  async function onExport(format: "wav" | "flac" | "mp3") {
+    if (!project) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const path = await exportProjectAudio(
+        project.id,
+        format,
+        mix,
+        playbackSources,
+      );
+      window.alert(path);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const formError = useMemo(() => validateForm(form), [form]);
   const scoreGate = useMemo(
@@ -405,39 +425,24 @@ export function SongScreen() {
           <button
             type="button"
             className="btn"
-            disabled={!project.activeGenerationId}
-            onClick={() =>
-              void api
-                .exportAudio(project.id, "wav")
-                .then((p) => window.alert(p))
-                .catch((e) => setError(String(e)))
-            }
+            disabled={!project.activeGenerationId || busy}
+            onClick={() => void onExport("wav")}
           >
             {t("export.wav")}
           </button>
           <button
             type="button"
             className="btn"
-            disabled={!project.activeGenerationId}
-            onClick={() =>
-              void api
-                .exportAudio(project.id, "flac")
-                .then((p) => window.alert(p))
-                .catch((e) => setError(String(e)))
-            }
+            disabled={!project.activeGenerationId || busy}
+            onClick={() => void onExport("flac")}
           >
             {t("export.flac")}
           </button>
           <button
             type="button"
             className="btn"
-            disabled={!project.activeGenerationId}
-            onClick={() =>
-              void api
-                .exportAudio(project.id, "mp3")
-                .then((p) => window.alert(p))
-                .catch((e) => setError(String(e)))
-            }
+            disabled={!project.activeGenerationId || busy}
+            onClick={() => void onExport("mp3")}
           >
             {t("export.mp3")}
           </button>
