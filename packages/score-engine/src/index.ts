@@ -52,11 +52,13 @@ export {
 
 export {
   createClipEditor,
+  DefaultClipEditor,
   StubClipEditor,
   type ClipEditor,
 } from "./clips/edits.js";
 export {
   createCandidateComparer,
+  DefaultCandidateComparer,
   StubCandidateComparer,
   type CandidateComparer,
   type GenerationCandidate,
@@ -64,7 +66,10 @@ export {
 } from "./candidates/compare.js";
 export {
   createStopAfterAbcClient,
+  GatedStopAfterAbcClient,
   StubStopAfterAbcClient,
+  STOP_AFTER_ABC_ENABLED,
+  STOP_AFTER_ABC_MIN_TAG,
   type StopAfterAbcClient,
   type StopAfterAbcRequest,
   type StopAfterAbcResult,

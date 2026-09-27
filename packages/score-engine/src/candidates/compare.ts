@@ -16,17 +16,18 @@ export type GenerationCandidate = {
 
 export type CandidateCompareView = {
   candidates: GenerationCandidate[];
-  /** Always null — no automatic winner (§21.3). */
+  /** Null until the user picks — never auto-chosen (§21.3). */
   selectedId: string | null;
 };
 
 export interface CandidateComparer {
-  /** Queue sequential generation slots; does not pick a winner. */
+  /** Open a compare session; does not pick a winner. */
   openCompare(candidates: GenerationCandidate[]): CandidateCompareView;
   select(view: CandidateCompareView, candidateId: string): CandidateCompareView;
+  clearSelection(view: CandidateCompareView): CandidateCompareView;
 }
 
-export class StubCandidateComparer implements CandidateComparer {
+export class DefaultCandidateComparer implements CandidateComparer {
   openCompare(candidates: GenerationCandidate[]): CandidateCompareView {
     if (candidates.length === 0) {
       throw new ScoreEngineError(
@@ -34,7 +35,17 @@ export class StubCandidateComparer implements CandidateComparer {
         "aucun candidat à comparer",
       );
     }
-    return { candidates, selectedId: null };
+    const ids = new Set<string>();
+    for (const c of candidates) {
+      if (ids.has(c.id)) {
+        throw new ScoreEngineError(
+          "validation_failed",
+          `candidat en double: ${c.id}`,
+        );
+      }
+      ids.add(c.id);
+    }
+    return { candidates: [...candidates], selectedId: null };
   }
 
   select(
@@ -49,8 +60,15 @@ export class StubCandidateComparer implements CandidateComparer {
     }
     return { ...view, selectedId: candidateId };
   }
+
+  clearSelection(view: CandidateCompareView): CandidateCompareView {
+    return { ...view, selectedId: null };
+  }
 }
 
+/** @deprecated Prefer DefaultCandidateComparer. */
+export class StubCandidateComparer extends DefaultCandidateComparer {}
+
 export function createCandidateComparer(): CandidateComparer {
-  return new StubCandidateComparer();
+  return new DefaultCandidateComparer();
 }

@@ -186,6 +186,9 @@ pub struct MixTrackUpdate {
     pub pan: f32,
     pub mute: bool,
     pub solo: bool,
+    /// Si présent, remplace la liste de clips de la piste (édition phase 2).
+    #[serde(default)]
+    pub clips: Option<Vec<Clip>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -204,6 +207,10 @@ pub struct GenerationSummary {
     pub cot: String,
     pub state: String,
     pub has_score: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_generation_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audio_path: Option<String>,
 }
 
 /// Chemins absolus pour la lecture Web Audio (prise ou stems float32).

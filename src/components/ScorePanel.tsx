@@ -295,7 +295,7 @@ export function ScorePanel({
 
       {status && <p className="hint ok">{status}</p>}
 
-      <p className="hint">{t("score.stubNote")}</p>
+      <p className="hint">{t("score.phase2Note")}</p>
     </section>
   );
 }

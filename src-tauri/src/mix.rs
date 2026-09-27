@@ -1,4 +1,4 @@
-//! Rendu offline du mix (formule §10.5) + export WAV PCM 24 / FLAC 24.
+//! Rendu offline du mix (formule §10.5) + export WAV PCM 24 / FLAC 24 / MP3 livraison.
 
 use crate::hashutil::sha256_file;
 use crate::models::{Clip, MixDoc, MixTrack};
@@ -75,6 +75,36 @@ fn pan_gains(pan: f32) -> (f32, f32) {
     (angle.cos(), angle.sin())
 }
 
+fn ms_to_samples(ms: i64) -> usize {
+    if ms <= 0 {
+        return 0;
+    }
+    ((ms as i64) * SAMPLE_RATE as i64 / 1000) as usize
+}
+
+fn fade_gain(pos_in_clip: usize, duration_samples: usize, fade_in: usize, fade_out: usize) -> f32 {
+    if duration_samples == 0 {
+        return 0.0;
+    }
+    let mut g = 1.0f32;
+    if fade_in > 0 && pos_in_clip < fade_in {
+        g *= pos_in_clip as f32 / fade_in as f32;
+    }
+    if fade_out > 0 && pos_in_clip + fade_out >= duration_samples {
+        let remaining = duration_samples.saturating_sub(pos_in_clip);
+        g *= remaining as f32 / fade_out as f32;
+    }
+    g.clamp(0.0, 1.0)
+}
+
+fn resolve_clip_path(project_root: &Path, clip: &Clip) -> PathBuf {
+    if Path::new(&clip.source_path).is_absolute() {
+        PathBuf::from(&clip.source_path)
+    } else {
+        project_root.join(&clip.source_path)
+    }
+}
+
 fn read_stereo_f32(path: &Path) -> Result<(Vec<f32>, Vec<f32>, u32), String> {
     let mut reader = WavReader::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let spec = reader.spec();
@@ -117,55 +147,89 @@ fn read_stereo_f32(path: &Path) -> Result<(Vec<f32>, Vec<f32>, u32), String> {
     Ok((left, right, spec.sample_rate))
 }
 
+/// Place un clip sur la timeline (start / offset / durée / fondus).
+fn render_clip_onto(
+    out_l: &mut [f32],
+    out_r: &mut [f32],
+    src_l: &[f32],
+    src_r: &[f32],
+    clip: &Clip,
+    track_lin: f32,
+    pan_l: f32,
+    pan_r: f32,
+    master: f32,
+) {
+    let start = ms_to_samples(clip.start_ms);
+    let offset = ms_to_samples(clip.offset_ms);
+    let dur = ms_to_samples(clip.duration_ms).max(1);
+    let fade_in = ms_to_samples(clip.fade_in_ms).min(dur);
+    let fade_out = ms_to_samples(clip.fade_out_ms).min(dur.saturating_sub(fade_in));
+    let clip_lin = db_to_linear(clip.gain_db);
+    let lin = master * track_lin * clip_lin;
+
+    for i in 0..dur {
+        let out_idx = start + i;
+        if out_idx >= out_l.len() {
+            break;
+        }
+        let src_idx = offset + i;
+        let l = src_l.get(src_idx).copied().unwrap_or(0.0);
+        let r = src_r.get(src_idx).copied().unwrap_or(0.0);
+        let fade = fade_gain(i, dur, fade_in, fade_out);
+        out_l[out_idx] += lin * pan_l * l * fade;
+        out_r[out_idx] += lin * pan_r * r * fade;
+    }
+}
+
+fn timeline_len_samples(mix: &MixDoc) -> usize {
+    let mut max_end = 0usize;
+    for track in &mix.tracks {
+        for clip in &track.clips {
+            let end = ms_to_samples(clip.start_ms.saturating_add(clip.duration_ms));
+            max_end = max_end.max(end);
+        }
+    }
+    max_end.max(1)
+}
+
 pub fn render_mix(mix: &MixDoc, project_root: &Path, out_wav: &Path) -> Result<f32, String> {
     let any_solo = mix.tracks.iter().any(|t| t.solo);
-    let mut max_len = 0usize;
-    let mut buffers: Vec<(bool, f32, f32, f32, Vec<f32>, Vec<f32>)> = Vec::new();
-
-    for track in &mix.tracks {
-        let silent = track.mute || (any_solo && !track.solo);
-        let clip = track.clips.first();
-        let (left, right) = if let Some(clip) = clip {
-            if clip.source_path.is_empty() {
-                (Vec::new(), Vec::new())
-            } else {
-                let path = if Path::new(&clip.source_path).is_absolute() {
-                    PathBuf::from(&clip.source_path)
-                } else {
-                    project_root.join(&clip.source_path)
-                };
-                let (l, r, rate) = read_stereo_f32(&path)?;
-                if rate != SAMPLE_RATE {
-                    return Err(format!(
-                        "Sample rate inattendu {} (projet 48000) pour {}",
-                        rate,
-                        path.display()
-                    ));
-                }
-                (l, r)
-            }
-        } else {
-            (Vec::new(), Vec::new())
-        };
-        max_len = max_len.max(left.len()).max(right.len());
-        let (pan_l, pan_r) = pan_gains(track.pan);
-        let track_lin = db_to_linear(track.gain_db);
-        let clip_lin = clip.map(|c| db_to_linear(c.gain_db)).unwrap_or(1.0);
-        buffers.push((silent, track_lin * clip_lin, pan_l, pan_r, left, right));
-    }
-
+    let max_len = timeline_len_samples(mix);
     let master = db_to_linear(mix.master_gain_db);
     let mut out_l = vec![0f32; max_len];
     let mut out_r = vec![0f32; max_len];
-    for (silent, lin, pan_l, pan_r, left, right) in &buffers {
-        if *silent {
+
+    for track in &mix.tracks {
+        let silent = track.mute || (any_solo && !track.solo);
+        if silent {
             continue;
         }
-        for i in 0..max_len {
-            let l = left.get(i).copied().unwrap_or(0.0);
-            let r = right.get(i).copied().unwrap_or(0.0);
-            out_l[i] += master * lin * pan_l * l;
-            out_r[i] += master * lin * pan_r * r;
+        let (pan_l, pan_r) = pan_gains(track.pan);
+        let track_lin = db_to_linear(track.gain_db);
+        for clip in &track.clips {
+            if clip.source_path.is_empty() || clip.duration_ms <= 0 {
+                continue;
+            }
+            let path = resolve_clip_path(project_root, clip);
+            let (src_l, src_r, rate) = read_stereo_f32(&path)?;
+            if rate != SAMPLE_RATE {
+                return Err(format!(
+                    "Sample rate inattendu {} (projet 48000) pour {}",
+                    rate,
+                    path.display()
+                ));
+            }
+            render_clip_onto(
+                &mut out_l,
+                &mut out_r,
+                &src_l,
+                &src_r,
+                clip,
+                track_lin,
+                pan_l,
+                pan_r,
+                master,
+            );
         }
     }
 
@@ -222,6 +286,24 @@ pub fn export_flac(wav_path: &Path, flac_path: &Path) -> Result<(), String> {
     .map_err(|e| format!("Export FLAC échoué ({e})."))
 }
 
+/// Conversion de livraison MP3 (320 kbps CBR) à partir du WAV primaire.
+pub fn export_mp3(wav_path: &Path, mp3_path: &Path) -> Result<(), String> {
+    crate::resample::run_ffmpeg(&[
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        &wav_path.display().to_string(),
+        "-codec:a",
+        "libmp3lame",
+        "-b:a",
+        "320k",
+        &mp3_path.display().to_string(),
+    ])
+    .map_err(|e| format!("Export MP3 échoué ({e}). Conversion de livraison uniquement."))
+}
+
 pub fn write_export_json(
     path: &Path,
     format: &str,
@@ -229,6 +311,11 @@ pub fn write_export_json(
     peak_trim_db: f32,
 ) -> Result<(), String> {
     let sha = sha256_file(audio_path)?;
+    let bit_depth = if format == "mp3" {
+        serde_json::Value::Null
+    } else {
+        serde_json::json!(BIT_DEPTH)
+    };
     let doc = serde_json::json!({
         "schema": "songmaker.export",
         "schemaVersion": 1,
@@ -236,9 +323,10 @@ pub fn write_export_json(
         "path": audio_path.file_name().and_then(|s| s.to_str()).unwrap_or(""),
         "sampleRate": SAMPLE_RATE,
         "channels": CHANNELS,
-        "bitDepth": BIT_DEPTH,
+        "bitDepth": bit_depth,
         "peakTrimDb": peak_trim_db,
-        "sha256": sha
+        "sha256": sha,
+        "role": if format == "mp3" { "delivery" } else { "primary" }
     });
     atomic_write_json(path, &doc)
 }
@@ -251,4 +339,17 @@ pub fn wav_duration_ms(path: &Path) -> Result<i64, String> {
         return Ok(0);
     }
     Ok(len * 1000 / rate)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fade_rampe_debut_et_fin() {
+        assert!((fade_gain(0, 1000, 100, 100) - 0.0).abs() < 1e-5);
+        assert!((fade_gain(50, 1000, 100, 100) - 0.5).abs() < 1e-5);
+        assert!((fade_gain(500, 1000, 100, 100) - 1.0).abs() < 1e-5);
+        assert!((fade_gain(950, 1000, 100, 100) - 0.5).abs() < 1e-5);
+    }
 }
