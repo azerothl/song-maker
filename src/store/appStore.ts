@@ -55,6 +55,7 @@ const emptyForm = (): FormInput => ({
   seed: null,
   targetDurationSec: 180,
   preferFullLyrics: true,
+  continuationGenerationId: null,
 });
 
 function normalizeDurationSec(raw: number | null | undefined): number {
@@ -155,6 +156,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         seed: null,
         targetDurationSec: normalizeDurationSec(project.targetDurationSec),
         preferFullLyrics: project.preferFullLyrics ?? true,
+        continuationGenerationId: null,
       },
       screen: "song",
       error: null,

@@ -49,6 +49,36 @@ pub fn bs_roformer_path(cache: &Path) -> PathBuf {
         .join(crate::pins::BS_ROFORMER_GGUF)
 }
 
+pub fn demucs_onnx_venv(cache: &Path) -> PathBuf {
+    cache.join("tools").join("demucs-onnx")
+}
+
+pub fn demucs_onnx_cli(cache: &Path) -> PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        demucs_onnx_venv(cache).join("Scripts").join("demucs-onnx.exe")
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        demucs_onnx_venv(cache).join("bin").join("demucs-onnx")
+    }
+}
+
+pub fn demucs_onnx_python(cache: &Path) -> PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        demucs_onnx_venv(cache).join("Scripts").join("python.exe")
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        demucs_onnx_venv(cache).join("bin").join("python")
+    }
+}
+
+pub fn demucs_onnx_model_cache(cache: &Path) -> PathBuf {
+    cache.join("models").join("demucs-onnx")
+}
+
 pub fn bs_roformer_weights_present(cache: &Path) -> bool {
     bs_roformer_path(cache).is_file()
 }

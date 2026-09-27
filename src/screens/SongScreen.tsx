@@ -73,6 +73,7 @@ export function SongScreen() {
   const [showFormErrors, setShowFormErrors] = useState(false);
   const [playback, setPlayback] = useState<PlaybackView | null>(null);
   const [candidateCount, setCandidateCount] = useState(2);
+  const [continuationLyrics, setContinuationLyrics] = useState("");
   const saveTimer = useRef<number | null>(null);
   const mixTimer = useRef<number | null>(null);
 
@@ -158,6 +159,27 @@ export function SongScreen() {
     setError(null);
     try {
       await api.startGeneration(project.id, form, scoreGate.abc);
+      await openProject(project.id);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onContinue(generationId: string) {
+    if (!project || !continuationLyrics.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const continuationForm: FormInput = {
+        ...form,
+        lyrics: continuationLyrics.trim(),
+        continuationGenerationId: generationId,
+      };
+      const parentScore = await api.readScoreAbc(project.id, generationId);
+      await api.startGeneration(project.id, continuationForm, scoreGate.abc ?? parentScore);
+      setContinuationLyrics("");
       await openProject(project.id);
     } catch (e) {
       setError(String(e));
@@ -498,9 +520,30 @@ export function SongScreen() {
 
         {generations.find((g) => g.id === project.activeGenerationId)
           ?.semanticTruncated && (
-          <p className="hint warn" role="status">
-            {t("generations.lyricsTruncated")}
-          </p>
+          <section className="continuation-panel" aria-labelledby="continue-title">
+            <h3 id="continue-title">{t("generations.lyricsTruncated")}</h3>
+            <p className="hint">{t("generations.continueHint")}</p>
+            <label>
+              {t("generations.remainingLyrics")}
+              <textarea
+                rows={5}
+                value={continuationLyrics}
+                onChange={(e) => setContinuationLyrics(e.target.value)}
+                placeholder={t("generations.remainingLyricsPlaceholder")}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy || !continuationLyrics.trim() || !generations.find((g) => g.id === project.activeGenerationId)?.canContinue}
+              onClick={() => {
+                const active = generations.find((g) => g.id === project.activeGenerationId);
+                if (active) void onContinue(active.id);
+              }}
+            >
+              {t("generations.continue")}
+            </button>
+          </section>
         )}
 
         {mix ? (

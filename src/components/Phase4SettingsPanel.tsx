@@ -18,6 +18,8 @@ import {
   type RemoteWorkerPreferences,
 } from "@song-maker/remote-worker";
 import { useAppStore } from "../store/appStore";
+import { api } from "../lib/api";
+import type { LocalLoraAdapter } from "../lib/types";
 import { t } from "../ui/i18n";
 
 const PREFS_KEY = "song-maker.remote-worker.prefs";
@@ -56,6 +58,13 @@ export function Phase4SettingsPanel() {
   const [probeMsg, setProbeMsg] = useState<string | null>(null);
   const [hostResult, setHostResult] = useState<HostModeResult | null>(null);
   const [styleNotice, setStyleNotice] = useState<string | null>(null);
+  const refreshSettings = useAppStore((s) => s.refreshSettings);
+  const [arLora, setArLora] = useState("");
+  const [narLora, setNarLora] = useState("");
+  const [arScale, setArScale] = useState(1);
+  const [narScale, setNarScale] = useState(1);
+  const [loraNotice, setLoraNotice] = useState<string | null>(null);
+  const [localLoras, setLocalLoras] = useState<LocalLoraAdapter[]>([]);
 
   const bridge = useMemo(() => getSharedAkashaHostBridge(), []);
   const stylePacks = useMemo(() => listStyleLoraPacks(), []);
@@ -71,6 +80,34 @@ export function Phase4SettingsPanel() {
       registration: bridge.describe(),
     });
   }, [bridge]);
+
+  useEffect(() => {
+    setArLora(settings?.yue2ArLora ?? "");
+    setNarLora(settings?.yue2NarLora ?? "");
+    setArScale(settings?.yue2ArLoraScale ?? 1);
+    setNarScale(settings?.yue2NarLoraScale ?? 1);
+  }, [settings]);
+
+  useEffect(() => {
+    void api.listLoraAdapters().then(setLocalLoras).catch((e) => setLoraNotice(String(e)));
+  }, [settings?.cacheDir]);
+
+  const saveLoraSettings = async () => {
+    if (!settings) return;
+    try {
+      await api.updateSettings({
+        ...settings,
+        yue2ArLora: arLora.trim() || null,
+        yue2NarLora: narLora.trim() || null,
+        yue2ArLoraScale: arScale,
+        yue2NarLoraScale: narScale,
+      });
+      await refreshSettings();
+      setLoraNotice(t("phase4.lora.saved"));
+    } catch (e) {
+      setLoraNotice(String(e));
+    }
+  };
 
   const updatePrefs = (patch: Partial<RemoteWorkerPreferences>) => {
     const next = { ...prefs, ...patch, localFirst: true };
@@ -234,6 +271,40 @@ export function Phase4SettingsPanel() {
 
       <h3>{t("phase4.styleLora.title")}</h3>
       <p className="hint">{t("phase4.styleLora.intro")}</p>
+      <div className="phase4-lora-active">
+        <h4>{t("phase4.lora.activeTitle")}</h4>
+        <p className="hint">{t("phase4.lora.localHint")}</p>
+        <label className="invariant-level">
+          {t("phase4.lora.arPath")}
+          <select value={arLora} onChange={(e) => setArLora(e.target.value)}>
+            <option value="">{t("phase4.lora.none")}</option>
+            {arLora && !localLoras.some((adapter) => adapter.path === arLora) && <option value={arLora}>{arLora}</option>}
+            {localLoras.map((adapter) => <option key={adapter.path} value={adapter.path}>{adapter.name}</option>)}
+          </select>
+        </label>
+        <label className="invariant-level">
+          {t("phase4.lora.arScale")}
+          <input type="number" min={0} max={2} step={0.05} value={arScale} onChange={(e) => setArScale(Number(e.target.value))} />
+        </label>
+        <label className="invariant-level">
+          {t("phase4.lora.narPath")}
+          <select value={narLora} onChange={(e) => setNarLora(e.target.value)}>
+            <option value="">{t("phase4.lora.none")}</option>
+            {narLora && !localLoras.some((adapter) => adapter.path === narLora) && <option value={narLora}>{narLora}</option>}
+            {localLoras.map((adapter) => <option key={adapter.path} value={adapter.path}>{adapter.name}</option>)}
+          </select>
+        </label>
+        <label className="invariant-level">
+          {t("phase4.lora.narScale")}
+          <input type="number" min={0} max={2} step={0.05} value={narScale} onChange={(e) => setNarScale(Number(e.target.value))} />
+        </label>
+        <div className="btn-row">
+          <button type="button" className="btn ghost" onClick={() => void api.listLoraAdapters().then(setLocalLoras).catch((e) => setLoraNotice(String(e)))}>{t("phase4.lora.reload")}</button>
+          <span className="hint">{t("phase4.lora.count", { count: String(localLoras.length) })}</span>
+        </div>
+        <button type="button" className="btn" onClick={() => void saveLoraSettings()}>{t("phase4.lora.save")}</button>
+        {loraNotice && <p className="hint" role="status">{loraNotice}</p>}
+      </div>
       <ul className="phase3-lora-list">
         {stylePacks.map((pack) => (
           <li key={pack.id}>

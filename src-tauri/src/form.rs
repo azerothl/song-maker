@@ -240,6 +240,7 @@ mod tests {
             seed: None,
             target_duration_sec: 180,
             prefer_full_lyrics: true,
+            continuation_generation_id: None,
         };
         let s = assemble_style_sent(&input).unwrap();
         assert_eq!(
@@ -270,6 +271,7 @@ mod tests {
             seed: None,
             target_duration_sec: 180,
             prefer_full_lyrics: true,
+            continuation_generation_id: None,
         };
         validate_draft_form(&input).unwrap();
     }

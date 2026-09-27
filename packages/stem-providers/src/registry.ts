@@ -7,20 +7,26 @@ import {
   BS_ROFORMER_CAPABILITIES,
   createBsRoFormerStemSeparator,
 } from "./bs-roformer.js";
+import {
+  HTDEMUCS_6S_CAPABILITIES,
+  createHtDemucs6sStemSeparator,
+} from "./htdemucs-6s.js";
 
-export type StemProviderId = "htdemucs" | "bs_roformer";
+export type StemProviderId = "htdemucs" | "htdemucs_6s" | "bs_roformer";
 
 export type StemProviderConfig = {
   /** When false, BS-RoFormer stays listed but separate() must not be selected live. */
   bsRoFormerWeightsPresent: boolean;
+  htdemucs6sRuntimeAvailable?: boolean;
 };
 
 const DEFAULT_CONFIG: StemProviderConfig = {
   bsRoFormerWeightsPresent: false,
+  htdemucs6sRuntimeAvailable: false,
 };
 
 export function listStemProviderIds(): StemProviderId[] {
-  return ["htdemucs", "bs_roformer"];
+  return ["htdemucs", "htdemucs_6s", "bs_roformer"];
 }
 
 export function createStemSeparator(
@@ -32,6 +38,8 @@ export function createStemSeparator(
       return createHtDemucsStemSeparator(transport);
     case "bs_roformer":
       return createBsRoFormerStemSeparator(transport);
+    case "htdemucs_6s":
+      return createHtDemucs6sStemSeparator(transport);
     default: {
       const _exhaustive: never = id;
       throw new Error(`Unknown stem provider: ${String(_exhaustive)}`);
@@ -52,6 +60,8 @@ export function isStemProviderRunnable(
       return true;
     case "bs_roformer":
       return config.bsRoFormerWeightsPresent;
+    case "htdemucs_6s":
+      return Boolean(config.htdemucs6sRuntimeAvailable);
     default: {
       const _exhaustive: never = id;
       return _exhaustive;
@@ -75,6 +85,13 @@ export function describeStemProvidersFr(
       stemLayoutNoteFr: HTDEMUCS_CAPABILITIES.stemLayoutNoteFr,
       runnable: isStemProviderRunnable("htdemucs", config),
       unavailableRoles: HTDEMUCS_CAPABILITIES.unavailableRoles,
+    },
+    {
+      id: "htdemucs_6s",
+      displayNameFr: HTDEMUCS_6S_CAPABILITIES.displayNameFr,
+      stemLayoutNoteFr: HTDEMUCS_6S_CAPABILITIES.stemLayoutNoteFr,
+      runnable: isStemProviderRunnable("htdemucs_6s", config),
+      unavailableRoles: HTDEMUCS_6S_CAPABILITIES.unavailableRoles,
     },
     {
       id: "bs_roformer",

@@ -53,6 +53,7 @@ export type FormInput = {
   targetDurationSec: number;
   /** Let YuE exceed the target when the lyric token budget requires it. */
   preferFullLyrics: boolean;
+  continuationGenerationId?: string | null;
 };
 
 export type MixClip = {
@@ -119,10 +120,14 @@ export type AppSettings = {
   serverHost: string;
   serverPort: number;
   outputDevice?: string | null;
-  /** Phase 3: `htdemucs` (default) | `bs_roformer` */
+  /** Phase 3: `htdemucs` (default) | `htdemucs_6s` (optional ONNX) | `bs_roformer` */
   stemSeparator?: string;
   /** CC BY-NC gate for optional LoRA packs */
   ccByNcAccepted?: boolean;
+  yue2ArLora?: string | null;
+  yue2NarLora?: string | null;
+  yue2ArLoraScale?: number;
+  yue2NarLoraScale?: number;
 };
 
 export type Phase3Status = {
@@ -130,6 +135,7 @@ export type Phase3Status = {
   htdemucsAvailable: boolean;
   bsRoformerAvailable: boolean;
   bsRoformerPath: string;
+  htdemucs6sRuntimeAvailable: boolean;
   ccByNcAccepted: boolean;
   guitarPianoAvailable: boolean;
   honestyFr: string;
@@ -166,6 +172,9 @@ export type GenerationSummary = {
   parentGenerationId?: string | null;
   audioPath?: string | null;
   semanticTruncated?: boolean | null;
+  canContinue: boolean;
 };
+
+export type LocalLoraAdapter = { name: string; path: string; sizeBytes: number };
 
 export type Screen = "splash" | "library" | "song" | "settings" | "licenses";

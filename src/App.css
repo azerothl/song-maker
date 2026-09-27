@@ -975,6 +975,30 @@ details[open] > summary {
   color: var(--accent-cyan);
 }
 
+.continuation-panel,
+.phase4-lora-active {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2, var(--surface));
+}
+
+.continuation-panel h3,
+.phase4-lora-active h4,
+.continuation-panel p,
+.phase4-lora-active p {
+  margin: 0;
+}
+
+.continuation-panel textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+  resize: vertical;
+}
+
 .phase3-mix label {
   display: block;
   margin: 0.4rem 0;

@@ -191,6 +191,51 @@ pub fn load_settings() -> Result<AppSettings, String> {
     Ok(defaults)
 }
 
+/// Mark queued/running manifests interrupted after a process restart; GPU work
+/// cannot be replayed safely without the original in-memory request context.
+pub fn recover_generation_jobs() -> Result<(), String> {
+    let root = projects_root();
+    if !root.exists() { return Ok(()); }
+    for project in std::fs::read_dir(root).map_err(|e| e.to_string())? {
+        let project_path = project.map_err(|e| e.to_string())?.path();
+        let generations = project_path.join("generations");
+        if !generations.is_dir() { continue; }
+        for generation in std::fs::read_dir(generations).map_err(|e| e.to_string())? {
+            let generation_path = generation.map_err(|e| e.to_string())?.path();
+            let job_path = generation_path.join("job.json");
+            if !job_path.is_file() { continue; }
+            if generation_path.join("result.json").is_file() { continue; }
+            let mut job: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(&job_path).map_err(|e| e.to_string())?,
+            ).map_err(|e| e.to_string())?;
+            let state = job.get("state").and_then(|v| v.as_str()).unwrap_or("");
+            if state == "queued" || state == "running" {
+                job["state"] = serde_json::Value::String("interrupted".into());
+                job["updatedAt"] = serde_json::Value::String(crate::paths::now_iso());
+                crate::paths::atomic_write_json(&job_path, &job)?;
+            }
+        }
+        let separations = project_path.join("separations");
+        if separations.is_dir() {
+            for separation in std::fs::read_dir(separations).map_err(|e| e.to_string())? {
+                let separation_path = separation.map_err(|e| e.to_string())?.path();
+                let job_path = separation_path.join("job.json");
+                if !job_path.is_file() || separation_path.join("separation.json").is_file() { continue; }
+                let mut job: serde_json::Value = serde_json::from_slice(
+                    &std::fs::read(&job_path).map_err(|e| e.to_string())?,
+                ).map_err(|e| e.to_string())?;
+                let state = job.get("state").and_then(|v| v.as_str()).unwrap_or("");
+                if state == "queued" || state == "running" || state == "preparing" {
+                    job["state"] = serde_json::Value::String("interrupted".into());
+                    job["updatedAt"] = serde_json::Value::String(crate::paths::now_iso());
+                    crate::paths::atomic_write_json(&job_path, &job)?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn migrate_binary_pin(settings: &mut AppSettings) -> bool {
     let sha = if cfg!(target_os = "windows") {
         ARCHIVE_WINDOWS_SHA
@@ -232,6 +277,10 @@ pub fn default_settings() -> AppSettings {
         output_device: None,
         stem_separator: DEFAULT_STEM_SEPARATOR.into(),
         cc_by_nc_accepted: false,
+        yue2_ar_lora: None,
+        yue2_nar_lora: None,
+        yue2_ar_lora_scale: 1.0,
+        yue2_nar_lora_scale: 1.0,
     }
 }
 
