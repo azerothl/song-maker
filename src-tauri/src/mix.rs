@@ -316,13 +316,24 @@ pub fn write_export_json(
     audio_path: &Path,
     peak_trim_db: f32,
 ) -> Result<(), String> {
+    write_export_json_ex(path, format, audio_path, peak_trim_db, None, None)
+}
+
+pub fn write_export_json_ex(
+    path: &Path,
+    format: &str,
+    audio_path: &Path,
+    peak_trim_db: f32,
+    render_path: Option<&str>,
+    match_mode: Option<&str>,
+) -> Result<(), String> {
     let sha = sha256_file(audio_path)?;
     let bit_depth = if format == "mp3" {
         serde_json::Value::Null
     } else {
         serde_json::json!(BIT_DEPTH)
     };
-    let doc = serde_json::json!({
+    let mut doc = serde_json::json!({
         "schema": "songmaker.export",
         "schemaVersion": 1,
         "format": format,
@@ -334,7 +345,66 @@ pub fn write_export_json(
         "sha256": sha,
         "role": if format == "mp3" { "delivery" } else { "primary" }
     });
+    if let Some(rp) = render_path {
+        doc["renderPath"] = serde_json::json!(rp);
+    }
+    if let Some(mm) = match_mode {
+        doc["matchMode"] = serde_json::json!(mm);
+    }
     atomic_write_json(path, &doc)
+}
+
+/// Write interleaved little-endian f32 PCM as 24-bit WAV (same quantize as render_mix).
+pub fn write_interleaved_f32_wav(
+    pcm_le: &[u8],
+    sample_rate: u32,
+    channels: u16,
+    out_wav: &Path,
+) -> Result<(), String> {
+    if channels == 0 || pcm_le.len() % (4 * channels as usize) != 0 {
+        return Err("Tampon PCM invalide (attendu f32 LE entrelacé).".into());
+    }
+    if sample_rate != SAMPLE_RATE {
+        return Err(format!(
+            "Sample rate inattendu {sample_rate} (projet {SAMPLE_RATE})."
+        ));
+    }
+    let frame_bytes = 4 * channels as usize;
+    let frames = pcm_le.len() / frame_bytes;
+    if let Some(parent) = out_wav.parent() {
+        ensure_dir(parent).map_err(|e| e.to_string())?;
+    }
+    let spec = WavSpec {
+        channels: CHANNELS,
+        sample_rate: SAMPLE_RATE,
+        bits_per_sample: BIT_DEPTH,
+        sample_format: SampleFormat::Int,
+    };
+    let mut writer = WavWriter::create(out_wav, spec).map_err(|e| e.to_string())?;
+    let max_i = (1i32 << 23) - 1;
+    for i in 0..frames {
+        let base = i * frame_bytes;
+        let mut samples = [0f32; 2];
+        for ch in 0..channels.min(2) as usize {
+            let o = base + ch * 4;
+            let bits = u32::from_le_bytes([
+                pcm_le[o],
+                pcm_le[o + 1],
+                pcm_le[o + 2],
+                pcm_le[o + 3],
+            ]);
+            samples[ch] = f32::from_bits(bits);
+        }
+        if channels == 1 {
+            samples[1] = samples[0];
+        }
+        let l = (samples[0].clamp(-1.0, 1.0) * max_i as f32).round() as i32;
+        let r = (samples[1].clamp(-1.0, 1.0) * max_i as f32).round() as i32;
+        writer.write_sample(l).map_err(|e| e.to_string())?;
+        writer.write_sample(r).map_err(|e| e.to_string())?;
+    }
+    writer.finalize().map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 pub fn wav_duration_ms(path: &Path) -> Result<i64, String> {

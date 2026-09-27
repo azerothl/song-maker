@@ -133,15 +133,32 @@ export function planOptionalLoraDownload(
   };
 }
 
+export type CacheFileFetcher = (
+  url: string,
+  relativeCachePath: string,
+) => Promise<string>;
+
 /**
- * Placeholder download entry — opt-in only. Never called by first-build installer.
- * Returns the gate decision + plan; host performs the actual HTTP fetch.
+ * Opt-in download — never called by first-build installer.
+ * Without a fetcher, returns the plan only (host downloads).
+ * With a fetcher, downloads each file after the CC BY-NC gate.
  */
 export async function requestOptionalLoraDownload(
   packId: string,
   acceptance: LicenseAcceptance,
-): Promise<LicenseGateDecision & { plan?: LoraDownloadPlan }> {
-  return planOptionalLoraDownload(packId, acceptance);
+  fetchToCache?: CacheFileFetcher,
+): Promise<
+  LicenseGateDecision & { plan?: LoraDownloadPlan; savedPaths?: string[] }
+> {
+  const planned = planOptionalLoraDownload(packId, acceptance);
+  if (!planned.ok || !planned.plan || !fetchToCache) {
+    return planned;
+  }
+  const savedPaths: string[] = [];
+  for (const file of planned.plan.files) {
+    savedPaths.push(await fetchToCache(file.url, file.relativeCachePath));
+  }
+  return { ...planned, savedPaths };
 }
 
 export type LoraPackLocalStatus = {

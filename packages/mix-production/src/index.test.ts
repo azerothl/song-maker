@@ -3,6 +3,8 @@ import {
   applyPeakLimiter,
   createMixProductionToolkit,
   measureLoudnessFromPcm,
+  placeClipsOnTimeline,
+  renderMixOffline,
   sampleAutomationPoints,
 } from "./index.js";
 
@@ -82,5 +84,77 @@ describe("mix-production real subset", () => {
 
     const none = await toolkit.loudness.measure("/tmp/mix.wav", "none");
     expect(none.integratedLufs).toBeNull();
+  });
+
+  it("renderMixOffline applies automation + limiter consistently", () => {
+    const toolkit = createMixProductionToolkit();
+    toolkit.automation.setLane("mix-v001", {
+      trackId: "trk-a",
+      target: "volume",
+      points: [
+        { timeMs: 0, value: 0 },
+        { timeMs: 1000, value: -12 },
+      ],
+    });
+    toolkit.effects.insert("trk-a", {
+      id: "lim",
+      kind: "limiter",
+      enabled: true,
+      params: { ceilingDb: -1 },
+    });
+    const left = new Float32Array(48000);
+    const right = new Float32Array(48000);
+    left.fill(0.5);
+    right.fill(0.5);
+    const out = renderMixOffline({
+      mixId: "mix-v001",
+      sampleRate: 48000,
+      masterGainDb: 0,
+      peakCeilingDb: -1,
+      tracks: [
+        {
+          trackId: "trk-a",
+          left,
+          right,
+          gainDb: 0,
+          pan: 0,
+          mute: false,
+          solo: false,
+        },
+      ],
+      automation: toolkit.automation,
+      effects: toolkit.effects,
+      sidechain: toolkit.sidechain,
+    });
+    expect(out.path).toBe("production");
+    expect(out.frameCount).toBe(48000);
+    expect(out.pcm.length).toBe(96000);
+    // Midpoint ~ -6 dB vs start → quieter at end.
+    const startPeak = Math.abs(out.left[0]!);
+    const endPeak = Math.abs(out.left[47999]!);
+    expect(endPeak).toBeLessThan(startPeak * 0.5);
+  });
+
+  it("places clips on a timeline with fades", () => {
+    const src = new Float32Array(100);
+    src.fill(1);
+    const { left, frameCount } = placeClipsOnTimeline(
+      src,
+      src,
+      [
+        {
+          startMs: 0,
+          offsetMs: 0,
+          durationMs: 10,
+          fadeInMs: 5,
+          fadeOutMs: 0,
+          gainDb: 0,
+        },
+      ],
+      1000,
+    );
+    expect(frameCount).toBe(10);
+    expect(left[0]!).toBeCloseTo(0, 5);
+    expect(left[9]!).toBeCloseTo(1, 5);
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MixDoc, PlaybackSources } from "../lib/types";
 import { MixPlaybackEngine, type PlaybackSnapshot } from "../lib/playback";
+import { subscribeProduction } from "../lib/productionState";
 import { t } from "../ui/i18n";
 import { Waveform } from "./Waveform";
 
@@ -37,6 +38,7 @@ const emptySnap: PlaybackSnapshot = {
   mode: "empty",
   peaks: [],
   mixPeaks: null,
+  productionBake: false,
 };
 
 function sourcesKey(sources: PlaybackSources | null): string {
@@ -104,6 +106,12 @@ export function AudioPlayer({
   useEffect(() => {
     engine.applyMix(mix);
   }, [engine, mix]);
+
+  useEffect(() => {
+    return subscribeProduction(() => {
+      engine.scheduleProductionBake(mixRef.current);
+    });
+  }, [engine]);
 
   useEffect(() => {
     return () => {

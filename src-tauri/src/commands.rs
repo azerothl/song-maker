@@ -8,7 +8,8 @@ use crate::library::{
     save_project, save_settings, upsert_library_row,
 };
 use crate::mix::{
-    export_flac, export_mp3, new_mix_from_separation, render_mix, wav_duration_ms, write_export_json,
+    export_flac, export_mp3, new_mix_from_separation, render_mix, wav_duration_ms,
+    write_export_json_ex, write_interleaved_f32_wav,
 };
 use crate::models::*;
 use crate::paths::{
@@ -981,13 +982,124 @@ pub fn export_audio(id: String, req: ExportRequest) -> Result<String, String> {
     if let Some(dest) = req.destination {
         std::fs::copy(&final_path, &dest).map_err(|e| e.to_string())?;
     }
-    write_export_json(
+    write_export_json_ex(
         &exports.join(format!("export-{stamp}.json")),
         &format,
         &final_path,
         peak_trim,
+        Some("rust-10.5"),
+        Some("approximate"),
     )?;
     Ok(final_path.display().to_string())
+}
+
+/// Export a float32 mix baked by `@song-maker/mix-production` (same bake as Web Audio).
+#[tauri::command]
+pub fn export_pcm_audio(id: String, req: ExportPcmRequest) -> Result<String, String> {
+    let folder = project_folder(&id);
+    let _doc = load_project(&folder)?;
+    let exports = folder.join("exports");
+    ensure_dir(&exports).map_err(|e| e.to_string())?;
+    let stamp = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
+    let format = req.format.to_lowercase();
+    if format != "wav" && format != "flac" && format != "mp3" {
+        return Err("Format : wav, flac ou mp3 (livraison).".into());
+    }
+    if req.channels != 2 {
+        return Err("Export PCM : stéréo (2 canaux) requis.".into());
+    }
+
+    let wav_out = exports.join(format!("export-{stamp}.wav"));
+    write_interleaved_f32_wav(&req.pcm_le, req.sample_rate, req.channels, &wav_out)?;
+
+    let final_path = if format == "flac" {
+        let flac = exports.join(format!("export-{stamp}.flac"));
+        export_flac(&wav_out, &flac)?;
+        let _ = std::fs::remove_file(&wav_out);
+        flac
+    } else if format == "mp3" {
+        let mp3 = exports.join(format!("export-{stamp}.mp3"));
+        export_mp3(&wav_out, &mp3)?;
+        mp3
+    } else {
+        wav_out
+    };
+
+    if let Some(dest) = req.destination {
+        std::fs::copy(&final_path, &dest).map_err(|e| e.to_string())?;
+    }
+    let render_path = if req.render_path.is_empty() {
+        "mix-production-ts"
+    } else {
+        &req.render_path
+    };
+    let match_mode = if req.match_mode.is_empty() {
+        "approximate"
+    } else {
+        &req.match_mode
+    };
+    write_export_json_ex(
+        &exports.join(format!("export-{stamp}.json")),
+        &format,
+        &final_path,
+        req.peak_trim_db,
+        Some(render_path),
+        Some(match_mode),
+    )?;
+    Ok(final_path.display().to_string())
+}
+
+/// Opt-in download into the user cache (LoRA packs). Requires CC BY-NC acceptance.
+#[tauri::command]
+pub async fn download_cache_file(req: DownloadCacheFileRequest) -> Result<String, String> {
+    let settings = load_settings()?;
+    if !settings.cc_by_nc_accepted {
+        return Err(
+            "Accepter CC BY-NC 4.0 avant tout téléchargement optionnel de LoRA.".into(),
+        );
+    }
+    let rel = req.relative_cache_path.replace('\\', "/");
+    if !rel.starts_with("models/lora/") || rel.contains("..") {
+        return Err("Chemin cache invalide (models/lora/… uniquement).".into());
+    }
+    if !(req.url.starts_with("https://huggingface.co/")
+        || req.url.starts_with("https://hf.co/"))
+    {
+        return Err("URL refusée : hôte Hugging Face uniquement.".into());
+    }
+
+    let dest = PathBuf::from(&settings.cache_dir).join(&rel);
+    if let Some(parent) = dest.parent() {
+        ensure_dir(parent).map_err(|e| e.to_string())?;
+    }
+    if dest.is_file() {
+        return Ok(dest.display().to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(600))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .get(&req.url)
+        .send()
+        .await
+        .map_err(|e| format!("Téléchargement échoué : {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!(
+            "Téléchargement HTTP {} pour {}",
+            resp.status(),
+            req.url
+        ));
+    }
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| format!("Lecture réponse : {e}"))?;
+    let tmp = dest.with_extension("part");
+    std::fs::write(&tmp, &bytes).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
+    Ok(dest.display().to_string())
 }
 
 #[tauri::command]

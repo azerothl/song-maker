@@ -221,6 +221,31 @@ pub struct ExportRequest {
     pub destination: Option<String>,
 }
 
+/// Export from a frontend-baked float32 mix (mix-production TS path).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportPcmRequest {
+    pub format: String,
+    pub destination: Option<String>,
+    /// Little-endian f32 interleaved stereo bytes.
+    pub pcm_le: Vec<u8>,
+    pub sample_rate: u32,
+    pub channels: u16,
+    pub peak_trim_db: f32,
+    /// `phase1` | `production` — honesty marker in export JSON.
+    pub render_path: String,
+    /// Explicit: not bit-exact with live Web Audio graph quirks.
+    pub match_mode: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadCacheFileRequest {
+    pub url: String,
+    /// Must start with `models/lora/`.
+    pub relative_cache_path: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerationSummary {
