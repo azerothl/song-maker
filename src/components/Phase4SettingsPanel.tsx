@@ -7,6 +7,9 @@ import {
   listStyleLoraPacks,
   gateLoraPackAccess,
   planOptionalLoraDownload,
+  requestOptionalLoraDownload,
+  activateLoraPackSettings,
+  compatibilityLabelFr,
   type LoraPack,
 } from "@song-maker/lora-packs";
 import {
@@ -63,6 +66,7 @@ export function Phase4SettingsPanel({
   const [probeMsg, setProbeMsg] = useState<string | null>(null);
   const [hostResult, setHostResult] = useState<HostModeResult | null>(null);
   const [styleNotice, setStyleNotice] = useState<string | null>(null);
+  const [styleBusyId, setStyleBusyId] = useState<string | null>(null);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
   const [arLora, setArLora] = useState("");
   const [narLora, setNarLora] = useState("");
@@ -179,11 +183,28 @@ export function Phase4SettingsPanel({
     }
   };
 
+  const styleAcceptance = () => ({
+    ccByNcAccepted: Boolean(settings?.ccByNcAccepted),
+    allowCommercialRedistribution: false,
+  });
+
+  const toggleCcByNc = async (accepted: boolean) => {
+    if (!settings) return;
+    try {
+      await api.updateSettings({ ...settings, ccByNcAccepted: accepted });
+      await refreshSettings();
+      setStyleNotice(
+        accepted
+          ? t("phase4.styleLora.ccAccepted")
+          : t("phase4.styleLora.ccCleared"),
+      );
+    } catch (e) {
+      setStyleNotice(String(e));
+    }
+  };
+
   const onPlanStyle = (pack: LoraPack) => {
-    const acceptance = {
-      ccByNcAccepted: Boolean(settings?.ccByNcAccepted),
-      allowCommercialRedistribution: false,
-    };
+    const acceptance = styleAcceptance();
     const gated = gateLoraPackAccess(pack.id, acceptance);
     if (!gated.ok) {
       setStyleNotice(gated.message);
@@ -195,11 +216,109 @@ export function Phase4SettingsPanel({
       return;
     }
     const lines = planned.plan.files
-      .map((f) => `• ${f.filename}\n  ${f.url}`)
+      .map(
+        (f) =>
+          `• ${f.filename}${f.sha256 ? ` (sha256 ${f.sha256.slice(0, 12)}…)` : ""}\n  ${f.url}\n  → cache/${f.relativeCachePath}`,
+      )
       .join("\n");
     setStyleNotice(
       `${planned.plan.noticeFr}\n\n${lines}\n\n${t("phase3.lora.manualDownload")}`,
     );
+  };
+
+  const onDownloadStyle = async (pack: LoraPack) => {
+    setStyleBusyId(pack.id);
+    setStyleNotice(null);
+    try {
+      const result = await requestOptionalLoraDownload(
+        pack.id,
+        styleAcceptance(),
+        (url, relativeCachePath, expectedSha256) =>
+          api.downloadCacheFile(url, relativeCachePath, expectedSha256),
+      );
+      if (!result.ok) {
+        setStyleNotice(result.message);
+        return;
+      }
+      const paths = result.savedPaths?.join("\n") ?? "";
+      setStyleNotice(
+        `${t("phase3.lora.downloadOk")}\n${paths}\n\n${result.plan?.noticeFr ?? ""}\n\n${t("phase4.styleLora.downloadHintActivate")}`,
+      );
+      const adapters = await api.listLoraAdapters();
+      setLocalLoras(adapters);
+    } catch (e) {
+      setStyleNotice(String(e));
+    } finally {
+      setStyleBusyId(null);
+    }
+  };
+
+  const onActivateStyle = async (pack: LoraPack) => {
+    if (!settings) return;
+    setStyleBusyId(pack.id);
+    setStyleNotice(null);
+    try {
+      const gated = gateLoraPackAccess(pack.id, styleAcceptance());
+      if (!gated.ok) {
+        setStyleNotice(gated.message);
+        return;
+      }
+      const cacheRoot = settings.cacheDir.replace(/[/\\]+$/, "");
+      const localPaths: Partial<Record<"ar" | "nar", string>> = {};
+      for (const file of pack.files) {
+        const abs = `${cacheRoot}/models/lora/${pack.id}/${file.filename}`;
+        localPaths[file.slot] = abs;
+      }
+      const patch = activateLoraPackSettings(pack, localPaths, {
+        ar: arScale,
+        nar: narScale,
+      });
+      if (!patch.yue2ArLora && !patch.yue2NarLora) {
+        setStyleNotice(t("phase4.styleLora.activateMissing"));
+        return;
+      }
+      await api.updateSettings({
+        ...settings,
+        ...patch,
+      });
+      await refreshSettings();
+      setArLora(patch.yue2ArLora ?? "");
+      setNarLora(patch.yue2NarLora ?? "");
+      setArScale(patch.yue2ArLoraScale);
+      setNarScale(patch.yue2NarLoraScale);
+      const adapters = await api.listLoraAdapters();
+      setLocalLoras(adapters);
+      setStyleNotice(
+        t("phase4.styleLora.activated", { name: pack.displayName }),
+      );
+    } catch (e) {
+      setStyleNotice(
+        `${String(e)}\n${t("phase4.styleLora.activateFailed")}`,
+      );
+    } finally {
+      setStyleBusyId(null);
+    }
+  };
+
+  const onDeactivateStyle = async () => {
+    if (!settings) return;
+    try {
+      await api.updateSettings({
+        ...settings,
+        yue2ArLora: null,
+        yue2NarLora: null,
+        yue2ArLoraScale: 1,
+        yue2NarLoraScale: 1,
+      });
+      await refreshSettings();
+      setArLora("");
+      setNarLora("");
+      setArScale(1);
+      setNarScale(1);
+      setStyleNotice(t("phase4.styleLora.deactivated"));
+    } catch (e) {
+      setStyleNotice(String(e));
+    }
   };
 
   return (
@@ -311,6 +430,15 @@ export function Phase4SettingsPanel({
       {view === "lora" && (
         <div className="settings-page-content">
       <p className="hint">{t("phase4.styleLora.intro")}</p>
+      <p className="hint">{t("phase4.styleLora.licenseNotice")}</p>
+      <label className="phase3-check">
+        <input
+          type="checkbox"
+          checked={Boolean(settings?.ccByNcAccepted)}
+          onChange={(e) => void toggleCcByNc(e.target.checked)}
+        />
+        {t("phase3.lora.ccGate")}
+      </label>
       <div className="phase4-lora-active">
         <h4>{t("phase4.lora.activeTitle")}</h4>
         <p className="hint">{t("phase4.lora.localHint")}</p>
@@ -343,6 +471,9 @@ export function Phase4SettingsPanel({
             {importingLoras ? t("phase4.lora.importing") : t("phase4.lora.import")}
           </button>
           <button type="button" className="btn ghost" disabled={importingLoras} onClick={() => void api.listLoraAdapters().then(setLocalLoras).catch((e) => setLoraNotice(String(e)))}>{t("phase4.lora.reload")}</button>
+          <button type="button" className="btn ghost" onClick={() => void onDeactivateStyle()}>
+            {t("phase4.styleLora.deactivate")}
+          </button>
           <span className="hint">{t("phase4.lora.count", { count: String(localLoras.length) })}</span>
         </div>
         <p className="hint">{t("phase4.lora.importHint")}</p>
@@ -350,13 +481,16 @@ export function Phase4SettingsPanel({
         {loraNotice && <p className="hint" role="status">{loraNotice}</p>}
       </div>
       <ul className="phase3-lora-list">
-        {stylePacks.map((pack) => (
+        {stylePacks.map((pack) => {
+          const installable = pack.compatibilityStatus === "verified";
+          const busy = styleBusyId === pack.id;
+          return (
           <li key={pack.id}>
             <div>
               <strong>{pack.displayName}</strong>
               <span className="hint">
                 {" "}
-                · {pack.license} · {pack.repo}
+                · {compatibilityLabelFr(pack.compatibilityStatus)} · {pack.license} · {pack.repo}
               </span>
               {pack.trigger && (
                 <span className="hint"> · trigger « {pack.trigger} »</span>
@@ -364,15 +498,45 @@ export function Phase4SettingsPanel({
               <br />
               <span className="hint">{pack.notes}</span>
             </div>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => onPlanStyle(pack)}
-            >
-              {t("phase3.lora.planDownload")}
-            </button>
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn"
+                disabled={busy || !installable}
+                onClick={() => onPlanStyle(pack)}
+              >
+                {t("phase3.lora.planDownload")}
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={
+                  busy ||
+                  !installable ||
+                  !settings?.ccByNcAccepted
+                }
+                onClick={() => void onDownloadStyle(pack)}
+              >
+                {busy
+                  ? t("phase3.lora.downloading")
+                  : t("phase3.lora.download")}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={
+                  busy ||
+                  !installable ||
+                  !settings?.ccByNcAccepted
+                }
+                onClick={() => void onActivateStyle(pack)}
+              >
+                {t("phase4.styleLora.activate")}
+              </button>
+            </div>
           </li>
-        ))}
+          );
+        })}
       </ul>
       {styleNotice && (
         <pre className="phase3-download-notice">{styleNotice}</pre>

@@ -3,12 +3,20 @@ import type {
   LicenseGateDecision,
   LoraPack,
   Yue2LoraSessionOptions,
+  Yue2LoraSettingsPatch,
 } from "./types.js";
 import { getLoraPack } from "./catalog.js";
+
+const DEFAULT_LORA_SCALE = 1;
+
+function isComfyOrFusedLayout(layout: LoraPack["layout"]): boolean {
+  return layout === "comfyui" || layout === "fused_merged";
+}
 
 /**
  * CC BY-NC gate before any optional LoRA download or session wiring.
  * First-build installer never includes these packs.
+ * Rejects ComfyUI / fused / incompatible; blocks unverified for install.
  */
 export function gateLoraPackAccess(
   packId: string,
@@ -23,12 +31,29 @@ export function gateLoraPackAccess(
     };
   }
 
-  if (pack.layout !== "unfused_safetensors") {
+  if (
+    pack.compatibilityStatus === "incompatible" ||
+    isComfyOrFusedLayout(pack.layout) ||
+    pack.layout !== "unfused_safetensors"
+  ) {
+    const reason =
+      pack.compatibilityStatus === "incompatible"
+        ? "incompatible_pack"
+        : "comfyui_layout";
     return {
       ok: false,
-      reason: "comfyui_layout",
+      reason,
       message:
-        "Layouts ComfyUI / fused refusés. audio.cpp exige des SafeTensors unfused (yue2.ar_lora / yue2.nar_lora).",
+        "Layouts ComfyUI / fused / fusionnés refusés. audio.cpp exige des SafeTensors unfused (yue2.ar_lora / yue2.nar_lora). La génération standard (sans LoRA) reste disponible.",
+    };
+  }
+
+  if (pack.compatibilityStatus === "unverified") {
+    return {
+      ok: false,
+      reason: "unverified_pack",
+      message:
+        "Pack informatif / non vérifié pour audio.cpp — pas de téléchargement ni d’activation. La génération standard (sans LoRA) reste disponible.",
     };
   }
 
@@ -62,12 +87,13 @@ export function gateLoraPackAccess(
 }
 
 /**
- * Builds session option paths only after the gate passes.
+ * Builds session option paths (and scales) only after the gate passes.
  * Does not download files.
  */
 export function buildYue2LoraSessionOptions(
   pack: LoraPack,
   localPaths: Partial<Record<"ar" | "nar", string>>,
+  scales?: Partial<Record<"ar" | "nar", number>>,
 ): Yue2LoraSessionOptions {
   const options: Yue2LoraSessionOptions = {};
   for (const file of pack.files) {
@@ -75,16 +101,56 @@ export function buildYue2LoraSessionOptions(
     if (!path) {
       continue;
     }
+    const scale = scales?.[file.slot] ?? DEFAULT_LORA_SCALE;
     if (file.slot === "ar") {
       options["yue2.ar_lora"] = path;
+      options["yue2.ar_lora_scale"] = scale;
     } else if (file.slot === "nar") {
       options["yue2.nar_lora"] = path;
+      options["yue2.nar_lora_scale"] = scale;
     } else {
       const _exhaustive: never = file.slot;
       void _exhaustive;
     }
   }
   return options;
+}
+
+/** Map session options onto AppSettings LoRA fields (null clears a slot). */
+export function settingsPatchFromYue2LoraSessionOptions(
+  options: Yue2LoraSessionOptions,
+  previous?: Partial<Yue2LoraSettingsPatch>,
+): Yue2LoraSettingsPatch {
+  return {
+    yue2ArLora: options["yue2.ar_lora"] ?? previous?.yue2ArLora ?? null,
+    yue2NarLora: options["yue2.nar_lora"] ?? previous?.yue2NarLora ?? null,
+    yue2ArLoraScale:
+      options["yue2.ar_lora_scale"] ??
+      previous?.yue2ArLoraScale ??
+      DEFAULT_LORA_SCALE,
+    yue2NarLoraScale:
+      options["yue2.nar_lora_scale"] ??
+      previous?.yue2NarLoraScale ??
+      DEFAULT_LORA_SCALE,
+  };
+}
+
+/**
+ * After opt-in download, build the settings patch that activates the pack
+ * for the next generation (paths + default scales).
+ */
+export function activateLoraPackSettings(
+  pack: LoraPack,
+  localPaths: Partial<Record<"ar" | "nar", string>>,
+  scales?: Partial<Record<"ar" | "nar", number>>,
+): Yue2LoraSettingsPatch {
+  const options = buildYue2LoraSessionOptions(pack, localPaths, scales);
+  return {
+    yue2ArLora: options["yue2.ar_lora"] ?? null,
+    yue2NarLora: options["yue2.nar_lora"] ?? null,
+    yue2ArLoraScale: options["yue2.ar_lora_scale"] ?? DEFAULT_LORA_SCALE,
+    yue2NarLoraScale: options["yue2.nar_lora_scale"] ?? DEFAULT_LORA_SCALE,
+  };
 }
 
 export type LoraDownloadPlanFile = {
@@ -94,6 +160,8 @@ export type LoraDownloadPlanFile = {
   url: string;
   /** Suggested relative path under the user cache (models/lora/<packId>/). */
   relativeCachePath: string;
+  /** Catalog sha256 when pinned — host verifies after download. */
+  sha256?: string;
 };
 
 export type LoraDownloadPlan = {
@@ -120,6 +188,7 @@ export function planOptionalLoraDownload(
     filename: f.filename,
     url: `https://huggingface.co/${pack.repo}/resolve/main/${f.filename}`,
     relativeCachePath: `models/lora/${pack.id}/${f.filename}`,
+    ...(f.sha256 ? { sha256: f.sha256 } : {}),
   }));
   return {
     ok: true,
@@ -128,7 +197,7 @@ export function planOptionalLoraDownload(
       pack,
       files,
       noticeFr:
-        "Téléchargement optionnel CC BY-NC 4.0 — hors installeur du premier build. Aucun poids n’est embarqué dans le dépôt.",
+        "Téléchargement optionnel CC BY-NC 4.0 — hors installeur du premier build. Aucune monétisation ni redistribution commerciale. Aucun poids n’est embarqué dans le dépôt.",
     },
   };
 }
@@ -136,12 +205,14 @@ export function planOptionalLoraDownload(
 export type CacheFileFetcher = (
   url: string,
   relativeCachePath: string,
+  expectedSha256?: string,
 ) => Promise<string>;
 
 /**
  * Opt-in download — never called by first-build installer.
  * Without a fetcher, returns the plan only (host downloads).
  * With a fetcher, downloads each file after the CC BY-NC gate.
+ * Passes catalog sha256 when present so the host can verify.
  */
 export async function requestOptionalLoraDownload(
   packId: string,
@@ -156,7 +227,9 @@ export async function requestOptionalLoraDownload(
   }
   const savedPaths: string[] = [];
   for (const file of planned.plan.files) {
-    savedPaths.push(await fetchToCache(file.url, file.relativeCachePath));
+    savedPaths.push(
+      await fetchToCache(file.url, file.relativeCachePath, file.sha256),
+    );
   }
   return { ...planned, savedPaths };
 }
@@ -187,4 +260,22 @@ export function statusForLoraPack(
     installed: missing.length === 0,
     missingFiles: missing,
   };
+}
+
+/** French badge label for catalog UI. */
+export function compatibilityLabelFr(
+  status: LoraPack["compatibilityStatus"],
+): string {
+  switch (status) {
+    case "verified":
+      return "vérifié audio.cpp";
+    case "unverified":
+      return "informatif / non vérifié";
+    case "incompatible":
+      return "incompatible (ComfyUI / fusionné)";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
 }

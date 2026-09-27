@@ -12,11 +12,27 @@ export type LoraPackKind =
   | "nar_realaudio"
   | "style";
 
+/**
+ * Verified: loadable via audio.cpp yue2.ar_lora / yue2.nar_lora (unfused).
+ * Unverified: informative catalog entry — not offered as install/activate.
+ * Incompatible: ComfyUI / fused / merged — never treated as compatible.
+ */
+export type LoraCompatibilityStatus =
+  | "verified"
+  | "unverified"
+  | "incompatible";
+
+/** Unfused only is loadable; ComfyUI / fused layouts are rejected. */
+export type LoraLayout =
+  | "unfused_safetensors"
+  | "comfyui"
+  | "fused_merged";
+
 export type LoraFileRef = {
   slot: LoraSlot;
   /** Hugging Face filename only — not downloaded by this package. */
   filename: string;
-  /** Optional OID when known; omit until pinned. */
+  /** Optional OID when known; omit until pinned. Host verifies when present. */
   sha256?: string;
 };
 
@@ -29,8 +45,9 @@ export type LoraPack = {
   license: LoraLicenseId;
   /** Trigger token when the pack documents one (e.g. chnsn). */
   trigger?: string;
-  /** Must be unfused SafeTensors loadable via yue2.ar_lora / yue2.nar_lora. */
-  layout: "unfused_safetensors";
+  layout: LoraLayout;
+  /** audio.cpp compatibility — UI badges + install gate. */
+  compatibilityStatus: LoraCompatibilityStatus;
   files: LoraFileRef[];
   /** Never true for first-build installer contents. */
   includedInFirstBuildInstaller: false;
@@ -44,6 +61,8 @@ export type LicenseGateDecision =
       reason:
         | "license_not_accepted"
         | "comfyui_layout"
+        | "incompatible_pack"
+        | "unverified_pack"
         | "commercial_use_blocked"
         | "unknown_pack";
       message: string;
@@ -63,4 +82,14 @@ export type LicenseAcceptance = {
 export type Yue2LoraSessionOptions = {
   "yue2.ar_lora"?: string;
   "yue2.nar_lora"?: string;
+  "yue2.ar_lora_scale"?: number;
+  "yue2.nar_lora_scale"?: number;
+};
+
+/** Settings fields that map 1:1 onto AppSettings camelCase LoRA keys. */
+export type Yue2LoraSettingsPatch = {
+  yue2ArLora: string | null;
+  yue2NarLora: string | null;
+  yue2ArLoraScale: number;
+  yue2NarLoraScale: number;
 };
