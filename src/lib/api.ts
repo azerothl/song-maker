@@ -11,6 +11,7 @@ import type {
   Phase3Status,
   PlaybackSources,
   ProjectDoc,
+  SeparationInfo,
 } from "./types";
 
 export const api = {
@@ -51,6 +52,8 @@ export const api = {
     }),
   startSeparation: (id: string) => invoke<MixDoc>("start_separation", { id }),
   loadMix: (id: string) => invoke<MixDoc | null>("load_mix", { id }),
+  loadSeparationInfo: (id: string) =>
+    invoke<SeparationInfo | null>("load_separation_info", { id }),
   updateMix: (
     id: string,
     update: {

@@ -9,7 +9,7 @@ import { Waveform } from "../components/Waveform";
 import { api } from "../lib/api";
 import { exportProjectAudio } from "../lib/exportMix";
 import { prepareAbcForGeneration } from "../lib/score";
-import type { FormInput, MixDoc, MixTrack } from "../lib/types";
+import type { FormInput, MixDoc, MixTrack, SeparationInfo } from "../lib/types";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 
@@ -43,6 +43,10 @@ function advancedSettingsTitle(page: Exclude<AdvancedSettingsPage, null>): strin
     case "key": return t("form.parameter.key.title");
     case "meter": return t("form.parameter.meter.title");
     case "seed": return t("form.parameter.seed.title");
+    default: {
+      const _exhaustive: never = page;
+      return _exhaustive;
+    }
   }
 }
 
@@ -53,6 +57,10 @@ function advancedSettingsIntro(page: Exclude<AdvancedSettingsPage, null>): strin
     case "key": return t("form.parameter.key.intro");
     case "meter": return t("form.parameter.meter.intro");
     case "seed": return t("form.parameter.seed.intro");
+    default: {
+      const _exhaustive: never = page;
+      return _exhaustive;
+    }
   }
 }
 
@@ -65,6 +73,54 @@ function formatDurationLabel(sec: number): string {
 function snapDurationSec(raw: number): number {
   const clamped = Math.min(DURATION_SEC_MAX, Math.max(DURATION_SEC_MIN, raw));
   return Math.round(clamped / DURATION_SEC_STEP) * DURATION_SEC_STEP;
+}
+
+function formatGainDb(db: number): string {
+  const sign = db > 0 ? "+" : "";
+  return `${sign}${db.toFixed(1)} dB`;
+}
+
+function formatPan(pan: number): string {
+  if (Math.abs(pan) < 0.02) return t("mix.pan.center");
+  if (pan < 0) return t("mix.pan.left", { value: Math.abs(pan).toFixed(2) });
+  return t("mix.pan.right", { value: pan.toFixed(2) });
+}
+
+const KNOWN_WARNINGS = [
+  "estimated-separation",
+  "guitar-piano-unavailable",
+  "experimental-guitar-piano",
+  "piano-less-reliable",
+  "bs-roformer-vocals-instrumental-only",
+  "drums-bass-guitar-piano-unavailable",
+] as const;
+
+type KnownWarning = (typeof KNOWN_WARNINGS)[number];
+
+function isKnownWarning(code: string): code is KnownWarning {
+  return (KNOWN_WARNINGS as readonly string[]).includes(code);
+}
+
+function warningLabel(code: string): string {
+  if (!isKnownWarning(code)) return code;
+  switch (code) {
+    case "estimated-separation":
+      return t("separation.warn.estimated");
+    case "guitar-piano-unavailable":
+      return t("separation.warn.guitarPianoUnavailable");
+    case "experimental-guitar-piano":
+      return t("separation.warn.experimentalGuitarPiano");
+    case "piano-less-reliable":
+      return t("separation.warn.pianoLessReliable");
+    case "bs-roformer-vocals-instrumental-only":
+      return t("separation.warn.bsRoformerOnly");
+    case "drums-bass-guitar-piano-unavailable":
+      return t("separation.warn.drumsBassUnavailable");
+    default: {
+      const _exhaustive: never = code;
+      return _exhaustive;
+    }
+  }
 }
 
 function validateForm(form: FormInput): string | null {
@@ -111,6 +167,9 @@ export function SongScreen() {
   const [continuationLyrics, setContinuationLyrics] = useState("");
   const [advancedSettingsPage, setAdvancedSettingsPage] =
     useState<AdvancedSettingsPage>(null);
+  const [separationInfo, setSeparationInfo] = useState<SeparationInfo | null>(
+    null,
+  );
   const saveTimer = useRef<number | null>(null);
   const mixTimer = useRef<number | null>(null);
 
@@ -143,6 +202,25 @@ export function SongScreen() {
   useEffect(() => {
     setShowFormErrors(false);
   }, [project?.id]);
+
+  useEffect(() => {
+    if (!project?.id) {
+      setSeparationInfo(null);
+      return;
+    }
+    let cancelled = false;
+    void api
+      .loadSeparationInfo(project.id)
+      .then((info) => {
+        if (!cancelled) setSeparationInfo(info);
+      })
+      .catch(() => {
+        if (!cancelled) setSeparationInfo(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [project?.id, project?.activeSeparationId, mix?.id]);
 
   useEffect(() => {
     if (!project) return;
@@ -233,6 +311,8 @@ export function SongScreen() {
       const m = await api.startSeparation(project.id);
       setMix(m);
       await openProject(project.id);
+      const info = await api.loadSeparationInfo(project.id);
+      setSeparationInfo(info);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -752,6 +832,22 @@ export function SongScreen() {
 
         {mix ? (
           <div className="mixer">
+            {separationInfo && separationInfo.warnings.length > 0 && (
+              <aside
+                className="banner warn separation-warn"
+                role="status"
+                aria-live="polite"
+              >
+                <div>
+                  <strong>{t("separation.warn.title")}</strong>
+                  <ul className="separation-warn-list">
+                    {separationInfo.warnings.map((code) => (
+                      <li key={code}>{warningLabel(code)}</li>
+                    ))}
+                  </ul>
+                </div>
+              </aside>
+            )}
             <label className="master">
               {t("mix.master")}
               <input
@@ -767,15 +863,21 @@ export function SongScreen() {
                   })
                 }
               />
-              <span>{mix.masterGainDb.toFixed(1)} dB</span>
+              <span className="mix-value">{formatGainDb(mix.masterGainDb)}</span>
             </label>
             {mix.tracks.map((tr) => {
               const anySolo = mix.tracks.some((x) => x.solo);
               const muted = tr.mute || (anySolo && !tr.solo);
               const peaks = playback?.peaksByTrack[tr.id] ?? null;
+              const waveStatus =
+                !playback || playback.loading || !playback.ready
+                  ? "loading"
+                  : peaks && peaks.length > 0
+                    ? "ready"
+                    : "empty";
               return (
                 <div key={tr.id} className="track" data-role={tr.role.toLowerCase()}>
-                  <strong>{tr.name}</strong>
+                  <strong className="track-name">{tr.name}</strong>
                   <button
                     type="button"
                     className={tr.mute ? "btn active" : "btn"}
@@ -811,17 +913,26 @@ export function SongScreen() {
                       duration={playback?.duration ?? 0}
                       height={40}
                       muted={muted}
+                      status={waveStatus}
+                      ariaLabel={tr.name}
                       onSeek={playback?.seek}
                     />
                   </div>
-                  <label>
-                    {t("mix.gain")}
+                  <label className="track-gain">
+                    <span className="track-fader-label">
+                      <span>{t("mix.gain")}</span>
+                      <span className="mix-value" aria-hidden>
+                        {formatGainDb(tr.gainDb)}
+                      </span>
+                    </span>
                     <input
                       type="range"
                       min={-24}
                       max={12}
                       step={0.5}
                       value={tr.gainDb}
+                      aria-label={t("mix.gainNamed", { track: tr.name })}
+                      aria-valuetext={formatGainDb(tr.gainDb)}
                       onChange={(e) =>
                         scheduleMixUpdate({
                           ...mix,
@@ -834,14 +945,21 @@ export function SongScreen() {
                       }
                     />
                   </label>
-                  <label>
-                    {t("mix.pan")}
+                  <label className="track-pan">
+                    <span className="track-fader-label">
+                      <span>{t("mix.pan")}</span>
+                      <span className="mix-value" aria-hidden>
+                        {formatPan(tr.pan)}
+                      </span>
+                    </span>
                     <input
                       type="range"
                       min={-1}
                       max={1}
                       step={0.01}
                       value={tr.pan}
+                      aria-label={t("mix.panNamed", { track: tr.name })}
+                      aria-valuetext={formatPan(tr.pan)}
                       onChange={(e) =>
                         scheduleMixUpdate({
                           ...mix,
