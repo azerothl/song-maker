@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { LoraTrainingPanel } from "../components/LoraTrainingPanel";
 import { Phase3SettingsPanel } from "../components/Phase3SettingsPanel";
 import { Phase4SettingsPanel } from "../components/Phase4SettingsPanel";
+import { ProjectSyncPanel } from "../components/ProjectSyncPanel";
 import { api } from "../lib/api";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
@@ -10,8 +12,10 @@ type SettingsPage =
   | "model"
   | "separation"
   | "lora"
+  | "loraTrain"
   | "remote"
   | "host"
+  | "sync"
   | "system";
 
 export function SettingsScreen() {
@@ -34,8 +38,10 @@ export function SettingsScreen() {
     model: t("settings.model.title"),
     separation: t("settings.separation.title"),
     lora: t("settings.lora.title"),
+    loraTrain: t("loraTrain.title"),
     remote: t("settings.remote.title"),
     host: t("settings.host.title"),
+    sync: t("phase4.sync.title"),
     system: t("settings.system.title"),
   };
   const separatorName =
@@ -85,10 +91,22 @@ export function SettingsScreen() {
               onClick={() => setPage("lora")}
             />
             <SettingsCard
+              title={pageTitle.loraTrain}
+              description={t("settings.card.loraTrain")}
+              value={t("settings.card.pilotStub")}
+              onClick={() => setPage("loraTrain")}
+            />
+            <SettingsCard
               title={pageTitle.remote}
               description={t("settings.card.remote")}
               value={t("settings.card.offByDefault")}
               onClick={() => setPage("remote")}
+            />
+            <SettingsCard
+              title={pageTitle.sync}
+              description={t("settings.card.sync")}
+              value={t("settings.card.offByDefault")}
+              onClick={() => setPage("sync")}
             />
             <SettingsCard
               title={pageTitle.host}
@@ -173,7 +191,17 @@ export function SettingsScreen() {
           <Phase4SettingsPanel view="lora" />
         </div>
       )}
+      {page === "loraTrain" && (
+        <div className="settings-detail-page">
+          <LoraTrainingPanel />
+        </div>
+      )}
       {page === "remote" && <Phase4SettingsPanel view="remote" />}
+      {page === "sync" && (
+        <div className="settings-detail-page">
+          <ProjectSyncPanel />
+        </div>
+      )}
       {page === "host" && <Phase4SettingsPanel view="host" />}
       {page === "system" && (
         <section className="settings-detail-page settings-system-page">
@@ -242,6 +270,8 @@ export function LicensesScreen() {
           Packs LoRA optionnels (phases 3–4, y compris styles) — CC BY-NC 4.0,
           hors installeur ; voir Paramètres → Production audio / Agent.
         </li>
+        <li>{t("licenses.sheetsage")}</li>
+        <li>{t("licenses.loraTrain")}</li>
         <li>
           Crédit : <strong>{t("licenses.credit")}</strong>
         </li>

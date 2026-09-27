@@ -7,6 +7,8 @@ import {
   checkConservation,
   clearInvariantBaseline,
   getInvariantBaselineMeta,
+  loadInvariantBaseline,
+  setInvariantBaselineLevel,
   type ConservationLevel,
   type InvariantCheckResult,
 } from "../lib/invariants";
@@ -14,12 +16,22 @@ import { t } from "../ui/i18n";
 
 type Props = {
   document: ScoreDocument | null;
+  /** When set, baseline is persisted under localStorage keyed by projectId. */
+  projectId?: string;
 };
 
-export function InvariantPanel({ document }: Props) {
+export function InvariantPanel({ document, projectId }: Props) {
   const [level, setLevel] = useState<ConservationLevel>("pitches_and_rhythms");
   const [result, setResult] = useState<InvariantCheckResult | null>(null);
   const [baselineMeta, setBaselineMeta] = useState(getInvariantBaselineMeta());
+
+  useEffect(() => {
+    if (projectId) {
+      const loaded = loadInvariantBaseline(projectId);
+      if (loaded.level) setLevel(loaded.level);
+      setBaselineMeta(getInvariantBaselineMeta());
+    }
+  }, [projectId]);
 
   useEffect(() => {
     setResult(null);
@@ -28,13 +40,13 @@ export function InvariantPanel({ document }: Props) {
   if (!document) return null;
 
   const onCapture = () => {
-    captureInvariantBaseline(document);
+    captureInvariantBaseline(document, { projectId, level });
     setBaselineMeta(getInvariantBaselineMeta());
     setResult(null);
   };
 
   const onClear = () => {
-    clearInvariantBaseline();
+    clearInvariantBaseline(projectId);
     setBaselineMeta(getInvariantBaselineMeta());
     setResult(null);
   };
@@ -64,7 +76,11 @@ export function InvariantPanel({ document }: Props) {
         {t("phase4.invariants.level")}
         <select
           value={level}
-          onChange={(e) => setLevel(e.target.value as ConservationLevel)}
+          onChange={(e) => {
+            const next = e.target.value as ConservationLevel;
+            setLevel(next);
+            setInvariantBaselineLevel(next);
+          }}
         >
           {CONSERVATION_LEVELS.map((l) => (
             <option key={l} value={l}>
@@ -83,6 +99,9 @@ export function InvariantPanel({ document }: Props) {
       </button>
       {!baselineMeta.captured && (
         <p className="hint">{t("phase4.invariants.needBaseline")}</p>
+      )}
+      {baselineMeta.captured && projectId && (
+        <p className="hint">{t("phase4.invariants.persisted")}</p>
       )}
       {result && (
         <div className={result.ok ? "banner ok" : "banner warn"}>

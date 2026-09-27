@@ -12,7 +12,10 @@ Le premier build n’installe **aucun** LoRA (§4.3, §23). Ce paquet catalogue 
 | `nar_realaudio` | realaudio tokenizer v4 | `yue2.nar_lora` |
 | `style` | chanson française `chnsn`, industrial rock | AR + NAR |
 
-Tous sont **CC BY-NC 4.0**, layout `unfused_safetensors` (pas ComfyUI), `includedInFirstBuildInstaller: false`.
+Tous sont **CC BY-NC 4.0**, `includedInFirstBuildInstaller: false`.
+`compatibilityStatus` : `verified` | `unverified` | `incompatible`.
+Layouts ComfyUI / fused (`comfyui`, `fused_merged`) ne sont jamais traités comme compatibles.
+Le pack industrial-rock est **unverified** (informatif seulement).
 
 ## Porte de licence
 
@@ -20,9 +23,10 @@ Tous sont **CC BY-NC 4.0**, layout `unfused_safetensors` (pas ComfyUI), `include
 
 - licence CC BY-NC non acceptée ;
 - redistribution commerciale (`allowCommercialRedistribution`) ;
-- packs inconnus / layouts non unfused.
+- packs inconnus / layouts ComfyUI ou fusionnés ;
+- packs `unverified` ou `incompatible` (pas d’install/activate).
 
-Aucun poids n’est téléchargé par ce paquet. `requestOptionalLoraDownload` ne fait que revalider la porte.
+Aucun poids n’est téléchargé par ce paquet. `requestOptionalLoraDownload` revalide la porte et transmet le `sha256` catalogue au fetcher hôte quand il est présent. `activateLoraPackSettings` / `buildYue2LoraSessionOptions` produisent chemins + échelles pour les settings.
 
 ## Branchement après phase 1–2
 

@@ -8,8 +8,8 @@ use crate::library::{
     load_settings, project_folder, save_project, save_settings, upsert_library_row,
 };
 use crate::mix::{
-    export_flac, export_mp3, new_mix_from_separation, render_mix, wav_duration_ms,
-    write_export_json_with_warnings, write_interleaved_f32_wav,
+    append_user_audio_track, empty_mix, export_flac, export_mp3, new_mix_from_separation,
+    render_mix, wav_duration_ms, write_export_json_with_warnings, write_interleaved_f32_wav,
 };
 use crate::models::*;
 use crate::paths::{
@@ -18,7 +18,7 @@ use crate::paths::{
 };
 use crate::pins::*;
 use crate::queue::JobQueue;
-use crate::resample::resample_soxr;
+use crate::resample::{normalize_user_audio, resample_soxr};
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -393,6 +393,8 @@ pub async fn start_generation(
     id: String,
     form: FormInput,
     abc: Option<String>,
+    stop_after: Option<String>,
+    source_generation_id: Option<String>,
 ) -> Result<ProjectDoc, String> {
     let style_sent = validate_form(&form).map_err(|e| e.to_string())?;
     let target_duration_sec =
@@ -402,6 +404,15 @@ pub async fn start_generation(
         &form.lyrics,
         form.prefer_full_lyrics,
     );
+    let stop_after_abc = match stop_after.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        None => false,
+        Some("abc") => true,
+        Some(other) => {
+            return Err(format!(
+                "stop_after={other} hors contrat (seul « abc » est pris en charge)."
+            ));
+        }
+    };
     let mut abc_trimmed = abc
         .as_ref()
         .map(|s| s.trim().to_string())
@@ -411,8 +422,43 @@ pub async fn start_generation(
             "Un ABC avec cot=off est interdit (erreur locale, avant l'appel).".into(),
         );
     }
+    if stop_after_abc {
+        if form.cot == "off" {
+            return Err("stop_after=abc exige cot=melody|full.".into());
+        }
+        if abc_trimmed.is_some() {
+            return Err("stop_after=abc refuse un ABC externe.".into());
+        }
+        if form.continuation_generation_id.is_some() {
+            return Err("stop_after=abc est incompatible avec une continuation.".into());
+        }
+        if source_generation_id.is_some() {
+            return Err("stop_after=abc est incompatible avec un rendu depuis un score existant.".into());
+        }
+    }
     let folder = project_folder(&id);
     let mut doc = load_project(&folder)?;
+    let source_gen_id = source_generation_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+    if let Some(ref src_id) = source_gen_id {
+        let score_path = folder
+            .join("generations")
+            .join(src_id)
+            .join("score.abc");
+        if !score_path.is_file() {
+            return Err(format!(
+                "Score ABC introuvable pour {src_id} (attendu generations/{src_id}/score.abc)."
+            ));
+        }
+        if abc_trimmed.is_none() {
+            abc_trimmed = Some(
+                std::fs::read_to_string(&score_path).map_err(|e| e.to_string())?,
+            );
+        }
+    }
     let continuation = form.continuation_generation_id.as_deref();
     let semantic_prefix_path = if let Some(parent_id) = continuation {
         let suffix = parent_id.strip_prefix("gen-").unwrap_or("");
@@ -470,7 +516,8 @@ pub async fn start_generation(
     doc.target_duration_sec = target_duration_sec;
     doc.prefer_full_lyrics = form.prefer_full_lyrics;
     doc.updated_at = now_iso();
-    let settings = load_settings()?;
+    let mut settings = load_settings()?;
+    let (lora_provenance, lora_warnings) = resolve_lora_provenance_for_generation(&mut settings);
     let seed = normalize_seed(form.seed.unwrap_or_else(random_seed));
     let gen_id = next_folder_id(&folder.join("generations"), "gen-")?;
     let gen_dir = folder.join("generations").join(&gen_id);
@@ -492,13 +539,27 @@ pub async fn start_generation(
         (ARCHIVE_LINUX, ARCHIVE_LINUX_SHA)
     };
 
+    let parent_generation_id = continuation
+        .or(source_gen_id.as_deref())
+        .or(doc.active_generation_id.as_deref());
+    let job_kind = if continuation.is_some() {
+        "continuation"
+    } else if stop_after_abc {
+        "score_only"
+    } else if source_gen_id.is_some() {
+        "render_from_score"
+    } else {
+        "generation"
+    };
     let request = json!({
         "schema": SCHEMA_GEN_REQUEST,
         "schemaVersion": SCHEMA_VERSION,
         "id": gen_id,
         "projectId": id,
-        "parentGenerationId": continuation.or(doc.active_generation_id.as_deref()),
+        "parentGenerationId": parent_generation_id,
         "continuationGenerationId": continuation,
+        "sourceGenerationId": source_gen_id,
+        "stopAfter": if stop_after_abc { Some("abc") } else { None::<&str> },
         "createdAt": now_iso(),
         "provider": "audiocpp",
         "binary": {
@@ -526,13 +587,15 @@ pub async fn start_generation(
         "targetDurationSec": target_duration_sec,
         "preferFullLyrics": form.prefer_full_lyrics,
         "semanticMinTokens": semantic_min_tokens,
-        "semanticMaxTokens": semantic_max_tokens
+        "semanticMaxTokens": semantic_max_tokens,
+        "lora": lora_provenance,
+        "loraWarnings": lora_warnings
     });
     atomic_write_json(&gen_dir.join("request.json"), &request)?;
     atomic_write_json(&gen_dir.join("job.json"), &json!({
         "id": gen_id,
         "projectId": id,
-        "kind": if continuation.is_some() { "continuation" } else { "generation" },
+        "kind": job_kind,
         "state": "queued",
         "updatedAt": now_iso(),
     }))?;
@@ -551,20 +614,30 @@ pub async fn start_generation(
     let gen_id_for_job = gen_id.clone();
     let gen_dir_for_job = gen_dir.clone();
     let project_id_for_job = id.clone();
+    let job_kind_for_job = job_kind.to_string();
     let result = queue
         .run_exclusive(
             Some(id.clone()),
-            "Génération en cours",
+            if stop_after_abc {
+                "Génération partition seule"
+            } else {
+                "Génération en cours"
+            },
             async move {
                 atomic_write_json(&gen_dir_for_job.join("job.json"), &json!({
                     "id": gen_id_for_job,
                     "projectId": project_id_for_job,
+                    "kind": job_kind_for_job,
                     "state": "running",
                     "updatedAt": now_iso(),
                 }))?;
                 queue_ref.set_state(
                     "generating",
-                    "Génération en cours",
+                    if stop_after_abc {
+                        "Génération partition seule"
+                    } else {
+                        "Génération en cours"
+                    },
                     Some(project_id_for_job.clone()),
                 );
                 let mut options = json!({
@@ -574,8 +647,14 @@ pub async fn start_generation(
                     "guidance_scale": guidance_scale(&cot),
                     "semantic_min_tokens": semantic_min_tokens,
                     "semantic_max_tokens": semantic_max_tokens,
-                    "export_semantic": true
+                    "export_semantic": !stop_after_abc
                 });
+                if stop_after_abc {
+                    options
+                        .as_object_mut()
+                        .ok_or_else(|| "options invalides".to_string())?
+                        .insert("stop_after".into(), json!("abc"));
+                }
                 if let Some(path) = semantic_prefix_path.as_ref() {
                     options.as_object_mut().ok_or_else(|| "options invalides".to_string())?
                         .insert("semantic_prefix_file".into(), json!(path.display().to_string()));
@@ -619,6 +698,61 @@ pub async fn start_generation(
                             AudioCppServer::semantic_truncated(&response);
                         let semantic_path = gen_dir_for_job.join("semantic.json");
                         let has_semantic = AudioCppServer::write_semantic_artifact(&response, &semantic_path).unwrap_or(false);
+
+                        if let Some(abc) = AudioCppServer::extract_score_abc(&response) {
+                            let _ = std::fs::write(gen_dir_for_job.join("score.abc"), abc);
+                        } else if let Some(abc_text) = &abc_for_req {
+                            // Conserve l'ABC envoyé si le modèle n'en renvoie pas.
+                            let _ = std::fs::write(gen_dir_for_job.join("score.abc"), abc_text);
+                        }
+
+                        let score_path = gen_dir_for_job.join("score.abc");
+                        if stop_after_abc {
+                            if !score_path.is_file() {
+                                let err = "Réponse score-only sans score.abc.".to_string();
+                                let result = json!({
+                                    "schema": SCHEMA_GEN_RESULT,
+                                    "schemaVersion": SCHEMA_VERSION,
+                                    "id": gen_id_for_job,
+                                    "state": "failed",
+                                    "decode": "unsupported",
+                                    "startedAt": started,
+                                    "finishedAt": finished,
+                                    "audio": null,
+                                    "score": null,
+                                    "error": err
+                                });
+                                atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                                return Err(err);
+                            }
+                            let score = json!({
+                                "path": "score.abc",
+                                "sha256": sha256_file(&score_path)?
+                            });
+                            let result = json!({
+                                "schema": SCHEMA_GEN_RESULT,
+                                "schemaVersion": SCHEMA_VERSION,
+                                "id": gen_id_for_job,
+                                "state": "score_only",
+                                "decode": "unsupported",
+                                "startedAt": started,
+                                "finishedAt": finished,
+                                "audio": null,
+                                "score": score,
+                                "semanticTruncated": semantic_truncated,
+                                "semanticPath": if has_semantic { Some("semantic.json") } else { None },
+                                "error": null
+                            });
+                            atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                            write_checksums(&gen_dir_for_job)?;
+                            queue_ref.set_state(
+                                "score_only",
+                                "Partition générée (sans audio)",
+                                Some(project_id_for_job.clone()),
+                            );
+                            return Ok(0i64);
+                        }
+
                         let wav_bytes = match AudioCppServer::extract_wav_bytes(&response) {
                             Ok(b) => b,
                             Err(e) => {
@@ -656,15 +790,8 @@ pub async fn start_generation(
                             atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
                             return Err(err);
                         }
-                        if let Some(abc) = AudioCppServer::extract_score_abc(&response) {
-                            let _ = std::fs::write(gen_dir_for_job.join("score.abc"), abc);
-                        } else if let Some(abc_text) = &abc_for_req {
-                            // Conserve l'ABC envoyé si le modèle n'en renvoie pas.
-                            let _ = std::fs::write(gen_dir_for_job.join("score.abc"), abc_text);
-                        }
                         let duration = wav_duration_ms(&out_wav).unwrap_or(0);
                         let audio_sha = sha256_file(&out_wav)?;
-                        let score_path = gen_dir_for_job.join("score.abc");
                         let score = if score_path.exists() {
                             json!({
                                 "path": "score.abc",
@@ -728,7 +855,7 @@ pub async fn start_generation(
             atomic_write_json(&gen_dir.join("job.json"), &json!({
                 "id": gen_id,
                 "projectId": id,
-                "kind": if continuation.is_some() { "continuation" } else { "generation" },
+                "kind": job_kind,
                 "state": "completed",
                 "updatedAt": now_iso(),
             }))?;
@@ -738,7 +865,7 @@ pub async fn start_generation(
             atomic_write_json(&gen_dir.join("job.json"), &json!({
                 "id": gen_id,
                 "projectId": id,
-                "kind": if continuation.is_some() { "continuation" } else { "generation" },
+                "kind": job_kind,
                 "state": if error == "cancelled" { "cancelled" } else { "failed" },
                 "error": error,
                 "updatedAt": now_iso(),
@@ -758,6 +885,29 @@ pub async fn start_generation(
     }
     upsert_library_row(&row)?;
     Ok(doc)
+}
+
+/// Render audio from an existing generation's immutable `score.abc`.
+/// Sets `parentGenerationId` to the source gen; never uses `stop_after`.
+#[tauri::command]
+pub async fn render_from_generation(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    source_gen_id: String,
+    form: FormInput,
+) -> Result<ProjectDoc, String> {
+    let mut form = form;
+    // Rendering from a score is a fresh audio take, not a semantic continuation.
+    form.continuation_generation_id = None;
+    start_generation(
+        state,
+        id,
+        form,
+        None,
+        None,
+        Some(source_gen_id),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -1010,7 +1160,20 @@ pub async fn start_separation(
     }))?;
 
     let mix_id = next_folder_id(&folder.join("mixes"), "mix-v")?;
-    let mix = new_mix_from_separation(&mix_id, &sep_id, &stem_meta);
+    let mut mix = new_mix_from_separation(&mix_id, &sep_id, &stem_meta);
+    // Carry over user/custom tracks from the previous active mix (import/record).
+    if let Some(prev_id) = &doc.active_mix_id {
+        let prev_path = folder.join("mixes").join(format!("{prev_id}.json"));
+        if let Ok(text) = std::fs::read_to_string(&prev_path) {
+            if let Ok(prev) = serde_json::from_str::<MixDoc>(&text) {
+                for track in prev.tracks {
+                    if !track.ai_separated {
+                        mix.tracks.push(track);
+                    }
+                }
+            }
+        }
+    }
     atomic_write_json(&folder.join("mixes").join(format!("{mix_id}.json")), &mix)?;
 
     doc.active_separation_id = Some(sep_id);
@@ -1119,6 +1282,343 @@ pub fn update_mix(
     Ok(mix)
 }
 
+const USER_AUDIO_EXTS: &[&str] = &["wav", "mp3", "flac"];
+
+fn user_audio_ext_ok(path: &Path) -> Result<String, String> {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .unwrap_or_default();
+    if USER_AUDIO_EXTS.contains(&ext.as_str()) {
+        return Ok(ext);
+    }
+    Err(format!(
+        "Format non pris en charge{}. Formats acceptés : WAV, MP3, FLAC.",
+        if ext.is_empty() {
+            String::new()
+        } else {
+            format!(" (.{ext})")
+        }
+    ))
+}
+
+fn user_audio_root(folder: &Path) -> PathBuf {
+    folder.join("user-audio")
+}
+
+fn ensure_user_audio_dirs(folder: &Path) -> Result<(), String> {
+    let root = user_audio_root(folder);
+    ensure_dir(&root).map_err(|e| e.to_string())?;
+    ensure_dir(&root.join("originals")).map_err(|e| e.to_string())?;
+    ensure_dir(&root.join("normalized")).map_err(|e| e.to_string())?;
+    ensure_dir(&root.join("capture")).map_err(|e| e.to_string())?;
+    ensure_dir(&root.join("provenance")).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn load_or_create_active_mix(
+    folder: &Path,
+    doc: &mut ProjectDoc,
+) -> Result<(MixDoc, PathBuf), String> {
+    if let Some(mix_id) = &doc.active_mix_id {
+        let path = folder.join("mixes").join(format!("{mix_id}.json"));
+        let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        let mix: MixDoc = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        return Ok((mix, path));
+    }
+    ensure_dir(&folder.join("mixes")).map_err(|e| e.to_string())?;
+    let mix_id = next_folder_id(&folder.join("mixes"), "mix-v")?;
+    let mix = empty_mix(&mix_id);
+    let path = folder.join("mixes").join(format!("{mix_id}.json"));
+    atomic_write_json(&path, &mix)?;
+    doc.active_mix_id = Some(mix_id);
+    doc.updated_at = now_iso();
+    save_project(folder, doc)?;
+    upsert_library_row(&library_row_from_project(folder, doc))?;
+    Ok((mix, path))
+}
+
+/// Copy (optional) + normalize + append user MixTrack. Never mutates existing stems.
+fn ingest_user_audio_file(
+    folder: &Path,
+    doc: &mut ProjectDoc,
+    source: &Path,
+    display_name: &str,
+    copy_original: bool,
+    original_ext: Option<&str>,
+) -> Result<MixDoc, String> {
+    ensure_user_audio_dirs(folder)?;
+    if !source.is_file() {
+        return Err(format!("Chemin audio invalide : {}", source.display()));
+    }
+    let meta = std::fs::metadata(source).map_err(|e| e.to_string())?;
+    if meta.len() == 0 {
+        return Err("Fichier audio vide — import impossible.".into());
+    }
+
+    let asset_id = Uuid::new_v4().to_string();
+    let root = user_audio_root(folder);
+    let mut original_rel: Option<String> = None;
+    let mut copied_original: Option<PathBuf> = None;
+
+    if copy_original {
+        let ext = original_ext
+            .map(|e| e.to_string())
+            .or_else(|| {
+                source
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .map(|e| e.to_ascii_lowercase())
+            })
+            .unwrap_or_else(|| "bin".into());
+        let dest = root.join("originals").join(format!("{asset_id}.{ext}"));
+        std::fs::copy(source, &dest).map_err(|e| {
+            format!(
+                "Impossible de copier l’original dans le projet : {e}"
+            )
+        })?;
+        original_rel = Some(format!("user-audio/originals/{asset_id}.{ext}"));
+        copied_original = Some(dest);
+    }
+
+    let normalized_rel = format!("user-audio/normalized/{asset_id}.wav");
+    let normalized_abs = folder.join(&normalized_rel);
+    let normalize_src = copied_original.as_deref().unwrap_or(source);
+
+    if let Err(e) = normalize_user_audio(normalize_src, &normalized_abs) {
+        if let Some(p) = &copied_original {
+            let _ = std::fs::remove_file(p);
+        }
+        let _ = std::fs::remove_file(&normalized_abs);
+        return Err(e);
+    }
+
+    let sha = match sha256_file(&normalized_abs) {
+        Ok(s) => s,
+        Err(e) => {
+            let _ = std::fs::remove_file(&normalized_abs);
+            if let Some(p) = &copied_original {
+                let _ = std::fs::remove_file(p);
+            }
+            return Err(e);
+        }
+    };
+    let duration_ms = match wav_duration_ms(&normalized_abs) {
+        Ok(d) if d > 0 => d,
+        Ok(_) => {
+            let _ = std::fs::remove_file(&normalized_abs);
+            if let Some(p) = &copied_original {
+                let _ = std::fs::remove_file(p);
+            }
+            return Err("Durée nulle après normalisation — fichier rejeté.".into());
+        }
+        Err(e) => {
+            let _ = std::fs::remove_file(&normalized_abs);
+            if let Some(p) = &copied_original {
+                let _ = std::fs::remove_file(p);
+            }
+            return Err(format!("Lecture durée impossible : {e}"));
+        }
+    };
+
+    let provenance = json!({
+        "schema": "songmaker.userAudio",
+        "schemaVersion": 1,
+        "id": asset_id,
+        "displayName": display_name,
+        "originalRelativePath": original_rel,
+        "normalizedRelativePath": normalized_rel,
+        "sourceFileName": source.file_name().and_then(|s| s.to_str()).unwrap_or(""),
+        "sha256": sha,
+        "durationMs": duration_ms,
+        "importedAt": now_iso(),
+    });
+    if let Err(e) = atomic_write_json(
+        &root.join("provenance").join(format!("{asset_id}.json")),
+        &provenance,
+    ) {
+        let _ = std::fs::remove_file(&normalized_abs);
+        if let Some(p) = &copied_original {
+            let _ = std::fs::remove_file(p);
+        }
+        return Err(e);
+    }
+
+    let (mut mix, mix_path) = load_or_create_active_mix(folder, doc)?;
+    // Snapshot for rollback: do not leave a broken track if save fails.
+    let track_count_before = mix.tracks.len();
+    append_user_audio_track(&mut mix, &normalized_rel, &sha, duration_ms, display_name);
+    if let Err(e) = atomic_write_json(&mix_path, &mix) {
+        mix.tracks.truncate(track_count_before);
+        let _ = std::fs::remove_file(&normalized_abs);
+        if let Some(p) = &copied_original {
+            let _ = std::fs::remove_file(p);
+        }
+        let _ = std::fs::remove_file(root.join("provenance").join(format!("{asset_id}.json")));
+        return Err(e);
+    }
+    doc.updated_at = now_iso();
+    let _ = save_project(folder, doc);
+    let _ = upsert_library_row(&library_row_from_project(folder, doc));
+    Ok(mix)
+}
+
+#[tauri::command]
+pub async fn import_user_audio_track(
+    app: tauri::AppHandle,
+    id: String,
+) -> Result<Option<MixDoc>, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let Some(selected) = app
+        .dialog()
+        .file()
+        .add_filter("Audio (WAV, MP3, FLAC)", &["wav", "mp3", "flac"])
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
+
+    let source = selected
+        .into_path()
+        .map_err(|e| format!("Chemin audio invalide : {e}"))?;
+    let ext = user_audio_ext_ok(&source)?;
+    let display_name = source
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("Piste personnalisée")
+        .to_string();
+
+    tokio::task::spawn_blocking(move || {
+        let folder = project_folder(&id);
+        let mut doc = load_project(&folder)?;
+        ingest_user_audio_file(
+            &folder,
+            &mut doc,
+            &source,
+            &display_name,
+            true,
+            Some(&ext),
+        )
+        .map(Some)
+    })
+    .await
+    .map_err(|e| format!("Import audio interrompu : {e}"))?
+}
+
+#[tauri::command]
+pub fn begin_user_audio_capture(id: String) -> Result<UserAudioCaptureSession, String> {
+    let folder = project_folder(&id);
+    let _ = load_project(&folder)?;
+    ensure_user_audio_dirs(&folder)?;
+    let session_id = Uuid::new_v4().to_string();
+    let rel = format!("user-audio/capture/{session_id}.webm");
+    let abs = folder.join(&rel);
+    // Create empty file so append can open for write.
+    std::fs::File::create(&abs).map_err(|e| format!("Impossible de créer le fichier de capture : {e}"))?;
+    Ok(UserAudioCaptureSession {
+        session_id,
+        relative_path: rel,
+    })
+}
+
+#[tauri::command]
+pub fn append_user_audio_chunk(
+    id: String,
+    session_id: String,
+    chunk: Vec<u8>,
+) -> Result<(), String> {
+    if !capture_session_id_ok(&session_id) {
+        return Err("Identifiant de session de capture invalide.".into());
+    }
+    if chunk.is_empty() {
+        return Ok(());
+    }
+    let folder = project_folder(&id);
+    let path = folder
+        .join("user-audio")
+        .join("capture")
+        .join(format!("{session_id}.webm"));
+    if !path.is_file() {
+        return Err("Session de capture introuvable ou déjà finalisée.".into());
+    }
+    use std::io::Write;
+    let mut file = std::fs::OpenOptions::new()
+        .append(true)
+        .open(&path)
+        .map_err(|e| format!("Écriture capture : {e}"))?;
+    file.write_all(&chunk)
+        .map_err(|e| format!("Disque plein ou écriture impossible : {e}"))?;
+    Ok(())
+}
+
+fn capture_session_id_ok(session_id: &str) -> bool {
+    !session_id.is_empty()
+        && session_id.len() <= 80
+        && session_id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-')
+}
+
+#[tauri::command]
+pub fn discard_user_audio_capture(id: String, session_id: String) -> Result<(), String> {
+    if !capture_session_id_ok(&session_id) {
+        return Err("Identifiant de session de capture invalide.".into());
+    }
+    let folder = project_folder(&id);
+    let path = folder
+        .join("user-audio")
+        .join("capture")
+        .join(format!("{session_id}.webm"));
+    if path.is_file() {
+        std::fs::remove_file(&path).map_err(|e| format!("Suppression capture : {e}"))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn finalize_user_audio_capture(
+    id: String,
+    session_id: String,
+    display_name: Option<String>,
+) -> Result<MixDoc, String> {
+    if !capture_session_id_ok(&session_id) {
+        return Err("Identifiant de session de capture invalide.".into());
+    }
+    let folder = project_folder(&id);
+    let mut doc = load_project(&folder)?;
+    let capture = folder
+        .join("user-audio")
+        .join("capture")
+        .join(format!("{session_id}.webm"));
+    if !capture.is_file() {
+        return Err("Session de capture introuvable.".into());
+    }
+    let meta = std::fs::metadata(&capture).map_err(|e| e.to_string())?;
+    if meta.len() == 0 {
+        let _ = std::fs::remove_file(&capture);
+        return Err("Enregistrement vide — aucune piste créée.".into());
+    }
+    let name = display_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("Enregistrement")
+        .to_string();
+    match ingest_user_audio_file(&folder, &mut doc, &capture, &name, true, Some("webm")) {
+        Ok(mix) => {
+            // Original copy lives under originals/; drop capture temp.
+            let _ = std::fs::remove_file(&capture);
+            Ok(mix)
+        }
+        Err(e) => {
+            // Keep capture on disk so the UI can retry or discard cleanly.
+            Err(e)
+        }
+    }
+}
+
 #[tauri::command]
 pub fn save_mix_version(id: String) -> Result<MixDoc, String> {
     let folder = project_folder(&id);
@@ -1178,19 +1678,16 @@ pub fn render_preview(id: String) -> Result<String, String> {
     Ok(playback.display().to_string())
 }
 
-/// Chemins absolus de la prise active et des stems float32 pour Web Audio.
+/// Chemins absolus de la prise active et des stems / pistes utilisateur float32 pour Web Audio.
 #[tauri::command]
 pub fn playback_sources(id: String) -> Result<PlaybackSources, String> {
     let folder = project_folder(&id);
     let doc = load_project(&folder)?;
-    let gen_id = doc
-        .active_generation_id
-        .clone()
-        .ok_or_else(|| "Aucun audio à lire.".to_string())?;
-    let gen_wav = folder.join("generations").join(&gen_id).join("audio.wav");
-    if !gen_wav.is_file() {
-        return Err(format!("Fichier audio manquant : {}", gen_wav.display()));
-    }
+    let gen_id = doc.active_generation_id.clone();
+    let gen_wav = gen_id.as_ref().map(|gid| {
+        folder.join("generations").join(gid).join("audio.wav")
+    });
+    let gen_wav_ok = gen_wav.as_ref().is_some_and(|p| p.is_file());
 
     if let Some(mix_id) = &doc.active_mix_id {
         let path = folder.join("mixes").join(format!("{mix_id}.json"));
@@ -1212,7 +1709,11 @@ pub fn playback_sources(id: String) -> Result<PlaybackSources, String> {
                 folder.join(&clip.source_path)
             };
             if !abs.is_file() {
-                return Err(format!("Stem manquant : {}", abs.display()));
+                // AI stems must exist; skip missing user originals that were moved.
+                if track.ai_separated {
+                    return Err(format!("Stem manquant : {}", abs.display()));
+                }
+                continue;
             }
             stems.push(PlaybackStem {
                 role: track.role.clone(),
@@ -1221,24 +1722,41 @@ pub fn playback_sources(id: String) -> Result<PlaybackSources, String> {
                 path: abs.display().to_string(),
             });
         }
-        if stems.is_empty() {
-            return Err("Mix actif sans stems lisibles.".into());
+        if !stems.is_empty() {
+            let label = match (&gen_id, gen_wav_ok) {
+                (Some(gid), true) => format!("{gid} · mix"),
+                _ => "Mix (pistes)".into(),
+            };
+            return Ok(PlaybackSources {
+                mode: "stems".into(),
+                generation_id: gen_id.clone(),
+                generation_wav: if gen_wav_ok {
+                    gen_wav.map(|p| p.display().to_string())
+                } else {
+                    None
+                },
+                stems,
+                label,
+            });
         }
-        return Ok(PlaybackSources {
-            mode: "stems".into(),
-            generation_id: Some(gen_id.clone()),
-            generation_wav: Some(gen_wav.display().to_string()),
-            stems,
-            label: format!("{gen_id} · mix des stems"),
-        });
+        if !gen_wav_ok {
+            return Err("Mix actif sans pistes audio lisibles.".into());
+        }
     }
 
+    let Some(gid) = gen_id else {
+        return Err("Aucun audio à lire.".into());
+    };
+    let gen_path = folder.join("generations").join(&gid).join("audio.wav");
+    if !gen_path.is_file() {
+        return Err(format!("Fichier audio manquant : {}", gen_path.display()));
+    }
     Ok(PlaybackSources {
         mode: "generation".into(),
-        generation_id: Some(gen_id.clone()),
-        generation_wav: Some(gen_wav.display().to_string()),
+        generation_id: Some(gid.clone()),
+        generation_wav: Some(gen_path.display().to_string()),
         stems: vec![],
-        label: gen_id,
+        label: gid,
     })
 }
 
@@ -1369,7 +1887,119 @@ pub fn export_pcm_audio(id: String, req: ExportPcmRequest) -> Result<String, Str
     Ok(final_path.display().to_string())
 }
 
+fn resolve_lora_slot_provenance(
+    path_opt: &mut Option<String>,
+    scale: f32,
+    slot: &str,
+    warnings: &mut Vec<String>,
+) -> Option<serde_json::Value> {
+    let Some(raw) = path_opt.clone() else {
+        return None;
+    };
+    let path = PathBuf::from(&raw);
+    if !path.is_file() {
+        warnings.push(format!(
+            "Adaptateur LoRA {slot} introuvable ({raw}) — ignoré pour cette génération. Chemin standard sans LoRA."
+        ));
+        *path_opt = None;
+        return None;
+    }
+    let sha = match sha256_file(&path) {
+        Ok(h) => h,
+        Err(e) => {
+            warnings.push(format!(
+                "Adaptateur LoRA {slot} illisible ({raw}) : {e} — ignoré. Génération standard sans LoRA."
+            ));
+            *path_opt = None;
+            return None;
+        }
+    };
+    let filename = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(&raw)
+        .to_string();
+    // Prefer catalog pack id when path is under models/lora/<packId>/…
+    let pack_id = path
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .filter(|id| !id.is_empty() && *id != "imported" && *id != "lora")
+        .map(|s| s.to_string());
+    Some(json!({
+        "slot": slot,
+        "path": path.display().to_string(),
+        "filename": filename,
+        "sha256": sha,
+        "scale": scale,
+        "packId": pack_id,
+        "version": pack_id,
+    }))
+}
+
+/// Resolve LoRA adapters actually sent to audio.cpp for this generation.
+/// Missing/corrupt adapters are omitted (vanilla path) with a clear warning — never blocks gen.
+fn resolve_lora_provenance_for_generation(
+    settings: &mut AppSettings,
+) -> (serde_json::Value, Vec<String>) {
+    let mut warnings: Vec<String> = Vec::new();
+    let mut adapters = serde_json::Map::new();
+
+    if let Some(entry) = resolve_lora_slot_provenance(
+        &mut settings.yue2_ar_lora,
+        settings.yue2_ar_lora_scale,
+        "ar",
+        &mut warnings,
+    ) {
+        adapters.insert("ar".into(), entry);
+    }
+    if let Some(entry) = resolve_lora_slot_provenance(
+        &mut settings.yue2_nar_lora,
+        settings.yue2_nar_lora_scale,
+        "nar",
+        &mut warnings,
+    ) {
+        adapters.insert("nar".into(), entry);
+    }
+
+    let provenance = if adapters.is_empty() {
+        json!(null)
+    } else {
+        json!({
+            "adapters": adapters,
+            "arScale": settings.yue2_ar_lora_scale,
+            "narScale": settings.yue2_nar_lora_scale
+        })
+    };
+    (provenance, warnings)
+}
+
+fn normalize_sha256_hex(raw: &str) -> Option<String> {
+    let s = raw.trim().to_ascii_lowercase();
+    if s.len() == 64 && s.chars().all(|c| c.is_ascii_hexdigit()) {
+        Some(s)
+    } else {
+        None
+    }
+}
+
+fn verify_cache_file_sha256(path: &Path, expected: &str) -> Result<(), String> {
+    let want = normalize_sha256_hex(expected).ok_or_else(|| {
+        format!("Hash SHA-256 catalogue invalide (64 hex attendus) : {expected}")
+    })?;
+    let got = sha256_file(path)?;
+    if got != want {
+        let _ = std::fs::remove_file(path);
+        return Err(format!(
+            "Fichier LoRA corrompu ou hash incorrect pour {} (attendu {want}, obtenu {got}). Le fichier a été retiré. La génération standard sans LoRA reste disponible.",
+            path.display()
+        ));
+    }
+    Ok(())
+}
+
 /// Opt-in download into the user cache (LoRA packs). Requires CC BY-NC acceptance.
+/// Never called by the first-build installer. Verifies SHA-256 when the catalog provides one.
 #[tauri::command]
 pub async fn download_cache_file(req: DownloadCacheFileRequest) -> Result<String, String> {
     let settings = load_settings()?;
@@ -1393,6 +2023,9 @@ pub async fn download_cache_file(req: DownloadCacheFileRequest) -> Result<String
         ensure_dir(parent).map_err(|e| e.to_string())?;
     }
     if dest.is_file() {
+        if let Some(ref expected) = req.expected_sha256 {
+            verify_cache_file_sha256(&dest, expected)?;
+        }
         return Ok(dest.display().to_string());
     }
 
@@ -1407,7 +2040,7 @@ pub async fn download_cache_file(req: DownloadCacheFileRequest) -> Result<String
         .map_err(|e| format!("Téléchargement échoué : {e}"))?;
     if !resp.status().is_success() {
         return Err(format!(
-            "Téléchargement HTTP {} pour {}",
+            "Téléchargement HTTP {} pour {} — pack absent ou inaccessible. La génération standard sans LoRA reste disponible.",
             resp.status(),
             req.url
         ));
@@ -1419,6 +2052,11 @@ pub async fn download_cache_file(req: DownloadCacheFileRequest) -> Result<String
     let tmp = dest.with_extension("part");
     std::fs::write(&tmp, &bytes).map_err(|e| e.to_string())?;
     std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
+    if let Some(ref expected) = req.expected_sha256 {
+        if let Err(e) = verify_cache_file_sha256(&dest, expected) {
+            return Err(e);
+        }
+    }
     Ok(dest.display().to_string())
 }
 
@@ -1568,6 +2206,105 @@ pub fn clear_score(id: String) -> Result<ProjectDoc, String> {
     let folder = project_folder(&id);
     let mut doc = load_project(&folder)?;
     doc.active_score_id = None;
+    doc.updated_at = now_iso();
+    save_project(&folder, &doc)?;
+    Ok(doc)
+}
+
+#[tauri::command]
+pub fn list_scores(id: String) -> Result<Vec<ScoreSummary>, String> {
+    let folder = project_folder(&id).join("scores");
+    if !folder.exists() {
+        return Ok(vec![]);
+    }
+    let mut out = Vec::new();
+    let mut entries: Vec<_> = std::fs::read_dir(&folder)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .collect();
+    entries.sort_by_key(|e| e.file_name());
+    for entry in entries {
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("json") {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        let value: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        let score_id = value
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        if score_id.is_empty() {
+            continue;
+        }
+        let note_count = value
+            .get("voices")
+            .and_then(|v| v.as_array())
+            .map(|voices| {
+                voices
+                    .iter()
+                    .map(|voice| {
+                        voice
+                            .get("notes")
+                            .and_then(|n| n.as_array())
+                            .map(|a| a.len() as u32)
+                            .unwrap_or(0)
+                    })
+                    .sum()
+            })
+            .unwrap_or(0);
+        out.push(ScoreSummary {
+            id: score_id,
+            parent_score_id: value
+                .get("parentScoreId")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            branch_name: value
+                .get("branchName")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            version: value
+                .get("version")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(1) as u32,
+            source: value
+                .get("source")
+                .and_then(|v| v.as_str())
+                .unwrap_or("manual")
+                .to_string(),
+            note_count,
+        });
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn load_score_version(
+    id: String,
+    score_id: String,
+) -> Result<Option<serde_json::Value>, String> {
+    let path = project_folder(&id)
+        .join("scores")
+        .join(format!("{score_id}.json"));
+    if !path.exists() {
+        return Ok(None);
+    }
+    let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let value: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    Ok(Some(value))
+}
+
+#[tauri::command]
+pub fn set_active_score(id: String, score_id: String) -> Result<ProjectDoc, String> {
+    let folder = project_folder(&id);
+    let mut doc = load_project(&folder)?;
+    let path = folder.join("scores").join(format!("{score_id}.json"));
+    if !path.exists() {
+        return Err("Partition introuvable.".into());
+    }
+    doc.active_score_id = Some(score_id);
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
     Ok(doc)

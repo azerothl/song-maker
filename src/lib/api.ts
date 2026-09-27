@@ -11,6 +11,7 @@ import type {
   Phase3Status,
   PlaybackSources,
   ProjectDoc,
+  ScoreSummary,
   SeparationInfo,
 } from "./types";
 
@@ -44,11 +45,32 @@ export const api = {
   revealProject: (id: string) => invoke<string>("reveal_project", { id }),
   getJobStatus: () => invoke<JobStatus>("get_job_status"),
   cancelJob: () => invoke<string>("cancel_job"),
-  startGeneration: (id: string, form: FormInput, abc?: string | null) =>
+  startGeneration: (
+    id: string,
+    form: FormInput,
+    abc?: string | null,
+    options?: {
+      stopAfter?: "abc" | null;
+      sourceGenerationId?: string | null;
+    },
+  ) =>
     invoke<ProjectDoc>("start_generation", {
       id,
       form,
       abc: abc ?? null,
+      stopAfter: options?.stopAfter ?? null,
+      sourceGenerationId: options?.sourceGenerationId ?? null,
+    }),
+  /** Render audio from an existing gen's immutable score.abc (parent = source). */
+  renderFromGeneration: (
+    id: string,
+    sourceGenId: string,
+    form: FormInput,
+  ) =>
+    invoke<ProjectDoc>("render_from_generation", {
+      id,
+      sourceGenId,
+      form,
     }),
   startSeparation: (id: string) => invoke<MixDoc>("start_separation", { id }),
   loadMix: (id: string) => invoke<MixDoc | null>("load_mix", { id }),
@@ -68,6 +90,28 @@ export const api = {
       }[];
     },
   ) => invoke<MixDoc>("update_mix", { id, update }),
+  /** Native dialog → copy + normalize → append user MixTrack (#40). Null if cancelled. */
+  importUserAudioTrack: (id: string) =>
+    invoke<MixDoc | null>("import_user_audio_track", { id }),
+  beginUserAudioCapture: (id: string) =>
+    invoke<{ sessionId: string; relativePath: string }>(
+      "begin_user_audio_capture",
+      { id },
+    ),
+  appendUserAudioChunk: (id: string, sessionId: string, chunk: number[]) =>
+    invoke<void>("append_user_audio_chunk", { id, sessionId, chunk }),
+  discardUserAudioCapture: (id: string, sessionId: string) =>
+    invoke<void>("discard_user_audio_capture", { id, sessionId }),
+  finalizeUserAudioCapture: (
+    id: string,
+    sessionId: string,
+    displayName?: string | null,
+  ) =>
+    invoke<MixDoc>("finalize_user_audio_capture", {
+      id,
+      sessionId,
+      displayName: displayName ?? null,
+    }),
   saveMixVersion: (id: string) => invoke<MixDoc>("save_mix_version", { id }),
   renderPreview: (id: string) => invoke<string>("render_preview", { id }),
   playbackSources: (id: string) =>
@@ -102,9 +146,17 @@ export const api = {
         matchMode: req.matchMode,
       },
     }),
-  downloadCacheFile: (url: string, relativeCachePath: string) =>
+  downloadCacheFile: (
+    url: string,
+    relativeCachePath: string,
+    expectedSha256?: string,
+  ) =>
     invoke<string>("download_cache_file", {
-      req: { url, relativeCachePath },
+      req: {
+        url,
+        relativeCachePath,
+        expectedSha256: expectedSha256 ?? null,
+      },
     }),
   listGenerations: (id: string) =>
     invoke<GenerationSummary[]>("list_generations", { id }),
@@ -116,6 +168,11 @@ export const api = {
     ),
   loadScore: (id: string) => invoke<unknown | null>("load_score", { id }),
   clearScore: (id: string) => invoke<ProjectDoc>("clear_score", { id }),
+  listScores: (id: string) => invoke<ScoreSummary[]>("list_scores", { id }),
+  loadScoreVersion: (id: string, scoreId: string) =>
+    invoke<unknown | null>("load_score_version", { id, scoreId }),
+  setActiveScore: (id: string, scoreId: string) =>
+    invoke<ProjectDoc>("set_active_score", { id, scoreId }),
   useGeneration: (id: string, genId: string) =>
     invoke<ProjectDoc>("use_generation", { id, genId }),
   undoMix: (id: string) => invoke<MixDoc | null>("undo_mix", { id }),

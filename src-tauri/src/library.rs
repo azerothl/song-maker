@@ -9,7 +9,7 @@ use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 
 /// Derive library duration and status from on-disk project artifacts.
-/// Status: `empty` | `generated` | `stems_ready`.
+/// Status: `empty` | `score_only` | `generated` | `stems_ready`.
 pub fn library_snapshot(folder: &Path, doc: &ProjectDoc) -> (Option<i64>, String) {
     if let Some(sep_id) = doc.active_separation_id.as_deref() {
         let sep_json = folder
@@ -22,10 +22,15 @@ pub fn library_snapshot(folder: &Path, doc: &ProjectDoc) -> (Option<i64>, String
         }
     }
     if let Some(gen_id) = doc.active_generation_id.as_deref() {
-        let wav = folder.join("generations").join(gen_id).join("audio.wav");
+        let gen_dir = folder.join("generations").join(gen_id);
+        let wav = gen_dir.join("audio.wav");
         if wav.is_file() {
             let duration = wav_duration_ms(&wav).ok().filter(|&d| d > 0);
             return (duration, "generated".into());
+        }
+        let score = gen_dir.join("score.abc");
+        if score.is_file() {
+            return (None, "score_only".into());
         }
     }
     (None, "empty".into())

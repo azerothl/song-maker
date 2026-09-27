@@ -302,6 +302,9 @@ pub struct DownloadCacheFileRequest {
     pub url: String,
     /// Must start with `models/lora/`.
     pub relative_cache_path: String,
+    /// When set (catalog pin), verify SHA-256 after download or cache hit.
+    #[serde(default)]
+    pub expected_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -321,6 +324,20 @@ pub struct GenerationSummary {
     pub semantic_truncated: Option<bool>,
     #[serde(default)]
     pub can_continue: bool,
+}
+
+/// Immutable score version metadata for branch/merge UI (§12.2).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScoreSummary {
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_score_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub branch_name: Option<String>,
+    pub version: u32,
+    pub source: String,
+    pub note_count: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -350,6 +367,14 @@ pub struct PlaybackSources {
     pub generation_wav: Option<String>,
     pub stems: Vec<PlaybackStem>,
     pub label: String,
+}
+
+/// Chunked mic/line capture session (#41) before finalize into a user track.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserAudioCaptureSession {
+    pub session_id: String,
+    pub relative_path: String,
 }
 
 /// Active separation manifest summary for UI warnings (§9.5).

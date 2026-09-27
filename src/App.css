@@ -1178,6 +1178,8 @@ details[open] > summary {
 
 .track {
   border-left: 3px solid var(--line);
+  --track-wave: var(--accent);
+  --track-wave-played: var(--accent);
 }
 
 .track-name {
@@ -1237,18 +1239,125 @@ details[open] > summary {
 
 .track[data-role="vocals"] {
   border-left-color: var(--accent-coral);
+  --track-wave: var(--accent-coral);
+  --track-wave-played: var(--accent-coral);
 }
 
 .track[data-role="drums"] {
   border-left-color: var(--accent-cyan);
+  --track-wave: var(--accent-cyan);
+  --track-wave-played: var(--accent-cyan);
 }
 
 .track[data-role="bass"] {
   border-left-color: var(--accent-2);
+  --track-wave: var(--accent-2);
+  --track-wave-played: var(--accent-2);
 }
 
 .track[data-role="other"] {
   border-left-color: var(--accent);
+  --track-wave: var(--accent);
+  --track-wave-played: var(--accent);
+}
+
+.track[data-role="guitar"] {
+  border-left-color: var(--accent);
+  --track-wave: var(--accent);
+  --track-wave-played: var(--accent);
+}
+
+.track[data-role="piano"] {
+  border-left-color: var(--accent-2);
+  --track-wave: var(--accent-2);
+  --track-wave-played: var(--accent-2);
+}
+
+.track[data-role="user"],
+.track[data-role="custom"] {
+  border-left-color: var(--text-muted, #8a8494);
+  --track-wave: var(--text-muted, #8a8494);
+  --track-wave-played: var(--text);
+}
+
+.mix-user-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.75rem 0;
+}
+
+.mix-user-actions .hint {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.record-panel {
+  margin: 0.75rem 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-elevated, var(--bg)) 92%, var(--accent) 8%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.record-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.record-panel-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.record-device {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.record-device select {
+  max-width: 28rem;
+}
+
+.record-monitor {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.record-vu {
+  height: 0.55rem;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+  overflow: hidden;
+}
+
+.record-vu-fill {
+  height: 100%;
+  background: var(--accent-coral, #e07a5f);
+  transition: width 50ms linear;
+}
+
+.record-elapsed {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+
+.record-actions {
+  margin: 0;
+}
+
+.record-review {
+  width: 100%;
+  max-width: 28rem;
 }
 
 .master {
@@ -1499,6 +1608,15 @@ details[open] > summary {
   border-top: 1px solid var(--line);
 }
 
+.clip-timeline:focus {
+  outline: none;
+}
+
+.clip-timeline:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
 .clip-timeline-header {
   display: flex;
   flex-wrap: wrap;
@@ -1513,10 +1631,44 @@ details[open] > summary {
   font-weight: 600;
 }
 
+.clip-timeline-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem;
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.clip-tool-check {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.clip-tool-zoom {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.clip-tool-zoom input {
+  width: 6rem;
+}
+
+.clip-lanes-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  padding-bottom: 0.25rem;
+}
+
 .clip-lanes {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  min-width: 100%;
 }
 
 .clip-ruler,
@@ -1543,7 +1695,7 @@ details[open] > summary {
 
 .clip-lane-rail {
   position: relative;
-  height: 28px;
+  height: 44px;
   background: #0b0e13;
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -1557,9 +1709,25 @@ details[open] > summary {
   border: 0;
   border-radius: 3px;
   background: linear-gradient(90deg, #684db0, #393563);
-  cursor: pointer;
+  cursor: grab;
   padding: 0;
   overflow: hidden;
+  touch-action: none;
+  color: inherit;
+  font: inherit;
+}
+
+.clip-block:active {
+  cursor: grabbing;
+}
+
+.clip-block-wave {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.95;
 }
 
 .clip-block-label {
@@ -1590,6 +1758,7 @@ details[open] > summary {
   top: 0;
   bottom: 0;
   pointer-events: none;
+  z-index: 1;
 }
 
 .clip-fade-in {
@@ -1600,6 +1769,41 @@ details[open] > summary {
 .clip-fade-out {
   right: 0;
   background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.55));
+}
+
+.clip-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  z-index: 3;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.clip-handle-left {
+  left: 0;
+  cursor: ew-resize;
+}
+
+.clip-handle-right {
+  right: 0;
+  cursor: ew-resize;
+}
+
+.clip-fade-handle {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  z-index: 3;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.75);
+  transform: translateX(-50%);
+}
+
+.clip-fade-handle-out {
+  transform: translateX(50%);
 }
 
 .clip-inspector {
@@ -1839,6 +2043,53 @@ details[open] > summary {
   flex-direction: row;
 }
 
+.phase3-subhead {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.phase3-auto-block {
+  margin: 0.5rem 0 0.85rem;
+}
+
+.phase3-auto-lane {
+  display: block;
+  width: 100%;
+  height: 96px;
+  margin: 0.4rem 0;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.phase3-fx-list {
+  list-style: none;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.phase3-fx-item {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg0) 55%, transparent);
+}
+
+.phase3-fx-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
 .phase3-lora-list {
   list-style: none;
   padding: 0;
@@ -1958,6 +2209,129 @@ details[open] > summary {
 
 .banner.ok {
   border-color: var(--ok, #3fb950);
+}
+
+.score-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+}
+
+.chord-editor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.chord-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.chord-editor input {
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.35rem 0.45rem;
+  color: var(--text);
+}
+
+.score-branch-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.score-branch-panel h3,
+.score-branch-panel h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.score-branch-panel label,
+.score-compare label,
+.score-diff label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.score-branch-panel input,
+.score-branch-panel select,
+.score-compare select,
+.score-diff select {
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.35rem 0.45rem;
+  color: var(--text);
+}
+
+.version-kind {
+  display: inline-block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  margin-right: 0.35rem;
+}
+
+.version-kind.score-kind {
+  border-color: color-mix(in srgb, var(--accent-cyan, #5ec8d8) 50%, var(--line));
+  color: var(--accent-cyan, #5ec8d8);
+}
+
+.version-kind.gen-kind {
+  border-color: color-mix(in srgb, var(--accent, #7aa2ff) 45%, var(--line));
+}
+
+.version-kind.stem-kind,
+.version-kind.mix-kind {
+  opacity: 0.85;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, #000 55%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 80;
+  padding: 1rem;
+}
+
+.modal.regeneration-gate {
+  background: var(--bg1, #151a22);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1.25rem;
+  max-width: 32rem;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.modal.regeneration-gate h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
 }
 
 @media (max-width: 900px) {

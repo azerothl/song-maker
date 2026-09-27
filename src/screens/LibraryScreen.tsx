@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ProjectSyncPanel } from "../components/ProjectSyncPanel";
 import { api } from "../lib/api";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
@@ -152,6 +153,9 @@ export function LibraryScreen() {
             ))}
           </tbody>
         </table>
+      )}
+      {menuId && (
+        <ProjectSyncPanel projectId={menuId} />
       )}
     </div>
   );

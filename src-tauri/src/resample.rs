@@ -230,6 +230,71 @@ pub fn run_ffmpeg(args: &[&str]) -> Result<(), String> {
     Ok(())
 }
 
+/// Decode arbitrary user audio → PCM float32 LE stereo @ 48 kHz (mix engine format).
+pub fn normalize_user_audio(input: &Path, output: &Path) -> Result<(), String> {
+    if !input.is_file() {
+        return Err(format!("Fichier audio introuvable : {}", input.display()));
+    }
+    let meta = std::fs::metadata(input).map_err(|e| e.to_string())?;
+    if meta.len() == 0 {
+        return Err("Fichier audio vide — import impossible.".into());
+    }
+    if let Some(parent) = output.parent() {
+        crate::paths::ensure_dir(parent).map_err(|e| e.to_string())?;
+    }
+    let ffmpeg = resolve_ffmpeg()?;
+    let filter = format!(
+        "aresample=resampler=soxr:precision=28:osr={}",
+        crate::pins::SAMPLE_RATE
+    );
+    let out = output.display().to_string();
+    let inp = input.display().to_string();
+    let status = ffmpeg_command(&ffmpeg)
+        .args([
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            &inp,
+            "-vn",
+            "-af",
+            &filter,
+            "-ac",
+            "2",
+            "-c:a",
+            "pcm_f32le",
+            &out,
+        ])
+        .status()
+        .map_err(|e| format!("Échec lancement ffmpeg ({}): {e}", ffmpeg.display()))?;
+    if !status.success() {
+        let _ = std::fs::remove_file(output);
+        if !ffmpeg_supports_soxr(&ffmpeg) {
+            return Err(format!(
+                "ffmpeg ({}) ne semble pas lié à libsoxr. winget install Gyan.FFmpeg",
+                ffmpeg.display()
+            ));
+        }
+        return Err(format!(
+            "Décodage ou normalisation impossible pour « {} ». Vérifiez que le fichier n’est pas corrompu.",
+            input
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("audio")
+        ));
+    }
+    if !output.is_file() {
+        return Err("Normalisation terminée sans fichier de sortie.".into());
+    }
+    let out_meta = std::fs::metadata(output).map_err(|e| e.to_string())?;
+    if out_meta.len() == 0 {
+        let _ = std::fs::remove_file(output);
+        return Err("Normalisation produite un fichier vide.".into());
+    }
+    Ok(())
+}
+
 /// Stub documenté : même contrat, pour tests sans ffmpeg — copie refusée.
 #[cfg(test)]
 pub fn resample_stub_unavailable() -> Result<(), String> {

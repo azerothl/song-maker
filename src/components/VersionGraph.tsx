@@ -1,20 +1,38 @@
 import { useMemo } from "react";
-import type { GenerationSummary } from "../lib/types";
+import type { GenerationSummary, ScoreSummary } from "../lib/types";
 import { t } from "../ui/i18n";
+
+type ArtifactKind = "generation" | "score" | "stem" | "mix";
 
 type Props = {
   generations: GenerationSummary[];
   activeId: string | null | undefined;
   onUse: (genId: string) => void;
+  /** Optional score branch summaries shown as distinct nodes. */
+  scores?: ScoreSummary[];
+  activeScoreId?: string | null;
+  onUseScore?: (scoreId: string) => void;
+  /** Optional counts for stem/mix distinction in the legend. */
+  stemCount?: number;
+  mixCount?: number;
 };
 
 type Node = GenerationSummary & { depth: number; children: string[] };
 
 /**
- * Light version graph: immutable gen-* folders linked by parentGenerationId.
- * No merge UI — expose the existing folder lineage.
+ * Version graph: immutable gen-* folders + optional score / stem / mix kinds.
+ * Score merge lives in ScoreBranchPanel (explicit conflicts) — not silent here.
  */
-export function VersionGraph({ generations, activeId, onUse }: Props) {
+export function VersionGraph({
+  generations,
+  activeId,
+  onUse,
+  scores = [],
+  activeScoreId,
+  onUseScore,
+  stemCount = 0,
+  mixCount = 0,
+}: Props) {
   const { roots, byId, ordered } = useMemo(() => {
     const byId = new Map<string, GenerationSummary>();
     for (const g of generations) byId.set(g.id, g);
@@ -42,7 +60,6 @@ export function VersionGraph({ generations, activeId, onUse }: Props) {
       for (const child of children.get(id) ?? []) visit(child, depth + 1);
     };
     for (const r of roots) visit(r, 0);
-    // Orphans already in roots; ensure any missed ids appear
     for (const g of generations) {
       if (!ordered.some((n) => n.id === g.id)) {
         ordered.push({ ...g, depth: 0, children: [] });
@@ -51,7 +68,9 @@ export function VersionGraph({ generations, activeId, onUse }: Props) {
     return { roots, byId, ordered };
   }, [generations]);
 
-  if (generations.length === 0) {
+  const kindLabel = (kind: ArtifactKind) => t(`versions.kind.${kind}`);
+
+  if (generations.length === 0 && scores.length === 0) {
     return (
       <div className="version-graph">
         <h2>{t("versions.title")}</h2>
@@ -64,6 +83,56 @@ export function VersionGraph({ generations, activeId, onUse }: Props) {
     <div className="version-graph">
       <h2>{t("versions.title")}</h2>
       <p className="hint">{t("versions.hint")}</p>
+      <p className="hint versions-legend">
+        <span className="version-kind gen-kind">{kindLabel("generation")}</span>
+        {" · "}
+        <span className="version-kind score-kind">{kindLabel("score")}</span>
+        {" · "}
+        <span className="version-kind stem-kind">{kindLabel("stem")}</span>
+        {" · "}
+        <span className="version-kind mix-kind">{kindLabel("mix")}</span>
+        {stemCount > 0 || mixCount > 0
+          ? ` · ${stemCount} stems · ${mixCount} mixes`
+          : ""}
+      </p>
+
+      {scores.length > 0 && (
+        <ul className="version-tree score-nodes">
+          {scores.map((s) => {
+            const active = s.id === activeScoreId;
+            return (
+              <li key={s.id} className={active ? "active" : undefined}>
+                <div className="version-row">
+                  <span className="version-kind score-kind" aria-hidden>
+                    {kindLabel("score")}
+                  </span>
+                  <span>
+                    <strong>{s.branchName || s.id}</strong>
+                    {" · "}
+                    {s.id}
+                    {s.parentScoreId
+                      ? ` · ${t("versions.parent", { parent: s.parentScoreId })}`
+                      : ""}
+                  </span>
+                  {onUseScore && (
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      disabled={active}
+                      onClick={() => onUseScore(s.id)}
+                    >
+                      {active
+                        ? t("score.branchActive")
+                        : t("score.branchUse")}
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
       <ul className="version-tree">
         {ordered.map((g) => {
           const active = g.id === activeId;
@@ -77,6 +146,9 @@ export function VersionGraph({ generations, activeId, onUse }: Props) {
               style={{ paddingLeft: `${g.depth * 1.25}rem` }}
             >
               <div className="version-row">
+                <span className="version-kind gen-kind" aria-hidden>
+                  {kindLabel("generation")}
+                </span>
                 <span className="version-branch" aria-hidden>
                   {g.depth > 0 ? "↳" : "•"}
                 </span>
@@ -115,9 +187,14 @@ export function VersionGraph({ generations, activeId, onUse }: Props) {
         })}
       </ul>
       {roots.length > 1 && (
-        <p className="hint">{t("versions.branches", { n: String(roots.length) })}</p>
+        <p className="hint">
+          {t("versions.branches", { n: String(roots.length) })}
+        </p>
       )}
-      <p className="hint mono">{byId.size} dossiers immuables</p>
+      <p className="hint mono">
+        {byId.size} dossiers immuables
+        {scores.length > 0 ? ` · ${scores.length} partitions` : ""}
+      </p>
     </div>
   );
 }

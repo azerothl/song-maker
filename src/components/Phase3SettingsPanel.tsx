@@ -4,6 +4,7 @@ import {
   gateLoraPackAccess,
   planOptionalLoraDownload,
   requestOptionalLoraDownload,
+  compatibilityLabelFr,
   type LoraPack,
 } from "@song-maker/lora-packs";
 import {
@@ -126,8 +127,8 @@ export function Phase3SettingsPanel({
       const result = await requestOptionalLoraDownload(
         pack.id,
         acceptance(),
-        (url, relativeCachePath) =>
-          api.downloadCacheFile(url, relativeCachePath),
+        (url, relativeCachePath, expectedSha256) =>
+          api.downloadCacheFile(url, relativeCachePath, expectedSha256),
       );
       if (!result.ok) {
         setDownloadNotice(result.message);
@@ -236,13 +237,15 @@ export function Phase3SettingsPanel({
         {t("phase3.lora.ccGate")}
       </label>
       <ul className="phase3-lora-list">
-        {LORA_PACK_CATALOG.map((pack) => (
+        {LORA_PACK_CATALOG.map((pack) => {
+          const installable = pack.compatibilityStatus === "verified";
+          return (
           <li key={pack.id}>
             <div>
               <strong>{pack.displayName}</strong>
               <span className="hint">
                 {" "}
-                · {pack.kind} · {pack.license} · {pack.repo}
+                · {pack.kind} · {compatibilityLabelFr(pack.compatibilityStatus)} · {pack.license} · {pack.repo}
               </span>
               {pack.trigger && (
                 <span className="hint"> · trigger « {pack.trigger} »</span>
@@ -254,6 +257,7 @@ export function Phase3SettingsPanel({
               <button
                 type="button"
                 className="btn"
+                disabled={!installable}
                 onClick={() => onPlanDownload(pack)}
               >
                 {t("phase3.lora.planDownload")}
@@ -262,7 +266,9 @@ export function Phase3SettingsPanel({
                 type="button"
                 className="btn primary"
                 disabled={
-                  downloadingId === pack.id || !settings.ccByNcAccepted
+                  !installable ||
+                  downloadingId === pack.id ||
+                  !settings.ccByNcAccepted
                 }
                 onClick={() => void onDownloadToCache(pack)}
               >
@@ -272,7 +278,8 @@ export function Phase3SettingsPanel({
               </button>
             </div>
           </li>
-        ))}
+          );
+        })}
       </ul>
       {downloadNotice && (
         <pre className="phase3-download-notice">{downloadNotice}</pre>
