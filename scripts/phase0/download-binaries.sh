@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Télécharge et vérifie les archives audio.cpp épinglées (v0.8.2).
 # Usage:
-#   ./download-binaries.sh              # archive de la plateforme courante (+ runtime Windows)
+#   ./download-binaries.sh              # archive de la plateforme courante
 #   ./download-binaries.sh --all        # toutes les archives épinglées
 #   ./download-binaries.sh --linux      # seulement cuda12.8-colab
 #   ./download-binaries.sh --windows    # binaire + cudart Windows
+#   ./download-binaries.sh --macos      # binaire Metal de l’architecture courante
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,6 +17,7 @@ case "${1:-}" in
   --all) MODE="all" ;;
   --linux) MODE="linux" ;;
   --windows) MODE="windows" ;;
+  --macos) MODE="macos" ;;
   --help|-h)
     sed -n '2,8p' "$0"
     exit 0
@@ -30,15 +32,20 @@ want() {
     all) return 0 ;;
     linux) [[ "$platform" == "linux" ]] ;;
     windows) [[ "$platform" == "windows" ]] ;;
+    macos)
+      [[ "$platform" == "macos-arm64" && "$(uname -m)" == "arm64" ]] ||
+        [[ "$platform" == "macos-x64" && "$(uname -m)" == "x86_64" ]]
+      ;;
     platform)
       if [[ "$HOST_OS" == "linux" ]]; then
         [[ "$platform" == "linux" ]]
       elif [[ "$HOST_OS" == "windows" ]]; then
         [[ "$platform" == "windows" ]]
+      elif [[ "$HOST_OS" == "darwin" ]]; then
+        [[ "$platform" == "macos-arm64" && "$(uname -m)" == "arm64" ]] ||
+          [[ "$platform" == "macos-x64" && "$(uname -m)" == "x86_64" ]]
       else
-        # macOS / inconnu : pas d'archive native — télécharger Windows par défaut
-        # pour un poste de build croisé ; surcharger avec --linux / --all.
-        [[ "$platform" == "windows" ]]
+        return 1
       fi
       ;;
     *) return 1 ;;

@@ -23,7 +23,7 @@ HOST_OS="$(host_os)"
 default_cache_dir() {
   case "$HOST_OS" in
     darwin)
-      echo "${HOME}/Library/Caches/SongMaker"
+      echo "${HOME}/Library/Caches/song-maker"
       ;;
     windows)
       # Align with dirs::cache_dir() + "song-maker" in the Tauri app.

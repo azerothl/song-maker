@@ -25,6 +25,20 @@
         "sha256": "1190ba46bb45e1acd2ca42edca53074c7935b96de67f3719c8c4943df5fe1b6f",
         "bytes": 65293844,
         "platform": "linux"
+      },
+      {
+        "id": "macos-arm64-metal",
+        "name": "audio-v0.8.2-bin-macos-arm64-metal.tar.gz",
+        "sha256": "d33db13695fbf3ba73ea85a8b59575b98a66f7b6ff89bbb59599c75b4689f9a5",
+        "bytes": 28446530,
+        "platform": "macos-arm64"
+      },
+      {
+        "id": "macos-x64-metal",
+        "name": "audio-v0.8.2-bin-macos-x64-metal.tar.gz",
+        "sha256": "6edcf84ea530f782c465fb9b37c7f3c1e8ac1e8ded865a9a59ebacc5140d8b67",
+        "bytes": 30120475,
+        "platform": "macos-x64"
       }
     ]
   },

@@ -237,11 +237,7 @@ pub fn recover_generation_jobs() -> Result<(), String> {
 }
 
 fn migrate_binary_pin(settings: &mut AppSettings) -> bool {
-    let sha = if cfg!(target_os = "windows") {
-        ARCHIVE_WINDOWS_SHA
-    } else {
-        ARCHIVE_LINUX_SHA
-    };
+    let sha = crate::paths::pinned_archive_sha256();
     let archive = pinned_archive_name();
     if settings.binary_tag == AUDIOCPP_TAG
         && settings.binary_archive == archive
@@ -258,20 +254,16 @@ fn migrate_binary_pin(settings: &mut AppSettings) -> bool {
 pub fn default_settings() -> AppSettings {
     let cache = crate::paths::default_cache_dir();
     let archive = crate::paths::pinned_archive_name();
-    let sha = if cfg!(target_os = "windows") {
-        ARCHIVE_WINDOWS_SHA
-    } else {
-        ARCHIVE_LINUX_SHA
-    };
+    let sha = crate::paths::pinned_archive_sha256();
     AppSettings {
         projects_dir: projects_root().display().to_string(),
         cache_dir: cache.display().to_string(),
         binary_tag: AUDIOCPP_TAG.into(),
         binary_archive: archive.into(),
         binary_sha256: sha.into(),
-        model_pack: "q8".into(),
-        model_gguf: YUE2_Q8.into(),
-        model_sha256: YUE2_Q8_SHA.into(),
+        model_pack: "q4".into(),
+        model_gguf: YUE2_Q4.into(),
+        model_sha256: YUE2_Q4_SHA.into(),
         server_host: DEFAULT_HOST.into(),
         server_port: DEFAULT_PORT,
         output_device: None,

@@ -1,4 +1,8 @@
-use crate::pins::{ARCHIVE_LINUX, ARCHIVE_WINDOWS, ARCHIVE_WINDOWS_CUDART, ARCHIVE_WINDOWS_CUDART_SHA};
+use crate::pins::{
+    ARCHIVE_LINUX, ARCHIVE_LINUX_SHA, ARCHIVE_MACOS_ARM64, ARCHIVE_MACOS_ARM64_SHA,
+    ARCHIVE_MACOS_X64, ARCHIVE_MACOS_X64_SHA, ARCHIVE_WINDOWS, ARCHIVE_WINDOWS_CUDART,
+    ARCHIVE_WINDOWS_CUDART_SHA, ARCHIVE_WINDOWS_SHA,
+};
 use dirs::{cache_dir, document_dir, home_dir};
 use std::path::{Path, PathBuf};
 
@@ -86,8 +90,24 @@ pub fn bs_roformer_weights_present(cache: &Path) -> bool {
 pub fn pinned_archive_name() -> &'static str {
     if cfg!(target_os = "windows") {
         ARCHIVE_WINDOWS
+    } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
+        ARCHIVE_MACOS_ARM64
+    } else if cfg!(target_os = "macos") {
+        ARCHIVE_MACOS_X64
     } else {
         ARCHIVE_LINUX
+    }
+}
+
+pub fn pinned_archive_sha256() -> &'static str {
+    if cfg!(target_os = "windows") {
+        ARCHIVE_WINDOWS_SHA
+    } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
+        ARCHIVE_MACOS_ARM64_SHA
+    } else if cfg!(target_os = "macos") {
+        ARCHIVE_MACOS_X64_SHA
+    } else {
+        ARCHIVE_LINUX_SHA
     }
 }
 

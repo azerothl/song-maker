@@ -1,7 +1,7 @@
 //! Client HTTP du serveur audio.cpp (process Tauri, pas la webview).
 
 use crate::models::AppSettings;
-use crate::paths::{binaries_dir, htdemucs_path, yue2_dir};
+use crate::paths::{binaries_dir, htdemucs_path, pinned_archive_name, yue2_dir};
 use crate::pins::*;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -78,7 +78,7 @@ impl AudioCppServer {
         let cfg = json!({
             "host": settings.server_host,
             "port": settings.server_port,
-            "backend": "cuda",
+            "backend": crate::pins::backend_name(),
             "device": 0,
             "lazy_load": true,
             "max_loaded_models": MAX_LOADED_MODELS,
@@ -95,15 +95,22 @@ impl AudioCppServer {
             binaries_dir(cache).join("extracted"),
             binaries_dir(cache).join("windows-cuda12.4"),
             binaries_dir(cache).join("linux-cuda12.8-colab"),
+            binaries_dir(cache).join("macos-arm64-metal"),
+            binaries_dir(cache).join("macos-x64-metal"),
         ];
         for extract in candidates {
             if !extract.exists() {
                 continue;
             }
+            let expected_name = if cfg!(target_os = "windows") {
+                "audiocpp_server.exe"
+            } else {
+                "audiocpp_server"
+            };
             for entry in walkdir::WalkDir::new(&extract).max_depth(4) {
                 let entry = entry.map_err(|e| e.to_string())?;
                 let name = entry.file_name().to_string_lossy();
-                if name == "audiocpp_server" || name == "audiocpp_server.exe" {
+                if name == expected_name {
                     let bin = entry.path().to_path_buf();
                     if cfg!(target_os = "windows") {
                         let dir = bin.parent().unwrap_or(extract.as_path());
@@ -129,7 +136,7 @@ impl AudioCppServer {
         } else {
             format!(
                 "audiocpp_server introuvable. Téléchargez {} puis extrayez (./load-test-cuda.sh).",
-                crate::pins::ARCHIVE_LINUX
+                pinned_archive_name()
             )
         };
         Err(hint)
@@ -187,7 +194,7 @@ impl AudioCppServer {
             cmd.arg("--config")
                 .arg(&config)
                 .arg("--backend")
-                .arg("cuda")
+                .arg(crate::pins::backend_name())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());
 
@@ -214,7 +221,8 @@ impl AudioCppServer {
             port = port.saturating_add(1);
         }
         Err(format!(
-            "Impossible de démarrer audiocpp_server (CUDA requis). {last_err}"
+            "Impossible de démarrer audiocpp_server (backend {} requis). {last_err}",
+            crate::pins::backend_name()
         ))
     }
 

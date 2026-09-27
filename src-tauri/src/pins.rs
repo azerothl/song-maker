@@ -25,6 +25,16 @@ pub const ARCHIVE_WINDOWS_CUDART_SHA: &str =
 pub const ARCHIVE_LINUX: &str = "audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz";
 pub const ARCHIVE_LINUX_SHA: &str =
     "1190ba46bb45e1acd2ca42edca53074c7935b96de67f3719c8c4943df5fe1b6f";
+pub const ARCHIVE_MACOS_ARM64: &str = "audio-v0.8.2-bin-macos-arm64-metal.tar.gz";
+pub const ARCHIVE_MACOS_ARM64_SHA: &str =
+    "d33db13695fbf3ba73ea85a8b59575b98a66f7b6ff89bbb59599c75b4689f9a5";
+pub const ARCHIVE_MACOS_X64: &str = "audio-v0.8.2-bin-macos-x64-metal.tar.gz";
+pub const ARCHIVE_MACOS_X64_SHA: &str =
+    "6edcf84ea530f782c465fb9b37c7f3c1e8ac1e8ded865a9a59ebacc5140d8b67";
+
+pub fn backend_name() -> &'static str {
+    if cfg!(target_os = "macos") { "metal" } else { "cuda" }
+}
 
 pub const YUE2_REPO: &str = "audio-cpp/Yue2-3B-GGUF";
 pub const YUE2_REVISION: &str = "eb116220931de5f373d024d48800338178c7de51";

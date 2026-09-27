@@ -2,6 +2,30 @@
 
 Application desktop locale pour générer, séparer et mixer un morceau avec **audio.cpp** (YuE2 GGUF) + HTDemucs. Contrat : `specs/SONG_MAKER_SPEC.md` v1.0.
 
+## Installer l’application
+
+Téléchargez la dernière version depuis les [Releases GitHub](https://github.com/azerothl/song-maker/releases/latest) :
+
+- **Windows** : installeur `.msi` ou `.exe`, Windows x64 avec carte NVIDIA.
+- **macOS** : `.dmg` Apple Silicon ou Intel, avec Metal.
+- **Linux** : `.AppImage` (autonome) ou paquet `.deb`, Linux x64 avec carte NVIDIA.
+
+Au premier lancement, ouvrez PowerShell sous Windows et lancez :
+
+```powershell
+irm https://raw.githubusercontent.com/azerothl/song-maker/main/scripts/first-run-windows.ps1 | iex
+```
+
+Sous macOS ou Linux, ouvrez Terminal et lancez :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/azerothl/song-maker/main/scripts/first-run-unix.sh | bash
+```
+
+Ces assistants demandent votre accord pour la licence YuE2 CC BY-NC 4.0, puis téléchargent et vérifient le moteur et les modèles dans le cache local. Ils reprennent les téléchargements interrompus. Par défaut, ils installent le modèle Q4 ; les utilisateurs NVIDIA avec au moins 12 Go de VRAM peuvent choisir Q8 en ajoutant `q8` à la commande Bash, ou en modifiant `$pack = 'q4'` en `$pack = 'q8'` dans le script PowerShell. Prévoyez plusieurs gigaoctets d’espace disque. Le moteur utilise CUDA avec le pilote NVIDIA sous Windows/Linux et Metal sous macOS.
+
+Sur Windows, l’installeur n’est pas encore signé par un certificat de publication ; Windows peut afficher SmartScreen. La version macOS n’est pas notariée : au premier lancement, macOS peut demander de l’autoriser dans Réglages Système → Confidentialité et sécurité.
+
 ## Stack
 
 - Tauri 2 + React + TypeScript + Vite

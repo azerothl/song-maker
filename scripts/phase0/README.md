@@ -21,12 +21,14 @@ Cache par défaut :
 | OS | Chemin |
 |---|---|
 | Linux | `$HOME/.cache/song-maker` |
-| macOS | `$HOME/Library/Caches/SongMaker` |
+| macOS | `$HOME/Library/Caches/song-maker` |
 | Windows (Git Bash / `.cmd`) | `%LOCALAPPDATA%\song-maker` |
 
 Surcharge : `SONG_MAKER_CACHE`.
 
 ## Scripts (pas de GPU requis pour télécharger / vérifier)
+
+Pour installer l’application publiée, téléchargez-la depuis les [Releases GitHub](https://github.com/azerothl/song-maker/releases/latest), puis utilisez l’assistant première mise en route indiqué dans le README racine. Les scripts ci-dessous servent surtout au diagnostic et au développement.
 
 ### Linux / macOS / Git Bash
 

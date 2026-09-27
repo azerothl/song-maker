@@ -1,47 +1,57 @@
 ---
-title: Install Windows / Linux CUDA
-description: Télécharger binaires, modèles Q4/Q8 et vérifier les hashes (phase 0).
+title: Installer Song Maker
+description: Installer Song Maker sur Windows, macOS ou Linux et préparer les modèles locaux.
 order: 1
 ---
 
-# Install Windows / Linux CUDA
+# Installer Song Maker
 
-Song Maker s’installe depuis le dépôt. La **phase 0** télécharge les archives CUDA épinglées et les poids GGUF — **sans GPU requis pour le download**.
+## 1. Télécharger l’application
 
-## Prérequis
+Récupérez la dernière version sur la [page des releases GitHub](https://github.com/azerothl/song-maker/releases/latest) :
 
-- Node 20+, pnpm, Rust (pour l’app Tauri)
-- ffmpeg avec libsoxr
-- NVIDIA + driver pour la génération CUDA réelle
+- Windows x64 : installeur `.msi` ou `.exe`, avec carte NVIDIA.
+- macOS : fichier `.dmg` Intel ou Apple Silicon, avec accélération Metal.
+- Linux x64 : `.AppImage` ou `.deb`, avec carte NVIDIA.
 
-## Linux / Git Bash
+L’application et les modèles restent sur votre ordinateur. Les fichiers YuE2 et HTDemucs sont téléchargés séparément lors de la première configuration.
+
+## 2. Installer le moteur et les modèles
+
+Les poids YuE2 sont soumis à la licence [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/), qui restreint l’usage commercial. L’assistant vous demande votre accord avant les téléchargements. Le modèle Q4 est choisi par défaut et les téléchargements interrompus peuvent reprendre.
+
+### Windows
+
+Ouvrez PowerShell et collez cette commande :
+
+```powershell
+irm https://raw.githubusercontent.com/azerothl/song-maker/main/scripts/first-run-windows.ps1 | iex
+```
+
+Il faut un GPU NVIDIA compatible et un pilote récent. L’installeur n’est pas encore signé par un certificat de publication : Windows peut afficher SmartScreen.
+
+### macOS
+
+Ouvrez Terminal et collez :
 
 ```bash
-cd scripts/phase0
-./download-binaries.sh --linux   # ou --windows / --all
-./download-models.sh --q4        # Q8 si VRAM ≥ 12 Go
-./verify-hashes.sh
-./health-check.sh
+curl -fsSL https://raw.githubusercontent.com/azerothl/song-maker/main/scripts/first-run-unix.sh | bash
 ```
 
-Archive Linux cible : `cuda12.8-colab` (épinglée, pas de repli silencieux).
+Les Mac Intel et Apple Silicon utilisent le moteur Metal. L’application n’est pas notariée : au premier lancement, autorisez-la depuis Réglages Système → Confidentialité et sécurité si macOS le demande.
 
-## Windows
+### Linux
 
-```bat
-cd scripts\phase0
-./download-binaries.cmd --windows
-./download-models.cmd --q4
-./verify-hashes.cmd
-./health-check.cmd
-```
-
-Windows utilise l’archive **cuda12.4**. Installez ffmpeg (`winget install Gyan.FFmpeg`) puis redémarrez le terminal.
-
-## Load-test CUDA
+Sur un PC x64 avec carte NVIDIA, ouvrez Terminal et collez :
 
 ```bash
-./load-test-cuda.sh
+curl -fsSL https://raw.githubusercontent.com/azerothl/song-maker/main/scripts/first-run-unix.sh | bash
 ```
 
-Sans `nvidia-smi`, le script se termine en **code 2** et ne déclare **pas** un succès CUDA. Voir `scripts/phase0/README.md` pour les hashes.
+Le pilote NVIDIA doit prendre en charge CUDA 12.8. L’archive publiée cible Ubuntu x64 ; les autres distributions peuvent nécessiter des dépendances système supplémentaires.
+
+## 3. Prévoir l’espace disque
+
+Le moteur, YuE2 et HTDemucs occupent plusieurs gigaoctets. Assurez-vous d’avoir une connexion stable et assez d’espace libre. Les fichiers sont conservés dans le cache local de Song Maker.
+
+ffmpeg avec libsoxr est nécessaire pour le rééchantillonnage et certains exports : `winget install Gyan.FFmpeg` sous Windows, `brew install ffmpeg` sur macOS, ou le paquet ffmpeg de votre distribution Linux.

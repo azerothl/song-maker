@@ -84,7 +84,11 @@ fn artifact_present(path: &Path) -> bool {
 
 pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
     let settings = load_settings().unwrap_or_else(|_| crate::library::default_settings());
-    let (cuda, gpu_name, driver, vram) = detect_gpu();
+    let (cuda, gpu_name, driver, vram) = if cfg!(target_os = "macos") {
+        (true, Some("Apple Metal".into()), None, None)
+    } else {
+        detect_gpu()
+    };
     let suggested = if vram.unwrap_or(0) >= VRAM_Q8_THRESHOLD_MIB {
         "q8"
     } else {
@@ -116,7 +120,7 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
         .unwrap_or(false);
 
     let message = if !cuda {
-        "Ce build exige NVIDIA CUDA. Driver Windows ≥ 551.61, ou Linux ≥ 570.26 pour l’archive épinglée.".into()
+        "Accélération indisponible. Song Maker requiert NVIDIA CUDA sous Windows/Linux, ou Apple Metal sous macOS.".into()
     } else if !models_ok {
         "Télécharger YuE2 Q8 (ou Q4) et HTDemucs.".into()
     } else if !binary_ok {
