@@ -20,14 +20,28 @@ pnpm --filter website start
 
 ## Déploiement
 
-- **Vercel** : `website/vercel.json` + build `pnpm --filter website build` (framework Next.js).
-- **Export statique** (hôte fichiers) :
+### Vercel (recommandé, authentifié)
+
+Connecter le repo avec **Root Directory = `website`**, install `pnpm install`, build `pnpm build`.  
+Config Next : `website/vercel.json`.
+
+Avec un token CLI :
+
+```bash
+# depuis website/, compte Vercel lié
+vercel link
+vercel --prod
+```
+
+### Export statique
 
 ```bash
 OUTPUT=export pnpm --filter website build
+# fichiers dans website/out/
+# cleanUrls : copier vercel.static.json → out/vercel.json avant upload
+cp vercel.static.json out/vercel.json
+vercel deploy out --prod   # ou --temporary (anonyme, expire ~60 min)
 ```
-
-Les fichiers sont émis dans `website/out/`.
 
 ## Exemples audio — honnêteté
 
