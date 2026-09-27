@@ -4,6 +4,12 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
+import {
+  DEFAULT_WAVE_COLOR,
+  DEFAULT_WAVE_PLAYED,
+  roleWaveColor,
+  withAlpha,
+} from "../lib/trackRoleColors";
 import { t } from "../ui/i18n";
 
 export type WaveformStatus = "ready" | "loading" | "empty";
@@ -21,6 +27,12 @@ type Props = {
   muted?: boolean;
   /** Explicit state when peaks are not drawable yet. */
   status?: WaveformStatus;
+  /** Unplayed bar color (`#rrggbb` / `rgb()`). Overrides `role` and CSS vars. */
+  color?: string;
+  /** Played bar color. Overrides `role` and CSS vars. */
+  playedColor?: string;
+  /** Stem role — maps to track accent when color props are omitted. */
+  role?: string;
 };
 
 function formatTime(seconds: number): string {
@@ -39,6 +51,52 @@ function resolveStatus(
   return "ready";
 }
 
+function readCssWaveColors(el: Element | null): {
+  wave: string | null;
+  played: string | null;
+} {
+  if (!el) return { wave: null, played: null };
+  const style = getComputedStyle(el);
+  const wave = style.getPropertyValue("--track-wave").trim();
+  const played = style.getPropertyValue("--track-wave-played").trim();
+  return {
+    wave: wave || null,
+    played: played || null,
+  };
+}
+
+function resolveDrawColors(
+  el: Element | null,
+  opts: { color?: string; playedColor?: string; role?: string },
+): { unplayed: string; played: string } {
+  if (opts.color || opts.playedColor) {
+    const base = opts.color ?? roleWaveColor(opts.role);
+    const playedBase = opts.playedColor ?? opts.color ?? roleWaveColor(opts.role);
+    return {
+      unplayed: withAlpha(base, 0.32),
+      played: withAlpha(playedBase, 0.9),
+    };
+  }
+  if (opts.role) {
+    const base = roleWaveColor(opts.role);
+    return {
+      unplayed: withAlpha(base, 0.32),
+      played: withAlpha(base, 0.9),
+    };
+  }
+  const css = readCssWaveColors(el);
+  if (css.wave) {
+    return {
+      unplayed: withAlpha(css.wave, 0.32),
+      played: withAlpha(css.played ?? css.wave, 0.9),
+    };
+  }
+  return {
+    unplayed: withAlpha(DEFAULT_WAVE_COLOR, 0.32),
+    played: withAlpha(DEFAULT_WAVE_PLAYED, 0.9),
+  };
+}
+
 export function Waveform({
   peaks,
   progress,
@@ -49,6 +107,9 @@ export function Waveform({
   ariaLabel,
   muted,
   status: statusProp,
+  color,
+  playedColor,
+  role,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const status = resolveStatus(peaks, statusProp);
@@ -73,14 +134,21 @@ export function Waveform({
       duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
     const playedX = playedRatio * width;
 
-    ctx.fillStyle = muted ? "rgba(120,120,130,0.35)" : "rgba(180,154,255,0.32)";
+    const colors = muted
+      ? {
+          unplayed: "rgba(120,120,130,0.35)",
+          played: "rgba(160,160,170,0.75)",
+        }
+      : resolveDrawColors(canvas, { color, playedColor, role });
+
+    ctx.fillStyle = colors.unplayed;
     for (let i = 0; i < peaks.length; i++) {
       const amp = Math.max(1, peaks[i]! * mid * 0.92);
       const x = i * barW;
       ctx.fillRect(x, mid - amp, Math.max(1, barW * 0.85), amp * 2);
     }
 
-    ctx.fillStyle = muted ? "rgba(160,160,170,0.75)" : "rgba(105,217,232,0.9)";
+    ctx.fillStyle = colors.played;
     for (let i = 0; i < peaks.length; i++) {
       const x = i * barW;
       if (x > playedX) break;
@@ -88,13 +156,14 @@ export function Waveform({
       ctx.fillRect(x, mid - amp, Math.max(1, barW * 0.85), amp * 2);
     }
 
+    // Cursor stays high-contrast white, distinct from stem colors.
     ctx.strokeStyle = "rgba(255,255,255,0.85)";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(playedX + 0.5, 0);
     ctx.lineTo(playedX + 0.5, height);
     ctx.stroke();
-  }, [peaks, progress, duration, height, muted, status]);
+  }, [peaks, progress, duration, height, muted, status, color, playedColor, role]);
 
   function seekToRatio(ratio: number) {
     if (!onSeek || duration <= 0) return;
