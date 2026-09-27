@@ -7,9 +7,12 @@ import {
   validateForAbcExport,
 } from "@song-maker/score-engine";
 import {
+  createEmptyScoreDocument,
   exportScoreAbc,
+  exportScoreMidi,
   importMidiBytes,
   prepareAbcForGeneration,
+  transposeWholeScore,
   updateScoreTempo,
 } from "./score.ts";
 
@@ -73,5 +76,30 @@ describe("phase 2 score wiring", () => {
     assert.equal(v.ok, true);
     const { abc } = exportToYuE2Abc(document, { cot: "full", title: "T" });
     assert.ok(abc.startsWith("X:1"));
+  });
+
+  it("crée une partition vide avec voix Vocal", () => {
+    const doc = createEmptyScoreDocument({ branchName: "main" });
+    assert.equal(doc.source, "manual");
+    assert.equal(doc.voices[0]?.abcVoice, "Vocal");
+    assert.equal(doc.branchName, "main");
+    assert.equal(doc.timeSignatures[0]?.numerator, 4);
+  });
+
+  it("exporte MIDI via le wrapper app (round-trip)", () => {
+    const midi = buildMinimalMidi({
+      ppq: 960,
+      tempoBpm: 100,
+      notes: [{ startTick: 0, durationTick: 480, pitch: 60, velocity: 110 }],
+    });
+    const { document } = importMidiBytes(midi, { id: "exp-midi" });
+    const bytes = exportScoreMidi(document);
+    assert.ok(bytes.byteLength > 20);
+    const again = importMidiBytes(bytes);
+    const notes = again.document.voices.flatMap((v) => v.notes);
+    assert.equal(notes[0]?.pitch, 60);
+    assert.equal(notes[0]?.velocity, 110);
+    const transposed = transposeWholeScore(document, 1);
+    assert.equal(transposed.voices[0]?.notes[0]?.pitch, 61);
   });
 });

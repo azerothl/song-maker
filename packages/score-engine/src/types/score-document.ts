@@ -90,6 +90,10 @@ export type ScoreDocument = {
   lyricAnchors: LyricAnchor[];
   source: ScoreSource;
   sourceFileHash?: string;
+  /** Parent score version this branch was forked from (§12.2). */
+  parentScoreId?: string | null;
+  /** User-facing branch label (e.g. score-v1 / alternate-bridge). */
+  branchName?: string | null;
 };
 
 export type CotProfile = "full" | "melody" | "off";

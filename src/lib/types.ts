@@ -192,6 +192,15 @@ export type GenerationSummary = {
   canContinue: boolean;
 };
 
+export type ScoreSummary = {
+  id: string;
+  parentScoreId?: string | null;
+  branchName?: string | null;
+  version: number;
+  source: string;
+  noteCount: number;
+};
+
 export type LocalLoraAdapter = { name: string; path: string; sizeBytes: number };
 
 export type Screen = "splash" | "library" | "song" | "settings" | "licenses";

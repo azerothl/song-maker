@@ -323,6 +323,20 @@ pub struct GenerationSummary {
     pub can_continue: bool,
 }
 
+/// Immutable score version metadata for branch/merge UI (§12.2).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScoreSummary {
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_score_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub branch_name: Option<String>,
+    pub version: u32,
+    pub source: String,
+    pub note_count: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalLoraAdapter {

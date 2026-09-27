@@ -49,6 +49,22 @@ export {
   type MidiImportResult,
   type MidiTrackSnapshot,
 } from "./midi/import.js";
+export { exportScoreDocumentToMidi } from "./midi/export.js";
+export {
+  transposeNotes,
+  transposeScore,
+  type TransposeSelection,
+} from "./edits/transpose.js";
+export {
+  diffScoreDocuments,
+  mergeScoreDocuments,
+  type ScoreDocumentDiff,
+  type ScoreNoteDiff,
+  type ScoreSectionDiff,
+  type ScoreChordDiff,
+  type MergeConflictResolution,
+  type NoteConflictChoice,
+} from "./edits/diff.js";
 
 export {
   createClipEditor,
@@ -68,11 +84,14 @@ export {
   createStopAfterAbcClient,
   GatedStopAfterAbcClient,
   StubStopAfterAbcClient,
+  planStopAfterAbc,
+  validateStopAfterAbc,
   STOP_AFTER_ABC_ENABLED,
   STOP_AFTER_ABC_MIN_TAG,
   type StopAfterAbcClient,
   type StopAfterAbcRequest,
   type StopAfterAbcResult,
+  type StopAfterAbcTaskOptions,
   type StopAfterStage,
 } from "./generation/stop-after.js";
 export {

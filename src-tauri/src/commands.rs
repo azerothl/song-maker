@@ -393,6 +393,8 @@ pub async fn start_generation(
     id: String,
     form: FormInput,
     abc: Option<String>,
+    stop_after: Option<String>,
+    source_generation_id: Option<String>,
 ) -> Result<ProjectDoc, String> {
     let style_sent = validate_form(&form).map_err(|e| e.to_string())?;
     let target_duration_sec =
@@ -402,6 +404,15 @@ pub async fn start_generation(
         &form.lyrics,
         form.prefer_full_lyrics,
     );
+    let stop_after_abc = match stop_after.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        None => false,
+        Some("abc") => true,
+        Some(other) => {
+            return Err(format!(
+                "stop_after={other} hors contrat (seul « abc » est pris en charge)."
+            ));
+        }
+    };
     let mut abc_trimmed = abc
         .as_ref()
         .map(|s| s.trim().to_string())
@@ -411,8 +422,43 @@ pub async fn start_generation(
             "Un ABC avec cot=off est interdit (erreur locale, avant l'appel).".into(),
         );
     }
+    if stop_after_abc {
+        if form.cot == "off" {
+            return Err("stop_after=abc exige cot=melody|full.".into());
+        }
+        if abc_trimmed.is_some() {
+            return Err("stop_after=abc refuse un ABC externe.".into());
+        }
+        if form.continuation_generation_id.is_some() {
+            return Err("stop_after=abc est incompatible avec une continuation.".into());
+        }
+        if source_generation_id.is_some() {
+            return Err("stop_after=abc est incompatible avec un rendu depuis un score existant.".into());
+        }
+    }
     let folder = project_folder(&id);
     let mut doc = load_project(&folder)?;
+    let source_gen_id = source_generation_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+    if let Some(ref src_id) = source_gen_id {
+        let score_path = folder
+            .join("generations")
+            .join(src_id)
+            .join("score.abc");
+        if !score_path.is_file() {
+            return Err(format!(
+                "Score ABC introuvable pour {src_id} (attendu generations/{src_id}/score.abc)."
+            ));
+        }
+        if abc_trimmed.is_none() {
+            abc_trimmed = Some(
+                std::fs::read_to_string(&score_path).map_err(|e| e.to_string())?,
+            );
+        }
+    }
     let continuation = form.continuation_generation_id.as_deref();
     let semantic_prefix_path = if let Some(parent_id) = continuation {
         let suffix = parent_id.strip_prefix("gen-").unwrap_or("");
@@ -492,13 +538,27 @@ pub async fn start_generation(
         (ARCHIVE_LINUX, ARCHIVE_LINUX_SHA)
     };
 
+    let parent_generation_id = continuation
+        .or(source_gen_id.as_deref())
+        .or(doc.active_generation_id.as_deref());
+    let job_kind = if continuation.is_some() {
+        "continuation"
+    } else if stop_after_abc {
+        "score_only"
+    } else if source_gen_id.is_some() {
+        "render_from_score"
+    } else {
+        "generation"
+    };
     let request = json!({
         "schema": SCHEMA_GEN_REQUEST,
         "schemaVersion": SCHEMA_VERSION,
         "id": gen_id,
         "projectId": id,
-        "parentGenerationId": continuation.or(doc.active_generation_id.as_deref()),
+        "parentGenerationId": parent_generation_id,
         "continuationGenerationId": continuation,
+        "sourceGenerationId": source_gen_id,
+        "stopAfter": if stop_after_abc { Some("abc") } else { None::<&str> },
         "createdAt": now_iso(),
         "provider": "audiocpp",
         "binary": {
@@ -532,7 +592,7 @@ pub async fn start_generation(
     atomic_write_json(&gen_dir.join("job.json"), &json!({
         "id": gen_id,
         "projectId": id,
-        "kind": if continuation.is_some() { "continuation" } else { "generation" },
+        "kind": job_kind,
         "state": "queued",
         "updatedAt": now_iso(),
     }))?;
@@ -551,20 +611,30 @@ pub async fn start_generation(
     let gen_id_for_job = gen_id.clone();
     let gen_dir_for_job = gen_dir.clone();
     let project_id_for_job = id.clone();
+    let job_kind_for_job = job_kind.to_string();
     let result = queue
         .run_exclusive(
             Some(id.clone()),
-            "Génération en cours",
+            if stop_after_abc {
+                "Génération partition seule"
+            } else {
+                "Génération en cours"
+            },
             async move {
                 atomic_write_json(&gen_dir_for_job.join("job.json"), &json!({
                     "id": gen_id_for_job,
                     "projectId": project_id_for_job,
+                    "kind": job_kind_for_job,
                     "state": "running",
                     "updatedAt": now_iso(),
                 }))?;
                 queue_ref.set_state(
                     "generating",
-                    "Génération en cours",
+                    if stop_after_abc {
+                        "Génération partition seule"
+                    } else {
+                        "Génération en cours"
+                    },
                     Some(project_id_for_job.clone()),
                 );
                 let mut options = json!({
@@ -574,8 +644,14 @@ pub async fn start_generation(
                     "guidance_scale": guidance_scale(&cot),
                     "semantic_min_tokens": semantic_min_tokens,
                     "semantic_max_tokens": semantic_max_tokens,
-                    "export_semantic": true
+                    "export_semantic": !stop_after_abc
                 });
+                if stop_after_abc {
+                    options
+                        .as_object_mut()
+                        .ok_or_else(|| "options invalides".to_string())?
+                        .insert("stop_after".into(), json!("abc"));
+                }
                 if let Some(path) = semantic_prefix_path.as_ref() {
                     options.as_object_mut().ok_or_else(|| "options invalides".to_string())?
                         .insert("semantic_prefix_file".into(), json!(path.display().to_string()));
@@ -619,6 +695,61 @@ pub async fn start_generation(
                             AudioCppServer::semantic_truncated(&response);
                         let semantic_path = gen_dir_for_job.join("semantic.json");
                         let has_semantic = AudioCppServer::write_semantic_artifact(&response, &semantic_path).unwrap_or(false);
+
+                        if let Some(abc) = AudioCppServer::extract_score_abc(&response) {
+                            let _ = std::fs::write(gen_dir_for_job.join("score.abc"), abc);
+                        } else if let Some(abc_text) = &abc_for_req {
+                            // Conserve l'ABC envoyé si le modèle n'en renvoie pas.
+                            let _ = std::fs::write(gen_dir_for_job.join("score.abc"), abc_text);
+                        }
+
+                        let score_path = gen_dir_for_job.join("score.abc");
+                        if stop_after_abc {
+                            if !score_path.is_file() {
+                                let err = "Réponse score-only sans score.abc.".to_string();
+                                let result = json!({
+                                    "schema": SCHEMA_GEN_RESULT,
+                                    "schemaVersion": SCHEMA_VERSION,
+                                    "id": gen_id_for_job,
+                                    "state": "failed",
+                                    "decode": "unsupported",
+                                    "startedAt": started,
+                                    "finishedAt": finished,
+                                    "audio": null,
+                                    "score": null,
+                                    "error": err
+                                });
+                                atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                                return Err(err);
+                            }
+                            let score = json!({
+                                "path": "score.abc",
+                                "sha256": sha256_file(&score_path)?
+                            });
+                            let result = json!({
+                                "schema": SCHEMA_GEN_RESULT,
+                                "schemaVersion": SCHEMA_VERSION,
+                                "id": gen_id_for_job,
+                                "state": "score_only",
+                                "decode": "unsupported",
+                                "startedAt": started,
+                                "finishedAt": finished,
+                                "audio": null,
+                                "score": score,
+                                "semanticTruncated": semantic_truncated,
+                                "semanticPath": if has_semantic { Some("semantic.json") } else { None },
+                                "error": null
+                            });
+                            atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                            write_checksums(&gen_dir_for_job)?;
+                            queue_ref.set_state(
+                                "score_only",
+                                "Partition générée (sans audio)",
+                                Some(project_id_for_job.clone()),
+                            );
+                            return Ok(0i64);
+                        }
+
                         let wav_bytes = match AudioCppServer::extract_wav_bytes(&response) {
                             Ok(b) => b,
                             Err(e) => {
@@ -656,15 +787,8 @@ pub async fn start_generation(
                             atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
                             return Err(err);
                         }
-                        if let Some(abc) = AudioCppServer::extract_score_abc(&response) {
-                            let _ = std::fs::write(gen_dir_for_job.join("score.abc"), abc);
-                        } else if let Some(abc_text) = &abc_for_req {
-                            // Conserve l'ABC envoyé si le modèle n'en renvoie pas.
-                            let _ = std::fs::write(gen_dir_for_job.join("score.abc"), abc_text);
-                        }
                         let duration = wav_duration_ms(&out_wav).unwrap_or(0);
                         let audio_sha = sha256_file(&out_wav)?;
-                        let score_path = gen_dir_for_job.join("score.abc");
                         let score = if score_path.exists() {
                             json!({
                                 "path": "score.abc",
@@ -728,7 +852,7 @@ pub async fn start_generation(
             atomic_write_json(&gen_dir.join("job.json"), &json!({
                 "id": gen_id,
                 "projectId": id,
-                "kind": if continuation.is_some() { "continuation" } else { "generation" },
+                "kind": job_kind,
                 "state": "completed",
                 "updatedAt": now_iso(),
             }))?;
@@ -738,7 +862,7 @@ pub async fn start_generation(
             atomic_write_json(&gen_dir.join("job.json"), &json!({
                 "id": gen_id,
                 "projectId": id,
-                "kind": if continuation.is_some() { "continuation" } else { "generation" },
+                "kind": job_kind,
                 "state": if error == "cancelled" { "cancelled" } else { "failed" },
                 "error": error,
                 "updatedAt": now_iso(),
@@ -758,6 +882,29 @@ pub async fn start_generation(
     }
     upsert_library_row(&row)?;
     Ok(doc)
+}
+
+/// Render audio from an existing generation's immutable `score.abc`.
+/// Sets `parentGenerationId` to the source gen; never uses `stop_after`.
+#[tauri::command]
+pub async fn render_from_generation(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    source_gen_id: String,
+    form: FormInput,
+) -> Result<ProjectDoc, String> {
+    let mut form = form;
+    // Rendering from a score is a fresh audio take, not a semantic continuation.
+    form.continuation_generation_id = None;
+    start_generation(
+        state,
+        id,
+        form,
+        None,
+        None,
+        Some(source_gen_id),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -1568,6 +1715,105 @@ pub fn clear_score(id: String) -> Result<ProjectDoc, String> {
     let folder = project_folder(&id);
     let mut doc = load_project(&folder)?;
     doc.active_score_id = None;
+    doc.updated_at = now_iso();
+    save_project(&folder, &doc)?;
+    Ok(doc)
+}
+
+#[tauri::command]
+pub fn list_scores(id: String) -> Result<Vec<ScoreSummary>, String> {
+    let folder = project_folder(&id).join("scores");
+    if !folder.exists() {
+        return Ok(vec![]);
+    }
+    let mut out = Vec::new();
+    let mut entries: Vec<_> = std::fs::read_dir(&folder)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .collect();
+    entries.sort_by_key(|e| e.file_name());
+    for entry in entries {
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("json") {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        let value: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        let score_id = value
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        if score_id.is_empty() {
+            continue;
+        }
+        let note_count = value
+            .get("voices")
+            .and_then(|v| v.as_array())
+            .map(|voices| {
+                voices
+                    .iter()
+                    .map(|voice| {
+                        voice
+                            .get("notes")
+                            .and_then(|n| n.as_array())
+                            .map(|a| a.len() as u32)
+                            .unwrap_or(0)
+                    })
+                    .sum()
+            })
+            .unwrap_or(0);
+        out.push(ScoreSummary {
+            id: score_id,
+            parent_score_id: value
+                .get("parentScoreId")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            branch_name: value
+                .get("branchName")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            version: value
+                .get("version")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(1) as u32,
+            source: value
+                .get("source")
+                .and_then(|v| v.as_str())
+                .unwrap_or("manual")
+                .to_string(),
+            note_count,
+        });
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn load_score_version(
+    id: String,
+    score_id: String,
+) -> Result<Option<serde_json::Value>, String> {
+    let path = project_folder(&id)
+        .join("scores")
+        .join(format!("{score_id}.json"));
+    if !path.exists() {
+        return Ok(None);
+    }
+    let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let value: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    Ok(Some(value))
+}
+
+#[tauri::command]
+pub fn set_active_score(id: String, score_id: String) -> Result<ProjectDoc, String> {
+    let folder = project_folder(&id);
+    let mut doc = load_project(&folder)?;
+    let path = folder.join("scores").join(format!("{score_id}.json"));
+    if !path.exists() {
+        return Err("Partition introuvable.".into());
+    }
+    doc.active_score_id = Some(score_id);
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
     Ok(doc)

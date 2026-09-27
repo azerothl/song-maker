@@ -1,15 +1,19 @@
 import { useMemo, useRef, useState } from "react";
 import type { CotProfile, ScoreDocument, ScoreIssue } from "../lib/score";
 import {
+  createEmptyScoreDocument,
   exportScoreAbc,
+  exportScoreMidi,
   importMidiBytes,
   validateScoreForGeneration,
   vocalToInsAbc,
 } from "../lib/score";
+import { clearInvariantBaseline } from "../lib/invariants";
 import { api } from "../lib/api";
 import { InvariantPanel } from "./InvariantPanel";
 import { PianoRoll } from "./PianoRoll";
 import { ScoreAssistantPanel } from "./ScoreAssistantPanel";
+import { ScoreBranchPanel } from "./ScoreBranchPanel";
 import { t } from "../ui/i18n";
 
 type Props = {
@@ -21,6 +25,8 @@ type Props = {
   onProjectRefresh: () => Promise<void>;
   onError: (msg: string | null) => void;
   onCotChange?: (cot: string) => void;
+  /** When true, parent may keep the Partition <details> open (informational). */
+  defaultOpen?: boolean;
 };
 
 export function ScorePanel({
@@ -43,6 +49,7 @@ export function ScorePanel({
   } | null>(null);
 
   const [status, setStatus] = useState<string | null>(null);
+  const [branchRefresh, setBranchRefresh] = useState(0);
 
   const validation = useMemo(() => {
     if (!document) return null;
@@ -68,6 +75,7 @@ export function ScorePanel({
       const { project } = await api.saveScore(projectId, doc);
       onDocumentChange({ ...doc, id: project.activeScoreId ?? doc.id });
       await onProjectRefresh();
+      setBranchRefresh((n) => n + 1);
     } catch (e) {
       onError(String(e));
     } finally {
@@ -100,7 +108,7 @@ export function ScorePanel({
   async function confirmQuantize(apply: boolean) {
     if (!pendingImport) return;
     try {
-      let result = importMidiBytes(pendingImport.bytes, {
+      const result = importMidiBytes(pendingImport.bytes, {
         applyQuantize: apply,
         quantizeTicks: pendingImport.suggestedQuantizeTicks,
       });
@@ -111,6 +119,15 @@ export function ScorePanel({
     } catch (e) {
       onError(String(e));
     }
+  }
+
+  async function createBlank() {
+    clearInvariantBaseline(projectId);
+    const blank = createEmptyScoreDocument({ branchName: "main" });
+    await persist(blank);
+    setAbcPreview(null);
+    setIssues([]);
+    setStatus(t("score.blankCreated"));
   }
 
   function previewAbc() {
@@ -133,11 +150,14 @@ export function ScorePanel({
         title || undefined,
       );
       setAbcPreview(abc);
-      if (warnings.length) setIssues(warnings.map((message) => ({
-        code: "validation_failed" as const,
-        severity: "warning" as const,
-        message,
-      })));
+      if (warnings.length)
+        setIssues(
+          warnings.map((message) => ({
+            code: "validation_failed" as const,
+            severity: "warning" as const,
+            message,
+          })),
+        );
     } catch (e) {
       onError(String(e));
       setAbcPreview(null);
@@ -163,14 +183,33 @@ export function ScorePanel({
     }
   }
 
+  function downloadMidi() {
+    if (!document) return;
+    try {
+      const bytes = exportScoreMidi(document);
+      const blob = new Blob([bytes], { type: "audio/midi" });
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement("a");
+      a.href = url;
+      a.download = `${document.branchName || document.id || "score"}.mid`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus(t("score.exportMidiOk"));
+    } catch (e) {
+      onError(String(e));
+    }
+  }
+
   async function clearScore() {
     setBusy(true);
     try {
+      clearInvariantBaseline(projectId);
       await api.clearScore(projectId);
       onDocumentChange(null);
       setAbcPreview(null);
       setIssues([]);
       await onProjectRefresh();
+      setBranchRefresh((n) => n + 1);
     } catch (e) {
       onError(String(e));
     } finally {
@@ -200,11 +239,27 @@ export function ScorePanel({
           />
           <button
             type="button"
+            className="btn primary"
+            disabled={busy || !!document}
+            onClick={() => void createBlank()}
+          >
+            {t("score.createBlank")}
+          </button>
+          <button
+            type="button"
             className="btn"
             disabled={!document || busy}
             onClick={() => document && void persist(document)}
           >
             {t("score.save")}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={!document}
+            onClick={downloadMidi}
+          >
+            {t("score.exportMidi")}
           </button>
           <button
             type="button"
@@ -257,7 +312,28 @@ export function ScorePanel({
       )}
 
       {!document && (
-        <p className="hint">{t("score.none")}</p>
+        <div className="score-empty">
+          <p className="hint">{t("score.none")}</p>
+          <p className="hint">{t("score.emptyCta")}</p>
+          <div className="btn-row">
+            <button
+              type="button"
+              className="btn primary"
+              disabled={busy}
+              onClick={() => fileRef.current?.click()}
+            >
+              {t("score.importMidi")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => void createBlank()}
+            >
+              {t("score.createBlank")}
+            </button>
+          </div>
+        </div>
       )}
 
       {document && (
@@ -267,6 +343,7 @@ export function ScorePanel({
             onDocumentChange(doc);
             setAbcPreview(null);
           }}
+          onError={onError}
         />
       )}
 
@@ -305,7 +382,19 @@ export function ScorePanel({
         onRequestCotFull={() => onCotChange?.("full")}
       />
 
-      <InvariantPanel document={document} />
+      <InvariantPanel document={document} projectId={projectId} />
+
+      <ScoreBranchPanel
+        projectId={projectId}
+        document={document}
+        refreshToken={branchRefresh}
+        onDocumentChange={(doc) => {
+          onDocumentChange(doc);
+          setAbcPreview(null);
+        }}
+        onProjectRefresh={onProjectRefresh}
+        onError={onError}
+      />
 
       {abcPreview && (
         <details open>

@@ -11,6 +11,7 @@ import type {
   Phase3Status,
   PlaybackSources,
   ProjectDoc,
+  ScoreSummary,
   SeparationInfo,
 } from "./types";
 
@@ -44,11 +45,32 @@ export const api = {
   revealProject: (id: string) => invoke<string>("reveal_project", { id }),
   getJobStatus: () => invoke<JobStatus>("get_job_status"),
   cancelJob: () => invoke<string>("cancel_job"),
-  startGeneration: (id: string, form: FormInput, abc?: string | null) =>
+  startGeneration: (
+    id: string,
+    form: FormInput,
+    abc?: string | null,
+    options?: {
+      stopAfter?: "abc" | null;
+      sourceGenerationId?: string | null;
+    },
+  ) =>
     invoke<ProjectDoc>("start_generation", {
       id,
       form,
       abc: abc ?? null,
+      stopAfter: options?.stopAfter ?? null,
+      sourceGenerationId: options?.sourceGenerationId ?? null,
+    }),
+  /** Render audio from an existing gen's immutable score.abc (parent = source). */
+  renderFromGeneration: (
+    id: string,
+    sourceGenId: string,
+    form: FormInput,
+  ) =>
+    invoke<ProjectDoc>("render_from_generation", {
+      id,
+      sourceGenId,
+      form,
     }),
   startSeparation: (id: string) => invoke<MixDoc>("start_separation", { id }),
   loadMix: (id: string) => invoke<MixDoc | null>("load_mix", { id }),
@@ -116,6 +138,11 @@ export const api = {
     ),
   loadScore: (id: string) => invoke<unknown | null>("load_score", { id }),
   clearScore: (id: string) => invoke<ProjectDoc>("clear_score", { id }),
+  listScores: (id: string) => invoke<ScoreSummary[]>("list_scores", { id }),
+  loadScoreVersion: (id: string, scoreId: string) =>
+    invoke<unknown | null>("load_score_version", { id, scoreId }),
+  setActiveScore: (id: string, scoreId: string) =>
+    invoke<ProjectDoc>("set_active_score", { id, scoreId }),
   useGeneration: (id: string, genId: string) =>
     invoke<ProjectDoc>("use_generation", { id, genId }),
   undoMix: (id: string) => invoke<MixDoc | null>("undo_mix", { id }),
