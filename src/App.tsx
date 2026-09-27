@@ -1,5 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { isTauri } from "@tauri-apps/api/core";
+import { check, type Update } from "@tauri-apps/plugin-updater";
 import { api } from "./lib/api";
+import { UpdateNotice } from "./components/UpdateNotice";
 import { LibraryScreen } from "./screens/LibraryScreen";
 import { LicensesScreen, SettingsScreen } from "./screens/SettingsScreen";
 import { SongScreen } from "./screens/SongScreen";
@@ -70,6 +73,7 @@ export default function App() {
   const setError = useAppStore((s) => s.setError);
   const refreshJob = useAppStore((s) => s.refreshJob);
   const refreshHealth = useAppStore((s) => s.refreshHealth);
+  const [availableUpdate, setAvailableUpdate] = useState<Update | null>(null);
 
   useEffect(() => {
     void refreshHealth();
@@ -77,10 +81,35 @@ export default function App() {
     return () => window.clearInterval(jobId);
   }, [refreshJob, refreshHealth]);
 
+  useEffect(() => {
+    if (!isTauri()) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void check()
+        .then((update) => {
+          if (active && update) setAvailableUpdate(update);
+        })
+        .catch((reason) => console.info("Vérification de mise à jour indisponible :", reason));
+    }, 2500);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, []);
+
   return (
     <div className="app-shell">
       <Sidebar />
       <main className="main">
+        {availableUpdate && (
+          <UpdateNotice
+            update={availableUpdate}
+            onDismiss={() => {
+              void availableUpdate.close();
+              setAvailableUpdate(null);
+            }}
+          />
+        )}
         {error && (
           <div className="banner error" role="alert">
             <span>{error}</span>

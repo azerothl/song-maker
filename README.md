@@ -12,6 +12,8 @@ Téléchargez la dernière version depuis les [Releases GitHub](https://github.c
 
 Au premier lancement, Song Maker vérifie les composants nécessaires et ouvre un assistant d’installation s’ils manquent. Choisissez le modèle Q4 ou Q8, acceptez la licence YuE2 CC BY-NC 4.0, puis lancez le téléchargement depuis l’application. La progression s’affiche à l’écran ; les fichiers sont vérifiés et une interruption permet de reprendre au prochain essai. Prévoyez plusieurs gigaoctets d’espace disque. Le moteur utilise CUDA avec un GPU NVIDIA sous Windows/Linux et Metal sous macOS.
 
+Song Maker vérifie aussi les mises à jour au démarrage et propose leur installation. La version 0.1.1 active ce système ; les versions 0.1.0 et antérieures doivent d’abord être mises à jour manuellement depuis les [Releases GitHub](https://github.com/azerothl/song-maker/releases/latest).
+
 Sur Windows, l’installeur n’est pas encore signé par un certificat de publication ; Windows peut afficher SmartScreen. La version macOS n’est pas notariée : au premier lancement, macOS peut demander de l’autoriser dans Réglages Système → Confidentialité et sécurité.
 
 ## Stack

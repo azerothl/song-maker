@@ -1,7 +1,7 @@
 {
   "name": "song-maker",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Song Maker — desktop app (phases 0–2) and monorepo packages (phases 2–4)",
   "packageManager": "pnpm@10.33.3",
@@ -29,6 +29,8 @@
     "@song-maker/stem-providers": "workspace:*",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.12.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zustand": "^5.0.8"
