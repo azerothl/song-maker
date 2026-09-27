@@ -5,29 +5,34 @@
   },
   "landing": {
     "eyebrow": "Create · separate · compose · locally",
-    "headline": "Shape your song. Keep it on your computer.",
-    "intro": "Start with a style and lyrics. YuE2 generates a stereo take on your machine; HTDemucs separates the tracks so you can adjust the mix and export your files.",
+    "headline": "From lyrics to tracks, at home.",
+    "intro": "Start with a style and your lyrics. YuE2 generates a take on your computer. Separate it with HTDemucs, then shape the mix in the app.",
     "installCta": "Read the setup guide",
-    "pathCta": "Explore the workflow",
+    "pathCta": "Hear the demo",
     "localNote": "Generation and audio work happen on your computer",
-    "diagram": {
-      "kicker": "The workflow at a glance",
-      "title": "From words to mix",
-      "inputLabel": "Start with",
-      "inputStyle": "A musical style",
-      "inputLyrics": "Your lyrics",
-      "renderLabel": "One stereo take",
-      "model": "YuE2",
-      "stereo": "on your GPU",
-      "stemsLabel": "Separated tracks · current example",
-      "stems": {
-        "voice": "Vocals",
-        "drums": "Drums",
-        "bass": "Bass",
-        "other": "Other"
+    "mixer": {
+      "ariaLabel": "Interactive audio demo mini mixer",
+      "kicker": "Try it · interactive preview",
+      "title": "Hear the layers come together",
+      "badge": "Synthetic demo",
+      "play": "Play demo",
+      "pause": "Pause demo",
+      "trackName": "Demo loop",
+      "playing": "Playing · layers mixed",
+      "ready": "Four layers to adjust",
+      "loop": "Looping",
+      "layers": {
+        "piano": "Piano · sketch",
+        "rhythm": "Rhythm · bed",
+        "pad": "Pad · ambience",
+        "loop": "Loop · arrangement"
       },
-      "caption": "Workflow diagram — this is not a screenshot of the application.",
-      "caveat": "Four stems are the current default · output beyond that is being tested."
+      "volume": "Volume for {layer}",
+      "mute": "Toggle mute for {layer}",
+      "solo": "Listen to {layer} alone",
+      "reset": "Reset mix",
+      "disclaimer": "Synthetic audio layers — these are not Song Maker stems.",
+      "error": "Playback is unavailable. Please try again."
     },
     "facts": {
       "generation": "YuE2 runs on your NVIDIA GPU",

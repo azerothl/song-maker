@@ -1,18 +1,11 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
+import { DemoMixer } from "./DemoMixer";
 import styles from "./LandingExperience.module.css";
 
-const STEMS = ["voice", "drums", "bass", "other"] as const;
 const STEPS = ["idea", "generation", "separation"] as const;
 const CAPABILITIES = ["generation", "score", "takes", "mix", "export"] as const;
 const FAQ = ["stems", "local", "hardware", "license"] as const;
-
-const WAVE_PATHS = [
-  "M0 21 5 20 10 22 15 12 20 9 25 17 30 6 35 14 40 4 45 11 50 10 55 20 60 14 65 22 70 17 75 20 80 13 85 21 90 16 95 22 100 18 105 20 110 15 115 22 120 17 125 20 130 13 135 19 140 16 145 21 150 18 155 22 160 17 165 20 170 14 175 21 180 17 185 20 190 16 195 21 200 18",
-  "M0 20 5 19 10 20 15 11 20 18 25 6 30 14 35 3 40 17 45 8 50 21 55 13 60 19 65 9 70 21 75 15 80 19 85 6 90 18 95 12 100 21 105 15 110 20 115 10 120 18 125 6 130 20 135 13 140 19 145 8 150 21 155 14 160 19 165 6 170 18 175 11 180 20 185 15 190 19 195 9 200 20",
-  "M0 21 5 18 10 22 15 15 20 20 25 10 30 19 35 7 40 16 45 13 50 21 55 17 60 20 65 11 70 18 75 15 80 22 85 12 90 19 95 16 100 20 105 9 110 17 115 14 120 21 125 10 130 19 135 15 140 22 145 12 150 18 155 14 160 21 165 11 170 20 175 15 180 22 185 13 190 18 195 16 200 20",
-  "M0 21 5 20 10 22 15 17 20 21 25 14 30 19 35 11 40 20 45 15 50 22 55 18 60 20 65 13 70 19 75 16 80 22 85 14 90 21 95 17 100 20 105 12 110 18 115 16 120 22 125 13 130 19 135 16 140 22 145 14 150 20 155 17 160 22 165 13 170 19 175 16 180 22 185 14 190 20 195 17 200 21",
-];
 
 export async function LandingExperience() {
   const t = await getTranslations("landing");
@@ -26,7 +19,7 @@ export async function LandingExperience() {
           <p className={styles.lede}>{t("intro")}</p>
           <div className={styles.actions}>
             <Link className="btn btn-primary" href="/docs">{t("installCta")}</Link>
-            <a className={styles.textLink} href="#parcours">{t("pathCta")} <span aria-hidden="true">↓</span></a>
+            <a className={styles.textLink} href="#mixer">{t("pathCta")} <span aria-hidden="true">↓</span></a>
           </div>
           <div className={styles.heroFootnote}>
             <span className={styles.statusDot} aria-hidden="true" />
@@ -34,44 +27,7 @@ export async function LandingExperience() {
           </div>
         </div>
 
-        <figure className={styles.flowCard} aria-labelledby="flow-title flow-caption">
-          <div className={styles.flowHeader}>
-            <span className={styles.flowKicker}>{t("diagram.kicker")}</span>
-            <span className={styles.flowTitle} id="flow-title">{t("diagram.title")}</span>
-          </div>
-          <div className={styles.flowBody}>
-            <div className={styles.inputCard}>
-              <span className={styles.miniLabel}>{t("diagram.inputLabel")}</span>
-              <strong>{t("diagram.inputStyle")}</strong>
-              <span className={styles.paperLines} aria-hidden="true"><i /><i /><i /></span>
-              <span className={styles.inputLyrics}>{t("diagram.inputLyrics")}</span>
-            </div>
-            <span className={styles.connector} aria-hidden="true">→</span>
-            <div className={styles.renderCard}>
-              <div className={styles.renderMeta}><span>{t("diagram.renderLabel")}</span><span className={styles.waveDot} /></div>
-              <svg viewBox="0 0 200 28" preserveAspectRatio="none" aria-hidden="true" className={styles.mainWave}>
-                <path d={WAVE_PATHS[0]} />
-              </svg>
-              <div className={styles.renderFooter}><span>{t("diagram.model")}</span><span>{t("diagram.stereo")}</span></div>
-            </div>
-            <span className={styles.connector} aria-hidden="true">→</span>
-            <div className={styles.stemStack}>
-              <span className={styles.miniLabel}>{t("diagram.stemsLabel")}</span>
-              {STEMS.map((stem, index) => (
-                <div className={`${styles.stem} ${styles[`stem${index}`]}`} key={stem}>
-                  <span className={styles.stemName}>{t(`diagram.stems.${stem}`)}</span>
-                  <svg viewBox="0 0 200 28" preserveAspectRatio="none" aria-hidden="true">
-                    <path d={WAVE_PATHS[index]} />
-                  </svg>
-                </div>
-              ))}
-            </div>
-          </div>
-          <figcaption className={styles.flowCaption} id="flow-caption">
-            <span>{t("diagram.caption")}</span>
-            <span className={styles.caveat}>{t("diagram.caveat")}</span>
-          </figcaption>
-        </figure>
+        <DemoMixer />
       </section>
 
       <div className={styles.factStrip}>

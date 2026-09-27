@@ -5,29 +5,34 @@
   },
   "landing": {
     "eyebrow": "Créer · séparer · composer · en local",
-    "headline": "Donnez forme à votre chanson. Gardez-la chez vous.",
-    "intro": "Partez d’un style et de paroles. YuE2 génère une prise stéréo sur votre machine ; HTDemucs sépare les pistes pour que vous puissiez ajuster le mix et exporter vos fichiers.",
+    "headline": "Des paroles aux pistes, chez vous.",
+    "intro": "À partir d’un style et de vos paroles, YuE2 génère une prise sur votre ordinateur. Séparez-la avec HTDemucs, puis retravaillez le mix dans l’application.",
     "installCta": "Lire le guide d’installation",
-    "pathCta": "Découvrir le parcours",
+    "pathCta": "Écouter la démo",
     "localNote": "Génération et travail audio sur votre ordinateur",
-    "diagram": {
-      "kicker": "Le parcours, en un regard",
-      "title": "Du texte au mix",
-      "inputLabel": "Point de départ",
-      "inputStyle": "Un style musical",
-      "inputLyrics": "Vos paroles",
-      "renderLabel": "Une prise stéréo",
-      "model": "YuE2",
-      "stereo": "sur votre GPU",
-      "stemsLabel": "Pistes séparées · exemple actuel",
-      "stems": {
-        "voice": "Voix",
-        "drums": "Batterie",
-        "bass": "Basse",
-        "other": "Autres"
+    "mixer": {
+      "ariaLabel": "Mini-mixeur audio de démonstration",
+      "kicker": "À vous de jouer · aperçu interactif",
+      "title": "Écoutez les couches prendre forme",
+      "badge": "Démo synthétique",
+      "play": "Lire la démo",
+      "pause": "Mettre la démo en pause",
+      "trackName": "Boucle de démonstration",
+      "playing": "Lecture en cours · couches mixées",
+      "ready": "Quatre couches à régler",
+      "loop": "Boucle infinie",
+      "layers": {
+        "piano": "Piano · esquisse",
+        "rhythm": "Rythme · accompagnement",
+        "pad": "Pad · ambiance",
+        "loop": "Boucle · arrangement"
       },
-      "caption": "Schéma du parcours — ce n’est pas une capture de l’application.",
-      "caveat": "4 stems par défaut aujourd’hui · capacité au-delà en cours de test."
+      "volume": "Volume de {layer}",
+      "mute": "Activer ou couper {layer}",
+      "solo": "Écouter {layer} seul",
+      "reset": "Réinitialiser le mix",
+      "disclaimer": "Couches audio synthétiques — ce ne sont pas des stems Song Maker.",
+      "error": "Lecture indisponible. Réessayez dans un instant."
     },
     "facts": {
       "generation": "YuE2 tourne sur votre GPU NVIDIA",
