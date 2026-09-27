@@ -145,22 +145,77 @@ pub async fn install_htdemucs_6s_runtime() -> Result<String, String> {
 pub fn list_lora_adapters() -> Result<Vec<LocalLoraAdapter>, String> {
     let settings = load_settings()?;
     let root = PathBuf::from(settings.cache_dir).join("models").join("lora");
+    list_lora_adapters_at(&root)
+}
+
+fn list_lora_adapters_at(root: &Path) -> Result<Vec<LocalLoraAdapter>, String> {
     if !root.is_dir() { return Ok(Vec::new()); }
     let mut adapters = Vec::new();
-    for entry in std::fs::read_dir(root).map_err(|e| e.to_string())? {
-        let path = entry.map_err(|e| e.to_string())?.path();
-        if !path.is_file() || !path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("safetensors")) {
+    for entry in walkdir::WalkDir::new(root).follow_links(false) {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        if !entry.file_type().is_file() || !path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("safetensors")) {
             continue;
         }
         let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?;
+        let relative_name = path.strip_prefix(root).unwrap_or(path).display().to_string();
         adapters.push(LocalLoraAdapter {
-            name: path.file_name().unwrap_or_default().to_string_lossy().into_owned(),
-            path: path.canonicalize().unwrap_or(path).display().to_string(),
+            name: relative_name,
+            path: path.canonicalize().unwrap_or_else(|_| path.to_path_buf()).display().to_string(),
             size_bytes: metadata.len(),
         });
     }
     adapters.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     Ok(adapters)
+}
+
+#[tauri::command]
+pub async fn import_lora_adapters(app: tauri::AppHandle) -> Result<Option<Vec<LocalLoraAdapter>>, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let Some(selected_files) = app.dialog().file()
+        .add_filter("LoRA YuE2 (SafeTensors)", &["safetensors"])
+        .blocking_pick_files()
+    else {
+        return Ok(None);
+    };
+
+    let settings = load_settings()?;
+    let lora_root = PathBuf::from(settings.cache_dir).join("models").join("lora");
+    let adapters = tokio::task::spawn_blocking(move || {
+        std::fs::create_dir_all(&lora_root).map_err(|e| e.to_string())?;
+        let imported_root = lora_root.join("imported");
+        std::fs::create_dir_all(&imported_root).map_err(|e| e.to_string())?;
+
+        for selected in selected_files {
+            let source = selected.into_path().map_err(|e| format!("Chemin LoRA invalide : {e}"))?;
+            if !source.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("safetensors")) {
+                return Err(format!("Format refusé : {}. Choisissez un fichier .safetensors.", source.display()));
+            }
+            let source = source.canonicalize().map_err(|e| format!("Fichier LoRA inaccessible : {e}"))?;
+            if !source.is_file() {
+                return Err(format!("Ce chemin n’est pas un fichier : {}", source.display()));
+            }
+            if source.starts_with(&lora_root) {
+                continue;
+            }
+
+            let file_name = source.file_name().ok_or_else(|| "Le fichier LoRA n’a pas de nom valide.".to_string())?;
+            let stem = source.file_stem().unwrap_or_default().to_string_lossy().into_owned();
+            let extension = source.extension().unwrap_or_default().to_string_lossy().into_owned();
+            let mut destination = imported_root.join(file_name);
+            let mut suffix = 2;
+            while destination.exists() {
+                destination = imported_root.join(format!("{stem} ({suffix}).{extension}"));
+                suffix += 1;
+            }
+            std::fs::copy(&source, &destination)
+                .map_err(|e| format!("Impossible de copier {} : {e}", source.display()))?;
+        }
+
+        list_lora_adapters_at(&lora_root)
+    }).await.map_err(|e| format!("Import LoRA interrompu : {e}"))??;
+    Ok(Some(adapters))
 }
 
 #[tauri::command]

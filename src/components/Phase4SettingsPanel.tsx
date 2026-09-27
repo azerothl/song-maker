@@ -52,7 +52,11 @@ function savePrefs(prefs: RemoteWorkerPreferences): void {
   localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 }
 
-export function Phase4SettingsPanel() {
+export function Phase4SettingsPanel({
+  view,
+}: {
+  view: "remote" | "host" | "lora";
+}) {
   const settings = useAppStore((s) => s.settings);
   const [prefs, setPrefs] = useState<RemoteWorkerPreferences>(loadPrefs);
   const [probeMsg, setProbeMsg] = useState<string | null>(null);
@@ -65,6 +69,7 @@ export function Phase4SettingsPanel() {
   const [narScale, setNarScale] = useState(1);
   const [loraNotice, setLoraNotice] = useState<string | null>(null);
   const [localLoras, setLocalLoras] = useState<LocalLoraAdapter[]>([]);
+  const [importingLoras, setImportingLoras] = useState(false);
 
   const bridge = useMemo(() => getSharedAkashaHostBridge(), []);
   const stylePacks = useMemo(() => listStyleLoraPacks(), []);
@@ -106,6 +111,24 @@ export function Phase4SettingsPanel() {
       setLoraNotice(t("phase4.lora.saved"));
     } catch (e) {
       setLoraNotice(String(e));
+    }
+  };
+
+  const importLoras = async () => {
+    setImportingLoras(true);
+    setLoraNotice(null);
+    try {
+      const adapters = await api.importLoraAdapters();
+      if (adapters) {
+        setLocalLoras(adapters);
+        setLoraNotice(
+          t("phase4.lora.imported", { count: String(adapters.length) }),
+        );
+      }
+    } catch (e) {
+      setLoraNotice(String(e));
+    } finally {
+      setImportingLoras(false);
     }
   };
 
@@ -180,11 +203,21 @@ export function Phase4SettingsPanel() {
   };
 
   return (
-    <section className="phase4-panel" aria-labelledby="phase4-settings-title">
-      <h2 id="phase4-settings-title">{t("phase4.settings.title")}</h2>
+    <section
+      className="phase4-panel"
+      aria-labelledby={`phase4-settings-title-${view}`}
+    >
+      <h2 id={`phase4-settings-title-${view}`}>
+        {view === "remote"
+          ? t("phase4.remote.title")
+          : view === "host"
+            ? t("phase4.host.title")
+            : t("phase4.styleLora.title")}
+      </h2>
       <p className="hint">{t("phase4.settings.intro")}</p>
 
-      <h3>{t("phase4.remote.title")}</h3>
+      {view === "remote" && (
+        <div className="settings-page-content">
       <p className="hint">{DEFAULT_RETENTION_POLICY.messageFr}</p>
       <label className="phase3-check">
         <input
@@ -242,8 +275,11 @@ export function Phase4SettingsPanel() {
         {t("phase4.remote.probe")}
       </button>
       {probeMsg && <pre className="phase3-download-notice">{probeMsg}</pre>}
+        </div>
+      )}
 
-      <h3>{t("phase4.host.title")}</h3>
+      {view === "host" && (
+        <div className="settings-page-content">
       <p className="hint">{t("phase4.host.intro")}</p>
       <div className="btn-row">
         <button
@@ -268,8 +304,11 @@ export function Phase4SettingsPanel() {
           {JSON.stringify(bridge.describe(), null, 2)}
         </pre>
       </details>
+        </div>
+      )}
 
-      <h3>{t("phase4.styleLora.title")}</h3>
+      {view === "lora" && (
+        <div className="settings-page-content">
       <p className="hint">{t("phase4.styleLora.intro")}</p>
       <div className="phase4-lora-active">
         <h4>{t("phase4.lora.activeTitle")}</h4>
@@ -299,9 +338,13 @@ export function Phase4SettingsPanel() {
           <input type="number" min={0} max={2} step={0.05} value={narScale} onChange={(e) => setNarScale(Number(e.target.value))} />
         </label>
         <div className="btn-row">
-          <button type="button" className="btn ghost" onClick={() => void api.listLoraAdapters().then(setLocalLoras).catch((e) => setLoraNotice(String(e)))}>{t("phase4.lora.reload")}</button>
+          <button type="button" className="btn" disabled={importingLoras} onClick={() => void importLoras()}>
+            {importingLoras ? t("phase4.lora.importing") : t("phase4.lora.import")}
+          </button>
+          <button type="button" className="btn ghost" disabled={importingLoras} onClick={() => void api.listLoraAdapters().then(setLocalLoras).catch((e) => setLoraNotice(String(e)))}>{t("phase4.lora.reload")}</button>
           <span className="hint">{t("phase4.lora.count", { count: String(localLoras.length) })}</span>
         </div>
+        <p className="hint">{t("phase4.lora.importHint")}</p>
         <button type="button" className="btn" onClick={() => void saveLoraSettings()}>{t("phase4.lora.save")}</button>
         {loraNotice && <p className="hint" role="status">{loraNotice}</p>}
       </div>
@@ -332,6 +375,8 @@ export function Phase4SettingsPanel() {
       </ul>
       {styleNotice && (
         <pre className="phase3-download-notice">{styleNotice}</pre>
+      )}
+        </div>
       )}
     </section>
   );

@@ -15,7 +15,11 @@ import type { AppSettings, Phase3Status } from "../lib/types";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 
-export function Phase3SettingsPanel() {
+export function Phase3SettingsPanel({
+  view,
+}: {
+  view: "separation" | "lora";
+}) {
   const settings = useAppStore((s) => s.settings);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
   const setError = useAppStore((s) => s.setError);
@@ -141,10 +145,23 @@ export function Phase3SettingsPanel() {
   };
 
   return (
-    <section className="phase3-panel" aria-labelledby="phase3-settings-title">
-      <h2 id="phase3-settings-title">{t("phase3.settings.title")}</h2>
-      <p className="hint">{t("phase3.settings.intro")}</p>
+    <section
+      className="phase3-panel"
+      aria-labelledby={`phase3-settings-title-${view}`}
+    >
+      <h2 id={`phase3-settings-title-${view}`}>
+        {view === "separation"
+          ? t("phase3.settings.title")
+          : t("phase3.lora.title")}
+      </h2>
+      <p className="hint">
+        {view === "separation"
+          ? t("phase3.settings.intro")
+          : t("phase3.lora.intro")}
+      </p>
 
+      {view === "separation" && (
+        <>
       <h3>{t("phase3.separator.title")}</h3>
       <p className="hint">{phase3?.honestyFr}</p>
       <div className="phase3-provider-list">
@@ -205,9 +222,11 @@ export function Phase3SettingsPanel() {
           ? t("phase3.available")
           : t("phase3.unavailable")}
       </p>
+        </>
+      )}
 
-      <h3>{t("phase3.lora.title")}</h3>
-      <p className="hint">{t("phase3.lora.intro")}</p>
+      {view === "lora" && (
+        <>
       <label className="phase3-check">
         <input
           type="checkbox"
@@ -257,6 +276,8 @@ export function Phase3SettingsPanel() {
       </ul>
       {downloadNotice && (
         <pre className="phase3-download-notice">{downloadNotice}</pre>
+      )}
+        </>
       )}
     </section>
   );

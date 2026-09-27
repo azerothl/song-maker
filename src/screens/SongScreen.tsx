@@ -14,12 +14,47 @@ import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 
 const TONICS = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+const TONIC_LABELS: Record<string, string> = {
+  C: "Do",
+  "C#": "Do♯",
+  D: "Ré",
+  Eb: "Mi♭",
+  E: "Mi",
+  F: "Fa",
+  "F#": "Fa♯",
+  G: "Sol",
+  Ab: "La♭",
+  A: "La",
+  Bb: "Si♭",
+  B: "Si",
+};
 const METERS = ["", "4/4", "3/4", "6/8", "2/4"];
 const DURATION_SEC_MIN = 30;
 const DURATION_SEC_MAX = 360;
 const DURATION_SEC_STEP = 30;
 
 const TITLE_FORBIDDEN = /[/\\:*?"<>|]/;
+type AdvancedSettingsPage = null | "index" | "plan" | "key" | "meter" | "seed";
+
+function advancedSettingsTitle(page: Exclude<AdvancedSettingsPage, null>): string {
+  switch (page) {
+    case "index": return t("form.advanced");
+    case "plan": return t("form.parameter.plan.title");
+    case "key": return t("form.parameter.key.title");
+    case "meter": return t("form.parameter.meter.title");
+    case "seed": return t("form.parameter.seed.title");
+  }
+}
+
+function advancedSettingsIntro(page: Exclude<AdvancedSettingsPage, null>): string {
+  switch (page) {
+    case "index": return t("form.advanced.hint");
+    case "plan": return t("form.parameter.plan.intro");
+    case "key": return t("form.parameter.key.intro");
+    case "meter": return t("form.parameter.meter.intro");
+    case "seed": return t("form.parameter.seed.intro");
+  }
+}
 
 function formatDurationLabel(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -74,6 +109,8 @@ export function SongScreen() {
   const [playback, setPlayback] = useState<PlaybackView | null>(null);
   const [candidateCount, setCandidateCount] = useState(2);
   const [continuationLyrics, setContinuationLyrics] = useState("");
+  const [advancedSettingsPage, setAdvancedSettingsPage] =
+    useState<AdvancedSettingsPage>(null);
   const saveTimer = useRef<number | null>(null);
   const mixTimer = useRef<number | null>(null);
 
@@ -253,7 +290,36 @@ export function SongScreen() {
   return (
     <div className="song-layout">
       <aside className="song-form">
-        <label>
+        <header className="song-form-heading">
+          {advancedSettingsPage !== null && (
+            <button
+              type="button"
+              className="btn ghost form-page-back"
+              onClick={() =>
+                setAdvancedSettingsPage(
+                  advancedSettingsPage === "index" ? null : "index",
+                )
+              }
+            >
+              {advancedSettingsPage === "index"
+                ? t("form.backToSong")
+                : t("form.backToAdvanced")}
+            </button>
+          )}
+          <h1>
+            {advancedSettingsPage === null
+              ? t("form.createTitle")
+              : advancedSettingsTitle(advancedSettingsPage)}
+          </h1>
+          <p className="hint">
+            {advancedSettingsPage === null
+              ? t("form.createIntro")
+              : advancedSettingsIntro(advancedSettingsPage)}
+          </p>
+        </header>
+        {advancedSettingsPage === null && (
+          <div className="song-primary-settings">
+        <label className="form-field">
           {t("form.title")}
           <input
             value={form.title}
@@ -261,7 +327,7 @@ export function SongScreen() {
             maxLength={120}
           />
         </label>
-        <label>
+        <label className="form-field">
           {t("form.style")}
           <textarea
             value={form.style}
@@ -269,8 +335,9 @@ export function SongScreen() {
             rows={3}
           />
           <span className="counter">{form.style.length}/1000</span>
+          <span className="hint">{t("form.style.hint")}</span>
         </label>
-        <label>
+        <label className="form-field">
           {t("form.lyrics")}
           <textarea
             value={form.lyrics}
@@ -280,149 +347,273 @@ export function SongScreen() {
           <span className="counter">{form.lyrics.length}/4000</span>
           <span className="hint">{t("form.lyrics.tags")}</span>
         </label>
-        <label>
-          {t("form.cot")}
-          <select
-            value={form.cot}
-            onChange={(e) => setForm({ cot: e.target.value })}
-          >
-            <option value="full">{t("form.cot.full")}</option>
-            <option value="melody">{t("form.cot.melody")}</option>
-            <option value="off">{t("form.cot.off")}</option>
-          </select>
-        </label>
-        <label>
-          {t("form.language")}
-          <input
-            value={form.singingLanguage ?? ""}
-            onChange={(e) =>
-              setForm({ singingLanguage: e.target.value || null })
-            }
-            maxLength={40}
-          />
-        </label>
-        <label>
-          {t("form.tempo")}
-          <input
-            type="number"
-            min={40}
-            max={220}
-            value={form.tempoBpm ?? ""}
-            onChange={(e) =>
-              setForm({
-                tempoBpm: e.target.value ? Number(e.target.value) : null,
-              })
-            }
-          />
-        </label>
-        <label>
-          {t("form.duration")}
-          <input
-            type="range"
-            className="duration-slider"
-            min={DURATION_SEC_MIN}
-            max={DURATION_SEC_MAX}
-            step={DURATION_SEC_STEP}
-            value={form.targetDurationSec}
-            onChange={(e) =>
-              setForm({ targetDurationSec: snapDurationSec(Number(e.target.value)) })
-            }
-          />
-          <span className="counter">
-            {t("form.duration.hint", {
-              duration: formatDurationLabel(form.targetDurationSec),
-            })}
-          </span>
-        </label>
-        <label className="form-toggle">
-          <input
-            type="checkbox"
-            checked={form.preferFullLyrics}
-            onChange={(e) => setForm({ preferFullLyrics: e.target.checked })}
-          />
-          <span>{t("form.duration.preferLyrics")}</span>
-        </label>
-        {!form.preferFullLyrics && (
-          <p className="hint warn">{t("form.duration.strictHint")}</p>
-        )}
-        <label>
-          {t("form.key")}
-          <div className="row">
-            <select
-              value={form.key?.tonic ?? ""}
-              onChange={(e) => {
-                const tonic = e.target.value;
-                if (!tonic) setForm({ key: null });
-                else
+        <fieldset className="form-section">
+          <legend>{t("form.section.sound")}</legend>
+          <div className="form-grid">
+            <label className="form-field">
+              {t("form.language")}
+              <input
+                placeholder={t("form.language.placeholder")}
+                value={form.singingLanguage ?? ""}
+                onChange={(e) =>
+                  setForm({ singingLanguage: e.target.value || null })
+                }
+                maxLength={40}
+              />
+              <span className="hint">{t("form.language.hint")}</span>
+            </label>
+            <label className="form-field">
+              {t("form.tempo")}
+              <input
+                type="number"
+                min={40}
+                max={220}
+                placeholder={t("form.tempo.placeholder")}
+                value={form.tempoBpm ?? ""}
+                onChange={(e) =>
                   setForm({
-                    key: { tonic, mode: form.key?.mode ?? "major" },
-                  });
-              }}
-            >
-              <option value="">—</option>
-              {TONICS.map((tonic) => (
-                <option key={tonic} value={tonic}>
-                  {tonic}
-                </option>
-              ))}
-            </select>
-            <select
-              value={form.key?.mode ?? "major"}
-              disabled={!form.key}
-              onChange={(e) =>
-                form.key &&
-                setForm({ key: { ...form.key, mode: e.target.value } })
-              }
-            >
-              <option value="major">major</option>
-              <option value="minor">minor</option>
-            </select>
+                    tempoBpm: e.target.value ? Number(e.target.value) : null,
+                  })
+                }
+              />
+            </label>
           </div>
-        </label>
-        <label>
-          {t("form.meter")}
-          <select
-            value={
-              form.meter
-                ? `${form.meter.numerator}/${form.meter.denominator}`
-                : ""
-            }
-            onChange={(e) => {
-              const v = e.target.value;
-              if (!v) setForm({ meter: null });
-              else {
-                const [n, d] = v.split("/").map(Number);
-                setForm({ meter: { numerator: n, denominator: d } });
+          <span className="hint">{t("form.tempo.hint")}</span>
+          <div className="duration-control">
+            <div className="duration-heading">
+              <label htmlFor="target-duration">{t("form.duration")}</label>
+              <output htmlFor="target-duration" className="duration-value">
+                {formatDurationLabel(form.targetDurationSec)}
+              </output>
+            </div>
+            <input
+              id="target-duration"
+              type="range"
+              className="duration-slider"
+              min={DURATION_SEC_MIN}
+              max={DURATION_SEC_MAX}
+              step={DURATION_SEC_STEP}
+              value={form.targetDurationSec}
+              onChange={(e) =>
+                setForm({ targetDurationSec: snapDurationSec(Number(e.target.value)) })
               }
-            }}
-          >
-            {METERS.map((m) => (
-              <option key={m || "none"} value={m}>
-                {m || "—"}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t("form.seed")}
-          <input
-            placeholder={t("form.seed.placeholder")}
-            value={form.seed ?? ""}
-            onChange={(e) => {
-              const raw = e.target.value.trim();
-              if (!raw) {
-                setForm({ seed: null });
-                return;
+            />
+            <div className="duration-range" aria-hidden="true">
+              <span>{formatDurationLabel(DURATION_SEC_MIN)}</span>
+              <span>{formatDurationLabel(DURATION_SEC_MAX)}</span>
+            </div>
+            <p className="hint">
+              {t(
+                form.preferFullLyrics
+                  ? "form.duration.hint"
+                  : "form.duration.strictActiveHint",
+              )}
+            </p>
+            <fieldset className="duration-policy">
+              <legend className="sr-only">{t("form.duration.policy")}</legend>
+              <label className="duration-choice">
+                <input
+                  type="radio"
+                  name="duration-policy"
+                  checked={form.preferFullLyrics}
+                  onChange={() => setForm({ preferFullLyrics: true })}
+                />
+                <span>
+                  <strong>{t("form.duration.preferLyrics")}</strong>
+                  <small>{t("form.duration.preferLyricsHint")}</small>
+                </span>
+              </label>
+              <label className="duration-choice">
+                <input
+                  type="radio"
+                  name="duration-policy"
+                  checked={!form.preferFullLyrics}
+                  onChange={() => setForm({ preferFullLyrics: false })}
+                />
+                <span>
+                  <strong>{t("form.duration.strict")}</strong>
+                  <small>{t("form.duration.strictHint")}</small>
+                </span>
+              </label>
+            </fieldset>
+          </div>
+        </fieldset>
+        <button
+          type="button"
+          className="form-advanced-entry"
+          onClick={() => setAdvancedSettingsPage("index")}
+        >
+          <span className="form-advanced-entry-title">{t("form.advanced")}</span>
+          <span className="hint">{t("form.advanced.cardHint")}</span>
+          <span className="form-advanced-entry-action">{t("settings.openPage")}</span>
+        </button>
+          </div>
+        )}
+
+        {advancedSettingsPage === "index" && (
+          <nav className="form-parameter-grid" aria-label={t("form.advanced")}>
+            <FormParameterCard
+              title={t("form.plan")}
+              description={t("form.parameter.plan.cardHint")}
+              value={t(
+                form.cot === "off"
+                  ? "form.plan.off"
+                  : form.cot === "melody"
+                    ? "form.plan.melody"
+                    : "form.plan.full",
+              )}
+              onClick={() => setAdvancedSettingsPage("plan")}
+            />
+            <FormParameterCard
+              title={t("form.key")}
+              description={t("form.parameter.key.cardHint")}
+              value={
+                form.key
+                  ? `${TONIC_LABELS[form.key.tonic] ?? form.key.tonic} · ${t(form.key.mode === "minor" ? "form.key.minor" : "form.key.major")}`
+                  : t("form.automatic")
               }
-              const n = Number(raw);
-              if (!Number.isFinite(n) || n < 0) {
-                setForm({ seed: null });
-                return;
+              onClick={() => setAdvancedSettingsPage("key")}
+            />
+            <FormParameterCard
+              title={t("form.meter")}
+              description={t("form.parameter.meter.cardHint")}
+              value={
+                form.meter
+                  ? `${form.meter.numerator}/${form.meter.denominator}`
+                  : t("form.automatic")
               }
-              setForm({ seed: Math.min(Math.trunc(n), 4294967295) });
-            }}
-          />
-        </label>
+              onClick={() => setAdvancedSettingsPage("meter")}
+            />
+            <FormParameterCard
+              title={t("form.seed")}
+              description={t("form.parameter.seed.cardHint")}
+              value={form.seed == null ? t("form.automatic") : String(form.seed)}
+              onClick={() => setAdvancedSettingsPage("seed")}
+            />
+          </nav>
+        )}
+
+        {advancedSettingsPage === "plan" && (
+          <section className="form-parameter-page">
+            <p className="hint">
+              {t(
+                form.cot === "off"
+                  ? "form.plan.offHint"
+                  : form.cot === "melody"
+                    ? "form.plan.melodyHint"
+                    : "form.plan.fullHint",
+              )}
+            </p>
+            <label className="form-field">
+              {t("form.plan")}
+              <select
+                value={form.cot}
+                onChange={(e) => setForm({ cot: e.target.value })}
+              >
+                <option value="full">{t("form.plan.full")}</option>
+                <option value="melody">{t("form.plan.melody")}</option>
+                <option value="off">{t("form.plan.off")}</option>
+              </select>
+            </label>
+          </section>
+        )}
+
+        {advancedSettingsPage === "key" && (
+          <section className="form-parameter-page">
+            <label className="form-field">
+              {t("form.key")}
+              <div className="row">
+                <select
+                  value={form.key?.tonic ?? ""}
+                  onChange={(e) => {
+                    const tonic = e.target.value;
+                    if (!tonic) setForm({ key: null });
+                    else
+                      setForm({
+                        key: { tonic, mode: form.key?.mode ?? "major" },
+                      });
+                  }}
+                >
+                  <option value="">{t("form.automatic")}</option>
+                  {TONICS.map((tonic) => (
+                    <option key={tonic} value={tonic}>
+                      {TONIC_LABELS[tonic]}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label={t("form.key.mode")}
+                  value={form.key?.mode ?? "major"}
+                  disabled={!form.key}
+                  onChange={(e) =>
+                    form.key &&
+                    setForm({ key: { ...form.key, mode: e.target.value } })
+                  }
+                >
+                  <option value="major">{t("form.key.major")}</option>
+                  <option value="minor">{t("form.key.minor")}</option>
+                </select>
+              </div>
+            </label>
+          </section>
+        )}
+
+        {advancedSettingsPage === "meter" && (
+          <section className="form-parameter-page">
+            <label className="form-field">
+              {t("form.meter")}
+              <select
+                value={
+                  form.meter
+                    ? `${form.meter.numerator}/${form.meter.denominator}`
+                    : ""
+                }
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) setForm({ meter: null });
+                  else {
+                    const [n, d] = v.split("/").map(Number);
+                    setForm({ meter: { numerator: n, denominator: d } });
+                  }
+                }}
+              >
+                {METERS.map((m) => (
+                  <option key={m || "none"} value={m}>
+                    {m || t("form.automatic")}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </section>
+        )}
+
+        {advancedSettingsPage === "seed" && (
+          <section className="form-parameter-page">
+            <label className="form-field">
+              {t("form.seed")}
+              <input
+                type="number"
+                min={0}
+                max={4294967295}
+                placeholder={t("form.seed.placeholder")}
+                value={form.seed ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  if (!raw) {
+                    setForm({ seed: null });
+                    return;
+                  }
+                  const n = Number(raw);
+                  if (!Number.isFinite(n) || n < 0) {
+                    setForm({ seed: null });
+                    return;
+                  }
+                  setForm({ seed: Math.min(Math.trunc(n), 4294967295) });
+                }}
+              />
+            </label>
+          </section>
+        )}
         {showFormErrors && formError && (
           <p className="hint error">{formError}</p>
         )}
@@ -445,6 +636,7 @@ export function SongScreen() {
           >
             {t("generate.button")}
           </button>
+          {advancedSettingsPage === null && <>
           <button
             type="button"
             className="btn"
@@ -477,8 +669,9 @@ export function SongScreen() {
           >
             {t("export.mp3")}
           </button>
+          </>}
         </div>
-        <p className="hint">{t("stopAfter.gated")}</p>
+        {advancedSettingsPage === null && <p className="hint">{t("stopAfter.gated")}</p>}
       </aside>
 
       <section className="song-stage">
@@ -700,5 +893,26 @@ export function SongScreen() {
         </details>
       </section>
     </div>
+  );
+}
+
+function FormParameterCard({
+  title,
+  description,
+  value,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  value: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className="form-parameter-card" onClick={onClick}>
+      <strong>{title}</strong>
+      <span className="form-parameter-description">{description}</span>
+      <span className="form-parameter-value">{value}</span>
+      <span className="form-parameter-open">{t("settings.openPage")}</span>
+    </button>
   );
 }

@@ -22,6 +22,8 @@ export const api = {
   installHtDemucs6sRuntime: () =>
     invoke<string>("install_htdemucs_6s_runtime"),
   listLoraAdapters: () => invoke<LocalLoraAdapter[]>("list_lora_adapters"),
+  importLoraAdapters: () =>
+    invoke<LocalLoraAdapter[] | null>("import_lora_adapters"),
   confirmModelPack: (pack: string) =>
     invoke<AppSettings>("confirm_model_pack", { pack }),
   listProjects: (query?: string) =>
