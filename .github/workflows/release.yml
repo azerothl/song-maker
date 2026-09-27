@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Existing version tag to build and publish
+        required: true
+        default: v0.1.0
+        type: string
 
 permissions:
   contents: write
@@ -16,10 +23,11 @@ jobs:
       - name: Create the shared draft before parallel builds start
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.tag_name || github.ref_name }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
+          gh release create "$RELEASE_TAG" \
             --draft \
-            --title "Song Maker $GITHUB_REF_NAME" \
+            --title "Song Maker $RELEASE_TAG" \
             --notes "Install the desktop app for Windows, macOS, or Linux using the matching asset below.
 
           Song Maker downloads YuE2 and HTDemucs model files separately on first setup. They require several gigabytes of free disk space. Generation requires NVIDIA CUDA on Windows/Linux or Apple Metal on macOS. Follow the guide at https://website-ten-iota-41.vercel.app/en/docs/install.
@@ -95,7 +103,7 @@ jobs:
           APPLE_SIGNING_IDENTITY: "-"
         with:
           projectPath: .
-          tagName: v__VERSION__
+          tagName: ${{ inputs.tag_name || github.ref_name }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
@@ -108,8 +116,8 @@ jobs:
       - name: Publish after every platform build succeeds
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Song Maker ${{ github.ref_name }}
+          tag_name: ${{ inputs.tag_name || github.ref_name }}
+          name: Song Maker ${{ inputs.tag_name || github.ref_name }}
           draft: false
           prerelease: false
           generate_release_notes: false
