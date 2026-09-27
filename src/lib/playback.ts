@@ -25,6 +25,14 @@ type TrackNodes = {
   buffer: AudioBuffer;
   gain: GainNode;
   pan: StereoPannerNode;
+  clips: {
+    startMs: number;
+    offsetMs: number;
+    durationMs: number;
+    fadeInMs: number;
+    fadeOutMs: number;
+    gainDb: number;
+  }[];
 };
 
 function dbToLinear(db: number): number {
@@ -177,11 +185,34 @@ export class MixPlaybackEngine {
           const pan = ctx.createStereoPanner();
           gain.connect(pan);
           pan.connect(this.ceiling!);
+          const mixTrack = mix?.tracks.find((t) => t.id === stem.trackId);
+          const clips =
+            mixTrack?.clips.map((c) => ({
+              startMs: c.startMs,
+              offsetMs: c.offsetMs,
+              durationMs: c.durationMs,
+              fadeInMs: c.fadeInMs,
+              fadeOutMs: c.fadeOutMs,
+              gainDb: c.gainDb,
+            })) ?? [
+              {
+                startMs: 0,
+                offsetMs: 0,
+                durationMs: Math.round(buffer.duration * 1000),
+                fadeInMs: 0,
+                fadeOutMs: 0,
+                gainDb: 0,
+              },
+            ];
+          for (const c of clips) {
+            maxDur = Math.max(maxDur, (c.startMs + c.durationMs) / 1000);
+          }
           loaded.push({
             trackId: stem.trackId,
             buffer,
             gain,
             pan,
+            clips,
           });
           peaks.push({
             trackId: stem.trackId,
@@ -257,6 +288,7 @@ export class MixPlaybackEngine {
     }
     this.master.gain.value = dbToLinear(mix.masterGainDb);
     const anySolo = mix.tracks.some((t) => t.solo);
+    let clipsChanged = false;
     for (const node of this.tracks) {
       const track = mix.tracks.find((t) => t.id === node.trackId);
       if (!track) {
@@ -266,6 +298,28 @@ export class MixPlaybackEngine {
       const silent = track.mute || (anySolo && !track.solo);
       node.gain.gain.value = silent ? 0 : dbToLinear(track.gainDb);
       node.pan.pan.value = Math.max(-1, Math.min(1, track.pan));
+      const nextClips = track.clips.map((c) => ({
+        startMs: c.startMs,
+        offsetMs: c.offsetMs,
+        durationMs: c.durationMs,
+        fadeInMs: c.fadeInMs,
+        fadeOutMs: c.fadeOutMs,
+        gainDb: c.gainDb,
+      }));
+      if (JSON.stringify(nextClips) !== JSON.stringify(node.clips)) {
+        clipsChanged = true;
+      }
+      node.clips = nextClips;
+      let end = 0;
+      for (const c of node.clips) {
+        end = Math.max(end, (c.startMs + c.durationMs) / 1000);
+      }
+      this.duration = Math.max(this.duration, end);
+    }
+    if (clipsChanged && this.playing) {
+      const t = this.getCurrentTime();
+      this.stopSources(false);
+      this.startSources(t);
     }
     this.notify();
   }
@@ -319,12 +373,54 @@ export class MixPlaybackEngine {
 
     if (this.mode === "stems") {
       for (const track of this.tracks) {
-        const src = this.ctx.createBufferSource();
-        src.buffer = track.buffer;
-        src.connect(track.gain);
-        src.onended = () => this.onSourceEnded();
-        src.start(0, offset);
-        this.sources.push(src);
+        for (const clip of track.clips) {
+          const clipStartSec = clip.startMs / 1000;
+          const clipDurSec = Math.max(0.001, clip.durationMs / 1000);
+          const clipEndSec = clipStartSec + clipDurSec;
+          if (offset >= clipEndSec) continue;
+
+          const when = this.ctx.currentTime + Math.max(0, clipStartSec - offset);
+          const offsetIntoClip = Math.max(0, offset - clipStartSec);
+          const remaining = clipDurSec - offsetIntoClip;
+          if (remaining <= 0) continue;
+
+          const src = this.ctx.createBufferSource();
+          src.buffer = track.buffer;
+          const clipGain = this.ctx.createGain();
+          clipGain.gain.value = dbToLinear(clip.gainDb);
+          // Linear fade envelopes relative to clip start.
+          const fadeInSec = clip.fadeInMs / 1000;
+          const fadeOutSec = clip.fadeOutMs / 1000;
+          const g = clipGain.gain;
+          const now = when;
+          g.cancelScheduledValues(now);
+          if (fadeInSec > 0 && offsetIntoClip < fadeInSec) {
+            const already = offsetIntoClip / fadeInSec;
+            g.setValueAtTime(already * dbToLinear(clip.gainDb), now);
+            g.linearRampToValueAtTime(
+              dbToLinear(clip.gainDb),
+              now + (fadeInSec - offsetIntoClip),
+            );
+          } else {
+            g.setValueAtTime(dbToLinear(clip.gainDb), now);
+          }
+          if (fadeOutSec > 0) {
+            const fadeOutStart = clipDurSec - fadeOutSec;
+            if (offsetIntoClip < clipDurSec) {
+              const startFadeAt = now + Math.max(0, fadeOutStart - offsetIntoClip);
+              const endAt = now + remaining;
+              if (endAt > startFadeAt) {
+                g.setValueAtTime(dbToLinear(clip.gainDb), startFadeAt);
+                g.linearRampToValueAtTime(0, endAt);
+              }
+            }
+          }
+          src.connect(clipGain);
+          clipGain.connect(track.gain);
+          src.onended = () => this.onSourceEnded();
+          src.start(when, clip.offsetMs / 1000 + offsetIntoClip, remaining);
+          this.sources.push(src);
+        }
       }
     } else if (this.generationBuffer) {
       const src = this.ctx.createBufferSource();

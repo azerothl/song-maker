@@ -646,6 +646,194 @@ select {
   font-weight: 600;
 }
 
+.clip-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.clip-timeline-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.clip-timeline-header h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.clip-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.clip-lane {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.clip-lane-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.clip-lane-rail {
+  position: relative;
+  height: 28px;
+  background: #0b0e13;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.clip-block {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border: 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #3d6a9e, #2a4f78);
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+}
+
+.clip-block.active {
+  outline: 2px solid #e3c78a;
+  z-index: 2;
+}
+
+.clip-fade-in,
+.clip-fade-out {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.clip-fade-in {
+  left: 0;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.55), transparent);
+}
+
+.clip-fade-out {
+  right: 0;
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.55));
+}
+
+.clip-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.clip-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.5rem;
+}
+
+.clip-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.clip-fields input {
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.35rem 0.45rem;
+  color: var(--text);
+}
+
+.candidate-compare,
+.version-graph {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.candidate-compare h2,
+.version-graph h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.candidate-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.candidate-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.candidate-controls select {
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.35rem 0.45rem;
+  color: var(--text);
+}
+
+.candidate-list,
+.version-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.candidate-list li,
+.version-tree li {
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.candidate-list li.selected,
+.version-tree li.active {
+  background: rgba(196, 92, 38, 0.18);
+  border: 1px solid rgba(196, 92, 38, 0.45);
+  border-radius: 6px;
+}
+
+.candidate-list li,
+.version-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.version-branch {
+  color: var(--muted);
+  min-width: 1rem;
+}
+
 .kv {
   display: grid;
   grid-template-columns: 120px 1fr;

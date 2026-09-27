@@ -52,6 +52,19 @@ export type FormInput = {
   targetDurationSec: number;
 };
 
+export type MixClip = {
+  id: string;
+  trackId: string;
+  sourcePath: string;
+  sourceSha256: string;
+  startMs: number;
+  offsetMs: number;
+  durationMs: number;
+  gainDb: number;
+  fadeInMs: number;
+  fadeOutMs: number;
+};
+
 export type MixTrack = {
   id: string;
   role: string;
@@ -62,18 +75,7 @@ export type MixTrack = {
   solo: boolean;
   locked: boolean;
   aiSeparated: boolean;
-  clips: {
-    id: string;
-    trackId: string;
-    sourcePath: string;
-    sourceSha256: string;
-    startMs: number;
-    offsetMs: number;
-    durationMs: number;
-    gainDb: number;
-    fadeInMs: number;
-    fadeOutMs: number;
-  }[];
+  clips: MixClip[];
 };
 
 export type MixDoc = {
@@ -158,6 +160,8 @@ export type GenerationSummary = {
   cot: string;
   state: string;
   hasScore: boolean;
+  parentGenerationId?: string | null;
+  audioPath?: string | null;
 };
 
 export type Screen = "splash" | "library" | "song" | "settings" | "licenses";

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
+import { CandidateCompare } from "../components/CandidateCompare";
+import { ClipTimeline } from "../components/ClipTimeline";
 import { Phase3MixPanel } from "../components/Phase3MixPanel";
 import { ScorePanel } from "../components/ScorePanel";
+import { VersionGraph } from "../components/VersionGraph";
 import { Waveform } from "../components/Waveform";
 import { api } from "../lib/api";
 import { prepareAbcForGeneration } from "../lib/score";
@@ -69,6 +72,7 @@ export function SongScreen() {
   const [busy, setBusy] = useState(false);
   const [showFormErrors, setShowFormErrors] = useState(false);
   const [playback, setPlayback] = useState<PlaybackView | null>(null);
+  const [candidateCount, setCandidateCount] = useState(2);
   const saveTimer = useRef<number | null>(null);
   const mixTimer = useRef<number | null>(null);
 
@@ -158,6 +162,31 @@ export function SongScreen() {
     }
   }
 
+  async function onGenerateBatch(count: number) {
+    if (!project || formError || scoreGate.error) {
+      setShowFormErrors(true);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      for (let i = 0; i < count; i++) {
+        // Each call gets its own seed when form.seed is empty (backend CSPRNG).
+        // If the user set a seed, only the first uses it; later ones randomize.
+        const formForCall: FormInput =
+          i === 0 || form.seed == null
+            ? form
+            : { ...form, seed: null };
+        await api.startGeneration(project.id, formForCall, scoreGate.abc);
+      }
+      await openProject(project.id);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function scheduleMixUpdate(next: MixDoc | null) {
     if (!project || !next) return;
     setMix(next);
@@ -172,6 +201,7 @@ export function SongScreen() {
             pan: tr.pan,
             mute: tr.mute,
             solo: tr.solo,
+            clips: tr.clips,
           })),
         })
         .then((m) => setMix(m))
@@ -398,7 +428,21 @@ export function SongScreen() {
           >
             {t("export.flac")}
           </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={!project.activeGenerationId}
+            onClick={() =>
+              void api
+                .exportAudio(project.id, "mp3")
+                .then((p) => window.alert(p))
+                .catch((e) => setError(String(e)))
+            }
+          >
+            {t("export.mp3")}
+          </button>
         </div>
+        <p className="hint">{t("stopAfter.gated")}</p>
       </aside>
 
       <section className="song-stage">
@@ -539,6 +583,7 @@ export function SongScreen() {
             >
               {t("mix.saveVersion")}
             </button>
+            <ClipTimeline mix={mix} onChange={scheduleMixUpdate} />
           </div>
         ) : (
           <p className="hint">Stéréo — lancez la séparation pour les quatre pistes.</p>
@@ -554,38 +599,29 @@ export function SongScreen() {
           <pre className="score">{scoreAbc ?? t("score.empty")}</pre>
         </details>
 
-        <div className="generations">
-          <h2>{t("generations.title")}</h2>
-          <ul>
-            {generations.map((g) => {
-              const active = g.id === project.activeGenerationId;
-              return (
-                <li key={g.id} className={active ? "active" : undefined}>
-                  <span>
-                    {g.id} · seed {g.seed} · {g.cot} · {g.state}
-                    {active && (
-                      <em className="gen-active"> · {t("generations.playing")}</em>
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn ghost"
-                    disabled={active}
-                    onClick={() => {
-                      if (window.confirm(t("generations.useHint"))) {
-                        void api
-                          .useGeneration(project.id, g.id)
-                          .then(() => openProject(project.id));
-                      }
-                    }}
-                  >
-                    {active ? t("generations.playing") : t("generations.use")}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <CandidateCompare
+          generations={generations}
+          activeId={project.activeGenerationId}
+          busy={busy}
+          candidateCount={candidateCount}
+          onCandidateCount={setCandidateCount}
+          onGenerateBatch={onGenerateBatch}
+          onUse={(genId) => {
+            void api
+              .useGeneration(project.id, genId)
+              .then(() => openProject(project.id));
+          }}
+        />
+
+        <VersionGraph
+          generations={generations}
+          activeId={project.activeGenerationId}
+          onUse={(genId) => {
+            void api
+              .useGeneration(project.id, genId)
+              .then(() => openProject(project.id));
+          }}
+        />
       </section>
     </div>
   );
