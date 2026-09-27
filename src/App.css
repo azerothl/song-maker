@@ -15,6 +15,7 @@
   --font-ui: "Source Sans 3", "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   color: var(--text);
+  color-scheme: dark;
   background:
     radial-gradient(1200px 600px at 10% -10%, #252044 0%, transparent 55%),
     radial-gradient(900px 500px at 100% 0%, #17253a 0%, transparent 50%),
@@ -43,6 +44,26 @@ textarea,
 select {
   font: inherit;
   color: inherit;
+}
+
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  color: var(--text);
+}
+
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"])::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 85%, transparent);
+}
+
+option {
+  background: var(--bg1);
+  color: var(--text);
 }
 
 :where(button, input, textarea, select, summary, a):focus-visible {
@@ -979,6 +1000,27 @@ details[open] > summary {
   gap: 0.45rem;
 }
 
+.song-actions {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.25rem;
+}
+
+.song-actions-export {
+  align-items: center;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line);
+}
+
+.song-actions-label {
+  flex: 0 0 100%;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
 .song-stage {
   padding: 1.25rem 1.5rem 2rem;
   display: flex;
@@ -1355,11 +1397,21 @@ details[open] > summary {
   gap: 0.4rem;
 }
 
+.clip-ruler,
 .clip-lane {
   display: grid;
   grid-template-columns: 110px 1fr;
   gap: 0.5rem;
   align-items: center;
+}
+
+.clip-ruler-marks {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0 0.15rem;
 }
 
 .clip-lane-label {
@@ -1385,6 +1437,22 @@ details[open] > summary {
   background: linear-gradient(90deg, #684db0, #393563);
   cursor: pointer;
   padding: 0;
+  overflow: hidden;
+}
+
+.clip-block-label {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 0.35rem;
+  color: var(--text);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+  white-space: nowrap;
   overflow: hidden;
 }
 
@@ -1414,29 +1482,38 @@ details[open] > summary {
 .clip-inspector {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.55rem;
+  margin-top: 0.25rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg1) 72%, transparent);
+}
+
+.clip-inspector-title {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .clip-fields {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.55rem;
 }
 
-.clip-fields label {
+.clip-field {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.25rem;
   font-size: 0.8rem;
   color: var(--muted);
 }
 
-.clip-fields input {
-  background: var(--bg1);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 0.35rem 0.45rem;
-  color: var(--text);
+.clip-field input {
+  width: 100%;
+  min-width: 0;
 }
 
 .candidate-compare,
@@ -1536,6 +1613,12 @@ details[open] > summary {
   border-top: 1px solid var(--border, #333);
 }
 
+.advanced-production .phase3-panel {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
 .phase3-panel h2 {
   font-size: 1.1rem;
   margin-bottom: 0.35rem;
@@ -1544,6 +1627,59 @@ details[open] > summary {
 .phase3-panel h3 {
   font-size: 0.95rem;
   margin: 1rem 0 0.35rem;
+}
+
+.phase3-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.65rem;
+  margin: 0.85rem 0;
+}
+
+.phase3-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.phase3-field > span {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.phase3-field input,
+.phase3-field select {
+  width: 100%;
+  min-width: 0;
+}
+
+.phase3-fx {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0 0 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg1) 70%, transparent);
+}
+
+.phase3-fx legend {
+  padding: 0 0.35rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.phase3-actions {
+  margin-top: 0.15rem;
+}
+
+.phase3-result {
+  margin: 0.55rem 0 0;
+  line-height: 1.45;
 }
 
 .phase3-provider-list {
@@ -1561,9 +1697,23 @@ details[open] > summary {
 
 .phase3-check {
   display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  margin: 0.5rem 0 1rem;
+  gap: 0.55rem;
+  align-items: flex-start;
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.phase3-check input {
+  flex: 0 0 auto;
+  margin: 0.2rem 0 0;
+  accent-color: var(--accent);
+}
+
+.phase3-mix .phase3-check {
+  flex-direction: row;
 }
 
 .phase3-lora-list {
@@ -1619,11 +1769,6 @@ details[open] > summary {
   width: 100%;
   margin-top: 0.4rem;
   resize: vertical;
-}
-
-.phase3-mix label {
-  display: block;
-  margin: 0.4rem 0;
 }
 
 .phase4-panel {

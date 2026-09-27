@@ -627,49 +627,60 @@ export function SongScreen() {
         {job && job.state !== "idle" && (
           <p className="hint job">{job.label || t("job.generating")}</p>
         )}
-        <div className="btn-row">
-          <button
-            type="button"
-            className="btn primary"
-            disabled={!canGenerate}
-            onClick={() => void onGenerate()}
-          >
-            {t("generate.button")}
-          </button>
-          {advancedSettingsPage === null && <>
-          <button
-            type="button"
-            className="btn"
-            disabled={!project.activeGenerationId || busy}
-            onClick={() => void onSeparate()}
-          >
-            {t("separate.button")}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={!project.activeGenerationId || busy}
-            onClick={() => void onExport("wav")}
-          >
-            {t("export.wav")}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={!project.activeGenerationId || busy}
-            onClick={() => void onExport("flac")}
-          >
-            {t("export.flac")}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={!project.activeGenerationId || busy}
-            onClick={() => void onExport("mp3")}
-          >
-            {t("export.mp3")}
-          </button>
-          </>}
+        <div className="song-actions">
+          <div className="btn-row song-actions-primary">
+            <button
+              type="button"
+              className="btn primary"
+              disabled={!canGenerate}
+              onClick={() => void onGenerate()}
+            >
+              {t("generate.button")}
+            </button>
+            {advancedSettingsPage === null && (
+              <button
+                type="button"
+                className="btn"
+                disabled={!project.activeGenerationId || busy}
+                onClick={() => void onSeparate()}
+              >
+                {t("separate.button")}
+              </button>
+            )}
+          </div>
+          {advancedSettingsPage === null && (
+            <div
+              className="btn-row song-actions-export"
+              role="group"
+              aria-label={t("export.group")}
+            >
+              <span className="song-actions-label">{t("export.group")}</span>
+              <button
+                type="button"
+                className="btn"
+                disabled={!project.activeGenerationId || busy}
+                onClick={() => void onExport("wav")}
+              >
+                {t("export.wav")}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={!project.activeGenerationId || busy}
+                onClick={() => void onExport("flac")}
+              >
+                {t("export.flac")}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={!project.activeGenerationId || busy}
+                onClick={() => void onExport("mp3")}
+              >
+                {t("export.mp3")}
+              </button>
+            </div>
+          )}
         </div>
         {advancedSettingsPage === null && <p className="hint">{t("stopAfter.gated")}</p>}
       </aside>
@@ -861,7 +872,7 @@ export function SongScreen() {
             <ClipTimeline mix={mix} onChange={scheduleMixUpdate} />
           </div>
         ) : (
-          <p className="hint">Stéréo — lancez la séparation pour les quatre pistes.</p>
+          <p className="hint">{t("mix.needSeparation")}</p>
         )}
 
         {mix && (
