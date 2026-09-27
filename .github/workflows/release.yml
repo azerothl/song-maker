@@ -26,6 +26,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag_name || github.ref_name }}
         run: |
           gh release create "$RELEASE_TAG" \
+            --repo azerothl/song-maker \
             --draft \
             --title "Song Maker $RELEASE_TAG" \
             --notes "Install the desktop app for Windows, macOS, or Linux using the matching asset below.
