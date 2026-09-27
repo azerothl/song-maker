@@ -4,12 +4,12 @@ use crate::form::{
 };
 use crate::hashutil::{normalize_seed, random_seed, sha256_file};
 use crate::library::{
-    default_settings, delete_library_row, list_library, load_project, load_settings, project_folder,
-    save_project, save_settings, upsert_library_row,
+    default_settings, delete_library_row, library_row_from_project, list_library, load_project,
+    load_settings, project_folder, save_project, save_settings, upsert_library_row,
 };
 use crate::mix::{
     export_flac, export_mp3, new_mix_from_separation, render_mix, wav_duration_ms,
-    write_export_json_ex, write_interleaved_f32_wav,
+    write_export_json_with_warnings, write_interleaved_f32_wav,
 };
 use crate::models::*;
 use crate::paths::{
@@ -330,17 +330,7 @@ pub fn save_project_form(id: String, form: FormInput) -> Result<ProjectDoc, Stri
     doc.prefer_full_lyrics = form.prefer_full_lyrics;
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
-    upsert_library_row(&LibraryRow {
-        id: doc.id.clone(),
-        title: doc.title.clone(),
-        folder_path: folder.display().to_string(),
-        created_at: doc.created_at.clone(),
-        updated_at: doc.updated_at.clone(),
-        duration_ms: None,
-        status: "empty".into(),
-        cot: doc.cot.clone(),
-        active_generation_id: doc.active_generation_id.clone(),
-    })?;
+    upsert_library_row(&library_row_from_project(&folder, &doc))?;
     Ok(doc)
 }
 
@@ -352,18 +342,7 @@ pub fn rename_project(id: String, title: String) -> Result<ProjectDoc, String> {
     doc.title = title.trim().to_string();
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
-    let _ = list_library(None);
-    upsert_library_row(&LibraryRow {
-        id: doc.id.clone(),
-        title: doc.title.clone(),
-        folder_path: folder.display().to_string(),
-        created_at: doc.created_at.clone(),
-        updated_at: doc.updated_at.clone(),
-        duration_ms: None,
-        status: "ready".into(),
-        cot: doc.cot.clone(),
-        active_generation_id: doc.active_generation_id.clone(),
-    })?;
+    upsert_library_row(&library_row_from_project(&folder, &doc))?;
     Ok(doc)
 }
 
@@ -379,17 +358,7 @@ pub fn duplicate_project(id: String) -> Result<ProjectDoc, String> {
     new_doc.created_at = now_iso();
     new_doc.updated_at = new_doc.created_at.clone();
     save_project(&dst, &new_doc)?;
-    upsert_library_row(&LibraryRow {
-        id: new_id,
-        title: new_doc.title.clone(),
-        folder_path: dst.display().to_string(),
-        created_at: new_doc.created_at.clone(),
-        updated_at: new_doc.updated_at.clone(),
-        duration_ms: None,
-        status: "ready".into(),
-        cot: new_doc.cot.clone(),
-        active_generation_id: new_doc.active_generation_id.clone(),
-    })?;
+    upsert_library_row(&library_row_from_project(&dst, &new_doc))?;
     Ok(new_doc)
 }
 
@@ -783,17 +752,11 @@ pub async fn start_generation(
     doc.active_mix_id = None;
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
-    upsert_library_row(&LibraryRow {
-        id: doc.id.clone(),
-        title: doc.title.clone(),
-        folder_path: folder.display().to_string(),
-        created_at: doc.created_at.clone(),
-        updated_at: doc.updated_at.clone(),
-        duration_ms: Some(duration),
-        status: "ready".into(),
-        cot: doc.cot.clone(),
-        active_generation_id: doc.active_generation_id.clone(),
-    })?;
+    let mut row = library_row_from_project(&folder, &doc);
+    if duration > 0 {
+        row.duration_ms = Some(duration);
+    }
+    upsert_library_row(&row)?;
     Ok(doc)
 }
 
@@ -1054,6 +1017,7 @@ pub async fn start_separation(
     doc.active_mix_id = Some(mix_id);
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
+    upsert_library_row(&library_row_from_project(&folder, &doc))?;
     state.queue.set_state("completed", "Terminé", Some(id));
     state.queue.clear_current();
     Ok(mix)
@@ -1069,6 +1033,42 @@ pub fn load_mix(id: String) -> Result<Option<MixDoc>, String> {
     let path = folder.join("mixes").join(format!("{mix_id}.json"));
     let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
     Ok(Some(serde_json::from_str(&text).map_err(|e| e.to_string())?))
+}
+
+#[tauri::command]
+pub fn load_separation_info(id: String) -> Result<Option<SeparationInfo>, String> {
+    let folder = project_folder(&id);
+    let doc = load_project(&folder)?;
+    Ok(read_separation_info(&folder, &doc))
+}
+
+fn read_separation_info(folder: &Path, doc: &ProjectDoc) -> Option<SeparationInfo> {
+    let sep_id = doc.active_separation_id.as_deref()?;
+    let path = folder
+        .join("separations")
+        .join(sep_id)
+        .join("separation.json");
+    let text = std::fs::read_to_string(path).ok()?;
+    let value: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let warnings = value
+        .get("warnings")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let family = value
+        .get("family")
+        .and_then(|v| v.as_str())
+        .unwrap_or("htdemucs")
+        .to_string();
+    Some(SeparationInfo {
+        id: sep_id.to_string(),
+        family,
+        warnings,
+    })
 }
 
 #[tauri::command]
@@ -1294,13 +1294,17 @@ pub fn export_audio(id: String, req: ExportRequest) -> Result<String, String> {
     if let Some(dest) = req.destination {
         std::fs::copy(&final_path, &dest).map_err(|e| e.to_string())?;
     }
-    write_export_json_ex(
+    let warnings = read_separation_info(&folder, &doc)
+        .map(|info| info.warnings)
+        .unwrap_or_default();
+    write_export_json_with_warnings(
         &exports.join(format!("export-{stamp}.json")),
         &format,
         &final_path,
         peak_trim,
         Some("rust-10.5"),
         Some("approximate"),
+        &warnings,
     )?;
     Ok(final_path.display().to_string())
 }
@@ -1309,7 +1313,7 @@ pub fn export_audio(id: String, req: ExportRequest) -> Result<String, String> {
 #[tauri::command]
 pub fn export_pcm_audio(id: String, req: ExportPcmRequest) -> Result<String, String> {
     let folder = project_folder(&id);
-    let _doc = load_project(&folder)?;
+    let doc = load_project(&folder)?;
     let exports = folder.join("exports");
     ensure_dir(&exports).map_err(|e| e.to_string())?;
     let stamp = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
@@ -1350,13 +1354,17 @@ pub fn export_pcm_audio(id: String, req: ExportPcmRequest) -> Result<String, Str
     } else {
         &req.match_mode
     };
-    write_export_json_ex(
+    let warnings = read_separation_info(&folder, &doc)
+        .map(|info| info.warnings)
+        .unwrap_or_default();
+    write_export_json_with_warnings(
         &exports.join(format!("export-{stamp}.json")),
         &format,
         &final_path,
         req.peak_trim_db,
         Some(render_path),
         Some(match_mode),
+        &warnings,
     )?;
     Ok(final_path.display().to_string())
 }
@@ -1578,6 +1586,7 @@ pub fn use_generation(id: String, gen_id: String) -> Result<ProjectDoc, String> 
     doc.active_mix_id = None;
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
+    upsert_library_row(&library_row_from_project(&folder, &doc))?;
     Ok(doc)
 }
 

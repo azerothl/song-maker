@@ -128,7 +128,6 @@ Cette section, le §22 et le §23 disent la même coupe. Le premier build est le
 |---|---|---|
 | Import MIDI, piano roll, édition de notes, sections, accords, export ABC utilisateur | 2 | Le validateur n’a pas à bloquer le premier morceau. Le contrat ABC est au §7. |
 | Fondus, déplacement, découpe, trim, duplication de clips | 2 | Le type `Clip` existe (§10). Le premier build n’a qu’un clip par piste, calé à 0, longueur du fichier. |
-| MP3 | 2 | Le guide YuE dit que le MP3 est une conversion de livraison, pas la sortie native. |
 | Plusieurs candidats et comparateur | 2 | Un appel = un candidat. |
 | Graphe de versions, branches, merge | 2 | Le §12.2 le dessine. Le premier build n’a qu’une liste. |
 | Invariants du §11.3 | 4 | Conservation demandée avant une régénération. |
@@ -179,7 +178,7 @@ flowchart LR
 5. Il écoute le stéréo. S’il existe un `score.abc`, il peut déplier le texte. Il ne l’édite pas.
 6. Il lance la séparation.
 7. Quatre pistes apparaissent. Il ajuste gain, panoramique, mute, solo, gain master.
-8. Il exporte un WAV ou un FLAC. Pas de MP3.
+8. Il exporte un WAV PCM 24 bits, un FLAC 24 bits, ou un MP3 de livraison (conversion depuis le WAV, 320 kbit/s).
 
 **Plus tard — phase 2.** Le parcours symbolique reprend ici : import MIDI ou piano roll, validation ABC, envoi de `abc_file`, comparaison de candidats, graphe de versions. Il n’est pas un détour obligatoire du premier morceau.
 
@@ -785,7 +784,7 @@ CREATE TABLE project (
 );
 ```
 
-`duration_ms` est la durée mesurée du WAV du mix actif, ou du WAV de génération s’il n’y a pas de mix, ou `NULL`. `status` ∈ `empty|queued|running|ready|failed|cancelled`.
+`duration_ms` est la durée mesurée du WAV du mix actif, ou du WAV de génération s’il n’y a pas de mix, ou `NULL`. `status` ∈ `empty|generated|stems_ready|queued|running|ready|failed|cancelled`. La bibliothèque dérive `generated` / `stems_ready` / `empty` des artefacts actifs du projet.
 
 ### 13.4 `request.json` et `result.json`
 
@@ -1248,6 +1247,7 @@ La sauvegarde automatique d’une partition est la phase 2. Il n’y a pas de pa
 - quatre noms de stems, comparaison insensible à la casse ; un cinquième nom échoue et s’affiche ;
 - `other` n’est pas renommé ;
 - mute, solo (y compris mute qui gagne sur son solo), gain, panoramique, plafond −1,0 dBFS sans remonter un mix faible ;
+- export WAV PCM 24 bits, FLAC 24 bits, et MP3 de livraison (conversion depuis le WAV, 320 kbit/s) ;
 - une nouvelle génération crée `gen-NNN` ; l’undo ne le crée pas ;
 - annulation dans la file : l’appel ne part pas ; annulation après départ : artefacts gardés, non importés ;
 - écran des licences sans badge de monétisation ;
@@ -1266,7 +1266,6 @@ La sauvegarde automatique d’une partition est la phase 2. Il n’y a pas de pa
 
 - fondus, déplacement, découpe, trim, duplication ;
 - plusieurs candidats, séquentiels, sans gagnant automatique ;
-- export MP3 comme conversion de livraison, à partir du WAV ;
 - branche et merge du graphe, pas comme effet de bord de l’undo.
 
 ### 21.4 Plus tard
@@ -1287,7 +1286,7 @@ Le premier build est accepté lorsque :
 6. une nouvelle génération crée un nouveau dossier ; l’undo n’en crée pas ;
 7. le morceau peut être séparé en quatre stems nommés, après rééchantillonnage, et `other` n’est pas affiché comme Synths ;
 8. les stems arrivent dans le mix, un clip chacun, calés à 0 ;
-9. l’utilisateur lit, règle gain, panoramique, mute, solo et gain master, et exporte un WAV PCM 24 bits et un FLAC 24 bits, 48 kHz stéréo, sans MP3 ;
+9. l’utilisateur lit, règle gain, panoramique, mute, solo et gain master, et exporte un WAV PCM 24 bits, un FLAC 24 bits et un MP3 de livraison (conversion depuis le WAV, 320 kbit/s), 48 kHz stéréo ;
 10. un redémarrage ne détruit ni les dossiers ni l’état de job déjà écrit ;
 11. les erreurs de GPU, de mémoire, de hash, de licence et de fichier disent ce que le §16.3 demande ;
 12. l’application indique que les stems sont une séparation estimée ;
@@ -1303,7 +1302,7 @@ Ces trois critères ne sont pas ceux du premier build :
 2. modifier une note, le tempo de la partition et une section ;
 3. exporter un ABC validé selon le §7 et en montrer l’aperçu avant génération.
 
-S’y ajoutent, pour la même phase : fondus et édition de clips, MP3, plusieurs candidats, graphe de versions.
+S’y ajoutent, pour la même phase : fondus et édition de clips, plusieurs candidats, graphe de versions.
 
 ## 23. Roadmap
 
@@ -1330,7 +1329,7 @@ Le §4.1, rien de plus :
 - formulaire ;
 - un appel YuE2, seed écrit, pack confirmé ;
 - séparation quatre stems ;
-- mix et export WAV / FLAC ;
+- mix et export WAV / FLAC / MP3 de livraison ;
 - dossiers de versions, undo en mémoire.
 
 Pas d’import MIDI. Pas de piano roll.
@@ -1341,7 +1340,6 @@ Pas d’import MIDI. Pas de piano roll.
 - export ABC utilisateur selon le §7, validé avant génération ;
 - les trois critères du §22.2 ;
 - fondus, déplacement, découpe, trim, duplication de clips ;
-- MP3 ;
 - plusieurs candidats et comparateur ;
 - graphe, branches, merge ;
 - dossier `scores/` ;

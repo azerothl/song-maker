@@ -50,6 +50,7 @@ pub fn run() {
             commands::start_generation,
             commands::start_separation,
             commands::load_mix,
+            commands::load_separation_info,
             commands::update_mix,
             commands::save_mix_version,
             commands::render_preview,

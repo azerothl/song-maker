@@ -108,6 +108,12 @@ export type PlaybackSources = {
   label: string;
 };
 
+export type SeparationInfo = {
+  id: string;
+  family: string;
+  warnings: string[];
+};
+
 export type AppSettings = {
   projectsDir: string;
   cacheDir: string;

@@ -18,6 +18,8 @@ export type PlaybackView = {
   mode: PlaybackSnapshot["mode"];
   peaksByTrack: Record<string, Float32Array>;
   seek: (seconds: number) => void;
+  loading: boolean;
+  ready: boolean;
 };
 
 type Props = {
@@ -75,17 +77,15 @@ export function AudioPlayer({
       for (const tp of next.peaks) {
         peaksByTrack[tp.trackId] = tp.peaks;
       }
-      onPlaybackChangeRef.current?.(
-        next.ready
-          ? {
-              current: next.current,
-              duration: next.duration,
-              mode: next.mode,
-              peaksByTrack,
-              seek: (seconds: number) => engine.seek(seconds),
-            }
-          : null,
-      );
+      onPlaybackChangeRef.current?.({
+        current: next.current,
+        duration: next.duration,
+        mode: next.mode,
+        peaksByTrack,
+        seek: (seconds: number) => engine.seek(seconds),
+        loading: next.loading,
+        ready: next.ready,
+      });
     });
   }, [engine]);
 
@@ -137,8 +137,14 @@ export function AudioPlayer({
     return () => window.removeEventListener("keydown", onKey);
   }, [engine, onError]);
 
-  const showMixWave = snap.mode === "stems" && snap.mixPeaks;
-  const showStereoWave = snap.mode === "generation" && snap.mixPeaks;
+  const showMixWave = snap.mode === "stems";
+  const showStereoWave = snap.mode === "generation";
+  const mainWaveStatus =
+    snap.loading || !snap.ready
+      ? "loading"
+      : snap.mixPeaks && snap.mixPeaks.length > 0
+        ? "ready"
+        : "empty";
 
   return (
     <div className="player-block">
@@ -153,6 +159,7 @@ export function AudioPlayer({
               ? t("player.mixWave")
               : t("player.stereoWave")
           }
+          status={mainWaveStatus}
           onSeek={(s) => engine.seek(s)}
         />
       )}

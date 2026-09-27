@@ -1,3 +1,4 @@
+use crate::mix::wav_duration_ms;
 use crate::models::{AppSettings, LibraryRow, ProjectDoc};
 use crate::paths::{
     atomic_write_json, ensure_dir, library_db_path, pinned_archive_name, projects_root,
@@ -6,6 +7,98 @@ use crate::paths::{
 use crate::pins::*;
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
+
+/// Derive library duration and status from on-disk project artifacts.
+/// Status: `empty` | `generated` | `stems_ready`.
+pub fn library_snapshot(folder: &Path, doc: &ProjectDoc) -> (Option<i64>, String) {
+    if let Some(sep_id) = doc.active_separation_id.as_deref() {
+        let sep_json = folder
+            .join("separations")
+            .join(sep_id)
+            .join("separation.json");
+        if sep_json.is_file() {
+            let duration = duration_from_active_audio(folder, doc);
+            return (duration, "stems_ready".into());
+        }
+    }
+    if let Some(gen_id) = doc.active_generation_id.as_deref() {
+        let wav = folder.join("generations").join(gen_id).join("audio.wav");
+        if wav.is_file() {
+            let duration = wav_duration_ms(&wav).ok().filter(|&d| d > 0);
+            return (duration, "generated".into());
+        }
+    }
+    (None, "empty".into())
+}
+
+fn duration_from_active_audio(folder: &Path, doc: &ProjectDoc) -> Option<i64> {
+    if let Some(mix_id) = doc.active_mix_id.as_deref() {
+        if let Ok(text) = std::fs::read_to_string(folder.join("mixes").join(format!("{mix_id}.json")))
+        {
+            if let Ok(mix) = serde_json::from_str::<crate::models::MixDoc>(&text) {
+                let mut max_ms = 0i64;
+                for track in &mix.tracks {
+                    for clip in &track.clips {
+                        let end = clip.start_ms.saturating_add(clip.duration_ms);
+                        if end > max_ms {
+                            max_ms = end;
+                        }
+                    }
+                }
+                if max_ms > 0 {
+                    return Some(max_ms);
+                }
+            }
+        }
+    }
+    if let Some(gen_id) = doc.active_generation_id.as_deref() {
+        let wav = folder.join("generations").join(gen_id).join("audio.wav");
+        if wav.is_file() {
+            return wav_duration_ms(&wav).ok().filter(|&d| d > 0);
+        }
+    }
+    None
+}
+
+pub fn library_row_from_project(folder: &Path, doc: &ProjectDoc) -> LibraryRow {
+    let (duration_ms, status) = library_snapshot(folder, doc);
+    LibraryRow {
+        id: doc.id.clone(),
+        title: doc.title.clone(),
+        folder_path: folder.display().to_string(),
+        created_at: doc.created_at.clone(),
+        updated_at: doc.updated_at.clone(),
+        duration_ms,
+        status,
+        cot: doc.cot.clone(),
+        active_generation_id: doc.active_generation_id.clone(),
+    }
+}
+
+/// Refresh duration/status for every known project from disk (repairs stale rows).
+pub fn reconcile_library_from_disk() -> Result<(), String> {
+    let root = projects_root();
+    if !root.exists() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(&root).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let project_json = entry.path().join("project.json");
+        if !project_json.exists() {
+            continue;
+        }
+        let text = std::fs::read_to_string(&project_json).map_err(|e| e.to_string())?;
+        let doc: ProjectDoc = match serde_json::from_str(&text) {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+        if doc.schema_version != SCHEMA_VERSION {
+            continue;
+        }
+        upsert_library_row(&library_row_from_project(&entry.path(), &doc))?;
+    }
+    Ok(())
+}
 
 pub fn open_library() -> Result<Connection, String> {
     let path = library_db_path();
@@ -68,45 +161,16 @@ pub fn delete_library_row(id: &str) -> Result<(), String> {
 
 pub fn list_library(query: Option<String>) -> Result<Vec<LibraryRow>, String> {
     let conn = open_library()?;
-    let mut stmt = conn
-        .prepare(
-            "SELECT id, title, folder_path, created_at, updated_at, duration_ms, status, cot, active_generation_id
-             FROM project ORDER BY updated_at DESC",
-        )
-        .map_err(|e| e.to_string())?;
-    let rows = stmt
-        .query_map([], |r| {
-            Ok(LibraryRow {
-                id: r.get(0)?,
-                title: r.get(1)?,
-                folder_path: r.get(2)?,
-                created_at: r.get(3)?,
-                updated_at: r.get(4)?,
-                duration_ms: r.get(5)?,
-                status: r.get(6)?,
-                cot: r.get(7)?,
-                active_generation_id: r.get(8)?,
-            })
-        })
-        .map_err(|e| e.to_string())?;
-
-    let mut out = Vec::new();
-    for row in rows {
-        let row = row.map_err(|e| e.to_string())?;
-        if let Some(ref q) = query {
-            if !row.title.to_lowercase().contains(&q.to_lowercase()) {
-                continue;
-            }
-        }
-        out.push(row);
-    }
-
-    if out.is_empty() {
-        // Rebuild from folders if DB empty
+    let count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM project", [], |r| r.get(0))
+        .unwrap_or(0);
+    if count == 0 {
         rebuild_from_disk()?;
-        return list_library_only(query);
+    } else {
+        // Repair stale duration/status (e.g. wiped by older save_project_form).
+        let _ = reconcile_library_from_disk();
     }
-    Ok(out)
+    list_library_only(query)
 }
 
 fn list_library_only(query: Option<String>) -> Result<Vec<LibraryRow>, String> {
@@ -159,18 +223,7 @@ pub fn rebuild_from_disk() -> Result<(), String> {
             if doc.schema_version != SCHEMA_VERSION {
                 continue;
             }
-            let row = LibraryRow {
-                id: doc.id.clone(),
-                title: doc.title.clone(),
-                folder_path: entry.path().display().to_string(),
-                created_at: doc.created_at.clone(),
-                updated_at: doc.updated_at.clone(),
-                duration_ms: None,
-                status: "empty".into(),
-                cot: doc.cot.clone(),
-                active_generation_id: doc.active_generation_id.clone(),
-            };
-            upsert_library_row(&row)?;
+            upsert_library_row(&library_row_from_project(&entry.path(), &doc))?;
         }
     }
     Ok(())

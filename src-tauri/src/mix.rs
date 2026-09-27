@@ -318,6 +318,18 @@ pub fn write_export_json_ex(
     render_path: Option<&str>,
     match_mode: Option<&str>,
 ) -> Result<(), String> {
+    write_export_json_with_warnings(path, format, audio_path, peak_trim_db, render_path, match_mode, &[])
+}
+
+pub fn write_export_json_with_warnings(
+    path: &Path,
+    format: &str,
+    audio_path: &Path,
+    peak_trim_db: f32,
+    render_path: Option<&str>,
+    match_mode: Option<&str>,
+    warnings: &[String],
+) -> Result<(), String> {
     let sha = sha256_file(audio_path)?;
     let bit_depth = if format == "mp3" {
         serde_json::Value::Null
@@ -341,6 +353,9 @@ pub fn write_export_json_ex(
     }
     if let Some(mm) = match_mode {
         doc["matchMode"] = serde_json::json!(mm);
+    }
+    if !warnings.is_empty() {
+        doc["warnings"] = serde_json::json!(warnings);
     }
     atomic_write_json(path, &doc)
 }

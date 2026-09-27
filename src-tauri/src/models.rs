@@ -351,3 +351,12 @@ pub struct PlaybackSources {
     pub stems: Vec<PlaybackStem>,
     pub label: String,
 }
+
+/// Active separation manifest summary for UI warnings (§9.5).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeparationInfo {
+    pub id: String,
+    pub family: String,
+    pub warnings: Vec<String>,
+}

@@ -366,8 +366,9 @@ option {
 
 .song-layout {
   display: grid;
-  grid-template-columns: minmax(280px, 30%) 1fr;
+  grid-template-columns: minmax(240px, 30%) minmax(0, 1fr);
   min-height: 100%;
+  min-width: 0;
 }
 
 .song-form {
@@ -1026,6 +1027,8 @@ details[open] > summary {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .player {
@@ -1101,8 +1104,14 @@ details[open] > summary {
   text-overflow: ellipsis;
 }
 
-.waveform-canvas {
+.waveform-frame {
+  position: relative;
   flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.waveform-canvas {
   width: 100%;
   min-width: 0;
   display: block;
@@ -1111,8 +1120,36 @@ details[open] > summary {
   cursor: pointer;
 }
 
+.waveform-canvas:focus {
+  outline: none;
+}
+
+.waveform-canvas:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
 .waveform.muted .waveform-canvas {
   opacity: 0.55;
+}
+
+.waveform-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.5rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: center;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--bg1) 55%, transparent);
+}
+
+.waveform-loading .waveform-canvas,
+.waveform-empty .waveform-canvas {
+  cursor: default;
 }
 
 .track-wave {
@@ -1123,20 +1160,79 @@ details[open] > summary {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  min-width: 0;
+  container-type: inline-size;
+  container-name: mixer;
 }
 
 .track,
 .master {
   display: grid;
-  grid-template-columns: 7.5rem auto auto minmax(10rem, 1.6fr) minmax(6rem, 0.7fr) minmax(6rem, 0.7fr);
-  gap: 0.5rem;
+  grid-template-columns: minmax(4.5rem, 7rem) auto auto minmax(0, 1fr);
+  gap: 0.45rem 0.5rem;
   align-items: center;
   padding: 0.55rem 0.55rem;
   border-bottom: 1px solid var(--line);
+  min-width: 0;
 }
 
 .track {
   border-left: 3px solid var(--line);
+}
+
+.track-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.track .track-wave {
+  grid-column: 4;
+  min-width: 0;
+}
+
+.track .track-gain,
+.track .track-pan {
+  grid-column: span 2;
+  min-width: 0;
+}
+
+.track-gain,
+.track-pan {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  min-width: 0;
+}
+
+.track-gain input,
+.track-pan input {
+  width: 100%;
+  min-width: 0;
+}
+
+.track-fader-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.mix-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  min-width: 5.5rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.track-gain .mix-value,
+.track-pan .mix-value {
+  min-width: 6.5rem;
 }
 
 .track[data-role="vocals"] {
@@ -1156,7 +1252,33 @@ details[open] > summary {
 }
 
 .master {
-  grid-template-columns: 7.5rem 1fr auto;
+  grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+}
+
+.separation-warn {
+  margin-bottom: 0;
+}
+
+.separation-warn-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+}
+
+.separation-warn-list li + li {
+  margin-top: 0.15rem;
+}
+
+@container mixer (min-width: 44rem) {
+  .track {
+    grid-template-columns: minmax(5rem, 7.5rem) auto auto minmax(0, 1.6fr) minmax(7rem, 0.85fr) minmax(7rem, 0.85fr);
+  }
+
+  .track .track-wave,
+  .track .track-gain,
+  .track .track-pan {
+    grid-column: auto;
+  }
 }
 
 .hint {
@@ -1858,12 +1980,18 @@ details[open] > summary {
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
-  .track,
-  .master {
-    grid-template-columns: 1fr 1fr;
+  .track {
+    grid-template-columns: minmax(4rem, 1fr) auto auto;
   }
   .track .track-wave {
     grid-column: 1 / -1;
+  }
+  .track .track-gain,
+  .track .track-pan {
+    grid-column: span 1;
+  }
+  .master {
+    grid-template-columns: 1fr auto;
   }
 }
 
