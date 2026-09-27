@@ -4,23 +4,25 @@ Phase **4** — vérificateurs d’invariants de conservation de partition ([spe
 
 ## Rôle
 
-Avant une régénération, l’utilisateur choisira un niveau :
+Avant une régénération, l’utilisateur choisit un niveau :
 
-- hauteurs exactes ;
-- hauteurs et rythmes ;
-- contour seulement ;
-- adaptation mélodique limitée ;
-- réharmonisation ;
-- changement de tempo ;
-- changement de structure.
+| Niveau | Vérification |
+|---|---|
+| `exact_pitches` | Hauteurs inchangées |
+| `pitches_and_rhythms` | Hauteurs + rythmes |
+| `contour_only` | Signe des intervalles successifs |
+| `limited_melodic_adaptation` | Δpitch ≤ 2 demi-tons, rythme conservé |
+| `reharmonization` | Mélodie conservée ; accords libres |
+| `tempo_change` | Notes conservées ; tempo libre |
+| `structure_change` | Notes conservées ; sections libres |
 
-Ces invariants se vérifient sur les **événements** (`ScoreEventSnapshot`), jamais par comparaison de texte ABC. Ce n’est ni un critère du premier build, ni de la phase 2.
+Ces invariants se vérifient sur les **événements** (`ScoreEventSnapshot` / `snapshotFromScoreDocument`), jamais par comparaison de texte ABC.
 
-## Branchement après phase 1–2
+## Branchement
 
-1. Phase 2 livre `ScoreDocument` / piano roll / export ABC.
-2. Phase 4 branche `createPartitionInvariantChecker()` avant « régénérer depuis la partition ».
-3. Les niveaux `contour_only` et suivants renvoient `stub_unimplemented` jusqu’aux algorithmes réels.
+1. Avant « Générer » avec partition : capturer le snapshot courant.
+2. Après une édition / candidat : `createPartitionInvariantChecker().check(level, before, after)`.
+3. L’UI affiche les violations ; la génération phase 1 (sans partition) n’est pas concernée.
 
 ## Tests
 

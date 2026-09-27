@@ -5,9 +5,26 @@
 Le premier build est **desktop local uniquement** (Tauri + `audiocpp_server` + dossiers).  
 Akasha, DeclUI, le catalogue de packs et une API musique distincte du TTS sont la **phase 4**.
 
-Le piano roll n’entre pas dans ce contrat d’hôte : il appartient à la phase 2.
+Le piano roll n’entre pas dans ce contrat d’hôte : il appartient à la phase 2.  
+**SheetSage2** n’est pas dans l’installeur et n’est pas branché ici.
 
-## Surfaces prévues
+## Mode hôte (Paramètres)
+
+L’écran Paramètres expose « Mode hôte (Akasha / DeclUI) » :
+
+1. Défaut : **desktop** — génération phase 1 inchangée, 100 % locale.
+2. Opt-in : `getSharedAkashaHostBridge().enableHostMode()` active un **adaptateur local** qui expose `describe()` / `AKASHA_HOST_REGISTRATION` pour découverte.
+3. Aucun processus Akasha distant n’est démarré. Aucun socket. Désactiver revient au desktop.
+
+```ts
+import { getSharedAkashaHostBridge } from "@song-maker/akasha-declui";
+
+const bridge = getSharedAkashaHostBridge();
+const result = await bridge.enableHostMode();
+// result.messageFr → statut UI
+```
+
+## Surfaces DeclUI
 
 | Surface DeclUI | Phase propriétaire |
 |---|---|
@@ -23,12 +40,8 @@ Ce n’est **pas** une API TTS. Même hôte éventuel → surface séparée.
 ## Catalogue de packs
 
 Réutilise `@song-maker/lora-packs` (CC BY-NC, hors installeur premier build).  
-Pas de poids embarqués dans ce paquet.
+Les packs de **style** (ex. chanson française) sont listés dans Paramètres → catalogue phase 4.
 
-## Branchement
+## Suite éventuelle
 
-1. Livrer phases 1–2 en desktop.
-2. Exposer `createAkashaHostBridge().describe()` pour découverte.
-3. Remplacer `register()` stub par le SDK Akasha réel quand l’hôte existe.
-
-Voir aussi le README du paquet et `AKASHA_HOST_REGISTRATION` dans le code.
+Remplacer l’adaptateur local par le SDK Akasha réel quand l’hôte existe, sans changer `MusicApiDescriptor` ni casser le chemin desktop.

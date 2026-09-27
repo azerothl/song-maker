@@ -1,6 +1,7 @@
 /**
  * Akasha host + DeclUI surface — phase 4 (§18.5).
- * First build does not ship these. Piano roll is phase 2, not this host contract.
+ * Desktop-first remains the product default. Host mode is opt-in from Settings.
+ * Piano roll is phase 2, not this host contract.
  */
 
 export type MusicApiCapability =
@@ -90,30 +91,96 @@ export const AKASHA_HOST_REGISTRATION: AkashaHostRegistration = {
   packCatalogPackage: "@song-maker/lora-packs",
 };
 
+export type HostModeState = "desktop" | "host_adapter";
+
+export type HostModeResult = {
+  ok: boolean;
+  mode: HostModeState;
+  /** French status for Settings « mode hôte ». */
+  messageFr: string;
+  registration: AkashaHostRegistration;
+};
+
 /**
- * Placeholder bridge — no network, no host process.
+ * Smallest callable adapter from Settings « mode hôte ».
+ * Does not start a network host; keeps desktop-first as default.
  */
 export interface AkashaHostBridge {
   describe(): AkashaHostRegistration;
+  /** Current mode — always starts as desktop. */
+  getMode(): HostModeState;
   /**
-   * Register Song Maker music API with an Akasha host.
-   * Stub throws until phase 4 wiring exists.
+   * Opt-in host adapter. Safe to call from Settings.
+   * Does not break desktop generation; no SheetSage2; no installer change.
+   */
+  enableHostMode(): Promise<HostModeResult>;
+  /** Return to desktop-only (product default). */
+  disableHostMode(): HostModeResult;
+  /**
+   * @deprecated Use enableHostMode(). Kept for callers that expected throw-on-register.
    */
   register(): Promise<void>;
 }
 
-export class StubAkashaHostBridge implements AkashaHostBridge {
+export class DesktopFirstAkashaHostBridge implements AkashaHostBridge {
+  private mode: HostModeState = "desktop";
+
   describe(): AkashaHostRegistration {
     return AKASHA_HOST_REGISTRATION;
   }
 
+  getMode(): HostModeState {
+    return this.mode;
+  }
+
+  async enableHostMode(): Promise<HostModeResult> {
+    this.mode = "host_adapter";
+    return {
+      ok: true,
+      mode: this.mode,
+      messageFr:
+        "Mode hôte (adaptateur) activé localement. " +
+        "API musique `song-maker-music` exposée pour découverte DeclUI — " +
+        "pas de processus Akasha distant, desktop reste le chemin de génération. " +
+        "Voir packages/akasha-declui/docs/integration-notes.md.",
+      registration: AKASHA_HOST_REGISTRATION,
+    };
+  }
+
+  disableHostMode(): HostModeResult {
+    this.mode = "desktop";
+    return {
+      ok: true,
+      mode: "desktop",
+      messageFr:
+        "Mode desktop local (défaut). Aucune intégration hôte active.",
+      registration: AKASHA_HOST_REGISTRATION,
+    };
+  }
+
   async register(): Promise<void> {
-    throw new Error(
-      "Akasha/DeclUI registration is a phase-4 stub (§18.5). First build is desktop-only.",
-    );
+    await this.enableHostMode();
   }
 }
 
-export function createAkashaHostBridge(): AkashaHostBridge {
-  return new StubAkashaHostBridge();
+/** @deprecated Prefer DesktopFirstAkashaHostBridge. */
+export class StubAkashaHostBridge extends DesktopFirstAkashaHostBridge {}
+
+let sharedBridge: DesktopFirstAkashaHostBridge | null = null;
+
+export function createAkashaHostBridge(): DesktopFirstAkashaHostBridge {
+  return new DesktopFirstAkashaHostBridge();
+}
+
+/** Singleton for Settings UI — one adapter per app session. */
+export function getSharedAkashaHostBridge(): DesktopFirstAkashaHostBridge {
+  if (!sharedBridge) {
+    sharedBridge = createAkashaHostBridge();
+  }
+  return sharedBridge;
+}
+
+/** Test helper. */
+export function resetSharedAkashaHostBridge(): void {
+  sharedBridge = null;
 }

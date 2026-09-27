@@ -7,7 +7,9 @@ import {
   vocalToInsAbc,
 } from "../lib/score";
 import { api } from "../lib/api";
+import { InvariantPanel } from "./InvariantPanel";
 import { PianoRoll } from "./PianoRoll";
+import { ScoreAssistantPanel } from "./ScoreAssistantPanel";
 import { t } from "../ui/i18n";
 
 type Props = {
@@ -18,6 +20,7 @@ type Props = {
   onDocumentChange: (doc: ScoreDocument | null) => void;
   onProjectRefresh: () => Promise<void>;
   onError: (msg: string | null) => void;
+  onCotChange?: (cot: string) => void;
 };
 
 export function ScorePanel({
@@ -28,6 +31,7 @@ export function ScorePanel({
   onDocumentChange,
   onProjectRefresh,
   onError,
+  onCotChange,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [issues, setIssues] = useState<ScoreIssue[]>([]);
@@ -285,6 +289,23 @@ export function ScorePanel({
           ))}
         </ul>
       )}
+
+      <ScoreAssistantPanel
+        document={document}
+        issues={[
+          ...(validation && !validation.ok ? validation.issues : []),
+          ...issues,
+        ]}
+        onApplyDocument={(doc, messageFr) => {
+          onDocumentChange(doc);
+          setAbcPreview(null);
+          setStatus(messageFr);
+          setIssues([]);
+        }}
+        onRequestCotFull={() => onCotChange?.("full")}
+      />
+
+      <InvariantPanel document={document} />
 
       {abcPreview && (
         <details open>
