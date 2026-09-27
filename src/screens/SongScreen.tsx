@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
 import { ScorePanel } from "../components/ScorePanel";
+import { Waveform } from "../components/Waveform";
 import { api } from "../lib/api";
 import { prepareAbcForGeneration } from "../lib/score";
 import type { FormInput, MixDoc, MixTrack } from "../lib/types";
@@ -19,22 +21,6 @@ function validateForm(form: FormInput): string | null {
   if (!form.style.trim()) return "Style obligatoire.";
   const lyrics = form.lyrics.trim();
   if (!lyrics || lyrics.length > 4000) return "Paroles obligatoires (1–4000).";
-  for (const line of form.lyrics.split("\n")) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-      const allowed = [
-        "[Intro]",
-        "[Verse]",
-        "[Verse 2]",
-        "[Pre-Chorus]",
-        "[Chorus]",
-        "[Bridge]",
-        "[Outro]",
-        "[Instrumental]",
-      ];
-      if (!allowed.includes(trimmed)) return `Balise refusée : ${trimmed}`;
-    }
-  }
   return null;
 }
 
@@ -50,14 +36,14 @@ export function SongScreen() {
   const setScoreDocument = useAppStore((s) => s.setScoreDocument);
   const scoreOpen = useAppStore((s) => s.scoreOpen);
   const setScoreOpen = useAppStore((s) => s.setScoreOpen);
-  const audioPath = useAppStore((s) => s.audioPath);
+  const playbackSources = useAppStore((s) => s.playbackSources);
   const setError = useAppStore((s) => s.setError);
   const openProject = useAppStore((s) => s.openProject);
   const job = useAppStore((s) => s.job);
 
   const [busy, setBusy] = useState(false);
-  const [playing, setPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [showFormErrors, setShowFormErrors] = useState(false);
+  const [playback, setPlayback] = useState<PlaybackView | null>(null);
   const saveTimer = useRef<number | null>(null);
   const mixTimer = useRef<number | null>(null);
 
@@ -67,6 +53,10 @@ export function SongScreen() {
     [scoreDocument, form.cot, form.title],
   );
   const canGenerate = !formError && !busy && !scoreGate.error;
+
+  useEffect(() => {
+    setShowFormErrors(false);
+  }, [project?.id]);
 
   useEffect(() => {
     if (!project) return;
@@ -83,16 +73,16 @@ export function SongScreen() {
     const onKey = (e: KeyboardEvent) => {
       if (!project) return;
       const mod = e.ctrlKey || e.metaKey;
-      if (e.code === "Space" && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
-        e.preventDefault();
-        togglePlay();
-      }
       if (mod && e.key === "s") {
         e.preventDefault();
-        void api.saveProjectForm(project.id, form);
+        void api.saveProjectForm(project.id, form).catch((err) => setError(String(err)));
       }
-      if (mod && e.key === "Enter" && canGenerate) {
+      if (mod && e.key === "Enter") {
         e.preventDefault();
+        if (!canGenerate) {
+          setShowFormErrors(true);
+          return;
+        }
         void onGenerate();
       }
       if (mod && e.key === "z" && !e.shiftKey) {
@@ -110,20 +100,12 @@ export function SongScreen() {
 
   if (!project) return null;
 
-  function togglePlay() {
-    const el = audioRef.current;
-    if (!el) return;
-    if (el.paused) {
-      void el.play();
-      setPlaying(true);
-    } else {
-      el.pause();
-      setPlaying(false);
-    }
-  }
-
   async function onGenerate() {
-    if (!project || formError || scoreGate.error) return;
+    if (!project) return;
+    if (formError || scoreGate.error) {
+      setShowFormErrors(true);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -200,6 +182,7 @@ export function SongScreen() {
             rows={10}
           />
           <span className="counter">{form.lyrics.length}/4000</span>
+          <span className="hint">{t("form.lyrics.tags")}</span>
         </label>
         <label>
           {t("form.cot")}
@@ -314,7 +297,9 @@ export function SongScreen() {
             }}
           />
         </label>
-        {formError && <p className="hint error">{formError}</p>}
+        {showFormErrors && formError && (
+          <p className="hint error">{formError}</p>
+        )}
         {scoreGate.error && <p className="hint error">{scoreGate.error}</p>}
         {scoreDocument && !scoreGate.error && (
           <p className="hint ok">{t("score.willSendAbc")}</p>
@@ -382,19 +367,13 @@ export function SongScreen() {
           onError={setError}
         />
 
-        <div className="player">
-          <button type="button" className="btn" onClick={togglePlay}>
-            {playing ? t("player.pause") : t("player.play")}
-          </button>
-          {audioPath && (
-            <audio
-              ref={audioRef}
-              src={`asset://localhost/${encodeURIComponent(audioPath)}`}
-              onEnded={() => setPlaying(false)}
-            />
-          )}
-          <span className="path">{audioPath ?? t("library.dash")}</span>
-        </div>
+        <AudioPlayer
+          projectId={project.id}
+          sources={playbackSources}
+          mix={mix}
+          onError={setError}
+          onPlaybackChange={setPlayback}
+        />
 
         {mix ? (
           <div className="mixer">
@@ -415,79 +394,94 @@ export function SongScreen() {
               />
               <span>{mix.masterGainDb.toFixed(1)} dB</span>
             </label>
-            {mix.tracks.map((tr) => (
-              <div key={tr.id} className="track">
-                <strong>{tr.name}</strong>
-                <button
-                  type="button"
-                  className={tr.mute ? "btn active" : "btn"}
-                  onClick={() =>
-                    scheduleMixUpdate({
-                      ...mix,
-                      tracks: mix.tracks.map((x) =>
-                        x.id === tr.id ? { ...x, mute: !x.mute } : x,
-                      ),
-                    })
-                  }
-                >
-                  {t("mix.mute")}
-                </button>
-                <button
-                  type="button"
-                  className={tr.solo ? "btn active" : "btn"}
-                  onClick={() =>
-                    scheduleMixUpdate({
-                      ...mix,
-                      tracks: mix.tracks.map((x) =>
-                        x.id === tr.id ? { ...x, solo: !x.solo } : x,
-                      ),
-                    })
-                  }
-                >
-                  {t("mix.solo")}
-                </button>
-                <label>
-                  {t("mix.gain")}
-                  <input
-                    type="range"
-                    min={-24}
-                    max={12}
-                    step={0.5}
-                    value={tr.gainDb}
-                    onChange={(e) =>
+            {mix.tracks.map((tr) => {
+              const anySolo = mix.tracks.some((x) => x.solo);
+              const muted = tr.mute || (anySolo && !tr.solo);
+              const peaks = playback?.peaksByTrack[tr.id] ?? null;
+              return (
+                <div key={tr.id} className="track">
+                  <strong>{tr.name}</strong>
+                  <button
+                    type="button"
+                    className={tr.mute ? "btn active" : "btn"}
+                    onClick={() =>
                       scheduleMixUpdate({
                         ...mix,
                         tracks: mix.tracks.map((x) =>
-                          x.id === tr.id
-                            ? { ...x, gainDb: Number(e.target.value) }
-                            : x,
+                          x.id === tr.id ? { ...x, mute: !x.mute } : x,
                         ),
                       })
                     }
-                  />
-                </label>
-                <label>
-                  {t("mix.pan")}
-                  <input
-                    type="range"
-                    min={-1}
-                    max={1}
-                    step={0.01}
-                    value={tr.pan}
-                    onChange={(e) =>
+                  >
+                    {t("mix.mute")}
+                  </button>
+                  <button
+                    type="button"
+                    className={tr.solo ? "btn active" : "btn"}
+                    onClick={() =>
                       scheduleMixUpdate({
                         ...mix,
                         tracks: mix.tracks.map((x) =>
-                          x.id === tr.id
-                            ? { ...x, pan: Number(e.target.value) }
-                            : x,
+                          x.id === tr.id ? { ...x, solo: !x.solo } : x,
                         ),
                       })
                     }
-                  />
-                </label>
-              </div>
-            ))}
+                  >
+                    {t("mix.solo")}
+                  </button>
+                  <div className="track-wave">
+                    <Waveform
+                      peaks={peaks}
+                      progress={playback?.current ?? 0}
+                      duration={playback?.duration ?? 0}
+                      height={40}
+                      muted={muted}
+                      onSeek={playback?.seek}
+                    />
+                  </div>
+                  <label>
+                    {t("mix.gain")}
+                    <input
+                      type="range"
+                      min={-24}
+                      max={12}
+                      step={0.5}
+                      value={tr.gainDb}
+                      onChange={(e) =>
+                        scheduleMixUpdate({
+                          ...mix,
+                          tracks: mix.tracks.map((x) =>
+                            x.id === tr.id
+                              ? { ...x, gainDb: Number(e.target.value) }
+                              : x,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    {t("mix.pan")}
+                    <input
+                      type="range"
+                      min={-1}
+                      max={1}
+                      step={0.01}
+                      value={tr.pan}
+                      onChange={(e) =>
+                        scheduleMixUpdate({
+                          ...mix,
+                          tracks: mix.tracks.map((x) =>
+                            x.id === tr.id
+                              ? { ...x, pan: Number(e.target.value) }
+                              : x,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+              );
+            })}
             <button
               type="button"
               className="btn"
@@ -516,24 +510,33 @@ export function SongScreen() {
         <div className="generations">
           <h2>{t("generations.title")}</h2>
           <ul>
-            {generations.map((g) => (
-              <li key={g.id}>
-                <span>
-                  {g.id} · seed {g.seed} · {g.cot} · {g.state}
-                </span>
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={() => {
-                    if (window.confirm(t("generations.useHint"))) {
-                      void api.useGeneration(project.id, g.id).then(() => openProject(project.id));
-                    }
-                  }}
-                >
-                  {t("generations.use")}
-                </button>
-              </li>
-            ))}
+            {generations.map((g) => {
+              const active = g.id === project.activeGenerationId;
+              return (
+                <li key={g.id} className={active ? "active" : undefined}>
+                  <span>
+                    {g.id} · seed {g.seed} · {g.cot} · {g.state}
+                    {active && (
+                      <em className="gen-active"> · {t("generations.playing")}</em>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    disabled={active}
+                    onClick={() => {
+                      if (window.confirm(t("generations.useHint"))) {
+                        void api
+                          .useGeneration(project.id, g.id)
+                          .then(() => openProject(project.id));
+                      }
+                    }}
+                  >
+                    {active ? t("generations.playing") : t("generations.use")}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </section>

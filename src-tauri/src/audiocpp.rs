@@ -239,6 +239,57 @@ impl AudioCppServer {
             .map_err(|e| format!("Décodage WAV base64: {e}"))
     }
 
+    /// Stems HTDemucs : `named_audio_outputs[].{id,audio}` (WAV PCM16 base64).
+    pub fn write_named_audio_outputs(response: &Value, out_dir: &Path) -> Result<usize, String> {
+        use base64::Engine;
+        let arr = response
+            .get("named_audio_outputs")
+            .and_then(|a| a.as_array())
+            .ok_or_else(|| {
+                "Réponse HTDemucs sans named_audio_outputs (stems absents).".to_string()
+            })?;
+        if arr.is_empty() {
+            return Err("Réponse HTDemucs : named_audio_outputs vide.".into());
+        }
+        crate::paths::ensure_dir(out_dir).map_err(|e| e.to_string())?;
+        let mut written = 0usize;
+        for item in arr {
+            let id = item
+                .get("id")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| "Stem sans id dans named_audio_outputs.".to_string())?;
+            let b64 = item
+                .get("audio")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| format!("Stem « {id} » sans audio base64."))?;
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(b64)
+                .map_err(|e| format!("Décodage stem « {id} »: {e}"))?;
+            if bytes.len() < 12 || &bytes[0..4] != b"RIFF" || &bytes[8..12] != b"WAVE" {
+                return Err(format!(
+                    "Stem « {id} » : octets reçus sans en-tête WAV RIFF/WAVE (bruit possible)."
+                ));
+            }
+            // Noms stables pour find_stem_file (vocals/drums/bass/other).
+            let safe: String = id
+                .chars()
+                .map(|c| {
+                    if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                        c
+                    } else {
+                        '_'
+                    }
+                })
+                .collect();
+            let path = out_dir.join(format!("{safe}.wav"));
+            std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+            written += 1;
+        }
+        Ok(written)
+    }
+
     /// Score ABC éventuel dans `artifacts[]` (payload base64, format abc).
     pub fn extract_score_abc(response: &Value) -> Option<String> {
         use base64::Engine;

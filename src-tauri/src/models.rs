@@ -199,3 +199,24 @@ pub struct GenerationSummary {
     pub state: String,
     pub has_score: bool,
 }
+
+/// Chemins absolus pour la lecture Web Audio (prise ou stems float32).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaybackStem {
+    pub role: String,
+    pub name: String,
+    pub track_id: String,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaybackSources {
+    /// `"generation"` | `"stems"`
+    pub mode: String,
+    pub generation_id: Option<String>,
+    pub generation_wav: Option<String>,
+    pub stems: Vec<PlaybackStem>,
+    pub label: String,
+}

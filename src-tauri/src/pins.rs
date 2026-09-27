@@ -53,17 +53,6 @@ pub const HTDEMUCS_BUSY_TIMEOUT_MS: u64 = 600_000;
 pub const NUM_INFERENCE_STEPS: u32 = 8;
 pub const VRAM_Q8_THRESHOLD_MIB: u64 = 12_288;
 
-pub const ALLOWED_LYRIC_TAGS: &[&str] = &[
-    "[Intro]",
-    "[Verse]",
-    "[Verse 2]",
-    "[Pre-Chorus]",
-    "[Chorus]",
-    "[Bridge]",
-    "[Outro]",
-    "[Instrumental]",
-];
-
 pub const TONICS: &[&str] = &[
     "C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B",
 ];

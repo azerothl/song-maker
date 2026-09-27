@@ -20,7 +20,18 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$APPLOCALDATA/song-maker/**",
+          "$LOCALDATA/song-maker/**",
+          "$DOCUMENT/**",
+          "$HOME/Documents/**",
+          "$HOME/OneDrive/Documents/**",
+          "**/Song Maker/**"
+        ]
+      }
     }
   },
   "bundle": {

@@ -7,6 +7,7 @@ import type {
   JobStatus,
   LibraryRow,
   MixDoc,
+  PlaybackSources,
   ProjectDoc,
 } from "./types";
 
@@ -55,6 +56,8 @@ export const api = {
   ) => invoke<MixDoc>("update_mix", { id, update }),
   saveMixVersion: (id: string) => invoke<MixDoc>("save_mix_version", { id }),
   renderPreview: (id: string) => invoke<string>("render_preview", { id }),
+  playbackSources: (id: string) =>
+    invoke<PlaybackSources>("playback_sources", { id }),
   exportAudio: (id: string, format: "wav" | "flac") =>
     invoke<string>("export_audio", {
       id,

@@ -9,6 +9,7 @@ import type {
   JobStatus,
   LibraryRow,
   MixDoc,
+  PlaybackSources,
   ProjectDoc,
   Screen,
 } from "../lib/types";
@@ -29,6 +30,7 @@ type AppStore = {
   scoreOpen: boolean;
   error: string | null;
   audioPath: string | null;
+  playbackSources: PlaybackSources | null;
   refreshHealth: () => Promise<void>;
   refreshSettings: () => Promise<void>;
   refreshJob: () => Promise<void>;
@@ -76,6 +78,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   scoreOpen: false,
   error: null,
   audioPath: null,
+  playbackSources: null,
 
   refreshHealth: async () => {
     try {
@@ -112,10 +115,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
       scoreDocument = null;
     }
     let audioPath: string | null = null;
+    let playbackSources: PlaybackSources | null = null;
     try {
-      audioPath = await api.renderPreview(id);
+      playbackSources = await api.playbackSources(id);
+      audioPath = playbackSources.generationWav ?? null;
     } catch {
-      audioPath = null;
+      try {
+        audioPath = await api.renderPreview(id);
+      } catch {
+        audioPath = null;
+      }
+      playbackSources = null;
     }
     set({
       project,
@@ -124,6 +134,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       scoreAbc,
       scoreDocument,
       audioPath,
+      playbackSources,
       form: {
         title: project.title,
         style: project.style,

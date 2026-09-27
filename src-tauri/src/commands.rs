@@ -1,5 +1,5 @@
 use crate::audiocpp::AudioCppServer;
-use crate::form::{guidance_scale, validate_form, validate_title};
+use crate::form::{guidance_scale, validate_draft_form, validate_form, validate_title};
 use crate::hashutil::{normalize_seed, random_seed, sha256_file};
 use crate::library::{
     default_settings, delete_library_row, load_project, load_settings, project_folder, save_project,
@@ -9,7 +9,9 @@ use crate::mix::{
     export_flac, new_mix_from_separation, render_mix, wav_duration_ms, write_export_json,
 };
 use crate::models::*;
-use crate::paths::{atomic_write_json, ensure_dir, next_folder_id, now_iso, projects_root};
+use crate::paths::{
+    atomic_write_json, default_cache_dir, ensure_dir, next_folder_id, now_iso, projects_root,
+};
 use crate::pins::*;
 use crate::queue::JobQueue;
 use crate::resample::resample_soxr;
@@ -150,7 +152,7 @@ pub fn open_project(id: String) -> Result<ProjectDoc, String> {
 
 #[tauri::command]
 pub fn save_project_form(id: String, form: FormInput) -> Result<ProjectDoc, String> {
-    validate_form(&form).map_err(|e| e.to_string())?;
+    validate_draft_form(&form).map_err(|e| e.to_string())?;
     let folder = project_folder(&id);
     let mut doc = load_project(&folder)?;
     doc.title = form.title.trim().to_string();
@@ -566,15 +568,17 @@ pub async fn start_separation(
                     "Séparation en cours",
                     Some(project_id_for_job),
                 );
+                // Contrat audiocpp_server /v1/tasks/run : champ `request` (comme le CLI),
+                // avec `audio` = chemin WAV 44,1 kHz. Les stems reviennent en
+                // `named_audio_outputs` (base64), pas via out_dir.
                 let body = json!({
                     "model": "htdemucs",
-                    "task": "sep",
-                    "options": {
-                        "audio": input_44100_clone.display().to_string(),
-                        "output_dir": sep_dir_clone.display().to_string()
+                    "request": {
+                        "audio": input_44100_clone.display().to_string()
                     }
                 });
-                AudioCppServer::run_task(&server_url, body).await?;
+                let response = AudioCppServer::run_task(&server_url, body).await?;
+                AudioCppServer::write_named_audio_outputs(&response, &sep_dir_clone)?;
                 Ok(())
             },
         )
@@ -683,9 +687,7 @@ pub fn update_mix(
         }
     }
     atomic_write_json(&path, &mix)?;
-    // Render preview wav for Web Audio playback
-    let preview = folder.join("mixes").join(format!("{mix_id}-preview.wav"));
-    let _ = render_mix(&mix, &folder, &preview);
+    // La lecture live est Web Audio (stems / prise). Le rendu 24 bits reste pour l’export.
     Ok(mix)
 }
 
@@ -713,21 +715,110 @@ pub fn save_mix_version(id: String) -> Result<MixDoc, String> {
 pub fn render_preview(id: String) -> Result<String, String> {
     let folder = project_folder(&id);
     let doc = load_project(&folder)?;
+    // Prévisualisation = fichier source jouable (prise), pas le mix PCM 24 bits
+    // (mal décodé par le WebView). Avec un mix actif, on renvoie quand même la
+    // prise pour le repli ; la lecture principale utilise `playback_sources`.
+    let source = if let Some(gen_id) = &doc.active_generation_id {
+        folder.join("generations").join(gen_id).join("audio.wav")
+    } else {
+        return Err("Aucun audio à lire.".into());
+    };
+
+    if !source.is_file() {
+        return Err(format!("Fichier audio manquant : {}", source.display()));
+    }
+
+    let playback_dir = default_cache_dir().join("preview");
+    ensure_dir(&playback_dir).map_err(|e| e.to_string())?;
+    let playback = playback_dir.join("playback.wav");
+    let need_copy = match (source.metadata(), playback.metadata()) {
+        (Ok(src_meta), Ok(dst_meta)) => {
+            src_meta.len() != dst_meta.len()
+                || src_meta
+                    .modified()
+                    .ok()
+                    .zip(dst_meta.modified().ok())
+                    .map(|(s, d)| s > d)
+                    .unwrap_or(true)
+        }
+        _ => true,
+    };
+    if need_copy {
+        std::fs::copy(&source, &playback)
+            .map_err(|e| format!("Préparation lecture audio: {e}"))?;
+    }
+    Ok(playback.display().to_string())
+}
+
+/// Chemins absolus de la prise active et des stems float32 pour Web Audio.
+#[tauri::command]
+pub fn playback_sources(id: String) -> Result<PlaybackSources, String> {
+    let folder = project_folder(&id);
+    let doc = load_project(&folder)?;
+    let gen_id = doc
+        .active_generation_id
+        .clone()
+        .ok_or_else(|| "Aucun audio à lire.".to_string())?;
+    let gen_wav = folder.join("generations").join(&gen_id).join("audio.wav");
+    if !gen_wav.is_file() {
+        return Err(format!("Fichier audio manquant : {}", gen_wav.display()));
+    }
+
     if let Some(mix_id) = &doc.active_mix_id {
         let path = folder.join("mixes").join(format!("{mix_id}.json"));
         let mix: MixDoc = serde_json::from_str(
             &std::fs::read_to_string(&path).map_err(|e| e.to_string())?,
         )
         .map_err(|e| e.to_string())?;
-        let preview = folder.join("mixes").join(format!("{mix_id}-preview.wav"));
-        render_mix(&mix, &folder, &preview)?;
-        return Ok(preview.display().to_string());
+        let mut stems = Vec::new();
+        for track in &mix.tracks {
+            let Some(clip) = track.clips.first() else {
+                continue;
+            };
+            if clip.source_path.is_empty() {
+                continue;
+            }
+            let abs = if Path::new(&clip.source_path).is_absolute() {
+                PathBuf::from(&clip.source_path)
+            } else {
+                folder.join(&clip.source_path)
+            };
+            if !abs.is_file() {
+                return Err(format!("Stem manquant : {}", abs.display()));
+            }
+            stems.push(PlaybackStem {
+                role: track.role.clone(),
+                name: track.name.clone(),
+                track_id: track.id.clone(),
+                path: abs.display().to_string(),
+            });
+        }
+        if stems.is_empty() {
+            return Err("Mix actif sans stems lisibles.".into());
+        }
+        return Ok(PlaybackSources {
+            mode: "stems".into(),
+            generation_id: Some(gen_id.clone()),
+            generation_wav: Some(gen_wav.display().to_string()),
+            stems,
+            label: format!("{gen_id} · mix des stems"),
+        });
     }
-    if let Some(gen_id) = &doc.active_generation_id {
-        let wav = folder.join("generations").join(gen_id).join("audio.wav");
-        return Ok(wav.display().to_string());
-    }
-    Err("Aucun audio à lire.".into())
+
+    Ok(PlaybackSources {
+        mode: "generation".into(),
+        generation_id: Some(gen_id.clone()),
+        generation_wav: Some(gen_wav.display().to_string()),
+        stems: vec![],
+        label: gen_id,
+    })
+}
+
+/// Lit les octets du WAV de prévisualisation (repli si le protocole asset échoue).
+#[tauri::command]
+pub fn read_preview_audio(id: String) -> Result<Vec<u8>, String> {
+    let path = render_preview(id)?;
+    std::fs::read(&path).map_err(|e| format!("Lecture audio {path}: {e}"))
 }
 
 #[tauri::command]

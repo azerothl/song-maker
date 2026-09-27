@@ -58,7 +58,18 @@ export type MixTrack = {
   solo: boolean;
   locked: boolean;
   aiSeparated: boolean;
-  clips: unknown[];
+  clips: {
+    id: string;
+    trackId: string;
+    sourcePath: string;
+    sourceSha256: string;
+    startMs: number;
+    offsetMs: number;
+    durationMs: number;
+    gainDb: number;
+    fadeInMs: number;
+    fadeOutMs: number;
+  }[];
 };
 
 export type MixDoc = {
@@ -70,6 +81,21 @@ export type MixDoc = {
   masterGainDb: number;
   peakCeilingDb: number;
   tracks: MixTrack[];
+};
+
+export type PlaybackStem = {
+  role: string;
+  name: string;
+  trackId: string;
+  path: string;
+};
+
+export type PlaybackSources = {
+  mode: "generation" | "stems" | string;
+  generationId?: string | null;
+  generationWav?: string | null;
+  stems: PlaybackStem[];
+  label: string;
 };
 
 export type AppSettings = {

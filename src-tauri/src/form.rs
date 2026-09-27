@@ -1,4 +1,3 @@
-use crate::pins::ALLOWED_LYRIC_TAGS;
 use crate::models::{FormInput, KeySig, Meter};
 use thiserror::Error;
 
@@ -37,15 +36,38 @@ pub fn validate_lyrics(lyrics: &str) -> Result<(), FormError> {
             "Les paroles sont obligatoires (1 à 4000 caractères).".into(),
         ));
     }
-    for line in lyrics.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with('[') && trimmed.ends_with(']') {
-            if !ALLOWED_LYRIC_TAGS.contains(&trimmed) {
-                return Err(FormError::Message(format!(
-                    "Balise de paroles refusée : {trimmed}"
-                )));
-            }
+    // YuE2 n’impose pas de liste fermée de balises : [Verse], [Solo], [Breakdown]…
+    // sont envoyés tels quels dans `lyrics`.
+    Ok(())
+}
+
+/// Brouillon : titre obligatoire, paroles/style peuvent être vides.
+pub fn validate_draft_form(input: &FormInput) -> Result<(), FormError> {
+    validate_title(&input.title)?;
+    validate_cot(&input.cot)?;
+    if input.lyrics.chars().count() > 4000 {
+        return Err(FormError::Message(
+            "Les paroles sont limitées à 4000 caractères.".into(),
+        ));
+    }
+    if let Some(ref lang) = input.singing_language {
+        let l = lang.trim();
+        if !l.is_empty() && l.chars().count() > 40 {
+            return Err(FormError::Message(
+                "Langue du chant : 1 à 40 caractères.".into(),
+            ));
         }
+    }
+    if let Some(bpm) = input.tempo_bpm {
+        if !(40..=220).contains(&bpm) {
+            return Err(FormError::Message("Tempo : entier 40 à 220.".into()));
+        }
+    }
+    if let Some(ref key) = input.key {
+        validate_key(key)?;
+    }
+    if let Some(ref meter) = input.meter {
+        validate_meter(meter)?;
     }
     Ok(())
 }
@@ -211,8 +233,26 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unknown_lyric_tag() {
-        let err = validate_lyrics("[Solo]\nhi").unwrap_err();
-        assert!(err.to_string().contains("[Solo]"));
+    fn accepts_freeform_section_tags() {
+        validate_lyrics(
+            "[Verse]\nHi\n[Breakdown]\nRiff\n[Solo]\nLead\n[Acapella]\nVoice\n[chorus 2]\nHook",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn draft_allows_empty_lyrics_and_style() {
+        let input = FormInput {
+            title: "Draft".into(),
+            style: String::new(),
+            lyrics: String::new(),
+            cot: "full".into(),
+            singing_language: None,
+            tempo_bpm: None,
+            key: None,
+            meter: None,
+            seed: None,
+        };
+        validate_draft_form(&input).unwrap();
     }
 }

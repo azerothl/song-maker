@@ -42,6 +42,8 @@ pub fn run() {
             commands::update_mix,
             commands::save_mix_version,
             commands::render_preview,
+            commands::playback_sources,
+            commands::read_preview_audio,
             commands::export_audio,
             commands::list_generations,
             commands::read_score_abc,

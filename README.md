@@ -47,7 +47,15 @@ pnpm run packages:build
 pnpm run tauri dev
 ```
 
-Prérequis : Rust stable, dépendances Linux Tauri, `ffmpeg` avec libsoxr, NVIDIA CUDA pour la génération réelle.
+Prérequis : Rust stable, dépendances Linux Tauri, **ffmpeg avec libsoxr**, NVIDIA CUDA pour la génération réelle.
+
+Windows (ffmpeg) :
+
+```bat
+winget install Gyan.FFmpeg
+```
+
+Puis redémarrer le terminal / Song Maker. Surcharge éventuelle : variable d’environnement `SONG_MAKER_FFMPEG` = chemin vers `ffmpeg.exe`.
 
 Phase 2 (partition) : import MIDI, piano roll, validation/export ABC YuE2 avant génération. Sans partition utilisateur, le chemin phase 1 (style + paroles) reste inchangé.
 

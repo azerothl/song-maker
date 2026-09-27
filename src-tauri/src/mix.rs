@@ -88,7 +88,19 @@ fn read_stereo_f32(path: &Path) -> Result<(Vec<f32>, Vec<f32>, u32), String> {
                 .collect()
         }
     };
-    let samples = samples.map_err(|e| e.to_string())?;
+    let mut samples = samples.map_err(|e| e.to_string())?;
+    // Certains WAV « float » stockent encore l’échelle PCM16 (±32768). On ramène
+    // en [-1, 1] pour éviter un carré après clamp à l’export 24 bits.
+    let mut peak = 0f32;
+    for s in &samples {
+        peak = peak.max(s.abs());
+    }
+    if peak > 2.0 {
+        let scale = if peak > 16_000.0 { 32768.0 } else { peak };
+        for s in &mut samples {
+            *s /= scale;
+        }
+    }
     let mut left = Vec::new();
     let mut right = Vec::new();
     if spec.channels == 1 {
@@ -194,23 +206,20 @@ pub fn render_mix(mix: &MixDoc, project_root: &Path, out_wav: &Path) -> Result<f
 }
 
 pub fn export_flac(wav_path: &Path, flac_path: &Path) -> Result<(), String> {
-    let status = std::process::Command::new("ffmpeg")
-        .args([
-            "-y",
-            "-i",
-            &wav_path.display().to_string(),
-            "-c:a",
-            "flac",
-            "-sample_fmt",
-            "s32",
-            &flac_path.display().to_string(),
-        ])
-        .status()
-        .map_err(|e| e.to_string())?;
-    if !status.success() {
-        return Err("Export FLAC échoué (ffmpeg).".into());
-    }
-    Ok(())
+    crate::resample::run_ffmpeg(&[
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        &wav_path.display().to_string(),
+        "-c:a",
+        "flac",
+        "-sample_fmt",
+        "s32",
+        &flac_path.display().to_string(),
+    ])
+    .map_err(|e| format!("Export FLAC échoué ({e})."))
 }
 
 pub fn write_export_json(
