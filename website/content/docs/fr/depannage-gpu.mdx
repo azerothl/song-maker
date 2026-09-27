@@ -1,25 +1,25 @@
 ---
-title: Dépannage GPU (Q4 / Q8)
-description: VRAM, quantizations et échecs CUDA explicites.
+title: Dépanner la génération GPU
+description: Vérifier la mémoire vidéo et résoudre les erreurs GPU fréquentes.
 order: 6
 ---
 
-# Dépannage GPU / VRAM Q4 vs Q8
+# Dépannage GPU : Q4, Q8 et mémoire vidéo
 
-| Quant | VRAM indicative | Usage |
+| Modèle | Mémoire vidéo indicative | Usage |
 |---|---|---|
-| **Q4** | ~8 Go+ selon carte / contexte | Défaut recommandé pour démarrer |
-| **Q8** | ≥ ~12 Go | Meilleure fidélité si la VRAM suit |
+| **Q4** | Environ 8 Go ou plus, selon la carte et le contexte | Réglage par défaut pour démarrer |
+| **Q8** | Environ 12 Go ou plus | Peut offrir une meilleure fidélité si la carte dispose d’assez de mémoire |
 
 ## Symptômes fréquents
 
-- **Load-test code 2** : pas de `nvidia-smi` / GPU absent → ce n’est pas un succès CUDA
-- **OOM / kill** : repassez en Q4, fermez les autres process GPU, `max_loaded_models=1`
-- **Hash mismatch** : relancez `verify-hashes` ; ne substituez pas une autre archive CUDA
+- **Le test GPU se termine avec le code 2** : vérifiez que le pilote NVIDIA est installé et que `nvidia-smi` détecte la carte.
+- **Mémoire insuffisante ou processus interrompu** : choisissez Q4, fermez les autres applications utilisant le GPU et gardez `max_loaded_models=1`.
+- **La vérification du hash échoue** : relancez `verify-hashes`. N’utilisez pas une autre archive CUDA à la place.
 
 ## Checklist
 
-1. Driver NVIDIA à jour
-2. Archive CUDA épinglée (Win 12.4 / Linux 12.8-colab)
-3. Modèle Q4 vérifié
-4. `health-check` vert avant `tauri dev`
+1. Mettez à jour le pilote NVIDIA.
+2. Vérifiez que l’archive CUDA correspond à votre système (Windows 12.4 ou Linux 12.8).
+3. Relancez la vérification du modèle Q4.
+4. Vérifiez que `health-check` réussit avant de relancer Song Maker.

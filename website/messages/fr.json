@@ -1,27 +1,27 @@
 {
   "meta": {
-    "title": "Song Maker — atelier musical local-first",
-    "description": "Créez une prise avec YuE2, séparez les pistes avec HTDemucs, ajustez le mix et exportez en local avec Song Maker."
+    "title": "Song Maker — créer une chanson et travailler ses pistes",
+    "description": "Écrivez un style et des paroles, générez une chanson avec YuE2, séparez ses pistes et travaillez le mix sur votre ordinateur."
   },
   "landing": {
-    "eyebrow": "Créer · séparer · composer · en local",
-    "headline": "Des paroles aux pistes, chez vous.",
-    "intro": "À partir d’un style et de vos paroles, YuE2 génère une prise sur votre ordinateur. Séparez-la avec HTDemucs, puis retravaillez le mix dans l’application.",
-    "installCta": "Lire le guide d’installation",
+    "eyebrow": "Écrire · générer · écouter · retravailler",
+    "headline": "Partez de vos paroles. Faites-en une chanson.",
+    "intro": "Choisissez un style, écrivez vos paroles et lancez YuE2 sur votre ordinateur. Vous pourrez ensuite séparer la prise, régler les pistes et retravailler le mix.",
+    "installCta": "Voir comment démarrer",
     "pathCta": "Écouter la démo",
-    "localNote": "Génération et travail audio sur votre ordinateur",
+    "localNote": "La génération et le traitement audio tournent sur votre ordinateur",
     "mixer": {
-      "ariaLabel": "Mixeur interactif d’une génération réelle de Song Maker",
-      "kicker": "Extrait réel · génération locale",
-      "title": "Une génération, six pistes à écouter",
-      "badge": "YuE2 · HTDemucs 6",
-      "play": "Lire l’extrait réel",
+      "ariaLabel": "Mixeur interactif appliqué à un morceau généré avec Song Maker",
+      "kicker": "Extrait d’une génération YuE2",
+      "title": "Écoutez les pistes séparées",
+      "badge": "YuE2 · séparation expérimentale",
+      "play": "Écouter l’extrait",
       "pause": "Mettre l’extrait en pause",
       "trackName": "Génération Song Maker · extrait",
       "playing": "Lecture en boucle · pistes mixées",
-      "ready": "20 secondes · six pistes séparées",
+      "ready": "Extrait de 20 secondes · pistes séparées",
       "loading": "Chargement de l’extrait…",
-      "loop": "Extrait de 20 secondes, lu en boucle",
+      "loop": "Extrait de 20 secondes en boucle",
       "layers": {
         "vocals": "Voix",
         "drums": "Batterie",
@@ -34,64 +34,64 @@
       "mute": "Activer ou couper {layer}",
       "solo": "Écouter {layer} seul",
       "reset": "Réinitialiser le mix",
-      "disclaimer": "Génération YuE2 réelle · séparation HTDemucs 6S expérimentale. Guitare et piano sont estimés ; fuites possibles, surtout sur le piano.",
-      "error": "Lecture indisponible. Réessayez dans un instant."
+      "disclaimer": "Morceau généré avec YuE2. La séparation à six pistes est expérimentale : guitare et piano sont estimés et peuvent contenir des fuites, surtout le piano.",
+      "error": "Impossible de lire l’extrait pour le moment."
     },
     "facts": {
-      "generation": "YuE2 tourne sur votre GPU NVIDIA",
-      "separation": "HTDemucs sépare la prise en stems",
-      "privacy": "Vos projets et exports restent sur votre machine"
+      "generation": "YuE2 génère la chanson sur votre ordinateur",
+      "separation": "HTDemucs sépare la chanson en pistes",
+      "privacy": "Vos projets et vos exports restent sur votre ordinateur"
     },
     "process": {
-      "eyebrow": "Votre parcours créatif",
-      "title": "Une idée, puis une base à retravailler",
-      "intro": "Vous gardez la main sur les paroles, les prises générées et le mix, du premier essai à l’export.",
+      "eyebrow": "Du texte au mix",
+      "title": "Une première version à façonner",
+      "intro": "Partez de vos paroles, générez une chanson, puis écoutez et ajustez les pistes avant l’export.",
       "steps": {
         "idea": {
-          "title": "Posez votre intention",
-          "body": "Choisissez un style et écrivez les paroles qui guideront la génération. La durée demandée reste une indication, pas une promesse exacte."
+          "title": "Écrivez votre idée",
+          "body": "Décrivez le style voulu et ajoutez vos paroles. La durée choisie sert de repère ; YuE2 ne garantit pas une longueur exacte."
         },
         "generation": {
-          "title": "Générez une prise",
-          "body": "YuE2 produit un rendu stéréo localement via audio.cpp. Vous pouvez créer plusieurs prises et les comparer."
+          "title": "Lancez la génération",
+          "body": "YuE2 crée un morceau stéréo sur votre ordinateur. Vous pouvez lancer plusieurs générations et comparer les résultats."
         },
         "separation": {
-          "title": "Travaillez le mix",
-          "body": "Séparez la prise avec HTDemucs, ajustez les pistes et le mix, puis exportez dans le format dont vous avez besoin."
+          "title": "Écoutez et ajustez",
+          "body": "Séparez le morceau avec HTDemucs, réglez les pistes, puis exportez le mix en WAV, FLAC ou MP3."
         }
       }
     },
     "capabilities": {
-      "eyebrow": "Dans l’application",
-      "title": "De quoi garder la main",
-      "intro": "Un atelier local pour passer de la génération aux retouches et à l’export, avec des outils de production accessibles dans l’application.",
+      "eyebrow": "Dans Song Maker",
+      "title": "Continuez à travailler votre morceau",
+      "intro": "Générez une base, modifiez une partition, comparez des versions et réglez le mix dans l’application.",
       "items": {
         "generation": {
           "title": "Génération YuE2",
           "body": "Créez une prise à partir d’un style et de paroles, avec les modèles chargés sur votre machine."
         },
         "score": {
-          "title": "Partition éditable",
-          "body": "Importez un MIDI, modifiez les notes dans le piano roll et préparez une partition pour la génération."
+          "title": "Partition et piano roll",
+          "body": "Importez un fichier MIDI, modifiez ses notes dans le piano roll et préparez la partition pour YuE2."
         },
         "takes": {
-          "title": "Plusieurs prises",
-          "body": "Lancez des générations successives et comparez les rendus pour choisir votre point de départ."
+          "title": "Comparer les générations",
+          "body": "Lancez plusieurs générations à la suite et comparez leurs rendus pour choisir la version à poursuivre."
         },
         "mix": {
           "title": "Pistes et mix",
-          "body": "Séparez les stems, travaillez les clips et ajustez les niveaux avant l’export."
+          "body": "Séparez les pistes, modifiez les clips et réglez les niveaux avant l’export."
         },
         "export": {
           "title": "Exports audio",
-          "body": "Enregistrez votre mix en WAV, FLAC ou MP3, selon votre usage."
+          "body": "Exportez votre mix en WAV, FLAC ou MP3."
         }
       }
     },
     "setup": {
-      "eyebrow": "Avant de commencer",
-      "title": "Votre ordinateur fait tourner l’atelier.",
-      "intro": "Song Maker est une application de bureau. L’installation télécharge les exécutables et les modèles nécessaires ; prévoyez de l’espace disque et une carte graphique compatible.",
+      "eyebrow": "Configuration requise",
+      "title": "Song Maker fonctionne sur votre ordinateur.",
+      "intro": "Song Maker est une application de bureau. Son moteur audio et ses modèles se téléchargent lors de la configuration ; prévoyez de l’espace disque et un GPU compatible.",
       "link": "Consulter le guide d’installation",
       "systemLabel": "Systèmes",
       "systems": "Windows, macOS ou Linux",
@@ -99,127 +99,127 @@
       "gpu": "NVIDIA · CUDA (Windows/Linux) · Metal (macOS)",
       "licenseLabel": "Licence des poids YuE2",
       "license": "CC BY-NC 4.0",
-      "licenseNote": "Cette licence comporte une restriction d’usage commercial. Consultez les conditions des modèles avant de les utiliser dans un projet commercial."
+      "licenseNote": "La licence CC BY-NC 4.0 restreint l’usage commercial des poids YuE2. Lisez ses conditions avant tout usage commercial."
     },
     "faq": {
-      "eyebrow": "Questions pratiques",
-      "title": "À savoir avant de se lancer",
-      "link": "Toute la documentation",
+      "eyebrow": "Questions fréquentes",
+      "title": "Avant l’installation",
+      "link": "Lire la documentation",
       "items": {
         "stems": {
-          "question": "Est-ce limité à quatre stems ?",
-          "answer": "Le mode HTDemucs standard produit voix, batterie, basse et autres. Un mode expérimental à six pistes ajoute guitare et piano ; ces deux pistes sont des estimations et peuvent contenir des fuites, surtout le piano."
+          "question": "Quelles pistes HTDemucs peut-il isoler ?",
+          "answer": "Le modèle standard sépare les voix, la batterie, la basse et les autres sons. Un mode expérimental estime aussi la guitare et le piano ; ces deux pistes peuvent contenir des fuites, surtout le piano."
         },
         "local": {
-          "question": "Est-ce que mes morceaux partent dans le cloud ?",
-          "answer": "La génération et le traitement audio du parcours principal tournent sur votre ordinateur avec les modèles locaux. Aucun compte ni service de génération cloud n’est requis."
+          "question": "Mes morceaux sont-ils envoyés en ligne ?",
+          "answer": "La génération et le traitement audio du parcours principal utilisent des modèles installés sur votre ordinateur. Aucun compte ni service de génération en ligne n’est requis."
         },
         "hardware": {
           "question": "Quel ordinateur faut-il ?",
-          "answer": "La génération utilise un GPU NVIDIA avec CUDA sous Windows et Linux, ou Metal sur Mac. Consultez le guide pour les versions et dépendances nécessaires à votre configuration."
+          "answer": "Sous Windows et Linux, la génération nécessite un GPU NVIDIA compatible CUDA. Sur Mac, elle utilise Metal. Le guide d’installation détaille les prérequis."
         },
         "license": {
           "question": "Puis-je utiliser YuE2 pour un projet commercial ?",
-          "answer": "Les poids YuE2/GGUF indiqués par le projet sont sous licence CC BY-NC 4.0. Cette licence comporte une restriction commerciale : vérifiez les conditions avant tout usage commercial."
+          "answer": "Les poids YuE2/GGUF fournis par le projet sont sous licence CC BY-NC 4.0, qui restreint l’usage commercial. Consultez la licence avant d’utiliser ces poids dans un projet commercial."
         }
       }
     },
     "closing": {
-      "eyebrow": "À vous de jouer",
-      "title": "Commencez par vérifier votre configuration.",
-      "body": "Le guide vous accompagne dans l’installation locale, étape par étape."
+      "eyebrow": "Pour commencer",
+      "title": "Vérifiez les prérequis, puis installez Song Maker.",
+      "body": "Le guide vous indique comment installer l’application, le moteur audio et les modèles."
     }
   },
   "nav": {
     "features": "Capacités",
-    "examples": "Parcours",
+    "examples": "Comment ça marche",
     "gallery": "Configuration",
     "docs": "Guide",
     "download": "Télécharger",
-    "license": "À savoir"
+    "license": "Questions fréquentes"
   },
   "hero": {
     "brand": "Song Maker",
-    "headline": "Donnez forme à votre chanson. Gardez-la chez vous.",
-    "sentence": "YuE2 génère une prise à partir d’un style et de paroles. Séparez les pistes, ajustez le mix et exportez sur votre ordinateur.",
+    "headline": "Créez une chanson, puis travaillez ses pistes.",
+    "sentence": "Décrivez un style, écrivez les paroles et générez un morceau avec YuE2. Séparez les pistes, réglez le mix et exportez depuis votre ordinateur.",
     "ctaDownload": "Télécharger l’application",
     "ctaDocs": "Lire le guide"
   },
   "promise": {
-    "eyebrow": "Création musicale sur votre ordinateur",
-    "title": "Une prise à retravailler, en local.",
-    "body": "À partir d’un style et de paroles, Song Maker génère une prise avec YuE2 via audio.cpp, sépare les pistes avec HTDemucs, puis vous laisse travailler le mix avant l’export."
+    "eyebrow": "Génération musicale locale",
+    "title": "Du premier texte au mix exporté.",
+    "body": "Song Maker utilise YuE2 pour générer un morceau à partir d’un style et de paroles. HTDemucs sépare ensuite les pistes pour que vous puissiez régler le mix et exporter le résultat."
   },
   "features": {
-    "title": "Les outils disponibles dans l’application",
-    "body": "Générez, éditez et comparez des prises, séparez les pistes et exportez depuis votre ordinateur.",
+    "title": "Écrire, générer, puis affiner",
+    "body": "L’application réunit la génération YuE2, l’édition de partitions, la séparation des pistes et le mixage.",
     "items": {
       "yue2": {
         "title": "Génération YuE2",
-        "body": "Style + paroles, chemin CoT (`cot`), file d’attente locale audio.cpp."
+        "body": "Décrivez le style et ajoutez des paroles pour générer un morceau avec YuE2 sur votre ordinateur."
       },
       "score": {
         "title": "MIDI · piano roll · ABC",
-        "body": "Import MIDI, édition piano roll, validation et export ABC YuE2."
+        "body": "Importez des fichiers MIDI, modifiez les notes et préparez une partition ABC pour YuE2."
       },
       "candidates": {
-        "title": "Multi-candidats",
-        "body": "Générations séquentielles et comparateur A/B pour choisir le take."
+        "title": "Comparer les versions",
+        "body": "Lancez plusieurs générations et écoutez-les dans le comparateur A/B."
       },
       "stems": {
-        "title": "Séparation stems",
-        "body": "HTDemucs standard sépare voix, batterie, basse et autres. Le mode 6 stems ONNX expérimental estime aussi la guitare et le piano, avec des fuites possibles."
+        "title": "Séparation des pistes",
+        "body": "HTDemucs sépare les voix, la batterie, la basse et les autres sons. Un mode ONNX expérimental estime aussi la guitare et le piano ; des fuites sont possibles."
       },
       "mix": {
-        "title": "Mix, clips, production",
-        "body": "Timeline de clips, overlay production (limiteur, loudness)."
+        "title": "Montage et mixage",
+        "body": "Déplacez les clips et ajustez le mix avec les outils de production intégrés."
       },
       "export": {
         "title": "Export WAV / FLAC / MP3",
-        "body": "Livrez le mix final dans le format dont vous avez besoin."
+        "body": "Exportez le mix en WAV, FLAC ou MP3."
       },
       "lora": {
-        "title": "LoRA optionnels",
-        "body": "Catalogue de packs avec porte explicite CC BY-NC — pas de badge trompeur."
+        "title": "Modèles LoRA optionnels",
+        "body": "Le catalogue indique les conditions de licence des modèles avant leur téléchargement."
       },
       "remote": {
-        "title": "Worker GPU distant (non disponible)",
-        "body": "Le contrôle de prototype place encore le travail dans la file locale et n’envoie pas de requête réseau."
+        "title": "Génération distante",
+        "body": "Le contrôle de génération distante est un prototype : il place le travail dans la file locale et n’envoie aucune requête réseau."
       }
     }
   },
   "examples": {
-    "title": "Écouter des extraits",
-    "body": "Ces extraits sont des démos synthétiques destinées au lecteur ; aucun n’est présenté comme un rendu YuE2 réel.",
-    "demoBadge": "Démo synthétique",
+    "title": "Manipuler des exemples audio",
+    "body": "Ces sons synthétiques servent à essayer les commandes du lecteur. Ils ne proviennent pas d’une génération YuE2.",
+    "demoBadge": "Exemple synthétique",
     "play": "Lecture",
     "pause": "Pause",
     "items": {
       "ambient": {
-        "title": "Pad CoT ambiant",
-        "meta": "Style: ambient pad · cot · seed n/a"
+        "title": "Ambiance synthétique",
+        "meta": "Exemple de son · lecteur audio"
       },
       "piano": {
-        "title": "Esquisse piano roll",
-        "meta": "Motif mélodique simple · démo partition"
+        "title": "Motif au piano",
+        "meta": "Exemple sonore · piano roll"
       },
       "stems": {
-        "title": "Lit stems / rythme",
-        "meta": "Kick + basse + lead · illustration séparation"
+        "title": "Rythme et basse",
+        "meta": "Exemple sonore · pistes superposées"
       },
       "mix": {
-        "title": "Boucle mix / clips",
-        "meta": "Couches empilées · timeline fictive"
+        "title": "Boucle de mixage",
+        "meta": "Exemple sonore · arrangement fictif"
       },
       "ab": {
-        "title": "Candidat A → B",
-        "meta": "Transition de brillance après 2,5 s"
+        "title": "Comparer deux versions",
+        "meta": "La seconde version change après 2,5 s"
       }
     }
   },
   "gallery": {
-    "title": "Schémas du parcours",
-    "body": "Illustrations de conception : elles expliquent les étapes, mais ne montrent pas l’interface réelle de l’application.",
+    "title": "Étapes de création",
+    "body": "Ces illustrations expliquent le parcours dans Song Maker. Elles ne sont pas des captures de l’application.",
     "frames": {
       "splash": "Splash",
       "library": "Bibliothèque",
@@ -230,72 +230,72 @@
     }
   },
   "license": {
-    "title": "Licences — rester honnête",
-    "body": "Les poids YuE2 / GGUF sont sous CC BY-NC 4.0. Song Maker est un prototype personnel : pas de badge de monétisation, pas de vente de poids, pas de claim commercial CC BY-NC.",
-    "note": "Les LoRA optionnels passent par la même porte CC BY-NC dans l’app."
+    "title": "À propos des licences",
+    "body": "Les poids YuE2/GGUF sont sous licence CC BY-NC 4.0, qui restreint l’usage commercial. Song Maker reste un prototype personnel : ces modèles ne sont pas vendus et le projet ne revendique pas leur usage commercial.",
+    "note": "Les modèles LoRA optionnels affichent aussi leurs conditions de licence dans l’application."
   },
   "faq": {
-    "title": "FAQ courte",
+    "title": "Questions fréquentes",
     "items": {
       "gpu": {
         "q": "Quel GPU faut-il pour générer ?",
         "a": "Un GPU NVIDIA sous Windows/Linux (CUDA) ou un Mac compatible Metal. Les scripts de configuration téléchargent les modèles séparément."
       },
       "suno": {
-        "q": "C’est comme Suno ?",
-        "a": "Non : atelier desktop local avec partition éditable, stems et mix. Pas de flux social cloud ni de compte pour créer."
+        "q": "Song Maker fonctionne-t-il comme Suno ?",
+        "a": "Song Maker est une application de bureau qui génère et traite les morceaux sur votre ordinateur. Elle propose aussi l’édition de partitions, la séparation des pistes et le mixage."
       },
       "os": {
         "q": "Quels systèmes sont pris en charge ?",
         "a": "Windows et Linux x64 avec NVIDIA/CUDA, ainsi que Mac Intel et Apple Silicon avec Metal. Voir la doc d’installation."
       },
       "commercial": {
-        "q": "Puis-je monétiser les sorties ?",
-        "a": "Les modèles GGUF sont CC BY-NC. Ne comptez pas sur un usage commercial via Song Maker."
+        "q": "Puis-je utiliser les morceaux à des fins commerciales ?",
+        "a": "Les poids YuE2/GGUF fournis ici sont sous licence CC BY-NC 4.0, qui restreint l’usage commercial. Vérifiez les conditions de la licence avant toute utilisation."
       }
     }
   },
   "cta": {
-    "title": "Ouvrez l’atelier.",
-    "body": "Choisissez l’installeur adapté à votre système. Le guide vous accompagne pour télécharger ensuite le moteur et les modèles.",
-    "download": "Choisir mon système",
-    "docs": "Commencer par la doc"
+    "title": "Installez Song Maker sur votre ordinateur.",
+    "body": "Téléchargez l’application, puis suivez le guide pour installer le moteur audio et les modèles YuE2.",
+    "download": "Choisir une version",
+    "docs": "Lire le guide"
   },
   "docs": {
     "title": "Documentation",
-    "body": "Installation, premier morceau, partition, séparation des pistes, mix et dépannage GPU.",
+    "body": "Installation, création d’un premier morceau, édition de partition, séparation des pistes et dépannage.",
     "back": "Retour au site",
     "toc": "Sommaire"
   },
   "downloads": {
     "eyebrow": "Song Maker v0.1.0",
     "title": "Télécharger Song Maker",
-    "intro": "Choisissez le fichier correspondant à votre ordinateur. Le moteur audio et les modèles se téléchargent séparément lors de la première configuration.",
+    "intro": "Choisissez la version prévue pour votre système. Le moteur audio et les modèles se téléchargent séparément pendant la configuration initiale.",
     "windows": {
       "title": "Windows",
-      "description": "Windows 10/11 · x64 · GPU NVIDIA conseillé pour la génération",
-      "setup": "Installeur .exe — recommandé",
+      "description": "Windows 10/11 · x64 · GPU NVIDIA conseillé pour générer",
+      "setup": "Installeur .exe (recommandé)",
       "msi": "Installeur .msi"
     },
     "macos": {
       "title": "macOS",
-      "description": "Accélération Metal · choisissez l’architecture de votre Mac",
+      "description": "Génération avec Metal · choisissez l’architecture de votre Mac",
       "appleSilicon": "Apple Silicon (M1, M2, M3, M4…) · .dmg",
       "intel": "Mac Intel · .dmg"
     },
     "linux": {
       "title": "Linux",
-      "description": "Linux x64 · GPU NVIDIA requis pour la génération",
-      "appimage": "AppImage — portable",
+      "description": "Linux x64 · GPU NVIDIA requis pour générer",
+      "appimage": "AppImage (portable)",
       "deb": "Paquet .deb — Debian / Ubuntu",
       "rpm": "Paquet .rpm — Fedora / compatibles"
     },
-    "firstRun": "Après l’installation, suivez le guide pour configurer le moteur et les modèles.",
+    "firstRun": "Après l’installation, le guide vous aide à télécharger et configurer le moteur audio et les modèles.",
     "guide": "Ouvrir le guide d’installation",
-    "github": "Voir tous les fichiers de la release sur GitHub"
+    "github": "Voir tous les fichiers de la version sur GitHub"
   },
   "footer": {
-    "tagline": "Atelier musical local-first",
+    "tagline": "Création musicale sur votre ordinateur",
     "github": "GitHub"
   }
 }

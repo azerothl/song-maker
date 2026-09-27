@@ -1,22 +1,23 @@
 ---
-title: First song
-description: Phase 1 path — style, lyrics, local YuE2 generation.
+title: Make your first song
+description: Add a style and lyrics, then generate a song with YuE2 on your computer.
 order: 2
 ---
 
 # First song
 
-Once phase 0 is green and the app is running (`pnpm run tauri dev`):
+After installing and opening Song Maker:
 
-1. Skip the splash → **Library**
-2. Create a song: fill in **style** + **lyrics**
-3. Run a YuE2 generation through the local `audiocpp_server` (`max_loaded_models=1`, FIFO queue)
-4. Listen to the candidate; iterate seed / style as needed
+1. In the **Library**, create a song.
+2. Enter its **style** and **lyrics**.
+3. Start generation with YuE2.
+4. Listen to the result, then adjust the style or seed to try another version.
 
-The phase 1 path (style + lyrics, CoT `cot`) remains available even without a user score.
+You can generate a song from a style and lyrics without importing a score.
 
 ## Tips
 
-- Start with **Q4** to validate the GPU pipeline
-- Keep wall-clock expectations realistic (prototype sessions on the order of ≤ 30 minutes)
-- Outputs depend on **CC BY-NC** weights — personal / non-commercial use
+- **Q4** is the default model setting and uses less video memory than Q8.
+- Plan for prototype sessions of roughly 30 minutes or less.
+- The requested duration is a target; generation does not guarantee an exact length.
+- YuE2 weights use the **CC BY-NC 4.0** license, which restricts commercial use.

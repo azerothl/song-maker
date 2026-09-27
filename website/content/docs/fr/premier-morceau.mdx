@@ -1,22 +1,23 @@
 ---
-title: Premier morceau
-description: Parcours phase 1 — style, paroles, génération YuE2 locale.
+title: Créer un premier morceau
+description: Saisir un style et des paroles, puis lancer une génération YuE2 sur son ordinateur.
 order: 2
 ---
 
 # Premier morceau
 
-Une fois la phase 0 OK et l’app lancée (`pnpm run tauri dev`) :
+Après avoir installé et ouvert Song Maker :
 
-1. Passez le splash → **Bibliothèque**
-2. Créez un morceau : renseignez **style** + **paroles**
-3. Lancez une génération YuE2 via le serveur local `audiocpp_server` (`max_loaded_models=1`, file FIFO)
-4. Écoutez le candidat, itérez seed / style si besoin
+1. Dans la **Bibliothèque**, créez un morceau.
+2. Renseignez son **style** et ses **paroles**.
+3. Lancez la génération avec YuE2.
+4. Écoutez le résultat, puis modifiez le style ou la graine pour essayer une autre version.
 
-Le chemin phase 1 (style + paroles, CoT `cot`) reste disponible même sans partition utilisateur.
+Vous pouvez générer un morceau à partir du style et des paroles sans importer de partition.
 
 ## Conseils
 
-- Commencez en **Q4** pour valider le pipeline GPU
-- Gardez un plafond réaliste : le prototype vise des sessions raisonnables (ordre de grandeur ≤ 30 min mur)
-- Les sorties dépendent des poids **CC BY-NC** — usage personnel / non commercial
+- Le modèle **Q4** est le réglage par défaut. Il demande moins de mémoire vidéo que Q8.
+- Avec le prototype, prévoyez des sessions de l’ordre de 30 minutes ou moins.
+- La durée choisie est indicative ; la génération ne garantit pas une longueur exacte.
+- Les poids YuE2 utilisent la licence **CC BY-NC 4.0**, qui restreint l’usage commercial.

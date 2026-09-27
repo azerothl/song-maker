@@ -1,23 +1,23 @@
 ---
 title: Mix & export
-description: Séparer les pistes, ajuster le mix et exporter en WAV/FLAC/MP3.
+description: Séparer les pistes d’un morceau, régler le mix et exporter le résultat.
 order: 4
 ---
 
 # Mix & export
 
-## Stems
+## Pistes séparées
 
-Le chemin standard **HTDemucs** sépare la voix, la batterie, la basse et les autres instruments. Un chemin ONNX expérimental à six stems ajoute des estimations de guitare et de piano. Ces deux pistes peuvent comporter des fuites, surtout le piano ; elles ne représentent pas une séparation garantie sans artefacts. Le provider BS-RoFormer fourni dans le dépôt est un stub et n’est pas un séparateur prêt à l’emploi.
+Le modèle **HTDemucs** standard sépare la voix, la batterie, la basse et les autres sons. Un mode ONNX expérimental estime aussi la guitare et le piano. Ces pistes peuvent contenir des fuites, surtout le piano. La séparation varie selon le morceau.
 
 ## Mix & production
 
-- Édition des clips et réglage du mix
-- Outils de production disponibles dans l’application
+- Modifiez les clips et réglez les niveaux des pistes.
+- Les outils de production intégrés sont accessibles depuis l’application.
 
 ## Export
 
-Formats d’export : **WAV**, **FLAC** et **MP3**. Si Song Maker ne trouve pas ffmpeg, configurez son chemin avec `SONG_MAKER_FFMPEG`.
+Vous pouvez exporter le mix en **WAV**, **FLAC** ou **MP3**. Si Song Maker ne trouve pas ffmpeg, indiquez son chemin avec `SONG_MAKER_FFMPEG`.
 
 ## LoRA
 

@@ -1,25 +1,22 @@
 ---
-title: Partition & ABC
-description: MIDI, piano roll, validation et export ABC YuE2 (phase 2).
+title: Éditer une partition
+description: Importer un fichier MIDI, modifier les notes et préparer une partition pour YuE2.
 order: 3
 ---
 
-# Partition & ABC
+# Partition et piano roll
 
-La phase 2 ajoute le contrôle de partition au-dessus de YuE2.
+Song Maker permet d’importer une partition MIDI, de modifier les notes dans le piano roll et de préparer un fichier ABC pour YuE2.
 
 ## Capacités
 
-- **Import MIDI** → document de score
-- **Piano roll** pour éditer les notes
-- **Validation / export ABC** au format attendu par YuE2
-- Édition de **clips** sur le mix et multi-candidats séquentiels
+- Importez un fichier **MIDI**.
+- Modifiez les notes dans le **piano roll**.
+- Vérifiez puis exportez la partition au format **ABC** utilisé par YuE2.
+- Vous pouvez ensuite lancer une génération à partir de cette partition.
 
-Le paquet `@song-maker/score-engine` porte `ScoreDocument`, MIDI et l’export ABC. `stop_after=abc` reste gated (`v0.8.1`).
+## Préparer une génération
 
-## Parcours typique
-
-1. Importez un MIDI ou esquissez dans le piano roll
-2. Validez les invariants de partition
-3. Exportez ABC YuE2 puis générez l’audio
-4. Comparez les candidats dans le comparateur
+1. Importez un MIDI ou ajoutez des notes dans le piano roll.
+2. Vérifiez la partition.
+3. Exportez le fichier ABC, puis lancez la génération audio.

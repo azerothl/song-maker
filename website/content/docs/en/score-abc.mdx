@@ -1,25 +1,22 @@
 ---
-title: Score & ABC
-description: MIDI, piano roll, YuE2 ABC validation and export (phase 2).
+title: Edit a score
+description: Import a MIDI file, edit its notes, and prepare a score for YuE2.
 order: 3
 ---
 
-# Score & ABC
+# Score and piano roll
 
-Phase 2 adds score control on top of YuE2.
+Song Maker lets you import a MIDI score, edit notes in the piano roll, and prepare an ABC file for YuE2.
 
 ## Capabilities
 
-- **MIDI import** → score document
-- **Piano roll** for note editing
-- **ABC validation / export** in the YuE2-expected format
-- **Clip** editing on the mix and sequential multi-candidates
+- Import a **MIDI** file.
+- Edit notes in the **piano roll**.
+- Check and export the score as **ABC**, the format YuE2 uses.
+- Start a generation from the score.
 
-`@song-maker/score-engine` owns `ScoreDocument`, MIDI, and ABC export. `stop_after=abc` remains gated (`v0.8.1`).
+## Prepare a generation
 
-## Typical path
-
-1. Import MIDI or sketch in the piano roll
-2. Validate partition invariants
-3. Export YuE2 ABC, then generate audio
-4. Compare candidates in the comparator
+1. Import a MIDI file or add notes in the piano roll.
+2. Check the score.
+3. Export the ABC file, then start audio generation.
