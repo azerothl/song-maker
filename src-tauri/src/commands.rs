@@ -660,9 +660,9 @@ pub async fn start_separation(
             BS_ROFORMER_SHA,
             &["vocals", "other"][..],
             vec![
-                "estimated-separation".into(),
-                "bs-roformer-vocals-instrumental-only".into(),
-                "drums-bass-guitar-piano-unavailable".into(),
+                "estimated-separation".to_string(),
+                "bs-roformer-vocals-instrumental-only".to_string(),
+                "drums-bass-guitar-piano-unavailable".to_string(),
             ],
         ),
         _ => (
@@ -672,8 +672,8 @@ pub async fn start_separation(
             HTDEMUCS_SHA,
             &["vocals", "drums", "bass", "other"][..],
             vec![
-                "estimated-separation".into(),
-                "guitar-piano-unavailable".into(),
+                "estimated-separation".to_string(),
+                "guitar-piano-unavailable".to_string(),
             ],
         ),
     };
