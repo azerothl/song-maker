@@ -9,6 +9,7 @@ import { ClipTimeline } from "../components/ClipTimeline";
 import { MultiRenderFromScore } from "../components/MultiRenderFromScore";
 import { Phase3MixPanel } from "../components/Phase3MixPanel";
 import { RecordTrackPanel } from "../components/RecordTrackPanel";
+import { RegenerationGate } from "../components/RegenerationGate";
 import { RemoteGenerateConfirm } from "../components/RemoteGenerateConfirm";
 import { ScoreOnlyGenerate } from "../components/ScoreOnlyGenerate";
 import { ScorePanel } from "../components/ScorePanel";
@@ -17,13 +18,17 @@ import { VersionGraph } from "../components/VersionGraph";
 import { Waveform } from "../components/Waveform";
 import { api } from "../lib/api";
 import { exportProjectAudio } from "../lib/exportMix";
+import { loadInvariantBaseline } from "../lib/invariants";
 import {
   buildGenerationPayload,
   loadRemotePrefs,
   submitRemoteGeneration,
 } from "../lib/remoteGenerate";
 import { ensureProductionOverlay } from "../lib/productionState";
-import { prepareAbcForGeneration } from "../lib/score";
+import {
+  prepareAbcForGeneration,
+  type ScoreDocument,
+} from "../lib/score";
 import {
   generateScoreOnly,
   renderNFromScore,
@@ -199,6 +204,11 @@ export function SongScreen() {
   );
   const [importingAudio, setImportingAudio] = useState(false);
   const [recordOpen, setRecordOpen] = useState(false);
+  const [regenGateOpen, setRegenGateOpen] = useState(false);
+  const [regenAfterDocument, setRegenAfterDocument] =
+    useState<ScoreDocument | null>(null);
+  const [regenBaselineDoc, setRegenBaselineDoc] =
+    useState<ScoreDocument | null>(null);
   const saveTimer = useRef<number | null>(null);
   const mixTimer = useRef<number | null>(null);
 
@@ -255,6 +265,14 @@ export function SongScreen() {
 
   useEffect(() => {
     setShowFormErrors(false);
+    setRegenGateOpen(false);
+    setRegenAfterDocument(null);
+    setRegenBaselineDoc(null);
+  }, [project?.id]);
+
+  useEffect(() => {
+    if (!project?.id) return;
+    loadInvariantBaseline(project.id);
   }, [project?.id]);
 
   useEffect(() => {
@@ -348,12 +366,10 @@ export function SongScreen() {
     await openProject(project.id);
   }
 
-  async function onGenerate() {
+  async function runGenerateAfterConsent() {
     if (!project) return;
-    if (formError || scoreGate.error) {
-      setShowFormErrors(true);
-      return;
-    }
+    setRegenGateOpen(false);
+    setRegenAfterDocument(null);
     setBusy(true);
     setError(null);
     try {
@@ -376,6 +392,25 @@ export function SongScreen() {
       setBusy(false);
     }
   }
+
+  async function onGenerate() {
+    if (!project) return;
+    if (formError || scoreGate.error) {
+      setShowFormErrors(true);
+      return;
+    }
+    const isRegen =
+      Boolean(project.activeGenerationId) || generations.length > 0;
+    // Conservation gate before regenerating from a reference score (§11.3 / #38).
+    if (scoreDocument && isRegen) {
+      setRegenBaselineDoc(scoreDocument);
+      setRegenAfterDocument(null);
+      setRegenGateOpen(true);
+      return;
+    }
+    await runGenerateAfterConsent();
+  }
+
 
   async function onConfirmRemoteGenerate() {
     if (!project || !remotePrefs || !remotePayload) return;
@@ -1266,6 +1301,56 @@ export function SongScreen() {
           busy={busy}
           onCancel={() => setRemoteConfirmOpen(false)}
           onConfirm={onConfirmRemoteGenerate}
+        />
+      )}
+
+      {project && (
+        <RegenerationGate
+          open={regenGateOpen}
+          projectId={project.id}
+          beforeDocument={regenBaselineDoc ?? scoreDocument}
+          afterDocument={regenAfterDocument}
+          isRegeneration={
+            Boolean(project.activeGenerationId) || generations.length > 0
+          }
+          onProceed={() => {
+            void runGenerateAfterConsent();
+          }}
+          onCancel={() => {
+            setRegenGateOpen(false);
+            setRegenAfterDocument(null);
+            setRegenBaselineDoc(null);
+          }}
+          onConfirmKeep={() => {
+            setRegenGateOpen(false);
+            setRegenAfterDocument(null);
+            setRegenBaselineDoc(null);
+          }}
+          onRevert={(baselineScoreId) => {
+            void (async () => {
+              if (!baselineScoreId) {
+                setRegenGateOpen(false);
+                return;
+              }
+              try {
+                const doc = await api.loadScoreVersion(
+                  project.id,
+                  baselineScoreId,
+                );
+                if (doc) {
+                  setScoreDocument(doc as ScoreDocument);
+                  await api.setActiveScore(project.id, baselineScoreId);
+                  await openProject(project.id);
+                }
+              } catch (e) {
+                setError(String(e));
+              } finally {
+                setRegenGateOpen(false);
+                setRegenAfterDocument(null);
+                setRegenBaselineDoc(null);
+              }
+            })();
+          }}
         />
       )}
     </div>

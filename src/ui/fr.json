@@ -190,7 +190,7 @@
   "versions.kind.score": "partition",
   "versions.kind.stem": "stem",
   "versions.kind.mix": "mix",
-  "stopAfter.gated": "Partition seule : pas encore branchée à la commande de génération.",
+  "stopAfter.gated": "Partition seule indisponible (drapeau stop_after=abc désactivé).",
   "stopAfter.generateScoreOnly": "Générer la partition seulement",
   "stopAfter.generateScoreOnlyHint": "stop_after=abc — score sans WAV. Cot melody|full, sans ABC externe. Puis rendez l’audio depuis ce score.",
   "stopAfter.renderCount": "Rendus",
