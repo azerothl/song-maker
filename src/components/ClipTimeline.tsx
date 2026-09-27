@@ -119,6 +119,14 @@ export function ClipTimeline({ mix, onChange }: Props) {
       </div>
 
       <div className="clip-lanes">
+        <div className="clip-ruler" aria-hidden="true">
+          <span className="clip-lane-label" />
+          <div className="clip-ruler-marks">
+            <span>0:00</span>
+            <span>{formatMs(timelineMs / 2)}</span>
+            <span>{formatMs(timelineMs)}</span>
+          </div>
+        </div>
         {mix.tracks.map((tr) => (
           <div key={tr.id} className="clip-lane">
             <span className="clip-lane-label">{tr.name}</span>
@@ -134,11 +142,15 @@ export function ClipTimeline({ mix, onChange }: Props) {
                     type="button"
                     className={active ? "clip-block active" : "clip-block"}
                     style={{ left: `${left}%`, width: `${width}%` }}
-                    title={`${formatMs(clip.startMs)} · ${formatMs(clip.durationMs)}`}
+                    title={`${tr.name} · ${formatMs(clip.startMs)} → ${formatMs(clip.startMs + clip.durationMs)}`}
+                    aria-label={`${tr.name}, ${formatMs(clip.startMs)}, ${formatMs(clip.durationMs)}`}
                     onClick={() =>
                       setSelected({ trackId: tr.id, clipId: clip.id })
                     }
                   >
+                    <span className="clip-block-label">
+                      {formatMs(clip.startMs)}
+                    </span>
                     <span
                       className="clip-fade-in"
                       style={{
@@ -161,12 +173,12 @@ export function ClipTimeline({ mix, onChange }: Props) {
 
       {selected && selectedClip && (
         <div className="clip-inspector">
-          <p className="hint">
+          <p className="clip-inspector-title">
             {t("clips.selected", { id: selectedClip.id.slice(0, 8) })}
           </p>
           <div className="clip-fields">
-            <label>
-              {t("clips.start")}
+            <label className="clip-field">
+              <span>{t("clips.start")}</span>
               <input
                 type="number"
                 min={0}
@@ -177,8 +189,8 @@ export function ClipTimeline({ mix, onChange }: Props) {
                 }
               />
             </label>
-            <label>
-              {t("clips.offset")}
+            <label className="clip-field">
+              <span>{t("clips.offset")}</span>
               <input
                 type="number"
                 min={0}
@@ -189,8 +201,8 @@ export function ClipTimeline({ mix, onChange }: Props) {
                 }
               />
             </label>
-            <label>
-              {t("clips.duration")}
+            <label className="clip-field">
+              <span>{t("clips.duration")}</span>
               <input
                 type="number"
                 min={100}
@@ -201,8 +213,8 @@ export function ClipTimeline({ mix, onChange }: Props) {
                 }
               />
             </label>
-            <label>
-              {t("clips.fadeIn")}
+            <label className="clip-field">
+              <span>{t("clips.fadeIn")}</span>
               <input
                 type="number"
                 min={0}
@@ -213,8 +225,8 @@ export function ClipTimeline({ mix, onChange }: Props) {
                 }
               />
             </label>
-            <label>
-              {t("clips.fadeOut")}
+            <label className="clip-field">
+              <span>{t("clips.fadeOut")}</span>
               <input
                 type="number"
                 min={0}

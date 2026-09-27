@@ -105,77 +105,83 @@ export function Phase3MixPanel({ mix }: Props) {
   );
 
   return (
-    <section className="phase3-panel phase3-mix" aria-labelledby="phase3-mix-title">
-      <h2 id="phase3-mix-title">{t("phase3.mix.title")}</h2>
+    <section className="phase3-panel phase3-mix" aria-label={t("phase3.mix.title")}>
       <p className="hint">{t("phase3.mix.intro")}</p>
-      <p className="hint">{honesty}</p>
+      <p className={`hint ${active ? "ok" : ""}`}>{honesty}</p>
 
       {!mix ? (
         <p className="hint">{t("phase3.mix.needMix")}</p>
       ) : (
         <>
-          <label>
-            {t("phase3.mix.track")}
-            <select
-              value={activeTrack}
-              onChange={(e) => setTrackId(e.target.value)}
-            >
-              {tracks.map((tr) => (
-                <option key={tr.id} value={tr.id}>
-                  {tr.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            {t("phase3.mix.timeMs")}
-            <input
-              type="number"
-              min={0}
-              value={timeMs}
-              onChange={(e) => setTimeMs(Number(e.target.value) || 0)}
-            />
-          </label>
-          <label>
-            {t("phase3.mix.pointEndDb")}
-            <input
-              type="number"
-              step={0.5}
-              value={points[1]?.value ?? -6}
-              onChange={(e) =>
-                setPoints([
-                  { timeMs: 0, value: 0 },
-                  { timeMs: 1000, value: Number(e.target.value) },
-                ])
-              }
-            />
-          </label>
-          <label className="phase3-check">
-            <input
-              type="checkbox"
-              checked={limiter}
-              onChange={(e) => applyFlags({ limiter: e.target.checked })}
-            />
-            {t("phase3.mix.limiter")}
-          </label>
-          <label className="phase3-check">
-            <input
-              type="checkbox"
-              checked={compressor}
-              onChange={(e) => applyFlags({ compressor: e.target.checked })}
-            />
-            {t("phase3.mix.compressor")}
-          </label>
-          <label className="phase3-check">
-            <input
-              type="checkbox"
-              checked={sidechain}
-              onChange={(e) => applyFlags({ sidechain: e.target.checked })}
-            />
-            {t("phase3.mix.sidechain")}
-          </label>
-          <div className="btn-row">
-            <button type="button" className="btn" onClick={applyAutomation}>
+          <div className="phase3-fields">
+            <label className="phase3-field">
+              <span>{t("phase3.mix.track")}</span>
+              <select
+                value={activeTrack}
+                onChange={(e) => setTrackId(e.target.value)}
+              >
+                {tracks.map((tr) => (
+                  <option key={tr.id} value={tr.id}>
+                    {tr.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="phase3-field">
+              <span>{t("phase3.mix.timeMs")}</span>
+              <input
+                type="number"
+                min={0}
+                value={timeMs}
+                onChange={(e) => setTimeMs(Number(e.target.value) || 0)}
+              />
+            </label>
+            <label className="phase3-field">
+              <span>{t("phase3.mix.pointEndDb")}</span>
+              <input
+                type="number"
+                step={0.5}
+                value={points[1]?.value ?? -6}
+                onChange={(e) =>
+                  setPoints([
+                    { timeMs: 0, value: 0 },
+                    { timeMs: 1000, value: Number(e.target.value) },
+                  ])
+                }
+              />
+            </label>
+          </div>
+
+          <fieldset className="phase3-fx">
+            <legend>{t("phase3.mix.fxLegend")}</legend>
+            <label className="phase3-check">
+              <input
+                type="checkbox"
+                checked={limiter}
+                onChange={(e) => applyFlags({ limiter: e.target.checked })}
+              />
+              <span>{t("phase3.mix.limiter")}</span>
+            </label>
+            <label className="phase3-check">
+              <input
+                type="checkbox"
+                checked={compressor}
+                onChange={(e) => applyFlags({ compressor: e.target.checked })}
+              />
+              <span>{t("phase3.mix.compressor")}</span>
+            </label>
+            <label className="phase3-check">
+              <input
+                type="checkbox"
+                checked={sidechain}
+                onChange={(e) => applyFlags({ sidechain: e.target.checked })}
+              />
+              <span>{t("phase3.mix.sidechain")}</span>
+            </label>
+          </fieldset>
+
+          <div className="btn-row phase3-actions">
+            <button type="button" className="btn primary" onClick={applyAutomation}>
               {t("phase3.mix.applyAutomation")}
             </button>
             <button type="button" className="btn" onClick={measureLoudness}>
@@ -183,12 +189,12 @@ export function Phase3MixPanel({ mix }: Props) {
             </button>
           </div>
           {sampled != null && (
-            <p>
+            <p className="phase3-result">
               {t("phase3.mix.sampled")}: <strong>{sampled.toFixed(2)} dB</strong>
             </p>
           )}
           {loudness && (
-            <p>
+            <p className="phase3-result">
               {t("phase3.mix.loudness")}:{" "}
               {loudness.integratedLufs?.toFixed(1) ?? "—"} LUFS ·{" "}
               {t("phase3.mix.truePeak")}:{" "}
