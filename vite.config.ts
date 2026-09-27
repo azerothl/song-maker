@@ -40,6 +40,10 @@ export default defineConfig(() => ({
         rootDir,
         "packages/remote-worker/src/index.ts",
       ),
+      "@song-maker/project-sync": path.resolve(
+        rootDir,
+        "packages/project-sync/src/index.ts",
+      ),
       "@song-maker/sheetsage": path.resolve(
         rootDir,
         "packages/sheetsage/src/index.ts",
