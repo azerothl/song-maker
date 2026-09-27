@@ -1273,6 +1273,93 @@ details[open] > summary {
   --track-wave-played: var(--accent-2);
 }
 
+.track[data-role="user"],
+.track[data-role="custom"] {
+  border-left-color: var(--text-muted, #8a8494);
+  --track-wave: var(--text-muted, #8a8494);
+  --track-wave-played: var(--text);
+}
+
+.mix-user-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.75rem 0;
+}
+
+.mix-user-actions .hint {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.record-panel {
+  margin: 0.75rem 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-elevated, var(--bg)) 92%, var(--accent) 8%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.record-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.record-panel-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.record-device {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.record-device select {
+  max-width: 28rem;
+}
+
+.record-monitor {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.record-vu {
+  height: 0.55rem;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+  overflow: hidden;
+}
+
+.record-vu-fill {
+  height: 100%;
+  background: var(--accent-coral, #e07a5f);
+  transition: width 50ms linear;
+}
+
+.record-elapsed {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+
+.record-actions {
+  margin: 0;
+}
+
+.record-review {
+  width: 100%;
+  max-width: 28rem;
+}
+
 .master {
   grid-template-columns: 7.5rem minmax(0, 1fr) auto;
 }

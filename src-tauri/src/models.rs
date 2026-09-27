@@ -302,6 +302,9 @@ pub struct DownloadCacheFileRequest {
     pub url: String,
     /// Must start with `models/lora/`.
     pub relative_cache_path: String,
+    /// When set (catalog pin), verify SHA-256 after download or cache hit.
+    #[serde(default)]
+    pub expected_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -364,6 +367,14 @@ pub struct PlaybackSources {
     pub generation_wav: Option<String>,
     pub stems: Vec<PlaybackStem>,
     pub label: String,
+}
+
+/// Chunked mic/line capture session (#41) before finalize into a user track.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserAudioCaptureSession {
+    pub session_id: String,
+    pub relative_path: String,
 }
 
 /// Active separation manifest summary for UI warnings (§9.5).

@@ -90,6 +90,28 @@ export const api = {
       }[];
     },
   ) => invoke<MixDoc>("update_mix", { id, update }),
+  /** Native dialog → copy + normalize → append user MixTrack (#40). Null if cancelled. */
+  importUserAudioTrack: (id: string) =>
+    invoke<MixDoc | null>("import_user_audio_track", { id }),
+  beginUserAudioCapture: (id: string) =>
+    invoke<{ sessionId: string; relativePath: string }>(
+      "begin_user_audio_capture",
+      { id },
+    ),
+  appendUserAudioChunk: (id: string, sessionId: string, chunk: number[]) =>
+    invoke<void>("append_user_audio_chunk", { id, sessionId, chunk }),
+  discardUserAudioCapture: (id: string, sessionId: string) =>
+    invoke<void>("discard_user_audio_capture", { id, sessionId }),
+  finalizeUserAudioCapture: (
+    id: string,
+    sessionId: string,
+    displayName?: string | null,
+  ) =>
+    invoke<MixDoc>("finalize_user_audio_capture", {
+      id,
+      sessionId,
+      displayName: displayName ?? null,
+    }),
   saveMixVersion: (id: string) => invoke<MixDoc>("save_mix_version", { id }),
   renderPreview: (id: string) => invoke<string>("render_preview", { id }),
   playbackSources: (id: string) =>
@@ -124,9 +146,17 @@ export const api = {
         matchMode: req.matchMode,
       },
     }),
-  downloadCacheFile: (url: string, relativeCachePath: string) =>
+  downloadCacheFile: (
+    url: string,
+    relativeCachePath: string,
+    expectedSha256?: string,
+  ) =>
     invoke<string>("download_cache_file", {
-      req: { url, relativeCachePath },
+      req: {
+        url,
+        relativeCachePath,
+        expectedSha256: expectedSha256 ?? null,
+      },
     }),
   listGenerations: (id: string) =>
     invoke<GenerationSummary[]>("list_generations", { id }),

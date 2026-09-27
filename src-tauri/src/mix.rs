@@ -17,6 +17,72 @@ const TRACK_ROLES: &[(&str, &str)] = &[
     ("piano", "Piano"),
 ];
 
+/// Empty mix used when the first user track is imported/recorded before separation.
+pub fn empty_mix(mix_id: &str) -> MixDoc {
+    MixDoc {
+        schema: crate::pins::SCHEMA_MIX.into(),
+        schema_version: crate::pins::SCHEMA_VERSION,
+        id: mix_id.into(),
+        separation_id: String::new(),
+        sample_rate: SAMPLE_RATE,
+        master_gain_db: 0.0,
+        peak_ceiling_db: -1.0,
+        tracks: Vec::new(),
+    }
+}
+
+/// Append a user/custom track (never touches AI stems). Role is `user`.
+pub fn append_user_audio_track(
+    mix: &mut MixDoc,
+    relative_wav: &str,
+    sha256: &str,
+    duration_ms: i64,
+    display_name: &str,
+) -> MixTrack {
+    let track_id = format!("trk-user-{}", Uuid::new_v4());
+    let name = {
+        let base = display_name.trim();
+        let base = if base.is_empty() {
+            "Piste personnalisée"
+        } else {
+            base
+        };
+        let mut candidate = base.to_string();
+        let mut n = 2;
+        while mix.tracks.iter().any(|t| t.name == candidate) {
+            candidate = format!("{base} ({n})");
+            n += 1;
+        }
+        candidate
+    };
+    let clip = Clip {
+        id: format!("clip-{}", Uuid::new_v4()),
+        track_id: track_id.clone(),
+        source_path: relative_wav.to_string(),
+        source_sha256: sha256.to_string(),
+        start_ms: 0,
+        offset_ms: 0,
+        duration_ms: duration_ms.max(0),
+        gain_db: 0.0,
+        fade_in_ms: 0,
+        fade_out_ms: 0,
+    };
+    let track = MixTrack {
+        id: track_id,
+        role: "user".into(),
+        name,
+        gain_db: 0.0,
+        pan: 0.0,
+        mute: false,
+        solo: false,
+        locked: false,
+        ai_separated: false,
+        clips: vec![clip],
+    };
+    mix.tracks.push(track.clone());
+    track
+}
+
 pub fn new_mix_from_separation(
     mix_id: &str,
     sep_id: &str,
@@ -433,5 +499,44 @@ mod tests {
         assert!((fade_gain(50, 1000, 100, 100) - 0.5).abs() < 1e-5);
         assert!((fade_gain(500, 1000, 100, 100) - 1.0).abs() < 1e-5);
         assert!((fade_gain(950, 1000, 100, 100) - 0.5).abs() < 1e-5);
+    }
+
+    #[test]
+    fn append_user_track_does_not_touch_ai_stems() {
+        let mut mix = new_mix_from_separation(
+            "mix-v1",
+            "sep-1",
+            &[(
+                "vocals".into(),
+                PathBuf::from("stems/vocals.wav"),
+                "abc".into(),
+                1000,
+            )],
+        );
+        assert_eq!(mix.tracks.len(), 1);
+        assert!(mix.tracks[0].ai_separated);
+        let user = append_user_audio_track(
+            &mut mix,
+            "user-audio/normalized/u1.wav",
+            "def",
+            2000,
+            "Ma voix",
+        );
+        assert_eq!(mix.tracks.len(), 2);
+        assert!(!user.ai_separated);
+        assert_eq!(user.role, "user");
+        assert_eq!(user.clips[0].start_ms, 0);
+        assert_eq!(user.clips[0].duration_ms, 2000);
+        assert!(mix.tracks[0].ai_separated);
+        assert_eq!(mix.tracks[0].role, "vocals");
+    }
+
+    #[test]
+    fn append_user_track_dedupes_names() {
+        let mut mix = empty_mix("mix-v1");
+        append_user_audio_track(&mut mix, "a.wav", "1", 100, "Custom");
+        append_user_audio_track(&mut mix, "b.wav", "2", 100, "Custom");
+        assert_eq!(mix.tracks[0].name, "Custom");
+        assert_eq!(mix.tracks[1].name, "Custom (2)");
     }
 }

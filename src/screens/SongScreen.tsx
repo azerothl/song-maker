@@ -8,9 +8,11 @@ import { CandidateCompare } from "../components/CandidateCompare";
 import { ClipTimeline } from "../components/ClipTimeline";
 import { MultiRenderFromScore } from "../components/MultiRenderFromScore";
 import { Phase3MixPanel } from "../components/Phase3MixPanel";
+import { RecordTrackPanel } from "../components/RecordTrackPanel";
 import { RemoteGenerateConfirm } from "../components/RemoteGenerateConfirm";
 import { ScoreOnlyGenerate } from "../components/ScoreOnlyGenerate";
 import { ScorePanel } from "../components/ScorePanel";
+import { SheetSage2Panel } from "../components/SheetSage2Panel";
 import { VersionGraph } from "../components/VersionGraph";
 import { Waveform } from "../components/Waveform";
 import { api } from "../lib/api";
@@ -195,8 +197,32 @@ export function SongScreen() {
   const [separationInfo, setSeparationInfo] = useState<SeparationInfo | null>(
     null,
   );
+  const [importingAudio, setImportingAudio] = useState(false);
+  const [recordOpen, setRecordOpen] = useState(false);
   const saveTimer = useRef<number | null>(null);
   const mixTimer = useRef<number | null>(null);
+
+  async function onImportUserAudio() {
+    if (!project || importingAudio) return;
+    setImportingAudio(true);
+    setError(null);
+    try {
+      const next = await api.importUserAudioTrack(project.id);
+      if (next) {
+        setMix(next);
+        await openProject(project.id);
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setImportingAudio(false);
+    }
+  }
+
+  async function onUserTrackAdded(next: MixDoc) {
+    setMix(next);
+    if (project) await openProject(project.id);
+  }
 
   async function onExport(format: "wav" | "flac" | "mp3") {
     if (!project) return;
@@ -946,6 +972,36 @@ export function SongScreen() {
           />
         </details>
 
+        <details className="sheetsage-section">
+          <summary>{t("sheetsage.title")}</summary>
+          <SheetSage2Panel
+            projectId={project.id}
+            form={form}
+            mix={mix}
+            busy={busy}
+            onConfirmGenerate={async (confirmedAbc, cot) => {
+              setBusy(true);
+              setError(null);
+              try {
+                const formForCall: FormInput = { ...form, cot };
+                await api.startGeneration(
+                  project.id,
+                  formForCall,
+                  confirmedAbc,
+                  {
+                    sourceGenerationId: project.activeGenerationId ?? null,
+                  },
+                );
+                await openProject(project.id);
+              } catch (e) {
+                setError(String(e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+        </details>
+
         {generations.find((g) => g.id === project.activeGenerationId)
           ?.semanticTruncated && (
           <section className="continuation-panel" aria-labelledby="continue-title">
@@ -973,6 +1029,35 @@ export function SongScreen() {
             </button>
           </section>
         )}
+
+        <div className="mix-user-actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={busy || importingAudio}
+            onClick={() => void onImportUserAudio()}
+          >
+            {importingAudio ? t("mix.importing") : t("mix.importAudio")}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => setRecordOpen((v) => !v)}
+            aria-expanded={recordOpen}
+          >
+            {t("mix.recordAudio")}
+          </button>
+          <p className="hint">{t("mix.importHint")}</p>
+        </div>
+
+        <RecordTrackPanel
+          projectId={project.id}
+          open={recordOpen}
+          onClose={() => setRecordOpen(false)}
+          onTrackAdded={(m) => void onUserTrackAdded(m)}
+          onError={setError}
+        />
 
         {mix ? (
           <div className="mixer">
