@@ -28,7 +28,7 @@ pub fn default_cache_dir() -> PathBuf {
 }
 
 pub fn binaries_dir(cache: &Path) -> PathBuf {
-    cache.join("binaries").join("v0.8.1")
+    cache.join("binaries").join(crate::pins::AUDIOCPP_TAG)
 }
 
 pub fn yue2_dir(cache: &Path) -> PathBuf {

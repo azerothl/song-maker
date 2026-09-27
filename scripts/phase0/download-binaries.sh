@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Télécharge et vérifie les archives audio.cpp épinglées (v0.8.1).
+# Télécharge et vérifie les archives audio.cpp épinglées (v0.8.2).
 # Usage:
 #   ./download-binaries.sh              # archive de la plateforme courante (+ runtime Windows)
 #   ./download-binaries.sh --all        # toutes les archives épinglées
@@ -45,7 +45,7 @@ want() {
   esac
 }
 
-echo "=== Song Maker Phase 0 — téléchargement binaires audio.cpp v0.8.1 ==="
+echo "=== Song Maker Phase 0 — téléchargement binaires audio.cpp v0.8.2 ==="
 echo "Cache: ${BIN_DIR}"
 echo
 

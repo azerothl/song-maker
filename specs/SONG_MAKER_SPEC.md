@@ -5,7 +5,7 @@
 **Remplace :** la proposition 0.2 sur le périmètre de ce build. Les phases 2, 3 et 4 restent décrites ; elles ne sont pas des critères d’acceptation.  
 **Cible :** application desktop locale  
 **Famille de modèles :** YuE2-3B (upstream `m-a-p/YuE2-3B`)  
-**Moteur du premier build :** [audio.cpp](https://github.com/0xShug0/audio.cpp) `v0.8.1` + GGUF [`audio-cpp/Yue2-3B-GGUF`](https://huggingface.co/audio-cpp/Yue2-3B-GGUF)  
+**Moteur du premier build :** [audio.cpp](https://github.com/0xShug0/audio.cpp) `v0.8.2` + GGUF [`audio-cpp/Yue2-3B-GGUF`](https://huggingface.co/audio-cpp/Yue2-3B-GGUF)
 **Hors de ce build :** runtime Python YuE2, SheetSage2, service distant  
 **Principe du premier build :** saisir un style et des paroles, générer un WAV, séparer, mixer  
 **Direction ultérieure :** composer en symboles, puis régénérer et éditer
@@ -16,7 +16,7 @@ Les images de `specs/maquettes/` sont des références visuelles. Elles ne décr
 
 Song Maker est une application desktop locale. Le premier build crée un morceau à partir d’un style, de paroles non vides et d’un mode `cot`, lance un appel audio.cpp YuE2, écoute le stéréo, sépare quatre stems, puis mixe et exporte. Un projet est un morceau.
 
-Le chemin qui marche sans partition utilisateur est `style` + paroles + `cot=full`. Le moteur n’a pas de durée, refuse les paroles vides, et ne time-stretch pas un WAV. Le premier build ne demande donc pas d’éditeur de partition. Ce trajet est la phase 1. L’éditeur de partition, l’import MIDI et le mapping MIDI vers ABC sont la phase 2. Le mapping reste le risque élevé du §25 ; son contrat est écrit au §7 pour ne pas l’inventer dans le code plus tard.
+Le chemin qui marche sans partition utilisateur est `style` + paroles + `cot=full`. Le moteur n’expose pas une durée musicale exacte : l’application convertit la durée cible en minimum de tokens sémantiques, puis accorde une marge pour finir les paroles. Le mode strict rétablit une limite exacte en tokens. Le moteur refuse les paroles vides et ne time-stretch pas un WAV. Le premier build ne demande donc pas d’éditeur de partition. Ce trajet est la phase 1. L’éditeur de partition, l’import MIDI et le mapping MIDI vers ABC sont la phase 2. Le mapping reste le risque élevé du §25 ; son contrat est écrit au §7 pour ne pas l’inventer dans le code plus tard.
 
 Le provider du premier build est audio.cpp, binaire épinglé, poids GGUF, sans Python. Le runtime Python officiel n’est pas installé, pas proposé au premier lancement, et pas un repli en cas de mémoire insuffisante.
 
@@ -26,10 +26,10 @@ Le morceau stéréo est ensuite séparé par HTDemucs, dans le même serveur, ap
 
 ### 2.1 Capacités du moteur épinglé
 
-Contraintes d’intégration, lues sur audio.cpp `v0.8.1` et sur la famille YuE2 :
+Contraintes d’intégration, lues sur audio.cpp `v0.8.2` et sur la famille YuE2 :
 
 - YuE2 génère un morceau complet à partir d’un `style` non vide et de paroles non vides, avec voix et accompagnement. Une chaîne de paroles vide est refusée.
-- Il n’y a pas d’argument de durée, de genre, de mood, de langue, de tempo ni de tonalité. Ces mots, quand ils existent dans le produit, sont du texte assemblé dans `style`, ou des champs de partition pour la phase 2. Ils ne sont pas un contrôle du WAV déjà rendu.
+- audio.cpp 0.8.2 expose des bornes de tokens sémantiques, pas une durée musicale exacte. Les genres et moods restent du texte dans `style` ; l’application traduit sa durée cible en bornes de tokens. La langue, le tempo et la tonalité restent des indications, pas des garanties du WAV rendu.
 - YuE2 peut écrire un artefact `score.abc` lorsque le modèle produit son propre plan (`cot=melody` ou `cot=full` sans ABC externe). Le premier build le conserve et l’affiche. Il ne l’édite pas.
 - Une partition ABC personnalisée peut être fournie en `cot=full` ou `cot=melody`. Ce n’est pas le chemin du premier build : `abcPath` reste `null`. Un ABC envoyé avec `cot=off` est une erreur, locale puis moteur.
 - Le mode `cot=off` produit l’audio sans partition en retour. Il reste dans le formulaire, marqué avancé. Le défaut est `full`.
@@ -38,21 +38,21 @@ Contraintes d’intégration, lues sur audio.cpp `v0.8.1` et sur la famille YuE2
 - YuE2 ne consomme pas d’audio en entrée. Pas d’inpainting local, pas d’alignement phonémique, pas de référence audio directe. Une génération est un nouvel appel, un nouveau dossier.
 - Un appel produit un candidat. Plusieurs candidats sont plusieurs appels.
 
-Sources : [docs/models/yue2.md](https://github.com/0xShug0/audio.cpp/blob/v0.8.1/docs/models/yue2.md) au tag `v0.8.1` (commit `f2b4937306daa25f5c78520f3c626ed31495a37a`), [guide de génération YuE](https://github.com/multimodal-art-projection/YuE/blob/bd90e4ccae671d869b3ecaca6d7e893927d29442/docs/generation.md).
+Sources : [docs/models/yue2.md](https://github.com/0xShug0/audio.cpp/blob/v0.8.2/docs/models/yue2.md) au tag `v0.8.2` (commit `4d88768fbcae4e6eb3352c6ab1422dabb7d90b58`), [guide de génération YuE](https://github.com/multimodal-art-projection/YuE/blob/bd90e4ccae671d869b3ecaca6d7e893927d29442/docs/generation.md).
 
-### 2.2 Moteur du premier build : audio.cpp `v0.8.1`
+### 2.2 Moteur du premier build : audio.cpp `v0.8.2`
 
-Le premier build épingle le tag `v0.8.1`, pas la branche `dev`, pas CUDA 13.3. Il n’existe pas une archive unique Windows et Linux. Le README officiel annonce Windows CUDA 12.4 et 13.3, et Ubuntu CPU ou Vulkan. L’archive Linux CUDA de la release s’appelle `cuda12.8-colab` et n’est pas dans ce tableau. C’est pourtant le seul binaire CUDA Linux publié pour ce tag. On l’épingle. On ne lui substitue pas l’archive Vulkan en silence.
+Le premier build épingle le tag `v0.8.2`, pas la branche `dev`, pas CUDA 13.3. Il n’existe pas une archive unique Windows et Linux. Le README officiel annonce Windows CUDA 12.4 et 13.3, et Ubuntu CPU ou Vulkan. L’archive Linux CUDA de la release s’appelle `cuda12.8-colab` et n’est pas dans ce tableau. C’est pourtant le seul binaire CUDA Linux publié pour ce tag. On l’épingle. On ne lui substitue pas l’archive Vulkan en silence.
 
 Un binaire CUDA 12.4 demande un driver Windows ≥ 551.61 (Linux ≥ 550.54.14 pour un binaire 12.4) et, le driver étant rétrocompatible, tourne aussi sur un driver plus récent. Un binaire CUDA 13.3 demande la branche R610 (Linux ≥ 610.43.02). La 12.4 couvre donc les machines 12.x et les machines déjà passées à un driver 13. L’inverse est faux. Le driver Linux de l’archive `cuda12.8-colab` suit CUDA 12.8 : ≥ 570.26.
 
 | Rôle | Archive | SHA-256 | Taille |
 |---|---|---|---|
-| Windows, binaire CUDA | `audio-v0.8.1-bin-windows-x64-cuda12.4.zip` | `28bbe8ac62a06c5d9d42ba3066b051f433dc9a8f456c544e03e87202f0fa8c52` | 442 303 082 |
-| Windows, runtime CUDA à côté du binaire | `audio-v0.8.1-cudart-windows-x64-cuda12.4.zip` | `025faacfdc3dec215ee07cb9be7d1ef2016402723f3721a30500ceee02cc4701` | 607 273 675 |
-| Linux, seul binaire CUDA publié | `audio-v0.8.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz` | `f969811783f206b6d1f6566c020211ab9df7b6bb96c6eded6ad7a58deb725025` | 63 859 969 |
+| Windows, binaire CUDA | `audio-v0.8.2-bin-windows-x64-cuda12.4.zip` | `6055122c7199897ff21ca6cda9f9207712bd91273d21dc2d137d5fa610c43c86` | 444 938 499 |
+| Windows, runtime CUDA à côté du binaire | `audio-v0.8.2-cudart-windows-x64-cuda12.4.zip` | `e2a31fb1030423319e686c6ec65da8952b2c095feb8a1e716c2adfbb6c46fac1` | 607 273 675 |
+| Linux, seul binaire CUDA publié | `audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz` | `1190ba46bb45e1acd2ca42edca53074c7935b96de67f3719c8c4943df5fe1b6f` | 65 293 844 |
 
-URLs : `https://github.com/0xShug0/audio.cpp/releases/download/v0.8.1/<nom>`.
+URLs : `https://github.com/0xShug0/audio.cpp/releases/download/v0.8.2/<nom>`.
 
 Le mot `colab` dans le nom Linux est un fait. La phase 0 lance ce binaire sur un Ubuntu desktop, `--backend cuda`, et charge `yue2`. Si ce chargement échoue hors Colab, le premier build Linux CUDA est bloqué. On ne livre pas un autre binaire à la place. Vulkan, CPU, macOS Metal, CUDA 13.3 et le HIP communautaire ne sont pas des binaires de ce build. Le chemin testé est CUDA Windows et CUDA Linux.
 
@@ -113,14 +113,14 @@ Cette section, le §22 et le §23 disent la même coupe. Le premier build est le
 
 1. Application desktop locale. Pas le service Akasha, pas DeclUI. C’est le seul livrable de ce build (§18.1).
 2. Bibliothèque de projets. Un projet = un morceau (§13, §16.6).
-3. Formulaire : titre, style, paroles, `cot`. Défaut `cot=full`. Voir §8.2.
+3. Formulaire : titre, style, paroles, `cot`, durée cible (3:00 par défaut) et priorité aux paroles activée par défaut. Voir §8.2.
 4. Génération audio.cpp YuE2, un appel, un WAV stéréo 48 kHz. Pack selon la VRAM du §2.2. L’utilisateur confirme. Un manque de mémoire ne change pas le pack tout seul.
-5. Écoute du stéréo. Si le modèle a écrit `score.abc`, le fichier est conservé et affiché en texte repliable. Pas d’édition.
+5. Écoute du stéréo. Si le modèle a écrit `score.abc`, le fichier est conservé et affiché en texte repliable. L’éditeur de partition reste facultatif et replié par défaut.
 6. Séparation HTDemucs, quatre stems, après le rééchantillonnage du §9.
-7. Mix : gain de piste, panoramique, mute, solo, gain master. Lecture et export WAV PCM 24 bits et FLAC 24 bits, 48 kHz stéréo. Pas de MP3.
-8. Un candidat par clic. Le seed est toujours écrit dans la requête (§8.0).
+7. Mix : gain de piste, panoramique, mute, solo, gain master. Lecture et export WAV PCM 24 bits, FLAC 24 bits et MP3 de livraison.
+8. Un candidat par requête ; le produit peut en générer 2 à 4 séquentiellement et comparer les prises. Le seed est toujours écrit dans chaque requête (§8.0).
 9. Jobs non bloquants. File GPU du §14.4. Un job en cours ne bloque pas le changement d’écran.
-10. Versions = dossiers immuables. Pas de graphe. Voir §12.
+10. Versions = dossiers immuables et graphe léger replié par défaut. Pas de fusion automatique. Voir §12.
 
 ### 4.2 Explicitement plus tard
 
@@ -435,7 +435,7 @@ Règles :
 - `numInferenceSteps` vaut `8`, toujours écrit. On n’envoie pas `32` tant qu’une comparaison écoutée, même binaire, même seed, n’a pas été archivée. Le sidecar et le protocole Python portent 32 ; le binaire épinglé documente 8. Ce build suit le binaire épinglé ;
 - le seed n’est jamais omis.
 
-Seed et pas, si on ne les envoie pas (guide `v0.8.1`) :
+Seed et pas, si on ne les envoie pas (guide `v0.8.2`) :
 
 | Option | Si on ne l’envoie pas | Valeur que Song Maker envoie |
 |---|---|---|
@@ -462,7 +462,7 @@ Le libellé de `off` dans le formulaire : « avancé : pas de partition en retou
 
 ### 8.2 Contrat du formulaire
 
-audio.cpp n’accepte, pour YuE2, que `style`, les paroles, `cot`, `abc` / `abc_file`, `seed`, `num_inference_steps`, `guidance_scale` (alias `cfg_scale`), et les options d’échantillonnage. Le formulaire n’invente pas d’autre canal.
+audio.cpp accepte, pour YuE2, `style`, les paroles, `cot`, `abc` / `abc_file`, `seed`, `num_inference_steps`, `guidance_scale` (alias `cfg_scale`), `semantic_min_tokens`, `semantic_max_tokens`, `export_semantic` et les options d’échantillonnage. Le formulaire traduit la durée cible en bornes sémantiques ; il ne promet pas une durée exacte du WAV.
 
 | Champ | Règle | Où il va |
 |---|---|---|
@@ -474,7 +474,8 @@ audio.cpp n’accepte, pour YuE2, que `style`, les paroles, `cot`, `abc` / `abc_
 | Tempo | Facultatif. Entier 40 à 220. | Suffixé au style : `", {n} BPM"`. Stocké dans `project.json`. Pas un contrôle du WAV. |
 | Tonalité | Facultative. Une des 30 valeurs : 12 toniques (`C` `C#` `D` `Eb` `E` `F` `F#` `G` `Ab` `A` `Bb` `B`) × `major` / `minor`. | Suffixée : `", key C major"` ou `", key A minor"`. |
 | Métrique | Facultative. Une de `4/4`, `3/4`, `6/8`, `2/4`. Défaut d’affichage : aucune. | Suffixée : `", 4/4"`. |
-| Genre, mood, durée | Absents de l’interface. | — |
+| Genre, mood | Texte de style. | `style` de la requête. |
+| Durée cible | 0:30–6:00, pas de 30 s, 3:00 par défaut. La priorité aux paroles peut dépasser la cible ; mode strict coupe à la cible. | Minimum et maximum de tokens sémantiques audio.cpp 0.8.2. |
 | Seed | Champ avancé, vide par défaut. | Toujours envoyé. §8.0. |
 | Pas, guidage | Absents de l’interface. | Toujours envoyés. §8.0. |
 
@@ -800,10 +801,10 @@ CREATE TABLE project (
   "createdAt": "2026-09-18T13:05:00Z",
   "provider": "audiocpp",
   "binary": {
-    "tag": "v0.8.1",
-    "commit": "f2b4937306daa25f5c78520f3c626ed31495a37a",
-    "archive": "audio-v0.8.1-bin-windows-x64-cuda12.4.zip",
-    "sha256": "28bbe8ac62a06c5d9d42ba3066b051f433dc9a8f456c544e03e87202f0fa8c52"
+    "tag": "v0.8.2",
+    "commit": "4d88768fbcae4e6eb3352c6ab1422dabb7d90b58",
+    "archive": "audio-v0.8.2-bin-windows-x64-cuda12.4.zip",
+    "sha256": "6055122c7199897ff21ca6cda9f9207712bd91273d21dc2d137d5fa610c43c86"
   },
   "model": {
     "repo": "audio-cpp/Yue2-3B-GGUF",
@@ -1106,7 +1107,7 @@ Les écrans de la proposition 0.2 qui ne sont pas dans cette liste — moniteur 
 
 ### 16.4 Premier lancement
 
-Vérifier le GPU, la VRAM, l’espace disque, les hashes du §2.2, et que `GET /health` répond après chargement paresseux. Aucune génération audio. Une génération YuE2 n’a pas de durée : un « test court » est déjà un morceau entier. Le test `cot=off` de la proposition 0.2 n’a pas lieu.
+Vérifier le GPU, la VRAM, l’espace disque, les hashes du §2.2, et que `GET /health` répond après chargement paresseux. Aucune génération audio dans ce test d’installation. Les tests de création et de durée utilisent une requête YuE2 distincte.
 
 ### 16.5 Langue
 
@@ -1312,7 +1313,7 @@ Les phases 2 à 4 ne sont pas optionnelles dans le sens où on les oublierait. E
 
 - télécharger les trois archives du §2.2 et vérifier les hashes ;
 - sur Windows, lancer le binaire CUDA 12.4 avec le runtime épinglé ;
-- sur un Ubuntu desktop, hors Colab, lancer `audio-v0.8.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz` avec `--backend cuda` et charger `yue2` ; si ce chargement échoue, Linux CUDA n’est pas livré sur un autre binaire ;
+- sur un Ubuntu desktop, hors Colab, lancer `audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz` avec `--backend cuda` et charger `yue2` ; si ce chargement échoue, Linux CUDA n’est pas livré sur un autre binaire ;
 - vérifier GPU, VRAM, espace disque, hashes, et `GET /health` ;
 - ne pas lancer de génération audio comme test d’installation ;
 - ne pas figer une durée murale : elle n’est pas publiée (§27) ;
@@ -1369,7 +1370,7 @@ Pas d’import MIDI. Pas de piano roll.
 
 Ces pistes ne sont **pas** des critères du premier build. Elles prolongent les phases 2 à 4. Le détail sourcé est dans la note de recherche du projet (YuE2 — améliorations d’usage).
 
-1. **Évaluer une future épingle audio.cpp ≥ `v0.8.2`** (release du 24 septembre 2026, hotfix du 25). Le premier build reste sur `v0.8.1`. Avant toute nouvelle épingle : mêmes hashes, mêmes archives CUDA, pas de bascule silencieuse vers Vulkan, CPU ou macOS. Reprendre avec cette évaluation le tuilage NAR pour les longs morceaux.
+1. **Continuer un morceau à partir des tokens sémantiques** : `export_semantic` est activé pour lire l’état de troncature, mais le payload n’est pas encore conservé dans le projet. Garder cet artefact et le reprendre avec `semantic_prefix` pour créer de longues chansons en sections contrôlables ; vérifier la continuité avant de l’exposer.
 2. **`stop_after=abc` et multi-rendu** — phase 2.
 3. **Instrumental Vocal → Ins** (flux skill YuE `yue2-music` 1.2.0, sans LoRA) — phase 2.
 4. **`semantic_prefix` / export sémantique** — phase 2 ou 3.
@@ -1387,7 +1388,7 @@ Ce ne sont plus des recommandations ouvertes.
 2. Tant que la phase 2 n’est pas là, aucun ABC n’est envoyé. On ne prétend pas que YuE2 lit le MIDI.
 3. `cot` défaut `full`. `off` est avancé, libellé « avancé : pas de partition en retour ». `melody` est disponible et n’envoie pas d’ABC dans ce build.
 4. Une version est un dossier créé par Générer, Séparer ou « Enregistrer le mix ». L’undo ne crée pas de version.
-5. Le provider du premier build est audio.cpp `v0.8.1`, serveur local, CUDA, file FIFO, `max_loaded_models=1`.
+5. Le provider du premier build est audio.cpp `v0.8.2`, serveur local, CUDA, file FIFO, `max_loaded_models=1`.
 6. Le runtime Python n’est pas un prérequis, pas un repli, pas un composant installé.
 7. Le séparateur est HTDemucs `htdemucs_q8_0` via le même serveur, après rééchantillonnage soxr.
 8. Les stems sont des estimations. L’interface le dit. `other` s’appelle Accompagnement, pas Synths.
@@ -1407,20 +1408,20 @@ Ce ne sont plus des recommandations ouvertes.
 | Durée murale d’une génération inconnue | Moyen | Plafond 30 min, échec `server_busy`, pas de relance en boucle. Pas une prévision (§27). |
 | La permission du 16 septembre 2026 ne couvre pas le GGUF | Très élevé | Écran CC BY-NC 4.0, pas de badge, pas de distribution commerciale des poids. |
 | Perte de données | Élevé | Dossiers immuables, hashes, écritures atomiques. |
-| Interface trop proche des maquettes | Moyen | Quatre écrans, français, pas de tagline, pas de durée cible. |
+| Interface trop proche des maquettes | Moyen | Quatre écrans, français, pas de tagline ; la durée reste une cible faute de contrôle exact du temps musical. |
 | GPU absent ou driver ancien | Moyen | Message du §16.3. Pas de bascule CPU ou Vulkan. |
 
 ## 26. Conclusion
 
 Le premier build est un atelier court : un formulaire, un appel YuE2, un WAV, quatre stems, un mix. La partition n’y contrôle pas encore l’intention. Elle est stockée quand le modèle l’écrit, et son édition est la phase 2, dont le dialecte ABC est déjà fixé.
 
-Le moteur de ce build est audio.cpp `v0.8.1`, deux archives CUDA, deux quantifications, un VAE F16. Le runtime Python et SheetSage2 n’en font pas partie. Le projet possède ses dossiers, ses schémas et sa file. YuE2 est le moteur de rendu de cet appel, pas le format du projet.
+Le moteur de ce build est audio.cpp `v0.8.2`, deux archives CUDA, deux quantifications, un VAE F16. Le runtime Python et SheetSage2 n’en font pas partie. Le projet possède ses dossiers, ses schémas et sa file. YuE2 est le moteur de rendu de cet appel, pas le format du projet.
 
 ## 27. Points non fermés
 
 Ces points ne sont pas des options produit. Les textes lus ne les règlent pas. Le premier build a quand même un comportement, indiqué entre parenthèses.
 
 - La permission du 16 septembre 2026 couvre-t-elle juridiquement le GGUF converti ? `MODEL_LICENSE` nomme `model.safetensors`. La fiche GGUF dit « same license » et `cc-by-nc-4.0`, sans recopier la permission. (L’écran licences affiche CC BY-NC 4.0, sans badge de monétisation. La distribution commerciale des poids reste bloquée.)
-- Durée murale réelle d’une génération `tonight-awake` sur le binaire `v0.8.1`. (Plafond 30 min, pas une prévision.)
+- Durée murale réelle d’une génération `tonight-awake` sur le binaire `v0.8.2`. (Plafond 30 min, pas une prévision.)
 - L’archive `cuda12.8-colab` démarre-t-elle CUDA sur un Ubuntu desktop, hors Colab ? (C’est l’archive épinglée. Si le chargement échoue, Linux CUDA n’est pas livré sur un autre binaire.)
 - La casse exacte des `sources` dans `htdemucs-q8_0.gguf`. (Correspondance insensible à la casse sur les quatre noms. Tout autre nom échoue visiblement.)

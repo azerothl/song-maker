@@ -1,6 +1,6 @@
 # Phase 0 — validation technique Song Maker
 
-Scripts pour télécharger, vérifier et tester le binaire audio.cpp **v0.8.1** et les poids GGUF épinglés. Aucune génération audio n’est lancée ici.
+Scripts pour télécharger, vérifier et tester le binaire audio.cpp **v0.8.2** et les poids GGUF épinglés. Aucune génération audio n’est lancée ici.
 
 ## Épingles (source de vérité)
 
@@ -8,9 +8,9 @@ Fichier : [`pins.json`](./pins.json)
 
 | Artefact | SHA-256 |
 |---|---|
-| `audio-v0.8.1-bin-windows-x64-cuda12.4.zip` | `28bbe8ac…` |
-| `audio-v0.8.1-cudart-windows-x64-cuda12.4.zip` | `025faacf…` |
-| `audio-v0.8.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz` | `f9698117…` |
+| `audio-v0.8.2-bin-windows-x64-cuda12.4.zip` | `6055122c…` |
+| `audio-v0.8.2-cudart-windows-x64-cuda12.4.zip` | `e2a31fb1…` |
+| `audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz` | `1190ba46…` |
 | `yue2-3b-q8_0.gguf` | `f3a9e3b1…` |
 | `yue2-3b-q4_0.gguf` | `97af67d7…` |
 | `yue2-vae-f16.gguf` | `d4f4a05d…` |
@@ -76,8 +76,8 @@ Le script utilise l’archive **de la plateforme courante** :
 
 | OS | Archive | Driver min |
 |---|---|---|
-| Windows | `audio-v0.8.1-bin-windows-x64-cuda12.4.zip` + cudart | ≥ 551.61 |
-| Linux | `audio-v0.8.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz` | ≥ 570.26 |
+| Windows | `audio-v0.8.2-bin-windows-x64-cuda12.4.zip` + cudart | ≥ 551.61 |
+| Linux | `audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz` | ≥ 570.26 |
 
 Le mot `colab` sur l’archive Linux est un fait upstream. Contrat : `--backend cuda` + chargement `yue2`. Pas de Vulkan / CPU.
 
@@ -117,7 +117,7 @@ Le script :
 6. attend `GET /health` ;
 7. tente un chargement `yue2` (sans génération).
 
-Journal : `$SONG_MAKER_CACHE/binaries/v0.8.1/load-test-cuda.log`.
+Journal : `$SONG_MAKER_CACHE/binaries/v0.8.2/load-test-cuda.log`.
 
 ### Interpréter le résultat
 

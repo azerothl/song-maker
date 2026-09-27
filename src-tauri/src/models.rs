@@ -37,9 +37,11 @@ pub struct ProjectDoc {
     pub key: Option<KeySig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub meter: Option<Meter>,
-    /// Plafond de durée demandé (secondes), pas de 30 s, max 360.
+    /// Durée cible (secondes), pas de 30 s, max 360.
     #[serde(default = "crate::pins::default_target_duration_sec")]
     pub target_duration_sec: u32,
+    #[serde(default = "default_prefer_full_lyrics")]
+    pub prefer_full_lyrics: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_generation_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -133,6 +135,10 @@ fn default_stem_separator() -> String {
     crate::pins::DEFAULT_STEM_SEPARATOR.to_string()
 }
 
+fn default_prefer_full_lyrics() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Phase3Status {
@@ -183,9 +189,11 @@ pub struct FormInput {
     pub key: Option<KeySig>,
     pub meter: Option<Meter>,
     pub seed: Option<u64>,
-    /// Plafond de durée (secondes), pas 30, borné 30–360. Défaut 180.
+    /// Durée cible (secondes), pas 30, borné 30–360. Défaut 180.
     #[serde(default = "crate::pins::default_target_duration_sec")]
     pub target_duration_sec: u32,
+    #[serde(default = "default_prefer_full_lyrics")]
+    pub prefer_full_lyrics: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -259,6 +267,8 @@ pub struct GenerationSummary {
     pub parent_generation_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub audio_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semantic_truncated: Option<bool>,
 }
 
 /// Chemins absolus pour la lecture Web Audio (prise ou stems float32).

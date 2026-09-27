@@ -21,7 +21,7 @@ done
 
 FAIL=0
 
-echo "=== Vérification des hashes Song Maker (v0.8.1) ==="
+echo "=== Vérification des hashes Song Maker (v0.8.2) ==="
 
 if [[ "$CHECK_BINARIES" -eq 1 ]]; then
   echo

@@ -337,6 +337,20 @@ impl AudioCppServer {
         None
     }
 
+    /// v0.8.2 semantic artifact metadata reports when the token cap was hit.
+    pub fn semantic_truncated(response: &Value) -> Option<bool> {
+        response
+            .get("artifacts")?
+            .as_array()?
+            .iter()
+            .find_map(|artifact| {
+                let value = artifact.get("meta")?.get("truncated")?;
+                value
+                    .as_bool()
+                    .or_else(|| value.as_str().and_then(|s| s.parse::<bool>().ok()))
+            })
+    }
+
     pub async fn unload_all(base_url: &str) -> Result<(), String> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
@@ -364,5 +378,19 @@ impl AudioCppServer {
                 let _ = c.kill();
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod semantic_metadata_tests {
+    use super::AudioCppServer;
+    use serde_json::json;
+
+    #[test]
+    fn reads_v082_string_encoded_truncation_flag() {
+        let response = json!({
+            "artifacts": [{ "id": "semantic", "meta": { "truncated": "true" } }]
+        });
+        assert_eq!(AudioCppServer::semantic_truncated(&response), Some(true));
     }
 }

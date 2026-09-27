@@ -1,5 +1,8 @@
 use crate::models::{AppSettings, LibraryRow, ProjectDoc};
-use crate::paths::{atomic_write_json, ensure_dir, library_db_path, projects_root, settings_path};
+use crate::paths::{
+    atomic_write_json, ensure_dir, library_db_path, pinned_archive_name, projects_root,
+    settings_path,
+};
 use crate::pins::*;
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
@@ -177,11 +180,34 @@ pub fn load_settings() -> Result<AppSettings, String> {
     let path = settings_path();
     if path.exists() {
         let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        return serde_json::from_str(&text).map_err(|e| e.to_string());
+        let mut settings: AppSettings = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        if migrate_binary_pin(&mut settings) {
+            save_settings(&settings)?;
+        }
+        return Ok(settings);
     }
     let defaults = default_settings();
     save_settings(&defaults)?;
     Ok(defaults)
+}
+
+fn migrate_binary_pin(settings: &mut AppSettings) -> bool {
+    let sha = if cfg!(target_os = "windows") {
+        ARCHIVE_WINDOWS_SHA
+    } else {
+        ARCHIVE_LINUX_SHA
+    };
+    let archive = pinned_archive_name();
+    if settings.binary_tag == AUDIOCPP_TAG
+        && settings.binary_archive == archive
+        && settings.binary_sha256 == sha
+    {
+        return false;
+    }
+    settings.binary_tag = AUDIOCPP_TAG.into();
+    settings.binary_archive = archive.into();
+    settings.binary_sha256 = sha.into();
+    true
 }
 
 pub fn default_settings() -> AppSettings {
@@ -211,6 +237,25 @@ pub fn default_settings() -> AppSettings {
 
 pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
     atomic_write_json(&settings_path(), settings)
+}
+
+#[cfg(test)]
+mod settings_tests {
+    use super::{default_settings, migrate_binary_pin};
+    use crate::pins::AUDIOCPP_TAG;
+    use crate::paths::pinned_archive_name;
+
+    #[test]
+    fn upgrades_existing_settings_to_the_current_pinned_binary() {
+        let mut settings = default_settings();
+        settings.binary_tag = "v0.8.1".into();
+        settings.binary_archive = "audio-v0.8.1-bin-windows-x64-cuda12.4.zip".into();
+        settings.binary_sha256 = "old-sha".into();
+
+        assert!(migrate_binary_pin(&mut settings));
+        assert_eq!(settings.binary_tag, AUDIOCPP_TAG);
+        assert_eq!(settings.binary_archive, pinned_archive_name());
+    }
 }
 
 pub fn project_folder(id: &str) -> PathBuf {

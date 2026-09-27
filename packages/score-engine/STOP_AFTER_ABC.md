@@ -2,20 +2,14 @@
 
 **Statut :** gated — non activé  
 **Drapeau :** `STOP_AFTER_ABC_ENABLED = false` dans `src/generation/stop-after.ts`  
-**Épingle actuelle :** audio.cpp `v0.8.1` (`pins.rs`)
+**Épingle actuelle :** audio.cpp `v0.8.2` (`pins.rs`)
 
 ## Pourquoi ce n’est pas activé
 
-`stop_after=abc` (score sans WAV) est documenté à partir d’audio.cpp **≥ v0.8.2**.
-Le premier build et la Phase 1 restent sur `v0.8.1` (archives CUDA Windows 12.4 +
-Linux `cuda12.8-colab`, hashes figés). Une nouvelle épingle exige :
+`stop_after=abc` (score sans WAV) est documenté à partir d’audio.cpp **≥ v0.8.2**. Cette version et ses archives CUDA sont maintenant épinglées et vérifiées.
+La fonction reste désactivée parce que la commande desktop attend une réponse audio et ne transmet pas encore `stop_after`.
 
-1. Vérifier les digests des archives CUDA `v0.8.2` (ou hotfix) — mêmes rôles Windows / Linux.
-2. Relancer le parcours Phase 0 / Phase 1 (GPU CUDA, `GET /health`, génération style+paroles).
-3. **Ne pas** substituer Vulkan, CPU ou macOS Metal si CUDA échoue.
-4. Mettre à jour `pins.rs` + l’écran licences / paramètres.
-5. Ensuite seulement : `STOP_AFTER_ABC_ENABLED = true` et câbler `stop_after` dans
-   `POST /v1/tasks/run` (options YuE2).
+Pour l’activer, il reste à ajouter le chemin score seulement à la commande desktop, stocker son artefact sans WAV, puis tester avec CUDA. Le drapeau restera désactivé jusque-là.
 
 ## Contrat produit (quand le drapeau passera)
 

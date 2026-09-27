@@ -49,7 +49,7 @@ default_cache_dir() {
 }
 
 CACHE_DIR="${SONG_MAKER_CACHE:-$(default_cache_dir)}"
-BIN_DIR="${CACHE_DIR}/binaries/v0.8.1"
+BIN_DIR="${CACHE_DIR}/binaries/v0.8.2"
 MODELS_DIR="${CACHE_DIR}/models"
 YUE2_DIR="${MODELS_DIR}/Yue2-3B-GGUF"
 HTDEMUCS_DIR="${MODELS_DIR}/htdemucs"

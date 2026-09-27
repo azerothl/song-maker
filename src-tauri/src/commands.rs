@@ -163,6 +163,7 @@ pub fn create_project(input: CreateProjectInput) -> Result<ProjectDoc, String> {
         key: None,
         meter: None,
         target_duration_sec: DURATION_SEC_DEFAULT,
+        prefer_full_lyrics: true,
         active_generation_id: None,
         active_separation_id: None,
         active_mix_id: None,
@@ -203,6 +204,7 @@ pub fn save_project_form(id: String, form: FormInput) -> Result<ProjectDoc, Stri
     doc.meter = form.meter;
     doc.target_duration_sec = validate_target_duration(form.target_duration_sec)
         .map_err(|e| e.to_string())?;
+    doc.prefer_full_lyrics = form.prefer_full_lyrics;
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
     upsert_library_row(&LibraryRow {
@@ -303,7 +305,11 @@ pub async fn start_generation(
     let style_sent = validate_form(&form).map_err(|e| e.to_string())?;
     let target_duration_sec =
         validate_target_duration(form.target_duration_sec).map_err(|e| e.to_string())?;
-    let semantic_max_tokens = semantic_max_tokens_for_duration(target_duration_sec);
+    let (semantic_min_tokens, semantic_max_tokens) = semantic_token_budget(
+        target_duration_sec,
+        &form.lyrics,
+        form.prefer_full_lyrics,
+    );
     let abc_trimmed = abc
         .as_ref()
         .map(|s| s.trim().to_string())
@@ -324,6 +330,7 @@ pub async fn start_generation(
     doc.key = form.key.clone();
     doc.meter = form.meter.clone();
     doc.target_duration_sec = target_duration_sec;
+    doc.prefer_full_lyrics = form.prefer_full_lyrics;
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
 
@@ -380,6 +387,8 @@ pub async fn start_generation(
         "numInferenceSteps": NUM_INFERENCE_STEPS,
         "guidanceScale": guidance_scale(&form.cot),
         "targetDurationSec": target_duration_sec,
+        "preferFullLyrics": form.prefer_full_lyrics,
+        "semanticMinTokens": semantic_min_tokens,
         "semanticMaxTokens": semantic_max_tokens
     });
     atomic_write_json(&gen_dir.join("request.json"), &request)?;
@@ -413,7 +422,9 @@ pub async fn start_generation(
                     "cot": cot,
                     "num_inference_steps": NUM_INFERENCE_STEPS,
                     "guidance_scale": guidance_scale(&cot),
-                    "semantic_max_tokens": semantic_max_tokens
+                    "semantic_min_tokens": semantic_min_tokens,
+                    "semantic_max_tokens": semantic_max_tokens,
+                    "export_semantic": true
                 });
                 if let Some(abc_text) = &abc_for_req {
                     options
@@ -450,6 +461,8 @@ pub async fn start_generation(
                 }
                 match api_result {
                     Ok(response) => {
+                        let semantic_truncated =
+                            AudioCppServer::semantic_truncated(&response);
                         let wav_bytes = match AudioCppServer::extract_wav_bytes(&response) {
                             Ok(b) => b,
                             Err(e) => {
@@ -520,6 +533,7 @@ pub async fn start_generation(
                                 "sha256": audio_sha
                             },
                             "score": score,
+                            "semanticTruncated": semantic_truncated,
                             "error": null
                         });
                         atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
@@ -1123,7 +1137,7 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
         let req: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(req_path).map_err(|e| e.to_string())?)
                 .map_err(|e| e.to_string())?;
-        let (state, has_score) = if res_path.exists() {
+        let (state, has_score, semantic_truncated) = if res_path.exists() {
             let res: serde_json::Value = serde_json::from_str(
                 &std::fs::read_to_string(&res_path).map_err(|e| e.to_string())?,
             )
@@ -1134,9 +1148,13 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
                 .unwrap_or("unknown")
                 .to_string();
             let score = entry.path().join("score.abc").exists();
-            (st, score)
+            (
+                st,
+                score,
+                res.get("semanticTruncated").and_then(|v| v.as_bool()),
+            )
         } else {
-            ("unknown".into(), false)
+            ("unknown".into(), false, None)
         };
         let gen_id = req
             .get("id")
@@ -1168,6 +1186,7 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
             } else {
                 None
             },
+            semantic_truncated,
         });
     }
     Ok(out)

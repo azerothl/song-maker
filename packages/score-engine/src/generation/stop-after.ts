@@ -3,15 +3,14 @@ import type { CotProfile } from "../types/score-document.js";
 
 /**
  * `stop_after=abc` — produce score without WAV (audio.cpp ≥ v0.8.2).
- * Gated: the first-build pin remains v0.8.1. Enable only after a safe
- * pin evaluation (hashes, CUDA archives, no silent Vulkan/CPU fallback).
+ * Gated until the option is wired into the local generation request.
  * @see docs/yue2-ameliorations.md item 2
  * @see packages/score-engine/STOP_AFTER_ABC.md
  */
 export type StopAfterStage = "abc" | "semantic" | "audio";
 
 /**
- * Feature flag — keep false until audio.cpp ≥ v0.8.2 is pinned safely.
+ * Feature flag — keep false until the command is wired and exercised end to end.
  * Do not flip this without updating pins.rs and verifying Phase 1 CUDA.
  */
 export const STOP_AFTER_ABC_ENABLED = false;
@@ -76,9 +75,8 @@ export class GatedStopAfterAbcClient implements StopAfterAbcClient {
     if (!this.enabled) {
       throw new ScoreEngineError(
         "not_implemented",
-        `stop_after=abc gated: épingle audio.cpp ≥ ${STOP_AFTER_ABC_MIN_TAG} requise (actuel v0.8.1). ` +
-          "Activer STOP_AFTER_ABC_ENABLED seulement après évaluation des hashes CUDA, " +
-          "sans bascule silencieuse Vulkan/CPU.",
+        `stop_after=abc gated: option non câblée dans la commande desktop (audio.cpp ${STOP_AFTER_ABC_MIN_TAG}). ` +
+          "La commande doit aussi conserver le score sans attendre de WAV.",
       );
     }
     throw new ScoreEngineError(
