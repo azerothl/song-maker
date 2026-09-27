@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Phase3SettingsPanel } from "../components/Phase3SettingsPanel";
 import { api } from "../lib/api";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
@@ -87,6 +88,8 @@ export function SettingsScreen() {
         <p>{settings.outputDevice ?? "Défaut système"}</p>
       </section>
 
+      <Phase3SettingsPanel />
+
       <section>
         <button type="button" className="btn" onClick={() => setScreen("licenses")}>
           {t("settings.licenses")}
@@ -116,6 +119,10 @@ export function LicensesScreen() {
       <ul className="licenses">
         <li>{t("licenses.audiocpp")}</li>
         <li>{t("licenses.yue2")}</li>
+        <li>
+          Packs LoRA optionnels (phase 3) — CC BY-NC 4.0, hors installeur ; voir
+          Paramètres → Production audio.
+        </li>
         <li>
           Crédit : <strong>{t("licenses.credit")}</strong>
         </li>

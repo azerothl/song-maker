@@ -12,11 +12,27 @@ export type {
   LoudnessReport,
   LoudnessMeter,
   MixProductionToolkit,
+  WavPcmDecoder,
 } from "./types.js";
 export {
+  sampleAutomationPoints,
+  dbToLinear,
+  linearToDb,
+  applyPeakLimiter,
+  applyCompressor,
+  applyGainShelf,
+  applySidechainDuck,
+  measureLoudnessFromPcm,
+} from "./dsp.js";
+export {
+  MixAutomationEngineImpl,
+  TrackEffectsRackImpl,
+  SidechainRouterImpl,
+  LoudnessMeterImpl,
+  createMixProductionToolkit,
+  createStubMixProductionToolkit,
   StubMixAutomationEngine,
   StubTrackEffectsRack,
   StubSidechainRouter,
   StubLoudnessMeter,
-  createStubMixProductionToolkit,
-} from "./stubs.js";
+} from "./impl.js";

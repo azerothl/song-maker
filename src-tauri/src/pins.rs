@@ -43,6 +43,16 @@ pub const HTDEMUCS_SHA: &str =
     "b0f532ac6e5f373aeb11fa0df73253251e133832d9c8b9942dc58f50bc5b4388";
 pub const HTDEMUCS_PACKAGE: &str = "htdemucs_q8_0";
 
+/// BS-RoFormer — optional phase-3 second separator (not in first-build installer).
+pub const BS_ROFORMER_GGUF: &str = "bs-roformer-ep368-q8_0.gguf";
+pub const BS_ROFORMER_SHA: &str =
+    "9a55a8cad369d00f6e0fb208bb0cd87e30e25430772b8491e20a4eace6423ad2";
+pub const BS_ROFORMER_PACKAGE: &str = "bs_roformer_q8_0";
+pub const BS_ROFORMER_REMOTE: &str =
+    "BS-RoFormer-ep368-GGUF/bs-roformer-ep368-q8_0.gguf";
+
+pub const DEFAULT_STEM_SEPARATOR: &str = "htdemucs";
+
 pub const DEFAULT_HOST: &str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 8765;
 pub const MAX_LOADED_MODELS: u32 = 1;

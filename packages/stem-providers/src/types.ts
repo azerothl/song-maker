@@ -2,11 +2,11 @@
  * Stem separator contracts for Song Maker phase 3 (§9, §23).
  *
  * Phase 1 ships a single path: audiocpp / htdemucs_q8_0 after soxr resample.
- * This package holds the interchangeable-provider surface so phase 3 can plug
- * a second family (BS-RoFormer) without touching phase 1 screens.
+ * Phase 3 routes through StemSeparatorProvider and may select BS-RoFormer when
+ * its GGUF is present under the cache (not in the first-build installer).
  */
 
-/** Four roles of the first build; guitar/piano arrive later (§9.2, §10.3). */
+/** Four roles of the first build; guitar/piano only if a provider emits them. */
 export type StemRole =
   | "vocals"
   | "drums"
@@ -27,6 +27,8 @@ export const STEM_DISPLAY_NAMES: Record<StemRole, string> = {
 
 export type StemReliability = "standard" | "less_reliable";
 
+export type StemAvailability = "available" | "unavailable";
+
 export type StemDescriptor = {
   role: StemRole;
   /** Relative path inside a separation folder, e.g. vocals-48000.wav */
@@ -43,6 +45,11 @@ export type SeparationRequest = {
   projectSampleRate: 48000;
   /** Output directory for a new sep-NNN folder. */
   outputDir: string;
+  /**
+   * Absolute path to the 44,1 kHz soxr-resampled mixture already on disk.
+   * Required when calling a live audiocpp transport.
+   */
+  separatorInputPath?: string;
 };
 
 export type SeparationResult = {
@@ -56,16 +63,43 @@ export type SeparationResult = {
     resampler: "ffmpeg-soxr-precision-28";
   };
   stems: StemDescriptor[];
+  /** Roles this run did not produce (honest UI: guitar/piano, etc.). */
+  unavailableRoles: StemRole[];
   warnings: string[];
 };
 
 export type StemSeparatorCapabilities = {
   id: string;
   family: string;
-  /** Roles this provider can emit. */
+  /** Roles this provider can emit on a successful run. */
   roles: readonly StemRole[];
+  /** Roles never emitted by this provider (UI must mark them unavailable). */
+  unavailableRoles: readonly StemRole[];
   /** True when guitar/piano (or other extras) are estimates only. */
   marksExtrasLessReliable: boolean;
+  /** French short label for settings. */
+  displayNameFr: string;
+  /** One-line honesty about stem layout. */
+  stemLayoutNoteFr: string;
+};
+
+/**
+ * Live audiocpp `/v1/tasks/run` transport injected by the host (Tauri worker
+ * or tests). The foundation package does not own HTTP or FFmpeg.
+ */
+export type AudiocppSepTransport = {
+  /**
+   * Runs a sep task and writes named WAV files into `outputDir`.
+   * Returns the stem ids written (e.g. vocals, drums, instrumental).
+   */
+  runSeparation(args: {
+    modelId: string;
+    family: string;
+    audioPath44100: string;
+    outputDir: string;
+  }): Promise<{ namedStemIds: string[] }>;
+  /** Optional SHA-256 of a file already on disk. */
+  sha256File?(path: string): Promise<string>;
 };
 
 /**
@@ -91,4 +125,14 @@ export function reliabilityForRole(role: StemRole): StemReliability {
     return "less_reliable";
   }
   return "standard";
+}
+
+export function availabilityForRole(
+  role: StemRole,
+  capabilities: StemSeparatorCapabilities,
+): StemAvailability {
+  if (capabilities.roles.includes(role)) {
+    return "available";
+  }
+  return "unavailable";
 }

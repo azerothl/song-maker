@@ -1,26 +1,23 @@
 # `@song-maker/stem-providers`
 
-Phase **3** foundations for interchangeable stem separation ([spec §9](../../specs/SONG_MAKER_SPEC.md), §23).
+Phase **3** — séparateurs de stems interchangeables ([spec §9](../../specs/SONG_MAKER_SPEC.md), §23).
 
 ## Rôle
 
-Après les phases 1–2, Song Maker garde un seul séparateur vivant : HTDemucs `htdemucs_q8_0` via `audiocpp_server`, avec rééchantillonnage soxr 48 kHz ↔ 44,1 kHz dans le worker. Ce paquet expose :
+- interface `StemSeparatorProvider` ;
+- **HTDemucs** `htdemucs_q8_0` (défaut, premier build) — 4 stems ;
+- **BS-RoFormer** `bs_roformer_q8_0` — seulement voix + instrumental (mappé sur « Accompagnement ») quand le GGUF est présent hors installeur.
 
-- l’interface `StemSeparatorProvider` ;
-- la forme de l’adaptateur HTDemucs (métadonnées épinglées, pas d’appel HTTP) ;
-- un stub BS-RoFormer (`bs_roformer`) comme second provider documenté.
+## Honêteté stems
 
-## Branchement après phase 1–2
+| Provider | Disponibles | Indisponibles |
+|---|---|---|
+| HTDemucs | voix, batterie, basse, accompagnement | guitare, piano |
+| BS-RoFormer | voix, accompagnement (← instrumental) | batterie, basse, guitare, piano |
 
-1. Phase 1 continue d’appeler HTDemucs directement (ou via ce package une fois câblé).
-2. Phase 3 enregistre un second provider et laisse l’utilisateur choisir la famille dans les paramètres — **pas** dans les quatre écrans du premier build.
-3. Les rôles `guitar` / `piano` sont marqués `less_reliable` ; `other` reste « Accompagnement ».
+## Transport
 
-## Hors périmètre
-
-- Pas d’écrans UI phase 1.
-- Pas de poids GGUF téléchargés ici.
-- `separate()` lève volontairement tant que le worker phase 1 / 3 n’est pas branché.
+`separate()` exige un `AudiocppSepTransport` injecté (worker Tauri). Sans transport, l’appel refuse explicitement — pas de faux succès.
 
 ## Tests
 

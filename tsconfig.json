@@ -17,7 +17,10 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@song-maker/score-engine": ["./packages/score-engine/src/index.ts"]
+      "@song-maker/score-engine": ["./packages/score-engine/src/index.ts"],
+      "@song-maker/stem-providers": ["./packages/stem-providers/src/index.ts"],
+      "@song-maker/mix-production": ["./packages/mix-production/src/index.ts"],
+      "@song-maker/lora-packs": ["./packages/lora-packs/src/index.ts"]
     }
   },
   "include": ["src"],

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
+import { Phase3MixPanel } from "../components/Phase3MixPanel";
 import { ScorePanel } from "../components/ScorePanel";
 import { Waveform } from "../components/Waveform";
 import { api } from "../lib/api";
@@ -542,6 +543,8 @@ export function SongScreen() {
         ) : (
           <p className="hint">Stéréo — lancez la séparation pour les quatre pistes.</p>
         )}
+
+        <Phase3MixPanel mix={mix} />
 
         <details
           open={scoreOpen}

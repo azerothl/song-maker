@@ -87,17 +87,87 @@ export function buildYue2LoraSessionOptions(
   return options;
 }
 
+export type LoraDownloadPlanFile = {
+  slot: "ar" | "nar";
+  filename: string;
+  /** Hugging Face resolve URL — host must fetch; package never ships weights. */
+  url: string;
+  /** Suggested relative path under the user cache (models/lora/<packId>/). */
+  relativeCachePath: string;
+};
+
+export type LoraDownloadPlan = {
+  pack: LoraPack;
+  files: LoraDownloadPlanFile[];
+  /** French notice for the UI. */
+  noticeFr: string;
+};
+
 /**
- * Placeholder download entry — opt-in only. Never called by first-build installer.
+ * Builds an opt-in download plan (URLs + cache paths). Does not fetch.
  */
-export async function requestOptionalLoraDownload(
+export function planOptionalLoraDownload(
   packId: string,
   acceptance: LicenseAcceptance,
-): Promise<LicenseGateDecision> {
+): LicenseGateDecision & { plan?: LoraDownloadPlan } {
   const decision = gateLoraPackAccess(packId, acceptance);
   if (!decision.ok) {
     return decision;
   }
-  // Intentionally no network / no weights. Phase 3–4 wires HF download behind this gate.
-  return decision;
+  const pack = decision.pack;
+  const files: LoraDownloadPlanFile[] = pack.files.map((f) => ({
+    slot: f.slot,
+    filename: f.filename,
+    url: `https://huggingface.co/${pack.repo}/resolve/main/${f.filename}`,
+    relativeCachePath: `models/lora/${pack.id}/${f.filename}`,
+  }));
+  return {
+    ok: true,
+    pack,
+    plan: {
+      pack,
+      files,
+      noticeFr:
+        "Téléchargement optionnel CC BY-NC 4.0 — hors installeur du premier build. Aucun poids n’est embarqué dans le dépôt.",
+    },
+  };
+}
+
+/**
+ * Placeholder download entry — opt-in only. Never called by first-build installer.
+ * Returns the gate decision + plan; host performs the actual HTTP fetch.
+ */
+export async function requestOptionalLoraDownload(
+  packId: string,
+  acceptance: LicenseAcceptance,
+): Promise<LicenseGateDecision & { plan?: LoraDownloadPlan }> {
+  return planOptionalLoraDownload(packId, acceptance);
+}
+
+export type LoraPackLocalStatus = {
+  packId: string;
+  /** True when all listed files exist under the cache root. */
+  installed: boolean;
+  missingFiles: string[];
+};
+
+/**
+ * Pure status check given a set of relative paths known to exist on disk.
+ */
+export function statusForLoraPack(
+  pack: LoraPack,
+  existingRelativePaths: ReadonlySet<string>,
+): LoraPackLocalStatus {
+  const missing: string[] = [];
+  for (const f of pack.files) {
+    const rel = `models/lora/${pack.id}/${f.filename}`;
+    if (!existingRelativePaths.has(rel)) {
+      missing.push(f.filename);
+    }
+  }
+  return {
+    packId: pack.id,
+    installed: missing.length === 0,
+    missingFiles: missing,
+  };
 }
