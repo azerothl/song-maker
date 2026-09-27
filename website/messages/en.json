@@ -94,9 +94,9 @@
       "intro": "Song Maker is a desktop app. Setup downloads the required executables and models; plan for disk space and a compatible graphics card.",
       "link": "Read the setup guide",
       "systemLabel": "Systems",
-      "systems": "Windows or Linux",
+      "systems": "Windows, macOS, or Linux",
       "gpuLabel": "AI acceleration",
-      "gpu": "NVIDIA GPU · CUDA",
+      "gpu": "NVIDIA · CUDA (Windows/Linux) · Metal (macOS)",
       "licenseLabel": "YuE2 weights license",
       "license": "CC BY-NC 4.0",
       "licenseNote": "This license restricts commercial use. Review the model terms before using them in a commercial project."
@@ -116,7 +116,7 @@
         },
         "hardware": {
           "question": "What computer do I need?",
-          "answer": "The app targets Windows and Linux with an NVIDIA GPU and CUDA. Check the setup guide for versions and dependencies for your configuration."
+          "answer": "Generation uses an NVIDIA GPU with CUDA on Windows and Linux, or Metal on Mac. Check the setup guide for versions and dependencies for your configuration."
         },
         "license": {
           "question": "Can I use YuE2 in a commercial project?",
@@ -135,14 +135,14 @@
     "examples": "Workflow",
     "gallery": "Setup",
     "docs": "Guide",
-    "download": "GitHub",
+    "download": "Download",
     "license": "Details"
   },
   "hero": {
     "brand": "Song Maker",
     "headline": "Shape your song. Keep it on your computer.",
     "sentence": "YuE2 generates a take from a style and lyrics. Separate tracks, adjust the mix, and export on your computer.",
-    "ctaDownload": "View the project",
+    "ctaDownload": "Download the app",
     "ctaDocs": "Read the guide"
   },
   "promise": {
@@ -238,16 +238,16 @@
     "title": "Short FAQ",
     "items": {
       "gpu": {
-        "q": "Do I need an NVIDIA GPU?",
-        "a": "Yes for real CUDA generation. Phase 0 scripts download without a GPU; the CUDA load-test fails clearly without nvidia-smi."
+        "q": "What GPU do I need for generation?",
+        "a": "An NVIDIA GPU on Windows/Linux (CUDA), or a Mac that supports Metal. Setup downloads the models separately."
       },
       "suno": {
         "q": "Is this like Suno?",
         "a": "No: a local desktop studio with an editable score, stems, and mix. No cloud social feed, no account to create."
       },
       "os": {
-        "q": "Windows and Linux?",
-        "a": "Yes — pinned CUDA archives (Windows cuda12.4, Linux cuda12.8-colab). See the install docs."
+        "q": "Which systems are supported?",
+        "a": "Windows and Linux x64 with NVIDIA/CUDA, plus Intel and Apple Silicon Macs with Metal. See the installation guide."
       },
       "commercial": {
         "q": "Can I monetize outputs?",
@@ -257,8 +257,8 @@
   },
   "cta": {
     "title": "Open the studio.",
-    "body": "Clone the repo, run phase 0, then generate your first song locally.",
-    "download": "Download / clone",
+    "body": "Choose the installer for your system. The guide will help you download the audio engine and models for first-time setup.",
+    "download": "Choose your system",
     "docs": "Start with the docs"
   },
   "docs": {
@@ -266,6 +266,33 @@
     "body": "Installation, first song, score, track separation, mix, and GPU troubleshooting.",
     "back": "Back to site",
     "toc": "Contents"
+  },
+  "downloads": {
+    "eyebrow": "Song Maker v0.1.0",
+    "title": "Download Song Maker",
+    "intro": "Choose the file for your computer. The audio engine and models are downloaded separately during first-time setup.",
+    "windows": {
+      "title": "Windows",
+      "description": "Windows 10/11 · x64 · NVIDIA GPU recommended for generation",
+      "setup": ".exe installer — recommended",
+      "msi": ".msi installer"
+    },
+    "macos": {
+      "title": "macOS",
+      "description": "Metal acceleration · choose your Mac architecture",
+      "appleSilicon": "Apple Silicon (M1, M2, M3, M4…) · .dmg",
+      "intel": "Intel Mac · .dmg"
+    },
+    "linux": {
+      "title": "Linux",
+      "description": "Linux x64 · NVIDIA GPU required for generation",
+      "appimage": "AppImage — portable",
+      "deb": ".deb package — Debian / Ubuntu",
+      "rpm": ".rpm package — Fedora / compatible distributions"
+    },
+    "firstRun": "After installing, follow the guide to set up the engine and models.",
+    "guide": "Open the installation guide",
+    "github": "See all release files on GitHub"
   },
   "footer": {
     "tagline": "Local-first music studio",

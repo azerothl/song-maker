@@ -94,9 +94,9 @@
       "intro": "Song Maker est une application de bureau. L’installation télécharge les exécutables et les modèles nécessaires ; prévoyez de l’espace disque et une carte graphique compatible.",
       "link": "Consulter le guide d’installation",
       "systemLabel": "Systèmes",
-      "systems": "Windows ou Linux",
+      "systems": "Windows, macOS ou Linux",
       "gpuLabel": "Accélération IA",
-      "gpu": "GPU NVIDIA · CUDA",
+      "gpu": "NVIDIA · CUDA (Windows/Linux) · Metal (macOS)",
       "licenseLabel": "Licence des poids YuE2",
       "license": "CC BY-NC 4.0",
       "licenseNote": "Cette licence comporte une restriction d’usage commercial. Consultez les conditions des modèles avant de les utiliser dans un projet commercial."
@@ -116,7 +116,7 @@
         },
         "hardware": {
           "question": "Quel ordinateur faut-il ?",
-          "answer": "L’application cible Windows et Linux avec un GPU NVIDIA et CUDA. Consultez le guide pour les versions et dépendances nécessaires à votre configuration."
+          "answer": "La génération utilise un GPU NVIDIA avec CUDA sous Windows et Linux, ou Metal sur Mac. Consultez le guide pour les versions et dépendances nécessaires à votre configuration."
         },
         "license": {
           "question": "Puis-je utiliser YuE2 pour un projet commercial ?",
@@ -135,14 +135,14 @@
     "examples": "Parcours",
     "gallery": "Configuration",
     "docs": "Guide",
-    "download": "GitHub",
+    "download": "Télécharger",
     "license": "À savoir"
   },
   "hero": {
     "brand": "Song Maker",
     "headline": "Donnez forme à votre chanson. Gardez-la chez vous.",
     "sentence": "YuE2 génère une prise à partir d’un style et de paroles. Séparez les pistes, ajustez le mix et exportez sur votre ordinateur.",
-    "ctaDownload": "Voir le projet",
+    "ctaDownload": "Télécharger l’application",
     "ctaDocs": "Lire le guide"
   },
   "promise": {
@@ -238,16 +238,16 @@
     "title": "FAQ courte",
     "items": {
       "gpu": {
-        "q": "Faut-il un GPU NVIDIA ?",
-        "a": "Oui pour la génération CUDA réelle. Les scripts phase 0 téléchargent sans GPU ; le load-test CUDA échoue clairement sans nvidia-smi."
+        "q": "Quel GPU faut-il pour générer ?",
+        "a": "Un GPU NVIDIA sous Windows/Linux (CUDA) ou un Mac compatible Metal. Les scripts de configuration téléchargent les modèles séparément."
       },
       "suno": {
         "q": "C’est comme Suno ?",
         "a": "Non : atelier desktop local avec partition éditable, stems et mix. Pas de flux social cloud ni de compte pour créer."
       },
       "os": {
-        "q": "Windows et Linux ?",
-        "a": "Oui — archives CUDA épinglées (Windows cuda12.4, Linux cuda12.8-colab). Voir la doc d’install."
+        "q": "Quels systèmes sont pris en charge ?",
+        "a": "Windows et Linux x64 avec NVIDIA/CUDA, ainsi que Mac Intel et Apple Silicon avec Metal. Voir la doc d’installation."
       },
       "commercial": {
         "q": "Puis-je monétiser les sorties ?",
@@ -257,8 +257,8 @@
   },
   "cta": {
     "title": "Ouvrez l’atelier.",
-    "body": "Clonez le dépôt, lancez phase 0, puis générez votre premier morceau en local.",
-    "download": "Télécharger / clone",
+    "body": "Choisissez l’installeur adapté à votre système. Le guide vous accompagne pour télécharger ensuite le moteur et les modèles.",
+    "download": "Choisir mon système",
     "docs": "Commencer par la doc"
   },
   "docs": {
@@ -266,6 +266,33 @@
     "body": "Installation, premier morceau, partition, séparation des pistes, mix et dépannage GPU.",
     "back": "Retour au site",
     "toc": "Sommaire"
+  },
+  "downloads": {
+    "eyebrow": "Song Maker v0.1.0",
+    "title": "Télécharger Song Maker",
+    "intro": "Choisissez le fichier correspondant à votre ordinateur. Le moteur audio et les modèles se téléchargent séparément lors de la première configuration.",
+    "windows": {
+      "title": "Windows",
+      "description": "Windows 10/11 · x64 · GPU NVIDIA conseillé pour la génération",
+      "setup": "Installeur .exe — recommandé",
+      "msi": "Installeur .msi"
+    },
+    "macos": {
+      "title": "macOS",
+      "description": "Accélération Metal · choisissez l’architecture de votre Mac",
+      "appleSilicon": "Apple Silicon (M1, M2, M3, M4…) · .dmg",
+      "intel": "Mac Intel · .dmg"
+    },
+    "linux": {
+      "title": "Linux",
+      "description": "Linux x64 · GPU NVIDIA requis pour la génération",
+      "appimage": "AppImage — portable",
+      "deb": "Paquet .deb — Debian / Ubuntu",
+      "rpm": "Paquet .rpm — Fedora / compatibles"
+    },
+    "firstRun": "Après l’installation, suivez le guide pour configurer le moteur et les modèles.",
+    "guide": "Ouvrir le guide d’installation",
+    "github": "Voir tous les fichiers de la release sur GitHub"
   },
   "footer": {
     "tagline": "Atelier musical local-first",

@@ -6,8 +6,6 @@ import { Link } from "@/i18n/navigation";
 import { HeroCanvas } from "@/components/HeroCanvas";
 import styles from "./Hero.module.css";
 
-const DOWNLOAD_URL = "https://github.com/azerothl/song-maker";
-
 export function Hero() {
   const t = useTranslations("hero");
   const reduced = useReducedMotion();
@@ -47,9 +45,9 @@ export function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
         >
-          <a className="btn btn-primary" href={DOWNLOAD_URL} target="_blank" rel="noreferrer">
+          <Link className="btn btn-primary" href="/downloads">
             {t("ctaDownload")}
-          </a>
+          </Link>
           <Link className="btn btn-ghost" href="/docs">
             {t("ctaDocs")}
           </Link>
