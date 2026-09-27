@@ -1,6 +1,6 @@
 use crate::library::load_settings;
 use crate::models::HealthSnapshot;
-use crate::paths::{binaries_dir, htdemucs_path, yue2_dir};
+use crate::paths::{htdemucs_path, yue2_dir};
 use crate::pins::*;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -96,19 +96,21 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
     };
 
     let cache = PathBuf::from(&settings.cache_dir);
-    let bin_dir = binaries_dir(&cache);
-    let archive = bin_dir.join(&settings.binary_archive);
-    let mut binary_ok = artifact_present(&archive);
-    if let Some((cudart_name, _)) = crate::paths::pinned_cudart_archive() {
-        binary_ok = binary_ok && artifact_present(&bin_dir.join(cudart_name));
-    }
+    let binary_ok = crate::audiocpp::AudioCppServer::has_server_binary(&cache);
 
     let yue2 = yue2_dir(&cache);
     let gguf = yue2.join(&settings.model_gguf);
     let vae = yue2.join(YUE2_VAE);
+    let sidecars = [
+        "yue2-model-config.json",
+        "yue2-generation-config.json",
+        "yue2-qwen.tiktoken",
+        "yue2-vae-config.json",
+    ];
     let models_ok = artifact_present(&gguf)
         && artifact_present(&vae)
-        && artifact_present(&htdemucs_path(&cache));
+        && artifact_present(&htdemucs_path(&cache))
+        && sidecars.iter().all(|name| artifact_present(&yue2.join("sidecars").join(name)));
 
     let server_healthy = server_url
         .and_then(|url| {

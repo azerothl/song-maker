@@ -129,6 +129,9 @@ pub struct AppSettings {
     /// CC BY-NC acceptance for optional LoRA packs (phase 3).
     #[serde(default)]
     pub cc_by_nc_accepted: bool,
+    /// Consentement distinct pour le modèle YuE2 principal sous CC BY-NC 4.0.
+    #[serde(default)]
+    pub yue2_license_accepted: bool,
     /// Optional unfused YuE2 adapters selected from the local LoRA library.
     #[serde(default)]
     pub yue2_ar_lora: Option<String>,
@@ -177,6 +180,38 @@ pub struct HealthSnapshot {
     pub server_healthy: bool,
     pub server_url: Option<String>,
     pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallProgress {
+    pub state: String,
+    pub label: String,
+    pub file_index: usize,
+    pub file_count: usize,
+    pub received_bytes: u64,
+    pub total_bytes: Option<u64>,
+}
+
+impl InstallProgress {
+    pub fn starting(file_count: usize) -> Self {
+        Self { state: "downloading".into(), label: "Préparation du téléchargement…".into(), file_index: 0, file_count, received_bytes: 0, total_bytes: None }
+    }
+    pub fn downloading(label: &str, file_index: usize, file_count: usize, received_bytes: u64, total_bytes: Option<u64>) -> Self {
+        Self { state: "downloading".into(), label: label.into(), file_index, file_count, received_bytes, total_bytes }
+    }
+    pub fn file_done(label: &str, file_index: usize, file_count: usize) -> Self {
+        Self { state: "downloading".into(), label: label.into(), file_index, file_count, received_bytes: 1, total_bytes: Some(1) }
+    }
+    pub fn phase(label: &str, file_index: usize, file_count: usize) -> Self {
+        Self { state: "preparing".into(), label: label.into(), file_index, file_count, received_bytes: 0, total_bytes: None }
+    }
+    pub fn failed(label: &str) -> Self {
+        Self { state: "error".into(), label: label.into(), file_index: 0, file_count: 0, received_bytes: 0, total_bytes: None }
+    }
+    pub fn complete() -> Self {
+        Self { state: "complete".into(), label: "Installation terminée".into(), file_index: 1, file_count: 1, received_bytes: 1, total_bytes: Some(1) }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
