@@ -12,11 +12,11 @@ Branché dans l’app desktop (écran morceau) : import MIDI, piano roll, aperç
 | Import MIDI → `ScoreDocument` | Spec §7.2 |
 | Export `full` / `melody` → ABC YuE2 | Spec §7.3–7.6 |
 | Validation / refus « hors dialecte YuE2 » | Spec §7.4–7.6 |
-| Stubs clips (fondu, trim, move…) | Spec §10.5 / §21.3 |
-| Comparateur multi-candidats | Spec §8.6 / phase 2 |
-| `stop_after=abc` | Piste YuE2 (audio.cpp ≥ 0.8.2) |
+| Éditeur de clips (fondu, trim, move, cut, duplicate) | Spec §10.5 / §21.3 |
+| Comparateur multi-candidats (sans gagnant auto) | Spec §8.6 / phase 2 |
+| `stop_after=abc` | **Gated** — audio.cpp ≥ 0.8.2 ; voir `STOP_AFTER_ABC.md` |
 | Vocal → Ins (instrumental sans LoRA) | Skill yue2-music 1.2.0 |
-| `semantic_prefix` | Piste YuE2 mid-song |
+| `semantic_prefix` | Stub — piste YuE2 mid-song |
 
 PPQ interne : **960**. Fixtures ABC : `tests/fixtures/{melody,score,score-jazz}.abc` (YuE `bd90e4cc`).
 
@@ -29,8 +29,8 @@ PPQ interne : **960**. Fixtures ABC : `tests/fixtures/{melody,score,score-jazz}.
    - `exportToYuE2Abc(doc, { cot: "full" | "melody" })` → écrire le fichier ABC exact envoyé ;
    - passer `abcPath` dans `request.json` (aujourd’hui `null` en phase 1).
 3. Ne pas activer `validating_score` tant que ce flux n’est pas branché.
-4. Clips : réutiliser le type `Clip` déjà dans le mix phase 1 ; appeler `createClipEditor()` seulement quand l’UI expose fondus / trim.
-5. `stop_after` / `semantic_prefix` : exigent une épingle audio.cpp ≥ `v0.8.2` — hors premier build.
+4. Clips : `createClipEditor()` branché dans l’UI mix (timeline).
+5. `stop_after` : drapeau `STOP_AFTER_ABC_ENABLED` — ne pas activer sans épingle ≥ `v0.8.2` (voir `STOP_AFTER_ABC.md`). `semantic_prefix` reste stub.
 
 ```ts
 import {

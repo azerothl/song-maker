@@ -8,7 +8,7 @@ use crate::library::{
     save_project, save_settings, upsert_library_row,
 };
 use crate::mix::{
-    export_flac, new_mix_from_separation, render_mix, wav_duration_ms, write_export_json,
+    export_flac, export_mp3, new_mix_from_separation, render_mix, wav_duration_ms, write_export_json,
 };
 use crate::models::*;
 use crate::paths::{
@@ -696,6 +696,25 @@ pub fn update_mix(
             track.pan = t.pan.clamp(-1.0, 1.0);
             track.mute = t.mute;
             track.solo = t.solo;
+            if let Some(clips) = t.clips {
+                for clip in &clips {
+                    if clip.duration_ms < 0
+                        || clip.start_ms < 0
+                        || clip.offset_ms < 0
+                        || clip.fade_in_ms < 0
+                        || clip.fade_out_ms < 0
+                    {
+                        return Err("Paramètres de clip invalides (valeurs négatives).".into());
+                    }
+                    if clip.fade_in_ms + clip.fade_out_ms > clip.duration_ms {
+                        return Err(format!(
+                            "Fondus trop longs pour le clip {}.",
+                            clip.id
+                        ));
+                    }
+                }
+                track.clips = clips;
+            }
         }
     }
     atomic_write_json(&path, &mix)?;
@@ -841,8 +860,8 @@ pub fn export_audio(id: String, req: ExportRequest) -> Result<String, String> {
     ensure_dir(&exports).map_err(|e| e.to_string())?;
     let stamp = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
     let format = req.format.to_lowercase();
-    if format != "wav" && format != "flac" {
-        return Err("Format : wav ou flac uniquement (pas de MP3).".into());
+    if format != "wav" && format != "flac" && format != "mp3" {
+        return Err("Format : wav, flac ou mp3 (livraison).".into());
     }
 
     let wav_out = exports.join(format!("export-{stamp}.wav"));
@@ -866,6 +885,11 @@ pub fn export_audio(id: String, req: ExportRequest) -> Result<String, String> {
         export_flac(&wav_out, &flac)?;
         let _ = std::fs::remove_file(&wav_out);
         flac
+    } else if format == "mp3" {
+        // WAV/FLAC restent primaires ; MP3 = conversion de livraison.
+        let mp3 = exports.join(format!("export-{stamp}.mp3"));
+        export_mp3(&wav_out, &mp3)?;
+        mp3
     } else {
         wav_out
     };
@@ -918,8 +942,14 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
         } else {
             ("unknown".into(), false)
         };
+        let gen_id = req
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let audio = entry.path().join("audio.wav");
         out.push(GenerationSummary {
-            id: req.get("id").and_then(|v| v.as_str()).unwrap_or("").into(),
+            id: gen_id,
             created_at: req
                 .get("createdAt")
                 .and_then(|v| v.as_str())
@@ -933,6 +963,15 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
                 .into(),
             state,
             has_score,
+            parent_generation_id: req
+                .get("parentGenerationId")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            audio_path: if audio.is_file() {
+                Some(audio.display().to_string())
+            } else {
+                None
+            },
         });
     }
     Ok(out)

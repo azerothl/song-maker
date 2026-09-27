@@ -2,11 +2,21 @@ import { ScoreEngineError } from "../types/errors.js";
 import type { CotProfile } from "../types/score-document.js";
 
 /**
- * `stop_after=abc` — produce score without WAV (audio.cpp ≥ v0.8.2, Phase 2).
- * Requires cot=melody|full and no external ABC.
+ * `stop_after=abc` — produce score without WAV (audio.cpp ≥ v0.8.2).
+ * Gated: the first-build pin remains v0.8.1. Enable only after a safe
+ * pin evaluation (hashes, CUDA archives, no silent Vulkan/CPU fallback).
  * @see docs/yue2-ameliorations.md item 2
+ * @see packages/score-engine/STOP_AFTER_ABC.md
  */
 export type StopAfterStage = "abc" | "semantic" | "audio";
+
+/**
+ * Feature flag — keep false until audio.cpp ≥ v0.8.2 is pinned safely.
+ * Do not flip this without updating pins.rs and verifying Phase 1 CUDA.
+ */
+export const STOP_AFTER_ABC_ENABLED = false;
+
+export const STOP_AFTER_ABC_MIN_TAG = "v0.8.2";
 
 export type StopAfterAbcRequest = {
   style: string;
@@ -26,35 +36,62 @@ export type StopAfterAbcResult = {
 
 export interface StopAfterAbcClient {
   run(request: StopAfterAbcRequest): Promise<StopAfterAbcResult>;
+  /** True only when the pin supports stop_after and the flag is on. */
+  isEnabled(): boolean;
 }
 
-export class StubStopAfterAbcClient implements StopAfterAbcClient {
-  async run(request: StopAfterAbcRequest): Promise<StopAfterAbcResult> {
-    if (request.stopAfter !== "abc") {
-      throw new ScoreEngineError(
-        "validation_failed",
-        `stop_after=${request.stopAfter} hors contrat de ce stub (abc seulement)`,
-      );
-    }
-    if (request.cot === "off") {
-      throw new ScoreEngineError(
-        "abc_with_cot_off",
-        "stop_after=abc exige cot=melody|full",
-      );
-    }
-    if (request.abcPath) {
-      throw new ScoreEngineError(
-        "validation_failed",
-        "stop_after=abc refuse un ABC externe",
-      );
-    }
+function validateStopAfterAbc(request: StopAfterAbcRequest): void {
+  if (request.stopAfter !== "abc") {
     throw new ScoreEngineError(
-      "not_implemented",
-      "stop_after=abc : stub phase 2 — câbler audio.cpp ≥ v0.8.2 plus tard",
+      "validation_failed",
+      `stop_after=${request.stopAfter} hors contrat (abc seulement)`,
+    );
+  }
+  if (request.cot === "off") {
+    throw new ScoreEngineError(
+      "abc_with_cot_off",
+      "stop_after=abc exige cot=melody|full",
+    );
+  }
+  if (request.abcPath) {
+    throw new ScoreEngineError(
+      "validation_failed",
+      "stop_after=abc refuse un ABC externe",
     );
   }
 }
 
+/**
+ * Gated client: validates inputs, then refuses until the pin + flag allow it.
+ */
+export class GatedStopAfterAbcClient implements StopAfterAbcClient {
+  constructor(private readonly enabled: boolean = STOP_AFTER_ABC_ENABLED) {}
+
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  async run(request: StopAfterAbcRequest): Promise<StopAfterAbcResult> {
+    validateStopAfterAbc(request);
+    if (!this.enabled) {
+      throw new ScoreEngineError(
+        "not_implemented",
+        `stop_after=abc gated: épingle audio.cpp ≥ ${STOP_AFTER_ABC_MIN_TAG} requise (actuel v0.8.1). ` +
+          "Activer STOP_AFTER_ABC_ENABLED seulement après évaluation des hashes CUDA, " +
+          "sans bascule silencieuse Vulkan/CPU.",
+      );
+    }
+    throw new ScoreEngineError(
+      "not_implemented",
+      "stop_after=abc : drapeau actif mais câblage serveur non branché — " +
+        "passer stop_after dans options de POST /v1/tasks/run",
+    );
+  }
+}
+
+/** @deprecated Prefer GatedStopAfterAbcClient. */
+export class StubStopAfterAbcClient extends GatedStopAfterAbcClient {}
+
 export function createStopAfterAbcClient(): StopAfterAbcClient {
-  return new StubStopAfterAbcClient();
+  return new GatedStopAfterAbcClient(STOP_AFTER_ABC_ENABLED);
 }

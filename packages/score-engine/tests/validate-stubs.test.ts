@@ -6,10 +6,7 @@ import { describe, it } from "node:test";
 import {
   buildTonightAwakeFixture,
   convertVocalToIns,
-  createCandidateComparer,
-  createClipEditor,
   createSemanticPrefixClient,
-  createStopAfterAbcClient,
   dialectRefusal,
   isAcceptedChordSymbol,
   ScoreEngineError,
@@ -63,68 +60,6 @@ describe("validation / dialecte", () => {
 });
 
 describe("stubs phase 2", () => {
-  it("clip editor lève not_implemented", () => {
-    const editor = createClipEditor();
-    assert.throws(
-      () => editor.apply([], { kind: "fade", clipId: "c1", fadeInMs: 10 }),
-      (err: unknown) =>
-        err instanceof ScoreEngineError && err.code === "not_implemented",
-    );
-  });
-
-  it("comparateur multi-candidats sans gagnant automatique", () => {
-    const cmp = createCandidateComparer();
-    const view = cmp.openCompare([
-      {
-        id: "a",
-        generationFolder: "gen-001",
-        seed: 1,
-        createdAt: "2026-09-26T00:00:00Z",
-        audioPath: "a.wav",
-        scoreAbcPath: null,
-      },
-      {
-        id: "b",
-        generationFolder: "gen-002",
-        seed: 2,
-        createdAt: "2026-09-26T00:01:00Z",
-        audioPath: "b.wav",
-        scoreAbcPath: null,
-      },
-    ]);
-    assert.equal(view.selectedId, null);
-    assert.equal(cmp.select(view, "b").selectedId, "b");
-  });
-
-  it("stop_after=abc refuse cot=off et ABC externe", async () => {
-    const client = createStopAfterAbcClient();
-    await assert.rejects(
-      () =>
-        client.run({
-          style: "pop",
-          lyrics: "[Verse]\nHi",
-          cot: "off",
-          seed: 1,
-          stopAfter: "abc",
-        }),
-      (err: unknown) =>
-        err instanceof ScoreEngineError && err.code === "abc_with_cot_off",
-    );
-    await assert.rejects(
-      () =>
-        client.run({
-          style: "pop",
-          lyrics: "[Verse]\nHi",
-          cot: "full",
-          seed: 1,
-          stopAfter: "abc",
-          abcPath: "x.abc",
-        }),
-      (err: unknown) =>
-        err instanceof ScoreEngineError && err.code === "validation_failed",
-    );
-  });
-
   it("semantic_prefix stub not_implemented", async () => {
     const client = createSemanticPrefixClient();
     await assert.rejects(

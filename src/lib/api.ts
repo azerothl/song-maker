@@ -51,6 +51,7 @@ export const api = {
         pan: number;
         mute: boolean;
         solo: boolean;
+        clips?: MixDoc["tracks"][number]["clips"];
       }[];
     },
   ) => invoke<MixDoc>("update_mix", { id, update }),
@@ -58,7 +59,7 @@ export const api = {
   renderPreview: (id: string) => invoke<string>("render_preview", { id }),
   playbackSources: (id: string) =>
     invoke<PlaybackSources>("playback_sources", { id }),
-  exportAudio: (id: string, format: "wav" | "flac") =>
+  exportAudio: (id: string, format: "wav" | "flac" | "mp3") =>
     invoke<string>("export_audio", {
       id,
       req: { format, destination: null },
