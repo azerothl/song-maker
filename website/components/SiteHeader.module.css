@@ -1,0 +1,66 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: var(--nav-h);
+  backdrop-filter: blur(14px);
+  background: rgba(10, 12, 16, 0.72);
+  border-bottom: 1px solid rgba(46, 53, 68, 0.8);
+}
+
+.inner {
+  width: min(100% - 2.5rem, var(--max-content));
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 550;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.nav a {
+  color: var(--muted);
+  font-size: 0.95rem;
+  white-space: nowrap;
+  transition: color 160ms var(--ease-out);
+}
+
+.nav a:hover {
+  color: var(--text);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.actions .btn {
+  min-height: 2.35rem;
+  padding-inline: 1rem;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 900px) {
+  .nav {
+    display: none;
+  }
+}

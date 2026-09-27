@@ -1,0 +1,25 @@
+---
+title: Dépannage GPU (Q4 / Q8)
+description: VRAM, quantizations et échecs CUDA explicites.
+order: 6
+---
+
+# Dépannage GPU / VRAM Q4 vs Q8
+
+| Quant | VRAM indicative | Usage |
+|---|---|---|
+| **Q4** | ~8 Go+ selon carte / contexte | Défaut recommandé pour démarrer |
+| **Q8** | ≥ ~12 Go | Meilleure fidélité si la VRAM suit |
+
+## Symptômes fréquents
+
+- **Load-test code 2** : pas de `nvidia-smi` / GPU absent → ce n’est pas un succès CUDA
+- **OOM / kill** : repassez en Q4, fermez les autres process GPU, `max_loaded_models=1`
+- **Hash mismatch** : relancez `verify-hashes` ; ne substituez pas une autre archive CUDA
+
+## Checklist
+
+1. Driver NVIDIA à jour
+2. Archive CUDA épinglée (Win 12.4 / Linux 12.8-colab)
+3. Modèle Q4 vérifié
+4. `health-check` vert avant `tauri dev`

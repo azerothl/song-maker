@@ -14,7 +14,10 @@
     "test": "tsx --test src/**/*.test.ts",
     "packages:build": "pnpm -r --filter \"./packages/**\" run build",
     "packages:test": "pnpm -r --filter \"./packages/**\" run test",
-    "packages:typecheck": "pnpm -r --filter \"./packages/**\" run typecheck"
+    "packages:typecheck": "pnpm -r --filter \"./packages/**\" run typecheck",
+    "website:dev": "pnpm --filter website dev",
+    "website:build": "pnpm --filter website build",
+    "website:start": "pnpm --filter website start"
   },
   "dependencies": {
     "@song-maker/akasha-declui": "workspace:*",

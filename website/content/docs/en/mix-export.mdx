@@ -1,0 +1,24 @@
+---
+title: Mix & export
+description: Stems, clips, production overlay, WAV/FLAC/MP3 export (phase 3).
+order: 4
+---
+
+# Mix & export
+
+## Stems
+
+Separation via **HTDemucs** (and **BS-RoFormer** in providers). Isolate vocals / drums / bass / other before remixing.
+
+## Mix & production
+
+- **Clip** timeline
+- Production overlay: limiter, loudness (plus automation / effect stubs in `@song-maker/mix-production`)
+
+## Export
+
+Shipped formats: **WAV**, **FLAC**, **MP3**. Check the ffmpeg path (`SONG_MAKER_FFMPEG` if needed).
+
+## LoRA
+
+Optional LoRA packs go through an explicit **CC BY-NC gate** in `@song-maker/lora-packs` — no monetization badge.

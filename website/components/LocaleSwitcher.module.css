@@ -1,0 +1,27 @@
+.switcher {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-1);
+}
+
+.switcher button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.4rem 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.switcher button:hover {
+  color: var(--text);
+}
+
+.active {
+  background: var(--accent-soft);
+  color: var(--console-warm) !important;
+}

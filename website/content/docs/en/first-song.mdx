@@ -1,0 +1,22 @@
+---
+title: First song
+description: Phase 1 path — style, lyrics, local YuE2 generation.
+order: 2
+---
+
+# First song
+
+Once phase 0 is green and the app is running (`pnpm run tauri dev`):
+
+1. Skip the splash → **Library**
+2. Create a song: fill in **style** + **lyrics**
+3. Run a YuE2 generation through the local `audiocpp_server` (`max_loaded_models=1`, FIFO queue)
+4. Listen to the candidate; iterate seed / style as needed
+
+The phase 1 path (style + lyrics, CoT `cot`) remains available even without a user score.
+
+## Tips
+
+- Start with **Q4** to validate the GPU pipeline
+- Keep wall-clock expectations realistic (prototype sessions on the order of ≤ 30 minutes)
+- Outputs depend on **CC BY-NC** weights — personal / non-commercial use

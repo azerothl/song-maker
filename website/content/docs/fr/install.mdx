@@ -1,0 +1,47 @@
+---
+title: Install Windows / Linux CUDA
+description: Télécharger binaires, modèles Q4/Q8 et vérifier les hashes (phase 0).
+order: 1
+---
+
+# Install Windows / Linux CUDA
+
+Song Maker s’installe depuis le dépôt. La **phase 0** télécharge les archives CUDA épinglées et les poids GGUF — **sans GPU requis pour le download**.
+
+## Prérequis
+
+- Node 20+, pnpm, Rust (pour l’app Tauri)
+- ffmpeg avec libsoxr
+- NVIDIA + driver pour la génération CUDA réelle
+
+## Linux / macOS / Git Bash
+
+```bash
+cd scripts/phase0
+./download-binaries.sh --linux   # ou --windows / --all
+./download-models.sh --q4        # Q8 si VRAM ≥ 12 Go
+./verify-hashes.sh
+./health-check.sh
+```
+
+Archive Linux cible : `cuda12.8-colab` (épinglée, pas de repli silencieux).
+
+## Windows
+
+```bat
+cd scripts\phase0
+./download-binaries.cmd --windows
+./download-models.cmd --q4
+./verify-hashes.cmd
+./health-check.cmd
+```
+
+Windows utilise l’archive **cuda12.4**. Installez ffmpeg (`winget install Gyan.FFmpeg`) puis redémarrez le terminal.
+
+## Load-test CUDA
+
+```bash
+./load-test-cuda.sh
+```
+
+Sans `nvidia-smi`, le script se termine en **code 2** et ne déclare **pas** un succès CUDA. Voir `scripts/phase0/README.md` pour les hashes.

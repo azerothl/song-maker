@@ -1,0 +1,25 @@
+---
+title: Partition & ABC
+description: MIDI, piano roll, validation et export ABC YuE2 (phase 2).
+order: 3
+---
+
+# Partition & ABC
+
+La phase 2 ajoute le contrôle de partition au-dessus de YuE2.
+
+## Capacités
+
+- **Import MIDI** → document de score
+- **Piano roll** pour éditer les notes
+- **Validation / export ABC** au format attendu par YuE2
+- Édition de **clips** sur le mix et multi-candidats séquentiels
+
+Le paquet `@song-maker/score-engine` porte `ScoreDocument`, MIDI et l’export ABC. `stop_after=abc` reste gated (`v0.8.1`).
+
+## Parcours typique
+
+1. Importez un MIDI ou esquissez dans le piano roll
+2. Validez les invariants de partition
+3. Exportez ABC YuE2 puis générez l’audio
+4. Comparez les candidats dans le comparateur

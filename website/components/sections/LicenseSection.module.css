@@ -1,0 +1,12 @@
+.section {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(232, 165, 75, 0.04), transparent);
+}
+
+.note {
+  margin: 1rem 0 0;
+  color: var(--console-warm);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}

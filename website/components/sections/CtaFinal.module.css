@@ -1,0 +1,8 @@
+.cta {
+  text-align: left;
+  padding-bottom: clamp(5rem, 12vw, 8rem);
+}
+
+.cta .section-body {
+  max-width: 34rem;
+}
