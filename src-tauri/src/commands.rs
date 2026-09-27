@@ -29,6 +29,7 @@ pub struct AppState {
     pub server: AudioCppServer,
     pub queue: JobQueue,
     pub undo: Mutex<UndoStacks>,
+    pub setup_installing: std::sync::atomic::AtomicBool,
 }
 
 #[derive(Default)]
@@ -43,6 +44,7 @@ impl Default for AppState {
             server: AudioCppServer::default(),
             queue: JobQueue::default(),
             undo: Mutex::new(UndoStacks::default()),
+            setup_installing: std::sync::atomic::AtomicBool::new(false),
         }
     }
 }
@@ -66,6 +68,16 @@ pub fn get_health(state: tauri::State<'_, AppState>) -> HealthSnapshot {
 #[tauri::command]
 pub fn get_settings() -> Result<AppSettings, String> {
     load_settings()
+}
+
+#[tauri::command]
+pub async fn install_required_assets(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    pack: String,
+    accepted_license: bool,
+) -> Result<String, String> {
+    crate::installer::install(app, state, pack, accepted_license).await
 }
 
 #[tauri::command]

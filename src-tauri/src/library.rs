@@ -269,6 +269,7 @@ pub fn default_settings() -> AppSettings {
         output_device: None,
         stem_separator: DEFAULT_STEM_SEPARATOR.into(),
         cc_by_nc_accepted: false,
+        yue2_license_accepted: false,
         yue2_ar_lora: None,
         yue2_nar_lora: None,
         yue2_ar_lora_scale: 1.0,

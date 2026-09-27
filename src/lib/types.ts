@@ -124,6 +124,8 @@ export type AppSettings = {
   stemSeparator?: string;
   /** CC BY-NC gate for optional LoRA packs */
   ccByNcAccepted?: boolean;
+  /** Consentement distinct au modèle principal YuE2 CC BY-NC 4.0. */
+  yue2LicenseAccepted?: boolean;
   yue2ArLora?: string | null;
   yue2NarLora?: string | null;
   yue2ArLoraScale?: number;
@@ -152,6 +154,15 @@ export type HealthSnapshot = {
   serverHealthy: boolean;
   serverUrl?: string | null;
   message: string;
+};
+
+export type InstallProgress = {
+  state: "downloading" | "preparing" | "error" | "complete" | string;
+  label: string;
+  fileIndex: number;
+  fileCount: number;
+  receivedBytes: number;
+  totalBytes?: number | null;
 };
 
 export type JobStatus = {

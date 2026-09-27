@@ -6,6 +6,7 @@ mod demucs_onnx;
 mod form;
 mod hashutil;
 mod health;
+mod installer;
 mod library;
 mod mix;
 mod models;
@@ -26,6 +27,7 @@ pub fn run() {
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             commands::get_health,
+            commands::install_required_assets,
             commands::get_settings,
             commands::update_settings,
             commands::get_phase3_status,

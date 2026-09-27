@@ -10,19 +10,7 @@ Téléchargez la dernière version depuis les [Releases GitHub](https://github.c
 - **macOS** : `.dmg` Apple Silicon ou Intel, avec Metal.
 - **Linux** : `.AppImage` (autonome) ou paquet `.deb`, Linux x64 avec carte NVIDIA.
 
-Au premier lancement, ouvrez PowerShell sous Windows et lancez :
-
-```powershell
-irm https://raw.githubusercontent.com/azerothl/song-maker/main/scripts/first-run-windows.ps1 | iex
-```
-
-Sous macOS ou Linux, ouvrez Terminal et lancez :
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/azerothl/song-maker/main/scripts/first-run-unix.sh | bash
-```
-
-Ces assistants demandent votre accord pour la licence YuE2 CC BY-NC 4.0, puis téléchargent et vérifient le moteur et les modèles dans le cache local. Ils reprennent les téléchargements interrompus. Par défaut, ils installent le modèle Q4 ; les utilisateurs NVIDIA avec au moins 12 Go de VRAM peuvent choisir Q8 en ajoutant `q8` à la commande Bash, ou en modifiant `$pack = 'q4'` en `$pack = 'q8'` dans le script PowerShell. Prévoyez plusieurs gigaoctets d’espace disque. Le moteur utilise CUDA avec le pilote NVIDIA sous Windows/Linux et Metal sous macOS.
+Au premier lancement, Song Maker vérifie les composants nécessaires et ouvre un assistant d’installation s’ils manquent. Choisissez le modèle Q4 ou Q8, acceptez la licence YuE2 CC BY-NC 4.0, puis lancez le téléchargement depuis l’application. La progression s’affiche à l’écran ; les fichiers sont vérifiés et une interruption permet de reprendre au prochain essai. Prévoyez plusieurs gigaoctets d’espace disque. Le moteur utilise CUDA avec un GPU NVIDIA sous Windows/Linux et Metal sous macOS.
 
 Sur Windows, l’installeur n’est pas encore signé par un certificat de publication ; Windows peut afficher SmartScreen. La version macOS n’est pas notariée : au premier lancement, macOS peut demander de l’autoriser dans Réglages Système → Confidentialité et sécurité.
 

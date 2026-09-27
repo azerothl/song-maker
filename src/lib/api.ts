@@ -15,6 +15,8 @@ import type {
 
 export const api = {
   getHealth: () => invoke<HealthSnapshot>("get_health"),
+  installRequiredAssets: (pack: "q4" | "q8", acceptedLicense: boolean) =>
+    invoke<string>("install_required_assets", { pack, acceptedLicense }),
   getSettings: () => invoke<AppSettings>("get_settings"),
   updateSettings: (settings: AppSettings) =>
     invoke<AppSettings>("update_settings", { settings }),

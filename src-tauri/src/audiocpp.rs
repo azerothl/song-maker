@@ -90,7 +90,7 @@ impl AudioCppServer {
         Ok(config_path)
     }
 
-    fn find_server_binary(cache: &Path) -> Result<PathBuf, String> {
+    pub(crate) fn find_server_binary(cache: &Path) -> Result<PathBuf, String> {
         let candidates = [
             binaries_dir(cache).join("extracted"),
             binaries_dir(cache).join("windows-cuda12.4"),
@@ -140,6 +140,10 @@ impl AudioCppServer {
             )
         };
         Err(hint)
+    }
+
+    pub(crate) fn has_server_binary(cache: &Path) -> bool {
+        Self::find_server_binary(cache).is_ok()
     }
 
     pub fn tcp_health(host: &str, port: u16) -> bool {
