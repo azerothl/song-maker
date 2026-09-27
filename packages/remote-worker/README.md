@@ -4,19 +4,27 @@ Phase **4** — client worker GPU distant ([spec §18.2](../../specs/SONG_MAKER_
 
 ## Rôle
 
-L’app desktop pourra parler à un worker GPU plus tard :
+- **Local-first par défaut** : `localFirst: true`, `remoteEnabled: false`.
+- Rien envoyé sans **consentement explicite** + accusé de réception de la rétention.
+- Auth utilisable : jeton dans Paramètres ou `SONG_MAKER_REMOTE_WORKER_TOKEN`.
+- TLS requis (`https://`) ; payload référencé comme `EncryptedBlobRef`.
+- Ce n’est **pas** la réponse au manque de VRAM du premier build (Q4 / message CUDA restent).
 
-- fichiers chiffrés en transit (`EncryptedBlobRef`) ;
-- rien envoyé sans consentement (`ConsentRecord`) ;
-- auth placeholder (`bearer_placeholder`) — pas d’IdP branché.
+## Rétention (message produit)
 
-Ce n’est **pas** la réponse au manque de VRAM du premier build (pack Q4 / message CUDA restent).
+`DEFAULT_RETENTION_POLICY.messageFr` : chiffrement en transit, max 24 h, suppression après téléchargement, local reste le défaut.
 
-## Branchement après phase 1–2
+## Branchement
 
-1. Phase 1–2 restent 100 % locales (`audiocpp_server` 127.0.0.1).
-2. Phase 4 injecte `createRemoteGpuWorkerClient()` derrière un réglage opt-in.
-3. Remplacer le stub par un transport réel (TLS + chiffrement) sans changer l’interface `RemoteGpuWorkerClient`.
+```ts
+const client = createRemoteGpuWorkerClient({
+  localFirst: true,
+  remoteEnabled: prefs.remoteEnabled,
+  accessToken: prefs.accessToken,
+});
+```
+
+Le client actuel file en mémoire (pas de socket) pour exercer le chemin UI. Remplacer le transport plus tard sans changer `RemoteGpuWorkerClient`.
 
 ## Tests
 

@@ -17,8 +17,11 @@
     "packages:typecheck": "pnpm -r --filter \"./packages/**\" run typecheck"
   },
   "dependencies": {
+    "@song-maker/akasha-declui": "workspace:*",
     "@song-maker/lora-packs": "workspace:*",
     "@song-maker/mix-production": "workspace:*",
+    "@song-maker/partition-invariants": "workspace:*",
+    "@song-maker/remote-worker": "workspace:*",
     "@song-maker/score-engine": "workspace:*",
     "@song-maker/stem-providers": "workspace:*",
     "@tauri-apps/api": "^2",

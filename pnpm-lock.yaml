@@ -8,12 +8,21 @@ importers:
 
   .:
     dependencies:
+      '@song-maker/akasha-declui':
+        specifier: workspace:*
+        version: link:packages/akasha-declui
       '@song-maker/lora-packs':
         specifier: workspace:*
         version: link:packages/lora-packs
       '@song-maker/mix-production':
         specifier: workspace:*
         version: link:packages/mix-production
+      '@song-maker/partition-invariants':
+        specifier: workspace:*
+        version: link:packages/partition-invariants
+      '@song-maker/remote-worker':
+        specifier: workspace:*
+        version: link:packages/remote-worker
       '@song-maker/score-engine':
         specifier: workspace:*
         version: link:packages/score-engine

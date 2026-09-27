@@ -1,9 +1,16 @@
+import { resolveAuthPlaceholder } from "./auth.js";
 import type {
   AuthPlaceholder,
   ConsentRecord,
   RemoteGpuWorkerClient,
   RemoteJobHandle,
   RemoteJobRequest,
+  RemoteWorkerPreferences,
+  RetentionPolicy,
+} from "./types.js";
+import {
+  DEFAULT_REMOTE_PREFERENCES,
+  DEFAULT_RETENTION_POLICY,
 } from "./types.js";
 
 function rejectNoConsent(request: RemoteJobRequest): RemoteJobHandle | null {
@@ -18,50 +25,82 @@ function rejectNoConsent(request: RemoteJobRequest): RemoteJobHandle | null {
   return null;
 }
 
+function rejectRetention(request: RemoteJobRequest): RemoteJobHandle | null {
+  if (!request.consent.retentionAcknowledged) {
+    return {
+      id: "rejected",
+      status: "rejected_retention",
+      error: DEFAULT_RETENTION_POLICY.messageFr,
+    };
+  }
+  return null;
+}
+
 function rejectUnauthorized(auth: AuthPlaceholder): RemoteJobHandle | null {
   if (!auth.accessToken) {
     return {
       id: "rejected",
       status: "rejected_unauthorized",
-      error: "Auth placeholder : aucun jeton. Brancher un IdP en phase 4.",
+      error:
+        "Auth : aucun jeton. Définir SONG_MAKER_REMOTE_WORKER_TOKEN ou coller un jeton dans Paramètres.",
     };
   }
   return null;
 }
 
 /**
- * In-memory stub: enforces consent + token presence, does not open sockets.
+ * Local-first client: enforces consent, retention ack, token, TLS.
+ * Does not open sockets — queues in memory so the UI can exercise the path
+ * without a live worker. Replace transport later without changing the API.
  */
-export class StubRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
+export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
   private readonly jobs = new Map<string, RemoteJobHandle>();
   private seq = 0;
+  private readonly preferences: RemoteWorkerPreferences;
+  readonly retention: RetentionPolicy;
+
+  constructor(
+    preferences: Partial<RemoteWorkerPreferences> = {},
+    retention: RetentionPolicy = DEFAULT_RETENTION_POLICY,
+  ) {
+    this.preferences = { ...DEFAULT_REMOTE_PREFERENCES, ...preferences };
+    this.retention = retention;
+  }
+
+  getPreferences(): RemoteWorkerPreferences {
+    return { ...this.preferences };
+  }
 
   async authenticate(placeholder: AuthPlaceholder): Promise<AuthPlaceholder> {
-    if (!placeholder.accessToken) {
-      return {
-        scheme: "bearer_placeholder",
-        accessToken: null,
-        expiresAt: null,
-      };
-    }
-    return {
-      scheme: "bearer_placeholder",
-      accessToken: placeholder.accessToken,
-      expiresAt:
-        placeholder.expiresAt ?? new Date(Date.now() + 3600_000).toISOString(),
-    };
+    return resolveAuthPlaceholder({
+      accessToken: placeholder.accessToken ?? this.preferences.accessToken,
+      expiresAt: placeholder.expiresAt,
+    });
   }
 
   async submit(request: RemoteJobRequest): Promise<RemoteJobHandle> {
+    if (this.preferences.localFirst && !this.preferences.remoteEnabled) {
+      return {
+        id: "rejected",
+        status: "rejected_local_only",
+        error:
+          "Mode local-first (défaut) : activez explicitement le worker distant dans Paramètres.",
+      };
+    }
+
     const noConsent = rejectNoConsent(request);
-    if (noConsent) {
-      return noConsent;
-    }
-    const unauthorized = rejectUnauthorized(request.auth);
-    if (unauthorized) {
-      return unauthorized;
-    }
-    if (request.endpoint.requireTls && !request.endpoint.baseUrl.startsWith("https://")) {
+    if (noConsent) return noConsent;
+    const retention = rejectRetention(request);
+    if (retention) return retention;
+
+    const auth = await this.authenticate(request.auth);
+    const unauthorized = rejectUnauthorized(auth);
+    if (unauthorized) return unauthorized;
+
+    if (
+      request.endpoint.requireTls &&
+      !request.endpoint.baseUrl.startsWith("https://")
+    ) {
       return {
         id: "rejected",
         status: "failed",
@@ -96,7 +135,7 @@ export class StubRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
       const cancelled: RemoteJobHandle = {
         ...job,
         status: "failed",
-        error: "Annulation demandée (stub local, pas d’appel réseau).",
+        error: "Annulation demandée (pas d’appel réseau — file locale).",
       };
       this.jobs.set(jobId, cancelled);
       return cancelled;
@@ -105,24 +144,34 @@ export class StubRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
   }
 }
 
-export function createRemoteGpuWorkerClient(): RemoteGpuWorkerClient {
-  return new StubRemoteGpuWorkerClient();
+/** @deprecated Prefer LocalFirstRemoteGpuWorkerClient. */
+export class StubRemoteGpuWorkerClient extends LocalFirstRemoteGpuWorkerClient {
+  constructor() {
+    // Legacy stub tests expect remote path open when consent+token present.
+    super({ localFirst: false, remoteEnabled: true });
+  }
+}
+
+export function createRemoteGpuWorkerClient(
+  preferences?: Partial<RemoteWorkerPreferences>,
+): LocalFirstRemoteGpuWorkerClient {
+  return new LocalFirstRemoteGpuWorkerClient(preferences);
 }
 
 export function createEmptyAuthPlaceholder(): AuthPlaceholder {
-  return {
-    scheme: "bearer_placeholder",
-    accessToken: null,
-    expiresAt: null,
-  };
+  return resolveAuthPlaceholder({ accessToken: null });
 }
 
 export function createConsent(
-  partial: Partial<ConsentRecord> & Pick<ConsentRecord, "userConsented" | "scope">,
+  partial: Partial<ConsentRecord> &
+    Pick<ConsentRecord, "userConsented" | "scope">,
 ): ConsentRecord {
   return {
     userConsented: partial.userConsented,
-    consentedAt: partial.consentedAt ?? (partial.userConsented ? new Date().toISOString() : null),
+    consentedAt:
+      partial.consentedAt ??
+      (partial.userConsented ? new Date().toISOString() : null),
     scope: partial.scope,
+    retentionAcknowledged: partial.retentionAcknowledged ?? false,
   };
 }

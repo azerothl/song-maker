@@ -454,6 +454,7 @@ export function SongScreen() {
           onDocumentChange={setScoreDocument}
           onProjectRefresh={() => openProject(project.id)}
           onError={setError}
+          onCotChange={(cot) => setForm({ cot })}
         />
 
         <AudioPlayer

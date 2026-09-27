@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Phase3SettingsPanel } from "../components/Phase3SettingsPanel";
+import { Phase4SettingsPanel } from "../components/Phase4SettingsPanel";
 import { api } from "../lib/api";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
@@ -89,6 +90,7 @@ export function SettingsScreen() {
       </section>
 
       <Phase3SettingsPanel />
+      <Phase4SettingsPanel />
 
       <section>
         <button type="button" className="btn" onClick={() => setScreen("licenses")}>
@@ -120,8 +122,8 @@ export function LicensesScreen() {
         <li>{t("licenses.audiocpp")}</li>
         <li>{t("licenses.yue2")}</li>
         <li>
-          Packs LoRA optionnels (phase 3) — CC BY-NC 4.0, hors installeur ; voir
-          Paramètres → Production audio.
+          Packs LoRA optionnels (phases 3–4, y compris styles) — CC BY-NC 4.0,
+          hors installeur ; voir Paramètres → Production audio / Agent.
         </li>
         <li>
           Crédit : <strong>{t("licenses.credit")}</strong>

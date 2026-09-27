@@ -1,17 +1,17 @@
 # `@song-maker/akasha-declui`
 
-Phase **4** — stub d’intégration hôte agentique ([spec §18.5](../../specs/SONG_MAKER_SPEC.md)).
+Phase **4** — adaptateur hôte agentique desktop-first ([spec §18.5](../../specs/SONG_MAKER_SPEC.md)).
 
 ## Contenu
 
 - Descripteur d’API musique (`MUSIC_API_DESCRIPTOR`) distincte du TTS.
 - Surfaces DeclUI (`DECL_UI_SURFACES`) avec phase propriétaire.
-- `StubAkashaHostBridge` — `describe()` OK, `register()` lève.
+- `DesktopFirstAkashaHostBridge` / `getSharedAkashaHostBridge()` — appelable depuis Paramètres « mode hôte ».
 - Notes : [`docs/integration-notes.md`](./docs/integration-notes.md).
 
-## Branchement après phase 1–2
+## Branchement
 
-Le desktop phase 1 ne charge pas ce paquet. Phase 4 l’enregistre auprès d’Akasha et réutilise `@song-maker/lora-packs` pour le catalogue.
+Le défaut reste **desktop**. `enableHostMode()` active un adaptateur local de découverte DeclUI sans processus distant ni SheetSage2. La génération phase 1 n’est pas altérée.
 
 ## Tests
 

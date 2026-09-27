@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Phase 4 — remote GPU worker client interface + auth placeholder (§18.2)",
+  "description": "Phase 4 — remote GPU worker client, local-first, consent + retention (§18.2)",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

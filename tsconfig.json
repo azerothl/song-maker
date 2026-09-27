@@ -20,7 +20,12 @@
       "@song-maker/score-engine": ["./packages/score-engine/src/index.ts"],
       "@song-maker/stem-providers": ["./packages/stem-providers/src/index.ts"],
       "@song-maker/mix-production": ["./packages/mix-production/src/index.ts"],
-      "@song-maker/lora-packs": ["./packages/lora-packs/src/index.ts"]
+      "@song-maker/lora-packs": ["./packages/lora-packs/src/index.ts"],
+      "@song-maker/partition-invariants": [
+        "./packages/partition-invariants/src/index.ts"
+      ],
+      "@song-maker/remote-worker": ["./packages/remote-worker/src/index.ts"],
+      "@song-maker/akasha-declui": ["./packages/akasha-declui/src/index.ts"]
     }
   },
   "include": ["src"],

@@ -922,6 +922,72 @@ select {
   margin: 0.4rem 0;
 }
 
+.phase4-panel {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #333);
+}
+
+.phase4-panel h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.35rem;
+}
+
+.phase4-panel h3 {
+  font-size: 0.95rem;
+  margin: 1rem 0 0.35rem;
+}
+
+.score-assistant,
+.invariant-panel {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--line, #2a3340);
+}
+
+.score-assistant h3,
+.invariant-panel h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.35rem;
+}
+
+.score-assistant-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.score-assistant-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.invariant-level {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.65rem 0;
+}
+
+.invariant-level input,
+.invariant-level select {
+  max-width: 28rem;
+  background: var(--bg2, #1e2530);
+  border: 1px solid var(--line, #2a3340);
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+}
+
+.banner.ok {
+  border-color: var(--ok, #3fb950);
+}
+
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;

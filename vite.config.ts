@@ -28,6 +28,18 @@ export default defineConfig(() => ({
         rootDir,
         "packages/lora-packs/src/index.ts",
       ),
+      "@song-maker/partition-invariants": path.resolve(
+        rootDir,
+        "packages/partition-invariants/src/index.ts",
+      ),
+      "@song-maker/remote-worker": path.resolve(
+        rootDir,
+        "packages/remote-worker/src/index.ts",
+      ),
+      "@song-maker/akasha-declui": path.resolve(
+        rootDir,
+        "packages/akasha-declui/src/index.ts",
+      ),
     },
   },
 
