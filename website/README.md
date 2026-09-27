@@ -45,7 +45,7 @@ vercel deploy out --prod   # ou --temporary (anonyme, expire ~60 min)
 
 ## Exemples audio — honnêteté
 
-Les fichiers sous `public/examples/*.wav` sont des **lits synthétiques courts** générés en Python (sinusoïdes / motifs). Ce **ne sont pas** des rendus YuE2 réels. Ils servent à démontrer le player Web Audio et les waveforms. Chaque piste est étiquetée « Démo synthétique » / « Synthetic demo » dans l’UI.
+Le mini-mixeur de la page d’accueil utilise des extraits réels d’une génération YuE2 et de sa séparation expérimentale en six pistes. Les pistes guitare et piano sont des estimations, avec des fuites possibles. Les fichiers synthétiques `public/examples/*-demo.wav` ne sont pas présentés comme des rendus Song Maker.
 
 ## Direction visuelle
 

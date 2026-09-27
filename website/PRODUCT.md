@@ -26,7 +26,7 @@ The desktop application targets Windows and Linux with an NVIDIA CUDA GPU. Users
 
 - The current repository README and UI include local YuE2 generation from style and non-empty lyrics, MIDI import and score editing, sequential candidate generation and comparison, clip editing, stem separation, mixing, and WAV / FLAC / MP3 export.
 - The product specification still describes some score, candidate, and clip capabilities as later-phase work. Until this version discrepancy is resolved, the site must clearly state which capabilities are available in the current application and must not present roadmap items as shipped.
-- The current HTDemucs path produces four stems by default. Whether output can be expanded beyond four is under test; do not describe four as an immutable ceiling or guarantee the tested limit. BS-RoFormer is optional and its packaged provider is marked as a stub; do not claim it as a ready second separator.
+- The standard HTDemucs path produces vocals, drums, bass, and other. An optional experimental ONNX 6-stem path also estimates guitar and piano; those estimates can leak, especially piano. Do not imply the 6-stem path is the default or its extra stems are cleanly isolated. BS-RoFormer remains a stub, not a ready second separator.
 - The remote-worker UI's current probe queues locally and makes no network request. Do not present remote generation as an available workflow.
 - YuE2 does not consume reference audio and does not guarantee the requested duration, language, tempo, or key. A style and non-empty lyrics are required for generation.
 - YuE2 / GGUF model weights are distributed under CC BY-NC 4.0. The site must not promise commercial use of those weights or outputs.
@@ -47,8 +47,8 @@ The desktop application targets Windows and Linux with an NVIDIA CUDA GPU. Users
 
 ## Approved Website Direction
 
-- The approved homepage composition is option A, “Des paroles aux pistes”: an editorial split hero with a clearly labelled workflow diagram, followed by the creative steps, actual app capabilities, setup requirements, and practical questions.
-- The diagram may show the current four-stem default as an example, but must say that the ability to produce more is still being tested. It must never describe four as an immutable limit.
+- The approved homepage composition is option A, “Des paroles aux pistes”: an editorial split hero with an interactive example from a real generation, followed by the creative steps, actual app capabilities, setup requirements, and practical questions.
+- The six-stem example uses the optional experimental ONNX path. Label guitar and piano as estimates and note possible leakage, especially on piano. Explain that the standard path returns four tracks, without presenting four as a hard product limit.
 - The homepage must not use reconstructed desktop screens or synthetic audio samples as if they were real product evidence.
 
 ## Accessibility & Inclusion

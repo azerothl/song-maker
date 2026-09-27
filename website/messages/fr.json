@@ -11,27 +11,30 @@
     "pathCta": "Écouter la démo",
     "localNote": "Génération et travail audio sur votre ordinateur",
     "mixer": {
-      "ariaLabel": "Mini-mixeur audio de démonstration",
-      "kicker": "À vous de jouer · aperçu interactif",
-      "title": "Écoutez les couches prendre forme",
-      "badge": "Démo synthétique",
-      "play": "Lire la démo",
-      "pause": "Mettre la démo en pause",
-      "trackName": "Boucle de démonstration",
-      "playing": "Lecture en cours · couches mixées",
-      "ready": "Quatre couches à régler",
-      "loop": "Boucle infinie",
+      "ariaLabel": "Mixeur interactif d’une génération réelle de Song Maker",
+      "kicker": "Extrait réel · génération locale",
+      "title": "Une génération, six pistes à écouter",
+      "badge": "YuE2 · HTDemucs 6",
+      "play": "Lire l’extrait réel",
+      "pause": "Mettre l’extrait en pause",
+      "trackName": "Génération Song Maker · extrait",
+      "playing": "Lecture en boucle · pistes mixées",
+      "ready": "20 secondes · six pistes séparées",
+      "loading": "Chargement de l’extrait…",
+      "loop": "Extrait de 20 secondes, lu en boucle",
       "layers": {
-        "piano": "Piano · esquisse",
-        "rhythm": "Rythme · accompagnement",
-        "pad": "Pad · ambiance",
-        "loop": "Boucle · arrangement"
+        "vocals": "Voix",
+        "drums": "Batterie",
+        "bass": "Basse",
+        "other": "Autres",
+        "guitar": "Guitare · estimée",
+        "piano": "Piano · estimé"
       },
       "volume": "Volume de {layer}",
       "mute": "Activer ou couper {layer}",
       "solo": "Écouter {layer} seul",
       "reset": "Réinitialiser le mix",
-      "disclaimer": "Couches audio synthétiques — ce ne sont pas des stems Song Maker.",
+      "disclaimer": "Génération YuE2 réelle · séparation HTDemucs 6S expérimentale. Guitare et piano sont estimés ; fuites possibles, surtout sur le piano.",
       "error": "Lecture indisponible. Réessayez dans un instant."
     },
     "facts": {
@@ -105,7 +108,7 @@
       "items": {
         "stems": {
           "question": "Est-ce limité à quatre stems ?",
-          "answer": "La sortie HTDemucs actuelle donne quatre stems par défaut. Nous testons si la séparation peut en produire davantage ; le résultat de ces tests n’est pas encore établi."
+          "answer": "Le mode HTDemucs standard produit voix, batterie, basse et autres. Un mode expérimental à six pistes ajoute guitare et piano ; ces deux pistes sont des estimations et peuvent contenir des fuites, surtout le piano."
         },
         "local": {
           "question": "Est-ce que mes morceaux partent dans le cloud ?",
@@ -165,7 +168,7 @@
       },
       "stems": {
         "title": "Séparation stems",
-        "body": "La sortie HTDemucs actuelle donne quatre stems par défaut ; la capacité au-delà est en cours de test."
+        "body": "HTDemucs standard sépare voix, batterie, basse et autres. Le mode 6 stems ONNX expérimental estime aussi la guitare et le piano, avec des fuites possibles."
       },
       "mix": {
         "title": "Mix, clips, production",

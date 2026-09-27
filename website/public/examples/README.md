@@ -1,5 +1,7 @@
-# Demo audio beds
+# Audio examples
 
-These `.wav` files are **synthetic placeholders** (short generated tones/loops), not YuE2 model renders.
+The `real-generation-6` MP3s are synchronized 20-second excerpts (04:30–04:50) from one real YuE2 generation and its matching experimental HTDemucs 6-stem separation. They were encoded from 48 kHz project WAVs to 44.1 kHz MP3 for web playback. The source project, project title, and lyrics are not included.
 
-Labeled as demos in the marketing UI. Replace with real licensed renders when available.
+The six-stem separator estimates guitar and piano; both can contain leakage, especially piano. The marketing page labels this limitation.
+
+The remaining `*-demo.wav` files are synthetic placeholders, not YuE2 model renders. They are retained as unused synthetic assets.

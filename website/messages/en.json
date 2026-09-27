@@ -11,27 +11,30 @@
     "pathCta": "Hear the demo",
     "localNote": "Generation and audio work happen on your computer",
     "mixer": {
-      "ariaLabel": "Interactive audio demo mini mixer",
-      "kicker": "Try it · interactive preview",
-      "title": "Hear the layers come together",
-      "badge": "Synthetic demo",
-      "play": "Play demo",
-      "pause": "Pause demo",
-      "trackName": "Demo loop",
-      "playing": "Playing · layers mixed",
-      "ready": "Four layers to adjust",
-      "loop": "Looping",
+      "ariaLabel": "Interactive mixer for a real Song Maker generation",
+      "kicker": "Real excerpt · generated locally",
+      "title": "One generation, six tracks to explore",
+      "badge": "YuE2 · HTDemucs 6",
+      "play": "Play real excerpt",
+      "pause": "Pause excerpt",
+      "trackName": "Song Maker generation · excerpt",
+      "playing": "Playing loop · mixed tracks",
+      "ready": "20 seconds · six separated tracks",
+      "loading": "Loading excerpt…",
+      "loop": "20-second excerpt, looped",
       "layers": {
-        "piano": "Piano · sketch",
-        "rhythm": "Rhythm · bed",
-        "pad": "Pad · ambience",
-        "loop": "Loop · arrangement"
+        "vocals": "Vocals",
+        "drums": "Drums",
+        "bass": "Bass",
+        "other": "Other",
+        "guitar": "Guitar · estimated",
+        "piano": "Piano · estimated"
       },
       "volume": "Volume for {layer}",
       "mute": "Toggle mute for {layer}",
       "solo": "Listen to {layer} alone",
       "reset": "Reset mix",
-      "disclaimer": "Synthetic audio layers — these are not Song Maker stems.",
+      "disclaimer": "Real YuE2 generation · experimental HTDemucs 6-stem separation. Guitar and piano are estimates and may leak, especially the piano.",
       "error": "Playback is unavailable. Please try again."
     },
     "facts": {
@@ -105,7 +108,7 @@
       "items": {
         "stems": {
           "question": "Is output limited to four stems?",
-          "answer": "The current HTDemucs output defaults to four stems. We are testing whether separation can produce more; the outcome of those tests is not yet established."
+          "answer": "Standard HTDemucs separates vocals, drums, bass, and other. An experimental six-track mode also estimates guitar and piano; both can contain leakage, especially piano."
         },
         "local": {
           "question": "Are my songs sent to the cloud?",
@@ -165,7 +168,7 @@
       },
       "stems": {
         "title": "Stem separation",
-        "body": "Current HTDemucs output defaults to four stems; capability beyond that is being tested."
+        "body": "Standard HTDemucs separates vocals, drums, bass, and other. Experimental six-stem ONNX also estimates guitar and piano, with possible leakage."
       },
       "mix": {
         "title": "Mix, clips, production",
