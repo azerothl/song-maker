@@ -14,7 +14,7 @@ Au premier lancement, Song Maker vérifie les composants nécessaires et ouvre u
 
 Song Maker vérifie aussi les mises à jour au démarrage et propose leur installation. La version 0.1.1 active ce système ; les versions 0.1.0 et antérieures doivent d’abord être mises à jour manuellement depuis les [Releases GitHub](https://github.com/azerothl/song-maker/releases/latest).
 
-Sur Windows, l’installeur n’est pas encore signé par un certificat de publication ; Windows peut afficher SmartScreen. La version macOS n’est pas notariée : au premier lancement, macOS peut demander de l’autoriser dans Réglages Système → Confidentialité et sécurité.
+Les releases Windows nécessitent une signature Authenticode Microsoft Artifact Signing configurée dans GitHub Actions ; le workflow refuse de publier une release Windows non signée. SmartScreen peut encore afficher un avertissement sur les premières versions, le temps que la réputation de l’éditeur s’établisse. Voir le [guide de signature Windows](docs/windows-code-signing.md). La version macOS n’est pas notariée : au premier lancement, macOS peut demander de l’autoriser dans Réglages Système → Confidentialité et sécurité.
 
 ## Stack
 
