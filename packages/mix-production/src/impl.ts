@@ -66,7 +66,7 @@ export class MixAutomationEngineImpl implements MixAutomationEngine {
       (l) => l.trackId === trackId && l.target === target,
     );
     if (!lane || lane.points.length === 0) {
-      return target === "volume" ? 0 : 0;
+      return 0;
     }
     return sampleAutomationPoints(lane.points, timeMs);
   }
@@ -322,6 +322,23 @@ export class TrackEffectsRackImpl implements TrackEffectsRack {
       }
     }
     return current;
+  }
+
+  processSlots(
+    slots: TrackEffectSlot[],
+    pcm: Float32Array,
+    sampleRate = 48000,
+    context: EffectProcessContext = {},
+  ): Float32Array {
+    const tempId = `__slots_${Math.random().toString(36).slice(2, 10)}`;
+    const prev = this.racks.get(tempId);
+    this.racks.set(tempId, slots.map((s) => ({ ...s, params: { ...s.params } })));
+    try {
+      return this.process(tempId, pcm, sampleRate, context);
+    } finally {
+      if (prev) this.racks.set(tempId, prev);
+      else this.racks.delete(tempId);
+    }
   }
 }
 

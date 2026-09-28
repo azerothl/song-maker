@@ -15,6 +15,17 @@ export type {
   LoudnessMeter,
   MixProductionToolkit,
   WavPcmDecoder,
+  ParsedAutomationTarget,
+} from "./types.js";
+export {
+  VOLUME_TARGET,
+  PAN_TARGET,
+  effectParamTarget,
+  sendGainTarget,
+  busVolumeTarget,
+  busPanTarget,
+  parseAutomationTarget,
+  isVolumeOrPanTarget,
 } from "./types.js";
 export {
   sampleAutomationPoints,
@@ -112,3 +123,30 @@ export {
   type PlanarStemInput,
   type MixTrackForBalance,
 } from "./autoBalance.js";
+export {
+  validateRoutingGraph,
+  findRoutingCycles,
+  topoSortGroupBuses,
+  newBusId,
+  newSendId,
+  defaultBus,
+  defaultSend,
+  type BusKind,
+  type MixBus,
+  type MixSend,
+  type RoutingTrackRef,
+  type RoutingGraphInput,
+  type RoutingIssue,
+  type RoutingIssueCode,
+  type RoutingValidation,
+} from "./routing.js";
+export {
+  bakeAlignedStems,
+  stableStemFileNames,
+  estimatePcmByteSize,
+  type StemExportFormat,
+  type StemExportTrack,
+  type AlignedStemBuffer,
+  type AlignedStemsResult,
+  type BakeAlignedStemsInput,
+} from "./stems.js";
