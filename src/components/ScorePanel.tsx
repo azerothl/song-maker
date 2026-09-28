@@ -12,6 +12,7 @@ import { buildStaffAbc } from "../lib/staffAbc";
 import { clearInvariantBaseline } from "../lib/invariants";
 import { api } from "../lib/api";
 import { AbcStaffView } from "./AbcStaffView";
+import { AbcRawPreview } from "./AbcTakePreview";
 import { InvariantPanel } from "./InvariantPanel";
 import { MidiInstrumentPanel } from "./MidiInstrumentPanel";
 import { PianoRoll } from "./PianoRoll";
@@ -459,9 +460,9 @@ export function ScorePanel({
             hidden={viewMode !== "abc"}
           >
             {staffAbc?.ok ? (
-              <pre className="score score-abc-raw">{staffAbc.abc}</pre>
+              <AbcRawPreview abc={staffAbc.abc} />
             ) : abcPreview ? (
-              <pre className="score score-abc-raw">{abcPreview}</pre>
+              <AbcRawPreview abc={abcPreview} />
             ) : (
               <p className="hint">{t("score.view.abcEmpty")}</p>
             )}
@@ -528,7 +529,7 @@ export function ScorePanel({
           {abcPreview && viewMode !== "abc" && (
             <details open>
               <summary>{t("score.abcPreview")}</summary>
-              <pre className="score">{abcPreview}</pre>
+              <AbcRawPreview abc={abcPreview} className="score" />
             </details>
           )}
 

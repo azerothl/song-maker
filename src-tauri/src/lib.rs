@@ -1,5 +1,6 @@
 use tauri::Manager;
 
+mod abc_metadata;
 mod audiocpp;
 mod bs_roformer;
 mod commands;

@@ -1924,6 +1924,23 @@ details[open] > summary {
   overflow: auto;
 }
 
+.abc-take-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.abc-take-preview .score-abc-meta {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.abc-take-actions {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .score-staff-fallback {
   display: flex;
   flex-direction: column;

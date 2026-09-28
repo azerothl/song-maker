@@ -1,3 +1,4 @@
+use crate::abc_metadata::{write_aligned_score_abc, AbcAlignRequest};
 use crate::audiocpp::AudioCppServer;
 use crate::form::{
     guidance_scale, validate_draft_form, validate_form, validate_target_duration, validate_title,
@@ -671,6 +672,11 @@ pub async fn start_generation(
     let gen_dir_for_job = gen_dir.clone();
     let project_id_for_job = id.clone();
     let job_kind_for_job = job_kind.to_string();
+    let abc_align = AbcAlignRequest::from_form(
+        form.tempo_bpm,
+        form.key.clone(),
+        form.meter.clone(),
+    );
     let result = queue
         .run_exclusive(
             Some(id.clone()),
@@ -756,10 +762,19 @@ pub async fn start_generation(
                         let has_semantic = AudioCppServer::write_semantic_artifact(&response, &semantic_path).unwrap_or(false);
 
                         if let Some(abc) = AudioCppServer::extract_score_abc(&response) {
-                            let _ = std::fs::write(gen_dir_for_job.join("score.abc"), abc);
+                            // Align Q:/K:/M: on the form request (#106); notes unchanged.
+                            let _ = write_aligned_score_abc(
+                                &gen_dir_for_job.join("score.abc"),
+                                &abc,
+                                &abc_align,
+                            );
                         } else if let Some(abc_text) = &abc_for_req {
                             // Conserve l'ABC envoyé si le modèle n'en renvoie pas.
-                            let _ = std::fs::write(gen_dir_for_job.join("score.abc"), abc_text);
+                            let _ = write_aligned_score_abc(
+                                &gen_dir_for_job.join("score.abc"),
+                                abc_text,
+                                &abc_align,
+                            );
                         }
 
                         let score_path = gen_dir_for_job.join("score.abc");
@@ -2719,16 +2734,20 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
 
 #[tauri::command]
 pub fn read_score_abc(id: String, gen_id: String) -> Result<Option<String>, String> {
-    let path = project_folder(&id)
-        .join("generations")
-        .join(gen_id)
-        .join("score.abc");
+    let folder = project_folder(&id);
+    let path = folder.join("generations").join(gen_id).join("score.abc");
     if !path.exists() {
         return Ok(None);
     }
-    Ok(Some(
-        std::fs::read_to_string(path).map_err(|e| e.to_string())?,
-    ))
+    let raw = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let doc = load_project(&folder)?;
+    let align = AbcAlignRequest::from_form(doc.tempo_bpm, doc.key.clone(), doc.meter.clone());
+    let aligned = crate::abc_metadata::align_abc_headers(&raw, &align);
+    // Persist alignment for older takes so Partition ABC stays consistent (#106).
+    if aligned != raw {
+        let _ = std::fs::write(&path, &aligned);
+    }
+    Ok(Some(aligned))
 }
 
 #[tauri::command]
@@ -2953,17 +2972,21 @@ pub fn import_remote_generation(
 
     let score = if let Some(abc) = payload.score_abc.as_ref().filter(|s| !s.trim().is_empty()) {
         let score_path = gen_dir.join("score.abc");
+        // Verify remote checksum on the raw bytes first, then align headers (#106).
         std::fs::write(&score_path, abc).map_err(|e| e.to_string())?;
-        let score_sha = sha256_file(&score_path)?;
+        let raw_sha = sha256_file(&score_path)?;
         if let Some(exp) = payload.score_sha256.as_ref().filter(|s| !s.trim().is_empty()) {
-            if exp.trim().to_ascii_lowercase() != score_sha {
+            if exp.trim().to_ascii_lowercase() != raw_sha {
                 let _ = std::fs::remove_dir_all(&gen_dir);
                 return Err(format!(
-                    "Checksum score distant incorrect : attendu {}, obtenu {score_sha}.",
+                    "Checksum score distant incorrect : attendu {}, obtenu {raw_sha}.",
                     exp.trim().to_ascii_lowercase()
                 ));
             }
         }
+        let align = AbcAlignRequest::from_form(doc.tempo_bpm, doc.key.clone(), doc.meter.clone());
+        write_aligned_score_abc(&score_path, abc, &align)?;
+        let score_sha = sha256_file(&score_path)?;
         json!({ "path": "score.abc", "sha256": score_sha })
     } else {
         json!({ "path": "score.abc", "sha256": null })
