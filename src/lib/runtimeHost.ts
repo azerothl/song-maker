@@ -1,0 +1,135 @@
+import { invoke } from "@tauri-apps/api/core";
+
+/** SheetSage2 host probe (#60). */
+export type SheetsageHostProbe = {
+  binaryPresent: boolean;
+  binaryPath: string | null;
+  cliPresent: boolean;
+  cliPath: string | null;
+  weightsPresent: boolean;
+  weightsPath: string | null;
+  weightsSha256Verified: boolean;
+  diskBytesAvailable: number | null;
+  acceleration: string;
+  messageFr: string;
+};
+
+export type SheetsageHostTranscribeArgs = {
+  jobId: string;
+  audioPath: string;
+  outAbcPath?: string | null;
+  mode?: string | null;
+  licenseAccepted: boolean;
+};
+
+export type SheetsageHostTranscribeOutcome = {
+  status: string;
+  jobId: string;
+  abc: string | null;
+  warnings: string[];
+  messageFr: string;
+  outAbcPath: string | null;
+};
+
+export type LoraTrainerProbe = {
+  trainerExists: boolean;
+  trainerScriptPath: string | null;
+  jobsRoot: string;
+  pythonAvailable: boolean;
+  messageFr: string;
+};
+
+export type LoraAudioProbe = {
+  path: string;
+  exists: boolean;
+  byteLength: number;
+  durationMs: number | null;
+  contentSha256: string | null;
+  format: string;
+  messageFr: string;
+};
+
+export type LoraLaunchResult = {
+  status: string;
+  jobId: string;
+  pid: number | null;
+  messageFr: string;
+};
+
+export type SyncArtifactMeta = {
+  relativePath: string;
+  contentSha256: string;
+  byteLength: number;
+};
+
+export const runtimeApi = {
+  sheetsageProbe: () => invoke<SheetsageHostProbe>("sheetsage_probe"),
+  sheetsageTranscribe: (args: SheetsageHostTranscribeArgs) =>
+    invoke<SheetsageHostTranscribeOutcome>("sheetsage_transcribe", { args }),
+  sheetsageCancel: (jobId: string) =>
+    invoke<string>("sheetsage_cancel", { jobId }),
+
+  loraTrainProbe: () => invoke<LoraTrainerProbe>("lora_train_probe"),
+  loraTrainProbeAudio: (path: string) =>
+    invoke<LoraAudioProbe>("lora_train_probe_audio", { path }),
+  loraTrainJobsRoot: () => invoke<string>("lora_train_jobs_root"),
+  loraTrainWriteText: (path: string, data: string) =>
+    invoke<void>("lora_train_write_text", { path, data }),
+  loraTrainReadText: (path: string) =>
+    invoke<string | null>("lora_train_read_text", { path }),
+  loraTrainPathExists: (path: string) =>
+    invoke<boolean>("lora_train_path_exists", { path }),
+  loraTrainMkdir: (path: string) => invoke<void>("lora_train_mkdir", { path }),
+  loraTrainRemove: (path: string) => invoke<void>("lora_train_remove", { path }),
+  loraTrainLaunch: (args: {
+    jobId: string;
+    jobDir: string;
+    trainerScriptPath: string;
+  }) => invoke<LoraLaunchResult>("lora_train_launch", { args }),
+  loraTrainPoll: (jobId: string) =>
+    invoke<LoraLaunchResult>("lora_train_poll", { jobId }),
+  loraTrainCancelProcess: (jobId: string) =>
+    invoke<LoraLaunchResult>("lora_train_cancel_process", { jobId }),
+
+  projectSyncListArtifacts: (projectId: string) =>
+    invoke<SyncArtifactMeta[]>("project_sync_list_artifacts", { projectId }),
+  projectSyncReadBytes: (projectId: string, relativePath: string) =>
+    invoke<number[]>("project_sync_read_bytes", { projectId, relativePath }),
+  projectSyncWriteBytes: (
+    projectId: string,
+    relativePath: string,
+    bytes: number[],
+  ) =>
+    invoke<void>("project_sync_write_bytes", {
+      projectId,
+      relativePath,
+      bytes,
+    }),
+  projectSyncFsRoot: () => invoke<string>("project_sync_fs_root"),
+  projectSyncFsWrite: (
+    root: string,
+    projectId: string,
+    relativePath: string,
+    bytes: number[],
+  ) =>
+    invoke<void>("project_sync_fs_write", {
+      root,
+      projectId,
+      relativePath,
+      bytes,
+    }),
+  projectSyncFsRead: (root: string, projectId: string, relativePath: string) =>
+    invoke<number[]>("project_sync_fs_read", {
+      root,
+      projectId,
+      relativePath,
+    }),
+  projectSyncFsList: (root: string, projectId: string) =>
+    invoke<SyncArtifactMeta[]>("project_sync_fs_list", { root, projectId }),
+  projectSyncFsDelete: (root: string, projectId: string) =>
+    invoke<void>("project_sync_fs_delete", { root, projectId }),
+};
+
+export function isTauriRuntime(): boolean {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}

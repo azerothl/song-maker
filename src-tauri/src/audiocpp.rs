@@ -75,6 +75,18 @@ impl AudioCppServer {
                 "busy_timeout_ms": HTDEMUCS_BUSY_TIMEOUT_MS
             }));
         }
+        // SheetSage2 only when the optional GGUF is on disk (hors installeur, CC BY-NC).
+        let sheetsage_path = crate::paths::sheetsage2_weights_path(&cache);
+        if sheetsage_path.is_file() {
+            models.push(json!({
+                "id": "sheetsage2",
+                "family": "sheetsage2",
+                "path": sheetsage_path.display().to_string(),
+                "task": "midi",
+                "mode": "offline",
+                "busy_timeout_ms": YUE2_BUSY_TIMEOUT_MS
+            }));
+        }
         let cfg = json!({
             "host": settings.server_host,
             "port": settings.server_port,

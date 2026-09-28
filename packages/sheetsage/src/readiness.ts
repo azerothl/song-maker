@@ -84,8 +84,8 @@ export function checkSheetsageReadiness(
     weights: SHEETSAGE2_WEIGHTS,
     acceleration,
     messageFr:
-      "Dépendances SheetSage2 détectées. La transcription réelle dépend encore " +
-      "du câblage --task midi (voir docs/sheetsage2-path.md).",
+      "Dépendances SheetSage2 détectées — prêt pour transcription " +
+      "(audiocpp_cli --task midi --family sheetsage2 ou serveur).",
     canAttemptTranscribe: true,
   };
 }

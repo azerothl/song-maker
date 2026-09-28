@@ -1,6 +1,6 @@
 /**
  * Optional project sync — local-first, per-project opt-in.
- * Cloud backend is not shipped; transport stays not_implemented.
+ * First targets: filesystem (NAS/USB) and self-hosted HTTP.
  * @see docs/project-sync-contract.md
  */
 
@@ -10,13 +10,18 @@ export type ProjectSyncStatus =
   | "syncing"
   | "synced"
   | "error"
-  | "not_implemented";
+  | "not_implemented"
+  | "conflict";
+
+export type SyncConflictChoice = "keep-local" | "keep-remote" | "fork";
 
 export type ProjectSyncPreferences = {
   /** Per-project opt-in. Default false. */
   syncEnabled: boolean;
-  /** Opaque endpoint if/when a backend exists. */
+  /** Opaque endpoint: http(s)://… or file:// / absolute sync root. */
   endpointBaseUrl: string;
+  /** Absolute filesystem sync root when using FilesystemProjectSyncTransport. */
+  syncRootPath: string;
   lastSyncedAt: string | null;
   lastError: string | null;
   status: ProjectSyncStatus;
@@ -25,6 +30,7 @@ export type ProjectSyncPreferences = {
 export const DEFAULT_PROJECT_SYNC_PREFERENCES: ProjectSyncPreferences = {
   syncEnabled: false,
   endpointBaseUrl: "",
+  syncRootPath: "",
   lastSyncedAt: null,
   lastError: null,
   status: "never_synced",

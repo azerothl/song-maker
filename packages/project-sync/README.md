@@ -1,26 +1,20 @@
 # `@song-maker/project-sync`
 
-Optional **per-project** sync — local-first. Cloud backend **not shipped**.
-
-Contract: [`docs/project-sync-contract.md`](../../docs/project-sync-contract.md).
-
-## API
+Optional per-project sync — local-first.
 
 ```ts
-import { createProjectSyncClient, createEmptyEnvelope } from "@song-maker/project-sync";
-
-const client = createProjectSyncClient();
-client.setPreferences(projectId, { syncEnabled: true });
-await client.push(projectId, createEmptyEnvelope(projectId));
-// → { status: "not_implemented", error: "…" }
+import {
+  createProjectSyncClient,
+  FilesystemProjectSyncTransport,
+  HttpProjectSyncTransport,
+} from "@song-maker/project-sync";
 ```
 
-## UI
+- **Filesystem / NAS / USB** — `FilesystemProjectSyncTransport` (AES-GCM at rest).
+- **Self-hosted HTTP** — `HttpProjectSyncTransport` + `scripts/project-sync-server.py`.
+- Opt-out never performs network/FS transfers.
+- Secrets / settings / LoRA cache excluded.
 
-`ProjectSyncPanel` — toggle + status (`never_synced`). Wire in Settings/library; SongScreen stays local-complete either way.
+See `docs/project-sync-contract.md`.
 
-## Tests
-
-```bash
-pnpm --filter @song-maker/project-sync test
-```
+UI: `ProjectSyncPanel` — Settings intro + Library per-project push/pull/delete.

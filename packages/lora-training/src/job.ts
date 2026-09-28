@@ -246,7 +246,7 @@ async function writeJobSkeleton(
 export async function cancelTrainingJob(
   jobId: string,
   store: TrainingJobStore,
-  jobsRoot = TRAINING_JOBS_DIR,
+  jobsRoot: string = TRAINING_JOBS_DIR,
 ): Promise<TrainingCancelResult> {
   const manifestPath = joinPath(jobsRoot, jobId, "manifest.json");
   if (!(await store.exists(manifestPath))) {
@@ -293,7 +293,7 @@ export async function cancelTrainingJob(
 export async function readTrainingLogs(
   jobId: string,
   store: TrainingJobStore,
-  jobsRoot = TRAINING_JOBS_DIR,
+  jobsRoot: string = TRAINING_JOBS_DIR,
   maxLines = 200,
 ): Promise<TrainingJobLogTail> {
   const logPath = joinPath(jobsRoot, jobId, "logs", "train.log");
@@ -315,7 +315,7 @@ export async function readTrainingLogs(
 export async function cleanupTrainingJob(
   jobId: string,
   store: TrainingJobStore,
-  jobsRoot = TRAINING_JOBS_DIR,
+  jobsRoot: string = TRAINING_JOBS_DIR,
 ): Promise<TrainingCleanupResult> {
   const jobDir = joinPath(jobsRoot, jobId);
   if (!(await store.exists(jobDir)) && !(await store.exists(joinPath(jobDir, "manifest.json")))) {
