@@ -2410,10 +2410,10 @@ pub fn import_remote_generation(
     let folder = project_folder(&id);
     let mut doc = load_project(&folder)?;
     let gens = folder.join("generations");
-    ensure_dir(&gens)?;
+    ensure_dir(&gens).map_err(|e| e.to_string())?;
     let gen_id = next_folder_id(&gens, "gen-")?;
     let gen_dir = gens.join(&gen_id);
-    ensure_dir(&gen_dir)?;
+    ensure_dir(&gen_dir).map_err(|e| e.to_string())?;
 
     let wav_bytes = base64::engine::general_purpose::STANDARD
         .decode(payload.audio_base64.as_bytes())

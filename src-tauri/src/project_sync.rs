@@ -152,12 +152,13 @@ pub fn sync_fs_list(root: String, project_id: String) -> Result<Vec<SyncArtifact
 }
 
 pub fn sync_fs_delete_project(root: String, project_id: String) -> Result<(), String> {
-    let base = PathBuf::from(root).join(&project_id);
+    let root_path = PathBuf::from(root);
+    let base = root_path.join(&project_id);
     if base.is_dir() {
         std::fs::remove_dir_all(&base).map_err(|e| e.to_string())?;
     }
     // Tombstone marker
-    let tomb = PathBuf::from(root).join(format!("{project_id}.tombstone"));
+    let tomb = root_path.join(format!("{project_id}.tombstone"));
     std::fs::write(&tomb, format!("{}\n", chrono::Utc::now().to_rfc3339()))
         .map_err(|e| e.to_string())?;
     Ok(())
