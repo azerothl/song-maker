@@ -4,6 +4,7 @@ import type {
   RemoteWorkerPreferences,
 } from "@song-maker/remote-worker";
 import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
+import { AbcTakePreview } from "../components/AbcTakePreview";
 import { CandidateCompare } from "../components/CandidateCompare";
 import { ClipTimeline } from "../components/ClipTimeline";
 import { MixAssistPanel } from "../components/MixAssistPanel";
@@ -1502,15 +1503,16 @@ export function SongScreen() {
                 </div>
               )}
 
-              <details
+              <AbcTakePreview
+                abc={scoreAbc}
                 open={scoreOpen}
-                onToggle={(e) =>
-                  setScoreOpen((e.target as HTMLDetailsElement).open)
-                }
-              >
-                <summary>{t("score.toggle")}</summary>
-                <pre className="score">{scoreAbc ?? t("score.empty")}</pre>
-              </details>
+                onOpenChange={setScoreOpen}
+                request={{
+                  tempoBpm: form.tempoBpm,
+                  key: form.key,
+                  meter: form.meter,
+                }}
+              />
             </div>
 
             <div
