@@ -1,14 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   REINTERPRETATION_DISCLAIMER_FR,
   assertAbcConfirmedForYue2,
   checkSheetsageReadiness,
   createSheetsageTranscriber,
   defaultSheetsageProbe,
+  type LiveSheetsageRunner,
   type SheetsageAudioSource,
   type SheetsageProgress,
+  type SheetsageRuntimeProbe,
+  type SheetsageTranscribeResult,
 } from "@song-maker/sheetsage";
 import type { FormInput, MixDoc } from "../lib/types";
+import { isTauriRuntime, runtimeApi } from "../lib/runtimeHost";
 import { t } from "../ui/i18n";
 
 export type SheetSage2PanelProps = {
@@ -16,20 +20,15 @@ export type SheetSage2PanelProps = {
   form: FormInput;
   mix: MixDoc | null;
   busy: boolean;
-  /** When true, omit the panel H3 (parent already provides the workspace title). */
   hideTitle?: boolean;
-  /**
-   * Real YuE2 path — parent must only call when user confirmed ABC.
-   * Typically: api.startGeneration(projectId, { ...form, cot }, confirmedAbc)
-   */
   onConfirmGenerate: (confirmedAbc: string, cot: "melody" | "full") => void | Promise<void>;
 };
 
 type SourceChoice = "mixdown" | string;
 
 /**
- * Audio → SheetSage2 ABC (stub until runtime) → edit → confirm → YuE2.
- * Never calls onConfirmGenerate before explicit confirmation.
+ * Audio → SheetSage2 ABC → edit → confirm → YuE2.
+ * Uses Tauri LiveSheetsageRunner when binary+weights are present.
  */
 export function SheetSage2Panel({
   form,
@@ -46,15 +45,104 @@ export function SheetSage2Panel({
   const [proposedAbc, setProposedAbc] = useState<string>("");
   const [confirmed, setConfirmed] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [hostProbe, setHostProbe] = useState<Partial<SheetsageRuntimeProbe> | null>(
+    null,
+  );
+  const abortRef = useRef<AbortController | null>(null);
+  const jobIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    let cancelled = false;
+    void runtimeApi
+      .sheetsageProbe()
+      .then((p) => {
+        if (cancelled) return;
+        setHostProbe({
+          binaryPresent: p.binaryPresent,
+          binaryPath: p.binaryPath,
+          weightsPresent: p.weightsPresent,
+          weightsPath: p.weightsPath,
+          weightsSha256Verified: p.weightsSha256Verified,
+          diskBytesAvailable: p.diskBytesAvailable,
+          acceleration:
+            p.acceleration === "cuda" || p.acceleration === "cpu"
+              ? p.acceleration
+              : "unknown",
+        });
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setNotice(e instanceof Error ? e.message : String(e));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const probe = useMemo(
-    () => defaultSheetsageProbe({ licenseAccepted }),
-    [licenseAccepted],
+    () =>
+      defaultSheetsageProbe({
+        ...hostProbe,
+        licenseAccepted,
+      }),
+    [hostProbe, licenseAccepted],
   );
   const readiness = useMemo(
     () => checkSheetsageReadiness(probe),
     [probe],
   );
+
+  const liveRunner: LiveSheetsageRunner | undefined = useMemo(() => {
+    if (!isTauriRuntime()) return undefined;
+    return async (request): Promise<SheetsageTranscribeResult> => {
+      const jobId = `sheetsage-${Date.now()}`;
+      jobIdRef.current = jobId;
+      const audioPath = request.source.path?.trim();
+      if (!audioPath) {
+        return {
+          status: "failed",
+          jobId,
+          abc: null,
+          warnings: ["missing_audio_path"],
+          messageFr:
+            "Chemin audio manquant (exportez un mixdown ou choisissez une piste avec fichier). Aucune ABC inventée.",
+          reinterpretationDisclaimerFr: REINTERPRETATION_DISCLAIMER_FR,
+        };
+      }
+      request.onProgress?.({
+        jobId,
+        phase: "transcribing",
+        fraction: 0.2,
+        messageFr: "Transcription SheetSage2 en cours…",
+      });
+      const outcome = await runtimeApi.sheetsageTranscribe({
+        jobId,
+        audioPath,
+        mode: request.mode ?? "melody",
+        licenseAccepted: request.licenseAccepted,
+      });
+      if (request.signal?.aborted || outcome.status === "cancelled") {
+        return {
+          status: "cancelled",
+          jobId,
+          abc: null,
+          warnings: [],
+          messageFr: "Transcription annulée.",
+          reinterpretationDisclaimerFr: REINTERPRETATION_DISCLAIMER_FR,
+        };
+      }
+      return {
+        status: outcome.status as SheetsageTranscribeResult["status"],
+        jobId: outcome.jobId,
+        abc: outcome.abc,
+        warnings: outcome.warnings,
+        messageFr: outcome.messageFr,
+        reinterpretationDisclaimerFr: REINTERPRETATION_DISCLAIMER_FR,
+      };
+    };
+  }, []);
 
   const sources: SheetsageAudioSource[] = useMemo(() => {
     const list: SheetsageAudioSource[] = [
@@ -93,21 +181,36 @@ export function SheetSage2Panel({
     setProposedAbc("");
     setConfirmed(false);
     setProgress(null);
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
     try {
-      const transcriber = createSheetsageTranscriber(probe);
+      const transcriber = createSheetsageTranscriber(probe, liveRunner);
       const result = await transcriber.transcribe({
         source: selectedSource,
         licenseAccepted,
         mode,
+        signal: ac.signal,
         onProgress: setProgress,
       });
       setNotice(result.messageFr);
       if (result.status === "ok" && result.abc) {
         setProposedAbc(result.abc);
       }
-      // Honest stub: no fake ABC when not_implemented / missing_runtime.
     } finally {
       setTranscribing(false);
+    }
+  };
+
+  const onCancel = async () => {
+    abortRef.current?.abort();
+    if (jobIdRef.current && isTauriRuntime()) {
+      try {
+        const msg = await runtimeApi.sheetsageCancel(jobIdRef.current);
+        setNotice(msg);
+      } catch (e) {
+        setNotice(e instanceof Error ? e.message : String(e));
+      }
     }
   };
 
@@ -209,6 +312,14 @@ export function SheetSage2Panel({
           onClick={() => void onTranscribe()}
         >
           {transcribing ? t("sheetsage.transcribing") : t("sheetsage.transcribe")}
+        </button>
+        <button
+          type="button"
+          className="btn ghost"
+          disabled={!transcribing}
+          onClick={() => void onCancel()}
+        >
+          {t("sheetsage.cancel")}
         </button>
       </div>
       {progress && (

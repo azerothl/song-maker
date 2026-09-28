@@ -8,7 +8,8 @@ import type {
 import { DEFAULT_PROJECT_SYNC_PREFERENCES } from "./types.js";
 
 const NOT_IMPLEMENTED_FR =
-  "Synchronisation cloud : non implémentée — aucun backend livré. " +
+  "Aucun transport de synchro configuré dans cet environnement. " +
+  "Utilisez l’app Tauri (dossier NAS/USB ou serveur HTTP auto-hébergé). " +
   "Le mode local reste complet. Voir docs/project-sync-contract.md.";
 
 /**
@@ -98,8 +99,36 @@ export class LocalFirstProjectSyncClient {
     this.setPreferences(projectId, {
       status: result.status,
       lastError: result.error ?? null,
+      lastSyncedAt:
+        result.status === "synced" ? new Date().toISOString() : prefs.lastSyncedAt,
     });
     return result;
+  }
+
+  async deleteRemote(projectId: string): Promise<ProjectSyncResult> {
+    const prefs = this.getPreferences(projectId);
+    if (!prefs.syncEnabled) {
+      return {
+        status: "never_synced",
+        error: "Synchro désactivée pour ce projet — aucun appel réseau.",
+      };
+    }
+    const result = await this.transport.deleteRemote(projectId);
+    this.setPreferences(projectId, {
+      status: result.status,
+      lastError: result.error ?? null,
+    });
+    return result;
+  }
+
+  /** Hydrate in-memory prefs from durable storage (e.g. localStorage). */
+  hydrate(map: Record<string, ProjectSyncPreferences>): void {
+    for (const [id, prefs] of Object.entries(map)) {
+      this.prefsByProject.set(id, {
+        ...DEFAULT_PROJECT_SYNC_PREFERENCES,
+        ...prefs,
+      });
+    }
   }
 }
 

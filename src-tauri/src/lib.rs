@@ -9,12 +9,15 @@ mod hashutil;
 mod health;
 mod installer;
 mod library;
+mod lora_train;
 mod mix;
 mod models;
 mod paths;
 mod pins;
+mod project_sync;
 mod queue;
 mod resample;
+mod sheetsage;
 
 use commands::AppState;
 
@@ -81,6 +84,28 @@ pub fn run() {
             commands::import_remote_generation,
             commands::undo_mix,
             commands::redo_mix,
+            commands::sheetsage_probe,
+            commands::sheetsage_transcribe,
+            commands::sheetsage_cancel,
+            commands::lora_train_probe,
+            commands::lora_train_probe_audio,
+            commands::lora_train_jobs_root,
+            commands::lora_train_write_text,
+            commands::lora_train_read_text,
+            commands::lora_train_path_exists,
+            commands::lora_train_mkdir,
+            commands::lora_train_remove,
+            commands::lora_train_launch,
+            commands::lora_train_poll,
+            commands::lora_train_cancel_process,
+            commands::project_sync_list_artifacts,
+            commands::project_sync_read_bytes,
+            commands::project_sync_write_bytes,
+            commands::project_sync_fs_root,
+            commands::project_sync_fs_write,
+            commands::project_sync_fs_read,
+            commands::project_sync_fs_list,
+            commands::project_sync_fs_delete,
         ])
         .build(tauri::generate_context!())
         .expect("erreur au démarrage de Song Maker")

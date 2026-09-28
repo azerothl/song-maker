@@ -53,6 +53,28 @@ pub fn bs_roformer_path(cache: &Path) -> PathBuf {
         .join(crate::pins::BS_ROFORMER_GGUF)
 }
 
+/// Opt-in SheetSage2 GGUF (hors installeur) — `sheetsage2-orig.gguf`.
+pub fn sheetsage2_weights_path(cache: &Path) -> PathBuf {
+    cache
+        .join("models")
+        .join("SheetSage2-GGUF")
+        .join("sheetsage2-orig.gguf")
+}
+
+pub fn sheetsage2_weights_present(cache: &Path) -> bool {
+    sheetsage2_weights_path(cache).is_file()
+}
+
+/// Persistent NAR LoRA training jobs (Documents/Song Maker/training-jobs).
+pub fn training_jobs_root() -> PathBuf {
+    song_maker_documents().join("training-jobs")
+}
+
+/// Optional project-sync filesystem root (Documents/Song Maker/sync).
+pub fn project_sync_fs_root() -> PathBuf {
+    song_maker_documents().join("sync")
+}
+
 pub fn demucs_onnx_venv(cache: &Path) -> PathBuf {
     cache.join("tools").join("demucs-onnx")
 }

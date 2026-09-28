@@ -1,7 +1,7 @@
 # Optional project sync — contract
 
-**Status:** types + UI opt-in stub. **Cloud backend is not shipped.**  
-Local-first always works. Sync is never mandatory (spec forbids mandatory cloud sync).
+**Status:** filesystem + self-hosted HTTP transports shipped. Hosted cloud SaaS is **not** promised.  
+Local-first always works. Sync is never mandatory.
 
 Package: `@song-maker/project-sync`.
 
@@ -9,23 +9,27 @@ Package: `@song-maker/project-sync`.
 
 1. **Per-project opt-in** — default off; library/settings toggle.
 2. **Local-complete** — all workflows work offline without sync.
-3. **No silent overwrite** of score / mix / generation artifacts on conflict.
-4. **Secrets excluded** — tokens, remote-worker credentials, cache keys never sync.
-5. **Encryption at rest in transit** — same class as remote worker (AES-GCM) when a backend exists.
+3. **No silent overwrite** of score / mix / generation artifacts on conflict (keep-local / keep-remote / fork).
+4. **Secrets excluded** — tokens, remote-worker credentials, cache keys, settings never sync.
+5. **Encryption** — AES-256-GCM at rest for filesystem blobs and in transit for HTTP payloads.
 
-## Synced artifacts (when transport exists)
+## First usable targets
+
+| Target | How |
+|---|---|
+| Filesystem / NAS / USB | Default root `Documents/Song Maker/sync` (editable). Encrypted `.enc` + meta. |
+| Self-hosted HTTP | `python scripts/project-sync-server.py --port 8787` then set endpoint `http://127.0.0.1:8787`. |
+
+## Synced artifacts
 
 | Path / doc | Include |
 |---|---|
 | `project.json` | yes |
 | `scores/score-v*.json` | yes |
-| `generations/gen-*/{request,result,job}.json` | yes |
-| `generations/gen-*/score.abc` | yes |
-| `generations/gen-*/audio.wav` | yes (large; optional bandwidth gate) |
-| `generations/gen-*/semantic.json` | yes |
+| `generations/gen-*/…` | yes |
 | `separations/sep-*/*` | yes |
 | `mixes/*.json` | yes |
-| checksums | yes |
+| Large audio | yes with bandwidth gate (~80 MiB default skip) |
 | Settings / tokens / LoRA cache | **no** |
 
 ## Envelope
@@ -49,17 +53,7 @@ Package: `@song-maker/project-sync`.
 }
 ```
 
-## Conflict rules
-
-- Never silent overwrite of `score.abc`, mix docs, or `gen-*` result/audio.
-- On conflict: surface both sides; user chooses keep-local / keep-remote / fork.
-- Tombstones for delete sync; soft-delete retention TBD by backend.
-
-## Transport (stub)
-
-`ProjectSyncTransport` methods return `not_implemented` until a sync service exists.
-
-Suggested future endpoints (not implemented):
+## HTTP endpoints
 
 | Method | Path |
 |---|---|
@@ -67,11 +61,17 @@ Suggested future endpoints (not implemented):
 | `GET` | `/v1/projects/{id}/sync` |
 | `DELETE` | `/v1/projects/{id}/sync` |
 
+## Conflict rules
+
+- Never silent overwrite of `score.abc`, mix docs, or `gen-*` result/audio.
+- On conflict: keep-local / keep-remote / fork (under `forks/<ts>/`).
+- Tombstones for delete sync.
+
 ## UI status values
 
 - `never_synced` (default)
-- `pending` / `syncing` / `synced` / `error` / `not_implemented`
+- `pending` / `syncing` / `synced` / `error` / `conflict` / `not_implemented`
 
 ## Honesty
 
-Do not claim multi-device sync works. Copy must state the cloud backend is absent.
+Do not claim a hosted multi-tenant cloud. Document self-host deploy, retention (operator-controlled data dir), and opt-out (no network when disabled).

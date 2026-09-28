@@ -32,6 +32,8 @@ pub struct AppState {
     pub setup_installing: std::sync::atomic::AtomicBool,
     pub bs_roformer_installing: std::sync::atomic::AtomicBool,
     pub bs_roformer_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub sheetsage_jobs: crate::sheetsage::SheetsageJobs,
+    pub lora_train_jobs: crate::lora_train::LoraTrainJobs,
 }
 
 #[derive(Default)]
@@ -49,6 +51,8 @@ impl Default for AppState {
             setup_installing: std::sync::atomic::AtomicBool::new(false),
             bs_roformer_installing: std::sync::atomic::AtomicBool::new(false),
             bs_roformer_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            sheetsage_jobs: crate::sheetsage::SheetsageJobs::default(),
+            lora_train_jobs: crate::lora_train::LoraTrainJobs::default(),
         }
     }
 }
@@ -2770,4 +2774,156 @@ mod continuation_tests {
         assert!(err.contains("tronquées"));
         let _ = fs::remove_dir_all(root);
     }
+}
+
+// --- SheetSage2 (#60) ---
+
+#[tauri::command]
+pub fn sheetsage_probe() -> Result<crate::sheetsage::SheetsageProbeResult, String> {
+    crate::sheetsage::probe()
+}
+
+#[tauri::command]
+pub async fn sheetsage_transcribe(
+    state: tauri::State<'_, AppState>,
+    args: crate::sheetsage::SheetsageTranscribeArgs,
+) -> Result<crate::sheetsage::SheetsageTranscribeOutcome, String> {
+    crate::sheetsage::transcribe(&state.server, &state.sheetsage_jobs, args).await
+}
+
+#[tauri::command]
+pub fn sheetsage_cancel(
+    state: tauri::State<'_, AppState>,
+    job_id: String,
+) -> Result<String, String> {
+    crate::sheetsage::cancel(&state.sheetsage_jobs, &job_id)
+}
+
+// --- LoRA NAR training (#61) ---
+
+#[tauri::command]
+pub fn lora_train_probe() -> Result<crate::lora_train::TrainerProbeResult, String> {
+    crate::lora_train::probe_trainer()
+}
+
+#[tauri::command]
+pub fn lora_train_probe_audio(path: String) -> Result<crate::lora_train::AudioProbeResult, String> {
+    crate::lora_train::probe_audio(path)
+}
+
+#[tauri::command]
+pub fn lora_train_jobs_root() -> Result<String, String> {
+    crate::lora_train::jobs_root_path()
+}
+
+#[tauri::command]
+pub fn lora_train_write_text(path: String, data: String) -> Result<(), String> {
+    crate::lora_train::write_text(path, data)
+}
+
+#[tauri::command]
+pub fn lora_train_read_text(path: String) -> Result<Option<String>, String> {
+    crate::lora_train::read_text(path)
+}
+
+#[tauri::command]
+pub fn lora_train_path_exists(path: String) -> Result<bool, String> {
+    crate::lora_train::path_exists(path)
+}
+
+#[tauri::command]
+pub fn lora_train_mkdir(path: String) -> Result<(), String> {
+    crate::lora_train::mkdir(path)
+}
+
+#[tauri::command]
+pub fn lora_train_remove(path: String) -> Result<(), String> {
+    crate::lora_train::remove_path(path)
+}
+
+#[tauri::command]
+pub fn lora_train_launch(
+    state: tauri::State<'_, AppState>,
+    args: crate::lora_train::LaunchTrainerArgs,
+) -> Result<crate::lora_train::LaunchTrainerResult, String> {
+    crate::lora_train::launch_trainer(&state.lora_train_jobs, args)
+}
+
+#[tauri::command]
+pub fn lora_train_poll(
+    state: tauri::State<'_, AppState>,
+    job_id: String,
+) -> Result<crate::lora_train::LaunchTrainerResult, String> {
+    crate::lora_train::poll_trainer(&state.lora_train_jobs, job_id)
+}
+
+#[tauri::command]
+pub fn lora_train_cancel_process(
+    state: tauri::State<'_, AppState>,
+    job_id: String,
+) -> Result<crate::lora_train::LaunchTrainerResult, String> {
+    crate::lora_train::cancel_trainer(&state.lora_train_jobs, job_id)
+}
+
+// --- Project sync (#62) ---
+
+#[tauri::command]
+pub fn project_sync_list_artifacts(
+    project_id: String,
+) -> Result<Vec<crate::project_sync::SyncArtifactMeta>, String> {
+    crate::project_sync::list_project_artifacts(project_id)
+}
+
+#[tauri::command]
+pub fn project_sync_read_bytes(
+    project_id: String,
+    relative_path: String,
+) -> Result<Vec<u8>, String> {
+    crate::project_sync::read_project_bytes(project_id, relative_path)
+}
+
+#[tauri::command]
+pub fn project_sync_write_bytes(
+    project_id: String,
+    relative_path: String,
+    bytes: Vec<u8>,
+) -> Result<(), String> {
+    crate::project_sync::write_project_bytes(project_id, relative_path, bytes)
+}
+
+#[tauri::command]
+pub fn project_sync_fs_root() -> Result<String, String> {
+    crate::project_sync::sync_fs_root()
+}
+
+#[tauri::command]
+pub fn project_sync_fs_write(
+    root: String,
+    project_id: String,
+    relative_path: String,
+    bytes: Vec<u8>,
+) -> Result<(), String> {
+    crate::project_sync::sync_fs_write(root, project_id, relative_path, bytes)
+}
+
+#[tauri::command]
+pub fn project_sync_fs_read(
+    root: String,
+    project_id: String,
+    relative_path: String,
+) -> Result<Vec<u8>, String> {
+    crate::project_sync::sync_fs_read(root, project_id, relative_path)
+}
+
+#[tauri::command]
+pub fn project_sync_fs_list(
+    root: String,
+    project_id: String,
+) -> Result<Vec<crate::project_sync::SyncArtifactMeta>, String> {
+    crate::project_sync::sync_fs_list(root, project_id)
+}
+
+#[tauri::command]
+pub fn project_sync_fs_delete(root: String, project_id: String) -> Result<(), String> {
+    crate::project_sync::sync_fs_delete_project(root, project_id)
 }

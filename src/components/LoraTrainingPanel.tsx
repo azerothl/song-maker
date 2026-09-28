@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MemoryTrainingJobStore,
   QUALITY_DISCLAIMER_FR,
@@ -12,24 +12,45 @@ import {
   validateCorpus,
   type CorpusSong,
   type LaunchTrainingResult,
+  type TrainingJobStore,
 } from "@song-maker/lora-training";
+import { isTauriRuntime, runtimeApi } from "../lib/runtimeHost";
 import { t } from "../ui/i18n";
 
 type FileMeta = {
   name: string;
   path: string;
   size: number;
-  /** Browser File API has no duration — placeholder until probed. */
   durationMs: number;
+  contentSha256: string | null;
 };
+
+function createHostDiskStore(): TrainingJobStore {
+  return {
+    async mkdir(path: string) {
+      await runtimeApi.loraTrainMkdir(path);
+    },
+    async writeText(path: string, data: string) {
+      await runtimeApi.loraTrainWriteText(path, data);
+    },
+    async exists(path: string) {
+      return runtimeApi.loraTrainPathExists(path);
+    },
+    async remove(path: string) {
+      await runtimeApi.loraTrainRemove(path);
+    },
+    async readText(path: string) {
+      return runtimeApi.loraTrainReadText(path);
+    },
+  };
+}
 
 /**
  * Settings pilot UI for local NAR LoRA training.
- * Validates corpus + writes an in-memory job folder; trainer stays not_implemented
- * unless a host later sets trainerExists after detecting scripts/lora-train-nar.*.
+ * Persists under Documents/Song Maker/training-jobs and shells out to
+ * scripts/lora-train-nar.py when detected.
  */
 export function LoraTrainingPanel() {
-  const store = useMemo(() => new MemoryTrainingJobStore(), []);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [files, setFiles] = useState<FileMeta[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -38,6 +59,46 @@ export function LoraTrainingPanel() {
   );
   const [logLines, setLogLines] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [trainerExists, setTrainerExists] = useState(false);
+  const [trainerScriptPath, setTrainerScriptPath] = useState(
+    "scripts/lora-train-nar.py",
+  );
+  const [jobsRoot, setJobsRoot] = useState("training-jobs");
+  const [probeNote, setProbeNote] = useState<string | null>(null);
+
+  const store = useMemo(() => {
+    if (isTauriRuntime()) return createHostDiskStore();
+    return new MemoryTrainingJobStore();
+  }, []);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) {
+      setProbeNote(
+        "Hôte Tauri requis pour persistance disque et lancement du trainer.",
+      );
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const probe = await runtimeApi.loraTrainProbe();
+        if (cancelled) return;
+        setTrainerExists(probe.trainerExists);
+        if (probe.trainerScriptPath) {
+          setTrainerScriptPath(probe.trainerScriptPath);
+        }
+        setJobsRoot(probe.jobsRoot);
+        setProbeNote(probe.messageFr);
+      } catch (e) {
+        if (!cancelled) {
+          setProbeNote(e instanceof Error ? e.message : String(e));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const songs: CorpusSong[] = useMemo(
     () =>
@@ -47,7 +108,7 @@ export function LoraTrainingPanel() {
         audioPath: f.path || f.name,
         format: formatFromPath(f.name),
         durationMs: f.durationMs,
-        contentSha256: null,
+        contentSha256: f.contentSha256,
       })),
     [files],
   );
@@ -58,18 +119,36 @@ export function LoraTrainingPanel() {
     [songs],
   );
 
-  const onPickFiles = (list: FileList | null) => {
+  const onPickFiles = async (list: FileList | null) => {
     if (!list) return;
     const next: FileMeta[] = [];
     for (let i = 0; i < list.length; i += 1) {
       const file = list.item(i);
       if (!file) continue;
-      // Duration unknown in browser without decode — use placeholder 60s for UI demo.
+      // Prefer absolute path from webkitRelativePath / path when Tauri exposes it.
+      const path =
+        (file as File & { path?: string }).path?.trim() || file.name;
+      let durationMs = 60_000;
+      let contentSha256: string | null = null;
+      let size = file.size;
+      if (isTauriRuntime() && path && path !== file.name) {
+        try {
+          const probe = await runtimeApi.loraTrainProbeAudio(path);
+          if (probe.exists) {
+            size = probe.byteLength;
+            contentSha256 = probe.contentSha256;
+            if (probe.durationMs != null) durationMs = probe.durationMs;
+          }
+        } catch {
+          /* keep placeholders */
+        }
+      }
       next.push({
         name: file.name,
-        path: file.name,
-        size: file.size,
-        durationMs: 60_000,
+        path,
+        size,
+        durationMs,
+        contentSha256,
       });
     }
     setFiles(next);
@@ -78,26 +157,60 @@ export function LoraTrainingPanel() {
     setNotice(null);
   };
 
+  const refreshLogs = async (jobId: string) => {
+    const logs = await readTrainingLogs(jobId, store, jobsRoot);
+    setLogLines(logs.lines);
+  };
+
   const onLaunch = async () => {
     setBusy(true);
     setNotice(null);
     try {
-      // Detect optional trainer script only in environments that can probe disk.
-      // Browser/Tauri UI: honest default trainerExists=false.
       const result = await launchTrainingJob(
         {
-          corpusRoot: "(sélection locale)",
+          corpusRoot: files[0]?.path
+            ? files[0].path.replace(/[/\\][^/\\]+$/, "") || "(sélection locale)"
+            : "(sélection locale)",
           songs,
           rightsConfirmed,
-          trainerExists: false,
-          trainerScriptPath: "scripts/lora-train-nar.py",
+          trainerExists,
+          trainerScriptPath,
+          jobsRoot,
         },
         store,
       );
       setLastResult(result);
       setNotice(result.messageFr);
-      const logs = await readTrainingLogs(result.jobId, store);
-      setLogLines(logs.lines);
+      await refreshLogs(result.jobId);
+
+      if (
+        result.status === "queued" &&
+        trainerExists &&
+        isTauriRuntime() &&
+        trainerScriptPath
+      ) {
+        const launched = await runtimeApi.loraTrainLaunch({
+          jobId: result.jobId,
+          jobDir: result.jobDir,
+          trainerScriptPath,
+        });
+        setNotice(launched.messageFr);
+        setLastResult({ ...result, status: launched.status as LaunchTrainingResult["status"] });
+        // Poll until process exits
+        for (let i = 0; i < 600; i += 1) {
+          await new Promise((r) => setTimeout(r, 1000));
+          const poll = await runtimeApi.loraTrainPoll(result.jobId);
+          await refreshLogs(result.jobId);
+          if (poll.status !== "running") {
+            setNotice(poll.messageFr);
+            setLastResult({
+              ...result,
+              status: poll.status as LaunchTrainingResult["status"],
+            });
+            break;
+          }
+        }
+      }
     } finally {
       setBusy(false);
     }
@@ -105,15 +218,18 @@ export function LoraTrainingPanel() {
 
   const onCancel = async () => {
     if (!lastResult) return;
-    const r = await cancelTrainingJob(lastResult.jobId, store);
+    if (isTauriRuntime()) {
+      const r = await runtimeApi.loraTrainCancelProcess(lastResult.jobId);
+      setNotice(r.messageFr);
+    }
+    const r = await cancelTrainingJob(lastResult.jobId, store, jobsRoot);
     setNotice(r.messageFr);
-    const logs = await readTrainingLogs(lastResult.jobId, store);
-    setLogLines(logs.lines);
+    await refreshLogs(lastResult.jobId);
   };
 
   const onCleanup = async () => {
     if (!lastResult) return;
-    const r = await cleanupTrainingJob(lastResult.jobId, store);
+    const r = await cleanupTrainingJob(lastResult.jobId, store, jobsRoot);
     setNotice(r.messageFr);
     setLastResult(null);
     setLogLines([]);
@@ -127,6 +243,10 @@ export function LoraTrainingPanel() {
         {QUALITY_DISCLAIMER_FR}
       </p>
       <p className="hint">{RIGHTS_DISCLAIMER_FR}</p>
+      {probeNote && <p className="hint">{probeNote}</p>}
+      <p className="hint">
+        {t("loraTrain.jobsRoot")}: {jobsRoot}
+      </p>
 
       <label className="phase3-check">
         <input
@@ -143,7 +263,7 @@ export function LoraTrainingPanel() {
           type="file"
           accept="audio/*,.wav,.flac,.mp3,.ogg"
           multiple
-          onChange={(e) => onPickFiles(e.target.files)}
+          onChange={(e) => void onPickFiles(e.target.files)}
         />
       </label>
       <p className="hint">
