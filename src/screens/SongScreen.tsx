@@ -809,6 +809,9 @@ export function SongScreen() {
             solo: tr.solo,
             clips: tr.clips,
           })),
+          tempoMap: next.tempoMap ?? [],
+          timeSignatures: next.timeSignatures ?? [],
+          markers: next.markers ?? [],
         })
         .then((m) => setMix(m))
         .catch((e) => setError(String(e)));
@@ -1791,6 +1794,8 @@ export function SongScreen() {
                     peaksByTrack={playback?.peaksByTrack}
                     roleByTrack={roleByTrack}
                     sourceDurationMsByTrack={sourceDurationMsByTrack}
+                    projectTempoBpm={project.tempoBpm}
+                    projectMeter={project.meter ?? null}
                   />
                 </div>
               ) : (

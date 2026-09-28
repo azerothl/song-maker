@@ -9,25 +9,57 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import {
+  buildRulerMarks,
+  ensureMixArrangement,
+  formatMusical,
+  msToMusical,
+  newMarkerId,
+  removeMixMarker,
+  removeTempoEvent,
+  snapMs,
+  upsertMixMarker,
+  upsertTempoEvent,
+  type GridMode,
+  type MusicalSubdivision,
+} from "../lib/musicalTime";
 import { roleWaveColor, withAlpha } from "../lib/trackRoleColors";
-import type { MixClip, MixDoc, MixTrack } from "../lib/types";
+import type {
+  MixClip,
+  MixDoc,
+  MixMarker,
+  MixMarkerKind,
+  MixTrack,
+  Meter,
+} from "../lib/types";
 import { t } from "../ui/i18n";
 
-const SNAP_MS = 50;
+const TIME_SNAP_MS = 50;
 const EDGE_PX = 6;
 const FADE_HANDLE_PX = 8;
 const MIN_DURATION_MS = 50;
 const NUDGE_MS = 50;
 
+const MARKER_KINDS: MixMarkerKind[] = [
+  "intro",
+  "verse",
+  "prechorus",
+  "chorus",
+  "bridge",
+  "interlude",
+  "outro",
+  "other",
+];
+
 type Props = {
   mix: MixDoc;
   onChange: (next: MixDoc) => void;
-  /** Full-stem peaks keyed by track id (from playback). */
   peaksByTrack?: Record<string, Float32Array>;
-  /** Optional role per track id for stem-colored clip waves. */
   roleByTrack?: Record<string, string>;
-  /** Optional source duration (ms) per track for peak slicing. */
   sourceDurationMsByTrack?: Record<string, number>;
+  /** Project form tempo — used only when mix has no tempo map. */
+  projectTempoBpm?: number | null;
+  projectMeter?: Meter | null;
 };
 
 type DragKind = "move" | "trim-left" | "trim-right" | "fade-in" | "fade-out";
@@ -54,11 +86,6 @@ function formatMs(ms: number): string {
   const m = Math.floor(s / 60);
   const rest = (s % 60).toFixed(1);
   return `${m}:${rest.padStart(4, "0")}`;
-}
-
-function snapValue(ms: number, enabled: boolean): number {
-  if (!enabled) return Math.max(0, Math.round(ms));
-  return Math.max(0, Math.round(ms / SNAP_MS) * SNAP_MS);
 }
 
 function estimateSourceMs(
@@ -168,13 +195,44 @@ function ClipWaveCanvas({
   return <canvas ref={ref} className="clip-block-wave" aria-hidden="true" />;
 }
 
+function markerKindLabel(kind: MixMarkerKind): string {
+  switch (kind) {
+    case "intro":
+      return t("clips.marker.kind.intro");
+    case "verse":
+      return t("clips.marker.kind.verse");
+    case "prechorus":
+      return t("clips.marker.kind.prechorus");
+    case "chorus":
+      return t("clips.marker.kind.chorus");
+    case "bridge":
+      return t("clips.marker.kind.bridge");
+    case "interlude":
+      return t("clips.marker.kind.interlude");
+    case "outro":
+      return t("clips.marker.kind.outro");
+    case "other":
+      return t("clips.marker.kind.other");
+    default: {
+      const _exhaustive: never = kind;
+      return _exhaustive;
+    }
+  }
+}
+
 export function ClipTimeline({
-  mix,
+  mix: rawMix,
   onChange,
   peaksByTrack,
   roleByTrack,
   sourceDurationMsByTrack,
+  projectTempoBpm,
+  projectMeter,
 }: Props) {
+  const mix = useMemo(
+    () => ensureMixArrangement(rawMix, projectTempoBpm, projectMeter),
+    [rawMix, projectTempoBpm, projectMeter],
+  );
   const editor = useMemo(() => createClipEditor(), []);
   const [selected, setSelected] = useState<{
     trackId: string;
@@ -182,16 +240,58 @@ export function ClipTimeline({
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [snapEnabled, setSnapEnabled] = useState(true);
+  const [gridMode, setGridMode] = useState<GridMode>("musical");
+  const [subdivision, setSubdivision] = useState<MusicalSubdivision>(4);
   const [zoom, setZoom] = useState(1);
   const [cutAtMs, setCutAtMs] = useState<number | null>(null);
+  const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
+  const [newMarkerKind, setNewMarkerKind] = useState<MixMarkerKind>("verse");
+  const [newMarkerName, setNewMarkerName] = useState("");
+  const [shiftClipsWithMarker, setShiftClipsWithMarker] = useState(true);
+  const [tempoBpmDraft, setTempoBpmDraft] = useState(
+    mix.tempoMap?.[0]?.quarterBpm ?? 120,
+  );
+  const [tempoAtDraft, setTempoAtDraft] = useState(0);
   const dragRef = useRef<DragState | null>(null);
   const railScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const tempoMap = mix.tempoMap ?? [];
+  const meterMap = mix.timeSignatures ?? [];
+  const markers = mix.markers ?? [];
+
+  useEffect(() => {
+    setTempoBpmDraft(mix.tempoMap?.[0]?.quarterBpm ?? 120);
+  }, [mix.tempoMap]);
+
+  // Persist defaults once so markers/tempo survive reopen (clips unchanged).
+  useEffect(() => {
+    if (
+      !rawMix.tempoMap?.length ||
+      !rawMix.timeSignatures?.length ||
+      rawMix.markers === undefined
+    ) {
+      if (
+        mix.tempoMap !== rawMix.tempoMap ||
+        mix.timeSignatures !== rawMix.timeSignatures ||
+        mix.markers !== rawMix.markers
+      ) {
+        onChange(mix);
+      }
+    }
+    // Only on first mount / when raw lacks arrangement fields.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawMix.id]);
 
   const selectedClip = useMemo(() => {
     if (!selected) return null;
     const track = mix.tracks.find((tr) => tr.id === selected.trackId);
     return track?.clips.find((c) => c.id === selected.clipId) ?? null;
   }, [mix, selected]);
+
+  const selectedMarker = useMemo(
+    () => markers.find((m) => m.id === selectedMarkerId) ?? null,
+    [markers, selectedMarkerId],
+  );
 
   const timelineMs = useMemo(() => {
     let max = 1;
@@ -200,19 +300,58 @@ export function ClipTimeline({
         max = Math.max(max, c.startMs + c.durationMs);
       }
     }
+    for (const m of markers) {
+      max = Math.max(max, m.startMs + 1000);
+    }
+    for (const e of tempoMap) {
+      max = Math.max(max, e.startMs + 1000);
+    }
     return Math.max(max, 30_000);
-  }, [mix]);
+  }, [mix, markers, tempoMap]);
+
+  const snap = useCallback(
+    (ms: number) =>
+      snapMs(ms, {
+        enabled: snapEnabled,
+        mode: gridMode,
+        tempoMap,
+        meterMap,
+        subdivision,
+        timeSnapMs: TIME_SNAP_MS,
+      }),
+    [snapEnabled, gridMode, tempoMap, meterMap, subdivision],
+  );
+
+  const nudgeStep = useMemo(() => {
+    if (!snapEnabled) return NUDGE_MS;
+    if (gridMode === "time") return TIME_SNAP_MS;
+    // One subdivision at current tempo (bar 1).
+    const beatMs = 60_000 / (tempoMap[0]?.quarterBpm ?? 120);
+    return Math.max(1, Math.round(beatMs / subdivision));
+  }, [snapEnabled, gridMode, tempoMap, subdivision]);
+
+  const rulerMarks = useMemo(
+    () => buildRulerMarks(timelineMs, gridMode, tempoMap, meterMap, subdivision),
+    [timelineMs, gridMode, tempoMap, meterMap, subdivision],
+  );
+
+  const patchMix = useCallback(
+    (next: MixDoc) => {
+      onChange(next);
+    },
+    [onChange],
+  );
 
   const patchTrackClips = useCallback(
     (trackId: string, clips: MixClip[]) => {
-      onChange({
+      patchMix({
         ...mix,
         tracks: mix.tracks.map((tr) =>
           tr.id === trackId ? { ...tr, clips } : tr,
         ),
       });
     },
-    [mix, onChange],
+    [mix, patchMix],
   );
 
   const applyEdits = useCallback(
@@ -268,7 +407,7 @@ export function ClipTimeline({
         applyEdit(track, {
           kind: "move",
           clipId: selected.clipId,
-          startMs: value,
+          startMs: snap(value),
         });
       } else if (field === "fadeInMs" || field === "fadeOutMs") {
         applyEdit(track, {
@@ -292,12 +431,12 @@ export function ClipTimeline({
 
   const dragCtxRef = useRef({
     mix,
-    snapEnabled,
+    snap,
     timelineMs,
     applyEdit,
     applyEdits,
   });
-  dragCtxRef.current = { mix, snapEnabled, timelineMs, applyEdit, applyEdits };
+  dragCtxRef.current = { mix, snap, timelineMs, applyEdit, applyEdits };
 
   useEffect(() => {
     function applyDrag(ds: DragState, clientX: number) {
@@ -309,16 +448,16 @@ export function ClipTimeline({
           ? 0
           : ((clientX - ds.originX) / ds.railWidth) * ctx.timelineMs;
       const clip = ds.originClip;
-      const snap = ctx.snapEnabled;
+      const snapFn = ctx.snap;
 
       switch (ds.kind) {
         case "move": {
-          const startMs = snapValue(clip.startMs + deltaMs, snap);
+          const startMs = snapFn(clip.startMs + deltaMs);
           ctx.applyEdit(track, { kind: "move", clipId: clip.id, startMs });
           break;
         }
         case "trim-left": {
-          const rawDelta = snapValue(deltaMs, snap);
+          const rawDelta = snapFn(clip.startMs + deltaMs) - clip.startMs;
           let startMs = clip.startMs + rawDelta;
           let offsetMs = clip.offsetMs + rawDelta;
           let durationMs = clip.durationMs - rawDelta;
@@ -356,7 +495,7 @@ export function ClipTimeline({
         case "trim-right": {
           const durationMs = Math.max(
             MIN_DURATION_MS,
-            snapValue(clip.durationMs + deltaMs, snap),
+            snapFn(clip.startMs + clip.durationMs + deltaMs) - clip.startMs,
           );
           ctx.applyEdit(track, {
             kind: "trim",
@@ -367,12 +506,11 @@ export function ClipTimeline({
           break;
         }
         case "fade-in": {
-          const fadeInMs = snapValue(
+          const fadeInMs = snapFn(
             Math.min(
               clip.durationMs - clip.fadeOutMs,
               Math.max(0, clip.fadeInMs + deltaMs),
             ),
-            snap,
           );
           ctx.applyEdit(track, {
             kind: "fade",
@@ -383,12 +521,11 @@ export function ClipTimeline({
           break;
         }
         case "fade-out": {
-          const fadeOutMs = snapValue(
+          const fadeOutMs = snapFn(
             Math.min(
               clip.durationMs - clip.fadeInMs,
               Math.max(0, clip.fadeOutMs - deltaMs),
             ),
-            snap,
           );
           ctx.applyEdit(track, {
             kind: "fade",
@@ -436,6 +573,7 @@ export function ClipTimeline({
 
     setSelected({ trackId: track.id, clipId: clip.id });
     setCutAtMs(atMs);
+    setSelectedMarkerId(null);
 
     if (e.altKey) {
       e.preventDefault();
@@ -464,14 +602,14 @@ export function ClipTimeline({
     if (!selected || !selectedClip) return;
     const track = mix.tracks.find((tr) => tr.id === selected.trackId);
     if (!track) return;
-    const step = snapEnabled ? SNAP_MS : NUDGE_MS;
+    const step = nudgeStep;
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       e.preventDefault();
       const delta = e.key === "ArrowLeft" ? -step : step;
       applyEdit(track, {
         kind: "move",
         clipId: selected.clipId,
-        startMs: Math.max(0, selectedClip.startMs + delta),
+        startMs: snap(Math.max(0, selectedClip.startMs + delta)),
       });
     }
   }
@@ -496,7 +634,53 @@ export function ClipTimeline({
     });
   }
 
+  function addMarkerAt(ms: number) {
+    const startMs = snap(ms);
+    const kind = newMarkerKind;
+    const name =
+      newMarkerName.trim() || markerKindLabel(kind);
+    const marker: MixMarker = {
+      id: newMarkerId(),
+      name,
+      kind,
+      startMs,
+    };
+    patchMix(upsertMixMarker(mix, marker));
+    setSelectedMarkerId(marker.id);
+    setNewMarkerName("");
+  }
+
+  function jumpToMarker(marker: MixMarker) {
+    setSelectedMarkerId(marker.id);
+    const scroller = railScrollRef.current;
+    if (!scroller) return;
+    const ratio = marker.startMs / timelineMs;
+    const target =
+      ratio * scroller.scrollWidth - scroller.clientWidth / 2;
+    scroller.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
+  }
+
+  function updateSelectedMarker(patch: Partial<MixMarker>) {
+    if (!selectedMarker) return;
+    const next: MixMarker = { ...selectedMarker, ...patch };
+    patchMix(
+      upsertMixMarker(mix, next, {
+        shiftClips: shiftClipsWithMarker && patch.startMs != null,
+        previousStartMs: selectedMarker.startMs,
+      }),
+    );
+  }
+
+  function commitTempoChange() {
+    const bpm = Math.max(1, Math.min(400, Math.round(tempoBpmDraft)));
+    const startMs = snap(Math.max(0, tempoAtDraft));
+    // Tempo map is display/snap only — never rewrite clip ms or source offsets.
+    patchMix(upsertTempoEvent(mix, { startMs, quarterBpm: bpm }));
+  }
+
   const railWidthPct = `${Math.max(100, zoom * 100)}%`;
+  const stepForInputs =
+    gridMode === "musical" && snapEnabled ? nudgeStep : snapEnabled ? TIME_SNAP_MS : 100;
 
   return (
     <div
@@ -514,8 +698,38 @@ export function ClipTimeline({
               checked={snapEnabled}
               onChange={(e) => setSnapEnabled(e.target.checked)}
             />
-            <span>{t("clips.snap", { ms: SNAP_MS })}</span>
+            <span>
+              {gridMode === "musical"
+                ? t("clips.snapMusical")
+                : t("clips.snap", { ms: TIME_SNAP_MS })}
+            </span>
           </label>
+          <label className="clip-tool-select">
+            <span>{t("clips.gridMode")}</span>
+            <select
+              value={gridMode}
+              onChange={(e) => setGridMode(e.target.value as GridMode)}
+            >
+              <option value="musical">{t("clips.gridMusical")}</option>
+              <option value="time">{t("clips.gridTime")}</option>
+            </select>
+          </label>
+          {gridMode === "musical" && (
+            <label className="clip-tool-select">
+              <span>{t("clips.subdivision")}</span>
+              <select
+                value={subdivision}
+                onChange={(e) =>
+                  setSubdivision(Number(e.target.value) as MusicalSubdivision)
+                }
+              >
+                <option value={1}>{t("clips.sub.quarter")}</option>
+                <option value={2}>{t("clips.sub.eighth")}</option>
+                <option value={4}>{t("clips.sub.sixteenth")}</option>
+                <option value={8}>{t("clips.sub.thirtysecond")}</option>
+              </select>
+            </label>
+          )}
           <label className="clip-tool-zoom">
             <span>{t("clips.zoom")}</span>
             <input
@@ -530,14 +744,217 @@ export function ClipTimeline({
         </div>
       </div>
 
+      <div className="clip-arrangement-bar">
+        <div className="clip-tempo-editor">
+          <strong>{t("clips.tempoMap")}</strong>
+          <label>
+            <span>{t("clips.tempoBpm")}</span>
+            <input
+              type="number"
+              min={40}
+              max={400}
+              value={tempoBpmDraft}
+              onChange={(e) => setTempoBpmDraft(Number(e.target.value))}
+            />
+          </label>
+          <label>
+            <span>{t("clips.tempoAt")}</span>
+            <input
+              type="number"
+              min={0}
+              step={stepForInputs}
+              value={tempoAtDraft}
+              onChange={(e) => setTempoAtDraft(Number(e.target.value))}
+            />
+          </label>
+          <button type="button" className="btn" onClick={commitTempoChange}>
+            {t("clips.tempoAdd")}
+          </button>
+          <ul className="clip-tempo-list">
+            {tempoMap.map((ev) => (
+              <li key={`${ev.startMs}-${ev.quarterBpm}`}>
+                <button
+                  type="button"
+                  className="linkish"
+                  onClick={() => {
+                    setTempoAtDraft(ev.startMs);
+                    setTempoBpmDraft(ev.quarterBpm);
+                  }}
+                >
+                  {formatMs(ev.startMs)} · {ev.quarterBpm} BPM
+                </button>
+                {ev.startMs > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() =>
+                      patchMix(removeTempoEvent(mix, ev.startMs))
+                    }
+                  >
+                    ×
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="hint">{t("clips.tempoHint")}</p>
+        </div>
+
+        <div className="clip-marker-editor">
+          <strong>{t("clips.markers")}</strong>
+          <label>
+            <span>{t("clips.markerKind")}</span>
+            <select
+              value={newMarkerKind}
+              onChange={(e) =>
+                setNewMarkerKind(e.target.value as MixMarkerKind)
+              }
+            >
+              {MARKER_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {markerKindLabel(k)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{t("clips.markerName")}</span>
+            <input
+              type="text"
+              value={newMarkerName}
+              placeholder={markerKindLabel(newMarkerKind)}
+              onChange={(e) => setNewMarkerName(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => addMarkerAt(selectedClip?.startMs ?? 0)}
+          >
+            {t("clips.markerAdd")}
+          </button>
+          <label className="clip-tool-check">
+            <input
+              type="checkbox"
+              checked={shiftClipsWithMarker}
+              onChange={(e) => setShiftClipsWithMarker(e.target.checked)}
+            />
+            <span>{t("clips.markerShiftClips")}</span>
+          </label>
+          {markers.length > 0 && (
+            <ul className="clip-marker-nav">
+              {markers.map((m) => (
+                <li key={m.id}>
+                  <button
+                    type="button"
+                    className={
+                      selectedMarkerId === m.id ? "btn active" : "btn"
+                    }
+                    onClick={() => jumpToMarker(m)}
+                  >
+                    {m.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {selectedMarker && (
+            <div className="clip-marker-selected">
+              <label>
+                <span>{t("clips.markerName")}</span>
+                <input
+                  type="text"
+                  value={selectedMarker.name}
+                  onChange={(e) =>
+                    updateSelectedMarker({ name: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                <span>{t("clips.markerStart")}</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={stepForInputs}
+                  value={selectedMarker.startMs}
+                  onChange={(e) =>
+                    updateSelectedMarker({
+                      startMs: snap(Number(e.target.value)),
+                    })
+                  }
+                />
+              </label>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  patchMix(removeMixMarker(mix, selectedMarker.id));
+                  setSelectedMarkerId(null);
+                }}
+              >
+                {t("clips.markerDelete")}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="clip-lanes-scroll" ref={railScrollRef}>
         <div className="clip-lanes" style={{ width: railWidthPct }}>
           <div className="clip-ruler" aria-hidden="true">
             <span className="clip-lane-label" />
-            <div className="clip-ruler-marks">
-              <span>0:00</span>
-              <span>{formatMs(timelineMs / 2)}</span>
-              <span>{formatMs(timelineMs)}</span>
+            <div className="clip-ruler-marks-abs">
+              {rulerMarks.map((mark, i) => (
+                <span
+                  key={`${mark.ms}-${i}`}
+                  className={
+                    mark.major ? "clip-ruler-tick major" : "clip-ruler-tick"
+                  }
+                  style={{ left: `${(mark.ms / timelineMs) * 100}%` }}
+                  title={
+                    gridMode === "musical"
+                      ? formatMusical(
+                          msToMusical(mark.ms, tempoMap, meterMap, subdivision),
+                        )
+                      : formatMs(mark.ms)
+                  }
+                >
+                  {mark.label}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="clip-marker-lane">
+            <span className="clip-lane-label">{t("clips.markers")}</span>
+            <div className="clip-lane-rail clip-marker-rail">
+              {markers.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={
+                    selectedMarkerId === m.id
+                      ? "clip-marker-flag active"
+                      : "clip-marker-flag"
+                  }
+                  style={{ left: `${(m.startMs / timelineMs) * 100}%` }}
+                  title={`${m.name} · ${formatMs(m.startMs)}`}
+                  onClick={() => jumpToMarker(m)}
+                >
+                  <span className="clip-marker-flag-label">{m.name}</span>
+                </button>
+              ))}
+              {tempoMap
+                .filter((e) => e.startMs > 0)
+                .map((e) => (
+                  <span
+                    key={`tempo-${e.startMs}`}
+                    className="clip-tempo-flag"
+                    style={{ left: `${(e.startMs / timelineMs) * 100}%` }}
+                    title={`${e.quarterBpm} BPM`}
+                  >
+                    {e.quarterBpm}
+                  </span>
+                ))}
             </div>
           </div>
           {mix.tracks.map((tr) => {
@@ -568,6 +985,12 @@ export function ClipTimeline({
                       clip,
                       sourceMs,
                     );
+                    const musical = msToMusical(
+                      clip.startMs,
+                      tempoMap,
+                      meterMap,
+                      subdivision,
+                    );
                     return (
                       <div
                         key={clip.id}
@@ -581,7 +1004,7 @@ export function ClipTimeline({
                           width: `${width}%`,
                           background: withAlpha(color, 0.28),
                         }}
-                        title={`${tr.name} · ${formatMs(clip.startMs)} → ${formatMs(clip.startMs + clip.durationMs)}`}
+                        title={`${tr.name} · ${formatMs(clip.startMs)} (${formatMusical(musical)}) → ${formatMs(clip.startMs + clip.durationMs)}`}
                         aria-label={`${tr.name}, ${formatMs(clip.startMs)}, ${formatMs(clip.durationMs)}`}
                         onPointerDown={(e) => onClipPointerDown(e, tr, clip)}
                         onKeyDown={(e) => {
@@ -593,7 +1016,9 @@ export function ClipTimeline({
                       >
                         <ClipWaveCanvas peaks={peaks} color={color} />
                         <span className="clip-block-label">
-                          {formatMs(clip.startMs)}
+                          {gridMode === "musical"
+                            ? formatMusical(musical)
+                            : formatMs(clip.startMs)}
                         </span>
                         <span
                           className="clip-fade-in"
@@ -651,6 +1076,15 @@ export function ClipTimeline({
         <div className="clip-inspector">
           <p className="clip-inspector-title">
             {t("clips.selected", { id: selectedClip.id.slice(0, 8) })}
+            {" · "}
+            {formatMusical(
+              msToMusical(
+                selectedClip.startMs,
+                tempoMap,
+                meterMap,
+                subdivision,
+              ),
+            )}
           </p>
           {cutAtMs != null &&
             cutAtMs > selectedClip.startMs &&
@@ -665,7 +1099,7 @@ export function ClipTimeline({
               <input
                 type="number"
                 min={0}
-                step={snapEnabled ? SNAP_MS : 100}
+                step={stepForInputs}
                 value={selectedClip.startMs}
                 onChange={(e) =>
                   updateSelectedNumeric("startMs", Number(e.target.value))
@@ -677,7 +1111,7 @@ export function ClipTimeline({
               <input
                 type="number"
                 min={0}
-                step={snapEnabled ? SNAP_MS : 100}
+                step={stepForInputs}
                 value={selectedClip.offsetMs}
                 onChange={(e) =>
                   updateSelectedNumeric("offsetMs", Number(e.target.value))
@@ -689,7 +1123,7 @@ export function ClipTimeline({
               <input
                 type="number"
                 min={100}
-                step={snapEnabled ? SNAP_MS : 100}
+                step={stepForInputs}
                 value={selectedClip.durationMs}
                 onChange={(e) =>
                   updateSelectedNumeric("durationMs", Number(e.target.value))
@@ -701,7 +1135,7 @@ export function ClipTimeline({
               <input
                 type="number"
                 min={0}
-                step={snapEnabled ? SNAP_MS : 50}
+                step={snapEnabled ? TIME_SNAP_MS : 50}
                 value={selectedClip.fadeInMs}
                 onChange={(e) =>
                   updateSelectedNumeric("fadeInMs", Number(e.target.value))
@@ -713,7 +1147,7 @@ export function ClipTimeline({
               <input
                 type="number"
                 min={0}
-                step={snapEnabled ? SNAP_MS : 50}
+                step={snapEnabled ? TIME_SNAP_MS : 50}
                 value={selectedClip.fadeOutMs}
                 onChange={(e) =>
                   updateSelectedNumeric("fadeOutMs", Number(e.target.value))
@@ -733,7 +1167,9 @@ export function ClipTimeline({
                 applyEdit(track, {
                   kind: "duplicate",
                   clipId: selected.clipId,
-                  startMs: selectedClip.startMs + selectedClip.durationMs,
+                  startMs: snap(
+                    selectedClip.startMs + selectedClip.durationMs,
+                  ),
                 });
               }}
             >
@@ -741,6 +1177,13 @@ export function ClipTimeline({
             </button>
             <button type="button" className="btn" onClick={cutSelected}>
               {t("clips.cut")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => addMarkerAt(selectedClip.startMs)}
+            >
+              {t("clips.markerAtClip")}
             </button>
           </div>
         </div>

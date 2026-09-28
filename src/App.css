@@ -2058,6 +2058,16 @@ details[open] > summary {
   cursor: pointer;
 }
 
+.clip-tool-select {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.clip-tool-select select {
+  max-width: 9rem;
+}
+
 .clip-tool-zoom {
   display: flex;
   align-items: center;
@@ -2066,6 +2076,78 @@ details[open] > summary {
 
 .clip-tool-zoom input {
   width: 6rem;
+}
+
+.clip-arrangement-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 900px) {
+  .clip-arrangement-bar {
+    grid-template-columns: 1fr;
+  }
+}
+
+.clip-tempo-editor,
+.clip-marker-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.45rem 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg1);
+  font-size: 0.8rem;
+}
+
+.clip-tempo-editor strong,
+.clip-marker-editor strong {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.clip-tempo-editor label,
+.clip-marker-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.clip-tempo-editor input[type="number"],
+.clip-marker-editor input[type="number"],
+.clip-marker-editor input[type="text"],
+.clip-tempo-editor select,
+.clip-marker-editor select {
+  min-width: 5rem;
+}
+
+.clip-tempo-list,
+.clip-marker-nav {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.clip-tempo-list li,
+.clip-marker-nav li {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.clip-marker-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  width: 100%;
+  align-items: flex-end;
 }
 
 .clip-lanes-scroll {
@@ -2082,7 +2164,8 @@ details[open] > summary {
 }
 
 .clip-ruler,
-.clip-lane {
+.clip-lane,
+.clip-marker-lane {
   display: grid;
   grid-template-columns: 110px 1fr;
   gap: 0.5rem;
@@ -2098,9 +2181,128 @@ details[open] > summary {
   padding: 0 0.15rem;
 }
 
+.clip-ruler-marks-abs {
+  position: relative;
+  height: 1.35rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.clip-ruler-tick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 0.68rem;
+  color: var(--muted);
+  border-left: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  padding-left: 0.15rem;
+  height: 100%;
+  white-space: nowrap;
+}
+
+.clip-ruler-tick.major {
+  color: var(--fg);
+  border-left-color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.clip-marker-rail {
+  height: 28px !important;
+  background: #0a0d12 !important;
+}
+
+.clip-marker-flag {
+  position: absolute;
+  top: 2px;
+  transform: translateX(-50%);
+  z-index: 2;
+  border: 0;
+  background: transparent;
+  color: var(--accent-cyan);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.68rem;
+}
+
+.clip-marker-flag::before {
+  content: "";
+  display: block;
+  width: 2px;
+  height: 22px;
+  margin: 0 auto;
+  background: var(--accent-cyan);
+}
+
+.clip-marker-flag-label {
+  display: block;
+  max-width: 5.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: -0.15rem;
+}
+
+.clip-marker-flag.active .clip-marker-flag-label {
+  color: var(--accent-2);
+  font-weight: 600;
+}
+
+.clip-tempo-flag {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 0.62rem;
+  color: var(--accent-2);
+  border-left: 1px dashed var(--accent-2);
+  padding-left: 0.2rem;
+  pointer-events: none;
+}
+
 .clip-lane-label {
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+.midi-instrument-panel {
+  margin-top: 0.85rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.midi-instrument-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.85rem;
+}
+
+.midi-instrument-header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.midi-instrument-controls,
+.midi-record-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.55rem 0.75rem;
+}
+
+.midi-instrument-controls label,
+.midi-record-block label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+}
+
+.midi-instrument-controls input[type="range"] {
+  width: 8rem;
 }
 
 .clip-lane-rail {

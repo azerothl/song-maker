@@ -13,9 +13,11 @@ import { clearInvariantBaseline } from "../lib/invariants";
 import { api } from "../lib/api";
 import { AbcStaffView } from "./AbcStaffView";
 import { InvariantPanel } from "./InvariantPanel";
+import { MidiInstrumentPanel } from "./MidiInstrumentPanel";
 import { PianoRoll } from "./PianoRoll";
 import { ScoreAssistantPanel } from "./ScoreAssistantPanel";
 import { ScoreBranchPanel } from "./ScoreBranchPanel";
+import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 
 type ScoreViewMode = "staff" | "piano" | "abc";
@@ -77,6 +79,23 @@ export function ScorePanel({
 
   const [status, setStatus] = useState<string | null>(null);
   const [branchRefresh, setBranchRefresh] = useState(0);
+  const settings = useAppStore((s) => s.settings);
+  const refreshSettings = useAppStore((s) => s.refreshSettings);
+  const latencyMs = settings?.audioLatencyMs ?? 20;
+
+  async function persistLatency(ms: number) {
+    if (!settings) return;
+    const next = {
+      ...settings,
+      audioLatencyMs: Math.max(0, Math.min(200, Math.round(ms))),
+    };
+    try {
+      await api.updateSettings(next);
+      await refreshSettings();
+    } catch (e) {
+      onError(String(e));
+    }
+  }
 
   const validation = useMemo(() => {
     if (!document) return null;
@@ -419,6 +438,16 @@ export function ScorePanel({
                 onDocumentChange(doc);
                 setAbcPreview(null);
               }}
+              onError={onError}
+            />
+            <MidiInstrumentPanel
+              document={document}
+              onDocumentChange={(doc) => {
+                onDocumentChange(doc);
+                setAbcPreview(null);
+              }}
+              latencyMs={latencyMs}
+              onLatencyChange={(ms) => void persistLatency(ms)}
               onError={onError}
             />
           </div>

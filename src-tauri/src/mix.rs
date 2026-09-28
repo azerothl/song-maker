@@ -28,6 +28,9 @@ pub fn empty_mix(mix_id: &str) -> MixDoc {
         master_gain_db: 0.0,
         peak_ceiling_db: -1.0,
         tracks: Vec::new(),
+        tempo_map: Vec::new(),
+        time_signatures: Vec::new(),
+        markers: Vec::new(),
     }
 }
 
@@ -134,6 +137,9 @@ pub fn new_mix_from_separation(
         master_gain_db: 0.0,
         peak_ceiling_db: -1.0,
         tracks,
+        tempo_map: Vec::new(),
+        time_signatures: Vec::new(),
+        markers: Vec::new(),
     }
 }
 
