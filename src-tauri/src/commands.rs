@@ -1308,6 +1308,30 @@ pub fn update_mix(
     let mut mix: MixDoc = serde_json::from_str(&text).map_err(|e| e.to_string())?;
     push_undo(&state, &id, serde_json::to_value(&mix).unwrap());
     mix.master_gain_db = update.master_gain_db;
+    if let Some(tempo_map) = update.tempo_map {
+        for ev in &tempo_map {
+            if ev.start_ms < 0 || ev.quarter_bpm == 0 || ev.quarter_bpm > 400 {
+                return Err("Tempo map invalide (startMs ≥ 0, BPM 1..400).".into());
+            }
+        }
+        mix.tempo_map = tempo_map;
+    }
+    if let Some(time_signatures) = update.time_signatures {
+        for ev in &time_signatures {
+            if ev.start_ms < 0 || ev.numerator == 0 || ev.denominator == 0 {
+                return Err("Métrique invalide.".into());
+            }
+        }
+        mix.time_signatures = time_signatures;
+    }
+    if let Some(markers) = update.markers {
+        for mk in &markers {
+            if mk.start_ms < 0 || mk.id.trim().is_empty() {
+                return Err("Marqueur invalide.".into());
+            }
+        }
+        mix.markers = markers;
+    }
     for t in update.tracks {
         if let Some(track) = mix.tracks.iter_mut().find(|x| x.id == t.id) {
             track.gain_db = t.gain_db;

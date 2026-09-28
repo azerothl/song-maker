@@ -140,6 +140,33 @@ pub struct MixTrack {
     pub clips: Vec<Clip>,
 }
 
+/// Arrangement tempo event (ms timeline). Clip storage stays in ms (#94).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MixTempoEvent {
+    pub start_ms: i64,
+    pub quarter_bpm: u32,
+}
+
+/// Arrangement meter event (ms timeline).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MixMeterEvent {
+    pub start_ms: i64,
+    pub numerator: u32,
+    pub denominator: u32,
+}
+
+/// Named section marker on the mix arrangement timeline.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MixMarker {
+    pub id: String,
+    pub name: String,
+    pub kind: String,
+    pub start_ms: i64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MixDoc {
@@ -151,6 +178,15 @@ pub struct MixDoc {
     pub master_gain_db: f32,
     pub peak_ceiling_db: f32,
     pub tracks: Vec<MixTrack>,
+    /// Musical grid tempo map. Empty on legacy mixes → UI default 120 BPM.
+    #[serde(default)]
+    pub tempo_map: Vec<MixTempoEvent>,
+    /// Meter changes for the musical grid. Empty → UI default 4/4.
+    #[serde(default)]
+    pub time_signatures: Vec<MixMeterEvent>,
+    /// Named section markers (intro, couplet, …).
+    #[serde(default)]
+    pub markers: Vec<MixMarker>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -167,6 +203,9 @@ pub struct AppSettings {
     pub server_host: String,
     pub server_port: u16,
     pub output_device: Option<String>,
+    /// Soft-synth / MIDI monitoring lookahead in ms (#96). Default 20.
+    #[serde(default = "default_audio_latency_ms")]
+    pub audio_latency_ms: u32,
     /// Phase 3: `htdemucs` (default) or `bs_roformer` when GGUF is present.
     #[serde(default = "default_stem_separator")]
     pub stem_separator: String,
@@ -188,6 +227,10 @@ pub struct AppSettings {
 }
 
 fn default_lora_scale() -> f32 { 1.0 }
+
+fn default_audio_latency_ms() -> u32 {
+    20
+}
 
 fn default_stem_separator() -> String {
     crate::pins::DEFAULT_STEM_SEPARATOR.to_string()
@@ -301,6 +344,13 @@ pub struct CreateProjectInput {
 pub struct MixUpdate {
     pub master_gain_db: f32,
     pub tracks: Vec<MixTrackUpdate>,
+    /// When present, replaces the mix arrangement tempo map (#94).
+    #[serde(default)]
+    pub tempo_map: Option<Vec<MixTempoEvent>>,
+    #[serde(default)]
+    pub time_signatures: Option<Vec<MixMeterEvent>>,
+    #[serde(default)]
+    pub markers: Option<Vec<MixMarker>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

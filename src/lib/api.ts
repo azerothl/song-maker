@@ -103,6 +103,9 @@ export const api = {
         solo: boolean;
         clips?: MixDoc["tracks"][number]["clips"];
       }[];
+      tempoMap?: MixDoc["tempoMap"];
+      timeSignatures?: MixDoc["timeSignatures"];
+      markers?: MixDoc["markers"];
     },
   ) => invoke<MixDoc>("update_mix", { id, update }),
   /** Native dialog → copy + normalize → append user MixTrack (#40). Null if cancelled. */

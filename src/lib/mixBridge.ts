@@ -25,16 +25,28 @@ export type DecodedStem = {
 /** True when clip placement needs the offline bake path (stretch / takes). */
 export function mixNeedsClipProcessingBake(mix: MixDoc | null | undefined): boolean {
   if (!mix) return false;
+  const projectTempo =
+    mix.tempoMap?.[0]?.quarterBpm ?? getProductionTempoBpm();
   for (const track of mix.tracks) {
     for (const c of track.clips) {
       if (c.takeActive === false) return true;
       if (c.processingEnabled === false) continue;
       const stretch = resolveClipStretchRatio({
-        processingEnabled: c.processingEnabled,
-        followProjectTempo: c.followProjectTempo,
-        sourceTempoBpm: c.sourceTempoBpm,
-        projectTempoBpm: getProductionTempoBpm(),
-        timeStretchRatio: c.timeStretchRatio,
+        ...(c.processingEnabled !== undefined
+          ? { processingEnabled: c.processingEnabled }
+          : {}),
+        ...(c.followProjectTempo !== undefined
+          ? { followProjectTempo: c.followProjectTempo }
+          : {}),
+        ...(c.sourceTempoBpm !== undefined
+          ? { sourceTempoBpm: c.sourceTempoBpm }
+          : {}),
+        ...(projectTempo !== undefined
+          ? { projectTempoBpm: projectTempo }
+          : {}),
+        ...(c.timeStretchRatio !== undefined
+          ? { timeStretchRatio: c.timeStretchRatio }
+          : {}),
       });
       if (Math.abs(stretch - 1) >= 1e-4) return true;
       if (Math.abs(c.pitchSemitones ?? 0) >= 1e-4) return true;
@@ -138,7 +150,10 @@ export function bakeMixPcm(
             },
           ];
     const placed = placeClipsOnTimeline(left, right, clips, sampleRate, {
-      projectTempoBpm: options?.tempoBpm ?? getProductionTempoBpm(),
+      projectTempoBpm:
+        options?.tempoBpm ??
+        mix.tempoMap?.[0]?.quarterBpm ??
+        getProductionTempoBpm(),
     });
     return {
       trackId: track.id,

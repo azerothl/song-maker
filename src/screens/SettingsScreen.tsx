@@ -286,6 +286,30 @@ export function SettingsScreen() {
             <h2>{t("settings.outputDevice")}</h2>
             <p>{settings.outputDevice ?? t("settings.systemDefault")}</p>
           </section>
+          <section>
+            <h2>{t("settings.audioLatency")}</h2>
+            <p className="hint">{t("settings.audioLatency.hint")}</p>
+            <label className="clip-field">
+              <span>{t("settings.audioLatency.ms")}</span>
+              <input
+                type="number"
+                min={0}
+                max={200}
+                step={1}
+                value={settings.audioLatencyMs ?? 20}
+                onChange={(e) => {
+                  const audioLatencyMs = Math.max(
+                    0,
+                    Math.min(200, Math.round(Number(e.target.value))),
+                  );
+                  void api
+                    .updateSettings({ ...settings, audioLatencyMs })
+                    .then(() => refreshSettings())
+                    .catch((err) => setError(String(err)));
+                }}
+              />
+            </label>
+          </section>
         </section>
       )}
     </div>
@@ -321,6 +345,7 @@ export function LicensesScreen() {
       </header>
       <ul className="licenses">
         <li>{t("licenses.audiocpp")}</li>
+        <li>{t("licenses.midiInstrument")}</li>
         <li>{t("licenses.yue2")}</li>
         <li>
           Packs LoRA optionnels (phases 3–4, y compris styles) — CC BY-NC 4.0,

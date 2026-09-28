@@ -9,6 +9,7 @@ import { ClipTimeline } from "../components/ClipTimeline";
 import { MixAssistPanel } from "../components/MixAssistPanel";
 import { MultiRenderFromScore } from "../components/MultiRenderFromScore";
 import { Phase3MixPanel } from "../components/Phase3MixPanel";
+import { ProductionAssistPanel } from "../components/ProductionAssistPanel";
 import { RecordTrackPanel } from "../components/RecordTrackPanel";
 import { RegenerationGate } from "../components/RegenerationGate";
 import { RemoteGenerateConfirm } from "../components/RemoteGenerateConfirm";
@@ -808,6 +809,9 @@ export function SongScreen() {
             solo: tr.solo,
             clips: tr.clips,
           })),
+          tempoMap: next.tempoMap ?? [],
+          timeSignatures: next.timeSignatures ?? [],
+          markers: next.markers ?? [],
         })
         .then((m) => setMix(m))
         .catch((e) => setError(String(e)));
@@ -820,6 +824,7 @@ export function SongScreen() {
     mix.tracks.length > 0 &&
     playbackSources?.mode === "stems" &&
     (playbackSources.stems?.length ?? 0) > 0;
+  const showProductionCopilot = !!mix && mix.tracks.length > 0;
 
   return (
     <div className="song-layout">
@@ -1599,6 +1604,21 @@ export function SongScreen() {
                       </div>
                     </aside>
                   )}
+                  {showProductionCopilot && (
+                    <ProductionAssistPanel
+                      mix={mix}
+                      sources={playbackSources}
+                      scoreIssues={scoreGate.issues}
+                      listeningMix={listeningMix ?? mix}
+                      onCommitMix={scheduleMixUpdate}
+                      onPreviewMix={setMixPreview}
+                      onSaveMixVersion={() =>
+                        api
+                          .saveMixVersion(project.id)
+                          .then((m) => setMix(m))
+                      }
+                    />
+                  )}
                   {showMixAssist && (
                     <MixAssistPanel
                       mix={mix}
@@ -1774,7 +1794,8 @@ export function SongScreen() {
                     peaksByTrack={playback?.peaksByTrack}
                     roleByTrack={roleByTrack}
                     sourceDurationMsByTrack={sourceDurationMsByTrack}
-                    projectTempoBpm={form.tempoBpm}
+                    projectTempoBpm={project.tempoBpm}
+                    projectMeter={project.meter ?? null}
                   />
                 </div>
               ) : (

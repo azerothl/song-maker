@@ -256,7 +256,7 @@ L’interface `StemSeparatorProvider` peut rester dans le code pour un remplacem
 
 Le fichier écouté et le fichier exporté sont le même WAV, produit par la formule du §10.5 dans le process Tauri. Web Audio ne fait que jouer ce WAV. Un changement de gain, de panoramique, de mute, de solo ou de gain master relance le rendu offline, avec 200 ms de délai. Le premier build n’exige pas l’égalité bit à bit avec un graphe live.
 
-Pas de pré-écoute MIDI. Pas de fondus dans l’interface. Pas de graphe Web Audio parallèle qui mixerait autrement.
+Pas de fondus dans l’interface phase 1. Pas de graphe Web Audio parallèle qui mixerait autrement que la formule offline pour les stems. La **préécoute MIDI** par instrument logiciel intégré (oscillateurs Web Audio, sans SF2) et l’enregistrement Web MIDI sont documentés dans `docs/midi-instrument.md` (#96) ; ils ne remplacent pas les données symboliques.
 
 ## 7. Modèle musical interne — contrat de la phase 2
 
@@ -894,6 +894,9 @@ Sur Linux, `binary.archive` et `binary.sha256` sont ceux de l’archive `cuda12.
   "sampleRate": 48000,
   "masterGainDb": 0,
   "peakCeilingDb": -1.0,
+  "tempoMap": [{ "startMs": 0, "quarterBpm": 120 }],
+  "timeSignatures": [{ "startMs": 0, "numerator": 4, "denominator": 4 }],
+  "markers": [],
   "tracks": [
     {
       "id": "trk-vocals",
@@ -912,6 +915,8 @@ Sur Linux, `binary.archive` et `binary.sha256` sont ceux de l’archive `cuda12.
 ```
 
 Quatre pistes dans `tracks`. `clips` contient le clip unique du §10.5 dès que le stem est importé. L’exemple ci-dessus montre la forme ; un mix prêt à lire n’a pas un tableau `clips` vide.
+
+`tempoMap`, `timeSignatures` et `markers` forment la **grille musicale d’arrangement** (#94). Les clips restent stockés en millisecondes. Un mix legacy sans ces champs s’ouvre avec le défaut documenté **120 BPM / 4/4 à 0 ms** (ou les hints `tempoBpm` / `meter` du projet) **sans réécrire** `startMs` / `offsetMs`. Les changements de tempo n’altèrent pas les fichiers source. Lecture et export partagent la même timeline ms.
 
 ### 13.6 Intégrité
 
