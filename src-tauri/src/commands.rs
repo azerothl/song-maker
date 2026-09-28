@@ -461,46 +461,25 @@ pub async fn start_generation(
     }
     let continuation = form.continuation_generation_id.as_deref();
     let semantic_prefix_path = if let Some(parent_id) = continuation {
-        let suffix = parent_id.strip_prefix("gen-").unwrap_or("");
-        if suffix.is_empty() || !suffix.chars().all(|c| c.is_ascii_digit()) {
-            return Err("Identifiant de génération parent invalide.".into());
-        }
         let parent_dir = folder.join("generations").join(parent_id);
-        let semantic = parent_dir.join("semantic.json");
-        if !parent_dir.join("result.json").is_file() || !semantic.is_file() {
-            return Err("Cette génération n’a pas d’artefact sémantique utilisable pour continuer.".into());
+        let resolved = resolve_semantic_prefix_for_continuation(
+            &parent_dir,
+            parent_id,
+            &form.cot,
+            abc_trimmed.as_deref(),
+        )?;
+        if let Some(abc) = resolved.parent_score_abc {
+            abc_trimmed = Some(abc);
         }
-        let parent_result: serde_json::Value = serde_json::from_slice(
-            &std::fs::read(parent_dir.join("result.json")).map_err(|e| e.to_string())?,
-        ).map_err(|e| e.to_string())?;
-        if parent_result.get("semanticTruncated").and_then(|v| v.as_bool()) != Some(true) {
-            return Err("La continuation est réservée aux générations tronquées.".into());
-        }
-        if form.cot != "off" {
-            if abc_trimmed.is_none() {
-                let score_path = parent_dir.join("score.abc");
-                if score_path.is_file() {
-                    abc_trimmed = Some(std::fs::read_to_string(score_path).map_err(|e| e.to_string())?);
-                }
-            }
-            if abc_trimmed.is_none() {
-                return Err("Cette continuation en mode mélodie nécessite le score ABC de la prise source.".into());
-            }
-        }
-        let prefix: Vec<u32> = serde_json::from_slice(&std::fs::read(&semantic).map_err(|e| e.to_string())?)
-            .map_err(|e| format!("Tokens de continuation invalides : {e}"))?;
-        let frame_count = prefix.len();
-        let token_ceiling = (SEMANTIC_MAX_DURATION_SEC * SEMANTIC_HZ) as usize;
-        if frame_count >= token_ceiling {
-            return Err("Cette prise a déjà atteint la durée maximale prévue pour YuE2.".into());
-        }
-        semantic_min_tokens = semantic_min_tokens.max(frame_count as u32);
+        semantic_min_tokens = semantic_min_tokens.max(resolved.frame_count as u32);
         semantic_max_tokens = semantic_max_tokens
-            .saturating_add(frame_count as u32)
-            .min(token_ceiling as u32)
+            .saturating_add(resolved.frame_count as u32)
+            .min(resolved.token_ceiling as u32)
             .max(semantic_min_tokens);
-        Some(semantic)
-    } else { None };
+        Some(resolved.semantic_path)
+    } else {
+        None
+    };
     doc.title = form.title.trim().to_string();
     doc.style = form.style.trim().to_string();
     if continuation.is_some() {
@@ -2442,4 +2421,158 @@ fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {
         }
     }
     Ok(())
+}
+
+/// Artefacts résolus pour une continuation mid-song (`semantic_prefix_file`).
+#[derive(Debug)]
+pub(crate) struct ResolvedSemanticPrefix {
+    pub semantic_path: PathBuf,
+    pub frame_count: usize,
+    pub token_ceiling: usize,
+    /// Score ABC du parent, chargé si `cot != "off"` et qu'aucun ABC n'était fourni.
+    pub parent_score_abc: Option<String>,
+}
+
+/// Gate desktop pour `continuationGenerationId` : exige `result.json` +
+/// `semantic.json`, `semanticTruncated=true`, et un préfixe sous le plafond YuE2.
+pub(crate) fn resolve_semantic_prefix_for_continuation(
+    parent_dir: &Path,
+    parent_id: &str,
+    cot: &str,
+    existing_abc: Option<&str>,
+) -> Result<ResolvedSemanticPrefix, String> {
+    let suffix = parent_id.strip_prefix("gen-").unwrap_or("");
+    if suffix.is_empty() || !suffix.chars().all(|c| c.is_ascii_digit()) {
+        return Err("Identifiant de génération parent invalide.".into());
+    }
+    let semantic = parent_dir.join("semantic.json");
+    if !parent_dir.join("result.json").is_file() || !semantic.is_file() {
+        return Err(
+            "Cette génération n’a pas d’artefact sémantique utilisable pour continuer.".into(),
+        );
+    }
+    let parent_result: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(parent_dir.join("result.json")).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    if parent_result
+        .get("semanticTruncated")
+        .and_then(|v| v.as_bool())
+        != Some(true)
+    {
+        return Err("La continuation est réservée aux générations tronquées.".into());
+    }
+
+    let mut parent_score_abc = None;
+    if cot != "off" {
+        let mut abc = existing_abc.map(str::to_string).filter(|s| !s.is_empty());
+        if abc.is_none() {
+            let score_path = parent_dir.join("score.abc");
+            if score_path.is_file() {
+                abc = Some(std::fs::read_to_string(score_path).map_err(|e| e.to_string())?);
+            }
+        }
+        if abc.is_none() {
+            return Err(
+                "Cette continuation en mode mélodie nécessite le score ABC de la prise source."
+                    .into(),
+            );
+        }
+        if existing_abc.map(str::trim).filter(|s| !s.is_empty()).is_none() {
+            parent_score_abc = abc;
+        }
+    }
+
+    let prefix: Vec<u32> = serde_json::from_slice(
+        &std::fs::read(&semantic).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| format!("Tokens de continuation invalides : {e}"))?;
+    let frame_count = prefix.len();
+    let token_ceiling = (SEMANTIC_MAX_DURATION_SEC * SEMANTIC_HZ) as usize;
+    if frame_count >= token_ceiling {
+        return Err("Cette prise a déjà atteint la durée maximale prévue pour YuE2.".into());
+    }
+    Ok(ResolvedSemanticPrefix {
+        semantic_path: semantic,
+        frame_count,
+        token_ceiling,
+        parent_score_abc,
+    })
+}
+
+#[cfg(test)]
+mod continuation_tests {
+    use super::*;
+    use std::fs;
+
+    fn temp_dir(label: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "song-maker-continuation-{label}-{}",
+            uuid::Uuid::new_v4()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn write_parent_gen(
+        root: &Path,
+        truncated: bool,
+        with_semantic: bool,
+        with_score: bool,
+        frames: &[u32],
+    ) {
+        let gen = root.join("generations").join("gen-001");
+        fs::create_dir_all(&gen).unwrap();
+        fs::write(
+            gen.join("result.json"),
+            serde_json::json!({
+                "state": "complete",
+                "semanticTruncated": truncated
+            })
+            .to_string(),
+        )
+        .unwrap();
+        if with_semantic {
+            fs::write(gen.join("semantic.json"), serde_json::to_string(frames).unwrap()).unwrap();
+        }
+        if with_score {
+            fs::write(gen.join("score.abc"), "X:1\nK:C\nC").unwrap();
+        }
+    }
+
+    #[test]
+    fn accepts_truncated_generation_with_semantic_json() {
+        let root = temp_dir("ok");
+        write_parent_gen(&root, true, true, true, &[1, 2, 3, 4]);
+        let parent = root.join("generations").join("gen-001");
+        let resolved =
+            resolve_semantic_prefix_for_continuation(&parent, "gen-001", "full", None).unwrap();
+        assert_eq!(resolved.frame_count, 4);
+        assert_eq!(resolved.semantic_path, parent.join("semantic.json"));
+        assert!(resolved.parent_score_abc.is_some());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn refuses_when_semantic_json_missing() {
+        let root = temp_dir("missing-semantic");
+        write_parent_gen(&root, true, false, true, &[]);
+        let parent = root.join("generations").join("gen-001");
+        let err =
+            resolve_semantic_prefix_for_continuation(&parent, "gen-001", "full", None).unwrap_err();
+        assert!(err.contains("artefact sémantique"));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn refuses_when_source_generation_is_not_truncated() {
+        let root = temp_dir("not-truncated");
+        write_parent_gen(&root, false, true, true, &[10, 20]);
+        let parent = root.join("generations").join("gen-001");
+        let err =
+            resolve_semantic_prefix_for_continuation(&parent, "gen-001", "melody", None)
+                .unwrap_err();
+        assert!(err.contains("tronquées"));
+        let _ = fs::remove_dir_all(root);
+    }
 }
