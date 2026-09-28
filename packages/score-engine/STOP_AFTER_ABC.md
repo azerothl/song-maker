@@ -9,6 +9,8 @@
 - `stop_after=abc` produit le score ABC **sans** WAV.
 - `cot` ∈ `melody|full` ; pas d’ABC externe.
 - Le client score-engine (`planStopAfterAbc` / `GatedStopAfterAbcClient.run`) valide et renvoie le fragment d’options `{ stop_after: "abc" }` — l’appel GPU reste dans la commande desktop `start_generation`.
+- `StubStopAfterAbcClient` est un **alias déprécié** de `GatedStopAfterAbcClient`.
+- Incompatible avec une continuation `semantic_prefix` (voir `SEMANTIC_PREFIX.md`).
 - La commande desktop doit :
   1. transmettre `stop_after` dans `options` de `POST /v1/tasks/run` ;
   2. accepter un job réussi avec `score.abc` et `audio: null` (`state: "score_only"`) ;

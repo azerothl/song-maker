@@ -71,19 +71,19 @@ winget install Gyan.FFmpeg
 
 Puis redémarrer le terminal / Song Maker. Surcharge éventuelle : variable d’environnement `SONG_MAKER_FFMPEG` = chemin vers `ffmpeg.exe`.
 
-Phase 2 (partition + audio) : import MIDI, piano roll, validation/export ABC YuE2, édition de clips sur le mix, multi-candidats séquentiels, export MP3 (livraison), graphe léger des `gen-*`, `stop_after=abc` (partition seule + multi-rendu). Sans partition utilisateur, le chemin phase 1 (style + paroles) reste inchangé.
+Phase 2 (partition + audio) : import MIDI, piano roll, validation/export ABC YuE2, édition de clips sur le mix, multi-candidats séquentiels, export MP3 (livraison), graphe léger des `gen-*`, `stop_after=abc` (partition seule + multi-rendu), continuation mid-song via `semantic_prefix` / `continuationGenerationId`. Sans partition utilisateur, le chemin phase 1 (style + paroles) reste inchangé.
 
 ## Paquets monorepo (`packages/`)
 
 | Paquet | Phase | Rôle |
 |---|---|---|
-| [`@song-maker/score-engine`](packages/score-engine) | 2 | ScoreDocument, MIDI, export ABC YuE2 — **branché dans l’UI** |
+| [`@song-maker/score-engine`](packages/score-engine) | 2 | ScoreDocument, MIDI, export ABC YuE2, `stop_after` / `semantic_prefix` — **branché dans l’UI** |
 | [`@song-maker/stem-providers`](packages/stem-providers) | 3 | `StemSeparatorProvider`, HTDemucs, BS-RoFormer opt-in |
-| [`@song-maker/mix-production`](packages/mix-production) | 3 | Automation / effets (réverb stéréo) / sidechain / loudness |
+| [`@song-maker/mix-production`](packages/mix-production) | 3 | Automation / effets (réverb stéréo) / sidechain / loudness — **DSP réel** (`Stub*` = alias) |
 | [`@song-maker/lora-packs`](packages/lora-packs) | 3–4 | Registre LoRA + catalogue styles, porte CC BY-NC |
-| [`@song-maker/partition-invariants`](packages/partition-invariants) | 4 | Invariants §11.3 |
-| [`@song-maker/remote-worker`](packages/remote-worker) | 4 | Client worker GPU distant |
-| [`@song-maker/akasha-declui`](packages/akasha-declui) | 4 | Notes / stub Akasha + DeclUI |
+| [`@song-maker/partition-invariants`](packages/partition-invariants) | 4 | Invariants §11.3 (`Stub*` = alias) |
+| [`@song-maker/remote-worker`](packages/remote-worker) | 4 | Client worker GPU distant (`Stub*` = alias local-first) |
+| [`@song-maker/akasha-declui`](packages/akasha-declui) | 4 | Pont DeclUI desktop-first (`Stub*` = alias) |
 
 ```bash
 pnpm install
@@ -94,4 +94,4 @@ pnpm test
 
 ## Hors périmètre encore stubbé / gated
 
-`semantic_prefix`, SheetSage2, worker distant (contrat HTTP, pas de serveur in-repo), synchro projet optionnelle (stub), Akasha.
+SheetSage2 (runtime externe), worker distant (contrat HTTP, pas de serveur in-repo), synchro projet optionnelle (stub), entraînement LoRA NAR sans script local, Akasha.
