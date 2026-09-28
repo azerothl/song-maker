@@ -78,6 +78,7 @@ pub fn run() {
             commands::load_score_version,
             commands::set_active_score,
             commands::use_generation,
+            commands::import_remote_generation,
             commands::undo_mix,
             commands::redo_mix,
         ])

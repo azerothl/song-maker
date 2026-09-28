@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  AKASHA_HOST_TOKEN_ENV,
+  AKASHA_HOST_URL_ENV,
   getSharedAkashaHostBridge,
   type HostModeResult,
 } from "@song-maker/akasha-declui";
@@ -65,6 +67,8 @@ export function Phase4SettingsPanel({
   const [prefs, setPrefs] = useState<RemoteWorkerPreferences>(loadPrefs);
   const [probeMsg, setProbeMsg] = useState<string | null>(null);
   const [hostResult, setHostResult] = useState<HostModeResult | null>(null);
+  const [hostUrl, setHostUrl] = useState("");
+  const [hostToken, setHostToken] = useState("");
   const [styleNotice, setStyleNotice] = useState<string | null>(null);
   const [styleBusyId, setStyleBusyId] = useState<string | null>(null);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
@@ -80,14 +84,18 @@ export function Phase4SettingsPanel({
   const stylePacks = useMemo(() => listStyleLoraPacks(), []);
 
   useEffect(() => {
+    const mode = bridge.getMode();
     setHostResult({
-      ok: true,
-      mode: bridge.getMode(),
+      ok: mode === "connected",
+      mode,
       messageFr:
-        bridge.getMode() === "desktop"
+        mode === "desktop"
           ? t("phase4.host.desktop")
-          : t("phase4.host.enabled"),
+          : mode === "connected"
+            ? t("phase4.host.connected")
+            : t("phase4.host.unavailable"),
       registration: bridge.describe(),
+      hostUrl: bridge.getHostUrl(),
     });
   }, [bridge]);
 
@@ -156,6 +164,7 @@ export function Phase4SettingsPanel({
     const built = await buildProjectPayload({
       projectId: "settings-probe",
       kind: "yue2_generate",
+      accessToken: auth.accessToken,
       request: { probe: true, style: "probe", lyrics: "[Probe]\n" },
     });
     const health = await client.probe();
@@ -177,7 +186,13 @@ export function Phase4SettingsPanel({
 
   const onToggleHost = async (enable: boolean) => {
     if (enable) {
-      setHostResult(await bridge.enableHostMode());
+      setHostResult(
+        await bridge.enableHostMode({
+          hostOptIn: true,
+          hostUrl: hostUrl.trim(),
+          accessToken: hostToken.trim() || null,
+        }),
+      );
     } else {
       setHostResult(bridge.disableHostMode());
     }
@@ -401,6 +416,31 @@ export function Phase4SettingsPanel({
       {view === "host" && (
         <div className="settings-page-content">
       <p className="hint">{t("phase4.host.intro")}</p>
+      <label className="invariant-level">
+        {t("phase4.host.endpoint")}
+        <input
+          type="url"
+          value={hostUrl}
+          placeholder="https://…"
+          onChange={(e) => setHostUrl(e.target.value)}
+        />
+      </label>
+      <label className="invariant-level">
+        {t("phase4.host.token")}
+        <input
+          type="password"
+          autoComplete="off"
+          value={hostToken}
+          placeholder={AKASHA_HOST_TOKEN_ENV}
+          onChange={(e) => setHostToken(e.target.value)}
+        />
+      </label>
+      <p className="hint">
+        {t("phase4.host.envHint", {
+          urlEnv: AKASHA_HOST_URL_ENV,
+          tokenEnv: AKASHA_HOST_TOKEN_ENV,
+        })}
+      </p>
       <div className="btn-row">
         <button
           type="button"
@@ -417,7 +457,11 @@ export function Phase4SettingsPanel({
           {t("phase4.host.disable")}
         </button>
       </div>
-      {hostResult && <p className="hint ok">{hostResult.messageFr}</p>}
+      {hostResult && (
+        <p className={`hint ${hostResult.ok ? "ok" : ""}`}>
+          {hostResult.messageFr}
+        </p>
+      )}
       <details>
         <summary>{t("phase4.host.describe")}</summary>
         <pre className="phase3-download-notice">

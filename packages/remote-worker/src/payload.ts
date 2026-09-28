@@ -1,4 +1,9 @@
-import { encryptPayloadAesGcm, sha256Hex } from "./crypto.js";
+import {
+  bytesToBase64,
+  encryptPayloadAesGcm,
+  sha256Hex,
+} from "./crypto.js";
+import { deriveAesKeyFromToken } from "./key-derive.js";
 import type { EncryptedBlobRef, RemoteJobKind } from "./types.js";
 
 export type ProjectPayloadInput = {
@@ -8,6 +13,12 @@ export type ProjectPayloadInput = {
   request: unknown;
   /** Optional ABC or lyrics bytes included in the hashed envelope. */
   artifacts?: Record<string, string>;
+  /**
+   * Shared bearer token — when set, AES key is derived so the reference
+   * worker can decrypt. Without it, encryption uses an ephemeral key and
+   * ciphertext is not attached (probe / offline hash only).
+   */
+  accessToken?: string | null;
 };
 
 export type BuiltRemotePayload = {
@@ -27,6 +38,7 @@ function encodeUtf8(text: string): Uint8Array {
 /**
  * Build a real project payload envelope (not blob://probe).
  * Hashes the plaintext; encrypts with AES-GCM when Web Crypto is available.
+ * With accessToken, attaches ciphertextBase64 + ivBase64 for the worker.
  */
 export async function buildProjectPayload(
   input: ProjectPayloadInput,
@@ -44,13 +56,19 @@ export async function buildProjectPayload(
   const plaintextSha256 = await sha256Hex(plaintext);
 
   try {
-    const cipher = await encryptPayloadAesGcm(plaintext);
+    const token = input.accessToken?.trim() || null;
+    const keyBytes = token ? await deriveAesKeyFromToken(token) : undefined;
+    const cipher = await encryptPayloadAesGcm(plaintext, keyBytes);
     const blob: EncryptedBlobRef = {
       cipherPath: `memory://aes-gcm/${input.projectId}/${plaintextSha256.slice(0, 12)}`,
       contentSha256: cipher.contentSha256,
       encryption: "aes-256-gcm",
       byteLength: plaintext.byteLength,
     };
+    if (token) {
+      blob.ciphertextBase64 = bytesToBase64(cipher.ciphertext);
+      blob.ivBase64 = bytesToBase64(cipher.iv);
+    }
     return {
       plaintext,
       plaintextSha256,

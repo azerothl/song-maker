@@ -1,11 +1,13 @@
 import { resolveAuthPlaceholder } from "./auth.js";
 import {
   createHttpTransport,
+  type ArtifactDownloadResult,
   type RemoteHttpTransport,
 } from "./http-transport.js";
 import type {
   AuthPlaceholder,
   ConsentRecord,
+  RemoteArtifactName,
   RemoteGpuWorkerClient,
   RemoteJobHandle,
   RemoteJobRequest,
@@ -110,6 +112,16 @@ export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
     });
   }
 
+  private endpoint() {
+    const base = this.preferences.endpointBaseUrl;
+    const localHttp =
+      base.startsWith("http://127.0.0.1") || base.startsWith("http://localhost");
+    return {
+      baseUrl: base,
+      requireTls: !localHttp,
+    };
+  }
+
   async submit(request: RemoteJobRequest): Promise<RemoteJobHandle> {
     if (this.preferences.localFirst && !this.preferences.remoteEnabled) {
       return {
@@ -129,10 +141,11 @@ export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
     const unauthorized = rejectUnauthorized(auth);
     if (unauthorized) return unauthorized;
 
-    if (
-      request.endpoint.requireTls &&
-      !request.endpoint.baseUrl.startsWith("https://")
-    ) {
+    const requireTls = request.endpoint.requireTls;
+    const base = request.endpoint.baseUrl;
+    const localHttp =
+      base.startsWith("http://127.0.0.1") || base.startsWith("http://localhost");
+    if (requireTls && !base.startsWith("https://") && !localHttp) {
       return {
         id: "rejected",
         status: "failed",
@@ -146,7 +159,6 @@ export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
       return result.handle;
     }
 
-    // In-memory path for tests / probe without endpoint — not a network send.
     this.seq += 1;
     const handle: RemoteJobHandle = {
       id: `remote-job-${this.seq}`,
@@ -165,14 +177,7 @@ export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
         accessToken: this.preferences.accessToken,
         expiresAt: null,
       });
-      const result = await this.transport.pollJob(
-        {
-          baseUrl: this.preferences.endpointBaseUrl,
-          requireTls: true,
-        },
-        auth,
-        jobId,
-      );
+      const result = await this.transport.pollJob(this.endpoint(), auth, jobId);
       this.jobs.set(jobId, result.handle);
       return result.handle;
     }
@@ -195,10 +200,7 @@ export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
         expiresAt: null,
       });
       const result = await this.transport.cancelJob(
-        {
-          baseUrl: this.preferences.endpointBaseUrl,
-          requireTls: true,
-        },
+        this.endpoint(),
         auth,
         jobId,
       );
@@ -218,7 +220,29 @@ export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
     return job;
   }
 
-  /** Probe health over HTTP when an endpoint is set; otherwise refuse. */
+  async downloadArtifact(
+    jobId: string,
+    name: RemoteArtifactName,
+  ): Promise<ArtifactDownloadResult> {
+    if (!this.useHttp || !this.preferences.remoteEnabled) {
+      return {
+        ok: false,
+        error: "Téléchargement d’artefact indisponible hors transport HTTP.",
+      };
+    }
+    const auth = await this.authenticate({
+      scheme: "bearer_placeholder",
+      accessToken: this.preferences.accessToken,
+      expiresAt: null,
+    });
+    return this.transport.downloadArtifact(
+      this.endpoint(),
+      auth,
+      jobId,
+      name,
+    );
+  }
+
   async probe(): Promise<RemoteJobHandle> {
     if (!this.preferences.remoteEnabled) {
       return {
@@ -249,13 +273,7 @@ export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
         error: DEFAULT_RETENTION_POLICY.messageFr,
       };
     }
-    const result = await this.transport.probeHealth(
-      {
-        baseUrl: this.preferences.endpointBaseUrl,
-        requireTls: true,
-      },
-      auth,
-    );
+    const result = await this.transport.probeHealth(this.endpoint(), auth);
     return result.handle;
   }
 }
@@ -263,7 +281,6 @@ export class LocalFirstRemoteGpuWorkerClient implements RemoteGpuWorkerClient {
 /** @deprecated Prefer LocalFirstRemoteGpuWorkerClient. */
 export class StubRemoteGpuWorkerClient extends LocalFirstRemoteGpuWorkerClient {
   constructor() {
-    // Legacy stub tests expect remote path open when consent+token present.
     super({ localFirst: false, remoteEnabled: true }, DEFAULT_RETENTION_POLICY, {
       useHttpTransport: false,
     });

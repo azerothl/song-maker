@@ -156,4 +156,16 @@ describe("remote-worker client", () => {
     expect(built.blob.cipherPath.includes("blob://probe")).toBe(false);
     expect(built.blob.byteLength).toBeGreaterThan(0);
   });
+
+  it("attaches ciphertext when accessToken is provided", async () => {
+    const built = await buildProjectPayload({
+      projectId: "proj-2",
+      kind: "yue2_generate",
+      accessToken: "shared-token-for-hkdf",
+      request: { style: "x", lyrics: "y" },
+    });
+    expect(built.blob.encryption).toBe("aes-256-gcm");
+    expect(built.blob.ciphertextBase64).toBeTruthy();
+    expect(built.blob.ivBase64).toBeTruthy();
+  });
 });
