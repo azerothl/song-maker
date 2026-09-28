@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import {
   REINTERPRETATION_DISCLAIMER_FR,
   assertAbcConfirmedForYue2,
@@ -11,7 +12,8 @@ import {
   type SheetsageRuntimeProbe,
   type SheetsageTranscribeResult,
 } from "@song-maker/sheetsage";
-import type { FormInput, MixDoc } from "../lib/types";
+import type { FormInput, InstallProgress, MixDoc } from "../lib/types";
+import { api } from "../lib/api";
 import { isTauriRuntime, runtimeApi } from "../lib/runtimeHost";
 import { t } from "../ui/i18n";
 
@@ -26,11 +28,24 @@ export type SheetSage2PanelProps = {
 
 type SourceChoice = "mixdown" | string;
 
+type SheetsageInstallInfo = {
+  gguf: string;
+  sha256: string;
+  bytes: number;
+  repo: string;
+  remotePath: string;
+  url: string;
+  licenseNoticeFr: string;
+  path: string;
+  available: boolean;
+};
+
 /**
  * Audio → SheetSage2 ABC → edit → confirm → YuE2.
- * Uses Tauri LiveSheetsageRunner when binary+weights are present.
+ * Opt-in weight install + Tauri LiveSheetsageRunner when binary+weights present.
  */
 export function SheetSage2Panel({
+  projectId,
   form,
   mix,
   busy,
@@ -45,39 +60,68 @@ export function SheetSage2Panel({
   const [proposedAbc, setProposedAbc] = useState<string>("");
   const [confirmed, setConfirmed] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const [installProgress, setInstallProgress] = useState<InstallProgress | null>(
+    null,
+  );
+  const [installInfo, setInstallInfo] = useState<SheetsageInstallInfo | null>(
+    null,
+  );
   const [hostProbe, setHostProbe] = useState<Partial<SheetsageRuntimeProbe> | null>(
     null,
   );
   const abortRef = useRef<AbortController | null>(null);
   const jobIdRef = useRef<string | null>(null);
 
+  const refreshProbe = async () => {
+    if (!isTauriRuntime()) return;
+    const p = await runtimeApi.sheetsageProbe();
+    setHostProbe({
+      binaryPresent: p.binaryPresent,
+      binaryPath: p.binaryPath,
+      weightsPresent: p.weightsPresent,
+      weightsPath: p.weightsPath,
+      weightsSha256Verified: p.weightsSha256Verified,
+      diskBytesAvailable: p.diskBytesAvailable,
+      acceleration:
+        p.acceleration === "cuda" || p.acceleration === "cpu"
+          ? p.acceleration
+          : "unknown",
+    });
+    setNotice(p.messageFr);
+  };
+
   useEffect(() => {
     if (!isTauriRuntime()) return;
     let cancelled = false;
-    void runtimeApi
-      .sheetsageProbe()
-      .then((p) => {
-        if (cancelled) return;
-        setHostProbe({
-          binaryPresent: p.binaryPresent,
-          binaryPath: p.binaryPath,
-          weightsPresent: p.weightsPresent,
-          weightsPath: p.weightsPath,
-          weightsSha256Verified: p.weightsSha256Verified,
-          diskBytesAvailable: p.diskBytesAvailable,
-          acceleration:
-            p.acceleration === "cuda" || p.acceleration === "cpu"
-              ? p.acceleration
-              : "unknown",
-        });
-      })
-      .catch((e) => {
+    void (async () => {
+      try {
+        const [info] = await Promise.all([
+          runtimeApi.sheetsageInstallInfo(),
+          refreshProbe(),
+        ]);
+        if (!cancelled) setInstallInfo(info);
+      } catch (e) {
         if (!cancelled) {
           setNotice(e instanceof Error ? e.message : String(e));
         }
-      });
+      }
+    })();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    let unlisten: (() => void) | undefined;
+    void listen<InstallProgress>("sheetsage2-progress", (event) => {
+      setInstallProgress(event.payload);
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      unlisten?.();
     };
   }, []);
 
@@ -99,7 +143,29 @@ export function SheetSage2Panel({
     return async (request): Promise<SheetsageTranscribeResult> => {
       const jobId = `sheetsage-${Date.now()}`;
       jobIdRef.current = jobId;
-      const audioPath = request.source.path?.trim();
+      let audioPath = request.source.path?.trim() || "";
+      if (!audioPath && request.source.kind === "mixdown") {
+        request.onProgress?.({
+          jobId,
+          phase: "queued",
+          fraction: 0.05,
+          messageFr: "Export du mixdown WAV avant transcription…",
+        });
+        try {
+          audioPath = await api.exportAudio(projectId, "wav");
+        } catch (e) {
+          return {
+            status: "failed",
+            jobId,
+            abc: null,
+            warnings: ["mixdown_export_failed"],
+            messageFr: `Export mixdown impossible : ${
+              e instanceof Error ? e.message : String(e)
+            }. Aucune ABC inventée.`,
+            reinterpretationDisclaimerFr: REINTERPRETATION_DISCLAIMER_FR,
+          };
+        }
+      }
       if (!audioPath) {
         return {
           status: "failed",
@@ -142,7 +208,7 @@ export function SheetSage2Panel({
         reinterpretationDisclaimerFr: REINTERPRETATION_DISCLAIMER_FR,
       };
     };
-  }, []);
+  }, [projectId]);
 
   const sources: SheetsageAudioSource[] = useMemo(() => {
     const list: SheetsageAudioSource[] = [
@@ -174,6 +240,41 @@ export function SheetSage2Panel({
         ? s.kind === "mixdown"
         : s.id === sourceChoice,
     ) ?? sources[0]!;
+
+  const onInstallWeights = async () => {
+    if (!isTauriRuntime()) {
+      setNotice(t("sheetsage.install.needDesktop"));
+      return;
+    }
+    if (!licenseAccepted) {
+      setNotice(t("sheetsage.install.needLicense"));
+      return;
+    }
+    setInstalling(true);
+    setNotice(null);
+    setInstallProgress(null);
+    try {
+      const path = await runtimeApi.installSheetsage2();
+      setNotice(t("sheetsage.install.done").replace("{path}", path));
+      const info = await runtimeApi.sheetsageInstallInfo();
+      setInstallInfo(info);
+      await refreshProbe();
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : String(e));
+    } finally {
+      setInstalling(false);
+    }
+  };
+
+  const onCancelInstall = async () => {
+    if (!isTauriRuntime()) return;
+    try {
+      const msg = await runtimeApi.cancelSheetsage2Install();
+      setNotice(msg);
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const onTranscribe = async () => {
     setTranscribing(true);
@@ -238,6 +339,16 @@ export function SheetSage2Panel({
     void onConfirmGenerate(proposedAbc.trim(), mode);
   };
 
+  const showInstall =
+    isTauriRuntime() &&
+    licenseAccepted &&
+    readiness.status === "missing_weights";
+  const canTranscribe =
+    licenseAccepted && readiness.canAttemptTranscribe && !installing;
+  const bytesLabel = installInfo
+    ? `${(installInfo.bytes / 1e9).toFixed(1)} Go`
+    : "~2,7 Go";
+
   return (
     <section
       className="sheetsage-panel"
@@ -273,6 +384,57 @@ export function SheetSage2Panel({
         />
         {t("sheetsage.license")}
       </label>
+
+      {showInstall && (
+        <div className="phase3-bs-install">
+          <p className="hint">{t("sheetsage.install.hint")}</p>
+          {installInfo && (
+            <p className="hint">
+              {installInfo.licenseNoticeFr}
+              <br />
+              {t("sheetsage.install.meta")
+                .replace("{size}", bytesLabel)
+                .replace("{sha}", installInfo.sha256.slice(0, 12))}
+            </p>
+          )}
+          <div className="btn-row">
+            <button
+              type="button"
+              className="btn"
+              disabled={busy || installing || !licenseAccepted}
+              onClick={() => void onInstallWeights()}
+            >
+              {installing
+                ? t("sheetsage.install.installing")
+                : t("sheetsage.install")}
+            </button>
+            {installing && (
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => void onCancelInstall()}
+              >
+                {t("sheetsage.install.cancel")}
+              </button>
+            )}
+          </div>
+          {installProgress && (
+            <p className="hint">
+              {installProgress.label}
+              {installProgress.totalBytes
+                ? ` (${Math.min(
+                    100,
+                    Math.round(
+                      (installProgress.receivedBytes /
+                        installProgress.totalBytes) *
+                        100,
+                    ),
+                  )} %)`
+                : ""}
+            </p>
+          )}
+        </div>
+      )}
 
       <label className="invariant-level">
         {t("sheetsage.source")}
@@ -311,7 +473,7 @@ export function SheetSage2Panel({
         <button
           type="button"
           className="btn"
-          disabled={busy || transcribing || !licenseAccepted}
+          disabled={busy || transcribing || !canTranscribe}
           onClick={() => void onTranscribe()}
         >
           {transcribing ? t("sheetsage.transcribing") : t("sheetsage.transcribe")}

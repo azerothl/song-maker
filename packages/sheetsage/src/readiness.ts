@@ -55,8 +55,8 @@ export function checkSheetsageReadiness(
       weights: SHEETSAGE2_WEIGHTS,
       acceleration,
       messageFr:
-        "Binaire audio.cpp avec --task midi --family sheetsage2 introuvable. " +
-        "SheetSage2 n’est pas dans l’installeur. Voir docs/sheetsage2-path.md.",
+        "Runtime audio.cpp (serveur ou audiocpp_cli) introuvable. " +
+        "Installez le pack moteur via l’installeur principal, puis réessayez.",
       canAttemptTranscribe: false,
     };
   }
@@ -70,8 +70,9 @@ export function checkSheetsageReadiness(
       acceleration,
       messageFr:
         `Poids SheetSage2 absents (${SHEETSAGE2_WEIGHTS.filename}, ` +
+        `~${(SHEETSAGE2_WEIGHTS.byteLength / 1e9).toFixed(1)} Go, ` +
         `SHA-256 ${SHEETSAGE2_WEIGHTS.sha256.slice(0, 12)}…). ` +
-        "Téléchargement opt-in hors installeur requis.",
+        "Téléchargez-les opt-in depuis cet écran (hors installeur premier build).",
       canAttemptTranscribe: false,
     };
   }

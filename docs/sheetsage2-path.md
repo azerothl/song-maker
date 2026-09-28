@@ -4,7 +4,7 @@
 
 La reprise d’un enregistrement ou d’un mixdown passe par une **partition symbolique** (ABC), pas par une réinjection de la forme d’onde. SheetSage2 propose l’ABC ; l’utilisateur la corrige et **confirme** ; seulement ensuite YuE2 génère une **nouvelle interprétation**.
 
-Licence des poids SheetSage2 : **CC BY-NC 4.0** (`audio-cpp/SheetSage2-GGUF`, fichier `sheetsage2-orig.gguf`). Hors installeur.
+Licence des poids SheetSage2 : **CC BY-NC 4.0** (`audio-cpp/SheetSage2-GGUF`, fichier `sheetsage2-orig.gguf`). **Hors installeur premier build** — téléchargement opt-in depuis Partition → Reprise.
 
 ## Ce qui est câblé (produit)
 
@@ -12,21 +12,24 @@ Licence des poids SheetSage2 : **CC BY-NC 4.0** (`audio-cpp/SheetSage2-GGUF`, fi
 |---|---|
 | Contrat TypeScript `@song-maker/sheetsage` | Câblé — readiness, progress/cancel types, gate YuE2 |
 | Vérif licence / binaire / poids / disque | Câblé (sonde Tauri `sheetsage_probe`) |
+| Installateur opt-in des poids | Câblé — `install_sheetsage2` + progression `sheetsage2-progress` + annulation |
 | Runner live | Câblé — `audiocpp_cli --task midi --family sheetsage2` ou serveur `/v1/tasks/run` (modèle `sheetsage2` si GGUF présent) |
-| Panneau UI (piste ou mixdown → transcribe → ABC éditable → confirmer) | Câblé |
-| Annulation | Câblé (`sheetsage_cancel` + AbortSignal) |
+| Panneau UI (piste ou mixdown → install → transcribe → ABC éditable → confirmer) | Câblé |
+| Mixdown | Export WAV automatique avant transcription |
+| Annulation | Câblé (`sheetsage_cancel` + AbortSignal ; annulation install) |
 | Appel YuE2 `start_generation` avec ABC confirmé | Câblé |
 | Disclaimer « nouvelle interprétation » + CC BY-NC | Câblé (UI + package) |
 
 ## Prérequis runtime
 
-1. Runtime audio.cpp épinglé (installeur) — serveur et/ou `audiocpp_cli`.
-2. Poids opt-in hors installeur :
+1. Runtime audio.cpp épinglé (installeur principal) — serveur et/ou `audiocpp_cli`.
+2. Poids opt-in (bouton dans Partition → Reprise, après acceptation CC BY-NC) :
    - Chemin : `{cache}/models/SheetSage2-GGUF/sheetsage2-orig.gguf`
    - SHA-256 : `52bb5846c452037d39931aa8050885b6c751b9c7afcc8ef6d6d3067d241731a4`
    - Taille : 2 708 224 512 octets
+   - URL : `https://huggingface.co/audio-cpp/SheetSage2-GGUF/resolve/main/sheetsage2-orig.gguf`
 3. Licence CC BY-NC acceptée dans le panneau.
-4. Source audio avec chemin fichier réel (piste importée/enregistrée ; mixdown exporté).
+4. Source audio : piste avec `sourcePath`, ou mixdown (export WAV auto).
 
 ## Règles d’honnêteté
 

@@ -58,11 +58,15 @@ pub fn sheetsage2_weights_path(cache: &Path) -> PathBuf {
     cache
         .join("models")
         .join("SheetSage2-GGUF")
-        .join("sheetsage2-orig.gguf")
+        .join(crate::pins::SHEETSAGE2_GGUF)
 }
 
 pub fn sheetsage2_weights_present(cache: &Path) -> bool {
-    sheetsage2_weights_path(cache).is_file()
+    let path = sheetsage2_weights_path(cache);
+    path.is_file()
+        && std::fs::metadata(&path)
+            .map(|m| m.len() == crate::pins::SHEETSAGE2_BYTES)
+            .unwrap_or(false)
 }
 
 /// Persistent NAR LoRA training jobs (Documents/Song Maker/training-jobs).

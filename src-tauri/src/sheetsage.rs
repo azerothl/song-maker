@@ -1,24 +1,41 @@
 //! SheetSage2 transcription host — `audiocpp_cli --task midi --family sheetsage2`
 //! or server `/v1/tasks/run` when weights are present. Never invents ABC.
+//! Opt-in GGUF install (hors premier build, CC BY-NC 4.0) from the Reprise panel.
 
 use crate::audiocpp::AudioCppServer;
 use crate::hashutil::sha256_file;
 use crate::library::load_settings;
+use crate::models::InstallProgress;
 use crate::paths::{
     binaries_dir, ensure_dir, sheetsage2_weights_path, sheetsage2_weights_present,
 };
-use crate::pins::backend_name;
+use crate::pins::{
+    backend_name, SHEETSAGE2_BYTES, SHEETSAGE2_GGUF, SHEETSAGE2_REMOTE, SHEETSAGE2_REPO,
+    SHEETSAGE2_SHA,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+use tauri::{AppHandle, Emitter};
+use tokio::io::AsyncWriteExt;
 
-/// Spec §19 / packages/sheetsage SHEETSAGE2_WEIGHTS.
-pub const SHEETSAGE2_FILENAME: &str = "sheetsage2-orig.gguf";
-pub const SHEETSAGE2_SHA256: &str =
-    "52bb5846c452037d39931aa8050885b6c751b9c7afcc8ef6d6d3067d241731a4";
+const HF_URL: &str =
+    "https://huggingface.co/audio-cpp/SheetSage2-GGUF/resolve/main/sheetsage2-orig.gguf";
+
+/// License notice shown before / during opt-in install.
+pub const LICENSE_NOTICE_FR: &str = "\
+SheetSage2 (GGUF) est optionnel (~2,7 Go). Source : Hugging Face audio-cpp/SheetSage2-GGUF. \
+Les poids ne sont pas inclus dans l’installeur premier build — téléchargement opt-in depuis \
+Partition → Reprise. Licence CC BY-NC 4.0 : usage commercial des poids interdit.";
+
+pub fn download_url() -> &'static str {
+    HF_URL
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -93,8 +110,257 @@ pub fn find_cli_binary(cache: &Path) -> Result<PathBuf, String> {
         }
     }
     Err(format!(
-        "{expected} introuvable à côté du runtime audio.cpp (hors installeur pour SheetSage2)."
+        "{expected} introuvable à côté du runtime audio.cpp. Installez le pack moteur (installeur principal)."
     ))
+}
+
+fn free_disk_bytes(dir: &Path) -> Option<u64> {
+    let probe = if dir.is_dir() {
+        dir.to_path_buf()
+    } else {
+        dir.parent()?.to_path_buf()
+    };
+    #[cfg(unix)]
+    {
+        let output = std::process::Command::new("df")
+            .args(["-Pk"])
+            .arg(&probe)
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let text = String::from_utf8_lossy(&output.stdout);
+        let line = text.lines().nth(1)?;
+        let avail_kb: u64 = line.split_whitespace().nth(3)?.parse().ok()?;
+        Some(avail_kb.saturating_mul(1024))
+    }
+    #[cfg(windows)]
+    {
+        let output = std::process::Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                &format!(
+                    "(Get-Item -LiteralPath '{}').PSDrive.Free",
+                    probe.display()
+                ),
+            ])
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        text.parse::<u64>().ok()
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = probe;
+        None
+    }
+}
+
+fn ensure_disk_space(dest_dir: &Path, needed: u64) -> Result<(), String> {
+    let want = needed
+        .saturating_add(needed / 5)
+        .max(needed + 512 * 1024 * 1024);
+    match free_disk_bytes(dest_dir) {
+        Some(free) if free < want => Err(format!(
+            "Espace disque insuffisant pour SheetSage2 : {free} o libres, ~{want} o requis \
+             ({SHEETSAGE2_GGUF} ≈ {SHEETSAGE2_BYTES} o)."
+        )),
+        Some(_) => Ok(()),
+        None => Ok(()),
+    }
+}
+
+pub fn weights_valid(cache: &Path) -> bool {
+    sheetsage2_weights_present(cache)
+}
+
+pub fn verify_sha256(cache: &Path) -> Result<(), String> {
+    let path = sheetsage2_weights_path(cache);
+    if !path.is_file() {
+        return Err(format!("GGUF SheetSage2 absent : {}", path.display()));
+    }
+    let got = sha256_file(&path)?;
+    if !got.eq_ignore_ascii_case(SHEETSAGE2_SHA) {
+        let _ = std::fs::remove_file(&path);
+        return Err(format!(
+            "SHA-256 SheetSage2 incorrect (attendu {SHEETSAGE2_SHA}, obtenu {got}). Fichier retiré."
+        ));
+    }
+    let len = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+    if len != SHEETSAGE2_BYTES {
+        let _ = std::fs::remove_file(&path);
+        return Err(format!(
+            "Taille SheetSage2 incorrecte (attendu {SHEETSAGE2_BYTES} o, obtenu {len}). Fichier retiré."
+        ));
+    }
+    Ok(())
+}
+
+fn emit(app: &AppHandle, progress: InstallProgress) {
+    let _ = app.emit("sheetsage2-progress", &progress);
+    let _ = app.emit("setup-progress", &progress);
+}
+
+/// Opt-in download of sheetsage2-orig.gguf (not in first-build installer).
+pub async fn install(
+    app: AppHandle,
+    cache: PathBuf,
+    cancel: Arc<AtomicBool>,
+) -> Result<String, String> {
+    cancel.store(false, Ordering::SeqCst);
+    let dest = sheetsage2_weights_path(&cache);
+    if let Some(parent) = dest.parent() {
+        ensure_dir(parent).map_err(|e| e.to_string())?;
+    }
+
+    if weights_valid(&cache) {
+        verify_sha256(&cache)?;
+        emit(&app, InstallProgress::complete());
+        return Ok(dest.display().to_string());
+    }
+    if dest.is_file() {
+        let _ = tokio::fs::remove_file(&dest).await;
+    }
+
+    ensure_disk_space(dest.parent().unwrap_or(cache.as_path()), SHEETSAGE2_BYTES)?;
+
+    emit(
+        &app,
+        InstallProgress::phase(
+            &format!(
+                "SheetSage2 — {LICENSE_NOTICE_FR} Téléchargement de {SHEETSAGE2_REMOTE}…"
+            ),
+            0,
+            1,
+        ),
+    );
+
+    let partial = dest.with_extension("gguf.partial");
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(7_200))
+        .user_agent("SongMaker/0.1 sheetsage2-installer")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resumed = tokio::fs::metadata(&partial)
+        .await
+        .map(|m| m.len())
+        .unwrap_or(0);
+    let mut request = client.get(HF_URL);
+    if resumed > 0 {
+        request = request.header(reqwest::header::RANGE, format!("bytes={resumed}-"));
+    }
+    let mut response = request
+        .send()
+        .await
+        .map_err(|e| format!("Téléchargement SheetSage2 : {e}"))?;
+    if response.status() == reqwest::StatusCode::RANGE_NOT_SATISFIABLE && resumed > 0 {
+        let _ = tokio::fs::remove_file(&partial).await;
+        response = client
+            .get(HF_URL)
+            .send()
+            .await
+            .map_err(|e| format!("Téléchargement SheetSage2 : {e}"))?;
+    }
+    if !response.status().is_success() && response.status() != reqwest::StatusCode::PARTIAL_CONTENT
+    {
+        return Err(format!(
+            "Téléchargement SheetSage2 HTTP {} — poids absent ou inaccessible. Aucune ABC inventée.",
+            response.status()
+        ));
+    }
+    let append =
+        resumed > 0 && response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
+    let received_before = if append { resumed } else { 0 };
+    let total = response
+        .content_length()
+        .map(|n| n + received_before)
+        .or(Some(SHEETSAGE2_BYTES));
+
+    let mut file = if append {
+        tokio::fs::OpenOptions::new()
+            .append(true)
+            .open(&partial)
+            .await
+    } else {
+        tokio::fs::File::create(&partial).await
+    }
+    .map_err(|e| e.to_string())?;
+
+    let mut received = received_before;
+    let mut last_emit = Instant::now();
+    emit(
+        &app,
+        InstallProgress::downloading(SHEETSAGE2_GGUF, 1, 1, received, total),
+    );
+
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|e| format!("Téléchargement SheetSage2 : {e}"))?
+    {
+        if cancel.load(Ordering::SeqCst) {
+            drop(file);
+            let _ = tokio::fs::remove_file(&partial).await;
+            emit(
+                &app,
+                InstallProgress::failed("Téléchargement SheetSage2 annulé."),
+            );
+            return Err("Téléchargement SheetSage2 annulé.".into());
+        }
+        file.write_all(&chunk).await.map_err(|e| e.to_string())?;
+        received += chunk.len() as u64;
+        if last_emit.elapsed() >= Duration::from_millis(400) {
+            emit(
+                &app,
+                InstallProgress::downloading(SHEETSAGE2_GGUF, 1, 1, received, total),
+            );
+            last_emit = Instant::now();
+        }
+    }
+    file.flush().await.map_err(|e| e.to_string())?;
+    drop(file);
+
+    if cancel.load(Ordering::SeqCst) {
+        let _ = tokio::fs::remove_file(&partial).await;
+        return Err("Téléchargement SheetSage2 annulé.".into());
+    }
+
+    let actual = tokio::task::spawn_blocking({
+        let path = partial.clone();
+        move || sha256_file(&path)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    if !actual.eq_ignore_ascii_case(SHEETSAGE2_SHA) {
+        let _ = tokio::fs::remove_file(&partial).await;
+        return Err(format!(
+            "SHA-256 SheetSage2 incorrect après téléchargement (attendu {SHEETSAGE2_SHA}). \
+             Aucun faux succès — aucune ABC inventée."
+        ));
+    }
+    let len = tokio::fs::metadata(&partial)
+        .await
+        .map(|m| m.len())
+        .unwrap_or(0);
+    if len != SHEETSAGE2_BYTES {
+        let _ = tokio::fs::remove_file(&partial).await;
+        return Err(format!(
+            "Taille SheetSage2 incorrecte ({len} ≠ {SHEETSAGE2_BYTES}). Fichier retiré."
+        ));
+    }
+
+    tokio::fs::rename(&partial, &dest)
+        .await
+        .map_err(|e| e.to_string())?;
+    emit(&app, InstallProgress::file_done(SHEETSAGE2_GGUF, 1, 1));
+    emit(&app, InstallProgress::complete());
+    Ok(dest.display().to_string())
 }
 
 pub fn probe() -> Result<SheetsageProbeResult, String> {
@@ -105,22 +371,24 @@ pub fn probe() -> Result<SheetsageProbeResult, String> {
     let mut weights_sha256_verified = false;
     if weights_present {
         if let Ok(sha) = sha256_file(&weights_path) {
-            weights_sha256_verified = sha.eq_ignore_ascii_case(SHEETSAGE2_SHA256);
+            weights_sha256_verified = sha.eq_ignore_ascii_case(SHEETSAGE2_SHA);
         }
     }
     let server_bin = AudioCppServer::find_server_binary(&cache).ok();
     let cli_bin = find_cli_binary(&cache).ok();
     let binary_present = server_bin.is_some() || cli_bin.is_some();
+    let disk_bytes_available = free_disk_bytes(&cache);
     let acceleration = if cfg!(target_os = "macos") {
         "cpu"
     } else {
         "cuda"
     };
     let message_fr = if !binary_present {
-        "Binaire audio.cpp (serveur ou audiocpp_cli) introuvable.".into()
+        "Runtime audio.cpp (serveur ou audiocpp_cli) introuvable. Installez le pack moteur via l’installeur principal.".into()
     } else if !weights_present {
         format!(
-            "Poids SheetSage2 absents ({SHEETSAGE2_FILENAME}). Placez-les sous cache/models/SheetSage2-GGUF/ (CC BY-NC 4.0, hors installeur)."
+            "Poids SheetSage2 absents ({SHEETSAGE2_GGUF}, ~{:.1} Go). Téléchargement opt-in depuis cet écran (CC BY-NC 4.0).",
+            SHEETSAGE2_BYTES as f64 / 1e9
         )
     } else if !weights_sha256_verified {
         "Poids SheetSage2 présents mais empreinte SHA-256 non vérifiée — vérifiez le fichier."
@@ -140,7 +408,7 @@ pub fn probe() -> Result<SheetsageProbeResult, String> {
             None
         },
         weights_sha256_verified,
-        disk_bytes_available: None,
+        disk_bytes_available,
         acceleration: acceleration.into(),
         message_fr,
     })
@@ -356,4 +624,19 @@ pub fn cancel(jobs: &SheetsageJobs, job_id: &str) -> Result<String, String> {
         return Ok("Job SheetSage2 annulé.".into());
     }
     Ok("Aucun processus SheetSage2 actif pour ce job.".into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pins_match_public_package_metadata() {
+        assert_eq!(SHEETSAGE2_GGUF, "sheetsage2-orig.gguf");
+        assert_eq!(SHEETSAGE2_SHA.len(), 64);
+        assert_eq!(SHEETSAGE2_BYTES, 2_708_224_512);
+        assert_eq!(SHEETSAGE2_REPO, "audio-cpp/SheetSage2-GGUF");
+        assert!(download_url().contains("SheetSage2-GGUF"));
+        assert!(LICENSE_NOTICE_FR.contains("CC BY-NC"));
+    }
 }
