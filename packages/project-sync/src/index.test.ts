@@ -21,12 +21,12 @@ describe("project-sync client", () => {
     expect(result.error).toMatch(/désactivée/);
   });
 
-  it("returns not_implemented when opted in (no cloud backend)", async () => {
+  it("returns not_implemented when opted in without real transport", async () => {
     const client = createProjectSyncClient();
     client.setPreferences("proj-1", { syncEnabled: true });
     const result = await client.push("proj-1", createEmptyEnvelope("proj-1"));
     expect(result.status).toBe("not_implemented");
-    expect(result.error).toMatch(/non implémentée/);
+    expect(result.error).toMatch(/transport|Tauri|synchro/i);
     expect(client.getPreferences("proj-1").status).toBe("not_implemented");
   });
 

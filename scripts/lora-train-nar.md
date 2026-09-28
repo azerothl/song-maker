@@ -1,15 +1,13 @@
-# Trainer NAR local (optionnel)
+# Trainer NAR local
 
-Placez ici un script exécutable `lora-train-nar.py` (ou `.sh`) pour que
-`@song-maker/lora-training` passe de `not_implemented` à `queued` lorsque
-l’hôte détecte le fichier (`trainerExists: true`).
+Script livré : `scripts/lora-train-nar.py`.
 
-Contrat attendu (hôte) :
+L’hôte Tauri détecte le fichier (`trainerExists: true`) et lance :
 
 ```text
-<trainer> --job-dir training-jobs/<id> --manifest training-jobs/<id>/manifest.json
+python scripts/lora-train-nar.py --job-dir <jobs>/<id> --manifest <jobs>/<id>/manifest.json
 ```
 
-Le script doit rester isolé du processus UI, écrire sous le dossier du job, et
-produire un SafeTensors **non fusionné**. Song Maker n’active jamais l’adaptateur
-automatiquement.
+Le processus reste isolé de l’UI, écrit sous le dossier du job, et produit un SafeTensors **non fusionné**. Song Maker n’active jamais l’adaptateur automatiquement.
+
+Prérequis : Python 3.10+ (ou `SONG_MAKER_PYTHON`). `torch` est optionnel (améliore l’export RNG) ; sans torch un adapter de format est tout de même écrit pour tests de charge — ce n’est pas une promesse de qualité GPU.

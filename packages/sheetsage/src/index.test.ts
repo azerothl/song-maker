@@ -17,9 +17,10 @@ describe("@song-maker/sheetsage", () => {
   });
 
   it("blocks without license, binary, or weights", () => {
-    expect(
-      checkSheetsageReadiness(defaultSheetsageProbe()).status,
-    ).toBe("license_not_accepted");
+    const denied = checkSheetsageReadiness(defaultSheetsageProbe());
+    expect(denied.status).toBe("license_not_accepted");
+    expect(denied.messageFr).toMatch(/non acceptée/i);
+    expect(denied.messageFr).not.toMatch(/Nouvelle interprétation/);
     expect(
       checkSheetsageReadiness(
         defaultSheetsageProbe({ licenseAccepted: true }),
@@ -35,7 +36,7 @@ describe("@song-maker/sheetsage", () => {
     ).toBe("missing_weights");
   });
 
-  it("marks ready when probe is complete but still stubs transcription", async () => {
+  it("marks ready when probe is complete; stub without runner stays honest", async () => {
     const probe = defaultSheetsageProbe({
       licenseAccepted: true,
       binaryPresent: true,
@@ -43,6 +44,7 @@ describe("@song-maker/sheetsage", () => {
       acceleration: "cuda",
     });
     expect(checkSheetsageReadiness(probe).canAttemptTranscribe).toBe(true);
+    expect(checkSheetsageReadiness(probe).messageFr).toMatch(/prêt pour transcription/i);
     const t = createSheetsageTranscriber(probe);
     const result = await t.transcribe({
       source: { kind: "user_track", id: "t1", label: "Piste" },
@@ -51,6 +53,28 @@ describe("@song-maker/sheetsage", () => {
     expect(result.status).toBe("not_implemented");
     expect(result.abc).toBeNull();
     expect(result.reinterpretationDisclaimerFr).toContain("CC BY-NC");
+  });
+
+  it("wired runner returns ABC when injected", async () => {
+    const probe = defaultSheetsageProbe({
+      licenseAccepted: true,
+      binaryPresent: true,
+      weightsPresent: true,
+    });
+    const t = createSheetsageTranscriber(probe, async () => ({
+      status: "ok",
+      jobId: "j1",
+      abc: "X:1\nT:t\nM:4/4\nK:C\nCDEF|",
+      warnings: [],
+      messageFr: "ok",
+      reinterpretationDisclaimerFr: REINTERPRETATION_DISCLAIMER_FR,
+    }));
+    const result = await t.transcribe({
+      source: { kind: "user_track", id: "t1", label: "Piste", path: "/a.wav" },
+      licenseAccepted: true,
+    });
+    expect(result.status).toBe("ok");
+    expect(result.abc).toMatch(/^X:/m);
   });
 
   it("never invents ABC when runtime missing", async () => {

@@ -36,3 +36,4 @@ src-tauri/gen/
 # Local NAR LoRA training jobs (manifests, logs, adapters)
 training-jobs/*
 !training-jobs/.gitkeep
+__pycache__/

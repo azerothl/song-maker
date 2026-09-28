@@ -1,11 +1,10 @@
 # `@song-maker/lora-training`
 
-Pilot contract for **local NAR LoRA training** from user-owned recordings.
+Local NAR LoRA training pilot (style/timbre, not voice cloning).
 
-- Validates corpus (formats, durations, duplicates).
-- Splits train/val by **whole song**, never by segment of the same song.
-- Writes job folders under `training-jobs/<id>/` with a reproducible manifest.
-- Trainer is an honest stub (`not_implemented`) unless a local trainer script exists.
-- **Never** auto-activates adapters; validation gate required before catalog exposure.
+- Corpus validation + whole-song train/val split.
+- Job folders under `training-jobs/<id>/` via injectable store (disk via Tauri host).
+- Trainer: `scripts/lora-train-nar.py` (detected by host → `trainerExists: true`).
+- Never auto-activates adapters (`validateAdapterForCatalog`).
 
 See `docs/lora-training-pilot.md`.

@@ -1,9 +1,10 @@
 # `@song-maker/sheetsage`
 
-Contract for **SheetSage2** audio → ABC transcription, then user-confirmed YuE2 regeneration.
+SheetSage2 audio → ABC → (user confirm) → YuE2.
 
-- Checks deps / weights / license / disk / acceleration before offering install or run.
-- `transcribeAudioToAbc` returns `not_implemented` until a real binary + GGUF are present.
-- Never invents ABC from silence. YuE2 must not be called before the user confirms the score.
+- `checkSheetsageReadiness` gates license / binary / weights / disk.
+- `createSheetsageTranscriber(probe, runner?)` — inject a `LiveSheetsageRunner` (Tauri host) for real `--task midi --family sheetsage2` transcription.
+- Without a runner, returns `not_implemented` and **never invents ABC**.
+- `assertAbcConfirmedForYue2` before any generation call.
 
 See `docs/sheetsage2-path.md`.

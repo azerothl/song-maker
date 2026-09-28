@@ -11,19 +11,22 @@ Licence des poids SheetSage2 : **CC BY-NC 4.0** (`audio-cpp/SheetSage2-GGUF`, fi
 | Étape | État |
 |---|---|
 | Contrat TypeScript `@song-maker/sheetsage` | Câblé — readiness, progress/cancel types, gate YuE2 |
-| Vérif licence / binaire / poids / disque | Câblé (sonde injectable) |
+| Vérif licence / binaire / poids / disque | Câblé (sonde Tauri `sheetsage_probe`) |
+| Runner live | Câblé — `audiocpp_cli --task midi --family sheetsage2` ou serveur `/v1/tasks/run` (modèle `sheetsage2` si GGUF présent) |
 | Panneau UI (piste ou mixdown → transcribe → ABC éditable → confirmer) | Câblé |
-| Appel YuE2 `start_generation` avec ABC confirmé | Câblé (chemin génération existant) |
+| Annulation | Câblé (`sheetsage_cancel` + AbortSignal) |
+| Appel YuE2 `start_generation` avec ABC confirmé | Câblé |
 | Disclaimer « nouvelle interprétation » + CC BY-NC | Câblé (UI + package) |
 
-## Ce qui est stubbé (runtime externe absent)
+## Prérequis runtime
 
-| Étape | État |
-|---|---|
-| Téléchargement / installation SheetSage2 GGUF | Non livré — opt-in futur hors installeur |
-| Câblage audio.cpp `--task midi --family sheetsage2` | Absent du serveur produit |
-| `transcribeAudioToAbc` réel | **`not_implemented`** — n’invente jamais d’ABC |
-| Vérif Windows E2E du parcours complet | À faire quand binaire + poids sont présents |
+1. Runtime audio.cpp épinglé (installeur) — serveur et/ou `audiocpp_cli`.
+2. Poids opt-in hors installeur :
+   - Chemin : `{cache}/models/SheetSage2-GGUF/sheetsage2-orig.gguf`
+   - SHA-256 : `52bb5846c452037d39931aa8050885b6c751b9c7afcc8ef6d6d3067d241731a4`
+   - Taille : 2 708 224 512 octets
+3. Licence CC BY-NC acceptée dans le panneau.
+4. Source audio avec chemin fichier réel (piste importée/enregistrée ; mixdown exporté).
 
 ## Règles d’honnêteté
 
@@ -32,13 +35,14 @@ Licence des poids SheetSage2 : **CC BY-NC 4.0** (`audio-cpp/SheetSage2-GGUF`, fi
 3. La sortie YuE2 est une version distincte ; les fichiers source ne sont pas écrasés.
 4. Afficher clairement que le chanteur, le timbre, l’arrangement et la forme d’onde d’origine ne sont pas garantis.
 
-## Métadonnées poids (spec §19)
+## CLI de référence (audio.cpp)
 
-- Fichier : `sheetsage2-orig.gguf`
-- Taille : 2 708 224 512 octets
-- SHA-256 : `52bb5846c452037d39931aa8050885b6c751b9c7afcc8ef6d6d3067d241731a4`
-- Q8 : explicitement non fiable côté amont
+```bash
+audiocpp_cli --task midi --family sheetsage2 \
+  --model models/SheetSage2-GGUF/sheetsage2-orig.gguf \
+  --backend cuda --audio song.wav --out score.abc --log
+```
 
 ## Package
 
-`packages/sheetsage` — `checkSheetsageReadiness`, `createSheetsageTranscriber`, `assertAbcConfirmedForYue2`.
+`packages/sheetsage` — `checkSheetsageReadiness`, `createSheetsageTranscriber(probe, runner?)`, `assertAbcConfirmedForYue2`.
