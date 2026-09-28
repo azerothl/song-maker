@@ -1,5 +1,4 @@
 import {
-  REINTERPRETATION_DISCLAIMER_FR,
   SHEETSAGE2_LICENSE,
   SHEETSAGE2_WEIGHTS,
   type SheetsageAcceleration,
@@ -25,10 +24,10 @@ export function checkSheetsageReadiness(
       license: SHEETSAGE2_LICENSE,
       weights: SHEETSAGE2_WEIGHTS,
       acceleration,
+      // Status only — panel shows REINTERPRETATION_DISCLAIMER_FR once separately.
       messageFr:
         "Licence CC BY-NC 4.0 SheetSage2 non acceptée. " +
-        "Usage commercial des poids interdit. " +
-        REINTERPRETATION_DISCLAIMER_FR,
+        "Usage commercial des poids interdit.",
       canAttemptTranscribe: false,
     };
   }

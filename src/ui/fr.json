@@ -577,6 +577,7 @@
   "sheetsage.step.confirm": "Confirmer la partition",
   "sheetsage.step.generate": "Générer avec YuE2",
   "sheetsage.license": "J’accepte la licence CC BY-NC 4.0 des poids SheetSage2 (usage non commercial des poids).",
+  "sheetsage.licenseLimits": "Usage commercial des poids interdit.",
   "sheetsage.source": "Source audio",
   "sheetsage.source.mixdown": "Mixdown du projet (export)",
   "sheetsage.source.userTrack": "piste utilisateur",
