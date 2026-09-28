@@ -365,19 +365,131 @@ option {
 }
 
 .song-layout {
-  display: grid;
-  grid-template-columns: minmax(240px, 30%) minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   min-height: 100%;
   min-width: 0;
 }
 
+.song-workspace-chrome {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem 1.5rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  background: rgba(14, 17, 22, 0.72);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.song-workspace-chrome-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+}
+
+.song-workspace-project {
+  min-width: 0;
+}
+
+.song-workspace-project h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.song-job-banner {
+  margin: 0.35rem 0 0;
+  color: var(--accent-cyan, #7ad7ff);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.song-workspace-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.song-workspace-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.song-workspace-tab:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg1) 80%, transparent);
+}
+
+.song-workspace-tab[aria-selected="true"] {
+  color: var(--text);
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--accent-2) 14%, var(--bg0));
+}
+
+.song-workspace-tab:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+.song-workspace-transport {
+  min-width: 0;
+}
+
+.song-workspace-body {
+  flex: 1;
+  min-width: 0;
+  padding: 1.25rem 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.song-workspace-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  max-width: 52rem;
+}
+
+.song-workspace-panel.wide {
+  max-width: none;
+}
+
+.song-workspace-heading h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 600;
+}
+
+.song-workspace-heading p {
+  margin: 0.35rem 0 0;
+  max-width: 60ch;
+  line-height: 1.45;
+}
+
 .song-form {
-  border-right: 1px solid var(--line);
-  padding: 1.25rem;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  background: rgba(14, 17, 22, 0.55);
+  background: transparent;
+  max-width: 40rem;
 }
 
 .song-form label {
@@ -2347,12 +2459,10 @@ details[open] > summary {
     margin-top: 0;
     width: 100%;
   }
-  .song-layout {
-    grid-template-columns: 1fr;
-  }
-  .song-form {
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
+  .song-workspace-chrome,
+  .song-workspace-body {
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
   .track {
     grid-template-columns: minmax(4rem, 1fr) auto auto;
