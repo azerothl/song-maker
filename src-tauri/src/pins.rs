@@ -60,6 +60,8 @@ pub const BS_ROFORMER_SHA: &str =
 pub const BS_ROFORMER_PACKAGE: &str = "bs_roformer_q8_0";
 pub const BS_ROFORMER_REMOTE: &str =
     "BS-RoFormer-ep368-GGUF/bs-roformer-ep368-q8_0.gguf";
+/// Exact on-disk size of the pinned GGUF (bytes).
+pub const BS_ROFORMER_BYTES: u64 = 172_532_256;
 
 pub const DEFAULT_STEM_SEPARATOR: &str = "htdemucs";
 

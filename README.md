@@ -78,8 +78,8 @@ Phase 2 (partition + audio) : import MIDI, piano roll, validation/export ABC YuE
 | Paquet | Phase | Rôle |
 |---|---|---|
 | [`@song-maker/score-engine`](packages/score-engine) | 2 | ScoreDocument, MIDI, export ABC YuE2, `stop_after` / `semantic_prefix` — **branché dans l’UI** |
-| [`@song-maker/stem-providers`](packages/stem-providers) | 3 | `StemSeparatorProvider`, HTDemucs, stub BS-RoFormer |
-| [`@song-maker/mix-production`](packages/mix-production) | 3 | Automation / effets / sidechain / loudness — **DSP réel** (`Stub*` = alias) |
+| [`@song-maker/stem-providers`](packages/stem-providers) | 3 | `StemSeparatorProvider`, HTDemucs, BS-RoFormer opt-in |
+| [`@song-maker/mix-production`](packages/mix-production) | 3 | Automation / effets (réverb stéréo) / sidechain / loudness — **DSP réel** (`Stub*` = alias) |
 | [`@song-maker/lora-packs`](packages/lora-packs) | 3–4 | Registre LoRA + catalogue styles, porte CC BY-NC |
 | [`@song-maker/partition-invariants`](packages/partition-invariants) | 4 | Invariants §11.3 (`Stub*` = alias) |
 | [`@song-maker/remote-worker`](packages/remote-worker) | 4 | Client worker GPU distant (`Stub*` = alias local-first) |
@@ -94,4 +94,4 @@ pnpm test
 
 ## Hors périmètre encore stubbé / gated
 
-SheetSage2 (runtime externe), worker distant (contrat HTTP, pas de serveur in-repo), synchro projet optionnelle (stub), entraînement LoRA NAR sans script local, BS-RoFormer.
+SheetSage2 (runtime externe), worker distant (contrat HTTP, pas de serveur in-repo), synchro projet optionnelle (stub), entraînement LoRA NAR sans script local, Akasha.

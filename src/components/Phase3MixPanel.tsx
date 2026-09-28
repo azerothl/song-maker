@@ -44,19 +44,30 @@ type Props = {
 
 type MeasureState = "idle" | "measuring" | "error";
 
-const FX_LABEL: Record<UiEffectKind, "phase3.mix.fx.limiter" | "phase3.mix.fx.compressor" | "phase3.mix.fx.eq"> = {
+const FX_LABEL: Record<
+  UiEffectKind,
+  | "phase3.mix.fx.limiter"
+  | "phase3.mix.fx.compressor"
+  | "phase3.mix.fx.eq"
+  | "phase3.mix.fx.reverb"
+> = {
   limiter: "phase3.mix.fx.limiter",
   compressor: "phase3.mix.fx.compressor",
   eq: "phase3.mix.fx.eq",
+  reverb: "phase3.mix.fx.reverb",
 };
 
 const FX_ADD_LABEL: Record<
   UiEffectKind,
-  "phase3.mix.add.limiter" | "phase3.mix.add.compressor" | "phase3.mix.add.eq"
+  | "phase3.mix.add.limiter"
+  | "phase3.mix.add.compressor"
+  | "phase3.mix.add.eq"
+  | "phase3.mix.add.reverb"
 > = {
   limiter: "phase3.mix.add.limiter",
   compressor: "phase3.mix.add.compressor",
   eq: "phase3.mix.add.eq",
+  reverb: "phase3.mix.add.reverb",
 };
 
 function sortPoints(points: AutomationPoint[]): AutomationPoint[] {
@@ -643,6 +654,78 @@ export function Phase3MixPanel({ mix, sources = null }: Props) {
                             }
                           />
                         </label>
+                      )}
+                      {fx.kind === "reverb" && (
+                        <>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.mix")}</span>
+                            <input
+                              type="number"
+                              step={0.05}
+                              min={0}
+                              max={1}
+                              value={Number(fx.params.mix ?? 0.35)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "mix",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.roomSize")}</span>
+                            <input
+                              type="number"
+                              step={0.05}
+                              min={0}
+                              max={1}
+                              value={Number(fx.params.roomSize ?? 0.55)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "roomSize",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.damping")}</span>
+                            <input
+                              type="number"
+                              step={0.05}
+                              min={0}
+                              max={1}
+                              value={Number(fx.params.damping ?? 0.45)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "damping",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.width")}</span>
+                            <input
+                              type="number"
+                              step={0.05}
+                              min={0}
+                              max={1}
+                              value={Number(fx.params.width ?? 1)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "width",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                        </>
                       )}
                     </div>
                   </li>

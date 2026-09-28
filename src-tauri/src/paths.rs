@@ -84,7 +84,11 @@ pub fn demucs_onnx_model_cache(cache: &Path) -> PathBuf {
 }
 
 pub fn bs_roformer_weights_present(cache: &Path) -> bool {
-    bs_roformer_path(cache).is_file()
+    let path = bs_roformer_path(cache);
+    match std::fs::metadata(&path) {
+        Ok(meta) if meta.is_file() && meta.len() == crate::pins::BS_ROFORMER_BYTES => true,
+        _ => false,
+    }
 }
 
 pub fn pinned_archive_name() -> &'static str {

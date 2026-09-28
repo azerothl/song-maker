@@ -6,6 +6,7 @@ export type {
   EffectKind,
   TrackEffectSlot,
   TrackEffectsRack,
+  CustomEffectProcessor,
   SidechainRoute,
   SidechainRouter,
   LoudnessStandard,
@@ -21,8 +22,11 @@ export {
   applyPeakLimiter,
   applyCompressor,
   applyGainShelf,
+  applyReverb,
+  reverbTailFrames,
   applySidechainDuck,
   measureLoudnessFromPcm,
+  type ReverbParams,
 } from "./dsp.js";
 export {
   MixAutomationEngineImpl,

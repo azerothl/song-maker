@@ -9,8 +9,8 @@ import {
 
 const STORAGE_PREFIX = "song-maker:production:";
 
-/** Effects exposed in the UI — reverb is intentionally omitted (DSP no-op). */
-export const UI_EFFECT_KINDS = ["limiter", "compressor", "eq"] as const;
+/** Effects exposed in the UI (reverb is real DSP; custom stays host-extension only). */
+export const UI_EFFECT_KINDS = ["limiter", "compressor", "eq", "reverb"] as const;
 export type UiEffectKind = (typeof UI_EFFECT_KINDS)[number];
 
 export type ProductionOverlay = {
@@ -362,6 +362,8 @@ export function defaultEffectParams(kind: UiEffectKind): Record<string, number> 
       return { thresholdDb: -18, ratio: 3, makeupDb: 0 };
     case "eq":
       return { gainDb: 0 };
+    case "reverb":
+      return { mix: 0.35, roomSize: 0.55, damping: 0.45, width: 1 };
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;

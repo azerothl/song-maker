@@ -30,6 +30,8 @@ pub struct AppState {
     pub queue: JobQueue,
     pub undo: Mutex<UndoStacks>,
     pub setup_installing: std::sync::atomic::AtomicBool,
+    pub bs_roformer_installing: std::sync::atomic::AtomicBool,
+    pub bs_roformer_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[derive(Default)]
@@ -45,6 +47,8 @@ impl Default for AppState {
             queue: JobQueue::default(),
             undo: Mutex::new(UndoStacks::default()),
             setup_installing: std::sync::atomic::AtomicBool::new(false),
+            bs_roformer_installing: std::sync::atomic::AtomicBool::new(false),
+            bs_roformer_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 }
@@ -88,7 +92,8 @@ pub fn update_settings(state: tauri::State<'_, AppState>, settings: AppSettings)
     if s.stem_separator == "bs_roformer" {
         if !crate::paths::bs_roformer_weights_present(&cache) {
             return Err(
-                "Impossible d’activer BS-RoFormer : GGUF absent du cache (hors installeur)."
+                "Impossible d’activer BS-RoFormer : GGUF absent ou invalide. \
+                 Installez-le (opt-in) dans Paramètres → Production audio."
                     .into(),
             );
         }
@@ -151,6 +156,70 @@ pub fn get_phase3_status() -> Result<Phase3Status, String> {
 pub async fn install_htdemucs_6s_runtime() -> Result<String, String> {
     let settings = load_settings()?;
     crate::demucs_onnx::install(PathBuf::from(settings.cache_dir)).await
+}
+
+/// Opt-in download of the BS-RoFormer GGUF (not in first-build installer).
+/// Verifies licence notice (returned), size, SHA-256, disk space; supports cancel.
+#[tauri::command]
+pub async fn install_bs_roformer(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    use std::sync::atomic::Ordering;
+    if state
+        .bs_roformer_installing
+        .swap(true, Ordering::AcqRel)
+    {
+        return Err("Un téléchargement BS-RoFormer est déjà en cours.".into());
+    }
+    let settings = match load_settings() {
+        Ok(s) => s,
+        Err(e) => {
+            state.bs_roformer_installing.store(false, Ordering::Release);
+            return Err(e);
+        }
+    };
+    let cache = PathBuf::from(&settings.cache_dir);
+    let cancel = state.bs_roformer_cancel.clone();
+    let result =
+        crate::bs_roformer::install(app, cache.clone(), cancel).await;
+    state.bs_roformer_installing.store(false, Ordering::Release);
+    match result {
+        Ok(path) => {
+            // Rewrite audiocpp config so bs_roformer is registered; restart pick-up on next sep.
+            let _ = crate::audiocpp::AudioCppServer::write_config(&settings);
+            state.server.shutdown();
+            Ok(path)
+        }
+        Err(e) => Err(e),
+    }
+}
+
+#[tauri::command]
+pub fn cancel_bs_roformer_install(state: tauri::State<'_, AppState>) -> String {
+    state
+        .bs_roformer_cancel
+        .store(true, std::sync::atomic::Ordering::SeqCst);
+    "Annulation demandée.".into()
+}
+
+#[tauri::command]
+pub fn bs_roformer_install_info() -> Result<serde_json::Value, String> {
+    let settings = load_settings()?;
+    let cache = PathBuf::from(&settings.cache_dir);
+    let present = crate::paths::bs_roformer_weights_present(&cache);
+    Ok(json!({
+        "gguf": BS_ROFORMER_GGUF,
+        "sha256": BS_ROFORMER_SHA,
+        "bytes": crate::pins::BS_ROFORMER_BYTES,
+        "remotePath": BS_ROFORMER_REMOTE,
+        "url": crate::bs_roformer::download_url(),
+        "licenseNoticeFr": crate::bs_roformer::LICENSE_NOTICE_FR,
+        "path": crate::paths::bs_roformer_path(&cache).display().to_string(),
+        "available": present,
+        "defaultSeparator": "htdemucs",
+        "stemLayoutFr": "Voix + instrumental seulement ; batterie, basse, guitare et piano indisponibles. HTDemucs reste le chemin stable par défaut.",
+    }))
 }
 
 #[tauri::command]
@@ -926,11 +995,13 @@ pub async fn start_separation(
         let cache = PathBuf::from(&settings.cache_dir);
         if !crate::paths::bs_roformer_weights_present(&cache) {
             return Err(format!(
-                "BS-RoFormer sélectionné mais le GGUF est absent du cache. \
-                 Téléchargez {BS_ROFORMER_REMOTE} (hors installeur) vers \
-                 models/bs_roformer/, ou revenez à HTDemucs dans Paramètres → Production audio."
+                "BS-RoFormer sélectionné mais le GGUF est absent ou invalide. \
+                 Installez-le dans Paramètres → Production audio (téléchargement opt-in \
+                 de {BS_ROFORMER_REMOTE}, SHA vérifié), ou revenez à HTDemucs."
             ));
         }
+        // Full SHA check before real separation — no fake success on corrupt weights.
+        crate::bs_roformer::verify_sha256(&cache)?;
         // Reload server config so bs_roformer is registered.
         state.server.shutdown();
     }

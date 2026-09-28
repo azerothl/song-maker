@@ -25,6 +25,21 @@ export const api = {
   getPhase3Status: () => invoke<Phase3Status>("get_phase3_status"),
   installHtDemucs6sRuntime: () =>
     invoke<string>("install_htdemucs_6s_runtime"),
+  installBsRoFormer: () => invoke<string>("install_bs_roformer"),
+  cancelBsRoFormerInstall: () => invoke<string>("cancel_bs_roformer_install"),
+  bsRoFormerInstallInfo: () =>
+    invoke<{
+      gguf: string;
+      sha256: string;
+      bytes: number;
+      remotePath: string;
+      url: string;
+      licenseNoticeFr: string;
+      path: string;
+      available: boolean;
+      defaultSeparator: string;
+      stemLayoutFr: string;
+    }>("bs_roformer_install_info"),
   listLoraAdapters: () => invoke<LocalLoraAdapter[]>("list_lora_adapters"),
   importLoraAdapters: () =>
     invoke<LocalLoraAdapter[] | null>("import_lora_adapters"),

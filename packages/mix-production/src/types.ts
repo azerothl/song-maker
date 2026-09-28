@@ -1,7 +1,8 @@
 /**
  * Phase 3 mix-production contracts (§10.3).
- * Real subset: gain automation sampling, soft limiter / compressor process,
- * sidechain ducking, and offline loudness (true peak + integrated estimate).
+ * Real subset: gain automation sampling, soft limiter / compressor / stereo
+ * reverb process, optional registered custom DSP, sidechain ducking, and
+ * offline loudness (true peak + integrated estimate).
  * Phase 1 still uses constant gain/pan/mute/solo/masterGain only.
  */
 
@@ -42,19 +43,53 @@ export type TrackEffectSlot = {
   id: string;
   kind: EffectKind;
   enabled: boolean;
-  /** Opaque params; real schemas land with DSP. */
+  /**
+   * Effect params.
+   * - limiter: `ceilingDb`
+   * - compressor: `thresholdDb`, `ratio`, `makeupDb`
+   * - eq: `gainDb`
+   * - reverb: `mix`, `roomSize`, `damping`, `width` (all 0…1 except documented)
+   * - custom: **required** `processorId` (string) naming a registered extension
+   */
   params: Record<string, number | string | boolean>;
 };
 
+/**
+ * Host-registered DSP for `kind: "custom"`.
+ * `params.processorId` must match the id passed to `registerCustomProcessor`.
+ * Returning a longer buffer is allowed (same contract as reverb tails).
+ */
+export type CustomEffectProcessor = (
+  pcm: Float32Array,
+  params: Record<string, number | string | boolean>,
+  sampleRate: number,
+) => Float32Array;
+
 export interface TrackEffectsRack {
   list(trackId: string): TrackEffectSlot[];
+  /**
+   * Insert an effect. Refuses enabled `custom` slots without a registered
+   * `processorId` — no silent no-op.
+   */
   insert(trackId: string, effect: TrackEffectSlot): void;
   remove(trackId: string, effectId: string): void;
+  /** Register a DSP extension for `kind: "custom"` + matching `processorId`. */
+  registerCustomProcessor(
+    processorId: string,
+    processor: CustomEffectProcessor,
+  ): void;
+  unregisterCustomProcessor(processorId: string): void;
+  listCustomProcessors(): string[];
   /**
    * Apply enabled effects to interleaved stereo float32 PCM (−1…1).
-   * Real for compressor / limiter; EQ gain shelf and reverb remain light.
+   * Reverb may extend the buffer by its documented decay tail.
+   * Enabled custom without a registered processor throws.
    */
-  process(trackId: string, pcm: Float32Array): Float32Array;
+  process(
+    trackId: string,
+    pcm: Float32Array,
+    sampleRate?: number,
+  ): Float32Array;
 }
 
 export type SidechainRoute = {
