@@ -59,6 +59,65 @@ const DURATION_SEC_STEP = 30;
 
 const TITLE_FORBIDDEN = /[/\\:*?"<>|]/;
 type AdvancedSettingsPage = null | "index" | "plan" | "key" | "meter" | "seed";
+type SongWorkspace = "create" | "score" | "production" | "versions";
+
+const WORKSPACES: SongWorkspace[] = [
+  "create",
+  "score",
+  "production",
+  "versions",
+];
+
+function workspaceLabel(space: SongWorkspace): string {
+  switch (space) {
+    case "create":
+      return t("workspace.create");
+    case "score":
+      return t("workspace.score");
+    case "production":
+      return t("workspace.production");
+    case "versions":
+      return t("workspace.versions");
+    default: {
+      const _exhaustive: never = space;
+      return _exhaustive;
+    }
+  }
+}
+
+function workspaceTitle(space: SongWorkspace): string {
+  switch (space) {
+    case "create":
+      return t("workspace.create.title");
+    case "score":
+      return t("workspace.score.title");
+    case "production":
+      return t("workspace.production.title");
+    case "versions":
+      return t("workspace.versions.title");
+    default: {
+      const _exhaustive: never = space;
+      return _exhaustive;
+    }
+  }
+}
+
+function workspaceIntro(space: SongWorkspace): string {
+  switch (space) {
+    case "create":
+      return t("workspace.create.intro");
+    case "score":
+      return t("workspace.score.intro");
+    case "production":
+      return t("workspace.production.intro");
+    case "versions":
+      return t("workspace.versions.intro");
+    default: {
+      const _exhaustive: never = space;
+      return _exhaustive;
+    }
+  }
+}
 
 function advancedSettingsTitle(page: Exclude<AdvancedSettingsPage, null>): string {
   switch (page) {
@@ -199,6 +258,7 @@ export function SongScreen() {
   );
   const [advancedSettingsPage, setAdvancedSettingsPage] =
     useState<AdvancedSettingsPage>(null);
+  const [workspace, setWorkspace] = useState<SongWorkspace>("create");
   const [separationInfo, setSeparationInfo] = useState<SeparationInfo | null>(
     null,
   );
@@ -268,7 +328,14 @@ export function SongScreen() {
     setRegenGateOpen(false);
     setRegenAfterDocument(null);
     setRegenBaselineDoc(null);
+    setWorkspace("create");
+    setAdvancedSettingsPage(null);
   }, [project?.id]);
+
+  function selectWorkspace(next: SongWorkspace) {
+    setWorkspace(next);
+    if (next !== "create") setAdvancedSettingsPage(null);
+  }
 
   useEffect(() => {
     if (!project?.id) return;
@@ -341,6 +408,8 @@ export function SongScreen() {
         e.preventDefault();
         if (!canGenerate) {
           setShowFormErrors(true);
+          setWorkspace("create");
+          setAdvancedSettingsPage(null);
           return;
         }
         void onGenerate();
@@ -397,6 +466,8 @@ export function SongScreen() {
     if (!project) return;
     if (formError || scoreGate.error) {
       setShowFormErrors(true);
+      setWorkspace("create");
+      setAdvancedSettingsPage(null);
       return;
     }
     const isRegen =
@@ -478,6 +549,8 @@ export function SongScreen() {
   async function onGenerateBatch(count: number) {
     if (!project || formError || scoreGate.error) {
       setShowFormErrors(true);
+      setWorkspace("create");
+      setAdvancedSettingsPage(null);
       return;
     }
     setBusy(true);
@@ -558,740 +631,887 @@ export function SongScreen() {
 
   return (
     <div className="song-layout">
-      <aside className="song-form">
-        <header className="song-form-heading">
-          {advancedSettingsPage !== null && (
-            <button
-              type="button"
-              className="btn ghost form-page-back"
-              onClick={() =>
-                setAdvancedSettingsPage(
-                  advancedSettingsPage === "index" ? null : "index",
-                )
-              }
-            >
-              {advancedSettingsPage === "index"
-                ? t("form.backToSong")
-                : t("form.backToAdvanced")}
-            </button>
-          )}
-          <h1>
-            {advancedSettingsPage === null
-              ? t("form.createTitle")
-              : advancedSettingsTitle(advancedSettingsPage)}
-          </h1>
-          <p className="hint">
-            {advancedSettingsPage === null
-              ? t("form.createIntro")
-              : advancedSettingsIntro(advancedSettingsPage)}
-          </p>
-        </header>
-        {advancedSettingsPage === null && (
-          <div className="song-primary-settings">
-        <label className="form-field">
-          {t("form.title")}
-          <input
-            value={form.title}
-            onChange={(e) => setForm({ title: e.target.value })}
-            maxLength={120}
-          />
-        </label>
-        <label className="form-field">
-          {t("form.style")}
-          <textarea
-            value={form.style}
-            onChange={(e) => setForm({ style: e.target.value })}
-            rows={3}
-          />
-          <span className="counter">{form.style.length}/1000</span>
-          <span className="hint">{t("form.style.hint")}</span>
-        </label>
-        <label className="form-field">
-          {t("form.lyrics")}
-          <textarea
-            value={form.lyrics}
-            onChange={(e) => setForm({ lyrics: e.target.value })}
-            rows={10}
-          />
-          <span className="counter">{form.lyrics.length}/4000</span>
-          <span className="hint">{t("form.lyrics.tags")}</span>
-        </label>
-        <fieldset className="form-section">
-          <legend>{t("form.section.sound")}</legend>
-          <div className="form-grid">
-            <label className="form-field">
-              {t("form.language")}
-              <input
-                placeholder={t("form.language.placeholder")}
-                value={form.singingLanguage ?? ""}
-                onChange={(e) =>
-                  setForm({ singingLanguage: e.target.value || null })
-                }
-                maxLength={40}
-              />
-              <span className="hint">{t("form.language.hint")}</span>
-            </label>
-            <label className="form-field">
-              {t("form.tempo")}
-              <input
-                type="number"
-                min={40}
-                max={220}
-                placeholder={t("form.tempo.placeholder")}
-                value={form.tempoBpm ?? ""}
-                onChange={(e) =>
-                  setForm({
-                    tempoBpm: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
-              />
-            </label>
+      <header className="song-workspace-chrome">
+        <div className="song-workspace-chrome-top">
+          <div className="song-workspace-project">
+            <h1>{project.title || t("form.createTitle")}</h1>
+            {job && job.state !== "idle" && (
+              <p className="song-job-banner" role="status" aria-live="polite">
+                {job.label || t("job.generating")}
+              </p>
+            )}
           </div>
-          <span className="hint">{t("form.tempo.hint")}</span>
-          <div className="duration-control">
-            <div className="duration-heading">
-              <label htmlFor="target-duration">{t("form.duration")}</label>
-              <output htmlFor="target-duration" className="duration-value">
-                {formatDurationLabel(form.targetDurationSec)}
-              </output>
-            </div>
-            <input
-              id="target-duration"
-              type="range"
-              className="duration-slider"
-              min={DURATION_SEC_MIN}
-              max={DURATION_SEC_MAX}
-              step={DURATION_SEC_STEP}
-              value={form.targetDurationSec}
-              onChange={(e) =>
-                setForm({ targetDurationSec: snapDurationSec(Number(e.target.value)) })
-              }
-            />
-            <div className="duration-range" aria-hidden="true">
-              <span>{formatDurationLabel(DURATION_SEC_MIN)}</span>
-              <span>{formatDurationLabel(DURATION_SEC_MAX)}</span>
-            </div>
-            <p className="hint">
-              {t(
-                form.preferFullLyrics
-                  ? "form.duration.hint"
-                  : "form.duration.strictActiveHint",
-              )}
-            </p>
-            <fieldset className="duration-policy">
-              <legend className="sr-only">{t("form.duration.policy")}</legend>
-              <label className="duration-choice">
-                <input
-                  type="radio"
-                  name="duration-policy"
-                  checked={form.preferFullLyrics}
-                  onChange={() => setForm({ preferFullLyrics: true })}
-                />
-                <span>
-                  <strong>{t("form.duration.preferLyrics")}</strong>
-                  <small>{t("form.duration.preferLyricsHint")}</small>
-                </span>
-              </label>
-              <label className="duration-choice">
-                <input
-                  type="radio"
-                  name="duration-policy"
-                  checked={!form.preferFullLyrics}
-                  onChange={() => setForm({ preferFullLyrics: false })}
-                />
-                <span>
-                  <strong>{t("form.duration.strict")}</strong>
-                  <small>{t("form.duration.strictHint")}</small>
-                </span>
-              </label>
-            </fieldset>
-          </div>
-        </fieldset>
-        <button
-          type="button"
-          className="form-advanced-entry"
-          onClick={() => setAdvancedSettingsPage("index")}
-        >
-          <span className="form-advanced-entry-title">{t("form.advanced")}</span>
-          <span className="hint">{t("form.advanced.cardHint")}</span>
-          <span className="form-advanced-entry-action">{t("settings.openPage")}</span>
-        </button>
-          </div>
-        )}
-
-        {advancedSettingsPage === "index" && (
-          <nav className="form-parameter-grid" aria-label={t("form.advanced")}>
-            <FormParameterCard
-              title={t("form.plan")}
-              description={t("form.parameter.plan.cardHint")}
-              value={t(
-                form.cot === "off"
-                  ? "form.plan.off"
-                  : form.cot === "melody"
-                    ? "form.plan.melody"
-                    : "form.plan.full",
-              )}
-              onClick={() => setAdvancedSettingsPage("plan")}
-            />
-            <FormParameterCard
-              title={t("form.key")}
-              description={t("form.parameter.key.cardHint")}
-              value={
-                form.key
-                  ? `${TONIC_LABELS[form.key.tonic] ?? form.key.tonic} · ${t(form.key.mode === "minor" ? "form.key.minor" : "form.key.major")}`
-                  : t("form.automatic")
-              }
-              onClick={() => setAdvancedSettingsPage("key")}
-            />
-            <FormParameterCard
-              title={t("form.meter")}
-              description={t("form.parameter.meter.cardHint")}
-              value={
-                form.meter
-                  ? `${form.meter.numerator}/${form.meter.denominator}`
-                  : t("form.automatic")
-              }
-              onClick={() => setAdvancedSettingsPage("meter")}
-            />
-            <FormParameterCard
-              title={t("form.seed")}
-              description={t("form.parameter.seed.cardHint")}
-              value={form.seed == null ? t("form.automatic") : String(form.seed)}
-              onClick={() => setAdvancedSettingsPage("seed")}
-            />
-          </nav>
-        )}
-
-        {advancedSettingsPage === "plan" && (
-          <section className="form-parameter-page">
-            <p className="hint">
-              {t(
-                form.cot === "off"
-                  ? "form.plan.offHint"
-                  : form.cot === "melody"
-                    ? "form.plan.melodyHint"
-                    : "form.plan.fullHint",
-              )}
-            </p>
-            <label className="form-field">
-              {t("form.plan")}
-              <select
-                value={form.cot}
-                onChange={(e) => setForm({ cot: e.target.value })}
+          <nav
+            className="song-workspace-tabs"
+            role="tablist"
+            aria-label={t("workspace.nav")}
+          >
+            {WORKSPACES.map((space) => (
+              <button
+                key={space}
+                type="button"
+                role="tab"
+                id={`song-tab-${space}`}
+                className="song-workspace-tab"
+                aria-selected={workspace === space}
+                aria-controls={`song-panel-${space}`}
+                tabIndex={workspace === space ? 0 : -1}
+                onClick={() => selectWorkspace(space)}
               >
-                <option value="full">{t("form.plan.full")}</option>
-                <option value="melody">{t("form.plan.melody")}</option>
-                <option value="off">{t("form.plan.off")}</option>
-              </select>
-            </label>
+                {workspaceLabel(space)}
+              </button>
+            ))}
+          </nav>
+        </div>
+        <div className="song-workspace-transport">
+          <AudioPlayer
+            projectId={project.id}
+            sources={playbackSources}
+            mix={mix}
+            onError={setError}
+            onPlaybackChange={setPlayback}
+          />
+        </div>
+      </header>
+
+      <div className="song-workspace-body">
+        {workspace === "create" && (
+          <section
+            className="song-workspace-panel"
+            role="tabpanel"
+            id="song-panel-create"
+            aria-labelledby="song-tab-create"
+          >
+            <div className="song-form">
+              <header className="song-form-heading song-workspace-heading">
+                {advancedSettingsPage !== null && (
+                  <button
+                    type="button"
+                    className="btn ghost form-page-back"
+                    onClick={() =>
+                      setAdvancedSettingsPage(
+                        advancedSettingsPage === "index" ? null : "index",
+                      )
+                    }
+                  >
+                    {advancedSettingsPage === "index"
+                      ? t("form.backToSong")
+                      : t("form.backToAdvanced")}
+                  </button>
+                )}
+                <h2>
+                  {advancedSettingsPage === null
+                    ? workspaceTitle("create")
+                    : advancedSettingsTitle(advancedSettingsPage)}
+                </h2>
+                <p className="hint">
+                  {advancedSettingsPage === null
+                    ? workspaceIntro("create")
+                    : advancedSettingsIntro(advancedSettingsPage)}
+                </p>
+              </header>
+
+              {advancedSettingsPage === null && (
+                <div className="song-primary-settings">
+                  <label className="form-field">
+                    {t("form.title")}
+                    <input
+                      value={form.title}
+                      onChange={(e) => setForm({ title: e.target.value })}
+                      maxLength={120}
+                    />
+                  </label>
+                  <label className="form-field">
+                    {t("form.style")}
+                    <textarea
+                      value={form.style}
+                      onChange={(e) => setForm({ style: e.target.value })}
+                      rows={3}
+                    />
+                    <span className="counter">{form.style.length}/1000</span>
+                    <span className="hint">{t("form.style.hint")}</span>
+                  </label>
+                  <label className="form-field">
+                    {t("form.lyrics")}
+                    <textarea
+                      value={form.lyrics}
+                      onChange={(e) => setForm({ lyrics: e.target.value })}
+                      rows={10}
+                    />
+                    <span className="counter">{form.lyrics.length}/4000</span>
+                    <span className="hint">{t("form.lyrics.tags")}</span>
+                  </label>
+                  <fieldset className="form-section">
+                    <legend>{t("form.section.sound")}</legend>
+                    <div className="form-grid">
+                      <label className="form-field">
+                        {t("form.language")}
+                        <input
+                          placeholder={t("form.language.placeholder")}
+                          value={form.singingLanguage ?? ""}
+                          onChange={(e) =>
+                            setForm({ singingLanguage: e.target.value || null })
+                          }
+                          maxLength={40}
+                        />
+                        <span className="hint">{t("form.language.hint")}</span>
+                      </label>
+                      <label className="form-field">
+                        {t("form.tempo")}
+                        <input
+                          type="number"
+                          min={40}
+                          max={220}
+                          placeholder={t("form.tempo.placeholder")}
+                          value={form.tempoBpm ?? ""}
+                          onChange={(e) =>
+                            setForm({
+                              tempoBpm: e.target.value
+                                ? Number(e.target.value)
+                                : null,
+                            })
+                          }
+                        />
+                      </label>
+                    </div>
+                    <span className="hint">{t("form.tempo.hint")}</span>
+                    <div className="duration-control">
+                      <div className="duration-heading">
+                        <label htmlFor="target-duration">{t("form.duration")}</label>
+                        <output
+                          htmlFor="target-duration"
+                          className="duration-value"
+                        >
+                          {formatDurationLabel(form.targetDurationSec)}
+                        </output>
+                      </div>
+                      <input
+                        id="target-duration"
+                        type="range"
+                        className="duration-slider"
+                        min={DURATION_SEC_MIN}
+                        max={DURATION_SEC_MAX}
+                        step={DURATION_SEC_STEP}
+                        value={form.targetDurationSec}
+                        onChange={(e) =>
+                          setForm({
+                            targetDurationSec: snapDurationSec(
+                              Number(e.target.value),
+                            ),
+                          })
+                        }
+                      />
+                      <div className="duration-range" aria-hidden="true">
+                        <span>{formatDurationLabel(DURATION_SEC_MIN)}</span>
+                        <span>{formatDurationLabel(DURATION_SEC_MAX)}</span>
+                      </div>
+                      <p className="hint">
+                        {t(
+                          form.preferFullLyrics
+                            ? "form.duration.hint"
+                            : "form.duration.strictActiveHint",
+                        )}
+                      </p>
+                      <fieldset className="duration-policy">
+                        <legend className="sr-only">
+                          {t("form.duration.policy")}
+                        </legend>
+                        <label className="duration-choice">
+                          <input
+                            type="radio"
+                            name="duration-policy"
+                            checked={form.preferFullLyrics}
+                            onChange={() => setForm({ preferFullLyrics: true })}
+                          />
+                          <span>
+                            <strong>{t("form.duration.preferLyrics")}</strong>
+                            <small>{t("form.duration.preferLyricsHint")}</small>
+                          </span>
+                        </label>
+                        <label className="duration-choice">
+                          <input
+                            type="radio"
+                            name="duration-policy"
+                            checked={!form.preferFullLyrics}
+                            onChange={() =>
+                              setForm({ preferFullLyrics: false })
+                            }
+                          />
+                          <span>
+                            <strong>{t("form.duration.strict")}</strong>
+                            <small>{t("form.duration.strictHint")}</small>
+                          </span>
+                        </label>
+                      </fieldset>
+                    </div>
+                  </fieldset>
+                  <button
+                    type="button"
+                    className="form-advanced-entry"
+                    onClick={() => setAdvancedSettingsPage("index")}
+                  >
+                    <span className="form-advanced-entry-title">
+                      {t("form.advanced")}
+                    </span>
+                    <span className="hint">{t("form.advanced.cardHint")}</span>
+                    <span className="form-advanced-entry-action">
+                      {t("settings.openPage")}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {advancedSettingsPage === "index" && (
+                <nav
+                  className="form-parameter-grid"
+                  aria-label={t("form.advanced")}
+                >
+                  <FormParameterCard
+                    title={t("form.plan")}
+                    description={t("form.parameter.plan.cardHint")}
+                    value={t(
+                      form.cot === "off"
+                        ? "form.plan.off"
+                        : form.cot === "melody"
+                          ? "form.plan.melody"
+                          : "form.plan.full",
+                    )}
+                    onClick={() => setAdvancedSettingsPage("plan")}
+                  />
+                  <FormParameterCard
+                    title={t("form.key")}
+                    description={t("form.parameter.key.cardHint")}
+                    value={
+                      form.key
+                        ? `${TONIC_LABELS[form.key.tonic] ?? form.key.tonic} · ${t(form.key.mode === "minor" ? "form.key.minor" : "form.key.major")}`
+                        : t("form.automatic")
+                    }
+                    onClick={() => setAdvancedSettingsPage("key")}
+                  />
+                  <FormParameterCard
+                    title={t("form.meter")}
+                    description={t("form.parameter.meter.cardHint")}
+                    value={
+                      form.meter
+                        ? `${form.meter.numerator}/${form.meter.denominator}`
+                        : t("form.automatic")
+                    }
+                    onClick={() => setAdvancedSettingsPage("meter")}
+                  />
+                  <FormParameterCard
+                    title={t("form.seed")}
+                    description={t("form.parameter.seed.cardHint")}
+                    value={
+                      form.seed == null
+                        ? t("form.automatic")
+                        : String(form.seed)
+                    }
+                    onClick={() => setAdvancedSettingsPage("seed")}
+                  />
+                </nav>
+              )}
+
+              {advancedSettingsPage === "plan" && (
+                <section className="form-parameter-page">
+                  <p className="hint">
+                    {t(
+                      form.cot === "off"
+                        ? "form.plan.offHint"
+                        : form.cot === "melody"
+                          ? "form.plan.melodyHint"
+                          : "form.plan.fullHint",
+                    )}
+                  </p>
+                  <label className="form-field">
+                    {t("form.plan")}
+                    <select
+                      value={form.cot}
+                      onChange={(e) => setForm({ cot: e.target.value })}
+                    >
+                      <option value="full">{t("form.plan.full")}</option>
+                      <option value="melody">{t("form.plan.melody")}</option>
+                      <option value="off">{t("form.plan.off")}</option>
+                    </select>
+                  </label>
+                </section>
+              )}
+
+              {advancedSettingsPage === "key" && (
+                <section className="form-parameter-page">
+                  <label className="form-field">
+                    {t("form.key")}
+                    <div className="row">
+                      <select
+                        value={form.key?.tonic ?? ""}
+                        onChange={(e) => {
+                          const tonic = e.target.value;
+                          if (!tonic) setForm({ key: null });
+                          else
+                            setForm({
+                              key: {
+                                tonic,
+                                mode: form.key?.mode ?? "major",
+                              },
+                            });
+                        }}
+                      >
+                        <option value="">{t("form.automatic")}</option>
+                        {TONICS.map((tonic) => (
+                          <option key={tonic} value={tonic}>
+                            {TONIC_LABELS[tonic]}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        aria-label={t("form.key.mode")}
+                        value={form.key?.mode ?? "major"}
+                        disabled={!form.key}
+                        onChange={(e) =>
+                          form.key &&
+                          setForm({
+                            key: { ...form.key, mode: e.target.value },
+                          })
+                        }
+                      >
+                        <option value="major">{t("form.key.major")}</option>
+                        <option value="minor">{t("form.key.minor")}</option>
+                      </select>
+                    </div>
+                  </label>
+                </section>
+              )}
+
+              {advancedSettingsPage === "meter" && (
+                <section className="form-parameter-page">
+                  <label className="form-field">
+                    {t("form.meter")}
+                    <select
+                      value={
+                        form.meter
+                          ? `${form.meter.numerator}/${form.meter.denominator}`
+                          : ""
+                      }
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (!v) setForm({ meter: null });
+                        else {
+                          const [n, d] = v.split("/").map(Number);
+                          setForm({
+                            meter: { numerator: n, denominator: d },
+                          });
+                        }
+                      }}
+                    >
+                      {METERS.map((m) => (
+                        <option key={m || "none"} value={m}>
+                          {m || t("form.automatic")}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </section>
+              )}
+
+              {advancedSettingsPage === "seed" && (
+                <section className="form-parameter-page">
+                  <label className="form-field">
+                    {t("form.seed")}
+                    <input
+                      type="number"
+                      min={0}
+                      max={4294967295}
+                      placeholder={t("form.seed.placeholder")}
+                      value={form.seed ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value.trim();
+                        if (!raw) {
+                          setForm({ seed: null });
+                          return;
+                        }
+                        const n = Number(raw);
+                        if (!Number.isFinite(n) || n < 0) {
+                          setForm({ seed: null });
+                          return;
+                        }
+                        setForm({
+                          seed: Math.min(Math.trunc(n), 4294967295),
+                        });
+                      }}
+                    />
+                  </label>
+                </section>
+              )}
+
+              {showFormErrors && formError && (
+                <p className="hint error">{formError}</p>
+              )}
+              {scoreGate.error && (
+                <p className="hint error">{scoreGate.error}</p>
+              )}
+              {scoreDocument && !scoreGate.error && (
+                <p className="hint ok">{t("score.willSendAbc")}</p>
+              )}
+              {!scoreDocument && (
+                <p className="hint">{t("score.phase1Path")}</p>
+              )}
+              <div className="song-actions">
+                <div className="btn-row song-actions-primary">
+                  <button
+                    type="button"
+                    className="btn primary"
+                    disabled={!canGenerate}
+                    onClick={() => void onGenerate()}
+                  >
+                    {t("generate.button")}
+                  </button>
+                </div>
+              </div>
+            </div>
           </section>
         )}
 
-        {advancedSettingsPage === "key" && (
-          <section className="form-parameter-page">
-            <label className="form-field">
-              {t("form.key")}
-              <div className="row">
-                <select
-                  value={form.key?.tonic ?? ""}
-                  onChange={(e) => {
-                    const tonic = e.target.value;
-                    if (!tonic) setForm({ key: null });
-                    else
-                      setForm({
-                        key: { tonic, mode: form.key?.mode ?? "major" },
-                      });
+        {workspace === "score" && (
+          <section
+            className="song-workspace-panel wide"
+            role="tabpanel"
+            id="song-panel-score"
+            aria-labelledby="song-tab-score"
+          >
+            <header className="song-workspace-heading">
+              <h2>{workspaceTitle("score")}</h2>
+              <p className="hint">{workspaceIntro("score")}</p>
+            </header>
+
+            <div className="score-edit-section">
+              <ScorePanel
+                projectId={project.id}
+                document={scoreDocument}
+                cot={form.cot}
+                title={form.title}
+                onDocumentChange={setScoreDocument}
+                onProjectRefresh={() => openProject(project.id)}
+                onError={setError}
+                onCotChange={(cot) => setForm({ cot })}
+                defaultOpen
+              />
+            </div>
+
+            <div
+              className="song-actions"
+              aria-label={t("workspace.score.primary")}
+            >
+              <ScoreOnlyGenerate
+                canGenerate={canGenerateScoreOnly}
+                busy={busy}
+                onGenerateScoreOnly={onGenerateScoreOnly}
+              />
+              <MultiRenderFromScore
+                generations={generations}
+                busy={busy}
+                renderCount={renderFromScoreCount}
+                onRenderCountChange={setRenderFromScoreCount}
+                onRenderFromScore={onRenderFromScore}
+              />
+            </div>
+
+            <div className="sheetsage-section">
+              <h3>{t("sheetsage.title")}</h3>
+              <SheetSage2Panel
+                projectId={project.id}
+                form={form}
+                mix={mix}
+                busy={busy}
+                onConfirmGenerate={async (confirmedAbc, cot) => {
+                  setBusy(true);
+                  setError(null);
+                  try {
+                    const formForCall: FormInput = { ...form, cot };
+                    await api.startGeneration(
+                      project.id,
+                      formForCall,
+                      confirmedAbc,
+                      {
+                        sourceGenerationId: project.activeGenerationId ?? null,
+                      },
+                    );
+                    await openProject(project.id);
+                  } catch (e) {
+                    setError(String(e));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              />
+            </div>
+
+            <details
+              open={scoreOpen}
+              onToggle={(e) =>
+                setScoreOpen((e.target as HTMLDetailsElement).open)
+              }
+            >
+              <summary>{t("score.toggle")}</summary>
+              <pre className="score">{scoreAbc ?? t("score.empty")}</pre>
+            </details>
+          </section>
+        )}
+
+        {workspace === "production" && (
+          <section
+            className="song-workspace-panel wide"
+            role="tabpanel"
+            id="song-panel-production"
+            aria-labelledby="song-tab-production"
+          >
+            <header className="song-workspace-heading">
+              <h2>{workspaceTitle("production")}</h2>
+              <p className="hint">{workspaceIntro("production")}</p>
+            </header>
+
+            <div className="song-actions">
+              <div className="btn-row song-actions-primary">
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={!project.activeGenerationId || busy}
+                  onClick={() => void onSeparate()}
+                >
+                  {t("separate.button")}
+                </button>
+              </div>
+              <div
+                className="btn-row song-actions-export"
+                role="group"
+                aria-label={t("export.group")}
+              >
+                <span className="song-actions-label">{t("export.group")}</span>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={!project.activeGenerationId || busy}
+                  onClick={() => void onExport("wav")}
+                >
+                  {t("export.wav")}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={!project.activeGenerationId || busy}
+                  onClick={() => void onExport("flac")}
+                >
+                  {t("export.flac")}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={!project.activeGenerationId || busy}
+                  onClick={() => void onExport("mp3")}
+                >
+                  {t("export.mp3")}
+                </button>
+              </div>
+            </div>
+
+            <div className="mix-user-actions">
+              <button
+                type="button"
+                className="btn"
+                disabled={busy || importingAudio}
+                onClick={() => void onImportUserAudio()}
+              >
+                {importingAudio ? t("mix.importing") : t("mix.importAudio")}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => setRecordOpen((v) => !v)}
+                aria-expanded={recordOpen}
+              >
+                {t("mix.recordAudio")}
+              </button>
+              <p className="hint">{t("mix.importHint")}</p>
+            </div>
+
+            <RecordTrackPanel
+              projectId={project.id}
+              open={recordOpen}
+              onClose={() => setRecordOpen(false)}
+              onTrackAdded={(m) => void onUserTrackAdded(m)}
+              onError={setError}
+            />
+
+            {mix ? (
+              <div className="mixer">
+                {separationInfo && separationInfo.warnings.length > 0 && (
+                  <aside
+                    className="banner warn separation-warn"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div>
+                      <strong>{t("separation.warn.title")}</strong>
+                      <ul className="separation-warn-list">
+                        {separationInfo.warnings.map((code) => (
+                          <li key={code}>{warningLabel(code)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </aside>
+                )}
+                <label className="master">
+                  {t("mix.master")}
+                  <input
+                    type="range"
+                    min={-24}
+                    max={12}
+                    step={0.5}
+                    value={mix.masterGainDb}
+                    onChange={(e) =>
+                      scheduleMixUpdate({
+                        ...mix,
+                        masterGainDb: Number(e.target.value),
+                      })
+                    }
+                  />
+                  <span className="mix-value">
+                    {formatGainDb(mix.masterGainDb)}
+                  </span>
+                </label>
+                {mix.tracks.map((tr) => {
+                  const anySolo = mix.tracks.some((x) => x.solo);
+                  const muted = tr.mute || (anySolo && !tr.solo);
+                  const peaks = playback?.peaksByTrack[tr.id] ?? null;
+                  const waveStatus =
+                    !playback || playback.loading || !playback.ready
+                      ? "loading"
+                      : peaks && peaks.length > 0
+                        ? "ready"
+                        : "empty";
+                  return (
+                    <div
+                      key={tr.id}
+                      className="track"
+                      data-role={tr.role.toLowerCase()}
+                    >
+                      <strong className="track-name">{tr.name}</strong>
+                      <button
+                        type="button"
+                        className={tr.mute ? "btn active" : "btn"}
+                        onClick={() =>
+                          scheduleMixUpdate({
+                            ...mix,
+                            tracks: mix.tracks.map((x) =>
+                              x.id === tr.id ? { ...x, mute: !x.mute } : x,
+                            ),
+                          })
+                        }
+                      >
+                        {t("mix.mute")}
+                      </button>
+                      <button
+                        type="button"
+                        className={tr.solo ? "btn active" : "btn"}
+                        onClick={() =>
+                          scheduleMixUpdate({
+                            ...mix,
+                            tracks: mix.tracks.map((x) =>
+                              x.id === tr.id ? { ...x, solo: !x.solo } : x,
+                            ),
+                          })
+                        }
+                      >
+                        {t("mix.solo")}
+                      </button>
+                      <div className="track-wave">
+                        <Waveform
+                          peaks={peaks}
+                          progress={playback?.current ?? 0}
+                          duration={playback?.duration ?? 0}
+                          height={40}
+                          muted={muted}
+                          status={waveStatus}
+                          role={tr.role}
+                          ariaLabel={tr.name}
+                          onSeek={playback?.seek}
+                        />
+                      </div>
+                      <label className="track-gain">
+                        <span className="track-fader-label">
+                          <span>{t("mix.gain")}</span>
+                          <span className="mix-value" aria-hidden>
+                            {formatGainDb(tr.gainDb)}
+                          </span>
+                        </span>
+                        <input
+                          type="range"
+                          min={-24}
+                          max={12}
+                          step={0.5}
+                          value={tr.gainDb}
+                          aria-label={t("mix.gainNamed", { track: tr.name })}
+                          aria-valuetext={formatGainDb(tr.gainDb)}
+                          onChange={(e) =>
+                            scheduleMixUpdate({
+                              ...mix,
+                              tracks: mix.tracks.map((x) =>
+                                x.id === tr.id
+                                  ? { ...x, gainDb: Number(e.target.value) }
+                                  : x,
+                              ),
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="track-pan">
+                        <span className="track-fader-label">
+                          <span>{t("mix.pan")}</span>
+                          <span className="mix-value" aria-hidden>
+                            {formatPan(tr.pan)}
+                          </span>
+                        </span>
+                        <input
+                          type="range"
+                          min={-1}
+                          max={1}
+                          step={0.01}
+                          value={tr.pan}
+                          aria-label={t("mix.panNamed", { track: tr.name })}
+                          aria-valuetext={formatPan(tr.pan)}
+                          onChange={(e) =>
+                            scheduleMixUpdate({
+                              ...mix,
+                              tracks: mix.tracks.map((x) =>
+                                x.id === tr.id
+                                  ? { ...x, pan: Number(e.target.value) }
+                                  : x,
+                              ),
+                            })
+                          }
+                        />
+                      </label>
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() =>
+                    void api
+                      .saveMixVersion(project.id)
+                      .then((m) => setMix(m))
+                      .catch((e) => setError(String(e)))
+                  }
+                >
+                  {t("mix.saveVersion")}
+                </button>
+                <ClipTimeline
+                  mix={mix}
+                  onChange={scheduleMixUpdate}
+                  peaksByTrack={playback?.peaksByTrack}
+                  roleByTrack={roleByTrack}
+                  sourceDurationMsByTrack={sourceDurationMsByTrack}
+                />
+              </div>
+            ) : (
+              <p className="hint">{t("mix.needSeparation")}</p>
+            )}
+
+            {mix && (
+              <div className="advanced-production">
+                <h3>{t("phase3.mix.title")}</h3>
+                <p className="hint">{t("phase3.mix.intro")}</p>
+                <Phase3MixPanel mix={mix} sources={playbackSources} />
+              </div>
+            )}
+          </section>
+        )}
+
+        {workspace === "versions" && (
+          <section
+            className="song-workspace-panel wide"
+            role="tabpanel"
+            id="song-panel-versions"
+            aria-labelledby="song-tab-versions"
+          >
+            <header className="song-workspace-heading">
+              <h2>{workspaceTitle("versions")}</h2>
+              <p className="hint">{workspaceIntro("versions")}</p>
+            </header>
+
+            <CandidateCompare
+              generations={generations}
+              activeId={project.activeGenerationId}
+              busy={busy}
+              candidateCount={candidateCount}
+              onCandidateCount={setCandidateCount}
+              onGenerateBatch={onGenerateBatch}
+              onUse={(genId) => {
+                void api
+                  .useGeneration(project.id, genId)
+                  .then(() => openProject(project.id));
+              }}
+            />
+
+            {generations.find((g) => g.id === project.activeGenerationId)
+              ?.semanticTruncated && (
+              <section
+                className="continuation-panel"
+                aria-labelledby="continue-title"
+              >
+                <h3 id="continue-title">{t("generations.lyricsTruncated")}</h3>
+                <p className="hint">{t("generations.continueHint")}</p>
+                <label>
+                  {t("generations.remainingLyrics")}
+                  <textarea
+                    rows={5}
+                    value={continuationLyrics}
+                    onChange={(e) => setContinuationLyrics(e.target.value)}
+                    placeholder={t("generations.remainingLyricsPlaceholder")}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={
+                    busy ||
+                    !continuationLyrics.trim() ||
+                    !generations.find(
+                      (g) => g.id === project.activeGenerationId,
+                    )?.canContinue
+                  }
+                  onClick={() => {
+                    const active = generations.find(
+                      (g) => g.id === project.activeGenerationId,
+                    );
+                    if (active) void onContinue(active.id);
                   }}
                 >
-                  <option value="">{t("form.automatic")}</option>
-                  {TONICS.map((tonic) => (
-                    <option key={tonic} value={tonic}>
-                      {TONIC_LABELS[tonic]}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  aria-label={t("form.key.mode")}
-                  value={form.key?.mode ?? "major"}
-                  disabled={!form.key}
-                  onChange={(e) =>
-                    form.key &&
-                    setForm({ key: { ...form.key, mode: e.target.value } })
-                  }
-                >
-                  <option value="major">{t("form.key.major")}</option>
-                  <option value="minor">{t("form.key.minor")}</option>
-                </select>
-              </div>
-            </label>
-          </section>
-        )}
+                  {t("generations.continue")}
+                </button>
+              </section>
+            )}
 
-        {advancedSettingsPage === "meter" && (
-          <section className="form-parameter-page">
-            <label className="form-field">
-              {t("form.meter")}
-              <select
-                value={
-                  form.meter
-                    ? `${form.meter.numerator}/${form.meter.denominator}`
-                    : ""
-                }
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (!v) setForm({ meter: null });
-                  else {
-                    const [n, d] = v.split("/").map(Number);
-                    setForm({ meter: { numerator: n, denominator: d } });
-                  }
-                }}
-              >
-                {METERS.map((m) => (
-                  <option key={m || "none"} value={m}>
-                    {m || t("form.automatic")}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </section>
-        )}
-
-        {advancedSettingsPage === "seed" && (
-          <section className="form-parameter-page">
-            <label className="form-field">
-              {t("form.seed")}
-              <input
-                type="number"
-                min={0}
-                max={4294967295}
-                placeholder={t("form.seed.placeholder")}
-                value={form.seed ?? ""}
-                onChange={(e) => {
-                  const raw = e.target.value.trim();
-                  if (!raw) {
-                    setForm({ seed: null });
-                    return;
-                  }
-                  const n = Number(raw);
-                  if (!Number.isFinite(n) || n < 0) {
-                    setForm({ seed: null });
-                    return;
-                  }
-                  setForm({ seed: Math.min(Math.trunc(n), 4294967295) });
+            <div className="version-history">
+              <h3>
+                {t("versions.history", {
+                  count: String(generations.length),
+                })}
+              </h3>
+              <p className="hint">{t("versions.hint")}</p>
+              <VersionGraph
+                generations={generations}
+                activeId={project.activeGenerationId}
+                onUse={(genId) => {
+                  void api
+                    .useGeneration(project.id, genId)
+                    .then(() => openProject(project.id));
                 }}
               />
-            </label>
-          </section>
-        )}
-        {showFormErrors && formError && (
-          <p className="hint error">{formError}</p>
-        )}
-        {scoreGate.error && <p className="hint error">{scoreGate.error}</p>}
-        {scoreDocument && !scoreGate.error && (
-          <p className="hint ok">{t("score.willSendAbc")}</p>
-        )}
-        {!scoreDocument && (
-          <p className="hint">{t("score.phase1Path")}</p>
-        )}
-        {job && job.state !== "idle" && (
-          <p className="hint job">{job.label || t("job.generating")}</p>
-        )}
-        <div className="song-actions">
-          <div className="btn-row song-actions-primary">
-            <button
-              type="button"
-              className="btn primary"
-              disabled={!canGenerate}
-              onClick={() => void onGenerate()}
-            >
-              {t("generate.button")}
-            </button>
-            {advancedSettingsPage === null && (
-              <button
-                type="button"
-                className="btn"
-                disabled={!project.activeGenerationId || busy}
-                onClick={() => void onSeparate()}
-              >
-                {t("separate.button")}
-              </button>
-            )}
-          </div>
-          {advancedSettingsPage === null && (
-            <div
-              className="btn-row song-actions-export"
-              role="group"
-              aria-label={t("export.group")}
-            >
-              <span className="song-actions-label">{t("export.group")}</span>
-              <button
-                type="button"
-                className="btn"
-                disabled={!project.activeGenerationId || busy}
-                onClick={() => void onExport("wav")}
-              >
-                {t("export.wav")}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                disabled={!project.activeGenerationId || busy}
-                onClick={() => void onExport("flac")}
-              >
-                {t("export.flac")}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                disabled={!project.activeGenerationId || busy}
-                onClick={() => void onExport("mp3")}
-              >
-                {t("export.mp3")}
-              </button>
             </div>
-          )}
-        </div>
-        {advancedSettingsPage === null && (
-          <>
-            <ScoreOnlyGenerate
-              canGenerate={canGenerateScoreOnly}
-              busy={busy}
-              onGenerateScoreOnly={onGenerateScoreOnly}
-            />
-            <MultiRenderFromScore
-              generations={generations}
-              busy={busy}
-              renderCount={renderFromScoreCount}
-              onRenderCountChange={setRenderFromScoreCount}
-              onRenderFromScore={onRenderFromScore}
-            />
-          </>
-        )}
-      </aside>
-
-      <section className="song-stage">
-        <AudioPlayer
-          projectId={project.id}
-          sources={playbackSources}
-          mix={mix}
-          onError={setError}
-          onPlaybackChange={setPlayback}
-        />
-
-        <CandidateCompare
-          generations={generations}
-          activeId={project.activeGenerationId}
-          busy={busy}
-          candidateCount={candidateCount}
-          onCandidateCount={setCandidateCount}
-          onGenerateBatch={onGenerateBatch}
-          onUse={(genId) => {
-            void api
-              .useGeneration(project.id, genId)
-              .then(() => openProject(project.id));
-          }}
-        />
-
-        <details className="score-edit-section" open>
-          <summary>{t("score.editor")}</summary>
-          <ScorePanel
-            projectId={project.id}
-            document={scoreDocument}
-            cot={form.cot}
-            title={form.title}
-            onDocumentChange={setScoreDocument}
-            onProjectRefresh={() => openProject(project.id)}
-            onError={setError}
-            onCotChange={(cot) => setForm({ cot })}
-            defaultOpen
-          />
-        </details>
-
-        <details className="sheetsage-section">
-          <summary>{t("sheetsage.title")}</summary>
-          <SheetSage2Panel
-            projectId={project.id}
-            form={form}
-            mix={mix}
-            busy={busy}
-            onConfirmGenerate={async (confirmedAbc, cot) => {
-              setBusy(true);
-              setError(null);
-              try {
-                const formForCall: FormInput = { ...form, cot };
-                await api.startGeneration(
-                  project.id,
-                  formForCall,
-                  confirmedAbc,
-                  {
-                    sourceGenerationId: project.activeGenerationId ?? null,
-                  },
-                );
-                await openProject(project.id);
-              } catch (e) {
-                setError(String(e));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          />
-        </details>
-
-        {generations.find((g) => g.id === project.activeGenerationId)
-          ?.semanticTruncated && (
-          <section className="continuation-panel" aria-labelledby="continue-title">
-            <h3 id="continue-title">{t("generations.lyricsTruncated")}</h3>
-            <p className="hint">{t("generations.continueHint")}</p>
-            <label>
-              {t("generations.remainingLyrics")}
-              <textarea
-                rows={5}
-                value={continuationLyrics}
-                onChange={(e) => setContinuationLyrics(e.target.value)}
-                placeholder={t("generations.remainingLyricsPlaceholder")}
-              />
-            </label>
-            <button
-              type="button"
-              className="btn"
-              disabled={busy || !continuationLyrics.trim() || !generations.find((g) => g.id === project.activeGenerationId)?.canContinue}
-              onClick={() => {
-                const active = generations.find((g) => g.id === project.activeGenerationId);
-                if (active) void onContinue(active.id);
-              }}
-            >
-              {t("generations.continue")}
-            </button>
           </section>
         )}
-
-        <div className="mix-user-actions">
-          <button
-            type="button"
-            className="btn"
-            disabled={busy || importingAudio}
-            onClick={() => void onImportUserAudio()}
-          >
-            {importingAudio ? t("mix.importing") : t("mix.importAudio")}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={busy}
-            onClick={() => setRecordOpen((v) => !v)}
-            aria-expanded={recordOpen}
-          >
-            {t("mix.recordAudio")}
-          </button>
-          <p className="hint">{t("mix.importHint")}</p>
-        </div>
-
-        <RecordTrackPanel
-          projectId={project.id}
-          open={recordOpen}
-          onClose={() => setRecordOpen(false)}
-          onTrackAdded={(m) => void onUserTrackAdded(m)}
-          onError={setError}
-        />
-
-        {mix ? (
-          <div className="mixer">
-            {separationInfo && separationInfo.warnings.length > 0 && (
-              <aside
-                className="banner warn separation-warn"
-                role="status"
-                aria-live="polite"
-              >
-                <div>
-                  <strong>{t("separation.warn.title")}</strong>
-                  <ul className="separation-warn-list">
-                    {separationInfo.warnings.map((code) => (
-                      <li key={code}>{warningLabel(code)}</li>
-                    ))}
-                  </ul>
-                </div>
-              </aside>
-            )}
-            <label className="master">
-              {t("mix.master")}
-              <input
-                type="range"
-                min={-24}
-                max={12}
-                step={0.5}
-                value={mix.masterGainDb}
-                onChange={(e) =>
-                  scheduleMixUpdate({
-                    ...mix,
-                    masterGainDb: Number(e.target.value),
-                  })
-                }
-              />
-              <span className="mix-value">{formatGainDb(mix.masterGainDb)}</span>
-            </label>
-            {mix.tracks.map((tr) => {
-              const anySolo = mix.tracks.some((x) => x.solo);
-              const muted = tr.mute || (anySolo && !tr.solo);
-              const peaks = playback?.peaksByTrack[tr.id] ?? null;
-              const waveStatus =
-                !playback || playback.loading || !playback.ready
-                  ? "loading"
-                  : peaks && peaks.length > 0
-                    ? "ready"
-                    : "empty";
-              return (
-                <div key={tr.id} className="track" data-role={tr.role.toLowerCase()}>
-                  <strong className="track-name">{tr.name}</strong>
-                  <button
-                    type="button"
-                    className={tr.mute ? "btn active" : "btn"}
-                    onClick={() =>
-                      scheduleMixUpdate({
-                        ...mix,
-                        tracks: mix.tracks.map((x) =>
-                          x.id === tr.id ? { ...x, mute: !x.mute } : x,
-                        ),
-                      })
-                    }
-                  >
-                    {t("mix.mute")}
-                  </button>
-                  <button
-                    type="button"
-                    className={tr.solo ? "btn active" : "btn"}
-                    onClick={() =>
-                      scheduleMixUpdate({
-                        ...mix,
-                        tracks: mix.tracks.map((x) =>
-                          x.id === tr.id ? { ...x, solo: !x.solo } : x,
-                        ),
-                      })
-                    }
-                  >
-                    {t("mix.solo")}
-                  </button>
-                  <div className="track-wave">
-                    <Waveform
-                      peaks={peaks}
-                      progress={playback?.current ?? 0}
-                      duration={playback?.duration ?? 0}
-                      height={40}
-                      muted={muted}
-                      status={waveStatus}
-                      role={tr.role}
-                      ariaLabel={tr.name}
-                      onSeek={playback?.seek}
-                    />
-                  </div>
-                  <label className="track-gain">
-                    <span className="track-fader-label">
-                      <span>{t("mix.gain")}</span>
-                      <span className="mix-value" aria-hidden>
-                        {formatGainDb(tr.gainDb)}
-                      </span>
-                    </span>
-                    <input
-                      type="range"
-                      min={-24}
-                      max={12}
-                      step={0.5}
-                      value={tr.gainDb}
-                      aria-label={t("mix.gainNamed", { track: tr.name })}
-                      aria-valuetext={formatGainDb(tr.gainDb)}
-                      onChange={(e) =>
-                        scheduleMixUpdate({
-                          ...mix,
-                          tracks: mix.tracks.map((x) =>
-                            x.id === tr.id
-                              ? { ...x, gainDb: Number(e.target.value) }
-                              : x,
-                          ),
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="track-pan">
-                    <span className="track-fader-label">
-                      <span>{t("mix.pan")}</span>
-                      <span className="mix-value" aria-hidden>
-                        {formatPan(tr.pan)}
-                      </span>
-                    </span>
-                    <input
-                      type="range"
-                      min={-1}
-                      max={1}
-                      step={0.01}
-                      value={tr.pan}
-                      aria-label={t("mix.panNamed", { track: tr.name })}
-                      aria-valuetext={formatPan(tr.pan)}
-                      onChange={(e) =>
-                        scheduleMixUpdate({
-                          ...mix,
-                          tracks: mix.tracks.map((x) =>
-                            x.id === tr.id
-                              ? { ...x, pan: Number(e.target.value) }
-                              : x,
-                          ),
-                        })
-                      }
-                    />
-                  </label>
-                </div>
-              );
-            })}
-            <button
-              type="button"
-              className="btn"
-              onClick={() =>
-                void api
-                  .saveMixVersion(project.id)
-                  .then((m) => setMix(m))
-                  .catch((e) => setError(String(e)))
-              }
-            >
-              {t("mix.saveVersion")}
-            </button>
-            <ClipTimeline
-              mix={mix}
-              onChange={scheduleMixUpdate}
-              peaksByTrack={playback?.peaksByTrack}
-              roleByTrack={roleByTrack}
-              sourceDurationMsByTrack={sourceDurationMsByTrack}
-            />
-          </div>
-        ) : (
-          <p className="hint">{t("mix.needSeparation")}</p>
-        )}
-
-        {mix && (
-          <details className="advanced-production">
-            <summary>{t("phase3.mix.title")}</summary>
-            <Phase3MixPanel mix={mix} sources={playbackSources} />
-          </details>
-        )}
-
-        <details
-          open={scoreOpen}
-          onToggle={(e) => setScoreOpen((e.target as HTMLDetailsElement).open)}
-        >
-          <summary>{t("score.toggle")}</summary>
-          <pre className="score">{scoreAbc ?? t("score.empty")}</pre>
-        </details>
-
-        <details className="version-history">
-          <summary>{t("versions.history", { count: String(generations.length) })}</summary>
-          <VersionGraph
-            generations={generations}
-            activeId={project.activeGenerationId}
-            onUse={(genId) => {
-              void api
-                .useGeneration(project.id, genId)
-                .then(() => openProject(project.id));
-            }}
-          />
-        </details>
-      </section>
+      </div>
 
       {remotePrefs && (
         <RemoteGenerateConfirm
@@ -1356,6 +1576,7 @@ export function SongScreen() {
     </div>
   );
 }
+
 
 function FormParameterCard({
   title,
