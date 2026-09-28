@@ -54,8 +54,12 @@ function emptyOverlay(mixId: string): ProductionOverlay {
     mixId,
     volumePointsByTrack: {},
     panPointsByTrack: {},
+    automationLanes: {},
     effectsByTrack: {},
     sidechainRoutes: [],
+    buses: [],
+    sends: [],
+    trackGroupIds: {},
   };
 }
 
