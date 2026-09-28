@@ -1384,6 +1384,37 @@ details[open] > summary {
   );
 }
 
+.production-copilot-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.production-copilot-item {
+  margin: 0;
+}
+
+.production-copilot-label {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.production-copilot-label input {
+  margin-top: 0.2rem;
+}
+
+.production-copilot-changes {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  color: var(--muted, #9aa3ad);
+}
+
 .mix-assist-title {
   margin: 0;
   font-size: 1rem;
