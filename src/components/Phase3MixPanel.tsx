@@ -433,7 +433,6 @@ export function Phase3MixPanel({ mix, sources = null }: Props) {
 
   return (
     <section className="phase3-panel phase3-mix" aria-label={t("phase3.mix.title")}>
-      <p className="hint">{t("phase3.mix.intro")}</p>
       <p className={`hint ${active ? "ok" : ""}`}>{honesty}</p>
 
       {!mix ? (

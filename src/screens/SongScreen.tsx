@@ -1689,7 +1689,6 @@ export function SongScreen() {
             >
               {mix ? (
                 <div className="production-clips">
-                  <p className="hint">{t("clips.hint")}</p>
                   <ClipTimeline
                     mix={mix}
                     onChange={scheduleMixUpdate}
@@ -1710,8 +1709,6 @@ export function SongScreen() {
               hidden={productionView !== "tools"}
               className="advanced-production"
             >
-              <h3>{t("phase3.mix.title")}</h3>
-              <p className="hint">{t("phase3.mix.intro")}</p>
               <Phase3MixPanel mix={mix} sources={playbackSources} />
             </div>
           </section>

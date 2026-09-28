@@ -1,9 +1,19 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LoraTrainingPanel } from "../components/LoraTrainingPanel";
 import { Phase3SettingsPanel } from "../components/Phase3SettingsPanel";
 import { Phase4SettingsPanel } from "../components/Phase4SettingsPanel";
 import { ProjectSyncPanel } from "../components/ProjectSyncPanel";
 import { api } from "../lib/api";
+import {
+  loraTrainStatusLabelKey,
+  resolveLoraTrainRuntimeStatus,
+  type LoraTrainRuntimeStatus,
+} from "../lib/loraTrainStatus";
+import {
+  isTauriRuntime,
+  runtimeApi,
+  type LoraTrainerProbe,
+} from "../lib/runtimeHost";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 
@@ -26,13 +36,55 @@ export function SettingsScreen() {
   const setScreen = useAppStore((s) => s.setScreen);
   const setError = useAppStore((s) => s.setError);
   const [page, setPage] = useState<SettingsPage>("home");
+  const [loraProbe, setLoraProbe] = useState<LoraTrainerProbe | null>(null);
+  const [loraProbing, setLoraProbing] = useState(true);
+  const [loraPanelStatus, setLoraPanelStatus] =
+    useState<LoraTrainRuntimeStatus | null>(null);
+
+  const refreshLoraProbe = useCallback(async () => {
+    if (!isTauriRuntime()) {
+      setLoraProbe(null);
+      setLoraProbing(false);
+      return;
+    }
+    setLoraProbing(true);
+    try {
+      const probe = await runtimeApi.loraTrainProbe();
+      setLoraProbe(probe);
+    } catch {
+      setLoraProbe(null);
+    } finally {
+      setLoraProbing(false);
+    }
+  }, []);
 
   useEffect(() => {
     void refreshSettings();
     void refreshHealth();
   }, [refreshSettings, refreshHealth]);
 
+  useEffect(() => {
+    if (page === "home" || page === "loraTrain") {
+      void refreshLoraProbe();
+    }
+  }, [page, refreshLoraProbe]);
+
   if (!settings) return <p>…</p>;
+
+  const probeStatus = resolveLoraTrainRuntimeStatus({
+    probing: loraProbing,
+    hostAvailable: isTauriRuntime(),
+    probe: loraProbe,
+  });
+  // Prefer live probe for host/runner absence; keep panel session status otherwise.
+  const loraCardStatus =
+    probeStatus === "probing" ||
+    probeStatus === "host_required" ||
+    probeStatus === "runner_absent" ||
+    probeStatus === "python_missing"
+      ? probeStatus
+      : (loraPanelStatus ?? probeStatus);
+  const loraCardValue = t(loraTrainStatusLabelKey(loraCardStatus));
 
   const pageTitle: Record<Exclude<SettingsPage, "home">, string> = {
     model: t("settings.model.title"),
@@ -93,7 +145,7 @@ export function SettingsScreen() {
             <SettingsCard
               title={pageTitle.loraTrain}
               description={t("settings.card.loraTrain")}
-              value={t("settings.card.pilotStub")}
+              value={loraCardValue}
               onClick={() => setPage("loraTrain")}
             />
             <SettingsCard
@@ -193,7 +245,11 @@ export function SettingsScreen() {
       )}
       {page === "loraTrain" && (
         <div className="settings-detail-page">
-          <LoraTrainingPanel />
+          <LoraTrainingPanel
+            probe={loraProbe}
+            probing={loraProbing}
+            onRuntimeStatusChange={setLoraPanelStatus}
+          />
         </div>
       )}
       {page === "remote" && <Phase4SettingsPanel view="remote" />}
