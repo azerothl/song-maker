@@ -1370,6 +1370,92 @@ details[open] > summary {
   container-name: mixer;
 }
 
+.mix-assist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.75rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.03),
+    rgba(0, 0, 0, 0.12)
+  );
+}
+
+.mix-assist-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.mix-assist-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mix-assist-block h4 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.mix-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.mix-preset-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem;
+  align-items: start;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.mix-preset-card:has(input:checked) {
+  border-color: var(--accent-cyan);
+  background: rgba(105, 217, 232, 0.06);
+}
+
+.mix-preset-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.mix-preset-touches {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.mix-balance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  overflow-x: auto;
+  display: block;
+}
+
+.mix-balance-table th,
+.mix-balance-table td {
+  text-align: left;
+  padding: 0.35rem 0.45rem;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.mix-balance-table th {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
 .track,
 .master {
   display: grid;

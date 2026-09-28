@@ -6,6 +6,7 @@ import type {
 import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
 import { CandidateCompare } from "../components/CandidateCompare";
 import { ClipTimeline } from "../components/ClipTimeline";
+import { MixAssistPanel } from "../components/MixAssistPanel";
 import { MultiRenderFromScore } from "../components/MultiRenderFromScore";
 import { Phase3MixPanel } from "../components/Phase3MixPanel";
 import { RecordTrackPanel } from "../components/RecordTrackPanel";
@@ -377,6 +378,7 @@ export function SongScreen() {
     null,
   );
   const [importingAudio, setImportingAudio] = useState(false);
+  const [mixPreview, setMixPreview] = useState<MixDoc | null>(null);
   const [recordOpen, setRecordOpen] = useState(false);
   const [regenGateOpen, setRegenGateOpen] = useState(false);
   const [regenAfterDocument, setRegenAfterDocument] =
@@ -537,10 +539,12 @@ export function SongScreen() {
       }
       if (mod && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
+        setMixPreview(null);
         void api.undoMix(project.id).then((m) => m && setMix(m));
       }
       if (mod && e.shiftKey && e.key.toLowerCase() === "z") {
         e.preventDefault();
+        setMixPreview(null);
         void api.redoMix(project.id).then((m) => m && setMix(m));
       }
     };
@@ -738,6 +742,7 @@ export function SongScreen() {
 
   function scheduleMixUpdate(next: MixDoc | null) {
     if (!project || !next) return;
+    setMixPreview(null);
     setMix(next);
     if (mixTimer.current) window.clearTimeout(mixTimer.current);
     mixTimer.current = window.setTimeout(() => {
@@ -757,6 +762,13 @@ export function SongScreen() {
         .catch((e) => setError(String(e)));
     }, 200);
   }
+
+  const listeningMix = mixPreview ?? mix;
+  const showMixAssist =
+    !!mix &&
+    mix.tracks.length > 0 &&
+    playbackSources?.mode === "stems" &&
+    (playbackSources.stems?.length ?? 0) > 0;
 
   return (
     <div className="song-layout">
@@ -796,7 +808,7 @@ export function SongScreen() {
           <AudioPlayer
             projectId={project.id}
             sources={playbackSources}
-            mix={mix}
+            mix={listeningMix}
             onError={setError}
             onPlaybackChange={setPlayback}
           />
@@ -1528,6 +1540,15 @@ export function SongScreen() {
                         </ul>
                       </div>
                     </aside>
+                  )}
+                  {showMixAssist && (
+                    <MixAssistPanel
+                      mix={mix}
+                      sources={playbackSources}
+                      listeningMix={listeningMix ?? mix}
+                      onCommitMix={scheduleMixUpdate}
+                      onPreviewMix={setMixPreview}
+                    />
                   )}
                   <label className="master">
                     {t("mix.master")}
