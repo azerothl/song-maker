@@ -17,9 +17,10 @@ describe("@song-maker/sheetsage", () => {
   });
 
   it("blocks without license, binary, or weights", () => {
-    expect(
-      checkSheetsageReadiness(defaultSheetsageProbe()).status,
-    ).toBe("license_not_accepted");
+    const denied = checkSheetsageReadiness(defaultSheetsageProbe());
+    expect(denied.status).toBe("license_not_accepted");
+    expect(denied.messageFr).toMatch(/non acceptée/i);
+    expect(denied.messageFr).not.toMatch(/Nouvelle interprétation/);
     expect(
       checkSheetsageReadiness(
         defaultSheetsageProbe({ licenseAccepted: true }),

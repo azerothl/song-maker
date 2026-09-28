@@ -255,9 +255,12 @@ export function SheetSage2Panel({
         <li>{t("sheetsage.step.generate")}</li>
       </ol>
       <p className="hint warn" role="note">
-        {REINTERPRETATION_DISCLAIMER_FR}
+        {REINTERPRETATION_DISCLAIMER_FR}{" "}
+        {t("sheetsage.licenseLimits")}
       </p>
-      <p className="hint">{readiness.messageFr}</p>
+      {readiness.status !== "license_not_accepted" && (
+        <p className="hint">{readiness.messageFr}</p>
+      )}
 
       <label className="phase3-check">
         <input
