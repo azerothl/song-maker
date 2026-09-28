@@ -1760,6 +1760,94 @@ details[open] > summary {
   gap: 0.5rem;
 }
 
+.score-view-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0.35rem;
+}
+
+.score-view-tab {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--bg1);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.score-view-tab[aria-selected="true"] {
+  color: var(--text);
+  border-color: var(--accent-cyan);
+  background: color-mix(in srgb, var(--accent-cyan) 14%, var(--bg1));
+}
+
+.abc-staff-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.abc-staff-view.compact .abc-staff-scroll {
+  max-height: 220px;
+}
+
+.abc-staff-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.abc-staff-zoom-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  min-width: 3rem;
+  text-align: center;
+}
+
+.abc-staff-scroll {
+  overflow: auto;
+  max-height: min(420px, 55vh);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0b0e13;
+  padding: 0.35rem;
+}
+
+.abc-staff-paper {
+  min-width: 100%;
+  color: var(--text);
+}
+
+.abc-staff-paper svg {
+  max-width: none;
+}
+
+.abc-staff-paper .abcjs-highlight,
+.abc-staff-paper .abcjs-note_selected {
+  fill: #5ec8ff;
+  stroke: #5ec8ff;
+}
+
+.score-abc-raw {
+  max-height: min(360px, 50vh);
+  overflow: auto;
+}
+
+.score-staff-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.sheetsage-staff {
+  margin: 0.35rem 0 0.75rem;
+}
+
 .piano-toolbar {
   display: flex;
   flex-wrap: wrap;
