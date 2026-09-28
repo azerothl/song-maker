@@ -99,7 +99,10 @@ export function renderMixOffline(input: MixRenderInput): MixRenderResult {
     hasAutomation || hasEffects || hasSidechain ? "production" : "phase1";
 
   // 1) Build per-track interleaved, pad to maxLen, run effects.
+  // Reverb (and custom processors) may extend buffers — recompute frame count
+  // afterward so the documented wet queue is not truncated.
   const processed = new Map<string, Float32Array>();
+  const sr = Math.max(1, input.sampleRate);
   for (const track of input.tracks) {
     const left = new Float32Array(maxLen);
     const right = new Float32Array(maxLen);
@@ -107,16 +110,27 @@ export function renderMixOffline(input: MixRenderInput): MixRenderResult {
     right.set(track.right.subarray(0, Math.min(track.right.length, maxLen)));
     let interleaved = toInterleaved(left, right);
     if (input.effects) {
-      interleaved = input.effects.process(track.trackId, interleaved);
+      interleaved = input.effects.process(track.trackId, interleaved, sr);
     }
     processed.set(track.trackId, interleaved);
   }
 
+  for (const pcm of processed.values()) {
+    maxLen = Math.max(maxLen, Math.floor(pcm.length / 2));
+  }
+
   // 2) Sidechain ducking (destination modified from source envelopes).
+  // Pad shorter buffers to maxLen so linked ducking stays frame-aligned.
   if (input.sidechain) {
     for (const track of input.tracks) {
-      const dest = processed.get(track.trackId);
+      let dest = processed.get(track.trackId);
       if (!dest) continue;
+      if (dest.length < maxLen * 2) {
+        const padded = new Float32Array(maxLen * 2);
+        padded.set(dest);
+        dest = padded;
+        processed.set(track.trackId, dest);
+      }
       processed.set(
         track.trackId,
         input.sidechain.applyDucking(
@@ -133,7 +147,6 @@ export function renderMixOffline(input: MixRenderInput): MixRenderResult {
   const outL = new Float32Array(maxLen);
   const outR = new Float32Array(maxLen);
   const master = dbToLinear(input.masterGainDb);
-  const sr = Math.max(1, input.sampleRate);
 
   for (const track of input.tracks) {
     const silent = track.mute || (anySolo && !track.solo);

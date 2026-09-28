@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import {
   LORA_PACK_CATALOG,
   gateLoraPackAccess,
@@ -12,7 +13,7 @@ import {
   type StemProviderId,
 } from "@song-maker/stem-providers";
 import { api } from "../lib/api";
-import type { AppSettings, Phase3Status } from "../lib/types";
+import type { AppSettings, InstallProgress, Phase3Status } from "../lib/types";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 
@@ -28,10 +29,16 @@ export function Phase3SettingsPanel({
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [installingHtDemucs6s, setInstallingHtDemucs6s] = useState(false);
+  const [installingBsRoFormer, setInstallingBsRoFormer] = useState(false);
+  const [bsProgress, setBsProgress] = useState<InstallProgress | null>(null);
+  const [bsInfo, setBsInfo] = useState<Awaited<
+    ReturnType<typeof api.bsRoFormerInstallInfo>
+  > | null>(null);
 
   const refreshPhase3 = async () => {
     try {
       setPhase3(await api.getPhase3Status());
+      setBsInfo(await api.bsRoFormerInstallInfo());
     } catch (e) {
       setError(String(e));
     }
@@ -39,6 +46,18 @@ export function Phase3SettingsPanel({
 
   useEffect(() => {
     void refreshPhase3();
+  }, []);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listen<InstallProgress>("bs-roformer-progress", (event) => {
+      setBsProgress(event.payload);
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      unlisten?.();
+    };
   }, []);
 
   const providers = useMemo(
@@ -94,6 +113,29 @@ export function Phase3SettingsPanel({
     }
   };
 
+  const installBsRoFormer = async () => {
+    setInstallingBsRoFormer(true);
+    setDownloadNotice(null);
+    setBsProgress(null);
+    try {
+      const path = await api.installBsRoFormer();
+      await refreshPhase3();
+      setDownloadNotice(`${t("phase3.separator.bsInstallOk")}\n${path}`);
+    } catch (e) {
+      setDownloadNotice(String(e));
+    } finally {
+      setInstallingBsRoFormer(false);
+    }
+  };
+
+  const cancelBsRoFormer = async () => {
+    try {
+      await api.cancelBsRoFormerInstall();
+    } catch (e) {
+      setDownloadNotice(String(e));
+    }
+  };
+
   const acceptance = () => ({
     ccByNcAccepted: Boolean(settings.ccByNcAccepted ?? phase3?.ccByNcAccepted),
     allowCommercialRedistribution: false,
@@ -144,6 +186,10 @@ export function Phase3SettingsPanel({
       setDownloadingId(null);
     }
   };
+
+  const bsBytesLabel = bsInfo
+    ? `${(bsInfo.bytes / (1024 * 1024)).toFixed(0)} Mo`
+    : "~165 Mo";
 
   return (
     <section
@@ -205,6 +251,54 @@ export function Phase3SettingsPanel({
           );
         })}
       </div>
+      {!phase3?.bsRoformerAvailable && (
+        <div className="phase3-bs-install">
+          <p className="hint">{t("phase3.separator.bsInstallHint")}</p>
+          {bsInfo && (
+            <p className="hint">
+              {bsInfo.licenseNoticeFr}
+              <br />
+              {t("phase3.separator.bsInstallMeta")
+                .replace("{size}", bsBytesLabel)
+                .replace("{sha}", bsInfo.sha256.slice(0, 12))}
+            </p>
+          )}
+          <div className="btn-row">
+            <button
+              type="button"
+              className="btn"
+              disabled={installingBsRoFormer}
+              onClick={() => void installBsRoFormer()}
+            >
+              {installingBsRoFormer
+                ? t("phase3.separator.bsInstalling")
+                : t("phase3.separator.bsInstall")}
+            </button>
+            {installingBsRoFormer && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void cancelBsRoFormer()}
+              >
+                {t("phase3.separator.bsCancel")}
+              </button>
+            )}
+          </div>
+          {bsProgress && installingBsRoFormer && (
+            <p className="hint" aria-live="polite">
+              {bsProgress.label}
+              {bsProgress.totalBytes
+                ? ` — ${Math.min(
+                    100,
+                    Math.round(
+                      (100 * bsProgress.receivedBytes) / bsProgress.totalBytes,
+                    ),
+                  )}%`
+                : ""}
+            </p>
+          )}
+        </div>
+      )}
       {!phase3?.htdemucs6sRuntimeAvailable && (
         <button
           type="button"
@@ -223,6 +317,9 @@ export function Phase3SettingsPanel({
           ? t("phase3.available")
           : t("phase3.unavailable")}
       </p>
+      {downloadNotice && (
+        <pre className="phase3-download-notice">{downloadNotice}</pre>
+      )}
         </>
       )}
 

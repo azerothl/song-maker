@@ -1,6 +1,7 @@
 import type {
   AutomationLane,
   AutomationTarget,
+  CustomEffectProcessor,
   LoudnessMeter,
   LoudnessReport,
   LoudnessStandard,
@@ -16,6 +17,7 @@ import {
   applyCompressor,
   applyGainShelf,
   applyPeakLimiter,
+  applyReverb,
   applySidechainDuck,
   dbToLinear,
   measureLoudnessFromPcm,
@@ -57,14 +59,37 @@ export class MixAutomationEngineImpl implements MixAutomationEngine {
   }
 }
 
+function assertCustomInsertable(
+  effect: TrackEffectSlot,
+  registry: ReadonlyMap<string, CustomEffectProcessor>,
+): void {
+  if (effect.kind !== "custom") return;
+  const processorId =
+    typeof effect.params.processorId === "string"
+      ? effect.params.processorId.trim()
+      : "";
+  if (!processorId) {
+    throw new Error(
+      "Effet custom refusé : params.processorId est requis (extension DSP enregistrée).",
+    );
+  }
+  if (effect.enabled && !registry.has(processorId)) {
+    throw new Error(
+      `Effet custom « ${processorId} » non supporté : aucune extension DSP enregistrée sous cet id.`,
+    );
+  }
+}
+
 export class TrackEffectsRackImpl implements TrackEffectsRack {
   private readonly racks = new Map<string, TrackEffectSlot[]>();
+  private readonly customProcessors = new Map<string, CustomEffectProcessor>();
 
   list(trackId: string): TrackEffectSlot[] {
     return [...(this.racks.get(trackId) ?? [])];
   }
 
   insert(trackId: string, effect: TrackEffectSlot): void {
+    assertCustomInsertable(effect, this.customProcessors);
     const list = this.racks.get(trackId) ?? [];
     list.push(effect);
     this.racks.set(trackId, list);
@@ -78,8 +103,32 @@ export class TrackEffectsRackImpl implements TrackEffectsRack {
     );
   }
 
-  process(trackId: string, pcm: Float32Array): Float32Array {
+  registerCustomProcessor(
+    processorId: string,
+    processor: CustomEffectProcessor,
+  ): void {
+    const id = processorId.trim();
+    if (!id) {
+      throw new Error("registerCustomProcessor : processorId vide.");
+    }
+    this.customProcessors.set(id, processor);
+  }
+
+  unregisterCustomProcessor(processorId: string): void {
+    this.customProcessors.delete(processorId.trim());
+  }
+
+  listCustomProcessors(): string[] {
+    return [...this.customProcessors.keys()].sort();
+  }
+
+  process(
+    trackId: string,
+    pcm: Float32Array,
+    sampleRate = 48000,
+  ): Float32Array {
     let current = pcm;
+    const sr = Math.max(1, sampleRate);
     for (const effect of this.list(trackId)) {
       if (!effect.enabled) continue;
       switch (effect.kind) {
@@ -111,15 +160,49 @@ export class TrackEffectsRackImpl implements TrackEffectsRack {
           current = applyGainShelf(current, gainDb);
           break;
         }
-        case "reverb":
-          // Real convolution reverb is out of scope; pass through.
+        case "reverb": {
+          current = applyReverb(current, sr, {
+            mix:
+              typeof effect.params.mix === "number" ? effect.params.mix : 0.35,
+            roomSize:
+              typeof effect.params.roomSize === "number"
+                ? effect.params.roomSize
+                : 0.55,
+            damping:
+              typeof effect.params.damping === "number"
+                ? effect.params.damping
+                : 0.45,
+            width:
+              typeof effect.params.width === "number"
+                ? effect.params.width
+                : 1,
+          });
           break;
-        case "custom":
+        }
+        case "custom": {
+          const processorId =
+            typeof effect.params.processorId === "string"
+              ? effect.params.processorId.trim()
+              : "";
+          const processor = processorId
+            ? this.customProcessors.get(processorId)
+            : undefined;
+          if (!processor) {
+            throw new Error(
+              processorId
+                ? `Effet custom « ${processorId} » non supporté : extension absente — aucun traitement appliqué.`
+                : "Effet custom sans processorId — traitement refusé (pas de no-op silencieux).",
+            );
+          }
+          current = processor(current, effect.params, sr);
           break;
+        }
         default: {
           const _exhaustive: never = effect.kind;
           void _exhaustive;
-          break;
+          throw new Error(
+            `Type d’effet non supporté — traitement refusé.`,
+          );
         }
       }
     }

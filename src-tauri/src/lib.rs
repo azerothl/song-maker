@@ -1,6 +1,7 @@
 use tauri::Manager;
 
 mod audiocpp;
+mod bs_roformer;
 mod commands;
 mod demucs_onnx;
 mod form;
@@ -34,6 +35,9 @@ pub fn run() {
             commands::update_settings,
             commands::get_phase3_status,
             commands::install_htdemucs_6s_runtime,
+            commands::install_bs_roformer,
+            commands::cancel_bs_roformer_install,
+            commands::bs_roformer_install_info,
             commands::list_lora_adapters,
             commands::import_lora_adapters,
             commands::confirm_model_pack,
