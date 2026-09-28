@@ -27,10 +27,6 @@ pub fn download_url() -> &'static str {
     HF_URL
 }
 
-pub fn expected_bytes() -> u64 {
-    BS_ROFORMER_BYTES
-}
-
 pub fn weights_valid(cache: &Path) -> bool {
     crate::paths::bs_roformer_weights_present(cache)
 }

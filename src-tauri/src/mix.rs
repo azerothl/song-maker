@@ -376,17 +376,6 @@ pub fn export_mp3(wav_path: &Path, mp3_path: &Path) -> Result<(), String> {
     .map_err(|e| format!("Export MP3 échoué ({e}). Conversion de livraison uniquement."))
 }
 
-pub fn write_export_json_ex(
-    path: &Path,
-    format: &str,
-    audio_path: &Path,
-    peak_trim_db: f32,
-    render_path: Option<&str>,
-    match_mode: Option<&str>,
-) -> Result<(), String> {
-    write_export_json_with_warnings(path, format, audio_path, peak_trim_db, render_path, match_mode, &[])
-}
-
 pub fn write_export_json_with_warnings(
     path: &Path,
     format: &str,
