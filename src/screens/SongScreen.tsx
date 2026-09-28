@@ -22,7 +22,7 @@ import { loadInvariantBaseline } from "../lib/invariants";
 import {
   buildGenerationPayload,
   loadRemotePrefs,
-  submitRemoteGeneration,
+  runRemoteGenerationToProject,
 } from "../lib/remoteGenerate";
 import { ensureProductionOverlay } from "../lib/productionState";
 import {
@@ -565,10 +565,12 @@ export function SongScreen() {
     try {
       const prefs = loadRemotePrefs();
       if (prefs.remoteEnabled) {
+        const authToken = prefs.accessToken;
         const payload = await buildGenerationPayload(
           project.id,
           form,
           scoreGate.abc,
+          authToken,
         );
         setRemotePrefs(prefs);
         setRemotePayload(payload);
@@ -609,17 +611,23 @@ export function SongScreen() {
     setBusy(true);
     setError(null);
     try {
-      const handle = await submitRemoteGeneration(remotePrefs, remotePayload);
+      const outcome = await runRemoteGenerationToProject(
+        project.id,
+        remotePrefs,
+        remotePayload,
+        {
+          onStatus: (h) => {
+            setError(`Worker distant: ${h.status} (${h.id})`);
+          },
+        },
+      );
       setRemoteConfirmOpen(false);
-      if (handle.status === "queued" || handle.status === "running" || handle.status === "succeeded") {
-        setError(
-          handle.error
-            ? `${handle.status}: ${handle.error}`
-            : `Worker distant: ${handle.status} (${handle.id}) — pas de repli local automatique.`,
-        );
+      if (outcome.ok) {
+        setError(null);
+        await openProject(project.id);
       } else {
         setError(
-          `${handle.status}: ${handle.error ?? "échec distant"} — génération locale non démarrée.`,
+          `${outcome.status}: ${outcome.error} — génération locale non démarrée.`,
         );
       }
     } catch (e) {

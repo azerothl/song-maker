@@ -1,11 +1,13 @@
 ---
 title: Where does generation happen?
-description: Song generation runs on your computer.
+description: Song generation runs on your computer; an optional remote worker exists.
 order: 5
 ---
 
-# Local generation
+# Local generation (default)
 
-The remote generation control is a prototype: it queues work locally and sends no network request. The main generation and audio processing workflow runs on your computer with locally installed models.
+The main generation and audio processing workflow runs on your computer with locally installed models.
 
-To get started, install the audio engine and models by following the setup guide.
+An optional **remote GPU worker** (phase 4, opt-in) needs a URL that implements the [HTTP contract](https://github.com/azerothl/song-maker/blob/main/docs/remote-worker-contract.md) and a shared token. This repository ships a reference worker (`packages/remote-worker-server`). With remote disabled, **no** network calls are made. A remote failure does not silently start local generation.
+
+To get started locally, install the audio engine and models by following the setup guide.

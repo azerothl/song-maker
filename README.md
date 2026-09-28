@@ -82,8 +82,9 @@ Phase 2 (partition + audio) : import MIDI, piano roll, validation/export ABC YuE
 | [`@song-maker/mix-production`](packages/mix-production) | 3 | Automation / effets (réverb stéréo) / sidechain / loudness — **DSP réel** (`Stub*` = alias) |
 | [`@song-maker/lora-packs`](packages/lora-packs) | 3–4 | Registre LoRA + catalogue styles, porte CC BY-NC |
 | [`@song-maker/partition-invariants`](packages/partition-invariants) | 4 | Invariants §11.3 (`Stub*` = alias) |
-| [`@song-maker/remote-worker`](packages/remote-worker) | 4 | Client worker GPU distant (`Stub*` = alias local-first) |
-| [`@song-maker/akasha-declui`](packages/akasha-declui) | 4 | Pont DeclUI desktop-first (`Stub*` = alias) |
+| [`@song-maker/remote-worker`](packages/remote-worker) | 4 | Client worker GPU distant (opt-in, local-first) |
+| [`@song-maker/remote-worker-server`](packages/remote-worker-server) | 4 | Worker GPU de référence (contrat HTTP) |
+| [`@song-maker/akasha-declui`](packages/akasha-declui) | 4 | Hôte Akasha / DeclUI (découverte réelle ou indisponible) |
 
 ```bash
 pnpm install
@@ -94,4 +95,5 @@ pnpm test
 
 ## Hors périmètre encore stubbé / gated
 
-SheetSage2 (runtime externe), worker distant (contrat HTTP, pas de serveur in-repo), synchro projet optionnelle (stub), entraînement LoRA NAR sans script local, Akasha.
+SheetSage2 (runtime externe), synchro projet optionnelle (stub), entraînement LoRA NAR sans script local.  
+Worker distant : client + serveur de référence livrés (opt-in). Akasha : connexion réelle si hôte joignable, sinon clairement indisponible.

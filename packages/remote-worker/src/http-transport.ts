@@ -17,11 +17,17 @@ export const REMOTE_WORKER_PATHS = {
   jobs: "/v1/jobs",
   job: (id: string) => `/v1/jobs/${encodeURIComponent(id)}`,
   cancel: (id: string) => `/v1/jobs/${encodeURIComponent(id)}/cancel`,
+  artifact: (id: string, name: string) =>
+    `/v1/jobs/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(name)}`,
 } as const;
 
 export type HttpTransportResult =
   | { ok: true; handle: RemoteJobHandle }
   | { ok: false; handle: RemoteJobHandle };
+
+export type ArtifactDownloadResult =
+  | { ok: true; bytes: Uint8Array; sha256: string; contentType: string }
+  | { ok: false; error: string };
 
 export interface RemoteHttpTransport {
   probeHealth(endpoint: RemoteWorkerEndpoint, auth: AuthPlaceholder): Promise<HttpTransportResult>;
@@ -36,6 +42,12 @@ export interface RemoteHttpTransport {
     auth: AuthPlaceholder,
     jobId: string,
   ): Promise<HttpTransportResult>;
+  downloadArtifact(
+    endpoint: RemoteWorkerEndpoint,
+    auth: AuthPlaceholder,
+    jobId: string,
+    artifactName: string,
+  ): Promise<ArtifactDownloadResult>;
 }
 
 function authHeaders(auth: AuthPlaceholder): HeadersInit {
@@ -132,11 +144,11 @@ export class FetchRemoteHttpTransport implements RemoteHttpTransport {
         consent: request.consent,
         payload: payloadRef,
       };
-      const extended = payload as EncryptedBlobRef & {
-        ciphertextBase64?: string;
-      };
-      if (extended.ciphertextBase64 !== undefined) {
-        body.ciphertextBase64 = extended.ciphertextBase64;
+      if (payload.ciphertextBase64 !== undefined) {
+        body.ciphertextBase64 = payload.ciphertextBase64;
+      }
+      if (payload.ivBase64 !== undefined) {
+        body.ivBase64 = payload.ivBase64;
       }
       const res = await fetch(url, {
         method: "POST",
@@ -244,6 +256,47 @@ export class FetchRemoteHttpTransport implements RemoteHttpTransport {
         jobId,
         `Cancel injoignable (${e instanceof Error ? e.message : String(e)}).`,
       );
+    }
+  }
+
+  async downloadArtifact(
+    endpoint: RemoteWorkerEndpoint,
+    auth: AuthPlaceholder,
+    jobId: string,
+    artifactName: string,
+  ): Promise<ArtifactDownloadResult> {
+    try {
+      const url = new URL(
+        REMOTE_WORKER_PATHS.artifact(jobId, artifactName),
+        endpoint.baseUrl.replace(/\/?$/, "/"),
+      );
+      const res = await fetch(url, {
+        method: "GET",
+        headers: authHeaders(auth),
+      });
+      if (!res.ok) {
+        const json = (await parseJson(res)) as { error?: string } | null;
+        return {
+          ok: false,
+          error: json?.error ?? `Artifact HTTP ${res.status}`,
+        };
+      }
+      const buf = new Uint8Array(await res.arrayBuffer());
+      const sha256 =
+        res.headers.get("x-content-sha256")?.toLowerCase() ??
+        res.headers.get("X-Content-SHA256")?.toLowerCase() ??
+        "";
+      return {
+        ok: true,
+        bytes: buf,
+        sha256,
+        contentType: res.headers.get("content-type") ?? "application/octet-stream",
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        error: `Artifact injoignable (${e instanceof Error ? e.message : String(e)}).`,
+      };
     }
   }
 }

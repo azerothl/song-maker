@@ -40,6 +40,13 @@ export type EncryptedBlobRef = {
   encryption: "aes-256-gcm" | "aes-256-gcm-placeholder";
   /** Plaintext byte length before encryption (for retention / UI preview). */
   byteLength?: number;
+  /**
+   * AES-GCM ciphertext (base64) when the client can send an encrypted envelope.
+   * Worker decrypts with a key derived from the shared bearer token.
+   */
+  ciphertextBase64?: string;
+  /** 12-byte IV for AES-GCM (base64). Required with ciphertextBase64. */
+  ivBase64?: string;
 };
 
 export type RemoteJobKind = "yue2_generate" | "htdemucs_separate";
@@ -118,3 +125,5 @@ export interface RemoteGpuWorkerClient {
   poll(jobId: string): Promise<RemoteJobHandle>;
   cancel(jobId: string): Promise<RemoteJobHandle>;
 }
+
+export type RemoteArtifactName = "audio.wav" | "score.abc" | "result.json";

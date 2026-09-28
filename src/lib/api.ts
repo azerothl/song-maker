@@ -190,6 +190,34 @@ export const api = {
     invoke<ProjectDoc>("set_active_score", { id, scoreId }),
   useGeneration: (id: string, genId: string) =>
     invoke<ProjectDoc>("use_generation", { id, genId }),
+  /** Import remote worker WAV/score into a local gen-* with provenance (#65). */
+  importRemoteGeneration: (
+    id: string,
+    payload: {
+      remoteJobId: string;
+      audioBase64: string;
+      audioSha256: string;
+      scoreAbc?: string | null;
+      scoreSha256?: string | null;
+      endpointBaseUrl: string;
+      payloadSha256: string;
+    },
+  ) =>
+    invoke<{ project: ProjectDoc; generationId: string }>(
+      "import_remote_generation",
+      {
+        id,
+        payload: {
+          remoteJobId: payload.remoteJobId,
+          audioBase64: payload.audioBase64,
+          audioSha256: payload.audioSha256,
+          scoreAbc: payload.scoreAbc ?? null,
+          scoreSha256: payload.scoreSha256 ?? null,
+          endpointBaseUrl: payload.endpointBaseUrl,
+          payloadSha256: payload.payloadSha256,
+        },
+      },
+    ),
   undoMix: (id: string) => invoke<MixDoc | null>("undo_mix", { id }),
   redoMix: (id: string) => invoke<MixDoc | null>("redo_mix", { id }),
 };
