@@ -67,6 +67,24 @@ export type MixClip = {
   gainDb: number;
   fadeInMs: number;
   fadeOutMs: number;
+  /** Source material tempo (BPM) for follow-project stretch (#95). */
+  sourceTempoBpm?: number | null;
+  /** Stretch so source tempo matches project tempo (pitch preserved). */
+  followProjectTempo?: boolean;
+  /** Explicit timeline/source ratio when not following project tempo. */
+  timeStretchRatio?: number | null;
+  /** Independent transpose in semitones (0 = none). */
+  pitchSemitones?: number | null;
+  /** Bypass stretch/pitch; original region used as-is. Default true when set. */
+  processingEnabled?: boolean;
+  /** Manual transient / beat markers in source milliseconds. */
+  transientMarkersMs?: number[];
+  /** Loop-capture take group id (#93). */
+  takeGroupId?: string | null;
+  takeIndex?: number | null;
+  takeLabel?: string | null;
+  /** When false inside a take group, clip is kept but silent. */
+  takeActive?: boolean;
 };
 
 export type MixTrack = {

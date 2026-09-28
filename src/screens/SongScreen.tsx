@@ -1774,6 +1774,7 @@ export function SongScreen() {
                     peaksByTrack={playback?.peaksByTrack}
                     roleByTrack={roleByTrack}
                     sourceDurationMsByTrack={sourceDurationMsByTrack}
+                    projectTempoBpm={form.tempoBpm}
                   />
                 </div>
               ) : (

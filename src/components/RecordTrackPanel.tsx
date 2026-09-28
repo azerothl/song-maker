@@ -1,5 +1,12 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { api } from "../lib/api";
+import {
+  formatLatencyReading,
+  latencyHintForPreference,
+  readCaptureLatency,
+  type CaptureLatencyPreference,
+  type CaptureLatencyReading,
+} from "../lib/captureLatency";
 import type { MixDoc } from "../lib/types";
 import { t } from "../ui/i18n";
 
@@ -7,6 +14,7 @@ type CapturePhase =
   | "idle"
   | "arming"
   | "armed"
+  | "countdown"
   | "recording"
   | "paused"
   | "review"
@@ -14,6 +22,13 @@ type CapturePhase =
 
 type InputDevice = {
   deviceId: string;
+  label: string;
+};
+
+type PendingTake = {
+  sessionId: string;
+  reviewUrl: string;
+  elapsedMs: number;
   label: string;
 };
 
@@ -74,9 +89,20 @@ export function RecordTrackPanel({
   const [devices, setDevices] = useState<InputDevice[]>([]);
   const [deviceId, setDeviceId] = useState<string>("");
   const [monitoring, setMonitoring] = useState(false);
+  const [monitorCompensate, setMonitorCompensate] = useState(true);
+  const [latencyPref, setLatencyPref] =
+    useState<CaptureLatencyPreference>("balanced");
+  const [latency, setLatency] = useState<CaptureLatencyReading | null>(null);
+  const [countdownSec, setCountdownSec] = useState(3);
+  const [countdownLeft, setCountdownLeft] = useState(0);
+  const [loopEnabled, setLoopEnabled] = useState(false);
+  const [loopBarsMs, setLoopBarsMs] = useState(8000);
+  const [punchEnabled, setPunchEnabled] = useState(false);
+  const [punchInMs, setPunchInMs] = useState(0);
+  const [punchOutMs, setPunchOutMs] = useState(8000);
   const [level, setLevel] = useState(0);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [reviewUrl, setReviewUrl] = useState<string | null>(null);
+  const [pendingTakes, setPendingTakes] = useState<PendingTake[]>([]);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -86,12 +112,21 @@ export function RecordTrackPanel({
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const monitorGainRef = useRef<GainNode | null>(null);
+  const monitorDelayRef = useRef<DelayNode | null>(null);
   const rafRef = useRef<number | null>(null);
   const startedAtRef = useRef<number>(0);
   const pausedAccumRef = useRef<number>(0);
   const pauseStartedRef = useRef<number | null>(null);
   const writeChainRef = useRef<Promise<void>>(Promise.resolve());
   const writeFailedRef = useRef(false);
+  const loopEnabledRef = useRef(false);
+  const loopBarsMsRef = useRef(8000);
+  const punchEnabledRef = useRef(false);
+  const punchWindowMsRef = useRef(0);
+  const takeIndexRef = useRef(0);
+  const rollingTakesRef = useRef(false);
+  const countdownTimerRef = useRef<number | null>(null);
+  const elapsedMsRef = useRef(0);
 
   const stopMeter = useEffectEvent(() => {
     if (rafRef.current != null) {
@@ -104,6 +139,10 @@ export function RecordTrackPanel({
   const releaseStream = useEffectEvent(() => {
     stopMeter();
     recorderRef.current = null;
+    if (countdownTimerRef.current != null) {
+      window.clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
     if (streamRef.current) {
       for (const track of streamRef.current.getTracks()) {
         track.stop();
@@ -116,27 +155,32 @@ export function RecordTrackPanel({
     }
     analyserRef.current = null;
     monitorGainRef.current = null;
+    monitorDelayRef.current = null;
   });
 
-  const clearReview = useEffectEvent(() => {
-    if (reviewUrl) {
-      URL.revokeObjectURL(reviewUrl);
+  const clearPendingTakes = useEffectEvent(() => {
+    for (const take of pendingTakes) {
+      URL.revokeObjectURL(take.reviewUrl);
     }
-    setReviewUrl(null);
-    chunksRef.current = [];
+    setPendingTakes([]);
   });
 
   const resetLocal = useEffectEvent(() => {
     releaseStream();
-    clearReview();
+    clearPendingTakes();
     sessionIdRef.current = null;
+    chunksRef.current = [];
     writeChainRef.current = Promise.resolve();
     writeFailedRef.current = false;
     pausedAccumRef.current = 0;
     pauseStartedRef.current = null;
+    takeIndexRef.current = 0;
+    rollingTakesRef.current = false;
     setElapsedMs(0);
+    setCountdownLeft(0);
     setPhase("idle");
     setStatusMsg(null);
+    setLatency(null);
   });
 
   const refreshDevices = useEffectEvent(async () => {
@@ -160,6 +204,45 @@ export function RecordTrackPanel({
     } catch {
       setDevices([]);
     }
+  });
+
+  const refreshLatency = useEffectEvent(() => {
+    const reading = readCaptureLatency(audioCtxRef.current, latencyPref);
+    setLatency(reading);
+    if (monitorDelayRef.current && reading.compensationMs != null) {
+      const sec = Math.min(1, Math.max(0, reading.compensationMs / 1000));
+      monitorDelayRef.current.delayTime.value = monitorCompensate ? sec : 0;
+    }
+  });
+
+  useEffect(() => {
+    loopEnabledRef.current = loopEnabled;
+  }, [loopEnabled]);
+
+  useEffect(() => {
+    loopBarsMsRef.current = loopBarsMs;
+  }, [loopBarsMs]);
+
+  useEffect(() => {
+    punchEnabledRef.current = punchEnabled;
+    punchWindowMsRef.current =
+      punchEnabled && punchOutMs > punchInMs ? punchOutMs - punchInMs : 0;
+  }, [punchEnabled, punchInMs, punchOutMs]);
+
+  const stopRecorderNow = useEffectEvent((rollLoop: boolean) => {
+    rollingTakesRef.current = rollLoop;
+    const rec = recorderRef.current;
+    if (!rec || (rec.state !== "recording" && rec.state !== "paused")) return;
+    if (pauseStartedRef.current != null) {
+      pausedAccumRef.current += Date.now() - pauseStartedRef.current;
+      pauseStartedRef.current = null;
+    }
+    try {
+      rec.requestData();
+    } catch {
+      /* ignore */
+    }
+    rec.stop();
   });
 
   useEffect(() => {
@@ -187,16 +270,34 @@ export function RecordTrackPanel({
   }, [monitoring]);
 
   useEffect(() => {
+    refreshLatency();
+  }, [latencyPref, monitorCompensate, phase]);
+
+  useEffect(() => {
     if (phase !== "recording" && phase !== "paused") return;
     const tick = window.setInterval(() => {
       const pauseExtra =
         pauseStartedRef.current != null
           ? Date.now() - pauseStartedRef.current
           : 0;
-      setElapsedMs(
-        Date.now() - startedAtRef.current - pausedAccumRef.current - pauseExtra,
-      );
-    }, 200);
+      const elapsed =
+        Date.now() - startedAtRef.current - pausedAccumRef.current - pauseExtra;
+      elapsedMsRef.current = elapsed;
+      setElapsedMs(elapsed);
+      if (phase !== "recording") return;
+      if (loopEnabledRef.current && elapsed >= loopBarsMsRef.current) {
+        stopRecorderNow(true);
+        return;
+      }
+      if (
+        punchEnabledRef.current &&
+        punchWindowMsRef.current > 0 &&
+        !loopEnabledRef.current &&
+        elapsed >= punchWindowMsRef.current
+      ) {
+        stopRecorderNow(false);
+      }
+    }, 100);
     return () => window.clearInterval(tick);
   }, [phase]);
 
@@ -223,11 +324,8 @@ export function RecordTrackPanel({
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error(t("record.err.unsupported"));
       }
-      // Warm permission so enumerateDevices returns labels.
       const warm = await navigator.mediaDevices.getUserMedia({
-        audio: deviceId
-          ? { deviceId: { exact: deviceId } }
-          : true,
+        audio: deviceId ? { deviceId: { exact: deviceId } } : true,
         video: false,
       });
       for (const track of warm.getTracks()) track.stop();
@@ -253,33 +351,30 @@ export function RecordTrackPanel({
       for (const track of stream.getAudioTracks()) {
         track.addEventListener("ended", () => {
           setStatusMsg(t("record.err.deviceGone"));
-          if (
-            recorderRef.current &&
-            (recorderRef.current.state === "recording" ||
-              recorderRef.current.state === "paused")
-          ) {
-            try {
-              recorderRef.current.stop();
-            } catch {
-              /* ignore */
-            }
-          }
+          emergencyStopRecording();
         });
       }
 
-      const ctx = new AudioContext();
+      const ctx = new AudioContext({
+        latencyHint: latencyHintForPreference(latencyPref),
+      });
       audioCtxRef.current = ctx;
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 2048;
       const monitorGain = ctx.createGain();
       monitorGain.gain.value = monitoring ? 1 : 0;
+      const delay = ctx.createDelay(1.0);
+      delay.delayTime.value = 0;
       source.connect(analyser);
-      analyser.connect(monitorGain);
+      analyser.connect(delay);
+      delay.connect(monitorGain);
       monitorGain.connect(ctx.destination);
       analyserRef.current = analyser;
       monitorGainRef.current = monitorGain;
+      monitorDelayRef.current = delay;
       startMeter(analyser);
+      refreshLatency();
       setPhase("armed");
     } catch (e) {
       releaseStream();
@@ -290,10 +385,45 @@ export function RecordTrackPanel({
     }
   }
 
+  function beginCountdown() {
+    if (!streamRef.current) {
+      onError(t("record.err.notArmed"));
+      return;
+    }
+    const secs = Math.max(0, Math.min(10, Math.round(countdownSec)));
+    if (secs <= 0) {
+      void startRecording();
+      return;
+    }
+    setPhase("countdown");
+    setCountdownLeft(secs);
+    if (countdownTimerRef.current != null) {
+      window.clearInterval(countdownTimerRef.current);
+    }
+    countdownTimerRef.current = window.setInterval(() => {
+      setCountdownLeft((left) => {
+        if (left <= 1) {
+          if (countdownTimerRef.current != null) {
+            window.clearInterval(countdownTimerRef.current);
+            countdownTimerRef.current = null;
+          }
+          void startRecording();
+          return 0;
+        }
+        return left - 1;
+      });
+    }, 1000);
+  }
+
+  function emergencyStopRecording() {
+    stopRecorderNow(false);
+  }
+
   async function startRecording() {
     const stream = streamRef.current;
     if (!stream) {
       onError(t("record.err.notArmed"));
+      setPhase("armed");
       return;
     }
     setStatusMsg(null);
@@ -318,7 +448,6 @@ export function RecordTrackPanel({
           if (writeFailedRef.current) return;
           try {
             const buf = new Uint8Array(await blob.arrayBuffer());
-            // Chunked IPC — avoid one giant payload.
             const STEP = 256 * 1024;
             for (let i = 0; i < buf.length; i += STEP) {
               const slice = Array.from(buf.subarray(i, i + STEP));
@@ -358,15 +487,16 @@ export function RecordTrackPanel({
               }
             }
             sessionIdRef.current = null;
+            rollingTakesRef.current = false;
+            if (analyserRef.current) startMeter(analyserRef.current);
             setPhase("armed");
             return;
           }
           const blob = new Blob(chunksRef.current, {
             type: recorder.mimeType || "audio/webm",
           });
-          clearReview();
-          if (blob.size === 0) {
-            const sid = sessionIdRef.current;
+          const sid = sessionIdRef.current;
+          if (!sid || blob.size === 0) {
             if (sid) {
               try {
                 await api.discardUserAudioCapture(projectId, sid);
@@ -376,10 +506,30 @@ export function RecordTrackPanel({
             }
             sessionIdRef.current = null;
             setStatusMsg(t("record.err.empty"));
+            rollingTakesRef.current = false;
+            if (analyserRef.current) startMeter(analyserRef.current);
             setPhase("armed");
             return;
           }
-          setReviewUrl(URL.createObjectURL(blob));
+
+          takeIndexRef.current += 1;
+          const take: PendingTake = {
+            sessionId: sid,
+            reviewUrl: URL.createObjectURL(blob),
+            elapsedMs: elapsedMsRef.current,
+            label: t("record.takeLabel", { n: String(takeIndexRef.current) }),
+          };
+          sessionIdRef.current = null;
+          setPendingTakes((prev) => [...prev, take]);
+
+          if (rollingTakesRef.current && loopEnabledRef.current) {
+            rollingTakesRef.current = false;
+            if (analyserRef.current) startMeter(analyserRef.current);
+            await startRecording();
+            return;
+          }
+
+          if (analyserRef.current) startMeter(analyserRef.current);
           setPhase("review");
         })();
       };
@@ -388,10 +538,12 @@ export function RecordTrackPanel({
       pausedAccumRef.current = 0;
       pauseStartedRef.current = null;
       setElapsedMs(0);
-      recorder.start(1000);
+      recorder.start(250);
       setPhase("recording");
+      if (analyserRef.current) startMeter(analyserRef.current);
     } catch (e) {
       sessionIdRef.current = null;
+      rollingTakesRef.current = false;
       setPhase("armed");
       const msg = t("record.err.start", {
         detail: e instanceof Error ? e.message : String(e),
@@ -421,24 +573,12 @@ export function RecordTrackPanel({
   }
 
   function stopRecording() {
-    const rec = recorderRef.current;
-    if (!rec || (rec.state !== "recording" && rec.state !== "paused")) return;
-    if (pauseStartedRef.current != null) {
-      pausedAccumRef.current += Date.now() - pauseStartedRef.current;
-      pauseStartedRef.current = null;
-    }
-    try {
-      rec.requestData();
-    } catch {
-      /* ignore */
-    }
-    rec.stop();
+    stopRecorderNow(false);
   }
 
-  async function keepTake() {
-    const sid = sessionIdRef.current;
-    if (!sid) {
-      onError(t("record.err.noSession"));
+  async function keepTakes() {
+    if (pendingTakes.length === 0) {
+      onError(t("record.err.empty"));
       return;
     }
     setPhase("saving");
@@ -448,12 +588,54 @@ export function RecordTrackPanel({
       if (writeFailedRef.current) {
         throw new Error(t("record.err.writeFailed"));
       }
-      const mix = await api.finalizeUserAudioCapture(
-        projectId,
-        sid,
-        t("record.defaultName"),
-      );
-      sessionIdRef.current = null;
+      const startMs = punchEnabled ? Math.max(0, punchInMs) : 0;
+      const mix =
+        pendingTakes.length === 1
+          ? await api.finalizeUserAudioCapture(
+              projectId,
+              pendingTakes[0]!.sessionId,
+              t("record.defaultName"),
+            )
+          : await api.finalizeUserAudioCaptureTakes(
+              projectId,
+              pendingTakes.map((p) => p.sessionId),
+              t("record.defaultName"),
+              startMs,
+            );
+      // Single-take punch: place clip at punch-in via update.
+      if (pendingTakes.length === 1 && punchEnabled && startMs > 0) {
+        const track = mix.tracks[mix.tracks.length - 1];
+        if (track?.clips[0]) {
+          const clips = track.clips.map((c, i) =>
+            i === 0 ? { ...c, startMs } : c,
+          );
+          const updated = await api.updateMix(projectId, {
+            masterGainDb: mix.masterGainDb,
+            tracks: mix.tracks.map((tr) =>
+              tr.id === track.id
+                ? {
+                    id: tr.id,
+                    gainDb: tr.gainDb,
+                    pan: tr.pan,
+                    mute: tr.mute,
+                    solo: tr.solo,
+                    clips,
+                  }
+                : {
+                    id: tr.id,
+                    gainDb: tr.gainDb,
+                    pan: tr.pan,
+                    mute: tr.mute,
+                    solo: tr.solo,
+                  },
+            ),
+          });
+          resetLocal();
+          onTrackAdded(updated);
+          onClose();
+          return;
+        }
+      }
       resetLocal();
       onTrackAdded(mix);
       onClose();
@@ -463,22 +645,20 @@ export function RecordTrackPanel({
       });
       setStatusMsg(msg);
       onError(msg);
-      // No mix track was appended; keep session for retry or explicit discard.
       setPhase("review");
     }
   }
 
-  async function discardTake() {
-    const sid = sessionIdRef.current;
-    if (sid) {
+  async function discardTakes() {
+    for (const take of pendingTakes) {
       try {
-        await api.discardUserAudioCapture(projectId, sid);
+        await api.discardUserAudioCapture(projectId, take.sessionId);
       } catch {
         /* ignore */
       }
     }
-    sessionIdRef.current = null;
-    clearReview();
+    clearPendingTakes();
+    takeIndexRef.current = 0;
     setElapsedMs(0);
     if (streamRef.current && analyserRef.current) {
       startMeter(analyserRef.current);
@@ -501,6 +681,13 @@ export function RecordTrackPanel({
     if (sid && phase !== "saving") {
       void api.discardUserAudioCapture(projectId, sid).catch(() => undefined);
     }
+    if (phase !== "saving") {
+      for (const take of pendingTakes) {
+        void api
+          .discardUserAudioCapture(projectId, take.sessionId)
+          .catch(() => undefined);
+      }
+    }
     resetLocal();
     onClose();
   }
@@ -509,12 +696,11 @@ export function RecordTrackPanel({
 
   const elapsedLabel = formatElapsed(elapsedMs);
   const canPickDevice = phase === "idle" || phase === "arming";
+  const punchInvalid =
+    punchEnabled && punchOutMs > 0 && punchOutMs <= punchInMs;
 
   return (
-    <section
-      className="record-panel"
-      aria-labelledby="record-panel-title"
-    >
+    <section className="record-panel" aria-labelledby="record-panel-title">
       <header className="record-panel-header">
         <h3 id="record-panel-title">{t("record.title")}</h3>
         <button type="button" className="btn ghost" onClick={handleClose}>
@@ -543,6 +729,27 @@ export function RecordTrackPanel({
         </select>
       </label>
 
+      <label className="record-device">
+        <span>{t("record.latency.pref")}</span>
+        <select
+          value={latencyPref}
+          disabled={phase !== "idle" && phase !== "arming"}
+          onChange={(e) =>
+            setLatencyPref(e.target.value as CaptureLatencyPreference)
+          }
+        >
+          <option value="stable">{t("record.latency.stable")}</option>
+          <option value="balanced">{t("record.latency.balanced")}</option>
+          <option value="low">{t("record.latency.low")}</option>
+        </select>
+      </label>
+      <p className="hint record-latency" aria-live="polite">
+        {t("record.latency.measured", {
+          value: latency ? formatLatencyReading(latency) : "—",
+        })}
+      </p>
+      <p className="hint">{t("record.latency.hint")}</p>
+
       <label className="record-monitor">
         <input
           type="checkbox"
@@ -551,14 +758,103 @@ export function RecordTrackPanel({
         />
         <span>{t("record.monitor")}</span>
       </label>
-      {monitoring && <p className="hint warn">{t("record.monitor.warn")}</p>}
+      {monitoring && (
+        <>
+          <p className="hint warn">{t("record.monitor.warn")}</p>
+          <label className="record-monitor">
+            <input
+              type="checkbox"
+              checked={monitorCompensate}
+              onChange={(e) => setMonitorCompensate(e.target.checked)}
+            />
+            <span>{t("record.monitor.compensate")}</span>
+          </label>
+        </>
+      )}
+
+      <div className="record-options">
+        <label className="record-field">
+          <span>{t("record.countdown")}</span>
+          <input
+            type="number"
+            min={0}
+            max={10}
+            value={countdownSec}
+            disabled={phase === "recording" || phase === "countdown"}
+            onChange={(e) => setCountdownSec(Number(e.target.value) || 0)}
+          />
+        </label>
+        <label className="record-monitor">
+          <input
+            type="checkbox"
+            checked={loopEnabled}
+            disabled={phase === "recording" || phase === "countdown"}
+            onChange={(e) => setLoopEnabled(e.target.checked)}
+          />
+          <span>{t("record.loop")}</span>
+        </label>
+        {loopEnabled && (
+          <label className="record-field">
+            <span>{t("record.loopLength")}</span>
+            <input
+              type="number"
+              min={500}
+              step={100}
+              value={loopBarsMs}
+              disabled={phase === "recording" || phase === "countdown"}
+              onChange={(e) => setLoopBarsMs(Number(e.target.value) || 8000)}
+            />
+          </label>
+        )}
+        <label className="record-monitor">
+          <input
+            type="checkbox"
+            checked={punchEnabled}
+            disabled={phase === "recording" || phase === "countdown"}
+            onChange={(e) => setPunchEnabled(e.target.checked)}
+          />
+          <span>{t("record.punch")}</span>
+        </label>
+        {punchEnabled && (
+          <div className="record-punch-fields">
+            <label className="record-field">
+              <span>{t("record.punchIn")}</span>
+              <input
+                type="number"
+                min={0}
+                step={50}
+                value={punchInMs}
+                onChange={(e) => setPunchInMs(Number(e.target.value) || 0)}
+              />
+            </label>
+            <label className="record-field">
+              <span>{t("record.punchOut")}</span>
+              <input
+                type="number"
+                min={0}
+                step={50}
+                value={punchOutMs}
+                onChange={(e) => setPunchOutMs(Number(e.target.value) || 0)}
+              />
+            </label>
+          </div>
+        )}
+        {punchInvalid && (
+          <p className="hint warn">{t("record.punch.invalid")}</p>
+        )}
+      </div>
 
       <div className="record-vu" aria-hidden>
         <div className="record-vu-fill" style={{ width: `${level * 100}%` }} />
       </div>
       <p className="record-elapsed" aria-live="polite">
-        {t("record.elapsed", { time: elapsedLabel })}
+        {phase === "countdown"
+          ? t("record.countdown.left", { n: String(countdownLeft) })
+          : t("record.elapsed", { time: elapsedLabel })}
         {phase === "paused" ? ` · ${t("record.state.paused")}` : ""}
+        {pendingTakes.length > 0
+          ? ` · ${t("record.takes.count", { n: String(pendingTakes.length) })}`
+          : ""}
       </p>
 
       <div className="btn-row record-actions">
@@ -576,9 +872,26 @@ export function RecordTrackPanel({
           <button
             type="button"
             className="btn primary"
-            onClick={() => void startRecording()}
+            disabled={punchInvalid}
+            onClick={() => beginCountdown()}
           >
             {t("record.start")}
+          </button>
+        )}
+        {phase === "countdown" && (
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              if (countdownTimerRef.current != null) {
+                window.clearInterval(countdownTimerRef.current);
+                countdownTimerRef.current = null;
+              }
+              setCountdownLeft(0);
+              setPhase("armed");
+            }}
+          >
+            {t("record.countdown.cancel")}
           </button>
         )}
         {phase === "recording" && (
@@ -593,7 +906,11 @@ export function RecordTrackPanel({
         )}
         {phase === "paused" && (
           <>
-            <button type="button" className="btn primary" onClick={resumeRecording}>
+            <button
+              type="button"
+              className="btn primary"
+              onClick={resumeRecording}
+            >
               {t("record.resume")}
             </button>
             <button type="button" className="btn" onClick={stopRecording}>
@@ -606,14 +923,14 @@ export function RecordTrackPanel({
             <button
               type="button"
               className="btn primary"
-              onClick={() => void keepTake()}
+              onClick={() => void keepTakes()}
             >
               {t("record.keep")}
             </button>
             <button
               type="button"
               className="btn"
-              onClick={() => void discardTake()}
+              onClick={() => void discardTakes()}
             >
               {t("record.discard")}
             </button>
@@ -626,8 +943,15 @@ export function RecordTrackPanel({
         )}
       </div>
 
-      {reviewUrl && phase === "review" && (
-        <audio className="record-review" controls src={reviewUrl} />
+      {phase === "review" && pendingTakes.length > 0 && (
+        <ul className="record-takes">
+          {pendingTakes.map((take) => (
+            <li key={take.sessionId}>
+              <span>{take.label}</span>
+              <audio className="record-review" controls src={take.reviewUrl} />
+            </li>
+          ))}
+        </ul>
       )}
 
       {statusMsg && (

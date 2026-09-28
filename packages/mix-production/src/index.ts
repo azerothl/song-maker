@@ -79,7 +79,21 @@ export {
 export {
   placeClipsOnTimeline,
   type ClipPlacement,
+  type PlaceClipsOptions,
 } from "./clips.js";
+export {
+  clampStretchRatio,
+  clampPitchSemitones,
+  stretchRatioFromTempos,
+  resolveClipStretchRatio,
+  qualityHintForProcess,
+  timeStretchMono,
+  pitchShiftMono,
+  processClipChannel,
+  processClipRegion,
+  type TimeStretchQualityHint,
+  type ClipAudioProcessParams,
+} from "./timeStretch.js";
 export {
   MIX_PRESETS,
   getMixPreset,
