@@ -4,6 +4,15 @@ Application **desktop locale** (Tauri 2) pour générer, séparer, éditer et mi
 
 Site marketing bilingue FR/EN : dossier [`website/`](website/).
 
+## Direction produit à long terme
+
+Song Maker vise à devenir un atelier de MAO multipiste assisté par l’IA générative, dans la famille d’usage d’un logiciel comme Cubase, sans viser la parité fonctionnelle. Deux parcours doivent converger vers le même projet de production :
+
+- **Simple :** décrire un style et écrire des paroles pour générer une chanson, puis éditer, mixer et exporter le résultat.
+- **Avancé :** partir d’une partition, de pistes audio ou de stems, puis utiliser l’IA pour créer des parties instrumentales complémentaires et aider au mix.
+
+À long terme, Song Maker prévoit aussi de créer son propre modèle de transformation audio, complémentaire à YuE2, pour travailler les pistes des projets existants. Les résultats de l’IA doivent rester éditables et réversibles, et les sources du projet être préservées. Cette direction n’est pas une liste de fonctions déjà livrées : le YuE2 actuel ne prend pas d’audio de référence en entrée. L’état des fonctionnalités disponibles est détaillé ci-dessous.
+
 ## Installer l’application
 
 Téléchargez la dernière version depuis les [Releases GitHub](https://github.com/azerothl/song-maker/releases/latest) :

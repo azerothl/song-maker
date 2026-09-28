@@ -1,14 +1,16 @@
 # Song Maker — Spécification produit et technique
 
-**Version :** 1.0  
-**Statut :** contrat du premier build  
+**Version :** 1.1<br>
+**Statut :** contrat technique historique du premier build + vision cible §3.4<br>
 **Remplace :** la proposition 0.2 sur le périmètre de ce build. Les phases 2, 3 et 4 restent décrites ; elles ne sont pas des critères d’acceptation.  
 **Cible :** application desktop locale  
 **Famille de modèles :** YuE2-3B (upstream `m-a-p/YuE2-3B`)  
 **Moteur du premier build :** [audio.cpp](https://github.com/0xShug0/audio.cpp) `v0.8.2` + GGUF [`audio-cpp/Yue2-3B-GGUF`](https://huggingface.co/audio-cpp/Yue2-3B-GGUF)
 **Hors de ce build :** runtime Python YuE2, SheetSage2, service distant  
 **Principe du premier build :** saisir un style et des paroles, générer un WAV, séparer, mixer  
-**Direction ultérieure :** composer en symboles, puis régénérer et éditer
+**Direction ultérieure :** atelier de MAO multipiste assisté par l’IA générative, avec à terme un modèle de transformation audio propre à Song Maker
+
+La version 1.1 ajoute une vision produit cible au §3.4. Elle ne réécrit pas le contrat historique du premier build ni ses critères d’acceptation. Pour connaître les capacités livrées aujourd’hui, consulter le [README](../README.md).
 
 Les images de `specs/maquettes/` sont des références visuelles. Elles ne décrivent pas le produit.
 
@@ -92,9 +94,11 @@ Song Maker, dans ce build, transforme un style et des paroles en un WAV écoutab
 
 La phrase longue — composition éditable, puis production — décrit la direction des phases ultérieures. Elle n’est pas une tagline. L’écran d’ouverture affiche « Song Maker », rien d’autre.
 
-### 3.2 Ce que ce build ne promet pas encore
+### 3.2 Périmètre différé dans le contrat initial
 
-Plus tard, l’utilisateur pourra préparer la structure avant la génération, comparer plusieurs interprétations, et traiter la partition comme une source de vérité versionnée. Ce n’est pas le premier build. Le MIDI reste le format de travail prévu pour la phase 2. YuE2, lui, attend un ABC lorsqu’une composition symbolique est fournie. Le contrat de conversion est au §7. Il n’est pas exposé maintenant.
+Ce paragraphe conserve la frontière du premier build telle qu’elle avait été fixée ; il ne décrit pas les capacités livrées aujourd’hui. Pour l’état actuel, consulter le README.
+
+Dans ce contrat initial, préparer la structure avant génération, comparer plusieurs interprétations et traiter la partition comme une source de vérité versionnée étaient prévus pour les phases ultérieures. Le MIDI était le format de travail prévu pour la phase 2. YuE2 attend un ABC lorsqu’une composition symbolique est fournie ; le contrat de conversion est au §7. Ces mentions de phase décrivent le périmètre historique, pas une disponibilité actuelle.
 
 ### 3.3 Public cible
 
@@ -103,7 +107,22 @@ Plus tard, l’utilisateur pourra préparer la structure avant la génération, 
 - créateurs de contenus ayant besoin de musique originale ;
 - utilisateurs qui veulent un premier morceau sans apprendre un piano roll.
 
-Le public qui édite une partition ou pilote un agent arrive avec la phase 2 et la phase 4.
+Dans le contrat initial, l’édition de partition et le pilotage d’un agent arrivaient avec les phases 2 et 4. Ce découpage est historique ; l’état actuel est décrit dans le README.
+
+### 3.4 Vision cible — atelier de MAO assisté par l’IA
+
+À terme, Song Maker vise un atelier de production musicale multipiste, dans la famille d’usage d’un logiciel de MAO comme Cubase : l’utilisateur peut construire et retravailler un même projet à partir de pistes, éditer son arrangement, mixer et exporter. Cette référence décrit une direction produit, pas un objectif de parité avec Cubase ni une promesse de compatibilité avec ses fonctions ou ses plugins.
+
+Le logiciel proposera deux portes d’entrée vers ce même espace de production :
+
+1. **Parcours simple — partir d’une idée.** L’utilisateur décrit le style souhaité et fournit ses paroles. YuE2 génère une première chanson ; l’utilisateur peut ensuite travailler les pistes et l’arrangement, mixer et exporter.
+2. **Parcours avancé — partir d’un projet existant.** L’utilisateur apporte une partition, du MIDI, des pistes audio ou des stems. L’IA l’aide à créer des parties instrumentales complémentaires et à travailler le mix du projet.
+
+Dans les deux parcours, les résultats de l’IA doivent rester éditables et réversibles dans le projet ; les sources importées sont préservées.
+
+À long terme, le projet prévoit de créer un modèle de transformation audio propre à Song Maker, complémentaire à YuE2. Il aidera à transformer le contenu audio des projets existants et s’inscrira dans le parcours avancé. Son architecture, ses données et les transformations précises restent à définir.
+
+Cette vision ne décrit pas les capacités actuelles de YuE2 : le moteur intégré ne prend pas d’audio de référence en entrée. La création de pistes instrumentales conditionnée par un projet existant et le modèle de transformation audio dédié sont des objectifs futurs, pas des fonctions livrées garanties. Les fonctions déjà disponibles sont décrites dans le README.
 
 ## 4. Objectifs et périmètre
 

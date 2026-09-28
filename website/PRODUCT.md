@@ -14,6 +14,19 @@ Primary audience, inferred from the existing product specification and approved 
 
 Song Maker is a local desktop music-making application. A user enters a style and lyrics, generates a stereo song with YuE2 through audio.cpp, separates it into stems with HTDemucs, adjusts the mix, and exports audio.
 
+## Long-Term Product Vision
+
+Song Maker aims to grow into a multitrack music production workspace assisted by generative AI. Cubase is a reference for the broad DAW workflow, not a promise of feature parity or compatibility with its plugins.
+
+The same project should support two entry paths:
+
+- **Simple:** describe a style and provide lyrics; generate a song with YuE2, then edit the arrangement and tracks, mix, and export.
+- **Advanced:** bring an existing score, MIDI, audio tracks, or stems; use AI to create complementary instrumental parts and help work on the mix.
+
+AI-created tracks and mix changes should remain editable and reversible, with imported source material preserved. As a long-term goal, the project also intends to create a Song Maker audio transformation model, complementary to YuE2, for working with audio in existing projects. Its architecture and exact transformations are undecided.
+
+This is target direction, not a claim about current capabilities. The integrated YuE2 engine does not accept reference audio. Project-conditioned instrumental generation and the custom audio transformation model are not shipped capabilities.
+
 ## Positioning
 
 Song generation and basic production happen on the user's own compatible computer with local model files. Account creation and a required cloud generation service are not part of the core workflow.
