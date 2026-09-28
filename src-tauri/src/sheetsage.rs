@@ -10,8 +10,7 @@ use crate::paths::{
     binaries_dir, ensure_dir, sheetsage2_weights_path, sheetsage2_weights_present,
 };
 use crate::pins::{
-    backend_name, SHEETSAGE2_BYTES, SHEETSAGE2_GGUF, SHEETSAGE2_REMOTE, SHEETSAGE2_REPO,
-    SHEETSAGE2_SHA,
+    backend_name, SHEETSAGE2_BYTES, SHEETSAGE2_GGUF, SHEETSAGE2_REMOTE, SHEETSAGE2_SHA,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -629,6 +628,7 @@ pub fn cancel(jobs: &SheetsageJobs, job_id: &str) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pins::SHEETSAGE2_REPO;
 
     #[test]
     fn pins_match_public_package_metadata() {

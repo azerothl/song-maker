@@ -26,6 +26,12 @@ impl Default for AudioCppServer {
 }
 
 impl AudioCppServer {
+    /// A panic while a guard is held poisons the mutex. Recover the data so the
+    /// next start does not panic on `unwrap`.
+    fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+        mutex.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
     pub fn write_config(settings: &AppSettings) -> Result<PathBuf, String> {
         let cache = PathBuf::from(&settings.cache_dir);
         let bin_dir = binaries_dir(&cache);
@@ -187,11 +193,11 @@ impl AudioCppServer {
 
     pub fn ensure_started(&self, settings: &AppSettings) -> Result<String, String> {
         {
-            let child = self.child.lock().unwrap();
+            let child = Self::lock(&self.child);
             if child.is_some() {
-                let port = *self.port.lock().unwrap();
+                let port = *Self::lock(&self.port);
                 if Self::tcp_health(&settings.server_host, port) {
-                    return Ok(self.base_url.lock().unwrap().clone());
+                    return Ok(Self::lock(&self.base_url).clone());
                 }
             }
         }
@@ -219,9 +225,9 @@ impl AudioCppServer {
                     std::thread::sleep(Duration::from_millis(600));
                     if Self::tcp_health(&settings.server_host, port) {
                         let url = format!("http://{}:{}", settings.server_host, port);
-                        *self.child.lock().unwrap() = Some(child);
-                        *self.base_url.lock().unwrap() = url.clone();
-                        *self.port.lock().unwrap() = port;
+                        *Self::lock(&self.child) = Some(child);
+                        *Self::lock(&self.base_url) = url.clone();
+                        *Self::lock(&self.port) = port;
                         return Ok(url);
                     }
                     let _ = child.kill();
@@ -432,19 +438,25 @@ impl AudioCppServer {
     }
 
     pub fn shutdown(&self) {
-        if let Ok(url) = self.base_url.lock() {
-            let url = url.clone();
-            if let Ok(rt) = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-            {
-                let _ = rt.block_on(Self::unload_all(&url));
-            }
+        let url = Self::lock(&self.base_url).clone();
+        if !url.is_empty() {
+            // Called from async Tauri commands, which already run on a Tokio
+            // worker. `Runtime::block_on` on that thread panics
+            // ("Cannot start a runtime from within a runtime") and poisons
+            // the mutexes held across the call. Unload on a dedicated thread.
+            let (tx, rx) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let result = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|e| e.to_string())
+                    .and_then(|rt| rt.block_on(Self::unload_all(&url)));
+                let _ = tx.send(result);
+            });
+            let _ = rx.recv_timeout(Duration::from_secs(5));
         }
-        if let Ok(mut child) = self.child.lock() {
-            if let Some(mut c) = child.take() {
-                let _ = c.kill();
-            }
+        if let Some(mut child) = Self::lock(&self.child).take() {
+            let _ = child.kill();
         }
     }
 }
@@ -477,5 +489,22 @@ mod semantic_metadata_tests {
         let frames: Vec<u32> = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         assert_eq!(frames, vec![12, 34, 56]);
         let _ = std::fs::remove_file(PathBuf::from(path));
+    }
+
+    #[test]
+    fn shutdown_from_inside_a_runtime_does_not_panic() {
+        let server = AudioCppServer::default();
+        *AudioCppServer::lock(&server.base_url) = "http://127.0.0.1:1".into();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async {
+            server.shutdown();
+        });
+        assert_eq!(
+            AudioCppServer::lock(&server.base_url).as_str(),
+            "http://127.0.0.1:1"
+        );
     }
 }
