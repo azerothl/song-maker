@@ -388,6 +388,9 @@ pub struct ExportPcmRequest {
     pub render_path: String,
     /// Explicit: not bit-exact with live Web Audio graph quirks.
     pub match_mode: String,
+    /// Optional file name stem (no extension) under exports/, e.g. `stem-01_vocals`.
+    #[serde(default)]
+    pub file_stem: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

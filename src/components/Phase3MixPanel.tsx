@@ -7,14 +7,19 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import type {
-  AutomationPoint,
-  AutomationTarget,
-  LoudnessReport,
-  SidechainRoute,
-  TrackEffectSlot,
+import {
+  bakeMixPcm,
+  decodeMixStems,
+} from "../lib/mixBridge";
+import {
+  effectParamTarget,
+  parseAutomationTarget,
+  type AutomationPoint,
+  type AutomationTarget,
+  type LoudnessReport,
+  type SidechainRoute,
+  type TrackEffectSlot,
 } from "@song-maker/mix-production";
-import { bakeMixPcm, decodeMixStems } from "../lib/mixBridge";
 import {
   defaultEffectParams,
   ensureProductionOverlay,
@@ -22,8 +27,8 @@ import {
   getProductionToolkit,
   isPitchCorrectEligibleTrack,
   newEffectId,
-  patchProductionOverlay,
   productionIsActive,
+  setAutomationLanePoints,
   setSidechainRoutes,
   setTrackEffects,
   subscribeProduction,
@@ -31,6 +36,7 @@ import {
   type UiEffectKind,
 } from "../lib/productionState";
 import type { MixDoc, PlaybackSources } from "../lib/types";
+import { RoutingPanel } from "./RoutingPanel";
 import { t } from "../ui/i18n";
 
 function isUiEffectKind(kind: string): kind is UiEffectKind {
@@ -43,6 +49,8 @@ type Props = {
   sources?: PlaybackSources | null;
   /** Project tempo for delay sync (optional; delay falls back to free ms). */
   tempoBpm?: number | null;
+  /** Musical duration for automation lane X axis (ms). */
+  durationMs?: number | null;
 };
 
 type MeasureState = "idle" | "measuring" | "error";
@@ -140,16 +148,34 @@ function AutomationLaneEditor({
   points,
   target,
   onChange,
+  maxMs = 5000,
+  minVal,
+  maxVal,
 }: {
   points: AutomationPoint[];
   target: AutomationTarget;
   onChange: (next: AutomationPoint[]) => void;
+  maxMs?: number;
+  minVal?: number;
+  maxVal?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dragIndex = useRef<number | null>(null);
-  const maxMs = 5000;
-  const minVal = target === "volume" ? -24 : -1;
-  const maxVal = target === "volume" ? 12 : 1;
+  const parsed = parseAutomationTarget(target);
+  const lo =
+    minVal ??
+    (parsed.kind === "volume" || parsed.kind === "busVolume" || parsed.kind === "sendGain"
+      ? -24
+      : parsed.kind === "pan" || parsed.kind === "busPan"
+        ? -1
+        : 0);
+  const hi =
+    maxVal ??
+    (parsed.kind === "volume" || parsed.kind === "busVolume" || parsed.kind === "sendGain"
+      ? 12
+      : parsed.kind === "pan" || parsed.kind === "busPan"
+        ? 1
+        : 1);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -174,7 +200,7 @@ function AutomationLaneEditor({
     const sorted = sortPoints(points);
     const xOf = (ms: number) => (ms / maxMs) * width;
     const yOf = (v: number) =>
-      height - ((v - minVal) / (maxVal - minVal)) * height;
+      height - ((v - lo) / (hi - lo)) * height;
 
     if (sorted.length > 0) {
       ctx.strokeStyle = "rgba(105,217,232,0.9)";
@@ -195,7 +221,7 @@ function AutomationLaneEditor({
       ctx.arc(xOf(p.timeMs), yOf(p.value), 4, 0, Math.PI * 2);
       ctx.fill();
     }
-  }, [points, minVal, maxVal]);
+  }, [points, lo, hi, maxMs]);
 
   useEffect(() => {
     draw();
@@ -212,10 +238,13 @@ function AutomationLaneEditor({
     const x = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
     const y = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
     const timeMs = Math.round(x * maxMs);
-    const value = minVal + (1 - y) * (maxVal - minVal);
+    const value = lo + (1 - y) * (hi - lo);
     return {
       timeMs,
-      value: target === "volume" ? Math.round(value * 10) / 10 : Math.round(value * 100) / 100,
+      value:
+        parsed.kind === "volume" || parsed.kind === "busVolume" || parsed.kind === "sendGain"
+          ? Math.round(value * 10) / 10
+          : Math.round(value * 100) / 100,
     };
   }
 
@@ -228,7 +257,7 @@ function AutomationLaneEditor({
       const px = rect.left + (p.timeMs / maxMs) * rect.width;
       const py =
         rect.top +
-        (1 - (p.value - minVal) / (maxVal - minVal)) * rect.height;
+        (1 - (p.value - lo) / (hi - lo)) * rect.height;
       const d = Math.hypot(clientX - px, clientY - py);
       if (d < bestDist) {
         bestDist = d;
@@ -293,6 +322,7 @@ export function Phase3MixPanel({
   mix,
   sources = null,
   tempoBpm = null,
+  durationMs = null,
 }: Props) {
   const [trackId, setTrackId] = useState<string>("");
   const [autoTarget, setAutoTarget] = useState<AutomationTarget>("volume");
@@ -319,6 +349,8 @@ export function Phase3MixPanel({
     ? isPitchCorrectEligibleTrack(activeTrackMeta.role)
     : false;
 
+  const laneMaxMs = Math.max(5000, durationMs ?? 0);
+
   const syncFromOverlay = useCallback(() => {
     setActive(productionIsActive());
     const o = getProductionOverlay();
@@ -330,8 +362,10 @@ export function Phase3MixPanel({
     }
     if (autoTarget === "volume") {
       setPoints(o.volumePointsByTrack[activeTrack] ?? []);
-    } else {
+    } else if (autoTarget === "pan") {
       setPoints(o.panPointsByTrack[activeTrack] ?? []);
+    } else {
+      setPoints(o.automationLanes[`${activeTrack}|${autoTarget}`] ?? []);
     }
     setEffects(o.effectsByTrack[activeTrack] ?? []);
     setRoutes(o.sidechainRoutes);
@@ -350,17 +384,7 @@ export function Phase3MixPanel({
   const persistPoints = (next: AutomationPoint[]) => {
     if (!mix || !activeTrack) return;
     setPoints(next);
-    if (autoTarget === "volume") {
-      patchProductionOverlay({
-        mixId: mix.id,
-        volumePointsByTrack: { [activeTrack]: next },
-      });
-    } else {
-      patchProductionOverlay({
-        mixId: mix.id,
-        panPointsByTrack: { [activeTrack]: next },
-      });
-    }
+    setAutomationLanePoints(mix.id, activeTrack, autoTarget, next);
   };
 
   const sampleAutomation = () => {
@@ -558,6 +582,18 @@ export function Phase3MixPanel({
               >
                 <option value="volume">{t("phase3.mix.targetVolume")}</option>
                 <option value="pan">{t("phase3.mix.targetPan")}</option>
+                {effects.flatMap((fx) =>
+                  Object.keys(fx.params)
+                    .filter((k) => typeof fx.params[k] === "number")
+                    .map((paramKey) => {
+                      const value = effectParamTarget(fx.id, paramKey);
+                      return (
+                        <option key={value} value={value}>
+                          {t(FX_LABEL[fx.kind as UiEffectKind] ?? "phase3.mix.fx.eq")} · {paramKey}
+                        </option>
+                      );
+                    }),
+                )}
               </select>
             </label>
             <label className="phase3-field">
@@ -565,6 +601,7 @@ export function Phase3MixPanel({
               <input
                 type="number"
                 min={0}
+                max={laneMaxMs}
                 value={timeMs}
                 onChange={(e) => setTimeMs(Number(e.target.value) || 0)}
               />
@@ -573,11 +610,16 @@ export function Phase3MixPanel({
 
           <div className="phase3-auto-block">
             <p className="phase3-subhead">{t("phase3.mix.automationLane")}</p>
-            <p className="hint">{t("phase3.mix.automationHint")}</p>
+            <p className="hint">
+              {t("phase3.mix.automationHintDuration", {
+                sec: String(Math.round(laneMaxMs / 1000)),
+              })}
+            </p>
             <AutomationLaneEditor
               points={points}
               target={autoTarget}
               onChange={persistPoints}
+              maxMs={laneMaxMs}
             />
             <div className="btn-row phase3-actions">
               <button type="button" className="btn" onClick={sampleAutomation}>
@@ -596,7 +638,12 @@ export function Phase3MixPanel({
                 {t("phase3.mix.sampled")}:{" "}
                 <strong>
                   {sampled.toFixed(2)}
-                  {autoTarget === "volume" ? " dB" : ""}
+                  {autoTarget === "volume" ||
+                  parseAutomationTarget(autoTarget).kind === "busVolume" ||
+                  parseAutomationTarget(autoTarget).kind === "sendGain" ||
+                  parseAutomationTarget(autoTarget).kind === "effectParam"
+                    ? ""
+                    : ""}
                 </strong>
               </p>
             )}
@@ -1548,6 +1595,8 @@ export function Phase3MixPanel({
               <span className="hint">{t("phase3.mix.loudnessNote")}</span>
             </p>
           )}
+
+          <RoutingPanel mix={mix} />
         </>
       )}
     </section>

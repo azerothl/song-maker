@@ -10,6 +10,7 @@ import {
 } from "@song-maker/mix-production";
 import type { MixClip, MixDoc, PlaybackSources } from "./types";
 import {
+  getProductionOverlay,
   getProductionTempoBpm,
   getProductionToolkit,
   productionIsActive,
@@ -176,6 +177,9 @@ export function bakeMixPcm(
     effects: toolkit.effects,
     sidechain: toolkit.sidechain,
     tempoBpm: options?.tempoBpm ?? getProductionTempoBpm(),
+    buses: getProductionOverlay()?.buses,
+    sends: getProductionOverlay()?.sends,
+    trackGroupIds: getProductionOverlay()?.trackGroupIds,
   });
 }
 

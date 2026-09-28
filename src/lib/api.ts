@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { PortablePackagePlan } from "./projectPackage";
 import type {
   AppSettings,
   FormInput,
@@ -163,6 +164,7 @@ export const api = {
       peakTrimDb: number;
       renderPath: string;
       matchMode: string;
+      fileStem?: string;
     },
   ) =>
     invoke<string>("export_pcm_audio", {
@@ -176,8 +178,22 @@ export const api = {
         peakTrimDb: req.peakTrimDb,
         renderPath: req.renderPath,
         matchMode: req.matchMode,
+        fileStem: req.fileStem ?? null,
       },
     }),
+  saveProductionOverlay: (id: string, mixId: string, overlay: unknown) =>
+    invoke<void>("save_production_overlay", { id, mixId, overlay }),
+  loadProductionOverlayDisk: (id: string, mixId: string) =>
+    invoke<unknown | null>("load_production_overlay", { id, mixId }),
+  listProjectPackageInventory: (id: string) =>
+    invoke<
+      Array<{ relativePath: string; byteLength: number; exists: boolean }>
+    >("list_project_package_inventory", { id }),
+  exportProjectPackage: (id: string) =>
+    invoke<{ path: string; plan: PortablePackagePlan }>(
+      "export_project_package",
+      { id },
+    ),
   downloadCacheFile: (
     url: string,
     relativeCachePath: string,

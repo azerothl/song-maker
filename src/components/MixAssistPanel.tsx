@@ -171,8 +171,12 @@ export function MixAssistPanel({
         mixId: presetSnapshot.mix.id,
         volumePointsByTrack: {},
         panPointsByTrack: {},
+        automationLanes: {},
         effectsByTrack: {},
         sidechainRoutes: [],
+        buses: [],
+        sends: [],
+        trackGroupIds: {},
       });
     }
     setPresetSnapshot(null);
