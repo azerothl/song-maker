@@ -219,75 +219,13 @@ export function ScorePanel({
 
   return (
     <section className="score-panel">
-      <header className="score-panel-header">
-        <h2>{t("score.editor")}</h2>
-        <div className="btn-row">
-          <button
-            type="button"
-            className="btn"
-            disabled={busy}
-            onClick={() => fileRef.current?.click()}
-          >
-            {t("score.importMidi")}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".mid,.midi,audio/midi"
-            hidden
-            onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
-          />
-          <button
-            type="button"
-            className="btn primary"
-            disabled={busy || !!document}
-            onClick={() => void createBlank()}
-          >
-            {t("score.createBlank")}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={!document || busy}
-            onClick={() => document && void persist(document)}
-          >
-            {t("score.save")}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={!document}
-            onClick={downloadMidi}
-          >
-            {t("score.exportMidi")}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={!document}
-            onClick={previewAbc}
-          >
-            {t("score.previewAbc")}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={!abcPreview}
-            onClick={applyVocalToIns}
-            title={t("score.vocalToInsHint")}
-          >
-            {t("score.vocalToIns")}
-          </button>
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={!document || busy}
-            onClick={() => void clearScore()}
-          >
-            {t("score.clear")}
-          </button>
-        </div>
-      </header>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".mid,.midi,audio/midi"
+        hidden
+        onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
+      />
 
       {pendingImport && (
         <div className="banner warn">
@@ -313,9 +251,9 @@ export function ScorePanel({
 
       {!document && (
         <div className="score-empty">
-          <p className="hint">{t("score.none")}</p>
+          <p className="score-empty-lead">{t("score.emptyLead")}</p>
           <p className="hint">{t("score.emptyCta")}</p>
-          <div className="btn-row">
+          <div className="btn-row" role="group" aria-label={t("score.emptyLead")}>
             <button
               type="button"
               className="btn primary"
@@ -333,79 +271,127 @@ export function ScorePanel({
               {t("score.createBlank")}
             </button>
           </div>
+          <p className="hint">{t("score.none")}</p>
         </div>
       )}
 
       {document && (
-        <PianoRoll
-          document={document}
-          onChange={(doc) => {
-            onDocumentChange(doc);
-            setAbcPreview(null);
-          }}
-          onError={onError}
-        />
+        <>
+          <header className="score-panel-header">
+            <h2>{t("score.editor")}</h2>
+            <div
+              className="btn-row"
+              role="group"
+              aria-label={t("score.editActions")}
+            >
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => document && void persist(document)}
+              >
+                {t("score.save")}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={downloadMidi}
+              >
+                {t("score.exportMidi")}
+              </button>
+              <button type="button" className="btn" onClick={previewAbc}>
+                {t("score.previewAbc")}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={!abcPreview}
+                onClick={applyVocalToIns}
+                title={t("score.vocalToInsHint")}
+              >
+                {t("score.vocalToIns")}
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={busy}
+                onClick={() => void clearScore()}
+              >
+                {t("score.clear")}
+              </button>
+            </div>
+          </header>
+
+          <PianoRoll
+            document={document}
+            onChange={(doc) => {
+              onDocumentChange(doc);
+              setAbcPreview(null);
+            }}
+            onError={onError}
+          />
+
+          {validation && !validation.ok && (
+            <ul className="score-issues">
+              {validation.issues.map((issue, i) => (
+                <li key={`${issue.code}-${i}`} className={issue.severity}>
+                  {issue.message}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {issues.length > 0 && (
+            <ul className="score-issues">
+              {issues.map((issue, i) => (
+                <li key={`i-${i}`} className={issue.severity}>
+                  {issue.message}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <ScoreAssistantPanel
+            document={document}
+            issues={[
+              ...(validation && !validation.ok ? validation.issues : []),
+              ...issues,
+            ]}
+            onApplyDocument={(doc, messageFr) => {
+              onDocumentChange(doc);
+              setAbcPreview(null);
+              setStatus(messageFr);
+              setIssues([]);
+            }}
+            onRequestCotFull={() => onCotChange?.("full")}
+          />
+
+          <InvariantPanel document={document} projectId={projectId} />
+
+          <ScoreBranchPanel
+            projectId={projectId}
+            document={document}
+            refreshToken={branchRefresh}
+            onDocumentChange={(doc) => {
+              onDocumentChange(doc);
+              setAbcPreview(null);
+            }}
+            onProjectRefresh={onProjectRefresh}
+            onError={onError}
+          />
+
+          {abcPreview && (
+            <details open>
+              <summary>{t("score.abcPreview")}</summary>
+              <pre className="score">{abcPreview}</pre>
+            </details>
+          )}
+
+          {status && <p className="hint ok">{status}</p>}
+
+          <p className="hint">{t("score.phase2Note")}</p>
+        </>
       )}
-
-      {validation && !validation.ok && (
-        <ul className="score-issues">
-          {validation.issues.map((issue, i) => (
-            <li key={`${issue.code}-${i}`} className={issue.severity}>
-              {issue.message}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {issues.length > 0 && (
-        <ul className="score-issues">
-          {issues.map((issue, i) => (
-            <li key={`i-${i}`} className={issue.severity}>
-              {issue.message}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <ScoreAssistantPanel
-        document={document}
-        issues={[
-          ...(validation && !validation.ok ? validation.issues : []),
-          ...issues,
-        ]}
-        onApplyDocument={(doc, messageFr) => {
-          onDocumentChange(doc);
-          setAbcPreview(null);
-          setStatus(messageFr);
-          setIssues([]);
-        }}
-        onRequestCotFull={() => onCotChange?.("full")}
-      />
-
-      <InvariantPanel document={document} projectId={projectId} />
-
-      <ScoreBranchPanel
-        projectId={projectId}
-        document={document}
-        refreshToken={branchRefresh}
-        onDocumentChange={(doc) => {
-          onDocumentChange(doc);
-          setAbcPreview(null);
-        }}
-        onProjectRefresh={onProjectRefresh}
-        onError={onError}
-      />
-
-      {abcPreview && (
-        <details open>
-          <summary>{t("score.abcPreview")}</summary>
-          <pre className="score">{abcPreview}</pre>
-        </details>
-      )}
-
-      {status && <p className="hint ok">{status}</p>}
-
-      <p className="hint">{t("score.phase2Note")}</p>
     </section>
   );
 }

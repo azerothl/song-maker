@@ -16,6 +16,8 @@ export type SheetSage2PanelProps = {
   form: FormInput;
   mix: MixDoc | null;
   busy: boolean;
+  /** When true, omit the panel H3 (parent already provides the workspace title). */
+  hideTitle?: boolean;
   /**
    * Real YuE2 path — parent must only call when user confirmed ABC.
    * Typically: api.startGeneration(projectId, { ...form, cot }, confirmedAbc)
@@ -33,6 +35,7 @@ export function SheetSage2Panel({
   form,
   mix,
   busy,
+  hideTitle = false,
   onConfirmGenerate,
 }: SheetSage2PanelProps) {
   const [licenseAccepted, setLicenseAccepted] = useState(false);
@@ -133,9 +136,21 @@ export function SheetSage2Panel({
   };
 
   return (
-    <section className="sheetsage-panel" aria-labelledby="sheetsage-title">
-      <h3 id="sheetsage-title">{t("sheetsage.title")}</h3>
+    <section
+      className="sheetsage-panel"
+      aria-labelledby={hideTitle ? undefined : "sheetsage-title"}
+      aria-label={hideTitle ? t("sheetsage.title") : undefined}
+    >
+      {!hideTitle && <h3 id="sheetsage-title">{t("sheetsage.title")}</h3>}
       <p className="hint">{t("sheetsage.intro")}</p>
+      <ol className="sheetsage-steps hint">
+        <li>{t("sheetsage.step.source")}</li>
+        <li>{t("sheetsage.step.mode")}</li>
+        <li>{t("sheetsage.step.transcribe")}</li>
+        <li>{t("sheetsage.step.edit")}</li>
+        <li>{t("sheetsage.step.confirm")}</li>
+        <li>{t("sheetsage.step.generate")}</li>
+      </ol>
       <p className="hint warn" role="note">
         {REINTERPRETATION_DISCLAIMER_FR}
       </p>
