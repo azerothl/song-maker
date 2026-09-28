@@ -65,6 +65,7 @@ pub fn run() {
             commands::append_user_audio_chunk,
             commands::discard_user_audio_capture,
             commands::finalize_user_audio_capture,
+            commands::finalize_user_audio_capture_takes,
             commands::save_mix_version,
             commands::render_preview,
             commands::playback_sources,

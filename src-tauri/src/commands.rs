@@ -8,7 +8,7 @@ use crate::library::{
     load_settings, project_folder, save_project, save_settings, upsert_library_row,
 };
 use crate::mix::{
-    append_user_audio_track, empty_mix, export_flac, export_mp3, new_mix_from_separation,
+    append_user_audio_takes, append_user_audio_track, empty_mix, export_flac, export_mp3, new_mix_from_separation,
     render_mix, wav_duration_ms, write_export_json_with_warnings, write_interleaved_f32_wav,
 };
 use crate::models::*;
@@ -1354,6 +1354,20 @@ pub fn update_mix(
                             clip.id
                         ));
                     }
+                    if clip.time_stretch_ratio <= 0.0
+                        || !(0.25..=4.0).contains(&clip.time_stretch_ratio)
+                    {
+                        return Err(format!(
+                            "Ratio d’étirement invalide pour le clip {} (0,25…4).",
+                            clip.id
+                        ));
+                    }
+                    if !(-12.0..=12.0).contains(&clip.pitch_semitones) {
+                        return Err(format!(
+                            "Transposition hors plage pour le clip {} (−12…+12).",
+                            clip.id
+                        ));
+                    }
                 }
                 track.clips = clips;
             }
@@ -1421,15 +1435,22 @@ fn load_or_create_active_mix(
     Ok((mix, path))
 }
 
-/// Copy (optional) + normalize + append user MixTrack. Never mutates existing stems.
-fn ingest_user_audio_file(
+/// Copy (optional) + normalize user audio into project dirs. Does not touch the mix.
+struct IngestedUserAudio {
+    asset_id: String,
+    normalized_rel: String,
+    sha: String,
+    duration_ms: i64,
+    original_rel: Option<String>,
+}
+
+fn prepare_user_audio_asset(
     folder: &Path,
-    doc: &mut ProjectDoc,
     source: &Path,
     display_name: &str,
     copy_original: bool,
     original_ext: Option<&str>,
-) -> Result<MixDoc, String> {
+) -> Result<IngestedUserAudio, String> {
     ensure_user_audio_dirs(folder)?;
     if !source.is_file() {
         return Err(format!("Chemin audio invalide : {}", source.display()));
@@ -1456,9 +1477,7 @@ fn ingest_user_audio_file(
             .unwrap_or_else(|| "bin".into());
         let dest = root.join("originals").join(format!("{asset_id}.{ext}"));
         std::fs::copy(source, &dest).map_err(|e| {
-            format!(
-                "Impossible de copier l’original dans le projet : {e}"
-            )
+            format!("Impossible de copier l’original dans le projet : {e}")
         })?;
         original_rel = Some(format!("user-audio/originals/{asset_id}.{ext}"));
         copied_original = Some(dest);
@@ -1527,17 +1546,56 @@ fn ingest_user_audio_file(
         return Err(e);
     }
 
+    Ok(IngestedUserAudio {
+        asset_id,
+        normalized_rel,
+        sha,
+        duration_ms,
+        original_rel,
+    })
+}
+
+fn rollback_ingested_asset(folder: &Path, asset: &IngestedUserAudio) {
+    let _ = std::fs::remove_file(folder.join(&asset.normalized_rel));
+    if let Some(rel) = &asset.original_rel {
+        let _ = std::fs::remove_file(folder.join(rel));
+    }
+    let _ = std::fs::remove_file(
+        user_audio_root(folder)
+            .join("provenance")
+            .join(format!("{}.json", asset.asset_id)),
+    );
+}
+
+/// Copy (optional) + normalize + append user MixTrack. Never mutates existing stems.
+fn ingest_user_audio_file(
+    folder: &Path,
+    doc: &mut ProjectDoc,
+    source: &Path,
+    display_name: &str,
+    copy_original: bool,
+    original_ext: Option<&str>,
+) -> Result<MixDoc, String> {
+    let asset = prepare_user_audio_asset(
+        folder,
+        source,
+        display_name,
+        copy_original,
+        original_ext,
+    )?;
+
     let (mut mix, mix_path) = load_or_create_active_mix(folder, doc)?;
-    // Snapshot for rollback: do not leave a broken track if save fails.
     let track_count_before = mix.tracks.len();
-    append_user_audio_track(&mut mix, &normalized_rel, &sha, duration_ms, display_name);
+    append_user_audio_track(
+        &mut mix,
+        &asset.normalized_rel,
+        &asset.sha,
+        asset.duration_ms,
+        display_name,
+    );
     if let Err(e) = atomic_write_json(&mix_path, &mix) {
         mix.tracks.truncate(track_count_before);
-        let _ = std::fs::remove_file(&normalized_abs);
-        if let Some(p) = &copied_original {
-            let _ = std::fs::remove_file(p);
-        }
-        let _ = std::fs::remove_file(root.join("provenance").join(format!("{asset_id}.json")));
+        rollback_ingested_asset(folder, &asset);
         return Err(e);
     }
     doc.updated_at = now_iso();
@@ -1699,6 +1757,126 @@ pub fn finalize_user_audio_capture(
             Err(e)
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinalizeCaptureTakesRequest {
+    pub session_ids: Vec<String>,
+    pub display_name: Option<String>,
+    /// Timeline start for all takes (punch-in).
+    pub start_ms: Option<i64>,
+}
+
+/// Finalize several capture sessions as one track with take lanes (#93).
+#[tauri::command]
+pub fn finalize_user_audio_capture_takes(
+    id: String,
+    req: FinalizeCaptureTakesRequest,
+) -> Result<MixDoc, String> {
+    if req.session_ids.is_empty() {
+        return Err("Aucune session de prise à finaliser.".into());
+    }
+    for sid in &req.session_ids {
+        if !capture_session_id_ok(sid) {
+            return Err("Identifiant de session de capture invalide.".into());
+        }
+    }
+    let folder = project_folder(&id);
+    let mut doc = load_project(&folder)?;
+    let name = req
+        .display_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("Enregistrement")
+        .to_string();
+    let start_ms = req.start_ms.unwrap_or(0).max(0);
+
+    let mut assets: Vec<IngestedUserAudio> = Vec::new();
+    let mut labels: Vec<String> = Vec::new();
+    for (i, sid) in req.session_ids.iter().enumerate() {
+        let capture = folder
+            .join("user-audio")
+            .join("capture")
+            .join(format!("{sid}.webm"));
+        if !capture.is_file() {
+            for a in &assets {
+                rollback_ingested_asset(&folder, a);
+            }
+            return Err(format!("Session de capture introuvable : {sid}"));
+        }
+        let meta = std::fs::metadata(&capture).map_err(|e| e.to_string())?;
+        if meta.len() == 0 {
+            for a in &assets {
+                rollback_ingested_asset(&folder, a);
+            }
+            return Err("Enregistrement vide — aucune piste créée.".into());
+        }
+        let label = format!("Prise {}", i + 1);
+        match prepare_user_audio_asset(
+            &folder,
+            &capture,
+            &format!("{name} — {label}"),
+            true,
+            Some("webm"),
+        ) {
+            Ok(asset) => {
+                assets.push(asset);
+                labels.push(label);
+            }
+            Err(e) => {
+                for a in &assets {
+                    rollback_ingested_asset(&folder, a);
+                }
+                return Err(e);
+            }
+        }
+    }
+
+    let take_refs: Vec<(&str, &str, i64, &str)> = assets
+        .iter()
+        .zip(labels.iter())
+        .map(|(a, lab)| {
+            (
+                a.normalized_rel.as_str(),
+                a.sha.as_str(),
+                a.duration_ms,
+                lab.as_str(),
+            )
+        })
+        .collect();
+
+    let (mut mix, mix_path) = match load_or_create_active_mix(&folder, &mut doc) {
+        Ok(v) => v,
+        Err(e) => {
+            for a in &assets {
+                rollback_ingested_asset(&folder, a);
+            }
+            return Err(e);
+        }
+    };
+    let track_count_before = mix.tracks.len();
+    append_user_audio_takes(&mut mix, &take_refs, &name, start_ms, None);
+    if let Err(e) = atomic_write_json(&mix_path, &mix) {
+        mix.tracks.truncate(track_count_before);
+        for a in &assets {
+            rollback_ingested_asset(&folder, a);
+        }
+        return Err(e);
+    }
+
+    for sid in &req.session_ids {
+        let capture = folder
+            .join("user-audio")
+            .join("capture")
+            .join(format!("{sid}.webm"));
+        let _ = std::fs::remove_file(&capture);
+    }
+    doc.updated_at = now_iso();
+    let _ = save_project(&folder, &doc);
+    let _ = upsert_library_row(&library_row_from_project(&folder, &doc));
+    Ok(mix)
 }
 
 #[tauri::command]

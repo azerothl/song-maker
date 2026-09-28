@@ -1,5 +1,5 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { bakeMixPcm, type DecodedStem } from "./mixBridge";
+import { bakeMixPcm, mixNeedsClipProcessingBake, type DecodedStem } from "./mixBridge";
 import {
   getProductionToolkit,
   productionIsActive,
@@ -344,8 +344,11 @@ export class MixPlaybackEngine {
       return;
     }
 
-    // Production overlay → same bake as export (approximate match).
-    if (productionIsActive() && this.decodedStems.length > 0) {
+    // Production overlay or clip stretch/takes → same bake as export.
+    if (
+      (productionIsActive() || mixNeedsClipProcessingBake(mix)) &&
+      this.decodedStems.length > 0
+    ) {
       const wasPlaying = this.playing;
       const t = this.getCurrentTime();
       this.stopSources(false);

@@ -131,6 +131,20 @@ export const api = {
       sessionId,
       displayName: displayName ?? null,
     }),
+  finalizeUserAudioCaptureTakes: (
+    id: string,
+    sessionIds: string[],
+    displayName?: string | null,
+    startMs?: number | null,
+  ) =>
+    invoke<MixDoc>("finalize_user_audio_capture_takes", {
+      id,
+      req: {
+        sessionIds,
+        displayName: displayName ?? null,
+        startMs: startMs ?? null,
+      },
+    }),
   saveMixVersion: (id: string) => invoke<MixDoc>("save_mix_version", { id }),
   renderPreview: (id: string) => invoke<string>("render_preview", { id }),
   playbackSources: (id: string) =>
