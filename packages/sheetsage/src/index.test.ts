@@ -28,12 +28,25 @@ describe("@song-maker/sheetsage", () => {
     ).toBe("missing_binary");
     expect(
       checkSheetsageReadiness(
+        defaultSheetsageProbe({ licenseAccepted: true }),
+      ).messageFr,
+    ).toMatch(/pack moteur/i);
+    expect(
+      checkSheetsageReadiness(
         defaultSheetsageProbe({
           licenseAccepted: true,
           binaryPresent: true,
         }),
       ).status,
     ).toBe("missing_weights");
+    expect(
+      checkSheetsageReadiness(
+        defaultSheetsageProbe({
+          licenseAccepted: true,
+          binaryPresent: true,
+        }),
+      ).messageFr,
+    ).toMatch(/opt-in/i);
   });
 
   it("marks ready when probe is complete; stub without runner stays honest", async () => {

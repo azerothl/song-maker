@@ -68,6 +68,20 @@ export const runtimeApi = {
     invoke<SheetsageHostTranscribeOutcome>("sheetsage_transcribe", { args }),
   sheetsageCancel: (jobId: string) =>
     invoke<string>("sheetsage_cancel", { jobId }),
+  installSheetsage2: () => invoke<string>("install_sheetsage2"),
+  cancelSheetsage2Install: () => invoke<string>("cancel_sheetsage2_install"),
+  sheetsageInstallInfo: () =>
+    invoke<{
+      gguf: string;
+      sha256: string;
+      bytes: number;
+      repo: string;
+      remotePath: string;
+      url: string;
+      licenseNoticeFr: string;
+      path: string;
+      available: boolean;
+    }>("sheetsage2_install_info"),
 
   loraTrainProbe: () => invoke<LoraTrainerProbe>("lora_train_probe"),
   loraTrainProbeAudio: (path: string) =>

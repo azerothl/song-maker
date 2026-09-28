@@ -63,6 +63,15 @@ pub const BS_ROFORMER_REMOTE: &str =
 /// Exact on-disk size of the pinned GGUF (bytes).
 pub const BS_ROFORMER_BYTES: u64 = 172_532_256;
 
+/// SheetSage2 — opt-in MIDI transcription weights (hors premier build, CC BY-NC 4.0).
+pub const SHEETSAGE2_GGUF: &str = "sheetsage2-orig.gguf";
+pub const SHEETSAGE2_SHA: &str =
+    "52bb5846c452037d39931aa8050885b6c751b9c7afcc8ef6d6d3067d241731a4";
+pub const SHEETSAGE2_REPO: &str = "audio-cpp/SheetSage2-GGUF";
+pub const SHEETSAGE2_REMOTE: &str = "sheetsage2-orig.gguf";
+/// Exact on-disk size of the pinned GGUF (bytes). Spec §19 / packages/sheetsage.
+pub const SHEETSAGE2_BYTES: u64 = 2_708_224_512;
+
 pub const DEFAULT_STEM_SEPARATOR: &str = "htdemucs";
 
 pub const DEFAULT_HOST: &str = "127.0.0.1";
