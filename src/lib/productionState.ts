@@ -19,8 +19,15 @@ export const UI_EFFECT_KINDS = [
   "filter",
   "delay",
   "reverb",
+  "pitch_correct",
 ] as const;
 export type UiEffectKind = (typeof UI_EFFECT_KINDS)[number];
+
+/** Pitch correction is intended for vocal stems only (issue #83). */
+export function isPitchCorrectEligibleTrack(role: string): boolean {
+  const r = role.trim().toLowerCase();
+  return r === "vocals" || r === "vocal" || r.includes("vocal");
+}
 
 export type ProductionOverlay = {
   mixId: string;
@@ -436,6 +443,15 @@ export function defaultEffectParams(
       };
     case "reverb":
       return { mix: 0.35, roomSize: 0.55, damping: 0.45, width: 1 };
+    case "pitch_correct":
+      return {
+        mode: "chromatic",
+        tonic: 0,
+        scale: "major",
+        intensity: 0.7,
+        speed: 0.55,
+        formantPreserve: true,
+      };
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;

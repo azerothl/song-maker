@@ -28,6 +28,11 @@ export type SheetSage2PanelProps = {
   playbackSeconds?: number;
   playbackReady?: boolean;
   onSeekPlayback?: (seconds: number) => void;
+  /**
+   * Open transcribed ABC as an editable ScoreDocument draft in the piano roll.
+   * Source audio is never mutated. Optional — when omitted, MIDI draft button is hidden.
+   */
+  onOpenScoreDraft?: (abc: string, meta: { mode: "melody" | "full" }) => void | Promise<void>;
 };
 
 type SourceChoice = "mixdown" | string;
@@ -58,6 +63,7 @@ export function SheetSage2Panel({
   playbackSeconds = 0,
   playbackReady = false,
   onSeekPlayback,
+  onOpenScoreDraft,
 }: SheetSage2PanelProps) {
   const [licenseAccepted, setLicenseAccepted] = useState(false);
   const [sourceChoice, setSourceChoice] = useState<SourceChoice>("mixdown");
@@ -346,6 +352,11 @@ export function SheetSage2Panel({
     void onConfirmGenerate(proposedAbc.trim(), mode);
   };
 
+  const onOpenDraft = () => {
+    if (!onOpenScoreDraft || !proposedAbc.trim()) return;
+    void onOpenScoreDraft(proposedAbc.trim(), { mode });
+  };
+
   const showInstall =
     isTauriRuntime() &&
     licenseAccepted &&
@@ -369,6 +380,7 @@ export function SheetSage2Panel({
         <li>{t("sheetsage.step.mode")}</li>
         <li>{t("sheetsage.step.transcribe")}</li>
         <li>{t("sheetsage.step.edit")}</li>
+        <li>{t("sheetsage.step.scoreDraft")}</li>
         <li>{t("sheetsage.step.confirm")}</li>
         <li>{t("sheetsage.step.generate")}</li>
       </ol>
@@ -533,6 +545,16 @@ export function SheetSage2Panel({
       )}
 
       <div className="btn-row">
+        {onOpenScoreDraft && (
+          <button
+            type="button"
+            className="btn"
+            disabled={busy || !proposedAbc.trim()}
+            onClick={onOpenDraft}
+          >
+            {t("sheetsage.openScoreDraft")}
+          </button>
+        )}
         <button
           type="button"
           className="btn"
@@ -550,6 +572,7 @@ export function SheetSage2Panel({
           {t("sheetsage.generateYue2")}
         </button>
       </div>
+      <p className="hint">{t("sheetsage.scoreDraftHint")}</p>
       {confirmed && (
         <p className="hint ok">{t("sheetsage.confirmed", { style: form.style || "—" })}</p>
       )}

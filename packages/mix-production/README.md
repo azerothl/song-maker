@@ -9,7 +9,7 @@ Sous-ensemble DSP réel + rendu offline partagé. Les exports `Stub*` / `createS
 | API | Comportement |
 |---|---|
 | `MixAutomationEngine.sampleAt` | Interpolation linéaire des lanes volume / pan |
-| `TrackEffectsRack.process` | Limiteur, compresseur (attaque/relâchement/knee), gate, filtre HP/LP, EQ shelf + EQ paramétrique, delay sync tempo, réverb stéréo |
+| `TrackEffectsRack.process` | Limiteur, compresseur (attaque/relâchement/knee), gate, filtre HP/LP, EQ shelf + EQ paramétrique, delay sync tempo, réverb stéréo, correction de justesse vocale |
 | `registerCustomProcessor` | Extensions DSP `custom` ; sans registre → refus explicite (pas de no-op) |
 | `SidechainRouter.applyDucking` | Ducking destination depuis enveloppe source |
 | `LoudnessMeter.measurePcm` | True peak dBFS + estimation LUFS (pas filtre K BS.1770) |
@@ -44,6 +44,11 @@ Ces outils sont des **aides de mixage**, pas un mastering automatique.
 
 Réverb algorithmique stéréo (comb + allpass). Paramètres : `mix`, `roomSize`, `damping`, `width` (0…1).
 La queue s’étend d’environ **0,35 s → 2,8 s** selon `roomSize` (`reverbTailFrames`) ; lecture et export offline utilisent le même bake et ne tronquent pas cette queue.
+
+## Correction de justesse (`pitch_correct`)
+
+Correcteur local léger (AMDF + OLA) pour stems vocaux. Paramètres : `mode` (chromatic|scale), `tonic`, `scale`, `intensity`, `speed`, `formantPreserve`.
+Voir [docs/pitch-correct.md](../../docs/pitch-correct.md). Pas un Autotune commercial ; licence in-repo Apache-2.0.
 
 ## Effets custom
 

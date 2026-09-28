@@ -20,6 +20,7 @@ import {
   ensureProductionOverlay,
   getProductionOverlay,
   getProductionToolkit,
+  isPitchCorrectEligibleTrack,
   newEffectId,
   patchProductionOverlay,
   productionIsActive,
@@ -56,6 +57,7 @@ const FX_LABEL: Record<
   | "phase3.mix.fx.filter"
   | "phase3.mix.fx.delay"
   | "phase3.mix.fx.reverb"
+  | "phase3.mix.fx.pitchCorrect"
 > = {
   limiter: "phase3.mix.fx.limiter",
   compressor: "phase3.mix.fx.compressor",
@@ -65,6 +67,7 @@ const FX_LABEL: Record<
   filter: "phase3.mix.fx.filter",
   delay: "phase3.mix.fx.delay",
   reverb: "phase3.mix.fx.reverb",
+  pitch_correct: "phase3.mix.fx.pitchCorrect",
 };
 
 const FX_ADD_LABEL: Record<
@@ -77,6 +80,7 @@ const FX_ADD_LABEL: Record<
   | "phase3.mix.add.filter"
   | "phase3.mix.add.delay"
   | "phase3.mix.add.reverb"
+  | "phase3.mix.add.pitchCorrect"
 > = {
   limiter: "phase3.mix.add.limiter",
   compressor: "phase3.mix.add.compressor",
@@ -86,6 +90,7 @@ const FX_ADD_LABEL: Record<
   filter: "phase3.mix.add.filter",
   delay: "phase3.mix.add.delay",
   reverb: "phase3.mix.add.reverb",
+  pitch_correct: "phase3.mix.add.pitchCorrect",
 };
 
 const PARAM_EQ_TYPES = [
@@ -309,6 +314,10 @@ export function Phase3MixPanel({
 
   const tracks = mix?.tracks ?? [];
   const activeTrack = trackId || tracks[0]?.id || "";
+  const activeTrackMeta = tracks.find((tr) => tr.id === activeTrack);
+  const canAddPitchCorrect = activeTrackMeta
+    ? isPitchCorrectEligibleTrack(activeTrackMeta.role)
+    : false;
 
   const syncFromOverlay = useCallback(() => {
     setActive(productionIsActive());
@@ -405,6 +414,7 @@ export function Phase3MixPanel({
 
   const addEffect = (kind: UiEffectKind) => {
     if (!mix || !activeTrack) return;
+    if (kind === "pitch_correct" && !canAddPitchCorrect) return;
     const params = defaultEffectParams(kind);
     if (
       kind === "delay" &&
@@ -596,17 +606,30 @@ export function Phase3MixPanel({
             <legend>{t("phase3.mix.fxLegend")}</legend>
             <p className="hint">{t("phase3.mix.fxHint")}</p>
             <div className="btn-row">
-              {UI_EFFECT_KINDS.map((kind) => (
-                <button
-                  key={kind}
-                  type="button"
-                  className="btn"
-                  onClick={() => addEffect(kind)}
-                >
-                  {t(FX_ADD_LABEL[kind])}
-                </button>
-              ))}
+              {UI_EFFECT_KINDS.map((kind) => {
+                const disabled =
+                  kind === "pitch_correct" && !canAddPitchCorrect;
+                return (
+                  <button
+                    key={kind}
+                    type="button"
+                    className="btn"
+                    disabled={disabled}
+                    title={
+                      disabled
+                        ? t("phase3.mix.pitchCorrect.vocalsOnly")
+                        : undefined
+                    }
+                    onClick={() => addEffect(kind)}
+                  >
+                    {t(FX_ADD_LABEL[kind])}
+                  </button>
+                );
+              })}
             </div>
+            {!canAddPitchCorrect && (
+              <p className="hint">{t("phase3.mix.pitchCorrect.vocalsOnly")}</p>
+            )}
             {effects.length === 0 ? (
               <p className="hint">{t("phase3.mix.fxEmpty")}</p>
             ) : (
@@ -1220,6 +1243,141 @@ export function Phase3MixPanel({
                               }
                             />
                           </label>
+                        </>
+                      )}
+                      {fx.kind === "pitch_correct" && (
+                        <>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.pitchMode")}</span>
+                            <select
+                              value={String(fx.params.mode ?? "chromatic")}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "mode",
+                                  e.target.value,
+                                )
+                              }
+                            >
+                              <option value="chromatic">
+                                {t("phase3.mix.pitchCorrect.mode.chromatic")}
+                              </option>
+                              <option value="scale">
+                                {t("phase3.mix.pitchCorrect.mode.scale")}
+                              </option>
+                            </select>
+                          </label>
+                          {String(fx.params.mode) === "scale" && (
+                            <>
+                              <label className="phase3-field">
+                                <span>{t("phase3.mix.param.tonic")}</span>
+                                <select
+                                  value={Number(fx.params.tonic ?? 0)}
+                                  onChange={(e) =>
+                                    updateEffectParam(
+                                      fx.id,
+                                      "tonic",
+                                      Number(e.target.value),
+                                    )
+                                  }
+                                >
+                                  {(
+                                    [
+                                      "C",
+                                      "C#",
+                                      "D",
+                                      "Eb",
+                                      "E",
+                                      "F",
+                                      "F#",
+                                      "G",
+                                      "Ab",
+                                      "A",
+                                      "Bb",
+                                      "B",
+                                    ] as const
+                                  ).map((name, i) => (
+                                    <option key={name} value={i}>
+                                      {name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label className="phase3-field">
+                                <span>{t("phase3.mix.param.scale")}</span>
+                                <select
+                                  value={String(fx.params.scale ?? "major")}
+                                  onChange={(e) =>
+                                    updateEffectParam(
+                                      fx.id,
+                                      "scale",
+                                      e.target.value,
+                                    )
+                                  }
+                                >
+                                  <option value="major">
+                                    {t("phase3.mix.pitchCorrect.scale.major")}
+                                  </option>
+                                  <option value="minor">
+                                    {t("phase3.mix.pitchCorrect.scale.minor")}
+                                  </option>
+                                </select>
+                              </label>
+                            </>
+                          )}
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.intensity")}</span>
+                            <input
+                              type="number"
+                              step={0.05}
+                              min={0}
+                              max={1}
+                              value={Number(fx.params.intensity ?? 0.7)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "intensity",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.speed")}</span>
+                            <input
+                              type="number"
+                              step={0.05}
+                              min={0}
+                              max={1}
+                              value={Number(fx.params.speed ?? 0.55)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "speed",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-check">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(
+                                fx.params.formantPreserve ?? true,
+                              )}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "formantPreserve",
+                                  e.target.checked,
+                                )
+                              }
+                            />
+                            <span>{t("phase3.mix.param.formantPreserve")}</span>
+                          </label>
+                          <p className="hint">
+                            {t("phase3.mix.pitchCorrect.honesty")}
+                          </p>
                         </>
                       )}
                     </div>

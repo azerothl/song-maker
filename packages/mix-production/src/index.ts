@@ -49,6 +49,15 @@ export {
   type ReverbParams,
 } from "./dsp.js";
 export {
+  applyPitchCorrect,
+  estimateF0Hz,
+  pitchCorrectAllowedPcs,
+  snapMidiToScale,
+  type PitchCorrectMode,
+  type PitchCorrectParams,
+  type PitchCorrectScale,
+} from "./pitchCorrect.js";
+export {
   MixAutomationEngineImpl,
   TrackEffectsRackImpl,
   SidechainRouterImpl,
