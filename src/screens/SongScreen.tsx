@@ -10,6 +10,7 @@ import { MixAssistPanel } from "../components/MixAssistPanel";
 import { MultiRenderFromScore } from "../components/MultiRenderFromScore";
 import { Phase3MixPanel } from "../components/Phase3MixPanel";
 import { ProductionAssistPanel } from "../components/ProductionAssistPanel";
+import { ExportWizard } from "../components/ExportWizard";
 import { RecordTrackPanel } from "../components/RecordTrackPanel";
 import { RegenerationGate } from "../components/RegenerationGate";
 import { RemoteGenerateConfirm } from "../components/RemoteGenerateConfirm";
@@ -28,7 +29,12 @@ import {
 } from "../lib/remoteGenerate";
 import {
   ensureProductionOverlay,
+  normalizeProductionOverlay,
+  setProductionDiskPersist,
+  setProductionOverlay,
   setProductionTempoBpm,
+  undoProductionOverlay,
+  redoProductionOverlay,
 } from "../lib/productionState";
 import {
   importAbcText,
@@ -471,9 +477,38 @@ export function SongScreen() {
   }, [project?.id]);
 
   useEffect(() => {
-    if (!mix?.id) return;
-    ensureProductionOverlay(mix.id);
-  }, [mix?.id]);
+    if (!project?.id) return;
+    setProductionDiskPersist((mixId, overlay) => {
+      void api.saveProductionOverlay(project.id, mixId, overlay).catch(() => {
+        /* localStorage remains the offline fallback */
+      });
+    });
+    return () => setProductionDiskPersist(null);
+  }, [project?.id]);
+
+  useEffect(() => {
+    if (!mix?.id || !project?.id) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const disk = await api.loadProductionOverlayDisk(project.id, mix.id);
+        if (cancelled) return;
+        if (disk) {
+          setProductionOverlay(
+            normalizeProductionOverlay(disk, mix.id),
+            { recordUndo: false },
+          );
+          return;
+        }
+      } catch {
+        /* fall through to localStorage */
+      }
+      if (!cancelled) ensureProductionOverlay(mix.id);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mix?.id, project?.id]);
 
   useEffect(() => {
     setProductionTempoBpm(form.tempoBpm);
@@ -549,11 +584,18 @@ export function SongScreen() {
       if (mod && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         setMixPreview(null);
-        void api.undoMix(project.id).then((m) => m && setMix(m));
+        const overlayRestored = undoProductionOverlay();
+        void api.undoMix(project.id).then((m) => {
+          if (m) setMix(m);
+          else if (!overlayRestored) {
+            /* nothing to undo */
+          }
+        });
       }
       if (mod && e.shiftKey && e.key.toLowerCase() === "z") {
         e.preventDefault();
         setMixPreview(null);
+        redoProductionOverlay();
         void api.redoMix(project.id).then((m) => m && setMix(m));
       }
     };
@@ -1814,6 +1856,19 @@ export function SongScreen() {
                 mix={mix}
                 sources={playbackSources}
                 tempoBpm={form.tempoBpm}
+                durationMs={
+                  form.targetDurationSec != null
+                    ? form.targetDurationSec * 1000
+                    : (project.targetDurationSec ?? 180) * 1000
+                }
+              />
+              <ExportWizard
+                project={project}
+                mix={mix}
+                sources={playbackSources}
+                busy={busy}
+                onBusy={setBusy}
+                onError={setError}
               />
             </div>
           </section>

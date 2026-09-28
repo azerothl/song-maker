@@ -1,13 +1,17 @@
 import {
   createMixProductionToolkit,
+  validateRoutingGraph,
   type AutomationPoint,
   type EffectKind,
+  type MixBus,
   type MixProductionToolkit,
+  type MixSend,
   type SidechainRoute,
   type TrackEffectSlot,
 } from "@song-maker/mix-production";
 
 const STORAGE_PREFIX = "song-maker:production:";
+const OVERLAY_UNDO_CAP = 100;
 
 /** Effects exposed in the UI (custom stays host-extension only). */
 export const UI_EFFECT_KINDS = [
@@ -33,8 +37,14 @@ export type ProductionOverlay = {
   mixId: string;
   volumePointsByTrack: Record<string, AutomationPoint[]>;
   panPointsByTrack: Record<string, AutomationPoint[]>;
+  /** Keys: `${trackId}|${target}` for FX / send / bus lanes beyond vol/pan. */
+  automationLanes: Record<string, AutomationPoint[]>;
   effectsByTrack: Record<string, TrackEffectSlot[]>;
   sidechainRoutes: SidechainRoute[];
+  buses: MixBus[];
+  sends: MixSend[];
+  /** trackId → group bus id */
+  trackGroupIds: Record<string, string | null>;
 };
 
 type Listener = () => void;
@@ -44,6 +54,11 @@ let toolkit: MixProductionToolkit = createMixProductionToolkit();
 const listeners = new Set<Listener>();
 /** Project tempo for delay sync — optional; invalid → free ms fallback. */
 let productionTempoBpm: number | null = null;
+const overlayUndo: ProductionOverlay[] = [];
+const overlayRedo: ProductionOverlay[] = [];
+let diskPersist:
+  | ((mixId: string, json: ProductionOverlay) => void)
+  | null = null;
 
 function notify() {
   for (const fn of listeners) fn();
@@ -58,6 +73,13 @@ export function getProductionTempoBpm(): number | null {
   return productionTempoBpm;
 }
 
+/** Optional host hook to mirror overlay into the project folder. */
+export function setProductionDiskPersist(
+  fn: ((mixId: string, json: ProductionOverlay) => void) | null,
+) {
+  diskPersist = fn;
+}
+
 function storageKey(mixId: string): string {
   return `${STORAGE_PREFIX}${mixId}`;
 }
@@ -67,9 +89,24 @@ function emptyOverlay(mixId: string): ProductionOverlay {
     mixId,
     volumePointsByTrack: {},
     panPointsByTrack: {},
+    automationLanes: {},
     effectsByTrack: {},
     sidechainRoutes: [],
+    buses: [],
+    sends: [],
+    trackGroupIds: {},
   };
+}
+
+function cloneOverlay(o: ProductionOverlay): ProductionOverlay {
+  return JSON.parse(JSON.stringify(o)) as ProductionOverlay;
+}
+
+function pushOverlayUndo(prev: ProductionOverlay | null) {
+  if (!prev) return;
+  overlayUndo.push(cloneOverlay(prev));
+  if (overlayUndo.length > OVERLAY_UNDO_CAP) overlayUndo.shift();
+  overlayRedo.length = 0;
 }
 
 function isUiEffectKind(kind: string): kind is UiEffectKind {
@@ -155,6 +192,15 @@ export function normalizeProductionOverlay(
     }
   }
 
+  const automationLanes: Record<string, AutomationPoint[]> = {};
+  if (o.automationLanes && typeof o.automationLanes === "object") {
+    for (const [k, v] of Object.entries(
+      o.automationLanes as Record<string, unknown>,
+    )) {
+      automationLanes[k] = normalizePoints(v);
+    }
+  }
+
   const effectsByTrack: Record<string, TrackEffectSlot[]> = {};
   if (o.effectsByTrack && typeof o.effectsByTrack === "object") {
     for (const [k, v] of Object.entries(
@@ -224,22 +270,98 @@ export function normalizeProductionOverlay(
     ];
   }
 
+  const busesRaw = Array.isArray(o.buses) ? o.buses : [];
+  const buses: MixBus[] = [];
+  for (const rawBus of busesRaw) {
+    if (!rawBus || typeof rawBus !== "object") continue;
+    const b = rawBus as Record<string, unknown>;
+    if (typeof b.id !== "string") continue;
+    if (b.kind !== "group" && b.kind !== "aux") continue;
+    buses.push({
+      id: b.id,
+      kind: b.kind,
+      name: typeof b.name === "string" ? b.name : b.kind,
+      gainDb: typeof b.gainDb === "number" ? b.gainDb : 0,
+      pan: typeof b.pan === "number" ? b.pan : 0,
+      mute: Boolean(b.mute),
+      solo: Boolean(b.solo),
+      parentGroupId:
+        typeof b.parentGroupId === "string" ? b.parentGroupId : null,
+    });
+  }
+
+  const sendsRaw = Array.isArray(o.sends) ? o.sends : [];
+  const sends: MixSend[] = [];
+  for (const rawSend of sendsRaw) {
+    if (!rawSend || typeof rawSend !== "object") continue;
+    const s = rawSend as Record<string, unknown>;
+    if (
+      typeof s.id !== "string" ||
+      typeof s.fromTrackId !== "string" ||
+      typeof s.toBusId !== "string"
+    ) {
+      continue;
+    }
+    sends.push({
+      id: s.id,
+      fromTrackId: s.fromTrackId,
+      toBusId: s.toBusId,
+      gainDb: typeof s.gainDb === "number" ? s.gainDb : -6,
+      preFader: Boolean(s.preFader),
+      enabled: s.enabled !== false,
+    });
+  }
+
+  const trackGroupIds: Record<string, string | null> = {};
+  if (o.trackGroupIds && typeof o.trackGroupIds === "object") {
+    for (const [k, v] of Object.entries(
+      o.trackGroupIds as Record<string, unknown>,
+    )) {
+      trackGroupIds[k] = typeof v === "string" ? v : null;
+    }
+  }
+
+  const validated = validateRoutingGraph({
+    tracks: Object.keys({
+      ...volumePointsByTrack,
+      ...effectsByTrack,
+      ...trackGroupIds,
+    }).map((id) => ({ id, groupId: trackGroupIds[id] ?? null })),
+    buses,
+    sends,
+  });
+
   return {
     mixId,
     volumePointsByTrack,
     panPointsByTrack,
+    automationLanes,
     effectsByTrack,
     sidechainRoutes,
+    buses: validated.recovered.buses,
+    sends: validated.recovered.sends,
+    trackGroupIds: {
+      ...trackGroupIds,
+      ...validated.recovered.trackGroupIds,
+    },
   };
 }
 
 function persistOverlay(next: ProductionOverlay | null) {
-  if (typeof localStorage === "undefined") return;
   if (!next) return;
-  try {
-    localStorage.setItem(storageKey(next.mixId), JSON.stringify(next));
-  } catch {
-    // Quota / private mode — ignore.
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(storageKey(next.mixId), JSON.stringify(next));
+    } catch {
+      // Quota / private mode — ignore.
+    }
+  }
+  if (diskPersist) {
+    try {
+      diskPersist(next.mixId, next);
+    } catch {
+      // Host may be offline — localStorage remains.
+    }
   }
 }
 
@@ -277,6 +399,15 @@ function rebuildToolkit() {
     });
   }
 
+  for (const [key, points] of Object.entries(overlay.automationLanes)) {
+    if (points.length === 0) continue;
+    const sep = key.indexOf("|");
+    if (sep <= 0) continue;
+    const trackId = key.slice(0, sep);
+    const target = key.slice(sep + 1);
+    toolkit.automation.setLane(mixId, { trackId, target, points });
+  }
+
   for (const [trackId, effects] of Object.entries(overlay.effectsByTrack)) {
     for (const slot of effects) {
       if (!isUiEffectKind(slot.kind)) continue;
@@ -305,7 +436,13 @@ export function subscribeProduction(fn: Listener): () => void {
   };
 }
 
-export function setProductionOverlay(next: ProductionOverlay | null) {
+export function setProductionOverlay(
+  next: ProductionOverlay | null,
+  opts?: { recordUndo?: boolean },
+) {
+  if (opts?.recordUndo !== false && overlay) {
+    pushOverlayUndo(overlay);
+  }
   overlay = next;
   rebuildToolkit();
   persistOverlay(next);
@@ -324,11 +461,31 @@ export function ensureProductionOverlay(mixId: string): ProductionOverlay {
 
 export function patchProductionOverlay(
   patch: Partial<Omit<ProductionOverlay, "mixId">> & { mixId: string },
+  opts?: { recordUndo?: boolean },
 ) {
   const base: ProductionOverlay =
     overlay?.mixId === patch.mixId
       ? overlay
       : (loadProductionOverlay(patch.mixId) ?? emptyOverlay(patch.mixId));
+
+  if (opts?.recordUndo !== false) {
+    pushOverlayUndo(base);
+  }
+
+  const nextBuses = patch.buses ?? base.buses;
+  const nextSends = patch.sends ?? base.sends;
+  const nextGroups = {
+    ...base.trackGroupIds,
+    ...(patch.trackGroupIds ?? {}),
+  };
+  const validated = validateRoutingGraph({
+    tracks: Object.keys(nextGroups).map((id) => ({
+      id,
+      groupId: nextGroups[id] ?? null,
+    })),
+    buses: nextBuses,
+    sends: nextSends,
+  });
 
   overlay = {
     ...base,
@@ -342,11 +499,21 @@ export function patchProductionOverlay(
       ...base.panPointsByTrack,
       ...(patch.panPointsByTrack ?? {}),
     },
+    automationLanes: {
+      ...base.automationLanes,
+      ...(patch.automationLanes ?? {}),
+    },
     effectsByTrack: {
       ...base.effectsByTrack,
       ...(patch.effectsByTrack ?? {}),
     },
     sidechainRoutes: patch.sidechainRoutes ?? base.sidechainRoutes,
+    buses: validated.recovered.buses,
+    sends: validated.recovered.sends,
+    trackGroupIds: {
+      ...nextGroups,
+      ...validated.recovered.trackGroupIds,
+    },
   };
   rebuildToolkit();
   persistOverlay(overlay);
@@ -366,6 +533,54 @@ export function setSidechainRoutes(mixId: string, routes: SidechainRoute[]) {
   patchProductionOverlay({ mixId, sidechainRoutes: cleaned });
 }
 
+export function setAutomationLanePoints(
+  mixId: string,
+  trackId: string,
+  target: string,
+  points: AutomationPoint[],
+) {
+  if (target === "volume") {
+    patchProductionOverlay({
+      mixId,
+      volumePointsByTrack: { [trackId]: points },
+    });
+    return;
+  }
+  if (target === "pan") {
+    patchProductionOverlay({
+      mixId,
+      panPointsByTrack: { [trackId]: points },
+    });
+    return;
+  }
+  patchProductionOverlay({
+    mixId,
+    automationLanes: { [`${trackId}|${target}`]: points },
+  });
+}
+
+export function undoProductionOverlay(): ProductionOverlay | null {
+  const prev = overlayUndo.pop();
+  if (!prev) return null;
+  if (overlay) overlayRedo.push(cloneOverlay(overlay));
+  overlay = prev;
+  rebuildToolkit();
+  persistOverlay(overlay);
+  notify();
+  return overlay;
+}
+
+export function redoProductionOverlay(): ProductionOverlay | null {
+  const next = overlayRedo.pop();
+  if (!next) return null;
+  if (overlay) overlayUndo.push(cloneOverlay(overlay));
+  overlay = next;
+  rebuildToolkit();
+  persistOverlay(overlay);
+  notify();
+  return overlay;
+}
+
 export function productionIsActive(): boolean {
   if (!overlay) return false;
   const hasVol = Object.values(overlay.volumePointsByTrack).some(
@@ -374,11 +589,18 @@ export function productionIsActive(): boolean {
   const hasPan = Object.values(overlay.panPointsByTrack).some(
     (p) => p.length > 0,
   );
+  const hasExtraAuto = Object.values(overlay.automationLanes).some(
+    (p) => p.length > 0,
+  );
   const hasFx = Object.values(overlay.effectsByTrack).some((fx) =>
     fx.some((e) => e.enabled && isUiEffectKind(e.kind)),
   );
   const hasSc = overlay.sidechainRoutes.some((r) => r.enabled);
-  return hasVol || hasPan || hasFx || hasSc;
+  const hasRouting =
+    overlay.buses.length > 0 ||
+    overlay.sends.length > 0 ||
+    Object.values(overlay.trackGroupIds).some((g) => Boolean(g));
+  return hasVol || hasPan || hasExtraAuto || hasFx || hasSc || hasRouting;
 }
 
 export function defaultEffectParams(

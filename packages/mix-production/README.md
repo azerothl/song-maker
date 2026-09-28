@@ -14,7 +14,9 @@ Sous-ensemble DSP réel + rendu offline partagé. Les exports `Stub*` / `createS
 | `SidechainRouter.applyDucking` | Ducking destination depuis enveloppe source |
 | `LoudnessMeter.measurePcm` | True peak dBFS + estimation LUFS (pas filtre K BS.1770) |
 | `placeClipsOnTimeline` | Placement clips (start/offset/durée/fondus) |
-| `renderMixOffline` | Somme §10.5 + overlays production — **même bake** lecture / export |
+| `renderMixOffline` | Somme §10.5 + overlays production (buses / sends / FX automation) — **même bake** lecture / export |
+| `validateRoutingGraph` | Groupes / aux / sends — cycles et destinations manquantes récupérées |
+| `bakeAlignedStems` | Stems alignés origine t=0, noms stables, longueur commune (#99) |
 
 ## Branchement app
 

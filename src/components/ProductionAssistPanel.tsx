@@ -264,8 +264,12 @@ export function ProductionAssistPanel({
         mixId: snapshot.mix.id,
         volumePointsByTrack: {},
         panPointsByTrack: {},
+        automationLanes: {},
         effectsByTrack: {},
         sidechainRoutes: [],
+        buses: [],
+        sends: [],
+        trackGroupIds: {},
       });
     }
     setSnapshot(null);

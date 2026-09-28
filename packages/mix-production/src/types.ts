@@ -7,7 +7,20 @@
  * Phase 1 still uses constant gain/pan/mute/solo/masterGain only.
  */
 
-export type AutomationTarget = "volume" | "pan";
+import type { AutomationTarget } from "./automationTargets.js";
+
+export type { AutomationTarget } from "./automationTargets.js";
+export {
+  VOLUME_TARGET,
+  PAN_TARGET,
+  effectParamTarget,
+  sendGainTarget,
+  busVolumeTarget,
+  busPanTarget,
+  parseAutomationTarget,
+  isVolumeOrPanTarget,
+  type ParsedAutomationTarget,
+} from "./automationTargets.js";
 
 export type AutomationPoint = {
   /** Milliseconds from project start. */
@@ -22,7 +35,7 @@ export type AutomationLane = {
 };
 
 /**
- * Volume and pan automation over time. Phase 1 has constant gain/pan only.
+ * Automation over time: volume/pan plus FX params, send gain, bus faders (#98).
  */
 export interface MixAutomationEngine {
   listLanes(mixId: string): AutomationLane[];
@@ -115,6 +128,16 @@ export interface TrackEffectsRack {
    */
   process(
     trackId: string,
+    pcm: Float32Array,
+    sampleRate?: number,
+    context?: EffectProcessContext,
+  ): Float32Array;
+  /**
+   * Process an explicit slot list (used for FX-param automation blocks).
+   * Does not mutate the track rack.
+   */
+  processSlots(
+    slots: TrackEffectSlot[],
     pcm: Float32Array,
     sampleRate?: number,
     context?: EffectProcessContext,
