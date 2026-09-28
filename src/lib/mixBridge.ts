@@ -9,6 +9,7 @@ import {
 } from "@song-maker/mix-production";
 import type { MixDoc, PlaybackSources } from "./types";
 import {
+  getProductionTempoBpm,
   getProductionToolkit,
   productionIsActive,
 } from "./productionState";
@@ -75,6 +76,7 @@ export function bakeMixPcm(
   mix: MixDoc,
   stems: DecodedStem[],
   toolkit: MixProductionToolkit = getProductionToolkit(),
+  options?: { tempoBpm?: number | null },
 ): MixRenderResult {
   const sampleRate = mix.sampleRate || stems[0]?.sampleRate || 48000;
   const byId = new Map(stems.map((s) => [s.trackId, s]));
@@ -124,6 +126,7 @@ export function bakeMixPcm(
     automation: toolkit.automation,
     effects: toolkit.effects,
     sidechain: toolkit.sidechain,
+    tempoBpm: options?.tempoBpm ?? getProductionTempoBpm(),
   });
 }
 

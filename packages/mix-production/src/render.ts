@@ -29,6 +29,8 @@ export type MixRenderInput = {
   automation?: MixAutomationEngine;
   effects?: TrackEffectsRack;
   sidechain?: SidechainRouter;
+  /** Optional project tempo for tempo-synced delay (safe fallback when absent). */
+  tempoBpm?: number | null;
 };
 
 export type MixRenderResult = {
@@ -99,10 +101,11 @@ export function renderMixOffline(input: MixRenderInput): MixRenderResult {
     hasAutomation || hasEffects || hasSidechain ? "production" : "phase1";
 
   // 1) Build per-track interleaved, pad to maxLen, run effects.
-  // Reverb (and custom processors) may extend buffers — recompute frame count
-  // afterward so the documented wet queue is not truncated.
+  // Reverb / delay (and custom processors) may extend buffers — recompute
+  // frame count afterward so the documented wet queue is not truncated.
   const processed = new Map<string, Float32Array>();
   const sr = Math.max(1, input.sampleRate);
+  const fxContext = { tempoBpm: input.tempoBpm ?? null };
   for (const track of input.tracks) {
     const left = new Float32Array(maxLen);
     const right = new Float32Array(maxLen);
@@ -110,7 +113,12 @@ export function renderMixOffline(input: MixRenderInput): MixRenderResult {
     right.set(track.right.subarray(0, Math.min(track.right.length, maxLen)));
     let interleaved = toInterleaved(left, right);
     if (input.effects) {
-      interleaved = input.effects.process(track.trackId, interleaved, sr);
+      interleaved = input.effects.process(
+        track.trackId,
+        interleaved,
+        sr,
+        fxContext,
+      );
     }
     processed.set(track.trackId, interleaved);
   }

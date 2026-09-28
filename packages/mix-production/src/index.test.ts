@@ -158,6 +158,156 @@ describe("mix-production real subset", () => {
     expect(tail).toBeGreaterThan(1e-8);
   });
 
+  it("applies filter, parametric EQ, tempo delay and extended dynamics", () => {
+    const toolkit = createMixProductionToolkit();
+    const sr = 48000;
+    const frames = 8000;
+    const dry = new Float32Array(frames * 2);
+    for (let i = 0; i < frames; i++) {
+      const s = i < 200 ? Math.sin((i / sr) * 2 * Math.PI * 220) * 0.8 : 0;
+      dry[i * 2] = s;
+      dry[i * 2 + 1] = s;
+    }
+
+    toolkit.effects.insert("trk-a", {
+      id: "fx-hp",
+      kind: "filter",
+      enabled: true,
+      params: { mode: "highpass", frequencyHz: 500, slopeDbPerOct: 24 },
+    });
+    toolkit.effects.insert("trk-a", {
+      id: "fx-peq",
+      kind: "parametricEq",
+      enabled: true,
+      params: {
+        bandCount: 2,
+        band0Type: "peak",
+        band0Freq: 1000,
+        band0Gain: 6,
+        band0Q: 1,
+        band0Enabled: true,
+        band1Type: "highshelf",
+        band1Freq: 6000,
+        band1Gain: -3,
+        band1Q: 0.7,
+        band1Enabled: true,
+      },
+    });
+    toolkit.effects.insert("trk-a", {
+      id: "fx-comp",
+      kind: "compressor",
+      enabled: true,
+      params: {
+        thresholdDb: -24,
+        ratio: 4,
+        makeupDb: 0,
+        attackMs: 5,
+        releaseMs: 50,
+        kneeDb: 6,
+      },
+    });
+    toolkit.effects.insert("trk-a", {
+      id: "fx-gate",
+      kind: "gate",
+      enabled: true,
+      params: {
+        thresholdDb: -50,
+        ratio: 8,
+        attackMs: 2,
+        releaseMs: 40,
+        rangeDb: 40,
+      },
+    });
+    toolkit.effects.insert("trk-a", {
+      id: "fx-delay",
+      kind: "delay",
+      enabled: true,
+      params: {
+        delayMs: 200,
+        sync: true,
+        division: "1/8",
+        tempoBpm: 120,
+        feedback: 0.4,
+        mix: 0.5,
+      },
+    });
+
+    const out = toolkit.effects.process("trk-a", dry, sr, { tempoBpm: 120 });
+    expect(out.length).toBeGreaterThan(dry.length);
+    expect(toolkit.effects.getGainReductionDb("trk-a", "fx-comp")).not.toBeNull();
+    expect(
+      toolkit.effects.getGainReductionDb("trk-a", "fx-comp")!,
+    ).toBeGreaterThan(0);
+
+    // No tempo → still processes (free ms fallback), no throw.
+    toolkit.effects.remove("trk-a", "fx-delay");
+    toolkit.effects.insert("trk-a", {
+      id: "fx-delay-fallback",
+      kind: "delay",
+      enabled: true,
+      params: {
+        delayMs: 180,
+        sync: true,
+        division: "1/4",
+        tempoBpm: 0,
+        feedback: 0.3,
+        mix: 0.4,
+      },
+    });
+    const out2 = toolkit.effects.process("trk-a", dry, sr, { tempoBpm: null });
+    expect(out2.length).toBeGreaterThan(dry.length);
+
+    // Disable delay → original length path without delay extension from that slot.
+    toolkit.effects.remove("trk-a", "fx-delay-fallback");
+    const noDelay = toolkit.effects.process("trk-a", dry, sr);
+    expect(noDelay.length).toBe(dry.length);
+  });
+
+  it("keeps delay tail through offline render", () => {
+    const toolkit = createMixProductionToolkit();
+    toolkit.effects.insert("trk-a", {
+      id: "dly",
+      kind: "delay",
+      enabled: true,
+      params: {
+        delayMs: 250,
+        sync: false,
+        feedback: 0.5,
+        mix: 0.6,
+      },
+    });
+    const sr = 48000;
+    const left = new Float32Array(sr);
+    const right = new Float32Array(sr);
+    left[0] = 0.9;
+    right[0] = 0.9;
+    const out = renderMixOffline({
+      mixId: "mix-v001",
+      sampleRate: sr,
+      masterGainDb: 0,
+      peakCeilingDb: -1,
+      tracks: [
+        {
+          trackId: "trk-a",
+          left,
+          right,
+          gainDb: 0,
+          pan: 0,
+          mute: false,
+          solo: false,
+        },
+      ],
+      effects: toolkit.effects,
+      tempoBpm: 100,
+    });
+    expect(out.frameCount).toBeGreaterThan(sr);
+    let tail = 0;
+    for (let i = sr; i < out.frameCount; i++) {
+      tail += out.left[i]! ** 2 + out.right[i]! ** 2;
+    }
+    expect(tail).toBeGreaterThan(1e-8);
+  });
+
   it("ducks destination via sidechain and measures loudness from PCM", async () => {
     const toolkit = createMixProductionToolkit();
     toolkit.sidechain.upsert("mix-v001", {

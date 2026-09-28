@@ -40,6 +40,8 @@ type Props = {
   mix: MixDoc | null;
   /** Stem paths for real mix loudness bake. Wire from SongScreen when ready. */
   sources?: PlaybackSources | null;
+  /** Project tempo for delay sync (optional; delay falls back to free ms). */
+  tempoBpm?: number | null;
 };
 
 type MeasureState = "idle" | "measuring" | "error";
@@ -48,12 +50,20 @@ const FX_LABEL: Record<
   UiEffectKind,
   | "phase3.mix.fx.limiter"
   | "phase3.mix.fx.compressor"
+  | "phase3.mix.fx.gate"
   | "phase3.mix.fx.eq"
+  | "phase3.mix.fx.parametricEq"
+  | "phase3.mix.fx.filter"
+  | "phase3.mix.fx.delay"
   | "phase3.mix.fx.reverb"
 > = {
   limiter: "phase3.mix.fx.limiter",
   compressor: "phase3.mix.fx.compressor",
+  gate: "phase3.mix.fx.gate",
   eq: "phase3.mix.fx.eq",
+  parametricEq: "phase3.mix.fx.parametricEq",
+  filter: "phase3.mix.fx.filter",
+  delay: "phase3.mix.fx.delay",
   reverb: "phase3.mix.fx.reverb",
 };
 
@@ -61,14 +71,61 @@ const FX_ADD_LABEL: Record<
   UiEffectKind,
   | "phase3.mix.add.limiter"
   | "phase3.mix.add.compressor"
+  | "phase3.mix.add.gate"
   | "phase3.mix.add.eq"
+  | "phase3.mix.add.parametricEq"
+  | "phase3.mix.add.filter"
+  | "phase3.mix.add.delay"
   | "phase3.mix.add.reverb"
 > = {
   limiter: "phase3.mix.add.limiter",
   compressor: "phase3.mix.add.compressor",
+  gate: "phase3.mix.add.gate",
   eq: "phase3.mix.add.eq",
+  parametricEq: "phase3.mix.add.parametricEq",
+  filter: "phase3.mix.add.filter",
+  delay: "phase3.mix.add.delay",
   reverb: "phase3.mix.add.reverb",
 };
+
+const PARAM_EQ_TYPES = [
+  "peak",
+  "lowshelf",
+  "highshelf",
+  "lowpass",
+  "highpass",
+  "notch",
+] as const;
+
+const CURVE_LABEL: Record<
+  (typeof PARAM_EQ_TYPES)[number],
+  | "phase3.mix.param.curve.peak"
+  | "phase3.mix.param.curve.lowshelf"
+  | "phase3.mix.param.curve.highshelf"
+  | "phase3.mix.param.curve.lowpass"
+  | "phase3.mix.param.curve.highpass"
+  | "phase3.mix.param.curve.notch"
+> = {
+  peak: "phase3.mix.param.curve.peak",
+  lowshelf: "phase3.mix.param.curve.lowshelf",
+  highshelf: "phase3.mix.param.curve.highshelf",
+  lowpass: "phase3.mix.param.curve.lowpass",
+  highpass: "phase3.mix.param.curve.highpass",
+  notch: "phase3.mix.param.curve.notch",
+};
+
+const DELAY_DIV_OPTIONS = [
+  "1/1",
+  "1/2",
+  "1/4",
+  "1/8",
+  "1/16",
+  "1/2d",
+  "1/4d",
+  "1/8d",
+  "1/4t",
+  "1/8t",
+] as const;
 
 function sortPoints(points: AutomationPoint[]): AutomationPoint[] {
   return [...points].sort((a, b) => a.timeMs - b.timeMs);
@@ -227,7 +284,11 @@ function AutomationLaneEditor({
  * Phase 3 production panel — writes automation / FX / sidechain into the
  * shared overlay used by Web Audio bake and offline export.
  */
-export function Phase3MixPanel({ mix, sources = null }: Props) {
+export function Phase3MixPanel({
+  mix,
+  sources = null,
+  tempoBpm = null,
+}: Props) {
   const [trackId, setTrackId] = useState<string>("");
   const [autoTarget, setAutoTarget] = useState<AutomationTarget>("volume");
   const [timeMs, setTimeMs] = useState(500);
@@ -243,6 +304,7 @@ export function Phase3MixPanel({ mix, sources = null }: Props) {
   const [effects, setEffects] = useState<TrackEffectSlot[]>([]);
   const [routes, setRoutes] = useState<SidechainRoute[]>([]);
   const [scError, setScError] = useState<string | null>(null);
+  const [grByEffect, setGrByEffect] = useState<Record<string, number>>({});
   const measureGen = useRef(0);
 
   const tracks = mix?.tracks ?? [];
@@ -311,14 +373,24 @@ export function Phase3MixPanel({ mix, sources = null }: Props) {
       }
       const { stems, sampleRate } = await decodeMixStems(sources, mix);
       if (gen !== measureGen.current) return;
-      const baked = bakeMixPcm(mix, stems, getProductionToolkit());
+      const baked = bakeMixPcm(mix, stems, getProductionToolkit(), {
+        tempoBpm,
+      });
       const sr = sampleRate || mix.sampleRate || 48000;
-      const report = getProductionToolkit().loudness.measurePcm(
+      const toolkit = getProductionToolkit();
+      const report = toolkit.loudness.measurePcm(
         baked.pcm,
         sr,
         "ebu_r128",
       );
       if (gen !== measureGen.current) return;
+      const gr: Record<string, number> = {};
+      for (const fx of toolkit.effects.list(activeTrack)) {
+        if (fx.kind !== "compressor") continue;
+        const v = toolkit.effects.getGainReductionDb(activeTrack, fx.id);
+        if (v != null) gr[fx.id] = v;
+      }
+      setGrByEffect(gr);
       setLoudness(report);
       setLoudnessDurationSec(baked.frameCount / sr);
       setMeasureState("idle");
@@ -333,11 +405,20 @@ export function Phase3MixPanel({ mix, sources = null }: Props) {
 
   const addEffect = (kind: UiEffectKind) => {
     if (!mix || !activeTrack) return;
+    const params = defaultEffectParams(kind);
+    if (
+      kind === "delay" &&
+      typeof tempoBpm === "number" &&
+      tempoBpm > 0 &&
+      (params.tempoBpm === 0 || params.tempoBpm == null)
+    ) {
+      params.tempoBpm = tempoBpm;
+    }
     const slot: TrackEffectSlot = {
       id: newEffectId(kind),
       kind,
       enabled: true,
-      params: defaultEffectParams(kind),
+      params,
     };
     const next = [...effects, slot];
     setEffects(next);
@@ -351,7 +432,11 @@ export function Phase3MixPanel({ mix, sources = null }: Props) {
     setTrackEffects(mix.id, activeTrack, next);
   };
 
-  const updateEffectParam = (id: string, key: string, value: number) => {
+  const updateEffectParam = (
+    id: string,
+    key: string,
+    value: number | string | boolean,
+  ) => {
     if (!mix || !activeTrack) return;
     const next = effects.map((e) =>
       e.id === id ? { ...e, params: { ...e.params, [key]: value } } : e,
@@ -610,11 +695,63 @@ export function Phase3MixPanel({ mix, sources = null }: Props) {
                               type="number"
                               step={0.1}
                               min={1}
+                              max={20}
                               value={Number(fx.params.ratio ?? 3)}
                               onChange={(e) =>
                                 updateEffectParam(
                                   fx.id,
                                   "ratio",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.attackMs")}</span>
+                            <input
+                              type="number"
+                              step={1}
+                              min={0}
+                              max={500}
+                              value={Number(fx.params.attackMs ?? 10)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "attackMs",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.releaseMs")}</span>
+                            <input
+                              type="number"
+                              step={1}
+                              min={1}
+                              max={2000}
+                              value={Number(fx.params.releaseMs ?? 100)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "releaseMs",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.kneeDb")}</span>
+                            <input
+                              type="number"
+                              step={0.5}
+                              min={0}
+                              max={24}
+                              value={Number(fx.params.kneeDb ?? 0)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "kneeDb",
                                   Number(e.target.value),
                                 )
                               }
@@ -630,6 +767,101 @@ export function Phase3MixPanel({ mix, sources = null }: Props) {
                                 updateEffectParam(
                                   fx.id,
                                   "makeupDb",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          {grByEffect[fx.id] != null && (
+                            <p className="hint">
+                              {t("phase3.mix.param.gainReduction")}:{" "}
+                              <strong>
+                                −{grByEffect[fx.id]!.toFixed(1)} dB
+                              </strong>
+                            </p>
+                          )}
+                        </>
+                      )}
+                      {fx.kind === "gate" && (
+                        <>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.thresholdDb")}</span>
+                            <input
+                              type="number"
+                              step={0.5}
+                              value={Number(fx.params.thresholdDb ?? -40)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "thresholdDb",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.ratio")}</span>
+                            <input
+                              type="number"
+                              step={0.5}
+                              min={1}
+                              max={100}
+                              value={Number(fx.params.ratio ?? 10)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "ratio",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.attackMs")}</span>
+                            <input
+                              type="number"
+                              step={0.5}
+                              min={0.1}
+                              max={200}
+                              value={Number(fx.params.attackMs ?? 5)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "attackMs",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.releaseMs")}</span>
+                            <input
+                              type="number"
+                              step={1}
+                              min={1}
+                              max={2000}
+                              value={Number(fx.params.releaseMs ?? 80)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "releaseMs",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.rangeDb")}</span>
+                            <input
+                              type="number"
+                              step={1}
+                              min={0}
+                              max={90}
+                              value={Number(fx.params.rangeDb ?? 60)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "rangeDb",
                                   Number(e.target.value),
                                 )
                               }
@@ -653,6 +885,270 @@ export function Phase3MixPanel({ mix, sources = null }: Props) {
                             }
                           />
                         </label>
+                      )}
+                      {fx.kind === "filter" && (
+                        <>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.filterMode")}</span>
+                            <select
+                              value={String(fx.params.mode ?? "highpass")}
+                              onChange={(e) =>
+                                updateEffectParam(fx.id, "mode", e.target.value)
+                              }
+                            >
+                              <option value="highpass">
+                                {t("phase3.mix.param.filterHighpass")}
+                              </option>
+                              <option value="lowpass">
+                                {t("phase3.mix.param.filterLowpass")}
+                              </option>
+                            </select>
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.frequencyHz")}</span>
+                            <input
+                              type="number"
+                              step={1}
+                              min={20}
+                              max={20000}
+                              value={Number(fx.params.frequencyHz ?? 80)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "frequencyHz",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.slopeDbPerOct")}</span>
+                            <select
+                              value={String(fx.params.slopeDbPerOct ?? 12)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "slopeDbPerOct",
+                                  Number(e.target.value),
+                                )
+                              }
+                            >
+                              <option value={12}>12 dB/oct</option>
+                              <option value={24}>24 dB/oct</option>
+                            </select>
+                          </label>
+                        </>
+                      )}
+                      {fx.kind === "parametricEq" && (
+                        <>
+                          <p className="hint">{t("phase3.mix.param.eqBandsHint")}</p>
+                          {[0, 1, 2, 3].map((bi) => (
+                            <div key={bi} className="phase3-fields">
+                              <label className="phase3-check">
+                                <input
+                                  type="checkbox"
+                                  checked={fx.params[`band${bi}Enabled`] !== false}
+                                  onChange={(e) =>
+                                    updateEffectParam(
+                                      fx.id,
+                                      `band${bi}Enabled`,
+                                      e.target.checked,
+                                    )
+                                  }
+                                />
+                                <span>
+                                  {t("phase3.mix.param.band")} {bi + 1}
+                                </span>
+                              </label>
+                              <label className="phase3-field">
+                                <span>{t("phase3.mix.param.curveType")}</span>
+                                <select
+                                  value={String(
+                                    fx.params[`band${bi}Type`] ?? "peak",
+                                  )}
+                                  onChange={(e) =>
+                                    updateEffectParam(
+                                      fx.id,
+                                      `band${bi}Type`,
+                                      e.target.value,
+                                    )
+                                  }
+                                >
+                                  {PARAM_EQ_TYPES.map((tp) => (
+                                    <option key={tp} value={tp}>
+                                      {t(CURVE_LABEL[tp])}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label className="phase3-field">
+                                <span>{t("phase3.mix.param.frequencyHz")}</span>
+                                <input
+                                  type="number"
+                                  step={1}
+                                  min={20}
+                                  max={20000}
+                                  value={Number(
+                                    fx.params[`band${bi}Freq`] ?? 1000,
+                                  )}
+                                  onChange={(e) =>
+                                    updateEffectParam(
+                                      fx.id,
+                                      `band${bi}Freq`,
+                                      Number(e.target.value),
+                                    )
+                                  }
+                                />
+                              </label>
+                              <label className="phase3-field">
+                                <span>{t("phase3.mix.param.gainDb")}</span>
+                                <input
+                                  type="number"
+                                  step={0.5}
+                                  min={-24}
+                                  max={24}
+                                  value={Number(
+                                    fx.params[`band${bi}Gain`] ?? 0,
+                                  )}
+                                  onChange={(e) =>
+                                    updateEffectParam(
+                                      fx.id,
+                                      `band${bi}Gain`,
+                                      Number(e.target.value),
+                                    )
+                                  }
+                                />
+                              </label>
+                              <label className="phase3-field">
+                                <span>{t("phase3.mix.param.q")}</span>
+                                <input
+                                  type="number"
+                                  step={0.05}
+                                  min={0.1}
+                                  max={18}
+                                  value={Number(fx.params[`band${bi}Q`] ?? 0.7)}
+                                  onChange={(e) =>
+                                    updateEffectParam(
+                                      fx.id,
+                                      `band${bi}Q`,
+                                      Number(e.target.value),
+                                    )
+                                  }
+                                />
+                              </label>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                      {fx.kind === "delay" && (
+                        <>
+                          <label className="phase3-check">
+                            <input
+                              type="checkbox"
+                              checked={
+                                fx.params.sync === true || fx.params.sync === 1
+                              }
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "sync",
+                                  e.target.checked,
+                                )
+                              }
+                            />
+                            <span>{t("phase3.mix.param.delaySync")}</span>
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.delayMs")}</span>
+                            <input
+                              type="number"
+                              step={1}
+                              min={1}
+                              max={2000}
+                              value={Number(fx.params.delayMs ?? 350)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "delayMs",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.division")}</span>
+                            <select
+                              value={String(fx.params.division ?? "1/4")}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "division",
+                                  e.target.value,
+                                )
+                              }
+                            >
+                              {DELAY_DIV_OPTIONS.map((d) => (
+                                <option key={d} value={d}>
+                                  {d}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.tempoBpm")}</span>
+                            <input
+                              type="number"
+                              step={1}
+                              min={0}
+                              max={300}
+                              value={Number(
+                                fx.params.tempoBpm ?? tempoBpm ?? 0,
+                              )}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "tempoBpm",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.feedback")}</span>
+                            <input
+                              type="number"
+                              step={0.05}
+                              min={0}
+                              max={0.95}
+                              value={Number(fx.params.feedback ?? 0.35)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "feedback",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="phase3-field">
+                            <span>{t("phase3.mix.param.mix")}</span>
+                            <input
+                              type="number"
+                              step={0.05}
+                              min={0}
+                              max={1}
+                              value={Number(fx.params.mix ?? 0.35)}
+                              onChange={(e) =>
+                                updateEffectParam(
+                                  fx.id,
+                                  "mix",
+                                  Number(e.target.value),
+                                )
+                              }
+                            />
+                          </label>
+                          <p className="hint">{t("phase3.mix.param.delayHint")}</p>
+                        </>
                       )}
                       {fx.kind === "reverb" && (
                         <>

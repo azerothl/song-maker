@@ -63,33 +63,155 @@ export function applyPeakLimiter(
   return out;
 }
 
+export type CompressorOptions = {
+  /** Attack time in ms (gain reduction engage). Default 10. */
+  attackMs?: number;
+  /** Release time in ms. Default 100. */
+  releaseMs?: number;
+  /** Soft-knee width in dB. Default 0 (hard knee). */
+  kneeDb?: number;
+  sampleRate?: number;
+  /** Filled with peak gain reduction in dB (positive = quieter). */
+  meter?: { peakReductionDb: number };
+};
+
 /**
- * Simple feed-forward compressor on interleaved stereo (linked channels).
- * params: thresholdDb, ratio, makeupDb
+ * Stereo-linked compressor with optional attack / release / soft knee.
+ * Legacy call sites may omit `options` (instantaneous hard-knee behaviour
+ * when attack/release are both ~0).
  */
 export function applyCompressor(
   pcm: Float32Array,
   thresholdDb: number,
   ratio: number,
   makeupDb = 0,
+  options: CompressorOptions = {},
 ): Float32Array {
-  const thr = dbToLinear(thresholdDb);
-  const r = Math.max(1, ratio);
-  const makeup = dbToLinear(makeupDb);
+  const thrDb = Number.isFinite(thresholdDb) ? thresholdDb : -18;
+  const r = Math.max(1, Math.min(20, Number.isFinite(ratio) ? ratio : 4));
+  const makeup = dbToLinear(
+    Math.max(-24, Math.min(24, Number.isFinite(makeupDb) ? makeupDb : 0)),
+  );
+  const sr = Math.max(1, options.sampleRate ?? 48000);
+  const attackMs = Math.max(0, Math.min(500, options.attackMs ?? 10));
+  const releaseMs = Math.max(1, Math.min(2000, options.releaseMs ?? 100));
+  const kneeDb = Math.max(0, Math.min(24, options.kneeDb ?? 0));
+  const atkCoeff =
+    attackMs <= 0 ? 1 : 1 - Math.exp(-1 / ((attackMs / 1000) * sr));
+  const relCoeff =
+    releaseMs <= 0 ? 1 : 1 - Math.exp(-1 / ((releaseMs / 1000) * sr));
+
   const out = new Float32Array(pcm.length);
+  let envDb = 0;
+  let peakReductionDb = 0;
+
   for (let i = 0; i < pcm.length; i += 2) {
     const l = pcm[i] ?? 0;
     const ri = pcm[i + 1] ?? l;
     const peak = Math.max(Math.abs(l), Math.abs(ri));
-    let gain = 1;
-    if (peak > thr && peak > 1e-12) {
-      const overDb = linearToDb(peak) - thresholdDb;
-      const reducedDb = overDb - overDb / r;
-      gain = dbToLinear(-reducedDb);
+    const levelDb = peak <= 1e-12 ? -120 : linearToDb(peak);
+
+    let overDb = 0;
+    if (kneeDb <= 1e-9) {
+      if (levelDb > thrDb) overDb = levelDb - thrDb;
+    } else {
+      const half = kneeDb * 0.5;
+      const delta = levelDb - thrDb;
+      if (delta > half) {
+        overDb = delta;
+      } else if (delta > -half) {
+        const x = delta + half;
+        overDb = (x * x) / (2 * kneeDb);
+      }
     }
-    out[i] = l * gain * makeup;
+    const reductionDb = overDb * (1 - 1 / r);
+
+    const coeff = reductionDb > envDb ? atkCoeff : relCoeff;
+    envDb += (reductionDb - envDb) * coeff;
+    if (envDb > peakReductionDb) peakReductionDb = envDb;
+
+    const gain = dbToLinear(-envDb) * makeup;
+    out[i] = l * gain;
     if (i + 1 < pcm.length) {
-      out[i + 1] = ri * gain * makeup;
+      out[i + 1] = ri * gain;
+    }
+  }
+
+  if (options.meter) {
+    options.meter.peakReductionDb = peakReductionDb;
+  }
+  return out;
+}
+
+export type GateParams = {
+  /** Below this level the gate/expander engages (dBFS). */
+  thresholdDb: number;
+  /** Expansion ratio (≥ 1). High values ≈ hard gate. */
+  ratio: number;
+  /** Attack ms when opening (signal rises). */
+  attackMs: number;
+  /** Release ms when closing. */
+  releaseMs: number;
+  /** Maximum attenuation in dB (floor). */
+  rangeDb: number;
+};
+
+/**
+ * Downward expander / noise gate on interleaved stereo (linked).
+ * Smooth envelope avoids clicks on silence and transients.
+ */
+export function applyGate(
+  pcm: Float32Array,
+  sampleRate: number,
+  params: Partial<GateParams> = {},
+): Float32Array {
+  const thrDb = Math.max(
+    -80,
+    Math.min(0, Number.isFinite(params.thresholdDb) ? params.thresholdDb! : -40),
+  );
+  const r = Math.max(
+    1,
+    Math.min(100, Number.isFinite(params.ratio) ? params.ratio! : 10),
+  );
+  const attackMs = Math.max(
+    0.1,
+    Math.min(200, Number.isFinite(params.attackMs) ? params.attackMs! : 5),
+  );
+  const releaseMs = Math.max(
+    1,
+    Math.min(2000, Number.isFinite(params.releaseMs) ? params.releaseMs! : 80),
+  );
+  const rangeDb = Math.max(
+    0,
+    Math.min(90, Number.isFinite(params.rangeDb) ? params.rangeDb! : 60),
+  );
+  const sr = Math.max(1, sampleRate);
+  const atkCoeff = 1 - Math.exp(-1 / ((attackMs / 1000) * sr));
+  const relCoeff = 1 - Math.exp(-1 / ((releaseMs / 1000) * sr));
+
+  const out = new Float32Array(pcm.length);
+  let envGain = 1;
+
+  for (let i = 0; i < pcm.length; i += 2) {
+    const l = pcm[i] ?? 0;
+    const ri = pcm[i + 1] ?? l;
+    const peak = Math.max(Math.abs(l), Math.abs(ri));
+    const levelDb = peak <= 1e-12 ? -120 : linearToDb(peak);
+
+    let targetGain = 1;
+    if (levelDb < thrDb) {
+      const under = thrDb - levelDb;
+      const expanded = under * (r - 1);
+      const atten = Math.min(rangeDb, expanded);
+      targetGain = dbToLinear(-atten);
+    }
+
+    const coeff = targetGain > envGain ? atkCoeff : relCoeff;
+    envGain += (targetGain - envGain) * coeff;
+
+    out[i] = l * envGain;
+    if (i + 1 < pcm.length) {
+      out[i + 1] = ri * envGain;
     }
   }
   return out;
@@ -97,10 +219,458 @@ export function applyCompressor(
 
 /** One-pole high-shelf-ish gain (very light EQ stand-in). */
 export function applyGainShelf(pcm: Float32Array, gainDb: number): Float32Array {
-  const g = dbToLinear(gainDb);
+  const g = dbToLinear(Math.max(-24, Math.min(24, gainDb)));
   const out = new Float32Array(pcm.length);
   for (let i = 0; i < pcm.length; i++) {
     out[i] = (pcm[i] ?? 0) * g;
+  }
+  return out;
+}
+
+export type BiquadType =
+  | "lowpass"
+  | "highpass"
+  | "peak"
+  | "lowshelf"
+  | "highshelf"
+  | "notch";
+
+export type BiquadCoeffs = {
+  b0: number;
+  b1: number;
+  b2: number;
+  a1: number;
+  a2: number;
+};
+
+/** RBJ Audio EQ Cookbook biquad coefficients. */
+export function designBiquad(
+  type: BiquadType,
+  freqHz: number,
+  q: number,
+  gainDb: number,
+  sampleRate: number,
+): BiquadCoeffs {
+  const sr = Math.max(1, sampleRate);
+  const nyquist = sr * 0.5;
+  const f = Math.max(20, Math.min(nyquist * 0.99, freqHz));
+  const Q = Math.max(0.1, Math.min(18, q));
+  const A = Math.pow(10, gainDb / 40);
+  const w0 = (2 * Math.PI * f) / sr;
+  const cos = Math.cos(w0);
+  const sin = Math.sin(w0);
+  const alpha = sin / (2 * Q);
+
+  let b0 = 1;
+  let b1 = 0;
+  let b2 = 0;
+  let a0 = 1;
+  let a1 = 0;
+  let a2 = 0;
+
+  switch (type) {
+    case "lowpass": {
+      b0 = (1 - cos) / 2;
+      b1 = 1 - cos;
+      b2 = (1 - cos) / 2;
+      a0 = 1 + alpha;
+      a1 = -2 * cos;
+      a2 = 1 - alpha;
+      break;
+    }
+    case "highpass": {
+      b0 = (1 + cos) / 2;
+      b1 = -(1 + cos);
+      b2 = (1 + cos) / 2;
+      a0 = 1 + alpha;
+      a1 = -2 * cos;
+      a2 = 1 - alpha;
+      break;
+    }
+    case "peak": {
+      b0 = 1 + alpha * A;
+      b1 = -2 * cos;
+      b2 = 1 - alpha * A;
+      a0 = 1 + alpha / A;
+      a1 = -2 * cos;
+      a2 = 1 - alpha / A;
+      break;
+    }
+    case "lowshelf": {
+      const twoSqrtAAlpha = 2 * Math.sqrt(A) * alpha;
+      b0 = A * (A + 1 - (A - 1) * cos + twoSqrtAAlpha);
+      b1 = 2 * A * (A - 1 - (A + 1) * cos);
+      b2 = A * (A + 1 - (A - 1) * cos - twoSqrtAAlpha);
+      a0 = A + 1 + (A - 1) * cos + twoSqrtAAlpha;
+      a1 = -2 * (A - 1 + (A + 1) * cos);
+      a2 = A + 1 + (A - 1) * cos - twoSqrtAAlpha;
+      break;
+    }
+    case "highshelf": {
+      const twoSqrtAAlpha = 2 * Math.sqrt(A) * alpha;
+      b0 = A * (A + 1 + (A - 1) * cos + twoSqrtAAlpha);
+      b1 = -2 * A * (A - 1 + (A + 1) * cos);
+      b2 = A * (A + 1 + (A - 1) * cos - twoSqrtAAlpha);
+      a0 = A + 1 - (A - 1) * cos + twoSqrtAAlpha;
+      a1 = 2 * (A - 1 - (A + 1) * cos);
+      a2 = A + 1 - (A - 1) * cos - twoSqrtAAlpha;
+      break;
+    }
+    case "notch": {
+      b0 = 1;
+      b1 = -2 * cos;
+      b2 = 1;
+      a0 = 1 + alpha;
+      a1 = -2 * cos;
+      a2 = 1 - alpha;
+      break;
+    }
+    default: {
+      const _exhaustive: never = type;
+      void _exhaustive;
+      break;
+    }
+  }
+
+  return {
+    b0: b0 / a0,
+    b1: b1 / a0,
+    b2: b2 / a0,
+    a1: a1 / a0,
+    a2: a2 / a0,
+  };
+}
+
+type BiquadState = { z1: number; z2: number };
+
+function processBiquadSample(
+  c: BiquadCoeffs,
+  s: BiquadState,
+  x: number,
+): number {
+  const y = c.b0 * x + s.z1;
+  s.z1 = c.b1 * x - c.a1 * y + s.z2;
+  s.z2 = c.b2 * x - c.a2 * y;
+  return y;
+}
+
+function processBiquadStereo(
+  pcm: Float32Array,
+  coeffs: BiquadCoeffs[],
+): Float32Array {
+  const out = new Float32Array(pcm.length);
+  const statesL = coeffs.map(() => ({ z1: 0, z2: 0 }));
+  const statesR = coeffs.map(() => ({ z1: 0, z2: 0 }));
+  for (let i = 0; i < pcm.length; i += 2) {
+    let l = pcm[i] ?? 0;
+    let r = pcm[i + 1] ?? l;
+    for (let k = 0; k < coeffs.length; k++) {
+      l = processBiquadSample(coeffs[k]!, statesL[k]!, l);
+      r = processBiquadSample(coeffs[k]!, statesR[k]!, r);
+    }
+    out[i] = l;
+    if (i + 1 < pcm.length) out[i + 1] = r;
+  }
+  return out;
+}
+
+export type FilterParams = {
+  /** `highpass` or `lowpass`. */
+  mode: "highpass" | "lowpass";
+  frequencyHz: number;
+  /** Slope in dB/octave: 12 or 24. */
+  slopeDbPerOct: number;
+};
+
+/**
+ * High-pass / low-pass filter with 12 or 24 dB/oct slope (cascaded biquads).
+ */
+export function applyFilter(
+  pcm: Float32Array,
+  sampleRate: number,
+  params: Partial<FilterParams> = {},
+): Float32Array {
+  const mode =
+    params.mode === "lowpass" || params.mode === "highpass"
+      ? params.mode
+      : "highpass";
+  const freq = Math.max(
+    20,
+    Math.min(
+      (sampleRate * 0.5) * 0.99,
+      Number.isFinite(params.frequencyHz) ? params.frequencyHz! : 120,
+    ),
+  );
+  const slope =
+    params.slopeDbPerOct != null && params.slopeDbPerOct >= 18 ? 24 : 12;
+  const stages = slope === 24 ? 2 : 1;
+  const coeffs: BiquadCoeffs[] = [];
+  for (let i = 0; i < stages; i++) {
+    coeffs.push(designBiquad(mode, freq, Math.SQRT1_2, 0, sampleRate));
+  }
+  return processBiquadStereo(pcm, coeffs);
+}
+
+export type ParametricBand = {
+  type: BiquadType;
+  frequencyHz: number;
+  gainDb: number;
+  q: number;
+  enabled?: boolean;
+};
+
+export const PARAMETRIC_EQ_BAND_TYPES: readonly BiquadType[] = [
+  "peak",
+  "lowshelf",
+  "highshelf",
+  "lowpass",
+  "highpass",
+  "notch",
+] as const;
+
+/**
+ * Multi-band parametric EQ — cascade of documented biquad curve types.
+ * Invalid / extreme values are clamped; disabled bands are skipped.
+ */
+export function applyParametricEq(
+  pcm: Float32Array,
+  sampleRate: number,
+  bands: readonly ParametricBand[],
+): Float32Array {
+  const coeffs: BiquadCoeffs[] = [];
+  for (const band of bands) {
+    if (band.enabled === false) continue;
+    const type = PARAMETRIC_EQ_BAND_TYPES.includes(band.type)
+      ? band.type
+      : "peak";
+    const freq = Math.max(
+      20,
+      Math.min(
+        (sampleRate * 0.5) * 0.99,
+        Number.isFinite(band.frequencyHz) ? band.frequencyHz : 1000,
+      ),
+    );
+    const gainDb = Math.max(
+      -24,
+      Math.min(24, Number.isFinite(band.gainDb) ? band.gainDb : 0),
+    );
+    const q = Math.max(
+      0.1,
+      Math.min(18, Number.isFinite(band.q) ? band.q : 0.7),
+    );
+    coeffs.push(designBiquad(type, freq, q, gainDb, sampleRate));
+  }
+  if (coeffs.length === 0) return new Float32Array(pcm);
+  return processBiquadStereo(pcm, coeffs);
+}
+
+/** Parse flat effect params `band{N}Type|Freq|Gain|Q|Enabled` into bands. */
+export function parametricBandsFromParams(
+  params: Record<string, number | string | boolean>,
+): ParametricBand[] {
+  const countRaw =
+    typeof params.bandCount === "number" && Number.isFinite(params.bandCount)
+      ? params.bandCount
+      : 4;
+  const count = Math.max(1, Math.min(8, Math.round(countRaw)));
+  const bands: ParametricBand[] = [];
+  for (let i = 0; i < count; i++) {
+    const typeRaw = params[`band${i}Type`];
+    const type =
+      typeof typeRaw === "string" &&
+      (PARAMETRIC_EQ_BAND_TYPES as readonly string[]).includes(typeRaw)
+        ? (typeRaw as BiquadType)
+        : i === 0
+          ? "lowshelf"
+          : i === count - 1
+            ? "highshelf"
+            : "peak";
+    const freq =
+      typeof params[`band${i}Freq`] === "number"
+        ? (params[`band${i}Freq`] as number)
+        : i === 0
+          ? 100
+          : i === count - 1
+            ? 8000
+            : 1000 * i;
+    const gainDb =
+      typeof params[`band${i}Gain`] === "number"
+        ? (params[`band${i}Gain`] as number)
+        : 0;
+    const q =
+      typeof params[`band${i}Q`] === "number"
+        ? (params[`band${i}Q`] as number)
+        : 0.7;
+    const en = params[`band${i}Enabled`];
+    bands.push({
+      type,
+      frequencyHz: freq,
+      gainDb,
+      q,
+      enabled: en === false || en === 0 ? false : true,
+    });
+  }
+  return bands;
+}
+
+export type DelayDivision =
+  | "1/1"
+  | "1/2"
+  | "1/4"
+  | "1/8"
+  | "1/16"
+  | "1/2d"
+  | "1/4d"
+  | "1/8d"
+  | "1/4t"
+  | "1/8t";
+
+export const DELAY_DIVISIONS: readonly DelayDivision[] = [
+  "1/1",
+  "1/2",
+  "1/4",
+  "1/8",
+  "1/16",
+  "1/2d",
+  "1/4d",
+  "1/8d",
+  "1/4t",
+  "1/8t",
+] as const;
+
+export type DelayParams = {
+  /** Free delay time in milliseconds when not tempo-synced. */
+  delayMs: number;
+  /** When true, use musical division + tempo. */
+  sync: boolean;
+  division: DelayDivision;
+  /** Project / override tempo. Invalid → fall back to delayMs. */
+  tempoBpm?: number | null;
+  /** Feedback 0…0.95 (hard cap prevents runaway). */
+  feedback: number;
+  /** Wet amount 0…1. */
+  mix: number;
+};
+
+/** Beat fraction for a musical division (quarter note = 1). */
+export function delayDivisionBeats(division: DelayDivision): number {
+  switch (division) {
+    case "1/1":
+      return 4;
+    case "1/2":
+      return 2;
+    case "1/4":
+      return 1;
+    case "1/8":
+      return 0.5;
+    case "1/16":
+      return 0.25;
+    case "1/2d":
+      return 3;
+    case "1/4d":
+      return 1.5;
+    case "1/8d":
+      return 0.75;
+    case "1/4t":
+      return 2 / 3;
+    case "1/8t":
+      return 1 / 3;
+    default: {
+      const _exhaustive: never = division;
+      return _exhaustive;
+    }
+  }
+}
+
+/**
+ * Resolve delay time in ms. Tempo-sync uses BPM when valid; otherwise free ms.
+ * Always returns a finite clamped value so playback/export never stall.
+ */
+export function resolveDelayMs(params: Partial<DelayParams>): number {
+  const freeMs = Math.max(
+    1,
+    Math.min(2000, Number.isFinite(params.delayMs) ? params.delayMs! : 350),
+  );
+  if (!params.sync) return freeMs;
+  const bpm =
+    typeof params.tempoBpm === "number" &&
+    Number.isFinite(params.tempoBpm) &&
+    params.tempoBpm > 0
+      ? params.tempoBpm
+      : null;
+  if (bpm == null) return freeMs;
+  const div =
+    typeof params.division === "string" &&
+    (DELAY_DIVISIONS as readonly string[]).includes(params.division)
+      ? (params.division as DelayDivision)
+      : "1/4";
+  const ms = (60_000 / bpm) * delayDivisionBeats(div);
+  return Math.max(1, Math.min(2000, ms));
+}
+
+/**
+ * Approximate delay wet tail in frames so offline render does not truncate
+ * the echo queue. Depends on delay time and feedback.
+ */
+export function delayTailFrames(
+  delayMs: number,
+  feedback: number,
+  sampleRate: number,
+): number {
+  const fb = Math.max(0, Math.min(0.95, feedback));
+  const dMs = Math.max(1, delayMs);
+  // Decay until feedback^n ≈ 1e-4
+  const n =
+    fb <= 1e-6 ? 1 : Math.ceil(Math.log(1e-4) / Math.log(Math.max(fb, 1e-6)));
+  const decaySec = (n * dMs) / 1000 + 0.05;
+  return Math.ceil(decaySec * Math.max(1, sampleRate));
+}
+
+/**
+ * Stereo tempo-syncable delay with bounded feedback and wet/dry mix.
+ * Extends the buffer by {@link delayTailFrames}.
+ */
+export function applyDelay(
+  pcm: Float32Array,
+  sampleRate: number,
+  params: Partial<DelayParams> = {},
+): Float32Array {
+  const delayMs = resolveDelayMs(params);
+  const feedback = Math.max(
+    0,
+    Math.min(0.95, Number.isFinite(params.feedback) ? params.feedback! : 0.35),
+  );
+  const mix = Math.max(
+    0,
+    Math.min(1, Number.isFinite(params.mix) ? params.mix! : 0.35),
+  );
+  const sr = Math.max(1, sampleRate);
+  const dryFrames = Math.floor(pcm.length / 2);
+  const delaySamples = Math.max(1, Math.round((delayMs / 1000) * sr));
+  const tail = delayTailFrames(delayMs, feedback, sr);
+  const frames = dryFrames + tail;
+  const out = new Float32Array(frames * 2);
+  if (dryFrames === 0 || mix <= 1e-6) {
+    out.set(pcm.subarray(0, Math.min(pcm.length, out.length)));
+    return out;
+  }
+
+  const bufL = new Float32Array(delaySamples);
+  const bufR = new Float32Array(delaySamples);
+  let w = 0;
+  const dryGain = 1 - mix;
+  const wetGain = mix;
+
+  for (let i = 0; i < frames; i++) {
+    const dryL = i < dryFrames ? (pcm[i * 2] ?? 0) : 0;
+    const dryR = i < dryFrames ? (pcm[i * 2 + 1] ?? dryL) : 0;
+    const delayedL = bufL[w]!;
+    const delayedR = bufR[w]!;
+    bufL[w] = dryL + delayedL * feedback;
+    bufR[w] = dryR + delayedR * feedback;
+    w = (w + 1) % delaySamples;
+    out[i * 2] = dryL * dryGain + delayedL * wetGain;
+    out[i * 2 + 1] = dryR * dryGain + delayedR * wetGain;
   }
   return out;
 }
