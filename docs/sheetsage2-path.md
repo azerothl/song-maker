@@ -1,8 +1,8 @@
-# Parcours SheetSage2 : audio → partition → YuE2
+# Parcours SheetSage2 : audio → partition → YuE2 / MIDI
 
 ## Décision
 
-La reprise d’un enregistrement ou d’un mixdown passe par une **partition symbolique** (ABC), pas par une réinjection de la forme d’onde. SheetSage2 propose l’ABC ; l’utilisateur la corrige et **confirme** ; seulement ensuite YuE2 génère une **nouvelle interprétation**.
+La reprise d’un enregistrement ou d’un mixdown passe par une **partition symbolique** (ABC), pas par une réinjection de la forme d’onde. SheetSage2 propose l’ABC ; l’utilisateur la corrige, peut **ouvrir un brouillon MIDI** dans le piano roll, et **confirme** ; seulement ensuite YuE2 génère une **nouvelle interprétation**.
 
 Licence des poids SheetSage2 : **CC BY-NC 4.0** (`audio-cpp/SheetSage2-GGUF`, fichier `sheetsage2-orig.gguf`). **Hors installeur premier build** — téléchargement opt-in depuis Partition → Reprise.
 
@@ -15,6 +15,7 @@ Licence des poids SheetSage2 : **CC BY-NC 4.0** (`audio-cpp/SheetSage2-GGUF`, fi
 | Installateur opt-in des poids | Câblé — `install_sheetsage2` + progression `sheetsage2-progress` + annulation |
 | Runner live | Câblé — `audiocpp_cli --task midi --family sheetsage2` ou serveur `/v1/tasks/run` (modèle `sheetsage2` si GGUF présent) |
 | Panneau UI (piste ou mixdown → install → transcribe → ABC éditable → confirmer) | Câblé |
+| ABC → ScoreDocument / piano roll / export MIDI | Câblé — `importAbcToScoreDocument` + bouton « Ouvrir dans le piano roll » |
 | Mixdown | Export WAV automatique avant transcription |
 | Annulation | Câblé (`sheetsage_cancel` + AbortSignal ; annulation install) |
 | Appel YuE2 `start_generation` avec ABC confirmé | Câblé |
@@ -37,6 +38,7 @@ Licence des poids SheetSage2 : **CC BY-NC 4.0** (`audio-cpp/SheetSage2-GGUF`, fi
 2. **Aucun appel YuE2** tant que l’utilisateur n’a pas confirmé la partition (`assertAbcConfirmedForYue2`).
 3. La sortie YuE2 est une version distincte ; les fichiers source ne sont pas écrasés.
 4. Afficher clairement que le chanteur, le timbre, l’arrangement et la forme d’onde d’origine ne sont pas garantis.
+5. Le brouillon MIDI/piano roll est **éditable et imparfait** (vibrato, silence, polyphonie) — jamais présenté comme transcription parfaite. L’audio source n’est pas modifié.
 
 ## CLI de référence (audio.cpp)
 
@@ -49,3 +51,5 @@ audiocpp_cli --task midi --family sheetsage2 \
 ## Package
 
 `packages/sheetsage` — `checkSheetsageReadiness`, `createSheetsageTranscriber(probe, runner?)`, `assertAbcConfirmedForYue2`.
+
+`packages/score-engine` — `importAbcToScoreDocument` (ABC → notes) puis `exportScoreDocumentToMidi`.

@@ -37,6 +37,11 @@ export {
   normalizeAbc,
   type AbcExportResult,
 } from "./abc/export.js";
+export {
+  importAbcToScoreDocument,
+  type AbcImportOptions,
+  type AbcImportResult,
+} from "./abc/import.js";
 export { validateChordSymbol, isAcceptedChordSymbol } from "./abc/chords.js";
 export { midiToAbcPitch, abcPitchToMidi, formatKeyField } from "./abc/pitch.js";
 export { convertVocalToIns, type VocalToInsOptions, type VocalToInsResult } from "./abc/vocal-to-ins.js";

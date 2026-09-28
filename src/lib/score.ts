@@ -4,6 +4,7 @@ import {
   diffScoreDocuments,
   exportScoreDocumentToMidi,
   exportToYuE2Abc,
+  importAbcToScoreDocument,
   importMidiToScoreDocument,
   INTERNAL_PPQ,
   mergeScoreDocuments,
@@ -11,6 +12,7 @@ import {
   transposeScore,
   validateChordSymbol,
   validateForAbcExport,
+  type AbcImportResult,
   type AbcVoiceTarget,
   type CotProfile,
   type MergeConflictResolution,
@@ -26,6 +28,7 @@ import {
 } from "@song-maker/score-engine";
 
 export type {
+  AbcImportResult,
   CotProfile,
   MergeConflictResolution,
   MidiImportResult,
@@ -50,6 +53,18 @@ export function importMidiBytes(
   },
 ): MidiImportResult {
   return importMidiToScoreDocument(bytes, options);
+}
+
+/** ABC (YuE2 / SheetSage2) → ScoreDocument draft for the piano roll. */
+export function importAbcText(
+  abc: string,
+  options?: {
+    id?: string;
+    branchName?: string | null;
+    sourceFileHash?: string;
+  },
+): AbcImportResult {
+  return importAbcToScoreDocument(abc, options);
 }
 
 export function quantizeScore(

@@ -30,6 +30,7 @@ import {
   setProductionTempoBpm,
 } from "../lib/productionState";
 import {
+  importAbcText,
   prepareAbcForGeneration,
   type ScoreDocument,
 } from "../lib/score";
@@ -730,6 +731,49 @@ export function SongScreen() {
     }
   }
 
+  async function onSheetsageOpenScoreDraft(
+    abc: string,
+    meta: { mode: "melody" | "full" },
+  ) {
+    if (!project) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { document, empty, issues } = importAbcText(abc, {
+        branchName: "sheetsage-draft",
+      });
+      if (empty) {
+        setError(
+          issues[0]?.message ??
+            t("sheetsage.scoreDraftEmpty"),
+        );
+        return;
+      }
+      if (meta.mode === "melody" || meta.mode === "full") {
+        setForm({ cot: meta.mode });
+      }
+      const { project: updated } = await api.saveScore(project.id, document);
+      setScoreDocument({
+        ...document,
+        id: updated.activeScoreId ?? document.id,
+      });
+      await openProject(project.id);
+      setScoreMode("edit");
+      if (issues.length > 0) {
+        setError(
+          t("sheetsage.scoreDraftWarnings", {
+            n: issues.length,
+            detail: issues[0]?.message ?? "",
+          }),
+        );
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onRenderFromScore(sourceGenId: string, count: number) {
     if (!project || formError) {
       setShowFormErrors(true);
@@ -1392,6 +1436,7 @@ export function SongScreen() {
                 playbackSeconds={playback?.current ?? 0}
                 playbackReady={Boolean(playback?.ready)}
                 onSeekPlayback={playback?.seek}
+                onOpenScoreDraft={onSheetsageOpenScoreDraft}
                 onConfirmGenerate={async (confirmedAbc, cot) => {
                   setBusy(true);
                   setError(null);

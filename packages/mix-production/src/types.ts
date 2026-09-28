@@ -47,6 +47,7 @@ export type EffectKind =
   | "reverb"
   | "delay"
   | "limiter"
+  | "pitch_correct"
   | "custom";
 
 export type EffectProcessContext = {
@@ -68,6 +69,9 @@ export type TrackEffectSlot = {
    * - filter: `mode` (`highpass`|`lowpass`), `frequencyHz`, `slopeDbPerOct` (12|24)
    * - reverb: `mix`, `roomSize`, `damping`, `width` (all 0…1 except documented)
    * - delay: `delayMs`, `sync`, `division`, `tempoBpm`, `feedback` (≤0.95), `mix`
+   * - pitch_correct: `mode` ("chromatic"|"scale"), `tonic` (0…11),
+   *   `scale` ("major"|"minor"), `intensity` (0…1), `speed` (0…1),
+   *   `formantPreserve` (boolean)
    * - custom: **required** `processorId` (string) naming a registered extension
    */
   params: Record<string, number | string | boolean>;

@@ -31,6 +31,11 @@ import {
   parametricBandsFromParams,
   sampleAutomationPoints,
 } from "./dsp.js";
+import {
+  applyPitchCorrect,
+  type PitchCorrectMode,
+  type PitchCorrectScale,
+} from "./pitchCorrect.js";
 
 export class MixAutomationEngineImpl implements MixAutomationEngine {
   private readonly lanes = new Map<string, AutomationLane[]>();
@@ -259,6 +264,33 @@ export class TrackEffectsRackImpl implements TrackEffectsRack {
             tempoBpm,
             feedback: numParam(effect.params, "feedback", 0.35),
             mix: numParam(effect.params, "mix", 0.35),
+          });
+          break;
+        }
+        case "pitch_correct": {
+          const mode: PitchCorrectMode =
+            effect.params.mode === "scale" ? "scale" : "chromatic";
+          const scale: PitchCorrectScale =
+            effect.params.scale === "minor" ? "minor" : "major";
+          current = applyPitchCorrect(current, sr, {
+            mode,
+            tonic:
+              typeof effect.params.tonic === "number"
+                ? effect.params.tonic
+                : 0,
+            scale,
+            intensity:
+              typeof effect.params.intensity === "number"
+                ? effect.params.intensity
+                : 0.7,
+            speed:
+              typeof effect.params.speed === "number"
+                ? effect.params.speed
+                : 0.55,
+            formantPreserve:
+              typeof effect.params.formantPreserve === "boolean"
+                ? effect.params.formantPreserve
+                : true,
           });
           break;
         }
