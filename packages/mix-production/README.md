@@ -4,7 +4,7 @@ Phase **3** — automation, effets, sidechain et loudness ([spec §10.3](../../s
 
 ## Rôle
 
-Sous-ensemble DSP réel + rendu offline partagé :
+Sous-ensemble DSP réel + rendu offline partagé. Les exports `Stub*` / `createStubMixProductionToolkit` sont des **alias dépréciés** vers les implémentations réelles.
 
 | API | Comportement |
 |---|---|

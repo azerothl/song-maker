@@ -96,10 +96,21 @@ export {
 } from "./generation/stop-after.js";
 export {
   createSemanticPrefixClient,
+  DesktopSemanticPrefixClient,
   StubSemanticPrefixClient,
+  planSemanticPrefixContinuation,
+  validateSemanticPrefixContinuation,
+  SEMANTIC_PREFIX_ENABLED,
+  SEMANTIC_PREFIX_MIN_TAG,
+  SEMANTIC_HZ,
+  SEMANTIC_MAX_DURATION_SEC,
+  SEMANTIC_TOKEN_CEILING,
   type SemanticPrefixClient,
   type SemanticPrefixRequest,
+  type SemanticPrefixResult,
+  type SemanticPrefixTaskOptions,
   type SemanticPrefixFrames,
+  type ParentGenerationSemanticState,
 } from "./generation/semantic-prefix.js";
 
 export { buildTonightAwakeFixture } from "./fixtures/tonight-awake.js";
