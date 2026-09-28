@@ -325,6 +325,7 @@ pub fn default_settings() -> AppSettings {
         server_host: DEFAULT_HOST.into(),
         server_port: DEFAULT_PORT,
         output_device: None,
+        audio_latency_ms: 20,
         stem_separator: DEFAULT_STEM_SEPARATOR.into(),
         cc_by_nc_accepted: false,
         yue2_license_accepted: false,

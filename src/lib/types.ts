@@ -82,6 +82,37 @@ export type MixTrack = {
   clips: MixClip[];
 };
 
+/** Arrangement tempo change (ms timeline). Clip storage stays in ms (#94). */
+export type MixTempoEvent = {
+  startMs: number;
+  quarterBpm: number;
+};
+
+/** Arrangement meter change (ms timeline). */
+export type MixMeterEvent = {
+  startMs: number;
+  numerator: number;
+  denominator: number;
+};
+
+export type MixMarkerKind =
+  | "intro"
+  | "verse"
+  | "prechorus"
+  | "chorus"
+  | "bridge"
+  | "interlude"
+  | "outro"
+  | "other";
+
+/** Named section marker on the mix arrangement timeline. */
+export type MixMarker = {
+  id: string;
+  name: string;
+  kind: MixMarkerKind;
+  startMs: number;
+};
+
 export type MixDoc = {
   schema: string;
   schemaVersion: number;
@@ -91,6 +122,15 @@ export type MixDoc = {
   masterGainDb: number;
   peakCeilingDb: number;
   tracks: MixTrack[];
+  /**
+   * Musical grid tempo map. Absent/empty on legacy mixes → default 120 BPM at 0 ms
+   * (see `ensureMixArrangement`); clip positions are never rewritten on load.
+   */
+  tempoMap?: MixTempoEvent[];
+  /** Meter changes for the musical grid. Absent → 4/4 at 0 ms. */
+  timeSignatures?: MixMeterEvent[];
+  /** Named section markers (intro, couplet, …). */
+  markers?: MixMarker[];
 };
 
 export type PlaybackStem = {
@@ -126,6 +166,11 @@ export type AppSettings = {
   serverHost: string;
   serverPort: number;
   outputDevice?: string | null;
+  /**
+   * Soft-synth / MIDI monitoring lookahead (ms). Default 20.
+   * Documented latency budget for Windows + other platforms (#96).
+   */
+  audioLatencyMs?: number;
   /** Phase 3: `htdemucs` (default) | `htdemucs_6s` (optional ONNX) | `bs_roformer` */
   stemSeparator?: string;
   /** CC BY-NC gate for optional LoRA packs */

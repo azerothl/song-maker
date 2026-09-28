@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type KeyboardEvent,
   type MouseEvent,
@@ -23,6 +24,7 @@ import {
   upsertChord,
   upsertSection,
 } from "../lib/score";
+import { SoftSynth } from "../lib/midiInstrument";
 import { t } from "../ui/i18n";
 
 const SECTION_KINDS: SectionKind[] = [
@@ -80,6 +82,24 @@ export function PianoRoll({ document, onChange, onError }: Props) {
     denominator: 4,
   };
   const selectedNote = voice?.notes.find((n) => n.id === selectedId) ?? null;
+  const auditionRef = useRef<SoftSynth | null>(null);
+
+  useEffect(() => {
+    const synth = new SoftSynth({ latencySec: 0.01 });
+    auditionRef.current = synth;
+    return () => {
+      void synth.dispose();
+      auditionRef.current = null;
+    };
+  }, []);
+
+  function audition(pitch: number) {
+    const synth = auditionRef.current;
+    if (!synth) return;
+    void synth.noteOn(pitch, 95).then(() => {
+      window.setTimeout(() => synth.noteOff(pitch), 180);
+    });
+  }
 
   useEffect(() => {
     if (!voiceId || !document.voices.some((v) => v.id === voiceId)) {
@@ -129,6 +149,7 @@ export function PianoRoll({ document, onChange, onError }: Props) {
         }),
       );
       setSelectedId(id);
+      audition(pitch);
       return;
     }
     setSelectedId(null);
@@ -143,6 +164,7 @@ export function PianoRoll({ document, onChange, onError }: Props) {
     e.stopPropagation();
     if (!voiceId) return;
     setSelectedId(noteId);
+    audition(pitch);
     const target = e.currentTarget as HTMLElement;
     target.setPointerCapture(e.pointerId);
     const originX = e.clientX;
