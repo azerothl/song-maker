@@ -25,7 +25,10 @@ import {
   loadRemotePrefs,
   runRemoteGenerationToProject,
 } from "../lib/remoteGenerate";
-import { ensureProductionOverlay } from "../lib/productionState";
+import {
+  ensureProductionOverlay,
+  setProductionTempoBpm,
+} from "../lib/productionState";
 import {
   prepareAbcForGeneration,
   type ScoreDocument,
@@ -469,6 +472,10 @@ export function SongScreen() {
     if (!mix?.id) return;
     ensureProductionOverlay(mix.id);
   }, [mix?.id]);
+
+  useEffect(() => {
+    setProductionTempoBpm(form.tempoBpm);
+  }, [form.tempoBpm]);
 
   const roleByTrack = useMemo(() => {
     const out: Record<string, string> = {};
@@ -1730,7 +1737,11 @@ export function SongScreen() {
               hidden={productionView !== "tools"}
               className="advanced-production"
             >
-              <Phase3MixPanel mix={mix} sources={playbackSources} />
+              <Phase3MixPanel
+                mix={mix}
+                sources={playbackSources}
+                tempoBpm={form.tempoBpm}
+              />
             </div>
           </section>
         )}

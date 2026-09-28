@@ -2,6 +2,7 @@ import type {
   AutomationLane,
   AutomationTarget,
   CustomEffectProcessor,
+  EffectProcessContext,
   LoudnessMeter,
   LoudnessReport,
   LoudnessStandard,
@@ -15,12 +16,19 @@ import type {
 } from "./types.js";
 import {
   applyCompressor,
+  applyDelay,
+  applyFilter,
   applyGainShelf,
+  applyGate,
+  applyParametricEq,
   applyPeakLimiter,
   applyReverb,
   applySidechainDuck,
   dbToLinear,
+  DELAY_DIVISIONS,
+  type DelayDivision,
   measureLoudnessFromPcm,
+  parametricBandsFromParams,
   sampleAutomationPoints,
 } from "./dsp.js";
 
@@ -80,9 +88,19 @@ function assertCustomInsertable(
   }
 }
 
+function numParam(
+  params: Record<string, number | string | boolean>,
+  key: string,
+  fallback: number,
+): number {
+  const v = params[key];
+  return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+}
+
 export class TrackEffectsRackImpl implements TrackEffectsRack {
   private readonly racks = new Map<string, TrackEffectSlot[]>();
   private readonly customProcessors = new Map<string, CustomEffectProcessor>();
+  private readonly gainReductionDb = new Map<string, number>();
 
   list(trackId: string): TrackEffectSlot[] {
     return [...(this.racks.get(trackId) ?? [])];
@@ -101,6 +119,7 @@ export class TrackEffectsRackImpl implements TrackEffectsRack {
       trackId,
       list.filter((e) => e.id !== effectId),
     );
+    this.gainReductionDb.delete(`${trackId}:${effectId}`);
   }
 
   registerCustomProcessor(
@@ -122,10 +141,16 @@ export class TrackEffectsRackImpl implements TrackEffectsRack {
     return [...this.customProcessors.keys()].sort();
   }
 
+  getGainReductionDb(trackId: string, effectId: string): number | null {
+    const v = this.gainReductionDb.get(`${trackId}:${effectId}`);
+    return v == null ? null : v;
+  }
+
   process(
     trackId: string,
     pcm: Float32Array,
     sampleRate = 48000,
+    context: EffectProcessContext = {},
   ): Float32Array {
     let current = pcm;
     const sr = Math.max(1, sampleRate);
@@ -133,49 +158,107 @@ export class TrackEffectsRackImpl implements TrackEffectsRack {
       if (!effect.enabled) continue;
       switch (effect.kind) {
         case "limiter": {
-          const ceilingDb =
-            typeof effect.params.ceilingDb === "number"
-              ? effect.params.ceilingDb
-              : -1;
-          current = applyPeakLimiter(current, dbToLinear(ceilingDb));
+          const ceilingDb = numParam(effect.params, "ceilingDb", -1);
+          current = applyPeakLimiter(
+            current,
+            dbToLinear(Math.max(-24, Math.min(0, ceilingDb))),
+          );
           break;
         }
         case "compressor": {
-          const thresholdDb =
-            typeof effect.params.thresholdDb === "number"
-              ? effect.params.thresholdDb
-              : -18;
-          const ratio =
-            typeof effect.params.ratio === "number" ? effect.params.ratio : 4;
-          const makeupDb =
-            typeof effect.params.makeupDb === "number"
-              ? effect.params.makeupDb
-              : 0;
-          current = applyCompressor(current, thresholdDb, ratio, makeupDb);
+          const meter = { peakReductionDb: 0 };
+          current = applyCompressor(
+            current,
+            numParam(effect.params, "thresholdDb", -18),
+            numParam(effect.params, "ratio", 4),
+            numParam(effect.params, "makeupDb", 0),
+            {
+              attackMs: numParam(effect.params, "attackMs", 10),
+              releaseMs: numParam(effect.params, "releaseMs", 100),
+              kneeDb: numParam(effect.params, "kneeDb", 0),
+              sampleRate: sr,
+              meter,
+            },
+          );
+          this.gainReductionDb.set(
+            `${trackId}:${effect.id}`,
+            meter.peakReductionDb,
+          );
+          break;
+        }
+        case "gate": {
+          current = applyGate(current, sr, {
+            thresholdDb: numParam(effect.params, "thresholdDb", -40),
+            ratio: numParam(effect.params, "ratio", 10),
+            attackMs: numParam(effect.params, "attackMs", 5),
+            releaseMs: numParam(effect.params, "releaseMs", 80),
+            rangeDb: numParam(effect.params, "rangeDb", 60),
+          });
           break;
         }
         case "eq": {
-          const gainDb =
-            typeof effect.params.gainDb === "number" ? effect.params.gainDb : 0;
-          current = applyGainShelf(current, gainDb);
+          current = applyGainShelf(
+            current,
+            numParam(effect.params, "gainDb", 0),
+          );
+          break;
+        }
+        case "parametricEq": {
+          current = applyParametricEq(
+            current,
+            sr,
+            parametricBandsFromParams(effect.params),
+          );
+          break;
+        }
+        case "filter": {
+          const modeRaw = effect.params.mode;
+          const mode =
+            modeRaw === "lowpass" || modeRaw === "highpass"
+              ? modeRaw
+              : "highpass";
+          current = applyFilter(current, sr, {
+            mode,
+            frequencyHz: numParam(effect.params, "frequencyHz", 120),
+            slopeDbPerOct: numParam(effect.params, "slopeDbPerOct", 12),
+          });
           break;
         }
         case "reverb": {
           current = applyReverb(current, sr, {
-            mix:
-              typeof effect.params.mix === "number" ? effect.params.mix : 0.35,
-            roomSize:
-              typeof effect.params.roomSize === "number"
-                ? effect.params.roomSize
-                : 0.55,
-            damping:
-              typeof effect.params.damping === "number"
-                ? effect.params.damping
-                : 0.45,
-            width:
-              typeof effect.params.width === "number"
-                ? effect.params.width
-                : 1,
+            mix: numParam(effect.params, "mix", 0.35),
+            roomSize: numParam(effect.params, "roomSize", 0.55),
+            damping: numParam(effect.params, "damping", 0.45),
+            width: numParam(effect.params, "width", 1),
+          });
+          break;
+        }
+        case "delay": {
+          const divisionRaw = effect.params.division;
+          const division =
+            typeof divisionRaw === "string" &&
+            (DELAY_DIVISIONS as readonly string[]).includes(divisionRaw)
+              ? (divisionRaw as DelayDivision)
+              : "1/4";
+          const paramTempo =
+            typeof effect.params.tempoBpm === "number"
+              ? effect.params.tempoBpm
+              : null;
+          const ctxTempo =
+            typeof context.tempoBpm === "number" ? context.tempoBpm : null;
+          const tempoBpm =
+            paramTempo != null && paramTempo > 0
+              ? paramTempo
+              : ctxTempo != null && ctxTempo > 0
+                ? ctxTempo
+                : null;
+          current = applyDelay(current, sr, {
+            delayMs: numParam(effect.params, "delayMs", 350),
+            sync: effect.params.sync === true || effect.params.sync === 1,
+            division,
+            tempoBpm,
+            feedback: numParam(effect.params, "feedback", 0.35),
+            mix: numParam(effect.params, "mix", 0.35),
           });
           break;
         }

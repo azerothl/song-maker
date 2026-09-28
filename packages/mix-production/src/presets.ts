@@ -16,7 +16,7 @@ export type MixPresetTrackSettings = {
   pan?: number;
   /**
    * Effects really supported by the production rack.
-   * EQ is gain-shelf only — never described as parametric.
+   * Shelf EQ (`eq`) stays distinct from parametric EQ.
    */
   effects?: TrackEffectSlot[];
 };
@@ -70,7 +70,8 @@ function normalizeRole(role: string): string {
 
 /**
  * Built-in intent presets. Gains / pans / FX stay within what the engine
- * actually renders (shelf EQ, compressor, limiter, stereo reverb).
+ * actually renders (shelf/parametric EQ, filter, compressor/gate, limiter,
+ * stereo reverb, tempo-sync delay).
  */
 export const MIX_PRESETS: readonly MixPresetDefinition[] = [
   {

@@ -9,7 +9,7 @@ Sous-ensemble DSP réel + rendu offline partagé. Les exports `Stub*` / `createS
 | API | Comportement |
 |---|---|
 | `MixAutomationEngine.sampleAt` | Interpolation linéaire des lanes volume / pan |
-| `TrackEffectsRack.process` | Limiteur soft + compresseur + shelf EQ + réverb stéréo (queue documentée) |
+| `TrackEffectsRack.process` | Limiteur, compresseur (attaque/relâchement/knee), gate, filtre HP/LP, EQ shelf + EQ paramétrique, delay sync tempo, réverb stéréo |
 | `registerCustomProcessor` | Extensions DSP `custom` ; sans registre → refus explicite (pas de no-op) |
 | `SidechainRouter.applyDucking` | Ducking destination depuis enveloppe source |
 | `LoudnessMeter.measurePcm` | True peak dBFS + estimation LUFS (pas filtre K BS.1770) |
@@ -21,6 +21,24 @@ Sous-ensemble DSP réel + rendu offline partagé. Les exports `Stub*` / `createS
 1. Sans overlay production : lecture GainNode live + export Rust §10.5 (phase 1).
 2. Avec overlay : `bakeMixPcm` → buffer Web Audio **et** `export_pcm_audio`.
 3. Correspondance **approximative** (même float32 TS), **pas bit-exact** avec le graphe live ni avec l’exporteur Rust historique.
+
+## Filtres et EQ
+
+- **Filtre** : passe-haut / passe-bas, fréquence et pente 12 ou 24 dB/oct.
+- **EQ shelf** (`kind: "eq"`) : gain global léger (historique).
+- **EQ paramétrique** (`kind: "parametricEq"`) : plusieurs bandes avec type de courbe documenté (`peak`, `lowshelf`, `highshelf`, `lowpass`, `highpass`, `notch`), fréquence, gain et Q. Distinct de l’EQ shelf.
+
+## Delay
+
+Delay par piste avec temps libre (ms) ou sync tempo (divisions `1/1` … `1/8t`, pointées et triolets). Feedback plafonné à **0,95**. Sans tempo valide → repli sur le temps libre. Queue documentée via `delayTailFrames` (non tronquée en lecture / export).
+
+## Dynamique
+
+- **Compresseur** : seuil, ratio, attaque, relâchement, knee, makeup. `getGainReductionDb` expose la réduction de crête du dernier `process`.
+- **Gate / expanseur** : seuil, ratio, attaque, relâchement, atténuation max — enveloppe lissée anti-clics.
+- **Limiteur** : effet distinct (plafond).
+
+Ces outils sont des **aides de mixage**, pas un mastering automatique.
 
 ## Réverbération
 

@@ -9,8 +9,17 @@ import {
 
 const STORAGE_PREFIX = "song-maker:production:";
 
-/** Effects exposed in the UI (reverb is real DSP; custom stays host-extension only). */
-export const UI_EFFECT_KINDS = ["limiter", "compressor", "eq", "reverb"] as const;
+/** Effects exposed in the UI (custom stays host-extension only). */
+export const UI_EFFECT_KINDS = [
+  "limiter",
+  "compressor",
+  "gate",
+  "eq",
+  "parametricEq",
+  "filter",
+  "delay",
+  "reverb",
+] as const;
 export type UiEffectKind = (typeof UI_EFFECT_KINDS)[number];
 
 export type ProductionOverlay = {
@@ -26,9 +35,20 @@ type Listener = () => void;
 let overlay: ProductionOverlay | null = null;
 let toolkit: MixProductionToolkit = createMixProductionToolkit();
 const listeners = new Set<Listener>();
+/** Project tempo for delay sync — optional; invalid → free ms fallback. */
+let productionTempoBpm: number | null = null;
 
 function notify() {
   for (const fn of listeners) fn();
+}
+
+export function setProductionTempoBpm(bpm: number | null | undefined) {
+  productionTempoBpm =
+    typeof bpm === "number" && Number.isFinite(bpm) && bpm > 0 ? bpm : null;
+}
+
+export function getProductionTempoBpm(): number | null {
+  return productionTempoBpm;
 }
 
 function storageKey(mixId: string): string {
@@ -354,14 +374,66 @@ export function productionIsActive(): boolean {
   return hasVol || hasPan || hasFx || hasSc;
 }
 
-export function defaultEffectParams(kind: UiEffectKind): Record<string, number> {
+export function defaultEffectParams(
+  kind: UiEffectKind,
+): Record<string, number | string | boolean> {
   switch (kind) {
     case "limiter":
       return { ceilingDb: -1 };
     case "compressor":
-      return { thresholdDb: -18, ratio: 3, makeupDb: 0 };
+      return {
+        thresholdDb: -18,
+        ratio: 3,
+        makeupDb: 0,
+        attackMs: 10,
+        releaseMs: 100,
+        kneeDb: 6,
+      };
+    case "gate":
+      return {
+        thresholdDb: -40,
+        ratio: 10,
+        attackMs: 5,
+        releaseMs: 80,
+        rangeDb: 60,
+      };
     case "eq":
       return { gainDb: 0 };
+    case "parametricEq":
+      return {
+        bandCount: 4,
+        band0Type: "lowshelf",
+        band0Freq: 100,
+        band0Gain: 0,
+        band0Q: 0.7,
+        band0Enabled: true,
+        band1Type: "peak",
+        band1Freq: 1000,
+        band1Gain: 0,
+        band1Q: 1,
+        band1Enabled: true,
+        band2Type: "peak",
+        band2Freq: 3000,
+        band2Gain: 0,
+        band2Q: 1,
+        band2Enabled: true,
+        band3Type: "highshelf",
+        band3Freq: 8000,
+        band3Gain: 0,
+        band3Q: 0.7,
+        band3Enabled: true,
+      };
+    case "filter":
+      return { mode: "highpass", frequencyHz: 80, slopeDbPerOct: 12 };
+    case "delay":
+      return {
+        delayMs: 350,
+        sync: false,
+        division: "1/4",
+        tempoBpm: 0,
+        feedback: 0.35,
+        mix: 0.35,
+      };
     case "reverb":
       return { mix: 0.35, roomSize: 0.55, damping: 0.45, width: 1 };
     default: {
