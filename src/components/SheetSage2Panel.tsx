@@ -16,6 +16,7 @@ import type { FormInput, InstallProgress, MixDoc } from "../lib/types";
 import { api } from "../lib/api";
 import { isTauriRuntime, runtimeApi } from "../lib/runtimeHost";
 import { t } from "../ui/i18n";
+import { AbcStaffView } from "./AbcStaffView";
 
 export type SheetSage2PanelProps = {
   projectId: string;
@@ -24,6 +25,9 @@ export type SheetSage2PanelProps = {
   busy: boolean;
   hideTitle?: boolean;
   onConfirmGenerate: (confirmedAbc: string, cot: "melody" | "full") => void | Promise<void>;
+  playbackSeconds?: number;
+  playbackReady?: boolean;
+  onSeekPlayback?: (seconds: number) => void;
 };
 
 type SourceChoice = "mixdown" | string;
@@ -51,6 +55,9 @@ export function SheetSage2Panel({
   busy,
   hideTitle = false,
   onConfirmGenerate,
+  playbackSeconds = 0,
+  playbackReady = false,
+  onSeekPlayback,
 }: SheetSage2PanelProps) {
   const [licenseAccepted, setLicenseAccepted] = useState(false);
   const [sourceChoice, setSourceChoice] = useState<SourceChoice>("mixdown");
@@ -511,6 +518,19 @@ export function SheetSage2Panel({
         />
       </label>
       <p className="hint">{t("sheetsage.pasteHint")}</p>
+
+      {/^X:/m.test(proposedAbc.trim()) && (
+        <details className="sheetsage-staff" open>
+          <summary>{t("sheetsage.staffPreview")}</summary>
+          <AbcStaffView
+            abc={proposedAbc}
+            compact
+            playbackSeconds={playbackSeconds}
+            playbackReady={playbackReady}
+            onSeek={onSeekPlayback}
+          />
+        </details>
+      )}
 
       <div className="btn-row">
         <button

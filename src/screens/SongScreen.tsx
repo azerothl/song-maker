@@ -1319,6 +1319,9 @@ export function SongScreen() {
                   onError={setError}
                   onCotChange={(cot) => setForm({ cot })}
                   defaultOpen
+                  playbackSeconds={playback?.current ?? 0}
+                  playbackReady={Boolean(playback?.ready)}
+                  onSeekPlayback={playback?.seek}
                 />
               </div>
 
@@ -1379,6 +1382,9 @@ export function SongScreen() {
                 mix={mix}
                 busy={busy}
                 hideTitle
+                playbackSeconds={playback?.current ?? 0}
+                playbackReady={Boolean(playback?.ready)}
+                onSeekPlayback={playback?.seek}
                 onConfirmGenerate={async (confirmedAbc, cot) => {
                   setBusy(true);
                   setError(null);

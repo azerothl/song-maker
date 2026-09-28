@@ -8,13 +8,17 @@ import {
   validateScoreForGeneration,
   vocalToInsAbc,
 } from "../lib/score";
+import { buildStaffAbc } from "../lib/staffAbc";
 import { clearInvariantBaseline } from "../lib/invariants";
 import { api } from "../lib/api";
+import { AbcStaffView } from "./AbcStaffView";
 import { InvariantPanel } from "./InvariantPanel";
 import { PianoRoll } from "./PianoRoll";
 import { ScoreAssistantPanel } from "./ScoreAssistantPanel";
 import { ScoreBranchPanel } from "./ScoreBranchPanel";
 import { t } from "../ui/i18n";
+
+type ScoreViewMode = "staff" | "piano" | "abc";
 
 type Props = {
   projectId: string;
@@ -27,7 +31,26 @@ type Props = {
   onCotChange?: (cot: string) => void;
   /** When true, parent may keep the Partition <details> open (informational). */
   defaultOpen?: boolean;
+  /** Live playback position (seconds) for staff sync. */
+  playbackSeconds?: number;
+  playbackReady?: boolean;
+  onSeekPlayback?: (seconds: number) => void;
 };
+
+function scoreViewLabel(mode: ScoreViewMode): string {
+  switch (mode) {
+    case "staff":
+      return t("score.view.staff");
+    case "piano":
+      return t("score.view.piano");
+    case "abc":
+      return t("score.view.abc");
+    default: {
+      const _exhaustive: never = mode;
+      return _exhaustive;
+    }
+  }
+}
 
 export function ScorePanel({
   projectId,
@@ -38,10 +61,14 @@ export function ScorePanel({
   onProjectRefresh,
   onError,
   onCotChange,
+  playbackSeconds = 0,
+  playbackReady = false,
+  onSeekPlayback,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [issues, setIssues] = useState<ScoreIssue[]>([]);
   const [abcPreview, setAbcPreview] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ScoreViewMode>("staff");
   const [busy, setBusy] = useState(false);
   const [pendingImport, setPendingImport] = useState<{
     bytes: Uint8Array;
@@ -67,6 +94,11 @@ export function ScorePanel({
     }
     return validateScoreForGeneration(document, cot);
   }, [document, cot]);
+
+  const staffAbc = useMemo(() => {
+    if (!document) return null;
+    return buildStaffAbc(document, title || undefined);
+  }, [document, title]);
 
   async function persist(doc: ScoreDocument) {
     setBusy(true);
@@ -322,14 +354,98 @@ export function ScorePanel({
             </div>
           </header>
 
-          <PianoRoll
-            document={document}
-            onChange={(doc) => {
-              onDocumentChange(doc);
-              setAbcPreview(null);
-            }}
-            onError={onError}
-          />
+          <nav
+            className="score-view-tabs"
+            role="tablist"
+            aria-label={t("score.view.tabs")}
+          >
+            {(["staff", "piano", "abc"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                role="tab"
+                id={`score-view-${mode}`}
+                className="score-view-tab"
+                aria-selected={viewMode === mode}
+                aria-controls={`score-view-panel-${mode}`}
+                tabIndex={viewMode === mode ? 0 : -1}
+                onClick={() => setViewMode(mode)}
+              >
+                {scoreViewLabel(mode)}
+              </button>
+            ))}
+          </nav>
+
+          <div
+            id="score-view-panel-staff"
+            role="tabpanel"
+            aria-labelledby="score-view-staff"
+            hidden={viewMode !== "staff"}
+          >
+            {staffAbc?.ok ? (
+              <AbcStaffView
+                abc={staffAbc.abc}
+                warnings={staffAbc.warnings}
+                playbackSeconds={playbackSeconds}
+                playbackReady={playbackReady}
+                onSeek={onSeekPlayback}
+              />
+            ) : (
+              <div className="score-staff-fallback">
+                <p className="hint" role="alert">
+                  {staffAbc?.error ?? t("score.staff.unavailable")}
+                </p>
+                <p className="hint">{t("score.staff.switchPiano")}</p>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setViewMode("piano")}
+                >
+                  {t("score.view.piano")}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div
+            id="score-view-panel-piano"
+            role="tabpanel"
+            aria-labelledby="score-view-piano"
+            hidden={viewMode !== "piano"}
+          >
+            <PianoRoll
+              document={document}
+              onChange={(doc) => {
+                onDocumentChange(doc);
+                setAbcPreview(null);
+              }}
+              onError={onError}
+            />
+          </div>
+
+          <div
+            id="score-view-panel-abc"
+            role="tabpanel"
+            aria-labelledby="score-view-abc"
+            hidden={viewMode !== "abc"}
+          >
+            {staffAbc?.ok ? (
+              <pre className="score score-abc-raw">{staffAbc.abc}</pre>
+            ) : abcPreview ? (
+              <pre className="score score-abc-raw">{abcPreview}</pre>
+            ) : (
+              <p className="hint">{t("score.view.abcEmpty")}</p>
+            )}
+            {staffAbc && !staffAbc.ok && staffAbc.issues.length > 0 && (
+              <ul className="score-issues">
+                {staffAbc.issues.map((issue, i) => (
+                  <li key={`staff-i-${i}`} className={issue.severity}>
+                    {issue.message}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           {validation && !validation.ok && (
             <ul className="score-issues">
@@ -380,7 +496,7 @@ export function ScorePanel({
             onError={onError}
           />
 
-          {abcPreview && (
+          {abcPreview && viewMode !== "abc" && (
             <details open>
               <summary>{t("score.abcPreview")}</summary>
               <pre className="score">{abcPreview}</pre>
