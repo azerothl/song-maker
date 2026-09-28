@@ -57,12 +57,12 @@ fn artifacts(cache: &Path, pack: &str, include_engine: bool) -> Result<Vec<Artif
         });
         if let Some((name, sha)) = crate::paths::pinned_cudart_archive() {
             out.push(Artifact {
-            name: name.into(),
-            url: format!(
-                "https://github.com/0xShug0/audio.cpp/releases/download/{AUDIOCPP_TAG}/{name}"
-            ),
-            path: binary_dir.join(name),
-            sha256: Some(sha),
+                name: name.into(),
+                url: format!(
+                    "https://github.com/0xShug0/audio.cpp/releases/download/{AUDIOCPP_TAG}/{name}"
+                ),
+                path: binary_dir.join(name),
+                sha256: Some(sha),
             });
         }
     }
@@ -149,7 +149,7 @@ async fn download_artifact(
     let mut response = request
         .send()
         .await
-        .map_err(|e| format!("{} : {e}", item.name))?;
+        .map_err(|e| format!("Téléchargement de {} : {e}", item.name))?;
     if response.status() == reqwest::StatusCode::RANGE_NOT_SATISFIABLE && resumed > 0 {
         tokio::fs::remove_file(&partial)
             .await
@@ -158,7 +158,7 @@ async fn download_artifact(
             .get(&item.url)
             .send()
             .await
-            .map_err(|e| format!("{} : {e}", item.name))?;
+            .map_err(|e| format!("Téléchargement de {} : {e}", item.name))?;
     }
     if !response.status().is_success() {
         return Err(format!(
@@ -189,7 +189,7 @@ async fn download_artifact(
     while let Some(chunk) = response
         .chunk()
         .await
-        .map_err(|e| format!("{} : {e}", item.name))?
+        .map_err(|e| format!("Téléchargement de {} : {e}", item.name))?
     {
         file.write_all(&chunk).await.map_err(|e| e.to_string())?;
         received += chunk.len() as u64;
@@ -213,7 +213,7 @@ async fn download_artifact(
         if actual != expected {
             let _ = tokio::fs::remove_file(&partial).await;
             return Err(format!(
-                "La vérification de {} a échoué (SHA-256).",
+                "Téléchargement de {} : empreinte SHA-256 incorrecte.",
                 item.name
             ));
         }
@@ -225,45 +225,144 @@ async fn download_artifact(
     Ok(())
 }
 
+fn extract_zip(archive: &Path, destination: &Path) -> Result<(), String> {
+    let file = std::fs::File::open(archive)
+        .map_err(|e| format!("Extraction impossible (ouverture de {}) : {e}", archive.display()))?;
+    let mut zip = zip::ZipArchive::new(file)
+        .map_err(|e| format!("Extraction impossible (archive ZIP invalide) : {e}"))?;
+    for i in 0..zip.len() {
+        let mut entry = zip
+            .by_index(i)
+            .map_err(|e| format!("Extraction impossible (entrée ZIP) : {e}"))?;
+        let Some(relative) = entry.enclosed_name() else {
+            return Err("Extraction impossible : l’archive contient un chemin de fichier non sûr.".into());
+        };
+        if entry
+            .unix_mode()
+            .is_some_and(|mode| mode & 0o170000 == 0o120000)
+        {
+            return Err("Extraction impossible : l’archive contient un lien symbolique inattendu.".into());
+        }
+        let output = destination.join(relative);
+        if entry.is_dir() {
+            ensure_dir(&output).map_err(|e| e.to_string())?;
+        } else {
+            if let Some(parent) = output.parent() {
+                ensure_dir(parent).map_err(|e| e.to_string())?;
+            }
+            let mut file = std::fs::File::create(&output).map_err(|e| e.to_string())?;
+            std::io::copy(&mut entry, &mut file).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+fn extract_tar_gz(archive: &Path, destination: &Path) -> Result<(), String> {
+    let file = std::fs::File::open(archive)
+        .map_err(|e| format!("Extraction impossible (ouverture de {}) : {e}", archive.display()))?;
+    let decoder = flate2::read::GzDecoder::new(file);
+    tar::Archive::new(decoder)
+        .unpack(destination)
+        .map_err(|e| format!("Extraction impossible (archive tar.gz) : {e}"))
+}
+
 fn extract_archive(archive: &Path, destination: &Path) -> Result<(), String> {
     ensure_dir(destination).map_err(|e| e.to_string())?;
-    #[cfg(target_os = "windows")]
-    {
-        let file = std::fs::File::open(archive).map_err(|e| e.to_string())?;
-        let mut zip =
-            zip::ZipArchive::new(file).map_err(|e| format!("Archive ZIP invalide : {e}"))?;
-        for i in 0..zip.len() {
-            let mut entry = zip.by_index(i).map_err(|e| e.to_string())?;
-            let Some(relative) = entry.enclosed_name() else {
-                return Err("L’archive contient un chemin de fichier non sûr.".into());
-            };
-            if entry
-                .unix_mode()
-                .is_some_and(|mode| mode & 0o170000 == 0o120000)
-            {
-                return Err("L’archive contient un lien symbolique inattendu.".into());
-            }
-            let output = destination.join(relative);
-            if entry.is_dir() {
-                ensure_dir(&output).map_err(|e| e.to_string())?;
-            } else {
-                if let Some(parent) = output.parent() {
-                    ensure_dir(parent).map_err(|e| e.to_string())?;
+    let name = archive
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default();
+    if name.ends_with(".zip") {
+        extract_zip(archive, destination)
+    } else if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
+        extract_tar_gz(archive, destination)
+    } else {
+        Err(format!(
+            "Extraction impossible : format d’archive non supporté ({name})."
+        ))
+    }
+}
+
+fn server_binary_name() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "audiocpp_server.exe"
+    } else {
+        "audiocpp_server"
+    }
+}
+
+/// Locate the server executable under an extract tree without requiring CUDA DLLs.
+fn locate_extracted_server(extract_dir: &Path) -> Option<PathBuf> {
+    if !extract_dir.exists() {
+        return None;
+    }
+    let expected = server_binary_name();
+    walkdir::WalkDir::new(extract_dir)
+        .max_depth(4)
+        .into_iter()
+        .filter_map(|entry| entry.ok())
+        .find(|entry| entry.file_name().to_string_lossy() == expected)
+        .map(|entry| entry.path().to_path_buf())
+}
+
+/// Extract the pinned engine archive (and Windows cudart) into the platform folder.
+///
+/// On Windows the CUDA runtime zip must land beside `audiocpp_server.exe`; the bin
+/// archive alone does not ship those DLLs. Matches phase0 `load-test-cuda.sh`.
+fn extract_engine(
+    binary_dir: &Path,
+    archive_name: &str,
+    platform: &str,
+    cudart_name: Option<&str>,
+) -> Result<(), String> {
+    let archive_path = binary_dir.join(archive_name);
+    if !archive_path.is_file() {
+        return Err(format!(
+            "Téléchargement incomplet : archive moteur {archive_name} introuvable avant extraction."
+        ));
+    }
+    let extract_dir = binary_dir.join(platform);
+    extract_archive(&archive_path, &extract_dir).map_err(|e| {
+        format!("Extraction de {archive_name} vers {} : {e}", extract_dir.display())
+    })?;
+
+    if let Some(cudart_name) = cudart_name {
+        let cudart_path = binary_dir.join(cudart_name);
+        if !cudart_path.is_file() {
+            return Err(format!(
+                "Téléchargement incomplet : runtime CUDA {cudart_name} introuvable avant extraction."
+            ));
+        }
+        extract_archive(&cudart_path, &extract_dir).map_err(|e| {
+            format!(
+                "Extraction de {cudart_name} vers {} : {e}",
+                extract_dir.display()
+            )
+        })?;
+
+        // If the bin zip nests the exe, place CUDA DLLs next to it (same as phase0).
+        if let Some(server) = locate_extracted_server(&extract_dir) {
+            if let Some(server_dir) = server.parent() {
+                let marker = server_dir.join("cudart64_12.dll");
+                if !marker.is_file() {
+                    extract_archive(&cudart_path, server_dir).map_err(|e| {
+                        format!(
+                            "Extraction de {cudart_name} à côté de {} : {e}",
+                            server.display()
+                        )
+                    })?;
                 }
-                let mut file = std::fs::File::create(output).map_err(|e| e.to_string())?;
-                std::io::copy(&mut entry, &mut file).map_err(|e| e.to_string())?;
             }
         }
-        return Ok(());
     }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let file = std::fs::File::open(archive).map_err(|e| e.to_string())?;
-        let decoder = flate2::read::GzDecoder::new(file);
-        tar::Archive::new(decoder)
-            .unpack(destination)
-            .map_err(|e| format!("Extraction de l’archive impossible : {e}"))
+
+    if locate_extracted_server(&extract_dir).is_none() {
+        return Err(format!(
+            "Détection du binaire : {} introuvable après extraction de {archive_name}.",
+            server_binary_name()
+        ));
     }
+    Ok(())
 }
 
 pub async fn install(
@@ -303,6 +402,7 @@ async fn install_inner(app: tauri::AppHandle, pack: String) -> Result<String, St
     settings.yue2_license_accepted = true;
     crate::library::save_settings(&settings)?;
     let cache = PathBuf::from(&settings.cache_dir);
+    // Re-run engine download/extract when the server (or Windows cudart beside it) is missing.
     let needs_extract = !crate::audiocpp::AudioCppServer::has_server_binary(&cache);
     let items = artifacts(&cache, &pack, needs_extract)?;
     let count = items.len();
@@ -316,16 +416,27 @@ async fn install_inner(app: tauri::AppHandle, pack: String) -> Result<String, St
     }
 
     let (archive, _, platform) = platform_archive();
-    let archive_path = binaries_dir(&cache).join(archive);
-    let extract_dir = binaries_dir(&cache).join(platform);
+    let binary_dir = binaries_dir(&cache);
+    let cudart_name = crate::paths::pinned_cudart_archive().map(|(name, _)| name);
     emit(
         &app,
         InstallProgress::phase("Préparation du moteur audio…", count, count),
     );
     if needs_extract {
-        tokio::task::spawn_blocking(move || extract_archive(&archive_path, &extract_dir))
-            .await
-            .map_err(|e| e.to_string())??;
+        let archive_name = archive.to_string();
+        let platform = platform.to_string();
+        let cudart_name = cudart_name.map(str::to_string);
+        let binary_dir = binary_dir.clone();
+        tokio::task::spawn_blocking(move || {
+            extract_engine(
+                &binary_dir,
+                &archive_name,
+                &platform,
+                cudart_name.as_deref(),
+            )
+        })
+        .await
+        .map_err(|e| e.to_string())??;
         #[cfg(unix)]
         {
             let cache = PathBuf::from(&settings.cache_dir);
@@ -338,11 +449,172 @@ async fn install_inner(app: tauri::AppHandle, pack: String) -> Result<String, St
             std::fs::set_permissions(binary, permissions).map_err(|e| e.to_string())?;
         }
     }
-    if !crate::audiocpp::AudioCppServer::has_server_binary(&PathBuf::from(&settings.cache_dir)) {
-        return Err("Le serveur audio.cpp est absent de l’archive téléchargée.".into());
-    }
+    crate::audiocpp::AudioCppServer::find_server_binary(&PathBuf::from(&settings.cache_dir))
+        .map_err(|detail| {
+            format!("Détection du moteur audio après installation : {detail}")
+        })?;
     emit(&app, InstallProgress::complete());
     Ok(format!(
         "Installation terminée : YuE2 {pack}, HTDemucs et moteur audio."
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{extract_engine, extract_zip, locate_extracted_server};
+    use std::io::Write;
+    use std::path::{Path, PathBuf};
+
+    fn temp_dir(label: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "song-maker-installer-{label}-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn write_zip(path: &Path, entries: &[(&str, &[u8])]) {
+        let file = std::fs::File::create(path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored);
+        for (name, bytes) in entries {
+            zip.start_file(*name, options).unwrap();
+            zip.write_all(bytes).unwrap();
+        }
+        zip.finish().unwrap();
+    }
+
+    #[test]
+    fn extract_zip_rejects_unsafe_paths() {
+        let root = temp_dir("unsafe");
+        let archive = root.join("bad.zip");
+        // Craft a zip whose enclosed_name() is None via absolute-looking path.
+        // zip crate's enclosed_name rejects `../` traversal.
+        write_zip(&archive, &[("../escape.exe", b"x")]);
+        let dest = root.join("out");
+        let err = extract_zip(&archive, &dest).unwrap_err();
+        assert!(
+            err.contains("non sûr") || err.contains("Extraction"),
+            "unexpected error: {err}"
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn extract_engine_unpacks_server_and_windows_cudart() {
+        let root = temp_dir("engine");
+        let binary_dir = root.join("binaries");
+        std::fs::create_dir_all(&binary_dir).unwrap();
+
+        let bin_name = "audio-test-bin-windows.zip";
+        let cudart_name = "audio-test-cudart-windows.zip";
+        let server_name = if cfg!(target_os = "windows") {
+            "audiocpp_server.exe"
+        } else {
+            // On non-Windows CI we still verify zip layout; place the Unix name
+            // so locate_extracted_server matches the host expectation.
+            "audiocpp_server"
+        };
+
+        write_zip(
+            &binary_dir.join(bin_name),
+            &[(server_name, b"fake-server"), ("ggml.dll", b"dll")],
+        );
+        write_zip(
+            &binary_dir.join(cudart_name),
+            &[
+                ("cudart64_12.dll", b"cudart"),
+                ("cublas64_12.dll", b"cublas"),
+            ],
+        );
+
+        extract_engine(
+            &binary_dir,
+            bin_name,
+            "windows-cuda12.4",
+            Some(cudart_name),
+        )
+        .unwrap();
+
+        let extract = binary_dir.join("windows-cuda12.4");
+        let server = locate_extracted_server(&extract).expect("server after extract");
+        assert!(server.is_file());
+        assert!(server.parent().unwrap().join("cudart64_12.dll").is_file());
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn extract_engine_places_cudart_beside_nested_server() {
+        let root = temp_dir("nested");
+        let binary_dir = root.join("binaries");
+        std::fs::create_dir_all(&binary_dir).unwrap();
+
+        let bin_name = "nested-bin.zip";
+        let cudart_name = "nested-cudart.zip";
+        let server_name = if cfg!(target_os = "windows") {
+            "audiocpp_server.exe"
+        } else {
+            "audiocpp_server"
+        };
+        let nested = format!("payload/bin/{server_name}");
+
+        write_zip(&binary_dir.join(bin_name), &[(&nested, b"fake-server")]);
+        write_zip(
+            &binary_dir.join(cudart_name),
+            &[("cudart64_12.dll", b"cudart")],
+        );
+
+        extract_engine(&binary_dir, bin_name, "windows-cuda12.4", Some(cudart_name)).unwrap();
+
+        let extract = binary_dir.join("windows-cuda12.4");
+        let server = locate_extracted_server(&extract).unwrap();
+        assert!(
+            server.parent().unwrap().join("cudart64_12.dll").is_file(),
+            "cudart must sit beside nested server"
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn extract_engine_reports_missing_server_in_archive() {
+        let root = temp_dir("missing-server");
+        let binary_dir = root.join("binaries");
+        std::fs::create_dir_all(&binary_dir).unwrap();
+        let bin_name = "empty-bin.zip";
+        write_zip(&binary_dir.join(bin_name), &[("readme.txt", b"no server")]);
+        let err = extract_engine(&binary_dir, bin_name, "windows-cuda12.4", None).unwrap_err();
+        assert!(
+            err.contains("Détection du binaire"),
+            "unexpected error: {err}"
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn extract_engine_reports_missing_cudart_archive() {
+        let root = temp_dir("missing-cudart");
+        let binary_dir = root.join("binaries");
+        std::fs::create_dir_all(&binary_dir).unwrap();
+        let bin_name = "bin-only.zip";
+        let server_name = if cfg!(target_os = "windows") {
+            "audiocpp_server.exe"
+        } else {
+            "audiocpp_server"
+        };
+        write_zip(&binary_dir.join(bin_name), &[(server_name, b"fake")]);
+        let err = extract_engine(
+            &binary_dir,
+            bin_name,
+            "windows-cuda12.4",
+            Some("missing-cudart.zip"),
+        )
+        .unwrap_err();
+        assert!(
+            err.contains("Téléchargement incomplet") && err.contains("CUDA"),
+            "unexpected error: {err}"
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
 }
