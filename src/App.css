@@ -921,11 +921,43 @@ details[open] > summary {
   background: color-mix(in srgb, var(--accent-2) 12%, var(--bg1));
 }
 
-.song-form .duration-choice input {
+.song-form .duration-choice input,
+.song-form .instrumental-choice input {
   flex: 0 0 auto;
   margin: 0.15rem 0 0;
   padding: 0;
   accent-color: var(--accent);
+}
+
+.song-form .instrumental-choice {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg1) 70%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1.35;
+}
+
+.song-form .instrumental-choice:has(input:checked) {
+  border-color: color-mix(in srgb, var(--accent-2) 75%, var(--line));
+  background: color-mix(in srgb, var(--accent-2) 12%, var(--bg1));
+}
+
+.instrumental-choice span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.instrumental-choice small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 400;
 }
 
 .duration-choice span {

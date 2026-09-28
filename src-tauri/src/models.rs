@@ -42,6 +42,9 @@ pub struct ProjectDoc {
     pub target_duration_sec: u32,
     #[serde(default = "default_prefer_full_lyrics")]
     pub prefer_full_lyrics: bool,
+    /// Mode instrumental : paroles facultatives (chaîne vide acceptée par audio.cpp YuE2).
+    #[serde(default)]
+    pub instrumental_mode: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_generation_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -328,6 +331,9 @@ pub struct FormInput {
     pub target_duration_sec: u32,
     #[serde(default = "default_prefer_full_lyrics")]
     pub prefer_full_lyrics: bool,
+    /// Mode instrumental : paroles facultatives pour la génération YuE2.
+    #[serde(default)]
+    pub instrumental_mode: bool,
     /// Generation to continue from, when its semantic artifact is available.
     #[serde(default)]
     pub continuation_generation_id: Option<String>,

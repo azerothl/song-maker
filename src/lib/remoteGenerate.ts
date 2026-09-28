@@ -67,6 +67,7 @@ export async function buildGenerationPayload(
       seed: form.seed ?? null,
       targetDurationSec: form.targetDurationSec,
       preferFullLyrics: form.preferFullLyrics,
+      instrumentalMode: form.instrumentalMode,
       hasAbc: Boolean(abc),
     },
     artifacts: {

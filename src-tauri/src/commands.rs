@@ -364,6 +364,7 @@ pub fn create_project(input: CreateProjectInput) -> Result<ProjectDoc, String> {
         meter: None,
         target_duration_sec: DURATION_SEC_DEFAULT,
         prefer_full_lyrics: true,
+        instrumental_mode: false,
         active_generation_id: None,
         active_separation_id: None,
         active_mix_id: None,
@@ -405,6 +406,7 @@ pub fn save_project_form(id: String, form: FormInput) -> Result<ProjectDoc, Stri
     doc.target_duration_sec = validate_target_duration(form.target_duration_sec)
         .map_err(|e| e.to_string())?;
     doc.prefer_full_lyrics = form.prefer_full_lyrics;
+    doc.instrumental_mode = form.instrumental_mode;
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
     upsert_library_row(&library_row_from_project(&folder, &doc))?;
@@ -571,6 +573,7 @@ pub async fn start_generation(
     doc.meter = form.meter.clone();
     doc.target_duration_sec = target_duration_sec;
     doc.prefer_full_lyrics = form.prefer_full_lyrics;
+    doc.instrumental_mode = form.instrumental_mode;
     doc.updated_at = now_iso();
     let mut settings = load_settings()?;
     let (lora_provenance, lora_warnings) = resolve_lora_provenance_for_generation(&mut settings);
@@ -642,6 +645,7 @@ pub async fn start_generation(
         "guidanceScale": guidance_scale(&form.cot),
         "targetDurationSec": target_duration_sec,
         "preferFullLyrics": form.prefer_full_lyrics,
+        "instrumentalMode": form.instrumental_mode,
         "semanticMinTokens": semantic_min_tokens,
         "semanticMaxTokens": semantic_max_tokens,
         "lora": lora_provenance,

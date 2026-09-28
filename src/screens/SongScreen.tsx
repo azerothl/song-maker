@@ -290,7 +290,13 @@ function validateFormFields(form: FormInput): FormFieldErrors {
   }
   if (!form.style.trim()) errors.style = t("form.error.style");
   const lyrics = form.lyrics.trim();
-  if (!lyrics || lyrics.length > 4000) errors.lyrics = t("form.error.lyrics");
+  if (lyrics.length > 4000) {
+    errors.lyrics = form.instrumentalMode
+      ? t("form.error.lyricsTooLong")
+      : t("form.error.lyrics");
+  } else if (!lyrics && !form.instrumentalMode) {
+    errors.lyrics = t("form.error.lyrics");
+  }
   const dur = form.targetDurationSec;
   if (
     !Number.isFinite(dur) ||
@@ -309,6 +315,7 @@ function primaryFormError(errors: FormFieldErrors): string | null {
 
 function soundSummaryValue(form: FormInput): string {
   const parts = [
+    form.instrumentalMode ? t("form.instrumental.summary") : null,
     form.singingLanguage
       ? t("form.advanced.summaryLang", { value: form.singingLanguage })
       : null,
@@ -979,25 +986,64 @@ export function SongScreen() {
                       }
                     />
                     <span className="counter">{form.style.length}/1000</span>
-                    <span className="hint">{t("form.style.hint")}</span>
+                    <span className="hint">
+                      {t(
+                        form.instrumentalMode
+                          ? "form.style.hintInstrumental"
+                          : "form.style.hint",
+                      )}
+                    </span>
                     {showFormErrors && formFieldErrors.style && (
                       <span className="hint error" role="alert">
                         {formFieldErrors.style}
                       </span>
                     )}
                   </label>
+                  <label className="instrumental-choice">
+                    <input
+                      type="checkbox"
+                      checked={form.instrumentalMode}
+                      onChange={(e) =>
+                        setForm({ instrumentalMode: e.target.checked })
+                      }
+                    />
+                    <span>
+                      <strong>{t("form.instrumental")}</strong>
+                      <small>{t("form.instrumental.hint")}</small>
+                    </span>
+                  </label>
+                  {form.instrumentalMode && (
+                    <p className="hint ok" role="status">
+                      {t("form.instrumental.active")}
+                    </p>
+                  )}
                   <label className="form-field">
-                    {t("form.lyrics")}
+                    {t(
+                      form.instrumentalMode
+                        ? "form.lyrics.optional"
+                        : "form.lyrics",
+                    )}
                     <textarea
                       value={form.lyrics}
                       onChange={(e) => setForm({ lyrics: e.target.value })}
                       rows={10}
+                      placeholder={
+                        form.instrumentalMode
+                          ? t("form.lyrics.instrumentalPlaceholder")
+                          : undefined
+                      }
                       aria-invalid={
                         showFormErrors && Boolean(formFieldErrors.lyrics)
                       }
                     />
                     <span className="counter">{form.lyrics.length}/4000</span>
-                    <span className="hint">{t("form.lyrics.tags")}</span>
+                    <span className="hint">
+                      {t(
+                        form.instrumentalMode
+                          ? "form.lyrics.tagsInstrumental"
+                          : "form.lyrics.tags",
+                      )}
+                    </span>
                     {showFormErrors && formFieldErrors.lyrics && (
                       <span className="hint error" role="alert">
                         {formFieldErrors.lyrics}
