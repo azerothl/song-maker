@@ -24,10 +24,11 @@ The desktop application targets Windows and Linux with an NVIDIA CUDA GPU. Users
 
 ## Capabilities and Constraints
 
-- The current repository README and UI include local YuE2 generation from style and lyrics (with an explicit instrumental mode that allows empty lyrics), MIDI import and score editing, sequential candidate generation and comparison, clip editing, stem separation, mixing, and WAV / FLAC / MP3 export.
-- The product specification still describes some score, candidate, and clip capabilities as later-phase work. Until this version discrepancy is resolved, the site must clearly state which capabilities are available in the current application and must not present roadmap items as shipped.
+- The root README is the source of truth for what ships on `main`. The desktop app includes local YuE2 generation (style + lyrics, or instrumental mode with optional empty lyrics), MIDI/score/ABC editing, SheetSage2 opt-in reprise, sequential candidates, clip editing, stem separation, mix/production tools, and WAV / FLAC / MP3 export. Do not present deferred items (VST3, audio_input generation, UniverSR) as available.
+- Prefer the current README over historical “phase N incomplete” wording in the product specification when writing site copy.
 - The standard HTDemucs path produces vocals, drums, bass, and other. An optional experimental ONNX 6-stem path also estimates guitar and piano; those estimates can leak, especially piano. Do not imply the 6-stem path is the default or its extra stems are cleanly isolated. BS-RoFormer is an optional second separator (opt-in GGUF download) that returns vocals + instrumental only; HTDemucs remains the default.
-- Remote generation is **opt-in**. With remote disabled, the client makes no network request. A reference worker (`packages/remote-worker-server`) implements the HTTP contract; do not present remote as the default path.- YuE2 does not consume reference audio and does not guarantee the requested duration, language, tempo, or key. A style is required for generation. Lyrics are required unless the explicit instrumental mode is enabled (empty lyrics then mean instrumental generation via audio.cpp YuE2).
+- Remote generation and Akasha host discovery are **opt-in**. With remote disabled, the client makes no network request. A reference worker (`packages/remote-worker-server`) implements the HTTP contract; do not present remote as the default path.
+- YuE2 does not consume reference audio (`audio_input`) and does not guarantee the requested duration, language, tempo, or key. A style is required. Lyrics are required unless instrumental mode is enabled.
 - YuE2 / GGUF model weights are distributed under CC BY-NC 4.0. The site must not promise commercial use of those weights or outputs.
 
 ## Evidence on Hand

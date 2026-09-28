@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.1",
   "type": "module",
-  "description": "Song Maker — desktop app (phases 0–2) and monorepo packages (phases 2–4)",
+  "description": "Song Maker — local Tauri desktop app (YuE2 / audio.cpp) and monorepo packages",
   "packageManager": "pnpm@10.33.3",
   "scripts": {
     "dev": "vite",
