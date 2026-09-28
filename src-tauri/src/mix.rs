@@ -42,34 +42,125 @@ pub fn append_user_audio_track(
     duration_ms: i64,
     display_name: &str,
 ) -> MixTrack {
+    append_user_audio_takes(
+        mix,
+        &[(relative_wav, sha256, duration_ms, "Prise 1")],
+        display_name,
+        0,
+        None,
+    )
+}
+
+fn unique_user_track_name(mix: &MixDoc, display_name: &str) -> String {
+    let base = display_name.trim();
+    let base = if base.is_empty() {
+        "Piste personnalisée"
+    } else {
+        base
+    };
+    let mut candidate = base.to_string();
+    let mut n = 2;
+    while mix.tracks.iter().any(|t| t.name == candidate) {
+        candidate = format!("{base} ({n})");
+        n += 1;
+    }
+    candidate
+}
+
+fn default_clip_fields() -> (
+    Option<f32>,
+    bool,
+    f32,
+    f32,
+    bool,
+    Option<Vec<i64>>,
+    Option<String>,
+    Option<i32>,
+    Option<String>,
+    bool,
+) {
+    (
+        None,
+        false,
+        1.0,
+        0.0,
+        true,
+        None,
+        None,
+        None,
+        None,
+        true,
+    )
+}
+
+/// Append one user track with one or more takes (same start, take lane).
+/// `takes`: (relative_wav, sha256, duration_ms, take_label).
+pub fn append_user_audio_takes(
+    mix: &mut MixDoc,
+    takes: &[(&str, &str, i64, &str)],
+    display_name: &str,
+    start_ms: i64,
+    take_group_id: Option<&str>,
+) -> MixTrack {
+    assert!(!takes.is_empty(), "au moins une prise");
     let track_id = format!("trk-user-{}", Uuid::new_v4());
-    let name = {
-        let base = display_name.trim();
-        let base = if base.is_empty() {
-            "Piste personnalisée"
-        } else {
-            base
-        };
-        let mut candidate = base.to_string();
-        let mut n = 2;
-        while mix.tracks.iter().any(|t| t.name == candidate) {
-            candidate = format!("{base} ({n})");
-            n += 1;
+    let name = unique_user_track_name(mix, display_name);
+    let group = take_group_id
+        .map(|s| s.to_string())
+        .or_else(|| {
+            if takes.len() > 1 {
+                Some(format!("takes-{}", Uuid::new_v4()))
+            } else {
+                None
+            }
+        });
+    let mut clips = Vec::with_capacity(takes.len());
+    for (i, (rel, sha, dur, label)) in takes.iter().enumerate() {
+        let (
+            source_tempo_bpm,
+            follow_project_tempo,
+            time_stretch_ratio,
+            pitch_semitones,
+            processing_enabled,
+            transient_markers_ms,
+            _,
+            _,
+            _,
+            _,
+        ) = default_clip_fields();
+        clips.push(Clip {
+            id: format!("clip-{}", Uuid::new_v4()),
+            track_id: track_id.clone(),
+            source_path: (*rel).to_string(),
+            source_sha256: (*sha).to_string(),
+            start_ms: start_ms.max(0),
+            offset_ms: 0,
+            duration_ms: (*dur).max(0),
+            gain_db: 0.0,
+            fade_in_ms: 0,
+            fade_out_ms: 0,
+            source_tempo_bpm,
+            follow_project_tempo,
+            time_stretch_ratio,
+            pitch_semitones,
+            processing_enabled,
+            transient_markers_ms,
+            take_group_id: group.clone(),
+            take_index: Some(i as i32),
+            take_label: Some((*label).to_string()),
+            // Last take active by default (most recent loop pass).
+            take_active: i + 1 == takes.len(),
+        });
+    }
+    // Single take without a group: always audible.
+    if takes.len() == 1 {
+        if let Some(c) = clips.first_mut() {
+            c.take_group_id = None;
+            c.take_index = None;
+            c.take_label = None;
+            c.take_active = true;
         }
-        candidate
-    };
-    let clip = Clip {
-        id: format!("clip-{}", Uuid::new_v4()),
-        track_id: track_id.clone(),
-        source_path: relative_wav.to_string(),
-        source_sha256: sha256.to_string(),
-        start_ms: 0,
-        offset_ms: 0,
-        duration_ms: duration_ms.max(0),
-        gain_db: 0.0,
-        fade_in_ms: 0,
-        fade_out_ms: 0,
-    };
+    }
     let track = MixTrack {
         id: track_id,
         role: "user".into(),
@@ -80,7 +171,7 @@ pub fn append_user_audio_track(
         solo: false,
         locked: false,
         ai_separated: false,
-        clips: vec![clip],
+        clips,
     };
     mix.tracks.push(track.clone());
     track
@@ -103,6 +194,29 @@ pub fn new_mix_from_separation(
             .map(|(_, n)| (*n).to_string())
             .unwrap_or_else(|| role.clone());
         let track_id = format!("trk-{role}");
+        let (
+            source_tempo_bpm,
+            follow_project_tempo,
+            time_stretch_ratio,
+            pitch_semitones,
+            processing_enabled,
+            transient_markers_ms,
+            take_group_id,
+            take_index,
+            take_label,
+            take_active,
+        ) = (
+            None,
+            false,
+            1.0_f32,
+            0.0_f32,
+            true,
+            None,
+            None,
+            None,
+            None,
+            true,
+        );
         let clip = Clip {
             id: format!("clip-{}", Uuid::new_v4()),
             track_id: track_id.clone(),
@@ -114,6 +228,16 @@ pub fn new_mix_from_separation(
             gain_db: 0.0,
             fade_in_ms: 0,
             fade_out_ms: 0,
+            source_tempo_bpm,
+            follow_project_tempo,
+            time_stretch_ratio,
+            pitch_semitones,
+            processing_enabled,
+            transient_markers_ms,
+            take_group_id,
+            take_index,
+            take_label,
+            take_active,
         };
         tracks.push(MixTrack {
             id: track_id,

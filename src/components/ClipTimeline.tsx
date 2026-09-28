@@ -1,5 +1,9 @@
 import { createClipEditor, type Clip as EngineClip } from "@song-maker/score-engine";
 import {
+  qualityHintForProcess,
+  resolveClipStretchRatio,
+} from "@song-maker/mix-production";
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -24,6 +28,7 @@ import {
   type MusicalSubdivision,
 } from "../lib/musicalTime";
 import { roleWaveColor, withAlpha } from "../lib/trackRoleColors";
+import { listTakesInGroup, selectActiveTake } from "../lib/takes";
 import type {
   MixClip,
   MixDoc,
@@ -57,7 +62,7 @@ type Props = {
   peaksByTrack?: Record<string, Float32Array>;
   roleByTrack?: Record<string, string>;
   sourceDurationMsByTrack?: Record<string, number>;
-  /** Project form tempo — used only when mix has no tempo map. */
+  /** Project form tempo — fallback when mix has no tempo map; also #95 follow-tempo. */
   projectTempoBpm?: number | null;
   projectMeter?: Meter | null;
 };
@@ -287,6 +292,70 @@ export function ClipTimeline({
     const track = mix.tracks.find((tr) => tr.id === selected.trackId);
     return track?.clips.find((c) => c.id === selected.clipId) ?? null;
   }, [mix, selected]);
+
+  function patchSelectedClip(patch: Partial<MixClip>) {
+    if (!selected || !selectedClip) return;
+    const nextTracks = mix.tracks.map((tr) => {
+      if (tr.id !== selected.trackId) return tr;
+      return {
+        ...tr,
+        clips: tr.clips.map((c) =>
+          c.id === selected.clipId ? { ...c, ...patch } : c,
+        ),
+      };
+    });
+    onChange({ ...mix, tracks: nextTracks });
+  }
+
+  function activateTake(trackId: string, takeGroupId: string, clipId: string) {
+    const nextTracks = mix.tracks.map((tr) => {
+      if (tr.id !== trackId) return tr;
+      return {
+        ...tr,
+        clips: selectActiveTake(tr.clips, takeGroupId, clipId),
+      };
+    });
+    onChange({ ...mix, tracks: nextTracks });
+  }
+
+  const selectedTakeGroup = selectedClip?.takeGroupId ?? null;
+  const takesInGroup =
+    selected && selectedTakeGroup
+      ? listTakesInGroup(
+          mix.tracks.find((tr) => tr.id === selected.trackId)?.clips ?? [],
+          selectedTakeGroup,
+        )
+      : [];
+
+  const arrangementTempoBpm =
+    mix.tempoMap?.[0]?.quarterBpm ?? projectTempoBpm ?? null;
+
+  const stretchPreview = selectedClip
+    ? resolveClipStretchRatio({
+        ...(selectedClip.processingEnabled !== undefined
+          ? { processingEnabled: selectedClip.processingEnabled }
+          : {}),
+        ...(selectedClip.followProjectTempo !== undefined
+          ? { followProjectTempo: selectedClip.followProjectTempo }
+          : {}),
+        ...(selectedClip.sourceTempoBpm !== undefined
+          ? { sourceTempoBpm: selectedClip.sourceTempoBpm }
+          : {}),
+        ...(arrangementTempoBpm !== undefined
+          ? { projectTempoBpm: arrangementTempoBpm }
+          : {}),
+        ...(selectedClip.timeStretchRatio !== undefined
+          ? { timeStretchRatio: selectedClip.timeStretchRatio }
+          : {}),
+      })
+    : 1;
+  const qualityHint = selectedClip
+    ? qualityHintForProcess(
+        stretchPreview,
+        selectedClip.pitchSemitones ?? 0,
+        "other",
+      )
+    : "ok";
 
   const selectedMarker = useMemo(
     () => markers.find((m) => m.id === selectedMarkerId) ?? null,
@@ -980,6 +1049,7 @@ export function ClipTimeline({
                     const active =
                       selected?.trackId === tr.id &&
                       selected.clipId === clip.id;
+                    const takeMuted = clip.takeActive === false;
                     const peaks = slicePeaksForClip(
                       peaksByTrack?.[tr.id],
                       clip,
@@ -996,15 +1066,21 @@ export function ClipTimeline({
                         key={clip.id}
                         role="button"
                         tabIndex={0}
-                        className={
-                          active ? "clip-block active" : "clip-block"
-                        }
+                        className={[
+                          "clip-block",
+                          active ? "active" : "",
+                          takeMuted ? "take-muted" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
                         style={{
                           left: `${left}%`,
                           width: `${width}%`,
-                          background: withAlpha(color, 0.28),
+                          background: withAlpha(color, takeMuted ? 0.12 : 0.28),
                         }}
-                        title={`${tr.name} · ${formatMs(clip.startMs)} (${formatMusical(musical)}) → ${formatMs(clip.startMs + clip.durationMs)}`}
+                        title={`${tr.name} · ${formatMs(clip.startMs)} (${formatMusical(musical)}) → ${formatMs(clip.startMs + clip.durationMs)}${
+                          clip.takeLabel ? ` · ${clip.takeLabel}` : ""
+                        }`}
                         aria-label={`${tr.name}, ${formatMs(clip.startMs)}, ${formatMs(clip.durationMs)}`}
                         onPointerDown={(e) => onClipPointerDown(e, tr, clip)}
                         onKeyDown={(e) => {
@@ -1155,6 +1231,122 @@ export function ClipTimeline({
               />
             </label>
           </div>
+
+          {takesInGroup.length > 1 && selectedTakeGroup && selected && (
+            <div className="clip-takes">
+              <p className="clip-inspector-title">{t("clips.takes")}</p>
+              <p className="hint">{t("clips.takes.hint")}</p>
+              <div className="btn-row">
+                {takesInGroup.map((take) => (
+                  <button
+                    key={take.id}
+                    type="button"
+                    className={
+                      take.takeActive !== false ? "btn primary" : "btn"
+                    }
+                    onClick={() =>
+                      activateTake(selected.trackId, selectedTakeGroup, take.id)
+                    }
+                  >
+                    {take.takeLabel ??
+                      t("record.takeLabel", {
+                        n: String((take.takeIndex ?? 0) + 1),
+                      })}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="clip-stretch">
+            <p className="clip-inspector-title">{t("clips.stretch.title")}</p>
+            <label className="record-monitor">
+              <input
+                type="checkbox"
+                checked={selectedClip.processingEnabled !== false}
+                onChange={(e) =>
+                  patchSelectedClip({ processingEnabled: e.target.checked })
+                }
+              />
+              <span>{t("clips.stretch.enabled")}</span>
+            </label>
+            <label className="record-monitor">
+              <input
+                type="checkbox"
+                checked={!!selectedClip.followProjectTempo}
+                onChange={(e) =>
+                  patchSelectedClip({ followProjectTempo: e.target.checked })
+                }
+              />
+              <span>{t("clips.stretch.followTempo")}</span>
+            </label>
+            <div className="clip-fields">
+              <label className="clip-field">
+                <span>{t("clips.stretch.sourceBpm")}</span>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={selectedClip.sourceTempoBpm ?? ""}
+                  placeholder={
+                    arrangementTempoBpm != null
+                      ? String(arrangementTempoBpm)
+                      : ""
+                  }
+                  onChange={(e) =>
+                    patchSelectedClip({
+                      sourceTempoBpm: e.target.value
+                        ? Number(e.target.value)
+                        : null,
+                    })
+                  }
+                />
+              </label>
+              <label className="clip-field">
+                <span>{t("clips.stretch.ratio")}</span>
+                <input
+                  type="number"
+                  min={0.25}
+                  max={4}
+                  step={0.01}
+                  disabled={!!selectedClip.followProjectTempo}
+                  value={selectedClip.timeStretchRatio ?? 1}
+                  onChange={(e) =>
+                    patchSelectedClip({
+                      timeStretchRatio: Number(e.target.value) || 1,
+                    })
+                  }
+                />
+              </label>
+              <label className="clip-field">
+                <span>{t("clips.stretch.pitch")}</span>
+                <input
+                  type="number"
+                  min={-12}
+                  max={12}
+                  step={1}
+                  value={selectedClip.pitchSemitones ?? 0}
+                  onChange={(e) =>
+                    patchSelectedClip({
+                      pitchSemitones: Number(e.target.value) || 0,
+                    })
+                  }
+                />
+              </label>
+            </div>
+            <p className="hint">
+              {t("clips.stretch.effective", {
+                ratio: stretchPreview.toFixed(3),
+              })}
+            </p>
+            {qualityHint !== "ok" && qualityHint !== "voice_ok" && (
+              <p className="hint warn">
+                {t(`clips.stretch.quality.${qualityHint}`)}
+              </p>
+            )}
+            <p className="hint">{t("clips.stretch.ab")}</p>
+          </div>
+
           <div className="btn-row">
             <button
               type="button"

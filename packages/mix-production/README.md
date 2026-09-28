@@ -13,7 +13,7 @@ Sous-ensemble DSP réel + rendu offline partagé. Les exports `Stub*` / `createS
 | `registerCustomProcessor` | Extensions DSP `custom` ; sans registre → refus explicite (pas de no-op) |
 | `SidechainRouter.applyDucking` | Ducking destination depuis enveloppe source |
 | `LoudnessMeter.measurePcm` | True peak dBFS + estimation LUFS (pas filtre K BS.1770) |
-| `placeClipsOnTimeline` | Placement clips (start/offset/durée/fondus) |
+| `placeClipsOnTimeline` | Placement clips (start/offset/durée/fondus) + étirement/transpose optionnels (#95) |
 | `renderMixOffline` | Somme §10.5 + overlays production (buses / sends / FX automation) — **même bake** lecture / export |
 | `validateRoutingGraph` | Groupes / aux / sends — cycles et destinations manquantes récupérées |
 | `bakeAlignedStems` | Stems alignés origine t=0, noms stables, longueur commune (#99) |
@@ -51,6 +51,10 @@ La queue s’étend d’environ **0,35 s → 2,8 s** selon `roomSize` (`reverbTa
 
 Correcteur local léger (AMDF + OLA) pour stems vocaux. Paramètres : `mode` (chromatic|scale), `tonic`, `scale`, `intensity`, `speed`, `formantPreserve`.
 Voir [docs/pitch-correct.md](../../docs/pitch-correct.md). Pas un Autotune commercial ; licence in-repo Apache-2.0.
+
+## Étirement tempo / transpose clip (#95)
+
+`timeStretch` (WSOLA) + `pitchShiftMono` ; champs optionnels sur le clip (`followProjectTempo`, `timeStretchRatio`, `pitchSemitones`, `processingEnabled`). Doc : [docs/clip-tempo-stretch.md](../../docs/clip-tempo-stretch.md).
 
 ## Effets custom
 

@@ -66,6 +66,30 @@ pub struct LibraryRow {
     pub active_generation_id: Option<String>,
 }
 
+fn default_true() -> bool {
+    true
+}
+
+fn default_stretch_ratio() -> f32 {
+    1.0
+}
+
+fn is_default_stretch(v: &f32) -> bool {
+    (*v - 1.0).abs() < f32::EPSILON
+}
+
+fn is_false(v: &bool) -> bool {
+    !*v
+}
+
+fn is_true(v: &bool) -> bool {
+    *v
+}
+
+fn is_zero_f32(v: &f32) -> bool {
+    *v == 0.0
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Clip {
@@ -79,6 +103,26 @@ pub struct Clip {
     pub gain_db: f32,
     pub fade_in_ms: i64,
     pub fade_out_ms: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_tempo_bpm: Option<f32>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub follow_project_tempo: bool,
+    #[serde(default = "default_stretch_ratio", skip_serializing_if = "is_default_stretch")]
+    pub time_stretch_ratio: f32,
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    pub pitch_semitones: f32,
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub processing_enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transient_markers_ms: Option<Vec<i64>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub take_group_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub take_index: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub take_label: Option<String>,
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub take_active: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -4,10 +4,11 @@ import {
 import {
   placeClipsOnTimeline,
   renderMixOffline,
+  resolveClipStretchRatio,
   type MixProductionToolkit,
   type MixRenderResult,
 } from "@song-maker/mix-production";
-import type { MixDoc, PlaybackSources } from "./types";
+import type { MixClip, MixDoc, PlaybackSources } from "./types";
 import {
   getProductionOverlay,
   getProductionTempoBpm,
@@ -21,6 +22,56 @@ export type DecodedStem = {
   right: Float32Array;
   sampleRate: number;
 };
+
+/** True when clip placement needs the offline bake path (stretch / takes). */
+export function mixNeedsClipProcessingBake(mix: MixDoc | null | undefined): boolean {
+  if (!mix) return false;
+  const projectTempo =
+    mix.tempoMap?.[0]?.quarterBpm ?? getProductionTempoBpm();
+  for (const track of mix.tracks) {
+    for (const c of track.clips) {
+      if (c.takeActive === false) return true;
+      if (c.processingEnabled === false) continue;
+      const stretch = resolveClipStretchRatio({
+        ...(c.processingEnabled !== undefined
+          ? { processingEnabled: c.processingEnabled }
+          : {}),
+        ...(c.followProjectTempo !== undefined
+          ? { followProjectTempo: c.followProjectTempo }
+          : {}),
+        ...(c.sourceTempoBpm !== undefined
+          ? { sourceTempoBpm: c.sourceTempoBpm }
+          : {}),
+        ...(projectTempo !== undefined
+          ? { projectTempoBpm: projectTempo }
+          : {}),
+        ...(c.timeStretchRatio !== undefined
+          ? { timeStretchRatio: c.timeStretchRatio }
+          : {}),
+      });
+      if (Math.abs(stretch - 1) >= 1e-4) return true;
+      if (Math.abs(c.pitchSemitones ?? 0) >= 1e-4) return true;
+    }
+  }
+  return false;
+}
+
+function clipPlacementFromMix(c: MixClip) {
+  return {
+    startMs: c.startMs,
+    offsetMs: c.offsetMs,
+    durationMs: c.durationMs,
+    fadeInMs: c.fadeInMs,
+    fadeOutMs: c.fadeOutMs,
+    gainDb: c.gainDb,
+    takeActive: c.takeActive,
+    processingEnabled: c.processingEnabled,
+    followProjectTempo: c.followProjectTempo,
+    sourceTempoBpm: c.sourceTempoBpm,
+    timeStretchRatio: c.timeStretchRatio,
+    pitchSemitones: c.pitchSemitones,
+  };
+}
 
 async function decodeStemFile(
   ctx: AudioContext,
@@ -88,14 +139,7 @@ export function bakeMixPcm(
     const right = src?.right ?? empty;
     const clips =
       track.clips.length > 0
-        ? track.clips.map((c) => ({
-            startMs: c.startMs,
-            offsetMs: c.offsetMs,
-            durationMs: c.durationMs,
-            fadeInMs: c.fadeInMs,
-            fadeOutMs: c.fadeOutMs,
-            gainDb: c.gainDb,
-          }))
+        ? track.clips.map((c) => clipPlacementFromMix(c))
         : [
             {
               startMs: 0,
@@ -106,7 +150,12 @@ export function bakeMixPcm(
               gainDb: 0,
             },
           ];
-    const placed = placeClipsOnTimeline(left, right, clips, sampleRate);
+    const placed = placeClipsOnTimeline(left, right, clips, sampleRate, {
+      projectTempoBpm:
+        options?.tempoBpm ??
+        mix.tempoMap?.[0]?.quarterBpm ??
+        getProductionTempoBpm(),
+    });
     return {
       trackId: track.id,
       left: placed.left,

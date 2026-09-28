@@ -1,4 +1,9 @@
 import { dbToLinear } from "./dsp.js";
+import {
+  clampPitchSemitones,
+  processClipRegion,
+  resolveClipStretchRatio,
+} from "./timeStretch.js";
 
 export type ClipPlacement = {
   startMs: number;
@@ -7,6 +12,18 @@ export type ClipPlacement = {
   fadeInMs: number;
   fadeOutMs: number;
   gainDb: number;
+  /** When false, clip is kept on the track but not rendered (take lane). */
+  takeActive?: boolean;
+  processingEnabled?: boolean;
+  followProjectTempo?: boolean;
+  sourceTempoBpm?: number | null;
+  timeStretchRatio?: number | null;
+  pitchSemitones?: number | null;
+};
+
+export type PlaceClipsOptions = {
+  /** Project / mix tempo for followProjectTempo clips. */
+  projectTempoBpm?: number | null;
 };
 
 function msToSamples(ms: number, sampleRate: number): number {
@@ -31,17 +48,20 @@ function fadeGain(
 
 /**
  * Place source planar audio onto a timeline (start / offset / duration / fades).
- * Mirrors the Rust `render_clip_onto` layout so bake ≈ export when both use this.
+ * Optional per-clip time-stretch (pitch preserved) + transpose.
+ * Mirrors the Rust `render_clip_onto` layout for unprocessed clips so bake ≈ export.
  */
 export function placeClipsOnTimeline(
   srcLeft: Float32Array,
   srcRight: Float32Array,
   clips: readonly ClipPlacement[],
   sampleRate: number,
+  options?: PlaceClipsOptions,
 ): { left: Float32Array; right: Float32Array; frameCount: number } {
   let maxEnd = 1;
   for (const clip of clips) {
     if (clip.durationMs <= 0) continue;
+    if (clip.takeActive === false) continue;
     maxEnd = Math.max(
       maxEnd,
       msToSamples(clip.startMs + clip.durationMs, sampleRate),
@@ -52,6 +72,7 @@ export function placeClipsOnTimeline(
 
   for (const clip of clips) {
     if (clip.durationMs <= 0) continue;
+    if (clip.takeActive === false) continue;
     const start = msToSamples(clip.startMs, sampleRate);
     const offset = msToSamples(clip.offsetMs, sampleRate);
     const dur = Math.max(1, msToSamples(clip.durationMs, sampleRate));
@@ -61,13 +82,66 @@ export function placeClipsOnTimeline(
       msToSamples(clip.fadeOutMs, sampleRate),
     );
     const lin = dbToLinear(clip.gainDb);
+
+    const stretch = resolveClipStretchRatio({
+      ...(clip.processingEnabled !== undefined
+        ? { processingEnabled: clip.processingEnabled }
+        : {}),
+      ...(clip.followProjectTempo !== undefined
+        ? { followProjectTempo: clip.followProjectTempo }
+        : {}),
+      ...(clip.sourceTempoBpm !== undefined
+        ? { sourceTempoBpm: clip.sourceTempoBpm }
+        : {}),
+      ...(options?.projectTempoBpm !== undefined
+        ? { projectTempoBpm: options.projectTempoBpm }
+        : {}),
+      ...(clip.timeStretchRatio !== undefined
+        ? { timeStretchRatio: clip.timeStretchRatio }
+        : {}),
+    });
+    const pitch =
+      clip.processingEnabled === false
+        ? 0
+        : clampPitchSemitones(clip.pitchSemitones ?? 0);
+    const needsProcess =
+      clip.processingEnabled !== false &&
+      (Math.abs(stretch - 1) >= 1e-4 || Math.abs(pitch) >= 1e-4);
+
+    if (!needsProcess) {
+      for (let i = 0; i < dur; i++) {
+        const outIdx = start + i;
+        if (outIdx >= maxEnd) break;
+        const srcIdx = offset + i;
+        const fade = fadeGain(i, dur, fadeIn, fadeOut);
+        left[outIdx]! += (srcLeft[srcIdx] ?? 0) * lin * fade;
+        right[outIdx]! += (srcRight[srcIdx] ?? 0) * lin * fade;
+      }
+      continue;
+    }
+
+    // durationMs is timeline length; source region = timeline / stretch.
+    const sourceFrames = Math.max(1, Math.round(dur / stretch));
+    const processed = processClipRegion(
+      srcLeft,
+      srcRight,
+      offset,
+      sourceFrames,
+      {
+        timeStretchRatio: stretch,
+        pitchSemitones: pitch,
+        enabled: true,
+      },
+      sampleRate,
+    );
     for (let i = 0; i < dur; i++) {
       const outIdx = start + i;
       if (outIdx >= maxEnd) break;
-      const srcIdx = offset + i;
       const fade = fadeGain(i, dur, fadeIn, fadeOut);
-      left[outIdx]! += (srcLeft[srcIdx] ?? 0) * lin * fade;
-      right[outIdx]! += (srcRight[srcIdx] ?? 0) * lin * fade;
+      // Processed buffer may differ slightly from dur; sample by index clamp.
+      const srcIdx = Math.min(i, processed.left.length - 1);
+      left[outIdx]! += (processed.left[srcIdx] ?? 0) * lin * fade;
+      right[outIdx]! += (processed.right[srcIdx] ?? 0) * lin * fade;
     }
   }
   return { left, right, frameCount: maxEnd };

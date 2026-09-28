@@ -13,6 +13,16 @@ export type Clip = {
   gainDb: number;
   fadeInMs: number;
   fadeOutMs: number;
+  sourceTempoBpm?: number | null;
+  followProjectTempo?: boolean;
+  timeStretchRatio?: number | null;
+  pitchSemitones?: number | null;
+  processingEnabled?: boolean;
+  transientMarkersMs?: number[];
+  takeGroupId?: string | null;
+  takeIndex?: number | null;
+  takeLabel?: string | null;
+  takeActive?: boolean;
 };
 
 export type ClipEditKind =
