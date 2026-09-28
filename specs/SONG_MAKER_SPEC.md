@@ -28,7 +28,7 @@ Le morceau stéréo est ensuite séparé par HTDemucs, dans le même serveur, ap
 
 Contraintes d’intégration, lues sur audio.cpp `v0.8.2` et sur la famille YuE2 :
 
-- YuE2 génère un morceau complet à partir d’un `style` non vide et de paroles non vides, avec voix et accompagnement. Une chaîne de paroles vide est refusée.
+- YuE2 génère un morceau complet à partir d’un `style` non vide et de paroles (voix + accompagnement). Une chaîne de paroles vide est acceptée uniquement en **mode instrumental** explicite (audio.cpp `v0.8.2` : `lyrics` facultatif, « Leave empty for instrumental generation »). Hors ce mode, les paroles restent obligatoires (1–4000 caractères).
 - audio.cpp 0.8.2 expose des bornes de tokens sémantiques, pas une durée musicale exacte. Les genres et moods restent du texte dans `style` ; l’application traduit sa durée cible en bornes de tokens. La langue, le tempo et la tonalité restent des indications, pas des garanties du WAV rendu.
 - YuE2 peut écrire un artefact `score.abc` lorsque le modèle produit son propre plan (`cot=melody` ou `cot=full` sans ABC externe). Le premier build le conserve et l’affiche. Il ne l’édite pas.
 - Une partition ABC personnalisée peut être fournie en `cot=full` ou `cot=melody`. Ce n’est pas le chemin du premier build : `abcPath` reste `null`. Un ABC envoyé avec `cot=off` est une erreur, locale puis moteur.
@@ -141,7 +141,7 @@ Cette section, le §22 et le §23 disent la même coupe. Le premier build est le
 Ces retraits ne se rouvrent pas. Les moteurs lus ne les produisent pas, ou les refusent :
 
 - sélecteur de durée cible, et toute consigne de durée envoyée au modèle ;
-- paroles vides, ou paroles marquées facultatives ;
+- paroles marquées facultatives **hors** du mode instrumental explicite (case à cocher) — le mode instrumental envoie une chaîne vide à YuE2 et n’est pas un contournement par balise `[Instrumental]` seule ;
 - piste nommée Synths comme stem du séparateur (`other` n’est pas renommé) ;
 - tagline comme fonction, y compris un geste « je fais entendre un son, le moteur le recrée » ;
 - tempo ou tonalité comme réglages de l’audio déjà rendu ;
@@ -467,7 +467,8 @@ audio.cpp accepte, pour YuE2, `style`, les paroles, `cot`, `abc` / `abc_file`, `
 |---|---|---|
 | Titre | Obligatoire. 1 à 120 caractères. Interdits : `/ \ : * ? " < > \|` et le point final. | `project.json` `title`. Pas envoyé au modèle. |
 | Style | Obligatoire. 1 à 1000 caractères, après assemblage. | `style` de la requête. |
-| Paroles | Obligatoire, non vides après trim. 1 à 4000 caractères. | fichier `lyrics.txt`, envoyé comme paroles. |
+| Mode instrumental | Case à cocher, désactivée par défaut. Persistée dans `project.json` (`instrumentalMode`) et `request.json`. | Si activé : paroles facultatives ; chaîne vide après trim acceptée. |
+| Paroles | Hors mode instrumental : obligatoire, non vides après trim, 1 à 4000 caractères. En mode instrumental : 0 à 4000 caractères. | fichier `lyrics.txt`, envoyé comme paroles (peut être vide). |
 | `cot` | Obligatoire. Défaut `full`. Valeurs `full`, `melody`, `off`. | `cot` de la requête. |
 | Langue du chant | Facultative. Texte libre, 1 à 40 caractères si présente. Pas de liste de codes. | Préfixée au style : `"{langue}, {style}"`. Jamais un champ `lang`. |
 | Tempo | Facultatif. Entier 40 à 220. | Suffixé au style : `", {n} BPM"`. Stocké dans `project.json`. Pas un contrôle du WAV. |
@@ -494,7 +495,7 @@ Le bouton Générer est inactif tant que le titre, le style et les paroles ne pa
 
 Balises autorisées dans le texte envoyé : `[Intro]`, `[Verse]`, `[Verse 2]`, `[Pre-Chorus]`, `[Chorus]`, `[Bridge]`, `[Outro]`, `[Instrumental]`. Toute autre ligne entre crochets est refusée avant l’appel, avec la ligne citée.
 
-`[Instrumental]` est une balise de section. Ce n’est pas un mode paroles vides, et ce n’est pas le LoRA instrumental.
+`[Instrumental]` est une balise de section. Ce n’est pas le mode instrumental (case à cocher) et ce n’est pas le LoRA instrumental. Le mode instrumental envoie une chaîne de paroles vide (ou des balises de structure sans texte chanté) ; la balise seule n’active pas ce mode.
 
 Les notes d’implémentation ne doivent jamais être mélangées aux paroles envoyées.
 

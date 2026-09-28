@@ -21,6 +21,8 @@ export type ProjectDoc = {
   /** Durée cible demandée à YuE2 (secondes). */
   targetDurationSec?: number;
   preferFullLyrics?: boolean;
+  /** Mode instrumental : paroles facultatives (YuE2 / audio.cpp). */
+  instrumentalMode?: boolean;
   activeGenerationId?: string | null;
   activeSeparationId?: string | null;
   activeMixId?: string | null;
@@ -53,6 +55,11 @@ export type FormInput = {
   targetDurationSec: number;
   /** Let YuE exceed the target when the lyric token budget requires it. */
   preferFullLyrics: boolean;
+  /**
+   * Mode instrumental : paroles facultatives.
+   * Chaîne vide autorisée ; audio.cpp YuE2 génère alors sans texte vocal.
+   */
+  instrumentalMode: boolean;
   continuationGenerationId?: string | null;
 };
 

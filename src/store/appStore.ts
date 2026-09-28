@@ -55,6 +55,7 @@ const emptyForm = (): FormInput => ({
   seed: null,
   targetDurationSec: 180,
   preferFullLyrics: true,
+  instrumentalMode: false,
   continuationGenerationId: null,
 });
 
@@ -156,6 +157,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         seed: null,
         targetDurationSec: normalizeDurationSec(project.targetDurationSec),
         preferFullLyrics: project.preferFullLyrics ?? true,
+        instrumentalMode: project.instrumentalMode ?? false,
         continuationGenerationId: null,
       },
       screen: "song",
