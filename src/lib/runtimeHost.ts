@@ -1,3 +1,4 @@
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 
 /** SheetSage2 host probe (#60). */
@@ -146,4 +147,19 @@ export const runtimeApi = {
 
 export function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+/**
+ * Version de l'application, lue dans `tauri.conf.json` via `package.version`.
+ * Renvoie `null` hors runtime Tauri (aperçu navigateur) ou si l'appel échoue :
+ * l'appelant affiche alors un tiret plutôt qu'une version inventée.
+ */
+export async function readAppVersion(): Promise<string | null> {
+  if (!isTauriRuntime()) return null;
+  try {
+    const version = await getVersion();
+    return version.trim() || null;
+  } catch {
+    return null;
+  }
 }

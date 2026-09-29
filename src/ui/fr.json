@@ -564,6 +564,8 @@
   "settings.remote.title": "Worker GPU distant",
   "settings.host.title": "Intégration Akasha",
   "settings.system.title": "Système et stockage",
+  "settings.appVersion": "Version de l'application",
+  "settings.appVersionUnknown": "inconnue",
   "settings.card.model": "Choisissez le modèle YuE2 en fonction de la mémoire disponible.",
   "settings.card.separation": "Choisissez comment isoler la voix et les instruments.",
   "settings.card.lora": "Consultez les packs de styles et gérez les adaptateurs installés.",

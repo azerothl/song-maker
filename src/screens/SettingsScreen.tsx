@@ -11,6 +11,7 @@ import {
 } from "../lib/loraTrainStatus";
 import {
   isTauriRuntime,
+  readAppVersion,
   runtimeApi,
   type LoraTrainerProbe,
 } from "../lib/runtimeHost";
@@ -40,6 +41,7 @@ export function SettingsScreen() {
   const [loraProbing, setLoraProbing] = useState(true);
   const [loraPanelStatus, setLoraPanelStatus] =
     useState<LoraTrainRuntimeStatus | null>(null);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
 
   const refreshLoraProbe = useCallback(async () => {
     if (!isTauriRuntime()) {
@@ -61,6 +63,7 @@ export function SettingsScreen() {
   useEffect(() => {
     void refreshSettings();
     void refreshHealth();
+    void readAppVersion().then(setAppVersion);
   }, [refreshSettings, refreshHealth]);
 
   useEffect(() => {
@@ -262,6 +265,10 @@ export function SettingsScreen() {
       {page === "system" && (
         <section className="settings-detail-page settings-system-page">
           <p className="settings-intro">{t("settings.system.description")}</p>
+          <section>
+            <h2>{t("settings.appVersion")}</h2>
+            <p className="mono">{appVersion ?? t("settings.appVersionUnknown")}</p>
+          </section>
           <section>
             <h2>{t("settings.health")}</h2>
             <p>{health?.message ?? "—"}</p>
