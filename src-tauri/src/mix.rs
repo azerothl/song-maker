@@ -454,7 +454,11 @@ pub fn render_mix(mix: &MixDoc, project_root: &Path, out_wav: &Path) -> Result<f
     Ok(peak_trim_db)
 }
 
-pub fn export_flac_with_bit_depth(wav_path: &Path, flac_path: &Path, bit_depth: u16) -> Result<(), String> {
+pub fn export_flac_with_bit_depth(
+    wav_path: &Path,
+    flac_path: &Path,
+    bit_depth: u16,
+) -> Result<(), String> {
     let sample_fmt = if bit_depth == 16 { "s16" } else { "s32" };
     crate::resample::run_ffmpeg(&[
         "-y",
@@ -473,7 +477,11 @@ pub fn export_flac_with_bit_depth(wav_path: &Path, flac_path: &Path, bit_depth: 
 }
 
 /// Conversion de livraison MP3 (bitrate CBR configurable) à partir du WAV primaire.
-pub fn export_mp3_with_bitrate(wav_path: &Path, mp3_path: &Path, bitrate_kbps: u16) -> Result<(), String> {
+pub fn export_mp3_with_bitrate(
+    wav_path: &Path,
+    mp3_path: &Path,
+    bitrate_kbps: u16,
+) -> Result<(), String> {
     let rate = match bitrate_kbps {
         128 | 192 | 320 => bitrate_kbps,
         _ => 320,

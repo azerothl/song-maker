@@ -3,8 +3,11 @@
 
 use crate::hashutil::sha256_file;
 use crate::models::InstallProgress;
-use crate::paths::{mel_band_roformer_path, ensure_dir};
-use crate::pins::{MEL_BAND_ROFORMER_BYTES, MEL_BAND_ROFORMER_GGUF, MEL_BAND_ROFORMER_REMOTE, MEL_BAND_ROFORMER_SHA};
+use crate::paths::{ensure_dir, mel_band_roformer_path};
+use crate::pins::{
+    MEL_BAND_ROFORMER_BYTES, MEL_BAND_ROFORMER_GGUF, MEL_BAND_ROFORMER_REMOTE,
+    MEL_BAND_ROFORMER_SHA,
+};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -32,7 +35,10 @@ pub fn weights_valid(cache: &Path) -> bool {
 pub fn verify_sha256(cache: &Path) -> Result<(), String> {
     let path = mel_band_roformer_path(cache);
     if !path.is_file() {
-        return Err(format!("GGUF Mel-Band RoFormer absent : {}", path.display()));
+        return Err(format!(
+            "GGUF Mel-Band RoFormer absent : {}",
+            path.display()
+        ));
     }
     let got = sha256_file(&path)?;
     if got != MEL_BAND_ROFORMER_SHA {
@@ -146,7 +152,10 @@ pub async fn install(
         let _ = tokio::fs::remove_file(&dest).await;
     }
 
-    ensure_disk_space(dest.parent().unwrap_or(cache.as_path()), MEL_BAND_ROFORMER_BYTES)?;
+    ensure_disk_space(
+        dest.parent().unwrap_or(cache.as_path()),
+        MEL_BAND_ROFORMER_BYTES,
+    )?;
 
     emit(
         &app,
@@ -273,7 +282,10 @@ pub async fn install(
     tokio::fs::rename(&partial, &dest)
         .await
         .map_err(|e| e.to_string())?;
-    emit(&app, InstallProgress::file_done(MEL_BAND_ROFORMER_GGUF, 1, 1));
+    emit(
+        &app,
+        InstallProgress::file_done(MEL_BAND_ROFORMER_GGUF, 1, 1),
+    );
     emit(&app, InstallProgress::complete());
     Ok(dest.display().to_string())
 }

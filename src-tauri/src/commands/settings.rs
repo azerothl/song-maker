@@ -250,7 +250,10 @@ pub async fn install_mel_band_roformer(
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     use std::sync::atomic::Ordering;
-    if state.mel_band_roformer_installing.swap(true, Ordering::AcqRel) {
+    if state
+        .mel_band_roformer_installing
+        .swap(true, Ordering::AcqRel)
+    {
         return Err("Un téléchargement Mel-Band RoFormer est déjà en cours.".into());
     }
     let settings = match load_settings() {

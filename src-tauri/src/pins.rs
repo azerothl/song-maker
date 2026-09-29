@@ -107,8 +107,7 @@ pub const MEL_BAND_ROFORMER_GGUF: &str = "mel-band-roformer-q8_0.gguf";
 pub const MEL_BAND_ROFORMER_SHA: &str =
     "2dd898ceb0e3812c18d6125dcd60174d35d3da22c94add76b029fbb21fc238fd";
 pub const MEL_BAND_ROFORMER_PACKAGE: &str = "mel_band_roformer_q8_0";
-pub const MEL_BAND_ROFORMER_REMOTE: &str =
-    "Mel-Band-RoFormer-GGUF/mel-band-roformer-q8_0.gguf";
+pub const MEL_BAND_ROFORMER_REMOTE: &str = "Mel-Band-RoFormer-GGUF/mel-band-roformer-q8_0.gguf";
 pub const MEL_BAND_ROFORMER_BYTES: u64 = 251_748_928;
 
 /// SheetSage2 — opt-in MIDI transcription weights (hors premier build, CC BY-NC 4.0).

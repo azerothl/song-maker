@@ -55,7 +55,9 @@ impl Default for AppState {
             bs_roformer_installing: std::sync::atomic::AtomicBool::new(false),
             bs_roformer_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             mel_band_roformer_installing: std::sync::atomic::AtomicBool::new(false),
-            mel_band_roformer_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            mel_band_roformer_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(
+                false,
+            )),
             sheetsage_installing: std::sync::atomic::AtomicBool::new(false),
             sheetsage_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             sheetsage_jobs: crate::sheetsage::SheetsageJobs::default(),
