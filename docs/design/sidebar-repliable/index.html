@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Song Maker — Maquette : barre latérale repliable</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* Tokens repris de ../songmaker-mockup-creer/index.html (eux-mêmes issus de ../songmaker-mockup) */
+:root{
+  --bg:#141218; --bg2:#1b1723; --card:#221e2c; --card2:#2a2536; --line:#3d3654;
+  --line2:#7a6ea1;            /* AA composant UI (≥ 3:1) : bordures actives / boutons */
+  --text:#f3f0fa; --muted:#bdb6cf; --teal:#5ed8c9; --purple:#a58bff;
+  --purple-btn:#805cdf;       /* AA texte blanc (≥ 4,5:1) */
+  --purple-btn-h:#6a3fd9;     /* survol / appui */
+  --ok:#7fe0a1; --focus:#ffd76a; --field:#171320;
+  --serif:"Fraunces","Source Serif Pro","Noto Serif",Georgia,serif;
+  --sans:"Inter","Segoe UI",system-ui,-apple-system,"Noto Sans",Arial,sans-serif;
+
+  /* Barre latérale */
+  --sb-open:220px;            /* déplié */
+  --sb-closed:56px;           /* replié : 44 px de cible + 2 × 6 px de marge */
+  --sb-dur:180ms;             /* transition : 150–200 ms */
+  --sb-ease:cubic-bezier(.2,0,0,1);
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:#0b0a0e;color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+body{font-size:14px;line-height:1.4}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- Coquille ---------- */
+.app{height:100vh;display:flex;
+  background:radial-gradient(900px 500px at 15% -10%,#2b2050 0%,transparent 60%),radial-gradient(800px 500px at 100% 110%,#1d2a3a 0%,transparent 55%),var(--bg)}
+
+/* ---------- Barre latérale ---------- */
+.side{position:relative;z-index:5;flex:none;width:var(--sb-open);
+  border-right:1px solid var(--line);background:rgba(27,23,35,.92);
+  padding:14px 10px;display:flex;flex-direction:column;gap:4px;
+  transition:width var(--sb-dur) var(--sb-ease),padding var(--sb-dur) var(--sb-ease)}
+.app[data-collapsed="true"] .side{width:var(--sb-closed);padding-left:5px;padding-right:5px}
+
+/* Marque */
+.brand{display:flex;align-items:center;gap:10px;height:44px;padding:0 6px;margin-bottom:6px;font-family:var(--serif);font-weight:600;font-size:18px;white-space:nowrap;overflow:hidden}
+.brand .logo{width:32px;height:32px;border-radius:9px;background:var(--purple-btn);display:grid;place-items:center;font-size:16px;flex:none;color:#fff}
+
+/* Texte qui s'efface au repli (reste dans l'arbre d'accessibilité : nom accessible = contenu) */
+.txt{min-width:0;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;transition:opacity 120ms linear}
+.app[data-collapsed="true"] .txt{opacity:0;flex:0 0 0;width:0}
+.app[data-collapsed="true"] .ctl{gap:0}
+.app[data-collapsed="true"] .brand .name{opacity:0;width:0}
+.brand .name{transition:opacity 120ms linear}
+
+.ic{width:20px;height:20px;flex:none;display:block}
+
+/* Contrôles communs : toggle + entrées de menu + infos */
+.ctl{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:0 11px;border-radius:10px;
+  color:var(--muted);text-decoration:none;font:inherit;font-weight:600;font-size:14px;text-align:left;
+  background:transparent;border:1px solid transparent;cursor:pointer;overflow:hidden;white-space:nowrap}
+.ctl:hover{background:#2f2a3d;color:var(--text)}
+ul.nav{list-style:none;padding:0;display:flex;flex-direction:column;gap:4px}
+.ctl[aria-current="page"]{background:#2c2650;color:var(--text);border-color:var(--line2);box-shadow:inset 3px 0 0 var(--purple-btn)}
+
+/* Bouton de bascule */
+.toggle{border-color:var(--line2);color:var(--text)}
+.toggle:active{background:var(--purple-btn-h)}
+.toggle .two{display:flex;flex-direction:column;line-height:1.2;min-width:0;flex:1}
+.toggle .hint{font-size:11.5px;font-weight:500;color:var(--muted);display:flex;align-items:center;gap:6px;margin-top:2px}
+.toggle .i-open{display:none}
+.app[data-collapsed="true"] .toggle .i-close{display:none}
+.app[data-collapsed="true"] .toggle .i-open{display:block}
+.app[data-collapsed="true"] .toggle .hint{display:none}
+.toggle .lab{overflow:hidden;text-overflow:ellipsis}
+
+kbd{font:inherit;font-size:11.5px;font-weight:600;color:var(--text);background:var(--field);border:1px solid var(--line2);border-radius:6px;padding:0 6px;line-height:1.5}
+
+.sep{height:1px;background:var(--line);margin:6px 4px}
+.sp{flex:1}
+
+/* Infos du bas (GPU, projet) */
+.info{cursor:default;color:var(--muted);font-weight:500}
+.info:hover{background:transparent;color:var(--muted)}
+.info .two{display:flex;flex-direction:column;line-height:1.25;min-width:0;flex:1;padding:4px 0}
+.info .k{font-size:11.5px;display:flex;align-items:center;gap:6px;color:var(--muted)}
+.info .v{font-size:13px;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.tag-ex{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1a1424;background:#e9c46a;border-radius:5px;padding:0 5px;line-height:1.5}
+.app[data-collapsed="true"] .info .two{display:none}
+.app[data-collapsed="true"] .info[tabindex]:hover{background:#2f2a3d}
+
+/* ---------- Info-bulles (repli uniquement) ---------- */
+.row{position:relative}
+.tip{position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:8px;
+  display:none;align-items:center;gap:8px;white-space:nowrap;pointer-events:auto;
+  background:var(--card2);color:var(--text);border:1px solid var(--line2);border-radius:8px;
+  padding:6px 10px;font-size:13px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.45);
+  opacity:0;transition:opacity 120ms linear}
+/* pont invisible : le pointeur peut passer de l'élément à l'info-bulle sans qu'elle disparaisse (WCAG 1.4.13) */
+.tip::before{content:"";position:absolute;right:100%;top:0;bottom:0;width:10px}
+.tip .sub{font-weight:500;color:var(--muted);font-size:12px}
+.app[data-collapsed="true"] .tip{display:flex}
+.app[data-collapsed="true"] .row:hover:not(.tip-off) .tip,
+.app[data-collapsed="true"] .row:has(:focus-visible):not(.tip-off) .tip{opacity:1}
+/* Transition d'apparition seulement quand la barre est stable */
+.app.animating .tip{display:none!important}
+
+/* Focus visible */
+.ctl:focus-visible{outline:3px solid var(--focus);outline-offset:1px}
+.info[tabindex]:focus-visible{outline:3px solid var(--focus);outline-offset:1px;background:#2f2a3d}
+
+/* ---------- Zone principale (placeholder) ---------- */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:12px 32px 24px;gap:16px;overflow:auto}
+header.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding-top:2px}
+.eyebrow{font-variant-caps:all-small-caps;letter-spacing:.14em;font-weight:600;font-size:14px;color:var(--teal)}
+h1{font-family:var(--serif);font-weight:600;font-size:24px;line-height:1.15;letter-spacing:-.01em}
+.mockbadge{font-size:11px;color:#e8e1ff;border:1px dashed var(--purple);border-radius:8px;padding:4px 8px;background:#2a2050;white-space:nowrap}
+.ph{border:1px dashed var(--line);border-radius:16px;background:rgba(34,30,44,.6);display:grid;place-items:center;color:var(--muted);font-size:13px;min-height:120px;text-align:center;padding:12px}
+
+.notes{background:var(--card2);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:grid;gap:10px}
+.notes h2{font-size:13.5px;font-variant-caps:all-small-caps;letter-spacing:.12em;color:var(--muted);font-weight:600}
+.notes dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:13.5px}
+.notes dt{color:var(--muted)}
+.notes dd{font-variant-numeric:tabular-nums}
+.notes p{font-size:13px;color:var(--muted)}
+.sw{display:flex;gap:8px;flex-wrap:wrap}
+.sw span{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:3px 8px;background:var(--field)}
+.sw i{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid rgba(255,255,255,.25)}
+
+/* Annotation de design (pas un élément de l'app) */
+.annot{display:none;align-items:center;gap:10px;border:1.5px dashed var(--teal);border-radius:12px;background:rgba(94,216,201,.08);color:#e4f6f1;padding:10px 14px;font-size:14px;font-weight:600;width:max-content;max-width:100%}
+.annot small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+.annot .arr{font-size:20px;color:var(--teal);line-height:1}
+.app[data-auto="true"] .annot{display:flex}
+
+/* Mouvement réduit : plus aucune transition/animation */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important}
+}
+.no-anim *{transition:none!important}
+</style>
+</head>
+<body>
+<div class="app no-anim" id="app" data-collapsed="false" data-auto="false">
+
+ <aside class="side" id="sidebar" aria-label="Barre latérale">
+  <div class="brand"><span class="logo" aria-hidden="true">♪</span><span class="name">Song Maker</span></div>
+
+  <div class="row">
+   <button class="ctl toggle" id="toggle" type="button" aria-expanded="true" aria-controls="sidebar" aria-keyshortcuts="Control+B" aria-label="Réduire le menu">
+    <svg class="ic i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>
+    <svg class="ic i-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 17l5-5-5-5M6 17l5-5-5-5"/></svg>
+    <span class="txt two"><span class="lab" id="toggle-lab">Réduire le menu</span><span class="hint"><kbd>Ctrl</kbd>+<kbd>B</kbd></span></span>
+   </button>
+   <span class="tip" aria-hidden="true">Développer le menu <kbd>Ctrl+B</kbd></span>
+  </div>
+
+  <div class="sep" role="presentation"></div>
+
+  <nav aria-label="Navigation principale">
+   <ul class="nav">
+    <li class="row">
+     <a class="ctl" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4v16M10 4v16M15.5 5.2l4 14.6"/></svg><span class="txt">Bibliothèque</span></a>
+     <span class="tip" aria-hidden="true">Bibliothèque</span>
+    </li>
+    <li class="row">
+     <a class="ctl" href="#" aria-current="page"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="txt">Nouveau</span></a>
+     <span class="tip" aria-hidden="true">Nouveau</span>
+    </li>
+    <li class="row">
+     <a class="ctl" href="#"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span class="txt">Paramètres</span></a>
+     <span class="tip" aria-hidden="true">Paramètres</span>
+    </li>
+   </ul>
+  </nav>
+
+  <span class="sp"></span>
+  <div class="sep" role="presentation"></div>
+
+  <!-- Infos du bas : valeurs D'EXEMPLE -->
+  <div class="row">
+   <div class="ctl info" id="info-gpu" role="group" aria-label="GPU : NVIDIA RTX 4070 (exemple)">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg>
+    <span class="two"><span class="k">GPU <span class="tag-ex">exemple</span></span><span class="v">NVIDIA RTX 4070</span></span>
+   </div>
+   <span class="tip" aria-hidden="true"><span>GPU : NVIDIA RTX 4070 <span class="sub">(exemple)</span></span></span>
+  </div>
+  <div class="row">
+   <div class="ctl info" id="info-proj" role="group" aria-label="Projet : test 3 (exemple)">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>
+    <span class="two"><span class="k">Projet <span class="tag-ex">exemple</span></span><span class="v">test 3</span></span>
+   </div>
+   <span class="tip" aria-hidden="true"><span>Projet : test 3 <span class="sub">(exemple)</span></span></span>
+  </div>
+ </aside>
+
+ <div class="main">
+  <header class="top">
+   <div>
+    <div class="eyebrow">Projet</div>
+    <h1>Créer un morceau</h1>
+   </div>
+   <span class="mockbadge">Maquette · valeurs d’exemple</span>
+  </header>
+
+  <div class="annot" id="annot" role="note"><span class="arr" aria-hidden="true">◀</span><span>Replié automatiquement : fenêtre étroite<small>Annotation de design — n’apparaît pas dans l’app</small></span></div>
+
+  <div class="ph">Contenu de la page (espace réservé) — il occupe toute la largeur libérée par le repli</div>
+
+  <section class="notes" aria-labelledby="n-h">
+   <h2 id="n-h">Notes de conception (annotation, hors app)</h2>
+   <dl>
+    <dt>État</dt><dd id="r-state">—</dd>
+    <dt>Largeur barre</dt><dd id="r-width">—</dd>
+    <dt>Fenêtre</dt><dd id="r-win">—</dd>
+    <dt>Mode</dt><dd id="r-mode">—</dd>
+   </dl>
+   <p>À essayer : bouton en haut de la barre, <kbd>Ctrl</kbd>+<kbd>B</kbd>, ou redimensionner la fenêtre sous 1100 px. GPU « NVIDIA RTX 4070 » et projet « test 3 » sont des <b>exemples</b>.</p>
+   <div class="sw" aria-label="Tokens de couleur mesurés AA">
+    <span><i style="background:#7a6ea1"></i>--line2 #7A6EA1</span>
+    <span><i style="background:#805cdf"></i>--purple-btn #805CDF</span>
+    <span><i style="background:#6a3fd9"></i>--purple-btn-h #6A3FD9</span>
+   </div>
+  </section>
+ </div>
+
+ <div class="sr-only" role="status" aria-live="polite" id="live"></div>
+</div>
+
+<script>
+(function(){
+  const APP=document.getElementById('app'), BTN=document.getElementById('toggle'), LAB=document.getElementById('toggle-lab');
+  const SIDE=document.getElementById('sidebar'), LIVE=document.getElementById('live');
+  const KEY='songmaker.sidebar.collapsed';          // Tauri : à remplacer par le store applicatif
+  const BREAK=1100;                                    // seuil de repli automatique (px)
+  const mq=window.matchMedia('(max-width:'+(BREAK-1)+'px)');
+  let pref=false;                                      // choix mémorisé (fenêtre large)
+  try{pref=localStorage.getItem(KEY)==='1'}catch(e){}
+  let narrowOverride=false;                            // l'utilisateur a déplié à la main en fenêtre étroite
+
+  const collapsed=()=> mq.matches ? !narrowOverride : pref;
+
+  function apply(announce){
+    const c=collapsed(), auto=mq.matches && c;
+    APP.dataset.collapsed=String(c);
+    APP.dataset.auto=String(auto);
+    BTN.setAttribute('aria-expanded',String(!c));
+    const label=c?'Développer le menu':'Réduire le menu';
+    BTN.setAttribute('aria-label',label); LAB.textContent=label;
+    // Infos du bas : focalisables (pour l'info-bulle clavier) uniquement quand elles sont réduites à une icône
+    document.querySelectorAll('.info').forEach(i=>{ if(c) i.setAttribute('tabindex','0'); else i.removeAttribute('tabindex'); });
+    if(announce) LIVE.textContent=c?'Menu replié':'Menu développé';
+    report();
+  }
+  function report(){
+    const c=collapsed();
+    document.getElementById('r-state').textContent=c?'Replié (icônes seules)':'Déplié';
+    document.getElementById('r-width').textContent=Math.round(SIDE.getBoundingClientRect().width)+' px';
+    document.getElementById('r-win').textContent=innerWidth+' px '+(mq.matches?'(< '+BREAK+' px)':'(≥ '+BREAK+' px)');
+    document.getElementById('r-mode').textContent=(mq.matches&&c)?'Automatique (fenêtre étroite)':(mq.matches?'Déplié à la main (fenêtre étroite)':'Choix mémorisé');
+  }
+  function toggle(){
+    APP.classList.add('animating'); setTimeout(()=>APP.classList.remove('animating'),200);
+    if(mq.matches){ narrowOverride=!narrowOverride; }      // fenêtre étroite : n'écrase pas le choix « large »
+    else { pref=!pref; try{localStorage.setItem(KEY,pref?'1':'0')}catch(e){} }
+    apply(true);
+    setTimeout(report,230);
+  }
+  BTN.addEventListener('click',toggle);
+  document.addEventListener('keydown',e=>{
+    if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey&&e.key.toLowerCase()==='b'){ e.preventDefault(); toggle(); }
+    if(e.key==='Escape'){ document.querySelectorAll('.row').forEach(r=>r.classList.add('tip-off')); }   // info-bulle fermable au clavier (WCAG 1.4.13)
+  });
+  document.querySelectorAll('.row').forEach(r=>{
+    const on=()=>r.classList.remove('tip-off');
+    r.addEventListener('mouseleave',on); r.addEventListener('focusout',on); r.addEventListener('mouseenter',on);
+  });
+  mq.addEventListener('change',()=>{ if(!mq.matches) narrowOverride=false; APP.classList.add('animating'); setTimeout(()=>APP.classList.remove('animating'),200); apply(false); setTimeout(report,230); });
+  addEventListener('resize',report);
+  apply(false);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{APP.classList.remove('no-anim');report();}));
+})();
+</script>
+</body>
+</html>
