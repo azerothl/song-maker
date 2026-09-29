@@ -2294,6 +2294,18 @@ details[open] > summary {
   font-weight: 650;
 }
 
+.song-create-form .form-field-style textarea {
+  min-height: 7rem;
+  max-height: 7rem;
+  resize: vertical;
+}
+
+.song-create-generate-shortcut {
+  margin: 0;
+  text-align: center;
+  font-size: 0.82rem;
+}
+
 .song-create-form .form-field input,
 .song-create-form .form-field textarea,
 .song-create-form .form-advanced-entry,

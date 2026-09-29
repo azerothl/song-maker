@@ -213,10 +213,14 @@ export function CreateWorkspace({
                     className="btn primary song-create-generate-btn"
                     disabled={busy || Boolean(scoreGate.error)}
                     onClick={() => void onGenerate()}
+                    aria-keyshortcuts="Control+Enter"
                   >
                     {t("generate.button")}
                   </button>
                 </div>
+                <p className="hint song-create-generate-shortcut">
+                  {t("generate.shortcut")}
+                </p>
               </div>
             </aside>
           </div>

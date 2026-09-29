@@ -2,6 +2,7 @@ import { api } from "../lib/api";
 import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
 import { buildGenerationPayload, loadRemotePrefs, runRemoteGenerationToProject } from "../lib/remoteGenerate";
 import { CreateWorkspace } from "./song/CreateWorkspace";
+import { matchesGenerateShortcut } from "./song/createWorkspaceLayout";
 import { ensureProductionOverlay, normalizeProductionOverlay, setProductionDiskPersist, setProductionOverlay, setProductionTempoBpm, undoProductionOverlay, redoProductionOverlay } from "../lib/productionState";
 import { exportProjectAudio } from "../lib/exportMix";
 import { generateScoreOnly, renderNFromScore } from "../lib/scoreOnlyApi";
@@ -255,7 +256,7 @@ export function SongScreen() {
         e.preventDefault();
         void api.saveProjectForm(project.id, form).catch((err) => setError(String(err)));
       }
-      if (mod && e.key === "Enter") {
+      if (matchesGenerateShortcut(e)) {
         e.preventDefault();
         if (!canGenerate) {
           setShowFormErrors(true);
