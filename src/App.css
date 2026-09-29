@@ -321,7 +321,8 @@ option {
   align-items: center;
   gap: 0.35rem;
   white-space: nowrap;
-  pointer-events: auto;
+  pointer-events: none;
+  visibility: hidden;
   background: var(--bg2);
   color: var(--text);
   border: 1px solid #7a6ea1;
@@ -331,7 +332,6 @@ option {
   font-weight: 600;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
   opacity: 0;
-  transition: opacity 120ms linear;
   z-index: 20;
 }
 
@@ -346,11 +346,19 @@ option {
 
 .sidebar.is-collapsed .sidebar-tip {
   display: flex;
+  transition:
+    opacity 120ms linear 150ms,
+    visibility 0ms linear 150ms;
 }
 
 .sidebar.is-collapsed .sidebar-row:hover:not(.tip-off) .sidebar-tip,
 .sidebar.is-collapsed .sidebar-row:has(:focus-visible):not(.tip-off) .sidebar-tip {
+  visibility: visible;
+  pointer-events: auto;
   opacity: 1;
+  transition:
+    opacity 120ms linear 0ms,
+    visibility 0ms linear 0ms;
 }
 
 .sidebar-meta {

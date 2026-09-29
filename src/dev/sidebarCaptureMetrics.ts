@@ -13,6 +13,11 @@ import {
   iconCenterWithinTolerance,
   iconCenterXFromRect,
 } from "../lib/sidebarIconCenter";
+import {
+  allTipsMissPointer,
+  tipPointerProbeFromHit,
+  type TipPointerProbe,
+} from "../lib/sidebarTipPointer";
 
 function r1(v: number): number {
   return Math.round(v * 100) / 100;
@@ -53,6 +58,7 @@ export type SidebarCaptureMetrics = {
   viewportWidth: number;
   viewportHeight: number;
   sidebarWidthPx: number;
+  collapsedTipPointerProbes: TipPointerProbe[] | null;
   mockupSidebarExpandedPx: number;
   mockupSidebarCollapsedPx: number;
   toggleAriaExpanded: string | null;
@@ -70,8 +76,31 @@ export type SidebarCaptureMetrics = {
     tooltipVisible: boolean;
     collapsedIconsCentered: boolean;
     iconCenterById: Record<string, boolean>;
+    tipsNeverCapturePointerAtRest: boolean;
   };
 };
+
+export function measureCollapsedTipPointerProbes(): TipPointerProbe[] | null {
+  const sidebar = document.querySelector("#sidebar");
+  if (!sidebar?.classList.contains("is-collapsed")) return null;
+
+  const tips = Array.from(document.querySelectorAll<HTMLElement>(".sidebar.is-collapsed .sidebar-tip"));
+  if (tips.length === 0) return null;
+
+  return tips.map((tip, index) => {
+    const r = tip.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const row = tip.closest(".sidebar-row");
+    const trigger = row?.querySelector("button, .sidebar-meta-row");
+    const label =
+      trigger?.getAttribute("aria-label") ??
+      tip.textContent?.trim().slice(0, 24) ??
+      `tip-${index}`;
+    const hit = document.elementFromPoint(cx, cy);
+    return tipPointerProbeFromHit(label, cx, cy, hit);
+  });
+}
 
 function measureHoverContrastFromDom(): HoverContrastMeasure | null {
   const hovered = document.querySelector(
@@ -100,7 +129,7 @@ function measureVisibleTooltip(): TooltipMeasure | null {
   for (const tip of tips) {
     const style = getComputedStyle(tip);
     const opacity = parseFloat(style.opacity);
-    if (opacity < 0.95) continue;
+    if (style.visibility !== "visible" || opacity < 0.95) continue;
     const tipRect = rect(tip);
     if (tipRect.width < 4 || tipRect.height < 4) continue;
     const row = tip.closest(".sidebar-row");
@@ -186,6 +215,7 @@ export function measureSidebarCapture(): SidebarCaptureMetrics | null {
   });
 
   const tooltip = measureVisibleTooltip();
+  const collapsedTipPointerProbes = collapsed ? measureCollapsedTipPointerProbes() : null;
   const hoverContrast = measureHoverContrastFromDom() ?? constantsHoverContrast();
   const collapsedIconCenters = measureCollapsedIconCenters(sidebar);
   const iconCenterById: Record<string, boolean> = {};
@@ -212,6 +242,7 @@ export function measureSidebarCapture(): SidebarCaptureMetrics | null {
     navTargetSizesPx: sizes,
     hoverContrast,
     tooltip,
+    collapsedTipPointerProbes,
     collapsedIconCenters,
     checks: {
       widthMatchesExpanded: expanded,
@@ -221,6 +252,10 @@ export function measureSidebarCapture(): SidebarCaptureMetrics | null {
       tooltipVisible: tooltip != null,
       collapsedIconsCentered,
       iconCenterById,
+      tipsNeverCapturePointerAtRest:
+        collapsedTipPointerProbes == null
+          ? true
+          : allTipsMissPointer(collapsedTipPointerProbes),
     },
   };
 }

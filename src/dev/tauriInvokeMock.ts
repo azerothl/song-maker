@@ -4,6 +4,7 @@ import type {
   ProjectDoc,
 } from "../lib/types";
 import { CAPTURE_PROJECT_ID } from "./seedCreateTabCaptureStore";
+import { SIDEBAR_CAPTURE_PROJECT_ID } from "./seedSidebarCaptureStore";
 
 let project: ProjectDoc | null = null;
 
@@ -51,9 +52,26 @@ export async function invoke<T>(
   args?: Record<string, unknown>,
 ): Promise<T> {
   switch (cmd) {
+    case "list_projects":
+      return [
+        {
+          id: SIDEBAR_CAPTURE_PROJECT_ID,
+          title: "Morceau bibliothèque",
+          folderPath: "/tmp/capture",
+          createdAt: "2026-09-29T12:00:00.000Z",
+          updatedAt: "2026-09-29T12:00:00.000Z",
+          durationMs: 180_000,
+          status: "empty",
+          cot: "full",
+          activeGenerationId: null,
+        },
+      ] as T;
     case "open_project": {
       const id = String(args?.id ?? CAPTURE_PROJECT_ID);
-      if (id !== CAPTURE_PROJECT_ID || !project) {
+      if (id !== CAPTURE_PROJECT_ID && id !== SIDEBAR_CAPTURE_PROJECT_ID) {
+        throw new Error(`Projet inconnu : ${id}`);
+      }
+      if (!project) {
         throw new Error(`Projet inconnu : ${id}`);
       }
       return project as T;
