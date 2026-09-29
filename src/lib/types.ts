@@ -27,6 +27,8 @@ export type ProjectDoc = {
   activeSeparationId?: string | null;
   activeMixId?: string | null;
   activeScoreId?: string | null;
+  /** Noms parlants des prises (clé = id gen-*). */
+  generationNames?: Record<string, string>;
 };
 
 export type LibraryRow = {
@@ -334,6 +336,14 @@ export type ScoreSummary = {
   version: number;
   source: string;
   noteCount: number;
+  createdAt?: string | null;
+};
+
+export type MixVersionSummary = {
+  id: string;
+  separationId: string;
+  createdAt: string;
+  isActive: boolean;
 };
 
 export type LocalLoraAdapter = { name: string; path: string; sizeBytes: number };

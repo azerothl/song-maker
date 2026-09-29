@@ -10,6 +10,7 @@ import type {
   LibraryRow,
   LocalLoraAdapter,
   MixDoc,
+  MixVersionSummary,
   Phase3Status,
   PlaybackSources,
   ProjectDoc,
@@ -172,6 +173,8 @@ export const api = {
       },
     }),
   saveMixVersion: (id: string) => invoke<MixDoc>("save_mix_version", { id }),
+  listMixVersions: (id: string) =>
+    invoke<MixVersionSummary[]>("list_mix_versions", { id }),
   renderPreview: (id: string) => invoke<string>("render_preview", { id }),
   playbackSources: (id: string) =>
     invoke<PlaybackSources>("playback_sources", { id }),
@@ -249,6 +252,8 @@ export const api = {
     invoke<ProjectDoc>("set_active_score", { id, scoreId }),
   useGeneration: (id: string, genId: string) =>
     invoke<ProjectDoc>("use_generation", { id, genId }),
+  renameGeneration: (id: string, genId: string, name: string) =>
+    invoke<ProjectDoc>("rename_generation", { id, genId, name }),
   /** Import remote worker WAV/score into a local gen-* with provenance (#65). */
   importRemoteGeneration: (
     id: string,

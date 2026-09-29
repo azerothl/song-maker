@@ -27,6 +27,26 @@ pub fn use_generation(id: String, gen_id: String) -> Result<ProjectDoc, String> 
     Ok(doc)
 }
 
+/// Persist a human-readable take name (Versions tab, #133).
+#[tauri::command]
+pub fn rename_generation(id: String, gen_id: String, name: String) -> Result<ProjectDoc, String> {
+    let folder = project_folder(&id);
+    let mut doc = load_project(&folder)?;
+    let gen_dir = folder.join("generations").join(&gen_id);
+    if !gen_dir.exists() {
+        return Err("Génération introuvable.".into());
+    }
+    let trimmed = name.trim().to_string();
+    if trimmed.is_empty() {
+        doc.generation_names.remove(&gen_id);
+    } else {
+        doc.generation_names.insert(gen_id, trimmed);
+    }
+    doc.updated_at = now_iso();
+    save_project(&folder, &doc)?;
+    Ok(doc)
+}
+
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteImportPayload {

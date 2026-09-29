@@ -5,7 +5,9 @@ use crate::mix::{
     export_flac, export_mp3, render_mix, write_export_json_with_warnings, write_interleaved_f32_wav,
 };
 use crate::models::*;
-use crate::paths::{atomic_write_json, default_cache_dir, ensure_dir, next_folder_id, now_iso};
+use crate::paths::{
+    atomic_write_json, default_cache_dir, ensure_dir, file_mtime_iso, next_folder_id, now_iso,
+};
 use std::path::{Path, PathBuf};
 
 #[tauri::command]
@@ -123,6 +125,70 @@ pub fn save_mix_version(id: String) -> Result<MixDoc, String> {
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
     Ok(mix)
+}
+
+/// List mix snapshots for the Versions timeline (#133). Skips the first mix of
+/// each separation (covered by the « Pistes séparées » event) so only later
+/// saves appear as « Mix modifié ».
+#[tauri::command]
+pub fn list_mix_versions(id: String) -> Result<Vec<MixVersionSummary>, String> {
+    let folder = project_folder(&id);
+    let doc = load_project(&folder)?;
+    let mixes_dir = folder.join("mixes");
+    if !mixes_dir.is_dir() {
+        return Ok(vec![]);
+    }
+    let active = doc.active_mix_id.as_deref();
+    let mut by_sep: std::collections::BTreeMap<String, Vec<(String, String)>> =
+        std::collections::BTreeMap::new();
+    for entry in std::fs::read_dir(&mixes_dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("json") {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        let value: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        let mix_id = value
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        if mix_id.is_empty() {
+            continue;
+        }
+        let sep_id = value
+            .get("separationId")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let created = value
+            .get("updatedAt")
+            .or_else(|| value.get("createdAt"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .or_else(|| file_mtime_iso(&path))
+            .unwrap_or_else(now_iso);
+        by_sep.entry(sep_id).or_default().push((mix_id, created));
+    }
+    let mut out = Vec::new();
+    for (sep_id, mut rows) in by_sep {
+        rows.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+        for (mix_id, created) in rows.into_iter().skip(1) {
+            out.push(MixVersionSummary {
+                id: mix_id.clone(),
+                separation_id: sep_id.clone(),
+                created_at: created,
+                is_active: active == Some(mix_id.as_str()),
+            });
+        }
+    }
+    out.sort_by(|a, b| {
+        a.created_at
+            .cmp(&b.created_at)
+            .then_with(|| a.id.cmp(&b.id))
+    });
+    Ok(out)
 }
 
 #[tauri::command]
