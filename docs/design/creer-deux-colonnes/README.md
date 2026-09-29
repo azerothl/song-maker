@@ -1,11 +1,12 @@
 # Maquette — onglet « Créer » (Song Maker)
 
-Réf. : issue azerothl/song-maker#131. Maquette statique, **rien n’est commité ni poussé**.
+Réf. : issue azerothl/song-maker#131. Maquette statique HTML (`index.html`).
 
 ## Fichiers
 - `index.html` : maquette autonome (HTML + CSS, un peu de JS pour le compteur, Ctrl+Entrée et les flèches des onglets).
 - `render.py` : rendu Playwright/Chromium (même approche que `../songmaker-mockup/render.py`) ; affiche aussi un contrôle de visibilité sans défilement.
-- `creer-1280x720.png`, `creer-1600x900.png`, `creer-800x700-une-colonne.png` : rendus.
+- `creer-1280x720.png`, `creer-1600x900.png`, `creer-800x700-une-colonne.png` : rendus **maquette** (valeurs d’exemple).
+- `captures-react/` : captures **application React réelle** (Vite + mock Tauri léger), sans textes d’exemple imposés — voir le README du dossier.
 
 ## Valeurs d’exemple
 Toutes les valeurs (« test 3 », texte de style, paroles, 392/1000) sont des **exemples** : pastille jaune « exemple » sur chaque champ, préfixe « Exemple : » / « (exemple) » dans les textes, badge « Maquette · valeurs d’exemple » en en-tête.
