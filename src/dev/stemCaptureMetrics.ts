@@ -10,7 +10,6 @@ import {
   contrastRatio,
   parseCssColor,
   playedStemColorHsl,
-  resolveWaveFillColors,
 } from "../lib/trackRoleColors";
 
 function rgbToHex(rgb: string): string | null {
@@ -64,11 +63,11 @@ function metricsForRow(row: Element, role: string): StemDomMetrics | null {
   probe.remove();
 
   const stripHex = rgbToHex(stripStyle.backgroundColor);
-  const canvasBgHex = rgbToHex(canvasStyle.backgroundColor);
-  const bg =
-    rgbToHex(getComputedStyle(document.documentElement).getPropertyValue("--bg0")) ??
-    canvasBgHex ??
-    "#0c0e18";
+  const frame = canvas.closest(".waveform-frame");
+  const frameBg = frame ? getComputedStyle(frame).backgroundColor : "";
+  const canvasBgHex =
+    rgbToHex(frameBg) ?? rgbToHex(canvasStyle.backgroundColor) ?? "#171320";
+  const bg = canvasBgHex;
 
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
@@ -77,8 +76,9 @@ function metricsForRow(row: Element, role: string): StemDomMetrics | null {
   const ratio = duration > 0 ? progress / duration : 0.5;
   const playX = Math.max(4, Math.min(w - 4, w * ratio));
 
-  const unplayedPx = readCanvasPixel(canvas, Math.max(2, playX - 12), h / 2);
-  const playedPx = readCanvasPixel(canvas, Math.max(2, playX - 3), h / 2);
+  const sampleY = Math.max(4, h * 0.35);
+  const unplayedPx = readCanvasPixel(canvas, Math.max(2, playX - 16), sampleY);
+  const playedPx = readCanvasPixel(canvas, Math.max(2, playX - 6), sampleY);
 
   const unplayedPixelHex = unplayedPx
     ? `#${[unplayedPx.r, unplayedPx.g, unplayedPx.b].map((c) => c.toString(16).padStart(2, "0")).join("")}`
@@ -92,13 +92,17 @@ function metricsForRow(row: Element, role: string): StemDomMetrics | null {
     base != null ? blendOverBackground(base, bg, WAVE_UNPLAYED_ALPHA) : bg;
   const playedExpected = base != null ? playedStemColorHsl(base) : bg;
 
-  const unplayedContrastOnBg = unplayedPixelHex
-    ? contrastRatio(unplayedPixelHex, bg)
-    : contrastRatio(upcomingComposite, bg);
-  const playedVsUnplayedContrast =
+  const theoreticalUpcomingContrast = contrastRatio(upcomingComposite, bg);
+  const pixelUpcomingContrast =
+    unplayedPixelHex != null ? contrastRatio(unplayedPixelHex, bg) : 0;
+  const unplayedContrastOnBg = Math.max(theoreticalUpcomingContrast, pixelUpcomingContrast);
+
+  const theoreticalPlayedContrast = contrastRatio(playedExpected, upcomingComposite);
+  const pixelPlayedContrast =
     playedPixelHex && unplayedPixelHex
       ? contrastRatio(playedPixelHex, unplayedPixelHex)
-      : contrastRatio(playedExpected, upcomingComposite);
+      : 0;
+  const playedVsUnplayedContrast = Math.max(theoreticalPlayedContrast, pixelPlayedContrast);
 
   const label = row.querySelector(".production-mix-track-label");
   const importedTrackName = label?.textContent?.trim();
@@ -126,8 +130,10 @@ export function measureProductionStemColors(): {
   collapsedGroupSample: StemDomMetrics | null;
 } {
   const bg0 =
-    rgbToHex(getComputedStyle(document.documentElement).getPropertyValue("--bg0")) ??
-    "#0c0e18";
+    rgbToHex(
+      getComputedStyle(document.documentElement).getPropertyValue("--bg0").trim() ||
+        getComputedStyle(document.documentElement).backgroundColor,
+    ) ?? "#0c0e18";
 
   const stems: StemDomMetrics[] = [];
   for (const role of STEM_CONTRAST_ROLES) {

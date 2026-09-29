@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import {
   PRODUCTION_BG0,
+  PRODUCTION_WAVE_TRACK_BG,
   STEM_CONTRAST_ROLES,
   TRACK_ROLE_COLORS,
   WAVE_UNPLAYED_ALPHA,
@@ -80,7 +81,8 @@ try {
   await page.waitForTimeout(900);
 
   const dom = await page.evaluate(() => window.__productionStemColors?.() ?? null);
-  const theory = measureStemContrasts();
+  const theory = measureStemContrasts(PRODUCTION_BG0);
+  const theoryOnWaveFrame = measureStemContrasts(PRODUCTION_WAVE_TRACK_BG);
 
   await page.screenshot({
     path: path.join(OUT, "production-stem-colors-midplay-1280x720.png"),
@@ -106,6 +108,7 @@ try {
     bg0: dom?.bg0 ?? PRODUCTION_BG0,
     unplayedAlpha: WAVE_UNPLAYED_ALPHA,
     theory,
+    theoryOnWaveFrame,
     dom,
     trackRoleColors: TRACK_ROLE_COLORS,
   };

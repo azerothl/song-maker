@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   PRODUCTION_BG0,
+  PRODUCTION_WAVE_TRACK_BG,
   STEM_CONTRAST_ROLES,
   TRACK_ROLE_COLORS,
   WAVE_PLAYED_VS_UNPLAYED_MIN,
@@ -44,16 +45,21 @@ describe("trackRoleColors (#159)", () => {
   });
 
   it("valide les 6 stems : partie à venir ≥ 3:1 et écart lue/à venir ≥ 1,3:1", () => {
-    const rows = measureStemContrasts(PRODUCTION_BG0, WAVE_UNPLAYED_ALPHA);
-    assert.equal(rows.length, 6);
-    for (const row of rows) {
-      assert.ok(row.upcomingPass, `${row.role} upcoming ${row.upcomingContrast.toFixed(2)}`);
-      assert.ok(
-        row.playedVsUpcomingPass,
-        `${row.role} played vs upcoming ${row.playedVsUpcomingContrast.toFixed(2)}`,
-      );
-      assert.ok(row.upcomingContrast >= WCAG_UI_CONTRAST_MIN);
-      assert.ok(row.playedVsUpcomingContrast >= WAVE_PLAYED_VS_UNPLAYED_MIN);
+    for (const bg of [PRODUCTION_BG0, PRODUCTION_WAVE_TRACK_BG]) {
+      const rows = measureStemContrasts(bg, WAVE_UNPLAYED_ALPHA);
+      assert.equal(rows.length, 6);
+      for (const row of rows) {
+        assert.ok(
+          row.upcomingPass,
+          `${row.role} upcoming ${row.upcomingContrast.toFixed(2)} on ${bg}`,
+        );
+        assert.ok(
+          row.playedVsUpcomingPass,
+          `${row.role} played vs upcoming ${row.playedVsUpcomingContrast.toFixed(2)}`,
+        );
+        assert.ok(row.upcomingContrast >= WCAG_UI_CONTRAST_MIN);
+        assert.ok(row.playedVsUpcomingContrast >= WAVE_PLAYED_VS_UNPLAYED_MIN);
+      }
     }
   });
 

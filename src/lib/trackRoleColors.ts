@@ -5,6 +5,9 @@
 
 export const PRODUCTION_BG0 = "#0c0e18";
 
+/** Fond réel des waveforms de piste (`.production-mix-wave .waveform-frame`). */
+export const PRODUCTION_WAVE_TRACK_BG = "#171320";
+
 const RAW_STEM_COLORS: Record<string, string> = {
   vocals: "#ff8fb1",
   drums: "#5ed8c9",
