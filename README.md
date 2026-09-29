@@ -1,6 +1,6 @@
 # Song Maker
 
-Application **desktop locale** (Tauri 2) pour générer, séparer, éditer et mixer un morceau avec **YuE2** via [audio.cpp](https://github.com/0xShug0/audio.cpp) (GGUF) et HTDemucs. Un projet = un morceau. Contrat produit : [`specs/SONG_MAKER_SPEC.md`](specs/SONG_MAKER_SPEC.md) (le spec décrit aussi l’historique des phases ; ce README décrit **ce qui est livré aujourd’hui** sur `main`).
+Application **desktop locale** (Tauri 2) pour générer, séparer, éditer et mixer un morceau avec **YuE2** via [audio.cpp](https://github.com/0xShug0/audio.cpp) (GGUF) et HTDemucs. Un projet = un morceau. Contrat produit : [`specs/SONG_MAKER_SPEC.md`](specs/SONG_MAKER_SPEC.md) (le spec décrit aussi l’historique des phases ; ce README décrit **ce qui est livré aujourd’hui** sur `main`). Licence du code : [Apache-2.0](LICENSE) — voir aussi [`NOTICE`](NOTICE).
 
 Site marketing bilingue FR/EN : dossier [`website/`](website/) — landing, docs MDX, téléchargements. L’UI de l’app desktop est **française uniquement** (`src/ui/fr.json`).
 
@@ -21,7 +21,7 @@ Téléchargez la dernière version depuis les [Releases GitHub](https://github.c
 - **macOS** : `.dmg` Apple Silicon ou Intel (Metal). Chemin de génération moins prioritaire que CUDA Windows/Linux.
 - **Linux** : `.AppImage` ou `.deb`, Linux x64 avec carte **NVIDIA**.
 
-Au premier lancement, Song Maker vérifie les composants et ouvre un assistant s’ils manquent. Choisissez le modèle Q4 ou Q8, acceptez la licence YuE2 **CC BY-NC 4.0**, puis téléchargez depuis l’application (reprise possible après interruption). Prévoyez plusieurs gigaoctets d’espace disque.
+Au **premier lancement**, un écran d’assistant dédié vérifie GPU / composants, propose le modèle Q4 ou Q8, demande l’acceptation de la licence YuE2 **CC BY-NC 4.0**, puis télécharge les poids depuis l’application (reprise possible après interruption). Prévoyez plusieurs gigaoctets d’espace disque.
 
 Song Maker propose aussi les mises à jour au démarrage (depuis la version **0.1.1**). Les versions antérieures doivent d’abord être mises à jour manuellement depuis les Releases. Détails : [`docs/auto-updates.md`](docs/auto-updates.md).
 
@@ -29,10 +29,11 @@ Sur Windows, l’installeur n’est pas encore signé Authenticode ; Windows peu
 
 ## Ce qui est livré aujourd’hui
 
-Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau → onglets **Créer → Partition → Production → Versions**. Barre latérale repliable.
+Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau → onglets **Créer → Partition → Production → Versions**. Barre latérale repliable (**Ctrl+B** / ⌘+B), état mémorisé ; repli automatique sur fenêtre étroite.
 
 ### Créer — génération YuE2
 
+- Disposition en **deux colonnes** sur large viewport (style / paroles à gauche, options et lancement à droite).
 - Style + paroles → WAV stéréo 48 kHz via le serveur local `audiocpp_server` (file FIFO, `max_loaded_models=1`).
 - **Mode instrumental** : paroles facultatives (chaîne vide acceptée) — ce n’est **pas** le LoRA instrumental YuE2 CC BY-NC.
 - Modes `cot` (`full` / `melody` / `off`), durée cible indicative (bornes de tokens, pas une durée musicale garantie), multi-candidats **séquentiels** (N appels locaux successifs, pas un échantillonnage parallèle natif), seed écrit.
@@ -48,16 +49,17 @@ Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau
 
 ### Production — stems, mix, outils
 
-- Séparation **HTDemucs** (4 stems par défaut : voix, batterie, basse, other). Options : HTDemucs 6 stems ONNX (guitare/piano **expérimentaux**, fuites possibles surtout sur le piano), **BS-RoFormer** opt-in (voix + instrumental seulement). Relancer une séparation et conserver l’historique des versions de stems.
+- **Mix densifié** : hauteur de ligne **Auto / Compact / Confortable** ; groupes **Voix / Rythmique / Harmonie** repliables ; **M/S** par piste et par groupe ; potards gain/pan ; **couleur unique par stem** (pastille = forme d’onde).
+- **Séparation** : dialogue de recommandation selon le type de piste (voix / batterie / mix) avec temps indiqué (`estimation` puis `mesuré`). Modèles : **HTDemucs** 4 stems par défaut (voix, batterie, basse, other) ; HTDemucs 6 stems ONNX (guitare/piano **expérimentaux**, fuites possibles surtout sur le piano) ; **BS-RoFormer** opt-in (voix + instrumental) ; **Mel-Band RoFormer « Kim Vocal 2 »** opt-in (voix). Badge licence + case « J’ai lu la licence » avant tout téléchargement de modèle. Relancer une séparation conserve l’historique des versions de stems.
 - Mix : gain, pan, mute/solo, master ; groupes / aux / sends ; presets d’intention et équilibre auto des stems.
 - Effets DSP réels (`@song-maker/mix-production`) : filtre HP/LP, EQ (shelf + paramétrique), compresseur / gate / limiteur, delay sync tempo, réverb stéréo, sidechain, correction de justesse vocale, loudness (estimation).
 - Clips : trim, fondus, déplacement, découpe ; grille musicale / arrangement ; étirement tempo / transpose (WSOLA maison) ; capture micro/ligne avec prises (latence WebView documentée — [`docs/capture-low-latency.md`](docs/capture-low-latency.md)).
 - Copilote de production réversible (suggestions locales, pas d’analyse distante obligatoire).
-- Export mix WAV PCM 24 bits, FLAC 24 bits, MP3 livraison ; export de pistes / stems sélectionnés (dossier ou zip) et paquet projet portable.
+- **Export unifié** : mix WAV PCM 24 bits, FLAC 24 bits, MP3 livraison (profondeur de bits ou débit selon le format) ; export de pistes / stems sélectionnés (dossier ou zip) et paquet projet portable.
 
 ### Versions & collaboration opt-in
 
-- Historique des prises `gen-*`, comparateur multi-candidats, graphe léger de versions, historique des séparations.
+- Historique lisible des **prises** (noms, dates, pastilles Musique / Partition / Mix, filiation en mots) — les identifiants `gen-*` restent dans Détails. Comparateur multi-candidats, restauration réversible, événements de séparation (« Revenir à la séparation précédente »).
 - Invariants de partition avant régénération (`@song-maker/partition-invariants`).
 - **Worker GPU distant** : client + serveur de référence HTTP, **désactivé par défaut** (local-first, consentement + rétention). Voir [`docs/remote-worker-contract.md`](docs/remote-worker-contract.md).
 - **Akasha / DeclUI** : découverte HTTP réelle (`GET /v1/host/discover`) si opt-in + hôte joignable ; sinon clairement `unavailable` — pas de faux mode connecté, pas d’hôte DeclUI embarqué.
@@ -76,8 +78,9 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Plugins **VST3** / AU | Différés (étude : [`docs/vst3-host-feasibility.md`](docs/vst3-host-feasibility.md)) — FX natifs uniquement |
 | **UniverSR** / upscaling audio | Hors périmètre |
 | Runtime Python YuE2 officiel | Non installé, pas un repli |
-| SheetSage2 / BS-RoFormer / LoRA packs | Opt-in, hors installeur minimal |
+| SheetSage2 / BS-RoFormer / Mel-Band RoFormer / LoRA packs | Opt-in, hors installeur minimal |
 | HTDemucs 6 stems (guitare/piano) | Opt-in expérimental ; fuites possibles |
+| Transcription audio → MIDI produit / MIDI matériel | Non livré en UI (essai interne BasicPitch ONNX documenté sous [`docs/basicpitch-trial/`](docs/basicpitch-trial/REPORT.md) — pas un bouton produit) |
 | Worker distant / Akasha | Opt-in ; sans hôte = indisponible, pas un stub trompeur |
 | Entraînement LoRA NAR | Pilote (format / chargement) — pas un entraînement YuE2 officiel complet |
 | Capture basse latence | Chemin WebView (pas ASIO / WASAPI exclusif) |
@@ -90,6 +93,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 - Tauri 2 + React + TypeScript + Vite ; UI française (`src/ui/fr.json`)
 - Serveur local `audiocpp_server` (audio.cpp **v0.8.2** épinglé)
 - Monorepo `packages/*` + app `src/` / `src-tauri/`
+- Code applicatif sous [Apache-2.0](LICENSE) ; notices tierces dans [`NOTICE`](NOTICE)
 
 ## Développement
 
@@ -145,7 +149,7 @@ Load test CUDA (GPU NVIDIA requis) : `./load-test-cuda.sh` (Windows : `.cmd`). S
 |---|---|
 | [`@song-maker/score-engine`](packages/score-engine) | ScoreDocument, MIDI, ABC YuE2, clips, candidats, `stop_after` / `semantic_prefix` — branché UI |
 | [`@song-maker/sheetsage`](packages/sheetsage) | SheetSage2 readiness + transcription (runner Tauri live) — opt-in |
-| [`@song-maker/stem-providers`](packages/stem-providers) | HTDemucs / 6-stems / BS-RoFormer |
+| [`@song-maker/stem-providers`](packages/stem-providers) | HTDemucs / 6-stems / BS-RoFormer / Mel-Band RoFormer, reco + licences |
 | [`@song-maker/mix-production`](packages/mix-production) | Automation, FX, buses, bake offline, stems alignés — DSP réel |
 | [`@song-maker/lora-packs`](packages/lora-packs) | Registre LoRA + catalogue styles, porte CC BY-NC — opt-in |
 | [`@song-maker/lora-training`](packages/lora-training) | Pilote entraînement NAR local |
