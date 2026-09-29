@@ -168,7 +168,13 @@ export function AbcStaffView({
       const renderStart = performance.now();
       const tunes = abcjs.renderAbc(paper, trimmed, {
         add_classes: true,
-        responsive: "resize",
+        // `responsive` est volontairement absent : sa valeur par défaut est
+        // "off". Avec "resize", abcjs installe un écouteur de redimensionnement
+        // qui recompose la portée, et neutralise `scale` — le zoom des boutons
+        // ne/agissait donc pas. La composition JS est rapide (27 ms) ; le gel
+        // restant venait de la mise en page du SVG par le navigateur, que ni
+        // traceTiming ni <Profiler> ne mesurent. Le conteneur `.abc-staff-scroll`
+        // défile déjà horizontalement, la largeur fixe ne perd rien.
         scale,
         paddingtop: 8,
         paddingbottom: 8,
@@ -193,6 +199,18 @@ export function AbcStaffView({
       });
 
       const tune = tunes[0];
+      // La composition est du JS, mais le cout real est dans la mise en page du
+      // SVG par le navigateur, qui n'a lieu qu'a la peinture. Lire une
+      // propriete de geometrie force ce calcul et le rend mesurable ; ni
+      // traceTiming ni <Profiler> ne le voient, car il sort de React.
+      const layoutStart = performance.now();
+      const nodeCount = paper.getElementsByTagName("*").length;
+      const paperWidth = paper.offsetWidth;
+      traceTiming("layout SVG", layoutStart, {
+        nodes: nodeCount,
+        paperWidth,
+        height: paper.offsetHeight,
+      });
       traceTiming("abcjs.renderAbc", renderStart, {
         bars: windowBars,
         windowStart,
