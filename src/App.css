@@ -480,6 +480,17 @@ option {
   min-width: 0;
 }
 
+@media (min-width: 901px) {
+  .song-layout:has(.song-create-panel) {
+    height: 100%;
+  }
+
+  .song-layout:has(.song-create-panel) .song-workspace-body {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
 .song-layout-production .song-workspace-chrome {
   gap: 0.45rem;
   padding-bottom: 0.55rem;
@@ -938,6 +949,17 @@ option {
   max-width: none;
 }
 
+.song-workspace-panel.song-create-panel {
+  max-width: 75rem; /* ~1200px — lignes lisibles (#131) */
+}
+
+@media (min-width: 901px) {
+  .song-workspace-panel.song-create-panel {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
 .song-workspace-heading h2 {
   margin: 0;
   font-family: var(--font-display);
@@ -958,6 +980,17 @@ option {
   gap: 0.75rem;
   background: transparent;
   max-width: 40rem;
+}
+
+.song-form.song-create-form {
+  max-width: none;
+}
+
+@media (min-width: 901px) {
+  .song-form.song-create-form {
+    flex: 1;
+    min-height: 0;
+  }
 }
 
 .song-form label {
@@ -2078,6 +2111,100 @@ details[open] > summary {
 .song-primary-settings {
   display: grid;
   gap: 0.9rem;
+}
+
+/* Onglet Créer — deux colonnes (#131) */
+.song-create-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem 1.5rem;
+  align-items: start;
+}
+
+.song-create-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.song-create-main .form-field-lyrics textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.song-create-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.song-create-side-body {
+  display: grid;
+  gap: 0.85rem;
+  align-content: start;
+}
+
+.song-create-generate .song-actions-primary {
+  width: 100%;
+}
+
+.song-create-generate-btn {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.song-create-form .form-field input,
+.song-create-form .form-field textarea,
+.song-create-form .form-advanced-entry,
+.song-create-form .instrumental-choice {
+  min-height: 44px;
+}
+
+.song-create-form .form-field textarea {
+  min-height: 5.5rem;
+}
+
+.song-create-form .form-field-lyrics textarea {
+  min-height: 8rem;
+}
+
+@media (min-width: 901px) {
+  .song-create-layout {
+    flex: 1;
+    grid-template-columns: minmax(0, 1.45fr) minmax(17rem, 0.9fr);
+    align-items: stretch;
+    min-height: 0;
+  }
+
+  .song-create-main {
+    min-height: 0;
+  }
+
+  .song-create-main .form-field-lyrics {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .song-create-main .form-field-lyrics textarea {
+    flex: 1;
+    min-height: 10rem;
+  }
+
+  .song-create-form .form-field-lyrics textarea {
+    min-height: 10rem;
+  }
+
+  .song-create-side {
+    min-height: 0;
+  }
+
+  .song-create-generate {
+    margin-top: auto;
+  }
 }
 
 .form-advanced-entry,
