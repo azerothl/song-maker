@@ -2,11 +2,11 @@ import type { Dispatch, SetStateAction } from "react";
 import { ClipTimeline } from "../../components/ClipTimeline";
 import { ExportWizard } from "../../components/ExportWizard";
 import { MixAssistPanel } from "../../components/MixAssistPanel";
+import { MixKnob } from "../../components/MixKnob";
 import { Phase3MixPanel } from "../../components/Phase3MixPanel";
 import { ProductionAssistPanel } from "../../components/ProductionAssistPanel";
 import { RecordTrackPanel } from "../../components/RecordTrackPanel";
 import { Waveform } from "../../components/Waveform";
-import { api } from "../../lib/api";
 import { t } from "../../ui/i18n";
 import type { FormInput, MixDoc, PlaybackSources, ProjectDoc, SeparationInfo } from "../../lib/types";
 import type { ScoreGate } from "../../lib/score";
@@ -14,14 +14,18 @@ import type { PlaybackView } from "../../components/AudioPlayer";
 import {
   formatGainDb,
   formatPan,
+  parseGainDb,
+  parsePan,
   PRODUCTION_VIEWS,
   productionViewIntro,
   productionViewLabel,
   warningLabel,
   workspaceIntro,
   workspaceTitle,
-  type ProductionView
+  type ProductionView,
 } from "./shared";
+
+type MixUpdateOpts = { persist?: boolean };
 
 /** Onglet Production : mixage, clips, séparation et outils. */
 type ProductionWorkspaceProps = {
@@ -30,6 +34,7 @@ type ProductionWorkspaceProps = {
   importingAudio: boolean;
   listeningMix: MixDoc | null;
   mix: MixDoc | null;
+  mixSavedAt: Date | null;
   onExport: (format: "wav" | "flac" | "mp3") => Promise<void>;
   onImportUserAudio: () => Promise<void>;
   onSeparate: () => Promise<void>;
@@ -40,12 +45,11 @@ type ProductionWorkspaceProps = {
   project: ProjectDoc;
   recordOpen: boolean;
   roleByTrack: Record<string, string>;
-  scheduleMixUpdate: (next: MixDoc | null) => void;
+  scheduleMixUpdate: (next: MixDoc | null, opts?: MixUpdateOpts) => void;
   scoreGate: ScoreGate;
   separationInfo: SeparationInfo | null;
   setBusy: Dispatch<SetStateAction<boolean>>;
   setError: (e: string | null) => void;
-  setMix: (mix: MixDoc | null) => void;
   setMixPreview: Dispatch<SetStateAction<MixDoc | null>>;
   setProductionView: Dispatch<SetStateAction<ProductionView>>;
   setRecordOpen: Dispatch<SetStateAction<boolean>>;
@@ -54,12 +58,30 @@ type ProductionWorkspaceProps = {
   sourceDurationMsByTrack: Record<string, number>;
 };
 
+function formatSavedClock(at: Date): string {
+  const h = at.getHours().toString().padStart(2, "0");
+  const m = at.getMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+function patchTrack(
+  mix: MixDoc,
+  trackId: string,
+  patch: Partial<MixDoc["tracks"][number]>,
+): MixDoc {
+  return {
+    ...mix,
+    tracks: mix.tracks.map((x) => (x.id === trackId ? { ...x, ...patch } : x)),
+  };
+}
+
 export function ProductionWorkspace({
   busy,
   form,
   importingAudio,
   listeningMix,
   mix,
+  mixSavedAt,
   onExport,
   onImportUserAudio,
   onSeparate,
@@ -75,7 +97,6 @@ export function ProductionWorkspace({
   separationInfo,
   setBusy,
   setError,
-  setMix,
   setMixPreview,
   setProductionView,
   setRecordOpen,
@@ -85,12 +106,12 @@ export function ProductionWorkspace({
 }: ProductionWorkspaceProps) {
   return (
     <section
-      className="song-workspace-panel wide"
+      className="song-workspace-panel wide production-workspace"
       role="tabpanel"
       id="song-panel-production"
       aria-labelledby="song-tab-production"
     >
-      <header className="song-workspace-heading">
+      <header className="song-workspace-heading production-heading-compact">
         <h2>{workspaceTitle("production")}</h2>
         <p className="hint">{workspaceIntro("production")}</p>
       </header>
@@ -117,84 +138,87 @@ export function ProductionWorkspace({
         ))}
       </nav>
 
-      <p className="hint song-subview-intro">
+      <p className="hint song-subview-intro production-subview-intro">
         {productionViewIntro(productionView)}
       </p>
 
-      <div className="production-global-actions">
-        <div className="song-actions">
-          <div className="btn-row song-actions-primary">
-            <button
-              type="button"
-              className="btn primary"
-              disabled={!project.activeGenerationId || busy}
-              onClick={() => void onSeparate()}
+      <details className="production-actions-drawer">
+        <summary>{t("mix.actions.toggle")}</summary>
+        <div className="production-global-actions">
+          <div className="song-actions">
+            <div className="btn-row song-actions-primary">
+              <button
+                type="button"
+                className="btn primary"
+                disabled={!project.activeGenerationId || busy}
+                onClick={() => void onSeparate()}
+              >
+                {t("separate.button")}
+              </button>
+            </div>
+            <div
+              className="btn-row song-actions-export"
+              role="group"
+              aria-label={t("export.group")}
             >
-              {t("separate.button")}
-            </button>
+              <span className="song-actions-label">{t("export.group")}</span>
+              <button
+                type="button"
+                className="btn"
+                disabled={!project.activeGenerationId || busy}
+                onClick={() => void onExport("wav")}
+              >
+                {t("export.wav")}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={!project.activeGenerationId || busy}
+                onClick={() => void onExport("flac")}
+              >
+                {t("export.flac")}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={!project.activeGenerationId || busy}
+                onClick={() => void onExport("mp3")}
+              >
+                {t("export.mp3")}
+              </button>
+            </div>
           </div>
-          <div
-            className="btn-row song-actions-export"
-            role="group"
-            aria-label={t("export.group")}
-          >
-            <span className="song-actions-label">{t("export.group")}</span>
+
+          <div className="mix-user-actions">
             <button
               type="button"
               className="btn"
-              disabled={!project.activeGenerationId || busy}
-              onClick={() => void onExport("wav")}
+              disabled={busy || importingAudio}
+              onClick={() => void onImportUserAudio()}
             >
-              {t("export.wav")}
+              {importingAudio ? t("mix.importing") : t("mix.importAudio")}
             </button>
             <button
               type="button"
               className="btn"
-              disabled={!project.activeGenerationId || busy}
-              onClick={() => void onExport("flac")}
+              disabled={busy}
+              onClick={() => setRecordOpen((v) => !v)}
+              aria-expanded={recordOpen}
             >
-              {t("export.flac")}
+              {t("mix.recordAudio")}
             </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={!project.activeGenerationId || busy}
-              onClick={() => void onExport("mp3")}
-            >
-              {t("export.mp3")}
-            </button>
+            <p className="hint">{t("mix.importHint")}</p>
           </div>
-        </div>
 
-        <div className="mix-user-actions">
-          <button
-            type="button"
-            className="btn"
-            disabled={busy || importingAudio}
-            onClick={() => void onImportUserAudio()}
-          >
-            {importingAudio ? t("mix.importing") : t("mix.importAudio")}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={busy}
-            onClick={() => setRecordOpen((v) => !v)}
-            aria-expanded={recordOpen}
-          >
-            {t("mix.recordAudio")}
-          </button>
-          <p className="hint">{t("mix.importHint")}</p>
+          <RecordTrackPanel
+            projectId={project.id}
+            open={recordOpen}
+            onClose={() => setRecordOpen(false)}
+            onTrackAdded={(m) => void onUserTrackAdded(m)}
+            onError={setError}
+          />
         </div>
-
-        <RecordTrackPanel
-          projectId={project.id}
-          open={recordOpen}
-          onClose={() => setRecordOpen(false)}
-          onTrackAdded={(m) => void onUserTrackAdded(m)}
-          onError={setError}
-        />
-      </div>
+      </details>
 
       <div
         id="production-panel-mix"
@@ -203,7 +227,7 @@ export function ProductionWorkspace({
         hidden={productionView !== "mix"}
       >
         {mix ? (
-          <div className="mixer">
+          <div className="mixer mixer-compact">
             {separationInfo && separationInfo.warnings.length > 0 && (
               <aside
                 className="banner warn separation-warn"
@@ -220,176 +244,211 @@ export function ProductionWorkspace({
                 </div>
               </aside>
             )}
-            {showProductionCopilot && (
-              <ProductionAssistPanel
-                mix={mix}
-                sources={playbackSources}
-                scoreIssues={scoreGate.issues}
-                listeningMix={listeningMix ?? mix}
-                onCommitMix={scheduleMixUpdate}
-                onPreviewMix={setMixPreview}
-                onSaveMixVersion={() =>
-                  api
-                    .saveMixVersion(project.id)
-                    .then((m) => setMix(m))
-                }
-              />
-            )}
-            {showMixAssist && (
-              <MixAssistPanel
-                mix={mix}
-                sources={playbackSources}
-                listeningMix={listeningMix ?? mix}
-                onCommitMix={scheduleMixUpdate}
-                onPreviewMix={setMixPreview}
-              />
-            )}
-            <label className="master">
-              {t("mix.master")}
-              <input
-                type="range"
+
+            <div className="mix-toolbar-row">
+              {showMixAssist && (
+                <details className="mix-assist-drawer">
+                  <summary>{t("mix.assist.drawer")}</summary>
+                  <MixAssistPanel
+                    mix={mix}
+                    sources={playbackSources}
+                    listeningMix={listeningMix ?? mix}
+                    onCommitMix={(next) => scheduleMixUpdate(next)}
+                    onPreviewMix={setMixPreview}
+                  />
+                </details>
+              )}
+              {showProductionCopilot && (
+                <details className="mix-assist-drawer mix-copilot-drawer">
+                  <summary>{t("copilot.title")}</summary>
+                  <ProductionAssistPanel
+                    mix={mix}
+                    sources={playbackSources}
+                    scoreIssues={scoreGate.issues}
+                    listeningMix={listeningMix ?? mix}
+                    onCommitMix={(next) => scheduleMixUpdate(next)}
+                    onPreviewMix={setMixPreview}
+                  />
+                </details>
+              )}
+              <p className="mix-autosave" aria-live="polite">
+                {mixSavedAt
+                  ? t("mix.savedAt", { time: formatSavedClock(mixSavedAt) })
+                  : "\u00a0"}
+              </p>
+            </div>
+
+            <div
+              className="mix-master-banner"
+              aria-label={t("mix.masterBanner")}
+            >
+              <div className="mix-master-wave">
+                <Waveform
+                  peaks={playback?.mixPeaks ?? null}
+                  progress={playback?.current ?? 0}
+                  duration={playback?.duration ?? 0}
+                  height={36}
+                  status={
+                    !playback || playback.loading || !playback.ready
+                      ? "loading"
+                      : playback.mixPeaks && playback.mixPeaks.length > 0
+                        ? "ready"
+                        : "empty"
+                  }
+                  ariaLabel={t("mix.master")}
+                  onSeek={playback?.seek}
+                />
+              </div>
+              <button
+                type="button"
+                className="btn mix-master-play"
+                disabled={!playback?.ready || playback.loading}
+                onClick={() => void playback?.toggle().catch((e) => setError(String(e)))}
+              >
+                {playback?.loading
+                  ? "…"
+                  : playback?.playing
+                    ? t("player.pause")
+                    : t("player.play")}
+              </button>
+              <MixKnob
+                className="mix-master-knob"
+                value={mix.masterGainDb}
                 min={-24}
                 max={12}
                 step={0.5}
-                value={mix.masterGainDb}
-                onChange={(e) =>
-                  scheduleMixUpdate({
-                    ...mix,
-                    masterGainDb: Number(e.target.value),
-                  })
+                defaultValue={0}
+                ariaLabel={t("mix.master")}
+                valueText={formatGainDb(mix.masterGainDb)}
+                displayValue={formatGainDb(mix.masterGainDb)}
+                parseDisplay={parseGainDb}
+                onChange={(gainDb) =>
+                  scheduleMixUpdate({ ...mix, masterGainDb: gainDb }, { persist: false })
+                }
+                onCommit={(gainDb) =>
+                  scheduleMixUpdate({ ...mix, masterGainDb: gainDb })
                 }
               />
-              <span className="mix-value">
-                {formatGainDb(mix.masterGainDb)}
-              </span>
-            </label>
-            {mix.tracks.map((tr) => {
-              const anySolo = mix.tracks.some((x) => x.solo);
-              const muted = tr.mute || (anySolo && !tr.solo);
-              const peaks = playback?.peaksByTrack[tr.id] ?? null;
-              const waveStatus =
-                !playback || playback.loading || !playback.ready
-                  ? "loading"
-                  : peaks && peaks.length > 0
-                    ? "ready"
-                    : "empty";
-              return (
-                <div
-                  key={tr.id}
-                  className="track"
-                  data-role={tr.role.toLowerCase()}
-                >
-                  <strong className="track-name">{tr.name}</strong>
-                  <button
-                    type="button"
-                    className={tr.mute ? "btn active" : "btn"}
-                    onClick={() =>
-                      scheduleMixUpdate({
-                        ...mix,
-                        tracks: mix.tracks.map((x) =>
-                          x.id === tr.id ? { ...x, mute: !x.mute } : x,
-                        ),
-                      })
-                    }
+            </div>
+
+            <div className="mixer-tracks">
+              {mix.tracks.map((tr) => {
+                const anySolo = mix.tracks.some((x) => x.solo);
+                const muted = tr.mute || (anySolo && !tr.solo);
+                const peaks = playback?.peaksByTrack[tr.id] ?? null;
+                const waveStatus =
+                  !playback || playback.loading || !playback.ready
+                    ? "loading"
+                    : peaks && peaks.length > 0
+                      ? "ready"
+                      : "empty";
+                return (
+                  <div
+                    key={tr.id}
+                    className="track"
+                    data-role={tr.role.toLowerCase()}
                   >
-                    {t("mix.mute")}
-                  </button>
-                  <button
-                    type="button"
-                    className={tr.solo ? "btn active" : "btn"}
-                    onClick={() =>
-                      scheduleMixUpdate({
-                        ...mix,
-                        tracks: mix.tracks.map((x) =>
-                          x.id === tr.id ? { ...x, solo: !x.solo } : x,
-                        ),
-                      })
-                    }
-                  >
-                    {t("mix.solo")}
-                  </button>
-                  <div className="track-wave">
-                    <Waveform
-                      peaks={peaks}
-                      progress={playback?.current ?? 0}
-                      duration={playback?.duration ?? 0}
-                      height={40}
-                      muted={muted}
-                      status={waveStatus}
-                      role={tr.role}
-                      ariaLabel={tr.name}
-                      onSeek={playback?.seek}
-                    />
-                  </div>
-                  <label className="track-gain">
-                    <span className="track-fader-label">
-                      <span>{t("mix.gain")}</span>
-                      <span className="mix-value" aria-hidden>
-                        {formatGainDb(tr.gainDb)}
-                      </span>
-                    </span>
-                    <input
-                      type="range"
+                    <strong className="track-name">{tr.name}</strong>
+                    <div className="track-ms" role="group" aria-label={tr.name}>
+                      <button
+                        type="button"
+                        className={
+                          tr.mute ? "btn track-ms-btn active pressed" : "btn track-ms-btn"
+                        }
+                        aria-pressed={tr.mute}
+                        aria-label={t("mix.muteNamed", { track: tr.name })}
+                        onClick={() =>
+                          scheduleMixUpdate(patchTrack(mix, tr.id, { mute: !tr.mute }))
+                        }
+                      >
+                        <span className="track-ms-glyph" aria-hidden>
+                          {t("mix.mute")}
+                        </span>
+                        {tr.mute && (
+                          <span className="track-ms-state" aria-hidden>
+                            ●
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className={
+                          tr.solo ? "btn track-ms-btn active pressed" : "btn track-ms-btn"
+                        }
+                        aria-pressed={tr.solo}
+                        aria-label={t("mix.soloNamed", { track: tr.name })}
+                        onClick={() =>
+                          scheduleMixUpdate(patchTrack(mix, tr.id, { solo: !tr.solo }))
+                        }
+                      >
+                        <span className="track-ms-glyph" aria-hidden>
+                          {t("mix.solo")}
+                        </span>
+                        {tr.solo && (
+                          <span className="track-ms-state" aria-hidden>
+                            ●
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                    <MixKnob
+                      className="track-gain-knob"
+                      value={tr.gainDb}
                       min={-24}
                       max={12}
                       step={0.5}
-                      value={tr.gainDb}
-                      aria-label={t("mix.gainNamed", { track: tr.name })}
-                      aria-valuetext={formatGainDb(tr.gainDb)}
-                      onChange={(e) =>
-                        scheduleMixUpdate({
-                          ...mix,
-                          tracks: mix.tracks.map((x) =>
-                            x.id === tr.id
-                              ? { ...x, gainDb: Number(e.target.value) }
-                              : x,
-                          ),
+                      defaultValue={0}
+                      ariaLabel={t("mix.gainNamed", { track: tr.name })}
+                      valueText={formatGainDb(tr.gainDb)}
+                      displayValue={formatGainDb(tr.gainDb)}
+                      parseDisplay={parseGainDb}
+                      onChange={(gainDb) =>
+                        scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }), {
+                          persist: false,
                         })
                       }
+                      onCommit={(gainDb) =>
+                        scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }))
+                      }
                     />
-                  </label>
-                  <label className="track-pan">
-                    <span className="track-fader-label">
-                      <span>{t("mix.pan")}</span>
-                      <span className="mix-value" aria-hidden>
-                        {formatPan(tr.pan)}
-                      </span>
-                    </span>
-                    <input
-                      type="range"
+                    <MixKnob
+                      className="track-pan-knob"
+                      value={tr.pan}
                       min={-1}
                       max={1}
                       step={0.01}
-                      value={tr.pan}
-                      aria-label={t("mix.panNamed", { track: tr.name })}
-                      aria-valuetext={formatPan(tr.pan)}
-                      onChange={(e) =>
-                        scheduleMixUpdate({
-                          ...mix,
-                          tracks: mix.tracks.map((x) =>
-                            x.id === tr.id
-                              ? { ...x, pan: Number(e.target.value) }
-                              : x,
-                          ),
+                      fineStep={0.01}
+                      defaultValue={0}
+                      ariaLabel={t("mix.panNamed", { track: tr.name })}
+                      valueText={formatPan(tr.pan)}
+                      displayValue={formatPan(tr.pan)}
+                      parseDisplay={parsePan}
+                      onChange={(pan) =>
+                        scheduleMixUpdate(patchTrack(mix, tr.id, { pan }), {
+                          persist: false,
                         })
                       }
+                      onCommit={(pan) =>
+                        scheduleMixUpdate(patchTrack(mix, tr.id, { pan }))
+                      }
                     />
-                  </label>
-                </div>
-              );
-            })}
-            <button
-              type="button"
-              className="btn"
-              onClick={() =>
-                void api
-                  .saveMixVersion(project.id)
-                  .then((m) => setMix(m))
-                  .catch((e) => setError(String(e)))
-              }
-            >
-              {t("mix.saveVersion")}
-            </button>
+                    <div className="track-wave">
+                      <Waveform
+                        peaks={peaks}
+                        progress={playback?.current ?? 0}
+                        duration={playback?.duration ?? 0}
+                        height={32}
+                        muted={muted}
+                        status={waveStatus}
+                        role={tr.role}
+                        ariaLabel={tr.name}
+                        onSeek={playback?.seek}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ) : (
           <p className="hint">{t("mix.needSeparation")}</p>

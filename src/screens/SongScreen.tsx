@@ -69,6 +69,7 @@ export function SongScreen() {
   );
   const [importingAudio, setImportingAudio] = useState(false);
   const [mixPreview, setMixPreview] = useState<MixDoc | null>(null);
+  const [mixSavedAt, setMixSavedAt] = useState<Date | null>(null);
   const [recordOpen, setRecordOpen] = useState(false);
   const [regenGateOpen, setRegenGateOpen] = useState(false);
   const [regenAfterDocument, setRegenAfterDocument] =
@@ -513,11 +514,17 @@ export function SongScreen() {
     }
   }
 
-  function scheduleMixUpdate(next: MixDoc | null) {
+  function scheduleMixUpdate(
+    next: MixDoc | null,
+    opts?: { persist?: boolean },
+  ) {
     if (!project || !next) return;
+    const persist = opts?.persist !== false;
     setMixPreview(null);
     setMix(next);
     if (mixTimer.current) window.clearTimeout(mixTimer.current);
+    if (!persist) return;
+    // Persist on gesture end (caller skips persist during knob drag).
     mixTimer.current = window.setTimeout(() => {
       void api
         .updateMix(project.id, {
@@ -534,9 +541,12 @@ export function SongScreen() {
           timeSignatures: next.timeSignatures ?? [],
           markers: next.markers ?? [],
         })
-        .then((m) => setMix(m))
+        .then((m) => {
+          setMix(m);
+          setMixSavedAt(new Date());
+        })
         .catch((e) => setError(String(e)));
-    }, 200);
+    }, 50);
   }
 
   const listeningMix = mixPreview ?? mix;
@@ -548,7 +558,7 @@ export function SongScreen() {
   const showProductionCopilot = !!mix && mix.tracks.length > 0;
 
   return (
-    <div className="song-layout">
+    <div className={`song-layout${workspace === "production" ? " song-layout-production" : ""}`}>
       <header className="song-workspace-chrome">
         <div className="song-workspace-chrome-top">
           <div className="song-workspace-project">
@@ -655,11 +665,11 @@ export function SongScreen() {
             recordOpen={recordOpen}
             roleByTrack={roleByTrack}
             scheduleMixUpdate={scheduleMixUpdate}
+            mixSavedAt={mixSavedAt}
             scoreGate={scoreGate}
             separationInfo={separationInfo}
             setBusy={setBusy}
             setError={setError}
-            setMix={setMix}
             setMixPreview={setMixPreview}
             setProductionView={setProductionView}
             setRecordOpen={setRecordOpen}

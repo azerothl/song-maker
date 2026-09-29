@@ -73,27 +73,27 @@ function resolveDrawColors(
     const base = opts.color ?? roleWaveColor(opts.role);
     const playedBase = opts.playedColor ?? opts.color ?? roleWaveColor(opts.role);
     return {
-      unplayed: withAlpha(base, 0.32),
-      played: withAlpha(playedBase, 0.9),
+      unplayed: withAlpha(base, 0.48),
+      played: withAlpha(playedBase, 0.95),
     };
   }
   if (opts.role) {
     const base = roleWaveColor(opts.role);
     return {
-      unplayed: withAlpha(base, 0.32),
-      played: withAlpha(base, 0.9),
+      unplayed: withAlpha(base, 0.48),
+      played: withAlpha(base, 0.95),
     };
   }
   const css = readCssWaveColors(el);
   if (css.wave) {
     return {
-      unplayed: withAlpha(css.wave, 0.32),
-      played: withAlpha(css.played ?? css.wave, 0.9),
+      unplayed: withAlpha(css.wave, 0.48),
+      played: withAlpha(css.played ?? css.wave, 0.95),
     };
   }
   return {
-    unplayed: withAlpha(DEFAULT_WAVE_COLOR, 0.32),
-    played: withAlpha(DEFAULT_WAVE_PLAYED, 0.9),
+    unplayed: withAlpha(DEFAULT_WAVE_COLOR, 0.48),
+    played: withAlpha(DEFAULT_WAVE_PLAYED, 0.95),
   };
 }
 

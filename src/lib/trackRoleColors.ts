@@ -1,16 +1,17 @@
 /** Role → accent colors matching `.track[data-role]` border accents in App.css. */
 
+/** Brighter stem accents (#128) — AA on --bg0/#0c0e18. */
 export const TRACK_ROLE_COLORS: Record<string, string> = {
-  vocals: "#ff858d",
-  drums: "#69d9e8",
-  bass: "#8f71e8",
-  other: "#b49aff",
-  guitar: "#b49aff",
-  piano: "#8f71e8",
+  vocals: "#ff9aa3",
+  drums: "#5eecf8",
+  bass: "#a78bfa",
+  other: "#c4a8ff",
+  guitar: "#c4a8ff",
+  piano: "#a78bfa",
 };
 
-export const DEFAULT_WAVE_COLOR = "#b49aff";
-export const DEFAULT_WAVE_PLAYED = "#69d9e8";
+export const DEFAULT_WAVE_COLOR = "#c4a8ff";
+export const DEFAULT_WAVE_PLAYED = "#5eecf8";
 
 export function roleWaveColor(role: string | undefined | null): string {
   if (!role) return DEFAULT_WAVE_COLOR;
