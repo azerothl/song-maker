@@ -6,6 +6,7 @@ import {
   sliceAbcMeasures,
   splitAbcMeasures,
 } from "../lib/staffAbc";
+import { traceTiming } from "../lib/perfTrace";
 import { t } from "../ui/i18n";
 
 const SCALE_MIN = 0.6;
@@ -95,7 +96,14 @@ export function AbcStaffView({
   const [seekHint, setSeekHint] = useState<string | null>(null);
 
   const { totalBars, windowed, windowBars, barSeconds } = useMemo(() => {
+    const splitStart = performance.now();
     const split = splitAbcMeasures(deferredAbc);
+    traceTiming("splitAbcMeasures", splitStart, {
+      bars: split.barCount,
+      voices: split.blocks.length,
+      windowable: split.windowable,
+      abcChars: deferredAbc.length,
+    });
     if (split.barCount === 0) {
       return { totalBars: 0, windowed: false, windowBars: 0, barSeconds: null };
     }
@@ -157,6 +165,7 @@ export function AbcStaffView({
     }
 
     try {
+      const renderStart = performance.now();
       const tunes = abcjs.renderAbc(paper, trimmed, {
         add_classes: true,
         responsive: "resize",
@@ -184,6 +193,15 @@ export function AbcStaffView({
       });
 
       const tune = tunes[0];
+      traceTiming("abcjs.renderAbc", renderStart, {
+        bars: windowBars,
+        windowStart,
+        totalBars,
+        windowed,
+        abcChars: trimmed.length,
+        compact,
+        scale,
+      });
       if (!tune) {
         setRenderError(t("score.staff.renderFailed"));
         return;

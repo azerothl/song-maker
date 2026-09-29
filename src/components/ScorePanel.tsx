@@ -19,6 +19,7 @@ import { PianoRoll } from "./PianoRoll";
 import { ScoreAssistantPanel } from "./ScoreAssistantPanel";
 import { ScoreBranchPanel } from "./ScoreBranchPanel";
 import { useAppStore } from "../store/appStore";
+import { traceTiming } from "../lib/perfTrace";
 import { t } from "../ui/i18n";
 
 type ScoreViewMode = "staff" | "piano" | "abc";
@@ -117,7 +118,15 @@ export function ScorePanel({
 
   const staffAbc = useMemo(() => {
     if (!document) return null;
-    return buildStaffAbc(document, title || undefined);
+    const startedAt = performance.now();
+    const result = buildStaffAbc(document, title || undefined);
+    traceTiming("buildStaffAbc", startedAt, {
+      voices: document.voices.length,
+      notes: document.voices.reduce((a, v) => a + v.notes.length, 0),
+      ok: result.ok,
+      abcChars: result.ok ? result.abc.length : 0,
+    });
+    return result;
   }, [document, title]);
 
   async function persist(doc: ScoreDocument) {
