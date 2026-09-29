@@ -188,7 +188,12 @@ export function ExportDialog({
         {opts.mode === "mix" && (
           <fieldset disabled={busy} data-testid="export-format-family">
             <legend>{t("export.stems.format")}</legend>
+            <label id="export-format-label" htmlFor="export-format-select">
+              {t("export.dialog.formatLabel")}
+            </label>
             <select
+              id="export-format-select"
+              aria-labelledby="export-format-label"
               value={opts.format}
               data-testid="export-format"
               onChange={(e) =>
@@ -308,10 +313,27 @@ export function ExportDialog({
               (opts.mode === "stems" &&
                 (selected.length === 0 || aiTracks.length === 0))
             }
+            aria-disabled={
+              busy ||
+              (opts.mode === "stems" &&
+                (selected.length === 0 || aiTracks.length === 0))
+            }
+            aria-describedby={
+              opts.mode === "stems" &&
+              (selected.length === 0 || aiTracks.length === 0)
+                ? "export-download-disabled-reason"
+                : undefined
+            }
             onClick={() => void onExport()}
           >
             {t("export.tracks.run")}
           </button>
+          {opts.mode === "stems" &&
+            (selected.length === 0 || aiTracks.length === 0) && (
+              <p id="export-download-disabled-reason" className="hint" role="note">
+                {t("export.dialog.downloadDisabled")}
+              </p>
+            )}
         </div>
       </AnchoredPopin>
     </>

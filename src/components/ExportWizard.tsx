@@ -20,7 +20,8 @@ type Props = {
 };
 
 /**
- * Stem batch export + portable package wizard (#99).
+ * Export avancé : stems alignés (timeline production) et paquet portable (#99).
+ * L’export mix / pistes IA du quotidien passe par `ExportDialog` (#168).
  */
 export function ExportWizard({
   project,

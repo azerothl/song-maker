@@ -2,8 +2,8 @@ use super::separation::read_separation_info;
 use super::{push_undo, AppState};
 use crate::library::{load_project, project_folder, save_project};
 use crate::mix::{
-    downsample_wav_bit_depth, export_flac_with_bit_depth, export_mp3_with_bitrate, render_mix,
-    write_export_json_with_warnings, write_interleaved_f32_wav,
+    downsample_wav_bit_depth, export_flac_with_bit_depth, export_mp3_with_bitrate, package_export_delivery,
+    render_mix, write_export_json_with_warnings, write_interleaved_f32_wav,
 };
 use crate::models::*;
 use crate::paths::{
@@ -375,22 +375,54 @@ pub fn export_audio(id: String, req: ExportRequest) -> Result<String, String> {
         wav_out
     };
 
-    if let Some(dest) = req.destination {
-        std::fs::copy(&final_path, &dest).map_err(|e| e.to_string())?;
-    }
     let warnings = read_separation_info(&folder, &doc)
         .map(|info| info.warnings)
         .unwrap_or_default();
+    let output_bit_depth = if format == "mp3" {
+        BIT_DEPTH
+    } else if bit_depth == 16 {
+        16
+    } else {
+        BIT_DEPTH
+    };
+    let json_path = exports.join(format!("export-{stamp}.json"));
     write_export_json_with_warnings(
-        &exports.join(format!("export-{stamp}.json")),
+        &json_path,
         &format,
         &final_path,
         peak_trim,
         Some("rust-10.5"),
         Some("approximate"),
         &warnings,
+        output_bit_depth,
     )?;
-    Ok(final_path.display().to_string())
+    let pack = req.pack.as_deref().unwrap_or("folder").to_lowercase();
+    if pack != "folder" && pack != "zip" {
+        return Err("pack : folder ou zip.".into());
+    }
+    let bundle_dir = exports.join(format!("export-{stamp}-livraison"));
+    let zip_path = exports.join(format!("export-{stamp}.zip"));
+    let delivered = package_export_delivery(
+        &pack,
+        &bundle_dir,
+        &zip_path,
+        &final_path,
+        &json_path,
+    )?;
+    if let Some(dest) = req.destination {
+        let dest = PathBuf::from(dest);
+        if pack == "zip" {
+            std::fs::copy(&delivered, &dest).map_err(|e| e.to_string())?;
+        } else {
+            crate::paths::ensure_dir(&dest).map_err(|e| e.to_string())?;
+            for entry in std::fs::read_dir(&delivered).map_err(|e| e.to_string())? {
+                let entry = entry.map_err(|e| e.to_string())?;
+                let name = entry.file_name();
+                std::fs::copy(entry.path(), dest.join(name)).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+    Ok(delivered.display().to_string())
 }
 
 /// Export a float32 mix baked by `@song-maker/mix-production` (same bake as Web Audio).
@@ -462,9 +494,6 @@ pub fn export_pcm_audio(id: String, req: ExportPcmRequest) -> Result<String, Str
         renamed
     };
 
-    if let Some(dest) = req.destination {
-        std::fs::copy(&final_path, &dest).map_err(|e| e.to_string())?;
-    }
     let render_path = if req.render_path.is_empty() {
         "mix-production-ts"
     } else {
@@ -478,16 +507,51 @@ pub fn export_pcm_audio(id: String, req: ExportPcmRequest) -> Result<String, Str
     let warnings = read_separation_info(&folder, &doc)
         .map(|info| info.warnings)
         .unwrap_or_default();
+    let output_bit_depth = if format == "mp3" {
+        BIT_DEPTH
+    } else if bit_depth == 16 {
+        16
+    } else {
+        BIT_DEPTH
+    };
+    let json_path = exports.join(format!("{safe_stem}.json"));
     write_export_json_with_warnings(
-        &exports.join(format!("{safe_stem}.json")),
+        &json_path,
         &format,
         &final_path,
         req.peak_trim_db,
         Some(render_path),
         Some(match_mode),
         &warnings,
+        output_bit_depth,
     )?;
-    Ok(final_path.display().to_string())
+    let pack = req.pack.as_deref().unwrap_or("folder").to_lowercase();
+    if pack != "folder" && pack != "zip" {
+        return Err("pack : folder ou zip.".into());
+    }
+    let bundle_dir = exports.join(format!("{safe_stem}-livraison"));
+    let zip_path = exports.join(format!("{safe_stem}.zip"));
+    let delivered = package_export_delivery(
+        &pack,
+        &bundle_dir,
+        &zip_path,
+        &final_path,
+        &json_path,
+    )?;
+    if let Some(dest) = req.destination {
+        let dest = PathBuf::from(dest);
+        if pack == "zip" {
+            std::fs::copy(&delivered, &dest).map_err(|e| e.to_string())?;
+        } else {
+            crate::paths::ensure_dir(&dest).map_err(|e| e.to_string())?;
+            for entry in std::fs::read_dir(&delivered).map_err(|e| e.to_string())? {
+                let entry = entry.map_err(|e| e.to_string())?;
+                let name = entry.file_name();
+                std::fs::copy(entry.path(), dest.join(name)).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+    Ok(delivered.display().to_string())
 }
 
 #[tauri::command]

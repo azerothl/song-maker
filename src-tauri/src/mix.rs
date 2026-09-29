@@ -454,26 +454,49 @@ pub fn render_mix(mix: &MixDoc, project_root: &Path, out_wav: &Path) -> Result<f
     Ok(peak_trim_db)
 }
 
+/// TPDF (triangular) dither for 16-bit delivery exports (#168).
+pub const EXPORT_16BIT_DITHER_AF: &str = "aresample=resampler=soxr:dither_method=triangular";
+
 pub fn export_flac_with_bit_depth(
     wav_path: &Path,
     flac_path: &Path,
     bit_depth: u16,
 ) -> Result<(), String> {
-    let sample_fmt = if bit_depth == 16 { "s16" } else { "s32" };
-    crate::resample::run_ffmpeg(&[
-        "-y",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-i",
-        &wav_path.display().to_string(),
-        "-c:a",
-        "flac",
-        "-sample_fmt",
-        sample_fmt,
-        &flac_path.display().to_string(),
-    ])
-    .map_err(|e| format!("Export FLAC échoué ({e})."))
+    let input = wav_path.display().to_string();
+    let output = flac_path.display().to_string();
+    if bit_depth == 16 {
+        crate::resample::run_ffmpeg(&[
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            &input,
+            "-af",
+            EXPORT_16BIT_DITHER_AF,
+            "-sample_fmt",
+            "s16",
+            "-c:a",
+            "flac",
+            &output,
+        ])
+        .map_err(|e| format!("Export FLAC échoué ({e})."))
+    } else {
+        crate::resample::run_ffmpeg(&[
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            &input,
+            "-c:a",
+            "flac",
+            "-sample_fmt",
+            "s32",
+            &output,
+        ])
+        .map_err(|e| format!("Export FLAC échoué ({e})."))
+    }
 }
 
 /// Conversion de livraison MP3 (bitrate CBR configurable) à partir du WAV primaire.
@@ -521,11 +544,51 @@ pub fn downsample_wav_bit_depth(src: &Path, dest: &Path, bit_depth: u16) -> Resu
         "error",
         "-i",
         &src.display().to_string(),
+        "-af",
+        EXPORT_16BIT_DITHER_AF,
         "-c:a",
         "pcm_s16le",
         &dest.display().to_string(),
     ])
     .map_err(|e| format!("Conversion 16 bits échouée ({e})."))
+}
+
+/// Regroupe le fichier audio livré + JSON dans un dossier ou une archive ZIP (#168).
+pub fn package_export_delivery(
+    pack: &str,
+    bundle_dir: &Path,
+    zip_path: &Path,
+    audio: &Path,
+    metadata_json: &Path,
+) -> Result<PathBuf, String> {
+    use std::io::Write;
+    if pack == "zip" {
+        let file = std::fs::File::create(zip_path).map_err(|e| e.to_string())?;
+        let mut zip = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        for src in [audio, metadata_json] {
+            let name = src
+                .file_name()
+                .and_then(|n| n.to_str())
+                .ok_or_else(|| format!("Nom de fichier invalide : {}", src.display()))?;
+            zip.start_file(name, options).map_err(|e| e.to_string())?;
+            let bytes = std::fs::read(src).map_err(|e| e.to_string())?;
+            zip.write_all(&bytes).map_err(|e| e.to_string())?;
+        }
+        zip.finish().map_err(|e| e.to_string())?;
+        Ok(zip_path.to_path_buf())
+    } else {
+        crate::paths::ensure_dir(bundle_dir).map_err(|e| e.to_string())?;
+        for src in [audio, metadata_json] {
+            let name = src
+                .file_name()
+                .and_then(|n| n.to_str())
+                .ok_or_else(|| format!("Nom de fichier invalide : {}", src.display()))?;
+            std::fs::copy(src, bundle_dir.join(name)).map_err(|e| e.to_string())?;
+        }
+        Ok(bundle_dir.to_path_buf())
+    }
 }
 
 pub fn write_export_json_with_warnings(
@@ -536,12 +599,13 @@ pub fn write_export_json_with_warnings(
     render_path: Option<&str>,
     match_mode: Option<&str>,
     warnings: &[String],
+    output_bit_depth: u16,
 ) -> Result<(), String> {
     let sha = sha256_file(audio_path)?;
     let bit_depth = if format == "mp3" {
         serde_json::Value::Null
     } else {
-        serde_json::json!(BIT_DEPTH)
+        serde_json::json!(output_bit_depth)
     };
     let mut doc = serde_json::json!({
         "schema": "songmaker.export",
@@ -678,5 +742,54 @@ mod tests {
         append_user_audio_track(&mut mix, "b.wav", "2", 100, "Custom");
         assert_eq!(mix.tracks[0].name, "Custom");
         assert_eq!(mix.tracks[1].name, "Custom (2)");
+    }
+
+    #[test]
+    fn sixteen_bit_export_uses_tpdf_dither_not_plain_round() {
+        let root =
+            std::env::temp_dir().join(format!("song-maker-dither-{}", uuid::Uuid::new_v4()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let src = root.join("src.wav");
+        {
+            let spec = hound::WavSpec {
+                channels: 1,
+                sample_rate: 48_000,
+                bits_per_sample: 32,
+                sample_format: hound::SampleFormat::Float,
+            };
+            let mut writer = hound::WavWriter::create(&src, spec).unwrap();
+            for _ in 0..4096 {
+                writer.write_sample(1.0e-7f32).unwrap();
+            }
+            writer.finalize().unwrap();
+        }
+        let dithered = root.join("dither.wav");
+        downsample_wav_bit_depth(&src, &dithered, 16).unwrap();
+        let plain = root.join("plain.wav");
+        crate::resample::run_ffmpeg(&[
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            &src.display().to_string(),
+            "-c:a",
+            "pcm_s16le",
+            &plain.display().to_string(),
+        ])
+        .unwrap();
+        assert_ne!(
+            std::fs::read(&dithered).unwrap(),
+            std::fs::read(&plain).unwrap(),
+            "le dithering TPDF doit modifier l’arrondi sur un signal très faible"
+        );
+        let passthrough = root.join("passthrough.wav");
+        downsample_wav_bit_depth(&src, &passthrough, 24).unwrap();
+        assert_eq!(
+            std::fs::metadata(&src).unwrap().len(),
+            std::fs::metadata(&passthrough).unwrap().len()
+        );
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
