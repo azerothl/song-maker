@@ -19,7 +19,10 @@ pub fn get_setup_gpu_info() -> crate::models::SetupGpuInfo {
 }
 
 #[tauri::command]
-pub fn get_install_plan(pack: String, mix_only: Option<bool>) -> Result<crate::models::InstallPlan, String> {
+pub fn get_install_plan(
+    pack: String,
+    mix_only: Option<bool>,
+) -> Result<crate::models::InstallPlan, String> {
     if mix_only.unwrap_or(false) {
         let settings = load_settings()?;
         let cache = PathBuf::from(&settings.cache_dir);
