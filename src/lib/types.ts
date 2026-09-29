@@ -186,6 +186,8 @@ export type SeparationVersionSummary = {
   mixId: string;
   createdAt: string;
   isActive: boolean;
+  /** Generation that was active when this separation ran (from job.json). */
+  generationId?: string | null;
 };
 
 export type AppSettings = {

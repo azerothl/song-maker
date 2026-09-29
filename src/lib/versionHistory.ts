@@ -25,8 +25,16 @@ export type TakeDisplay = {
   createdAt: string;
   hasAudio: boolean;
   hasScore: boolean;
+  hasMusic: boolean;
+  hasMix: boolean;
+  seed: number;
   state: string;
+  isInterrupted: boolean;
   isActive: boolean;
+  mixId: string | null;
+  scoreArtifactId: string | null;
+  /** Mix / partition updates tied to this take (not separations). */
+  inlineEvents: TimelineEvent[];
 };
 
 export type TimelineEvent = {
@@ -40,6 +48,8 @@ export type TimelineEvent = {
   isActive: boolean;
   /** Separation / mix activation target when applicable. */
   activationId: string | null;
+  /** Second and later separations use « à nouveau ». */
+  isRepeatSeparation: boolean;
 };
 
 export type TimelineItem =
@@ -183,6 +193,37 @@ export function resolveTakeTitle(
   return defaultTakeTitle(ordinal);
 }
 
+function takeForTimestamp(
+  takes: TakeDisplay[],
+  iso: string,
+): TakeDisplay | null {
+  if (!iso.trim()) return takes[0] ?? null;
+  const sorted = [...takes].sort((a, b) => {
+    const ac = a.createdAt || "";
+    const bc = b.createdAt || "";
+    if (ac !== bc) return ac < bc ? -1 : 1;
+    return a.id.localeCompare(b.id);
+  });
+  let match: TakeDisplay | null = null;
+  for (const take of sorted) {
+    const at = take.createdAt || "";
+    if (!at || at <= iso) match = take;
+  }
+  return match ?? sorted[0] ?? null;
+}
+
+export function formatTakeDetails(
+  take: TakeDisplay,
+  generation?: GenerationSummary,
+): string {
+  const lines = [`gen: ${take.id}`, `graine: ${take.seed}`];
+  if (take.scoreArtifactId) lines.push(`partition: ${take.scoreArtifactId}`);
+  if (take.mixId) lines.push(`mix: ${take.mixId}`);
+  if (generation?.cot) lines.push(`mode: ${generation.cot}`);
+  lines.push(`état: ${take.state}`);
+  return lines.join("\n");
+}
+
 export type BuildTimelineInput = {
   generations: GenerationSummary[];
   separations: SeparationVersionSummary[];
@@ -195,6 +236,7 @@ export type BuildTimelineInput = {
   labels: {
     fromParent: (parentTitle: string) => string;
     separation: string;
+    separationAgain: string;
     mix: string;
     score: string;
   };
@@ -203,6 +245,9 @@ export type BuildTimelineInput = {
 export function buildTakeDisplays(input: BuildTimelineInput): TakeDisplay[] {
   const {
     generations,
+    separations,
+    scores = [],
+    mixes = [],
     activeGenerationId,
     style,
     customNames,
@@ -216,7 +261,14 @@ export function buildTakeDisplays(input: BuildTimelineInput): TakeDisplay[] {
     titleById.set(g.id, resolveTakeTitle(g.id, ordinal, customNames));
   }
   const styleSummary = summarizeStyle(style);
-  return generations.map((g) => {
+  const mixByGen = new Map<string, string>();
+  for (const sep of separations) {
+    if (sep.generationId && sep.mixId) {
+      mixByGen.set(sep.generationId, sep.mixId);
+    }
+  }
+
+  const takes: TakeDisplay[] = generations.map((g) => {
     const ordinal = ordinals.get(g.id) ?? 0;
     const title = titleById.get(g.id) ?? defaultTakeTitle(ordinal);
     const parentIdRaw = g.parentGenerationId ?? null;
@@ -225,6 +277,10 @@ export function buildTakeDisplays(input: BuildTimelineInput): TakeDisplay[] {
       parentKnown && parentIdRaw
         ? labels.fromParent(titleById.get(parentIdRaw)!)
         : null;
+    const hasMusic = g.state === "generated" && Boolean(g.audioPath);
+    const mixId = mixByGen.get(g.id) ?? null;
+    const scoreArtifactId = g.hasScore ? g.id : null;
+    const isInterrupted = !hasMusic && g.state !== "generated";
     return {
       id: g.id,
       ordinal,
@@ -236,20 +292,69 @@ export function buildTakeDisplays(input: BuildTimelineInput): TakeDisplay[] {
       createdAt: g.createdAt,
       hasAudio: Boolean(g.audioPath),
       hasScore: g.hasScore,
+      hasMusic,
+      hasMix: Boolean(mixId),
+      seed: g.seed,
       state: g.state,
+      isInterrupted,
       isActive: g.id === activeGenerationId,
+      mixId,
+      scoreArtifactId,
+      inlineEvents: [],
     };
   });
+
+  const takeById = new Map(takes.map((t) => [t.id, t]));
+
+  for (const mix of mixes) {
+    const owner = takeForTimestamp(takes, mix.createdAt);
+    if (!owner) continue;
+    const take = takeById.get(owner.id);
+    if (!take) continue;
+    take.inlineEvents.push({
+      id: `mix:${mix.id}`,
+      kind: "mix",
+      title: labels.mix,
+      when: formatRelativeWhen(mix.createdAt, now),
+      createdAt: mix.createdAt,
+      technicalId: mix.id,
+      isActive: false,
+      activationId: null,
+      isRepeatSeparation: false,
+    });
+  }
+
+  for (const score of scores) {
+    const owner = takeForTimestamp(takes, score.createdAt);
+    if (!owner) continue;
+    const take = takeById.get(owner.id);
+    if (!take) continue;
+    take.scoreArtifactId = score.id;
+    take.inlineEvents.push({
+      id: `score:${score.id}`,
+      kind: "score",
+      title: labels.score,
+      when: formatRelativeWhen(score.createdAt, now),
+      createdAt: score.createdAt,
+      technicalId: score.id,
+      isActive: false,
+      activationId: null,
+      isRepeatSeparation: false,
+    });
+  }
+
+  for (const take of takes) {
+    take.inlineEvents.sort((a, b) => {
+      if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1;
+      return a.id.localeCompare(b.id);
+    });
+  }
+
+  return takes;
 }
 
 export function buildTimeline(input: BuildTimelineInput): DayGroup[] {
-  const {
-    separations,
-    scores = [],
-    mixes = [],
-    now = new Date(),
-    labels,
-  } = input;
+  const { separations, now = new Date(), labels } = input;
   const takes = buildTakeDisplays(input);
   const items: TimelineItem[] = [];
 
@@ -257,64 +362,34 @@ export function buildTimeline(input: BuildTimelineInput): DayGroup[] {
     items.push({ type: "take", take, sortAt: take.createdAt || take.id });
   }
 
-  for (const sep of separations) {
+  const sepsSorted = [...separations].sort((a, b) => {
+    const ac = a.createdAt || a.separationId;
+    const bc = b.createdAt || b.separationId;
+    return ac < bc ? -1 : ac > bc ? 1 : 0;
+  });
+
+  sepsSorted.forEach((sep, index) => {
     items.push({
       type: "event",
       sortAt: sep.createdAt || sep.separationId,
       event: {
         id: `sep:${sep.separationId}`,
         kind: "separation",
-        title: labels.separation,
+        title:
+          index === 0 ? labels.separation : labels.separationAgain,
         when: formatRelativeWhen(sep.createdAt, now),
         createdAt: sep.createdAt,
         technicalId: sep.separationId,
         isActive: sep.isActive,
         activationId: sep.separationId,
+        isRepeatSeparation: index > 0,
       },
     });
-  }
-
-  for (const mix of mixes) {
-    items.push({
-      type: "event",
-      sortAt: mix.createdAt || mix.id,
-      event: {
-        id: `mix:${mix.id}`,
-        kind: "mix",
-        title: labels.mix,
-        when: formatRelativeWhen(mix.createdAt, now),
-        createdAt: mix.createdAt,
-        technicalId: mix.id,
-        isActive: false,
-        activationId: null,
-      },
-    });
-  }
-
-  for (const score of scores) {
-    items.push({
-      type: "event",
-      sortAt: score.createdAt || score.id,
-      event: {
-        id: `score:${score.id}`,
-        kind: "score",
-        title: labels.score,
-        when: formatRelativeWhen(score.createdAt, now),
-        createdAt: score.createdAt,
-        technicalId: score.id,
-        isActive: false,
-        activationId: null,
-      },
-    });
-  }
+  });
 
   items.sort((a, b) => {
     if (a.sortAt !== b.sortAt) return a.sortAt < b.sortAt ? 1 : -1;
-    return a.type === b.type
-      ? 0
-      : a.type === "take"
-        ? -1
-        : 1;
+    return a.type === b.type ? 0 : a.type === "take" ? -1 : 1;
   });
 
   const groups = new Map<string, TimelineItem[]>();

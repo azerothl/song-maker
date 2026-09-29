@@ -27,6 +27,7 @@ function gen(
 const labels = {
   fromParent: (parentTitle: string) => `à partir de ${parentTitle}`,
   separation: "Pistes séparées",
+  separationAgain: "Pistes séparées à nouveau",
   mix: "Mix modifié",
   score: "Partition mise à jour",
 };
@@ -108,7 +109,7 @@ describe("buildTimeline", () => {
       {
         separationId: "sep-001",
         mixId: "mix-v1",
-        createdAt: "2026-09-29T12:00:00.000Z",
+        createdAt: "2026-09-29T10:30:00.000Z",
         isActive: true,
       },
     ];
@@ -162,15 +163,18 @@ describe("buildTimeline", () => {
       .filter((i) => i.type === "event")
       .map((i) => (i.type === "event" ? i.event.title : ""));
     assert.ok(eventTitles.includes("Pistes séparées"));
-    assert.ok(eventTitles.includes("Mix modifié"));
-    assert.ok(eventTitles.includes("Partition mise à jour"));
 
-    // Newest first within the day.
+    const take2 = flat.find(
+      (i) => i.type === "take" && i.take.id === "gen-002",
+    );
+    assert.ok(take2 && take2.type === "take");
+    const inlineTitles = take2.take.inlineEvents.map((e) => e.title);
+    assert.ok(inlineTitles.includes("Mix modifié"));
+    assert.ok(inlineTitles.includes("Partition mise à jour"));
+
+    // Newest first within the day: take gen-002 is newer than separation.
     const today = groups.find((g) => g.dayLabel === "Aujourd’hui");
     assert.ok(today);
-    assert.equal(today.items[0].type, "event");
-    if (today.items[0].type === "event") {
-      assert.equal(today.items[0].event.title, "Mix modifié");
-    }
+    assert.equal(today.items[0].type, "take");
   });
 });

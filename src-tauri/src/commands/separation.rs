@@ -385,6 +385,17 @@ pub(crate) fn list_separation_versions(
             continue;
         }
         let mix_id = find_mix_id_for_separation(folder, &sep_id).unwrap_or_default();
+        let generation_id = std::fs::read_to_string(entry.path().join("job.json"))
+            .ok()
+            .and_then(|text| {
+                serde_json::from_str::<serde_json::Value>(&text)
+                    .ok()
+                    .and_then(|v| {
+                        v.get("generationId")
+                            .and_then(|x| x.as_str())
+                            .map(|s| s.to_string())
+                    })
+            });
         let created_at = std::fs::read_to_string(&manifest)
             .ok()
             .and_then(|text| {
@@ -404,6 +415,7 @@ pub(crate) fn list_separation_versions(
             mix_id,
             created_at,
             is_active,
+            generation_id,
         });
     }
     out.sort_by(|a, b| a.separation_id.cmp(&b.separation_id));
