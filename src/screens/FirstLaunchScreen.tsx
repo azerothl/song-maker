@@ -5,6 +5,9 @@ import { isTauriRuntime } from "../lib/runtimeHost";
 import {
   NVIDIA_DRIVERS_URL,
   YUE2_LICENSE_URL,
+  HTDEMUCS_LICENSE_URL,
+  HTDEMUCS_FIRST_LAUNCH_NOTICE_FR,
+  HTDEMUCS_LICENSE_REQUIRED_FR,
   browserDemoFromHash,
   bucketPlanBytes,
   buildFileRows,
@@ -22,6 +25,7 @@ import {
   isMixOnlySkipped,
   LICENSE_REQUIRED_FR,
   licenseAllowsDownload,
+  htdemucsLicenseAllowsDownload,
   modelPackVramFailureRisk,
   overallReceived,
   overallTotal,
@@ -118,6 +122,9 @@ export function FirstLaunchScreen() {
   const [plan, setPlan] = useState<InstallPlan | null>(initialDemo?.plan ?? null);
   const [pack, setPack] = useState<ModelPack>(initialDemo?.pack ?? "q4");
   const [accepted, setAccepted] = useState(Boolean(initialDemo?.progress));
+  const [htdemucsAccepted, setHtdemucsAccepted] = useState(
+    Boolean(settings?.acceptedSeparatorLicenses?.htdemucs),
+  );
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<InstallProgress | null>(
     initialDemo?.progress ?? null,
@@ -125,6 +132,12 @@ export function FirstLaunchScreen() {
   const [error, setError] = useState<string | null>(null);
   const [interruptDismissed, setInterruptDismissed] = useState(false);
   const [techOpen, setTechOpen] = useState(false);
+
+  useEffect(() => {
+    if (settings?.acceptedSeparatorLicenses?.htdemucs) {
+      setHtdemucsAccepted(true);
+    }
+  }, [settings?.acceptedSeparatorLicenses?.htdemucs]);
 
   const loadPlan = useCallback(async (nextPack: ModelPack) => {
     const next = await api.getInstallPlan(nextPack);
@@ -246,6 +259,16 @@ export function FirstLaunchScreen() {
     }
     setProgress(null);
     try {
+      if (settings) {
+        await api.updateSettings({
+          ...settings,
+          acceptedSeparatorLicenses: {
+            ...(settings.acceptedSeparatorLicenses ?? {}),
+            htdemucs: true,
+          },
+        });
+        await refreshSettings();
+      }
       await api.installRequiredAssets(
         pack,
         accepted || Boolean(settings?.yue2LicenseAccepted),
@@ -448,7 +471,25 @@ export function FirstLaunchScreen() {
                   disabled={busy}
                   onChange={(event) => setAccepted(event.target.checked)}
                 />
-                J’ai lu et j’accepte la licence
+                J’ai lu et j’accepte la licence YuE2
+              </label>
+              <p data-testid="fl-htdemucs-notice">
+                {HTDEMUCS_FIRST_LAUNCH_NOTICE_FR}{" "}
+                <a href={HTDEMUCS_LICENSE_URL} target="_blank" rel="noreferrer">
+                  Demucs #327
+                </a>
+                .
+              </p>
+              <label className="fl-cb" htmlFor="fl-htdemucs-license-accept">
+                <input
+                  id="fl-htdemucs-license-accept"
+                  type="checkbox"
+                  checked={htdemucsAccepted}
+                  disabled={busy}
+                  aria-label="J’ai lu la licence de HTDemucs"
+                  onChange={(event) => setHtdemucsAccepted(event.target.checked)}
+                />
+                J’ai lu la licence de HTDemucs
               </label>
             </div>
             <div className="fl-actions">
@@ -457,10 +498,25 @@ export function FirstLaunchScreen() {
                   {LICENSE_REQUIRED_FR}
                 </p>
               ) : null}
+              {!htdemucsLicenseAllowsDownload(
+                htdemucsAccepted,
+                settings?.acceptedSeparatorLicenses?.htdemucs,
+              ) ? (
+                <p className="fl-license-required" role="status">
+                  {HTDEMUCS_LICENSE_REQUIRED_FR}
+                </p>
+              ) : null}
               <button
                 className="fl-btn fl-btn-lg"
                 type="button"
-                disabled={busy || !licenseAllowsDownload(accepted, settings?.yue2LicenseAccepted)}
+                disabled={
+                  busy ||
+                  !licenseAllowsDownload(accepted, settings?.yue2LicenseAccepted) ||
+                  !htdemucsLicenseAllowsDownload(
+                    htdemucsAccepted,
+                    settings?.acceptedSeparatorLicenses?.htdemucs,
+                  )
+                }
                 onClick={() => void install()}
               >
                 Télécharger ({formatBytesFr(buckets.totalBytes)})
@@ -659,7 +715,14 @@ export function FirstLaunchScreen() {
             <button
               className="fl-btn fl-btn-lg"
               type="button"
-              disabled={busy || !licenseAllowsDownload(accepted, settings?.yue2LicenseAccepted)}
+              disabled={
+                busy ||
+                !licenseAllowsDownload(accepted, settings?.yue2LicenseAccepted) ||
+                !htdemucsLicenseAllowsDownload(
+                  htdemucsAccepted,
+                  settings?.acceptedSeparatorLicenses?.htdemucs,
+                )
+              }
               onClick={() => void install()}
             >
               {view === "download" ? "Installation en cours…" : "▶ Reprendre le téléchargement"}

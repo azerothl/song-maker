@@ -3,6 +3,7 @@ import {
   buildQualityTimeOptions,
   canDownloadSeparator,
   describeStemProvidersFr,
+  EXCLUDED_SEPARATOR_NOTES_FR,
   formatDurationFr,
   recommendReasonFr,
   recommendSeparator,
@@ -16,6 +17,7 @@ import type { AppSettings, Phase3Status } from "../lib/types";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 import { AnchoredPopin } from "./AnchoredPopin";
+import { SeparatorLicenseBadge } from "./SeparatorLicenseBadge";
 
 type Props = {
   open: boolean;
@@ -28,8 +30,7 @@ type Props = {
 
 /**
  * Pre-separation dialog (#166 + #167): recommend a model, show times,
- * license badges, optional install gated by « J'ai lu la licence ».
- * Maquette Alphonse absente — UI alignée Production.
+ * typed license badges with icons, optional install gated by « J'ai lu la licence ».
  */
 export function SeparationRecommendDialog({
   open,
@@ -146,6 +147,7 @@ export function SeparationRecommendDialog({
       if (id === "bs_roformer") await api.installBsRoFormer();
       else if (id === "mel_band_roformer") await api.installMelBandRoFormer();
       else if (id === "htdemucs_6s") await api.installHtDemucs6sRuntime();
+      else if (id === "htdemucs") await api.installMixOnlyAssets();
       await refresh();
       await refreshSettings();
     } catch (e) {
@@ -159,6 +161,10 @@ export function SeparationRecommendDialog({
     if (!settings) return;
     const provider = providers.find((p) => p.id === selected);
     if (!provider?.runnable && selected !== "htdemucs") {
+      setError(t("separate.model.unavailable"));
+      return;
+    }
+    if (selected === "htdemucs" && !(phase3?.htdemucsAvailable ?? false)) {
       setError(t("separate.model.unavailable"));
       return;
     }
@@ -184,7 +190,6 @@ export function SeparationRecommendDialog({
       <header className="anchored-popin-header">
         <h3 id={titleId}>{t("separate.recommend.title")}</h3>
         <p className="hint">{t("separate.recommend.intro")}</p>
-        <p className="hint mockup-note">{t("separate.recommend.mockupMissing")}</p>
       </header>
 
       <fieldset className="sep-focus" disabled={busy}>
@@ -212,12 +217,26 @@ export function SeparationRecommendDialog({
         {recommendReasonFr(focus)}
       </p>
 
-      <ul className="sep-quality-list" aria-label={t("separate.recommend.options")}>
+      <ul
+        className="sep-quality-list"
+        aria-label={t("separate.recommend.options")}
+      >
         {options.map((opt) => {
           const provider = providers.find((p) => p.id === opt.id);
           const license = separatorLicense(opt.id);
-          const runnable = provider?.runnable ?? opt.id === "htdemucs";
+          const weightsPresent =
+            opt.id === "htdemucs"
+              ? Boolean(phase3?.htdemucsAvailable)
+              : Boolean(provider?.runnable);
+          const runnable =
+            opt.id === "htdemucs"
+              ? Boolean(phase3?.htdemucsAvailable)
+              : Boolean(provider?.runnable);
           const acceptedHere = Boolean(accepted[opt.id]);
+          const showAccept =
+            Boolean(license?.requiresAcceptBeforeDownload) &&
+            (!weightsPresent || !acceptedHere);
+          const licenseCbId = `sep-rec-license-${opt.id}`;
           return (
             <li
               key={opt.id}
@@ -254,18 +273,7 @@ export function SeparationRecommendDialog({
                   {license && (
                     <>
                       <br />
-                      <span
-                        className={
-                          license.nonCommercial
-                            ? "sep-license-badge nc"
-                            : "sep-license-badge"
-                        }
-                      >
-                        {license.badgeFr}
-                        {license.nonCommercial
-                          ? ` · ${t("separate.license.nc")}`
-                          : ""}
-                      </span>{" "}
+                      <SeparatorLicenseBadge license={license} />{" "}
                       <a
                         href={license.sourceUrl}
                         target="_blank"
@@ -277,43 +285,67 @@ export function SeparationRecommendDialog({
                   )}
                 </span>
               </label>
-              {!runnable && license && (
+              {license && (
                 <div className="sep-install">
-                  <p className="hint">{license.noticeFr}</p>
-                  <label className="sep-license-cb">
-                    <input
-                      type="checkbox"
-                      checked={acceptedHere}
-                      onChange={(e) =>
-                        void persistLicense(opt.id, e.target.checked)
-                      }
-                    />
-                    {t("separate.license.accept")}
-                  </label>
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={
-                      busy ||
-                      installing === opt.id ||
-                      !canDownloadSeparator(opt.id, accepted)
-                    }
-                    title={
-                      canDownloadSeparator(opt.id, accepted)
-                        ? undefined
-                        : t("separate.license.blocked")
-                    }
-                    onClick={() => void install(opt.id)}
+                  <p
+                    className="hint warn"
+                    data-testid={`sep-rec-notice-${opt.id}`}
                   >
-                    {installing === opt.id
-                      ? t("separate.install.busy")
-                      : t("separate.install")}
-                  </button>
+                    {license.noticeFr}
+                  </p>
+                  {showAccept && (
+                    <label className="sep-license-cb" htmlFor={licenseCbId}>
+                      <input
+                        id={licenseCbId}
+                        type="checkbox"
+                        checked={acceptedHere}
+                        aria-label={t("separate.license.acceptNamed", {
+                          name: provider?.displayNameFr ?? opt.id,
+                        })}
+                        onChange={(e) =>
+                          void persistLicense(opt.id, e.target.checked)
+                        }
+                      />
+                      {t("separate.license.acceptNamed", {
+                        name: provider?.displayNameFr ?? opt.id,
+                      })}
+                    </label>
+                  )}
+                  {!runnable && (
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={
+                        busy ||
+                        installing === opt.id ||
+                        !canDownloadSeparator(opt.id, accepted)
+                      }
+                      title={
+                        canDownloadSeparator(opt.id, accepted)
+                          ? undefined
+                          : t("separate.license.blocked")
+                      }
+                      onClick={() => void install(opt.id)}
+                    >
+                      {installing === opt.id
+                        ? t("separate.install.busy")
+                        : opt.id === "htdemucs"
+                          ? t("separate.license.htdemucs.install")
+                          : t("separate.install")}
+                    </button>
+                  )}
                 </div>
               )}
             </li>
           );
         })}
+      </ul>
+
+      <h4>{t("separate.license.exclusions")}</h4>
+      <ul className="sep-license-exclusions" data-testid="sep-rec-exclusions">
+        {EXCLUDED_SEPARATOR_NOTES_FR.map((note) => (
+          <li key={note}>{note}</li>
+        ))}
       </ul>
 
       <div className="btn-row">

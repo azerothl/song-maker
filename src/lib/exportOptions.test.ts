@@ -52,5 +52,7 @@ describe("separation recommend + license (#166 #167)", () => {
       true,
     );
     assert.equal(canDownloadSeparator("bs_roformer", undefined), false);
+    assert.equal(canDownloadSeparator("htdemucs", {}), false);
+    assert.equal(canDownloadSeparator("htdemucs", { htdemucs: true }), true);
   });
 });

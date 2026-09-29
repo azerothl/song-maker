@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   BS_ROFORMER_CAPABILITIES,
   BS_ROFORMER_PACKAGE,
+  EXCLUDED_SEPARATOR_NOTES_FR,
+  HTDEMUCS_MAINTAINER_QUOTE_EN,
   HTDEMUCS_PACKAGE,
+  LICENSE_STATUS_ICON,
+  LICENSE_STATUS_LABEL_FR,
   MEL_BAND_ROFORMER_PACKAGE,
   STEM_DISPLAY_NAMES,
   buildQualityTimeOptions,
@@ -199,8 +203,46 @@ describe("stem-providers", () => {
     expect(canDownloadSeparator("bs_roformer", { bs_roformer: true })).toBe(
       true,
     );
-    expect(separatorLicense("bs_roformer")?.badgeFr).toMatch(/Apache-2\.0/);
-    expect(separatorLicense("htdemucs")?.badgeFr).toMatch(/non vérifié/);
-    expect(separatorLicense("mel_band_roformer")?.badgeFr).toBe("MIT");
+    expect(canDownloadSeparator("htdemucs", {})).toBe(false);
+    expect(canDownloadSeparator("htdemucs", { htdemucs: true })).toBe(true);
+    expect(canDownloadSeparator("mel_band_roformer", {})).toBe(false);
+  });
+
+  it("types license status with icons, read dates, and cold-review labels (#167)", () => {
+    const mel = separatorLicense("mel_band_roformer");
+    expect(mel?.status).toBe("unverified");
+    expect(mel?.badgeFr).toMatch(/source primaire/i);
+    expect(LICENSE_STATUS_LABEL_FR[mel!.status]).toBe("non vérifié");
+    expect(mel?.commercialOk).toBeUndefined();
+    expect(mel?.sourceUrl).not.toMatch(/mlx-community/);
+    expect(mel?.noticeFr).toMatch(/non vérifié/i);
+    expect(mel?.readDate).toBe("2026-09-29");
+
+    const bs = separatorLicense("bs_roformer");
+    expect(bs?.status).toBe("unverified");
+    expect(bs?.badgeFr).toMatch(/checkpoint/i);
+    expect(bs?.noticeFr).toMatch(/non vérifié/i);
+
+    const ht = separatorLicense("htdemucs");
+    expect(ht?.status).toBe("unverified");
+    expect(ht?.badgeFr).toMatch(/scientific purposes/i);
+    expect(ht?.noticeFr).toMatch(/only for scientific purposes/);
+    expect(ht?.noticeFr).toMatch(/Demucs #327/);
+    expect(ht?.noticeFr).toMatch(/2026-09-29|23 mai 2022/);
+    expect(ht?.sourceUrl).toContain("demucs/issues/327");
+    expect(ht?.readDate).toBe("2026-09-29");
+
+    expect(EXCLUDED_SEPARATOR_NOTES_FR.some((n) => /jarredou/i.test(n))).toBe(
+      true,
+    );
+    expect(EXCLUDED_SEPARATOR_NOTES_FR.some((n) => /CC BY-NC/i.test(n))).toBe(
+      true,
+    );
+    expect(LICENSE_STATUS_ICON.unverified).toBeTruthy();
+    expect(LICENSE_STATUS_LABEL_FR.unverified).toBe("non vérifié");
+    expect(LICENSE_STATUS_LABEL_FR.non_commercial).toBe(
+      "usage non commercial",
+    );
+    expect(HTDEMUCS_MAINTAINER_QUOTE_EN).toBe("only for scientific purposes");
   });
 });

@@ -52,11 +52,21 @@ export {
   isStemProviderRunnable,
   describeStemProvidersFr,
 } from "./registry.js";
-export type { SeparatorLicenseInfo } from "./licenses.js";
+export type {
+  SeparatorLicenseInfo,
+  LicenseStatusKind,
+} from "./licenses.js";
 export {
   SEPARATOR_LICENSES,
   EXCLUDED_SEPARATOR_NOTES_FR,
+  HTDEMUCS_MAINTAINER_QUOTE_EN,
+  HTDEMUCS_NOTICE_FR,
+  LICENSE_STATUS_LABEL_FR,
+  LICENSE_STATUS_ICON,
   separatorLicense,
+  licenseStatusLabelFr,
+  licenseStatusIcon,
+  isNonCommercialStatus,
   canDownloadSeparator,
 } from "./licenses.js";
 export type {
