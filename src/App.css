@@ -521,6 +521,7 @@ option {
   padding: 0.45rem 0.85rem;
   border-radius: 6px;
   cursor: pointer;
+  appearance: none;
 }
 
 .btn:hover {
@@ -537,6 +538,7 @@ option {
   border-color: transparent;
   /* Dark text on light accent gradient — WCAG 2.2 AA (≥ 4.5:1), #186 / #189. */
   color: #151827;
+  transition: background-image 120ms ease, background-color 120ms ease;
 }
 
 .btn.primary:hover:not(:disabled) {
@@ -548,20 +550,30 @@ option {
   border-color: transparent;
 }
 
-.btn.primary:focus-visible {
-  outline: 2px solid var(--accent-cyan);
-  outline-offset: 2px;
-}
+/* :focus-visible anneau = règle globale `button:focus-visible` (App.css ~82) — pas de doublon. */
 
 .btn.primary:disabled {
-  /* Lisible mais clairement inactif (#186) — pas le violet lavé trop clair. */
-  opacity: 1;
+  /*
+   * Distinct du `.btn` secondaire actif dans les popins (#193) :
+   * texte ~4,7:1 (#848ba0), fond #1c2034 via dégradé plat (Chromium annule
+   * `background-color` sur button:disabled), bordure en tirets.
+   * Seuil lisibilité désactivé : ≥ 3:1 (cible ~4,7:1).
+   */
+  opacity: 1 !important;
   cursor: not-allowed;
-  color: var(--muted);
-  background: color-mix(in srgb, var(--bg2) 82%, var(--bg0));
-  border-color: var(--line);
-  background-image: none;
+  color: #848ba0 !important;
+  background-image: linear-gradient(#1c2034, #1c2034) !important;
+  border-color: var(--line) !important;
+  border-style: dashed;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn.primary {
+    transition: none;
+  }
+}
+
+/* forced-colors : non traité (#193) — le dégradé / tirets ne sont pas adaptés. */
 
 .btn.ghost {
   background: transparent;

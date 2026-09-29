@@ -9,8 +9,13 @@ import {
 export const PRIMARY_BUTTON_TEXT = "#151827";
 export const PRIMARY_BUTTON_GRADIENT_TOP = "#c4a8ff";
 export const PRIMARY_BUTTON_GRADIENT_BOTTOM = "#a78bfa";
+/** Texte désactivé — ~4,7:1 sur fond `#1c2034`, distinct du secondaire (#193). */
+export const PRIMARY_BUTTON_DISABLED_TEXT = "#848ba0";
+export const PRIMARY_BUTTON_DISABLED_BG = "#1c2034";
 
 export const WCAG_AA_TEXT_MIN = 4.5;
+/** Plancher lisibilité état désactivé (#193). */
+export const DISABLED_TEXT_MIN = 3;
 
 export const PRIMARY_BUTTON_WORST_GRADIENT_CONTRAST = contrastRatio(
   PRIMARY_BUTTON_TEXT,

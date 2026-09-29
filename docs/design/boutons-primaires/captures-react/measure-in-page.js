@@ -44,6 +44,15 @@
         a: srgb[4] != null ? Number(srgb[4]) : 1,
       };
     }
+    // Chrome may serialize as oklab(...); resolve via a probe element.
+    if (/^(oklab|oklch|lab|lch|color)\(/i.test(raw)) {
+      const probe = document.createElement("div");
+      probe.style.cssText = `position:fixed;left:-9999px;background:${raw}`;
+      document.body.appendChild(probe);
+      const resolved = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      if (resolved && resolved !== raw) return parseRgb(resolved);
+    }
     if (raw.startsWith("#")) {
       const h = raw.slice(1);
       if (h.length === 3) {
