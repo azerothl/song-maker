@@ -10,7 +10,90 @@ use crate::paths::{
     atomic_write_json, default_cache_dir, ensure_dir, file_mtime_iso, next_folder_id, now_iso,
 };
 use crate::pins::BIT_DEPTH;
+use std::io::Write;
 use std::path::{Path, PathBuf};
+
+/// Validate optional pack (`folder` | `zip`). `None` = leave files in project exports only.
+fn normalize_export_pack(pack: Option<&str>) -> Result<Option<String>, String> {
+    match pack {
+        None => Ok(None),
+        Some(p) => {
+            let p = p.trim().to_lowercase();
+            if p != "folder" && p != "zip" {
+                return Err("pack : folder ou zip.".into());
+            }
+            Ok(Some(p))
+        }
+    }
+}
+
+/// Copy or zip export artifacts to a concrete destination (no dialog). Used by pack delivery
+/// and unit-tested for folder vs zip (#168).
+pub(crate) fn write_export_pack_to_destination(
+    pack: &str,
+    destination: &Path,
+    files: &[(PathBuf, String)],
+) -> Result<(), String> {
+    if pack == "folder" {
+        ensure_dir(destination).map_err(|e| e.to_string())?;
+        for (src, name) in files {
+            std::fs::copy(src, destination.join(name)).map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    } else if pack == "zip" {
+        if let Some(parent) = destination.parent() {
+            ensure_dir(parent).map_err(|e| e.to_string())?;
+        }
+        let file = std::fs::File::create(destination).map_err(|e| e.to_string())?;
+        let mut zip = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        for (src, name) in files {
+            zip.start_file(name, options).map_err(|e| e.to_string())?;
+            let bytes = std::fs::read(src).map_err(|e| e.to_string())?;
+            zip.write_all(&bytes).map_err(|e| e.to_string())?;
+        }
+        zip.finish().map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        Err("pack : folder ou zip.".into())
+    }
+}
+
+/// Honor `req.pack`: dialog (or explicit destination) then folder copy / zip.
+/// Returns the user-facing path when delivery ran; `None` if cancelled or pack unset.
+fn deliver_export_pack(
+    app: &tauri::AppHandle,
+    pack: &str,
+    destination: Option<String>,
+    files: &[(PathBuf, String)],
+    default_zip_name: &str,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let dest = if let Some(d) = destination {
+        PathBuf::from(d)
+    } else if pack == "folder" {
+        let Some(picked) = app.dialog().file().blocking_pick_folder() else {
+            return Ok(None);
+        };
+        picked.into_path().map_err(|e| e.to_string())?
+    } else {
+        let Some(picked) = app
+            .dialog()
+            .file()
+            .set_file_name(default_zip_name)
+            .add_filter("Archive ZIP", &["zip"])
+            .blocking_save_file()
+        else {
+            return Ok(None);
+        };
+        picked.into_path().map_err(|e| e.to_string())?
+    };
+
+    write_export_pack_to_destination(pack, &dest, files)?;
+    Ok(Some(dest.display().to_string()))
+}
 
 #[tauri::command]
 pub fn load_mix(id: String) -> Result<Option<MixDoc>, String> {
@@ -320,7 +403,11 @@ pub fn read_preview_audio(id: String) -> Result<Vec<u8>, String> {
 }
 
 #[tauri::command]
-pub fn export_audio(id: String, req: ExportRequest) -> Result<String, String> {
+pub fn export_audio(
+    app: tauri::AppHandle,
+    id: String,
+    req: ExportRequest,
+) -> Result<String, String> {
     let folder = project_folder(&id);
     let doc = load_project(&folder)?;
     let exports = folder.join("exports");
@@ -330,6 +417,7 @@ pub fn export_audio(id: String, req: ExportRequest) -> Result<String, String> {
     if format != "wav" && format != "flac" && format != "mp3" {
         return Err("Format : wav, flac ou mp3 (livraison).".into());
     }
+    let pack = normalize_export_pack(req.pack.as_deref())?;
 
     let bit_depth = req.bit_depth.unwrap_or(BIT_DEPTH);
     let bitrate = req.bitrate_kbps.unwrap_or(320);
@@ -375,27 +463,57 @@ pub fn export_audio(id: String, req: ExportRequest) -> Result<String, String> {
         wav_out
     };
 
-    if let Some(dest) = req.destination {
-        std::fs::copy(&final_path, &dest).map_err(|e| e.to_string())?;
-    }
     let warnings = read_separation_info(&folder, &doc)
         .map(|info| info.warnings)
         .unwrap_or_default();
+    let json_path = exports.join(format!("export-{stamp}.json"));
     write_export_json_with_warnings(
-        &exports.join(format!("export-{stamp}.json")),
+        &json_path,
         &format,
         &final_path,
         peak_trim,
+        bit_depth,
         Some("rust-10.5"),
         Some("approximate"),
         &warnings,
     )?;
+
+    let audio_name = final_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("export")
+        .to_string();
+    let json_name = json_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("export.json")
+        .to_string();
+    let files = vec![
+        (final_path.clone(), audio_name),
+        (json_path, json_name),
+    ];
+
+    if let Some(pack) = pack.as_deref() {
+        let zip_name = format!("export-{id}-{stamp}.zip");
+        if let Some(delivered) =
+            deliver_export_pack(&app, pack, req.destination, &files, &zip_name)?
+        {
+            return Ok(delivered);
+        }
+    } else if let Some(dest) = req.destination {
+        std::fs::copy(&final_path, &dest).map_err(|e| e.to_string())?;
+        return Ok(dest);
+    }
     Ok(final_path.display().to_string())
 }
 
 /// Export a float32 mix baked by `@song-maker/mix-production` (same bake as Web Audio).
 #[tauri::command]
-pub fn export_pcm_audio(id: String, req: ExportPcmRequest) -> Result<String, String> {
+pub fn export_pcm_audio(
+    app: tauri::AppHandle,
+    id: String,
+    req: ExportPcmRequest,
+) -> Result<String, String> {
     let folder = project_folder(&id);
     let doc = load_project(&folder)?;
     let exports = folder.join("exports");
@@ -408,6 +526,7 @@ pub fn export_pcm_audio(id: String, req: ExportPcmRequest) -> Result<String, Str
     if req.channels != 2 {
         return Err("Export PCM : stéréo (2 canaux) requis.".into());
     }
+    let pack = normalize_export_pack(req.pack.as_deref())?;
 
     let safe_stem = req
         .file_stem
@@ -462,9 +581,6 @@ pub fn export_pcm_audio(id: String, req: ExportPcmRequest) -> Result<String, Str
         renamed
     };
 
-    if let Some(dest) = req.destination {
-        std::fs::copy(&final_path, &dest).map_err(|e| e.to_string())?;
-    }
     let render_path = if req.render_path.is_empty() {
         "mix-production-ts"
     } else {
@@ -478,15 +594,44 @@ pub fn export_pcm_audio(id: String, req: ExportPcmRequest) -> Result<String, Str
     let warnings = read_separation_info(&folder, &doc)
         .map(|info| info.warnings)
         .unwrap_or_default();
+    let json_path = exports.join(format!("{safe_stem}.json"));
     write_export_json_with_warnings(
-        &exports.join(format!("{safe_stem}.json")),
+        &json_path,
         &format,
         &final_path,
         req.peak_trim_db,
+        bit_depth,
         Some(render_path),
         Some(match_mode),
         &warnings,
     )?;
+
+    let audio_name = final_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("export")
+        .to_string();
+    let json_name = json_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("export.json")
+        .to_string();
+    let files = vec![
+        (final_path.clone(), audio_name),
+        (json_path, json_name),
+    ];
+
+    if let Some(pack) = pack.as_deref() {
+        let zip_name = format!("{safe_stem}.zip");
+        if let Some(delivered) =
+            deliver_export_pack(&app, pack, req.destination, &files, &zip_name)?
+        {
+            return Ok(delivered);
+        }
+    } else if let Some(dest) = req.destination {
+        std::fs::copy(&final_path, &dest).map_err(|e| e.to_string())?;
+        return Ok(dest);
+    }
     Ok(final_path.display().to_string())
 }
 
@@ -532,4 +677,62 @@ pub fn redo_mix(state: tauri::State<'_, AppState>, id: String) -> Result<Option<
     atomic_write_json(&path, &next)?;
     let mix: MixDoc = serde_json::from_value(next).map_err(|e| e.to_string())?;
     Ok(Some(mix))
+}
+
+#[cfg(test)]
+mod export_pack_tests {
+    use super::{normalize_export_pack, write_export_pack_to_destination};
+    use std::io::Read;
+
+    #[test]
+    fn normalize_pack_accepts_folder_zip_or_none() {
+        assert_eq!(normalize_export_pack(None).unwrap(), None);
+        assert_eq!(
+            normalize_export_pack(Some("Folder")).unwrap().as_deref(),
+            Some("folder")
+        );
+        assert_eq!(
+            normalize_export_pack(Some("ZIP")).unwrap().as_deref(),
+            Some("zip")
+        );
+        assert!(normalize_export_pack(Some("tar")).is_err());
+    }
+
+    #[test]
+    fn pack_folder_and_zip_write_audio_and_json() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("song-maker-pack-{stamp}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        let audio = dir.join("master.wav");
+        let json = dir.join("master.json");
+        std::fs::write(&audio, b"RIFF-fake").unwrap();
+        std::fs::write(&json, br#"{"bitDepth":16}"#).unwrap();
+        let files = vec![
+            (audio.clone(), "master.wav".into()),
+            (json.clone(), "master.json".into()),
+        ];
+
+        let folder_out = dir.join("out-folder");
+        write_export_pack_to_destination("folder", &folder_out, &files).unwrap();
+        assert_eq!(
+            std::fs::read(folder_out.join("master.wav")).unwrap(),
+            b"RIFF-fake"
+        );
+        assert!(folder_out.join("master.json").is_file());
+
+        let zip_out = dir.join("out.zip");
+        write_export_pack_to_destination("zip", &zip_out, &files).unwrap();
+        let file = std::fs::File::open(&zip_out).unwrap();
+        let mut archive = zip::ZipArchive::new(file).unwrap();
+        assert_eq!(archive.len(), 2);
+        let mut wav_entry = archive.by_name("master.wav").unwrap();
+        let mut buf = Vec::new();
+        wav_entry.read_to_end(&mut buf).unwrap();
+        assert_eq!(buf, b"RIFF-fake");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

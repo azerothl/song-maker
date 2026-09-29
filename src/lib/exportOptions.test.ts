@@ -28,6 +28,25 @@ describe("exportOptions (#168)", () => {
     assert.equal(isLosslessFormat("mp3"), false);
     assert.equal(defaultExportOptions().pack, "folder");
   });
+
+  it("always offers folder|zip and mix|stems modes on the unified dialog defaults", () => {
+    const opts = defaultExportOptions();
+    assert.equal(opts.mode, "mix");
+    assert.ok(opts.pack === "folder" || opts.pack === "zip");
+    assert.equal(opts.bitDepth, 24);
+  });
+});
+
+describe("export UI surface (#168 cold review)", () => {
+  it("does not ship a second tracks-only export popin module", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const popin = path.resolve(
+      import.meta.dirname,
+      "../components/ExportTracksPopin.tsx",
+    );
+    await assert.rejects(() => fs.access(popin), /ENOENT/);
+  });
 });
 
 describe("separation recommend + license (#166 #167)", () => {

@@ -30,7 +30,7 @@ type Props = {
 /**
  * Unified export screen (#168): format-aware options (hide unused),
  * folder vs zip always, mix + stems in one place.
- * Maquette Alphonse absente — UI alignée Production.
+ * Sole audio export UI — portable package stays on the Tools panel.
  */
 export function ExportDialog({
   project,

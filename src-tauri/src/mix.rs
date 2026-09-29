@@ -454,26 +454,51 @@ pub fn render_mix(mix: &MixDoc, project_root: &Path, out_wav: &Path) -> Result<f
     Ok(peak_trim_db)
 }
 
+/// TPDF (triangular) dither — mastering practice for 16-bit delivery (#168).
+/// Applied only when quantizing to 16 bits; never on 24-bit paths.
+pub const TPDF_DITHER_FILTER: &str = "aresample=dither_method=triangular";
+
 pub fn export_flac_with_bit_depth(
     wav_path: &Path,
     flac_path: &Path,
     bit_depth: u16,
 ) -> Result<(), String> {
     let sample_fmt = if bit_depth == 16 { "s16" } else { "s32" };
-    crate::resample::run_ffmpeg(&[
-        "-y",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-i",
-        &wav_path.display().to_string(),
-        "-c:a",
-        "flac",
-        "-sample_fmt",
-        sample_fmt,
-        &flac_path.display().to_string(),
-    ])
-    .map_err(|e| format!("Export FLAC échoué ({e})."))
+    let wav = wav_path.display().to_string();
+    let flac = flac_path.display().to_string();
+    // 16-bit: TPDF dither via aresample. 24-bit: no dither filter.
+    let result = if bit_depth == 16 {
+        crate::resample::run_ffmpeg(&[
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            &wav,
+            "-af",
+            TPDF_DITHER_FILTER,
+            "-c:a",
+            "flac",
+            "-sample_fmt",
+            sample_fmt,
+            &flac,
+        ])
+    } else {
+        crate::resample::run_ffmpeg(&[
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            &wav,
+            "-c:a",
+            "flac",
+            "-sample_fmt",
+            sample_fmt,
+            &flac,
+        ])
+    };
+    result.map_err(|e| format!("Export FLAC échoué ({e})."))
 }
 
 /// Conversion de livraison MP3 (bitrate CBR configurable) à partir du WAV primaire.
@@ -504,6 +529,7 @@ pub fn export_mp3_with_bitrate(
 }
 
 /// Re-encode a 24-bit WAV to 16-bit PCM when the user picks profondeur 16 (#168).
+/// Uses triangular (TPDF) dither — never applied when keeping 24 bits.
 pub fn downsample_wav_bit_depth(src: &Path, dest: &Path, bit_depth: u16) -> Result<(), String> {
     if bit_depth == 24 || bit_depth == 0 {
         if src != dest {
@@ -521,6 +547,8 @@ pub fn downsample_wav_bit_depth(src: &Path, dest: &Path, bit_depth: u16) -> Resu
         "error",
         "-i",
         &src.display().to_string(),
+        "-af",
+        TPDF_DITHER_FILTER,
         "-c:a",
         "pcm_s16le",
         &dest.display().to_string(),
@@ -528,20 +556,39 @@ pub fn downsample_wav_bit_depth(src: &Path, dest: &Path, bit_depth: u16) -> Resu
     .map_err(|e| format!("Conversion 16 bits échouée ({e})."))
 }
 
+/// Naive 24→16 without dither (test oracle / contrast with TPDF).
+#[cfg(test)]
+fn downsample_wav_bit_depth_naive(src: &Path, dest: &Path) -> Result<(), String> {
+    crate::resample::run_ffmpeg(&[
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        &src.display().to_string(),
+        "-c:a",
+        "pcm_s16le",
+        &dest.display().to_string(),
+    ])
+    .map_err(|e| format!("Conversion 16 bits naïve échouée ({e})."))
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn write_export_json_with_warnings(
     path: &Path,
     format: &str,
     audio_path: &Path,
     peak_trim_db: f32,
+    bit_depth: u16,
     render_path: Option<&str>,
     match_mode: Option<&str>,
     warnings: &[String],
 ) -> Result<(), String> {
     let sha = sha256_file(audio_path)?;
-    let bit_depth = if format == "mp3" {
+    let bit_depth_json = if format == "mp3" {
         serde_json::Value::Null
     } else {
-        serde_json::json!(BIT_DEPTH)
+        serde_json::json!(bit_depth)
     };
     let mut doc = serde_json::json!({
         "schema": "songmaker.export",
@@ -550,7 +597,7 @@ pub fn write_export_json_with_warnings(
         "path": audio_path.file_name().and_then(|s| s.to_str()).unwrap_or(""),
         "sampleRate": SAMPLE_RATE,
         "channels": CHANNELS,
-        "bitDepth": bit_depth,
+        "bitDepth": bit_depth_json,
         "peakTrimDb": peak_trim_db,
         "sha256": sha,
         "role": if format == "mp3" { "delivery" } else { "primary" }
@@ -678,5 +725,116 @@ mod tests {
         append_user_audio_track(&mut mix, "b.wav", "2", 100, "Custom");
         assert_eq!(mix.tracks[0].name, "Custom");
         assert_eq!(mix.tracks[1].name, "Custom (2)");
+    }
+
+    /// Very quiet stereo 24-bit WAV: amplitude sits between 16-bit LSB levels so
+    /// TPDF dither must differ from simple truncation (#168).
+    fn write_quiet_24bit_wav(path: &Path) -> Result<(), String> {
+        let spec = WavSpec {
+            channels: CHANNELS,
+            sample_rate: SAMPLE_RATE,
+            bits_per_sample: BIT_DEPTH,
+            sample_format: SampleFormat::Int,
+        };
+        let mut writer = WavWriter::create(path, spec).map_err(|e| e.to_string())?;
+        let max_i = (1i32 << 23) - 1;
+        let frames = (SAMPLE_RATE / 10) as usize; // 100 ms
+        for i in 0..frames {
+            let phase = std::f32::consts::TAU * 440.0 * (i as f32) / SAMPLE_RATE as f32;
+            // ~1.5 / 32768 full-scale → below one 16-bit LSB after naive round.
+            let sample = (1.5 / 32768.0) * phase.sin();
+            let q = (sample.clamp(-1.0, 1.0) * max_i as f32).round() as i32;
+            writer.write_sample(q).map_err(|e| e.to_string())?;
+            writer.write_sample(q).map_err(|e| e.to_string())?;
+        }
+        writer.finalize().map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    fn read_pcm16_payload(path: &Path) -> Result<Vec<u8>, String> {
+        let reader = WavReader::open(path).map_err(|e| e.to_string())?;
+        assert_eq!(reader.spec().bits_per_sample, 16);
+        let mut out = Vec::new();
+        for sample in reader.into_samples::<i16>() {
+            let s = sample.map_err(|e| e.to_string())?;
+            out.extend_from_slice(&s.to_le_bytes());
+        }
+        Ok(out)
+    }
+
+    #[test]
+    fn tpdf_16bit_differs_from_naive_round_on_quiet_signal() {
+        let dir = std::env::temp_dir().join(format!(
+            "song-maker-dither-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let src = dir.join("quiet24.wav");
+        let dithered = dir.join("out16-tpdf.wav");
+        let naive = dir.join("out16-naive.wav");
+        write_quiet_24bit_wav(&src).expect("write quiet wav");
+        downsample_wav_bit_depth(&src, &dithered, 16).expect("tpdf 16-bit");
+        downsample_wav_bit_depth_naive(&src, &naive).expect("naive 16-bit");
+        let a = read_pcm16_payload(&dithered).unwrap();
+        let b = read_pcm16_payload(&naive).unwrap();
+        assert_eq!(a.len(), b.len());
+        assert_ne!(
+            a, b,
+            "TPDF dither output must differ from simple truncation on a sub-LSB signal"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn downsample_24bit_leaves_wav_unchanged() {
+        let dir = std::env::temp_dir().join(format!(
+            "song-maker-bit24-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let src = dir.join("in24.wav");
+        let dest = dir.join("out24.wav");
+        write_quiet_24bit_wav(&src).unwrap();
+        downsample_wav_bit_depth(&src, &dest, 24).unwrap();
+        let a = std::fs::read(&src).unwrap();
+        let b = std::fs::read(&dest).unwrap();
+        assert_eq!(a, b, "24-bit path must not alter samples (no dither)");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn export_json_records_requested_bit_depth() {
+        let dir = std::env::temp_dir().join(format!(
+            "song-maker-export-json-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let wav = dir.join("x.wav");
+        write_quiet_24bit_wav(&wav).unwrap();
+        let json_path = dir.join("x.json");
+        write_export_json_with_warnings(
+            &json_path,
+            "wav",
+            &wav,
+            0.0,
+            16,
+            Some("test"),
+            Some("approximate"),
+            &[],
+        )
+        .unwrap();
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&json_path).unwrap()).unwrap();
+        assert_eq!(v["bitDepth"], 16);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

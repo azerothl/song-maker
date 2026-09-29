@@ -966,8 +966,6 @@ export function ProductionWorkspace({
         />
         <ExportWizard
           project={project}
-          mix={mix}
-          sources={playbackSources}
           busy={busy}
           onBusy={setBusy}
           onError={setError}
