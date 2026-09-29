@@ -7,6 +7,7 @@ import type {
 import {
   buildTimeline,
   formatTakeDetails,
+  renamedTakeTooltip,
   type VersionEventSource,
 } from "../lib/versionHistory";
 import { t } from "../ui/i18n";
@@ -195,7 +196,13 @@ export function VersionHistory({
                 return (
                   <li
                     key={event.id}
-                    className={`version-between${event.isActive ? " active" : ""}`}
+                    className={`version-between version-between-global${event.isActive ? " active" : ""}`}
+                    data-global-event={event.isGlobal ? "true" : undefined}
+                    aria-label={
+                      event.isGlobal
+                        ? t("versions.event.separationGlobal")
+                        : undefined
+                    }
                   >
                     <div className="version-between-rail" aria-hidden="true">
                       <span className="version-between-dot" />
@@ -255,7 +262,12 @@ export function VersionHistory({
               const { take } = item;
               const highlighted = highlightId === take.id;
               const gen = genById.get(take.id);
-              const detailsText = formatTakeDetails(take, gen);
+              const titleTooltip = renamedTakeTooltip(take, (defaultName) =>
+                t("versions.defaultNameTooltip", { name: defaultName }),
+              );
+              const detailsText = formatTakeDetails(take, gen, {
+                defaultNameLabel: t("versions.details.defaultName"),
+              });
               const listenLabel = t("generations.listen");
               const restoreLabel = t("versions.restoreTake", {
                 title: take.title,
@@ -327,7 +339,10 @@ export function VersionHistory({
                             </div>
                           ) : (
                             <>
-                              <h3 id={`${listId}-take-${take.id}`}>
+                              <h3
+                                id={`${listId}-take-${take.id}`}
+                                title={titleTooltip}
+                              >
                                 {take.title}
                               </h3>
                               {take.when && (

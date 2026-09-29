@@ -15,6 +15,8 @@ export type TakeDisplay = {
   ordinal: number;
   /** User-facing title, e.g. « Prise 3 » or a custom name. */
   title: string;
+  /** Default « Prise N » kept after rename (tooltip / Détails). */
+  defaultTitle: string;
   /** Relative clock, e.g. « aujourd’hui 14:22 ». */
   when: string;
   /** Short style blurb; empty when none. */
@@ -50,6 +52,8 @@ export type TimelineEvent = {
   activationId: string | null;
   /** Second and later separations use « à nouveau ». */
   isRepeatSeparation: boolean;
+  /** Separation milestones are global, not owned by a single take. */
+  isGlobal: boolean;
 };
 
 export type TimelineItem =
@@ -212,11 +216,30 @@ function takeForTimestamp(
   return match ?? sorted[0] ?? null;
 }
 
+export function isTakeRenamed(take: TakeDisplay): boolean {
+  return take.title.trim() !== take.defaultTitle;
+}
+
+/** Tooltip when the user chose a custom take name. */
+export function renamedTakeTooltip(
+  take: TakeDisplay,
+  template: (defaultName: string) => string,
+): string | undefined {
+  if (!isTakeRenamed(take)) return undefined;
+  return template(take.defaultTitle);
+}
+
 export function formatTakeDetails(
   take: TakeDisplay,
   generation?: GenerationSummary,
+  options?: { defaultNameLabel?: string },
 ): string {
-  const lines = [`gen: ${take.id}`, `graine: ${take.seed}`];
+  const lines = [`gen: ${take.id}`];
+  if (isTakeRenamed(take)) {
+    const label = options?.defaultNameLabel ?? "nom par défaut";
+    lines.push(`${label}: ${take.defaultTitle}`);
+  }
+  lines.push(`graine: ${take.seed}`);
   if (take.scoreArtifactId) lines.push(`partition: ${take.scoreArtifactId}`);
   if (take.mixId) lines.push(`mix: ${take.mixId}`);
   if (generation?.cot) lines.push(`mode: ${generation.cot}`);
@@ -281,10 +304,12 @@ export function buildTakeDisplays(input: BuildTimelineInput): TakeDisplay[] {
     const mixId = mixByGen.get(g.id) ?? null;
     const scoreArtifactId = g.hasScore ? g.id : null;
     const isInterrupted = !hasMusic && g.state !== "generated";
+    const defaultTitle = defaultTakeTitle(ordinal);
     return {
       id: g.id,
       ordinal,
       title,
+      defaultTitle,
       when: formatRelativeWhen(g.createdAt, now),
       styleSummary,
       fromParent,
@@ -321,6 +346,7 @@ export function buildTakeDisplays(input: BuildTimelineInput): TakeDisplay[] {
       isActive: false,
       activationId: null,
       isRepeatSeparation: false,
+      isGlobal: false,
     });
   }
 
@@ -340,6 +366,7 @@ export function buildTakeDisplays(input: BuildTimelineInput): TakeDisplay[] {
       isActive: false,
       activationId: null,
       isRepeatSeparation: false,
+      isGlobal: false,
     });
   }
 
@@ -383,6 +410,7 @@ export function buildTimeline(input: BuildTimelineInput): DayGroup[] {
         isActive: sep.isActive,
         activationId: sep.separationId,
         isRepeatSeparation: index > 0,
+        isGlobal: true,
       },
     });
   });

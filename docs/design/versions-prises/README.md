@@ -18,7 +18,7 @@ Identifiants bruts `gen-001…gen-013`, graines, libellés techniques « full »
 
 ## Décisions de design
 - **Une « prise »** regroupe génération + partition + mix. Trois pastilles « ✓ Musique / ✓ Partition / ✓ Mix » (ou « – » si absent) disent ce qu’elle contient.
-- **Nom par défaut « Prise N »**, avec date en clair (« aujourd’hui 14:22 », « hier 15:10 ») et **résumé de style court** (genre · BPM · détail). **Renommable** : crayon (44 px) → champ en ligne + Enregistrer / Annuler ; Entrée valide, Échap annule, le focus revient au crayon.
+- **Nom par défaut « Prise N »**, avec date en clair (« aujourd’hui 14:22 », « hier 15:10 ») et **résumé de style court** (genre · BPM · détail). **Renommable** : crayon (44 px) → champ en ligne + Enregistrer / Annuler ; Entrée valide, Échap annule, le focus revient au crayon. Après renommage, **« Prise N » reste visible** (infobulle sur le titre + ligne « Nom par défaut » dans Détails).
 - **Chronologie, plus récent en haut**, titres de jour collants (Aujourd’hui / Hier, puis date complète au-delà). Remplace l’arbre : plus de branches à lire.
 - **Filiation en mots** : « à partir de la prise 2 » est un **lien** souligné qui mène à la prise d’origine (remplace « parent » / « racine »).
 - **Événements** : dans la prise (liste sous les pastilles : « Mix modifié », « Partition mise à jour ») ou **entre deux prises** (ligne en pointillé : « Pistes séparées », « Pistes séparées à nouveau »). La position d’une ligne d’événement dans la chronologie est celle de son heure.
@@ -48,6 +48,6 @@ Identifiants bruts `gen-001…gen-013`, graines, libellés techniques « full »
 ## Points ouverts / inventés
 - Contenu de chaque prise, noms d’événements sur la ligne de temps (position par heure) : inventés d’après le brief.
 - « Essai plus lumineux » et « Version démo » = exemples de prises déjà renommées.
-- L’événement « Pistes séparées » est global (pas rattaché à une prise) : à valider côté données.
+- L’événement « Pistes séparées » est **global** (ligne entre prises, pas rattaché à une prise) : confirmé côté produit et données.
 - Sous 900 px de large : non maquetté (actions à passer sous le texte).
 - Suppression / archivage d’une prise : hors périmètre.

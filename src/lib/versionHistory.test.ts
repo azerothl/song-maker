@@ -3,9 +3,12 @@ import { describe, it } from "node:test";
 import type { GenerationSummary, SeparationVersionSummary } from "./types.ts";
 import {
   assignTakeOrdinals,
+  buildTakeDisplays,
   buildTimeline,
   formatDayLabel,
   formatRelativeWhen,
+  formatTakeDetails,
+  renamedTakeTooltip,
   resolveTakeTitle,
   summarizeStyle,
 } from "./versionHistory.ts";
@@ -57,6 +60,54 @@ describe("assignTakeOrdinals", () => {
     assert.equal(map.get("gen-001"), 1);
     assert.equal(map.get("gen-002"), 2);
     assert.equal(map.get("gen-003"), 3);
+  });
+});
+
+describe("renamed take default name", () => {
+  it("expose le nom par défaut dans Détails et l’infobulle après renommage", () => {
+    const displays = buildTakeDisplays({
+      generations: [
+        gen({
+          id: "gen-004",
+          createdAt: "2026-09-29T12:00:00.000Z",
+          audioPath: "/a.wav",
+        }),
+      ],
+      separations: [],
+      activeGenerationId: "gen-004",
+      style: "pop",
+      customNames: { "gen-004": "Essai plus lumineux" },
+      labels,
+    });
+    const take = displays[0];
+    assert.equal(take.title, "Essai plus lumineux");
+    assert.equal(take.defaultTitle, "Prise 1");
+    const details = formatTakeDetails(take, undefined, {
+      defaultNameLabel: "Nom par défaut",
+    });
+    assert.match(details, /Nom par défaut: Prise 1/);
+    const tooltip = renamedTakeTooltip(take, (name) => `Ancien nom : ${name}`);
+    assert.equal(tooltip, "Ancien nom : Prise 1");
+  });
+
+  it("n’affiche pas le nom par défaut en doublon si la prise n’est pas renommée", () => {
+    const displays = buildTakeDisplays({
+      generations: [
+        gen({
+          id: "gen-001",
+          createdAt: "2026-09-29T12:00:00.000Z",
+          audioPath: "/a.wav",
+        }),
+      ],
+      separations: [],
+      style: "pop",
+      labels,
+    });
+    const take = displays[0];
+    assert.equal(take.title, "Prise 1");
+    const details = formatTakeDetails(take);
+    assert.equal(details.includes("nom par défaut"), false);
+    assert.equal(renamedTakeTooltip(take, (n) => n), undefined);
   });
 });
 
@@ -145,6 +196,7 @@ describe("buildTimeline", () => {
     );
     assert.ok(child && child.type === "take");
     assert.equal(child.take.fromParent, "à partir de Prise 1");
+    assert.equal(child.take.defaultTitle, "Prise 2");
     assert.equal(child.take.isActive, true);
 
     const titles = flat.map((i) =>
@@ -176,5 +228,18 @@ describe("buildTimeline", () => {
     const today = groups.find((g) => g.dayLabel === "Aujourd’hui");
     assert.ok(today);
     assert.equal(today.items[0].type, "take");
+
+    const separation = flat.find(
+      (i) => i.type === "event" && i.event.kind === "separation",
+    );
+    assert.ok(separation && separation.type === "event");
+    assert.equal(separation.event.isGlobal, true);
+    for (const item of flat) {
+      if (item.type !== "take") continue;
+      assert.equal(
+        item.take.inlineEvents.some((e) => e.kind === "separation"),
+        false,
+      );
+    }
   });
 });
