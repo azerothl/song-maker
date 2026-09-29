@@ -32,7 +32,7 @@ Maquette statique, **rien n’est commité ni poussé**, aucune écriture GitHub
 
 Note colonne « Piste » : 192 px de colonne (bande couleur de 5 px, écart 8 px, retrait de 14 px pour les pistes de groupe) ; « Accompagnement » et « Guitare rythmique * » tiennent sans troncature (`accompagnement_fits`, `guitare_rythmique_fits` = vrai). Une info-bulle `title` (nom complet) n’est posée que si le nom est réellement tronqué (aucun cas dans les jeux d’exemple).
 
-En-têtes de groupe (24 px) : le bouton chevron/nom fait 22 px de haut visible avec une zone cliquable étendue à 26 px ; il reste activable au clavier (Tab, Entrée/Espace, `aria-expanded` — vérifié dans `render.py`). Les M/S de groupe sont dessinés 28×22 px (l’en-tête ne permet pas 28 px de haut) avec une zone cliquable de 28×30 px : **seule exception à « ≥ 28×28 » visible**, à signaler.
+En-têtes de groupe (24 px) : le bouton chevron/nom fait 22 px de haut visible avec une zone cliquable étendue à 26 px ; il reste activable au clavier (Tab, Entrée/Espace, `aria-expanded` — vérifié dans `render.py`). Les M/S de groupe sont dessinés 28×22 px (l’en-tête ne permet pas 28 px de haut) avec une zone cliquable d’au moins 28×24 px (WCAG 2.2, taille minimale de cible 24 px ; un en-tête de 24 px ne peut pas en contenir davantage sans grandir) : **seule exception à « ≥ 28×28 » visible**, à signaler.
 
 ### Lignes entièrement visibles à 1280×720 (12 pistes, compact)
 - **9 lignes de pistes entièrement visibles** avec les 12 pistes, **groupe Rythmique déplié** (cas défavorable : la liste défile, 3 en-têtes de groupe visibles). Avec Rythmique replié, 9 lignes sont aussi visibles et rien ne défile. Critère « ≥ 8 lignes » : **atteint (9)**, sans réduire les boutons.
