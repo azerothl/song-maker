@@ -73,9 +73,10 @@ function ProductionCaptureApp() {
     for (const tr of mix.tracks) {
       peaksByTrack[tr.id] = syntheticPeaks(seed++);
     }
+    const duration = 444;
     return {
-      current: 0,
-      duration: 444,
+      current: duration * capturePrefs.progressRatio,
+      duration,
       mode: "stems",
       peaksByTrack,
       mixPeaks: syntheticPeaks(99, 200),

@@ -8,16 +8,24 @@ describe("parseCaptureHash", () => {
       trackCount: 6,
       densityPreference: "auto",
       rythmiqueCollapsed: false,
+      progressRatio: 0,
     });
     assert.deepEqual(parseCaptureHash("16,compact,collapsed"), {
       trackCount: 16,
       densityPreference: "compact",
       rythmiqueCollapsed: true,
+      progressRatio: 0,
     });
     assert.deepEqual(parseCaptureHash("confortable"), {
       trackCount: 12,
       densityPreference: "confortable",
       rythmiqueCollapsed: false,
+      progressRatio: 0,
     });
+  });
+
+  it("résout midplay pour les captures de contraste waveform", () => {
+    assert.equal(parseCaptureHash("6,confortable,midplay").progressRatio, 0.45);
+    assert.equal(parseCaptureHash("6,auto,progress=0.5").progressRatio, 0.5);
   });
 });
