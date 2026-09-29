@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "test": "node --import tsx --test \"src/**/*.test.ts\" \"docs/basicpitch-trial/report-content.test.mjs\"",
     "bench:score-tab": "node --import tsx scripts/bench-score-tab.mts",
     "bench:partition": "node scripts/bench-partition-freeze.mjs",
     "packages:build": "pnpm -r --filter \"./packages/**\" run build",

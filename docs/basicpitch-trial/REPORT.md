@@ -1,7 +1,7 @@
 # Essai interne : BasicPitch, audio → MIDI par piste
 
 Issue : [#169](https://github.com/azerothl/song-maker/issues/169).  
-Branche d’essai : `cursor/basicpitch-trial-ca11` (après merge #172).  
+Artefacts : [`docs/basicpitch-trial/`](.) sur `main`.  
 **Essai interne uniquement** — aucun bouton produit. Décision d’intégration : Loïc (#170 ensuite).
 
 ## Méthode
@@ -11,13 +11,14 @@ Branche d’essai : `cursor/basicpitch-trial-ca11` (après merge #172).
 | Paquet | `basic-pitch==0.4.0` (Apache-2.0) |
 | Backend | **ONNX** (`nmp.onnx` embarqué) + `onnxruntime==1.30.0` |
 | TensorFlow | **Non installé** pour cet essai |
+| Données d’entraînement | **Non vérifiées** ici (licence / provenance des corpus Spotify non auditées dans Song Maker). |
 | Sources | Stems `website/public/examples/real-generation-6/{vocals,bass,piano,drums}.mp3` (~20 s) ; complément piano : fixture synthétique + `piano-roll-sketch.wav` |
 | Script | [`scripts/basicpitch-trial/`](../../scripts/basicpitch-trial/README.md) |
-| Preuves | MIDI, extraits A/B, spectrogrammes, JSON mesurés dans ce dossier |
+| Preuves | MIDI, extraits A/B MP3, spectrogrammes, JSON mesurés dans ce dossier |
 
 Sur Linux + Python ≥ 3.11, `pip install basic-pitch` tire TensorFlow par défaut. Ici : `pip install basic-pitch==0.4.0 --no-deps` puis dépendances + `onnxruntime` (voir `requirements.txt`). Le modèle par défaut devient alors `…/nmp.onnx` (`MODEL_TYPES.ONNX`).
 
-L’environnement d’agent n’a pas de sortie audio matérielle. L’avis d’écoute s’appuie sur les mixes A/B (original puis sonify MIDI) et les spectrogrammes côte à côte — pas sur un score chiffré de « qualité ».
+**Écoute matérielle** : non réalisée (pas de sortie audio sur l’environnement d’essai). Les sections « avis d’écoute » ci-dessous s’appuient uniquement sur les mixes A/B MP3, les spectrogrammes et les compteurs MIDI — **pas sur une audition directe des fichiers**.
 
 ## Mesuré (faits / compteurs)
 
@@ -45,9 +46,9 @@ Pas de métrique de qualité de transcription (pas de F1, pas de ground truth po
 Fixture synthétique : hauteurs prévues `{60,62,64,65,67,69,72,76,79}`.  
 **Mesuré** : toutes présentes dans le MIDI ; **aucune hauteur hors ensemble**. Ce n’est pas une mesure de timing ni une métrique produit.
 
-### Fixture stem piano du site
+### Stem piano du site (marketing)
 
-`real-generation-6/piano.mp3` : **RMS ≈ 7,9×10⁻⁵** (quasi silence). Les 81 notes MIDI sont donc des détections sur bruit de fond — **fixture inutilisable** pour juger le piano ; d’où les deux compléments ci-dessus.
+`real-generation-6/piano.mp3` : **RMS ≈ 7,9×10⁻⁵** (quasi silence). **Ne pas utiliser ce stem pour juger BasicPitch sur le piano** : les 81 notes MIDI sont des détections sur bruit de fond. Jugement piano basé sur la **fixture synthétique** et **`piano-roll-sketch`** uniquement.
 
 ### Import Partition / piano roll (`midi-import-score-engine.json`)
 
@@ -60,33 +61,33 @@ Tous les `.mid` s’ouvrent via `importMidiToScoreDocument` (`@song-maker/score-
 
 Clippy : **N/A** (aucun fichier Rust modifié).
 
-## Avis d’écoute (pas mesuré)
+## Avis d’écoute (**non écouté** — dérivé A/B MP3 + spectrogrammes)
 
-Avis qualitatif après comparaison A/B (extraits + spectrogrammes). **Ne pas lire comme un score.**
+Avis qualitatif **sans audition directe** : comparaison des mixes A/B et des spectrogrammes. **Ne pas lire comme un score.**
 
 ### Voix (`vocals`)
 
-Le contour mélodique et les plages actives se retrouvent dans le MIDI sonifié. Le sonify est une mélodie « clavier » simplifiée (peu d’harmoniques aigües, vibrato aplati). Utile comme brouillon de ligne mélodique à éditer, pas comme remplacement de la piste vocale.
+Le contour mélodique et les plages actives semblent retrouvés dans le MIDI sonifié (spectrogramme + A/B). Le sonify est une mélodie « clavier » simplifiée. Utile comme brouillon de ligne mélodique à éditer, pas comme remplacement de la piste vocale.
 
-Fichiers : [`excerpts/vocals-original-8s.wav`](excerpts/vocals-original-8s.wav), [`excerpts/vocals-midi-sonify-8s.wav`](excerpts/vocals-midi-sonify-8s.wav), [`excerpts/ab/vocals-ab-original-then-midi.mp3`](excerpts/ab/vocals-ab-original-then-midi.mp3), [`spectrograms/vocals-ab-spectrogram.png`](spectrograms/vocals-ab-spectrogram.png).
+Fichiers : [`excerpts/ab/vocals-ab-original-then-midi.mp3`](excerpts/ab/vocals-ab-original-then-midi.mp3), [`spectrograms/vocals-ab-spectrogram.png`](spectrograms/vocals-ab-spectrogram.png).
 
 ### Basse (`bass`)
 
-Le rythme et le registre grave sont globalement suivis ; le sonify ressemble à une ligne basse MIDI jouable. Quelques attaques / notes fantômes possibles (spectrogramme). Correct comme piste MIDI basse à corriger à la main.
+Le rythme et le registre grave semblent suivis sur spectrogramme ; quelques attaques / notes fantômes possibles. Correct comme piste MIDI basse à corriger à la main (avis non écouté).
 
-Fichiers : [`excerpts/bass-*-8s.wav`](excerpts/), [`excerpts/ab/bass-ab-original-then-midi.mp3`](excerpts/ab/bass-ab-original-then-midi.mp3), [`spectrograms/bass-ab-spectrogram.png`](spectrograms/bass-ab-spectrogram.png).
+Fichiers : [`excerpts/ab/bass-ab-original-then-midi.mp3`](excerpts/ab/bass-ab-original-then-midi.mp3), [`spectrograms/bass-ab-spectrogram.png`](spectrograms/bass-ab-spectrogram.png).
 
 ### Piano
 
 - **Stem site** : original quasi muet ; le MIDI sonifié invente une phrase — **non significatif** ([`spectrograms/piano_stem-ab-spectrogram.png`](spectrograms/piano_stem-ab-spectrogram.png)).
-- **Fixture synthétique** : enchaînement et accords bien repris à l’oreille / au spectrogramme ; bon candidat pour un usage Partition.
-- **`piano-roll-sketch`** : mélodie claire, alignement original ↔ MIDI convaincant.
+- **Fixture synthétique** : enchaînement et accords cohérents sur spectrogramme ; bon candidat pour un usage Partition (avis non écouté).
+- **`piano-roll-sketch`** : mélodie claire sur spectrogramme / A/B (avis non écouté).
 
-Fichiers : [`midi/piano_synthetic.mid`](midi/piano_synthetic.mid), [`midi/piano_sketch.mid`](midi/piano_sketch.mid), A/B correspondants sous `excerpts/ab/`.
+Fichiers : [`midi/piano_synthetic.mid`](midi/piano_synthetic.mid), [`midi/piano_sketch.mid`](midi/piano_sketch.mid), A/B sous `excerpts/ab/`.
 
 ### Batterie (`drums`)
 
-BasicPitch est un modèle de notes **pitchées**. Sur 20 s de batterie réelle : **4 notes** seulement, toutes après ~9 s. Même sur la fenêtre 8–16 s (là où ces notes existent), le sonify rate presque toute la grille (cymbales / snares absents). **Avis : inutilisable pour une piste batterie** dans Song Maker ; un outil dédié drums (hors ADTOF NC) serait requis si on veut du MIDI batterie.
+BasicPitch est un modèle de notes **pitchées**. Sur 20 s de batterie réelle : **4 notes** seulement, toutes après ~9 s. Même sur la fenêtre 8–16 s, le sonify rate presque toute la grille (cymbales / snares absents). **Avis (non écouté) : inutilisable pour une piste batterie** dans Song Maker ; un outil dédié drums (hors ADTOF NC) serait requis si on veut du MIDI batterie.
 
 Fichiers : [`midi/drums.mid`](midi/drums.mid), [`excerpts/ab/drums-ab-original-then-midi.mp3`](excerpts/ab/drums-ab-original-then-midi.mp3), [`spectrograms/drums-ab-spectrogram.png`](spectrograms/drums-ab-spectrogram.png).
 
@@ -96,8 +97,8 @@ Fichiers : [`midi/drums.mid`](midi/drums.mid), [`excerpts/ab/drums-ab-original-t
 |---|---|
 | Sans TensorFlow ? | **Oui**, via ONNX + `onnxruntime` (testé). Sur Py≥3.11 Linux, il faut `--no-deps` pour éviter le pull TF. |
 | MIDI ouvre dans Partition / piano roll ? | **Oui** (`importMidiToScoreDocument` OK sur tous les fichiers d’essai). |
-| Qualité par piste | Non mesurée. Avis : utile pour voix / basse / piano (sources pitchées) ; **pas** pour batterie. |
-| Recommandation produit | Décision Loïc. Si go : chemin opt-in type SheetSage2, script/runtime local, pas de bouton tant que #170 n’est pas tranché. Stem piano du site marketing à corriger (silence). |
+| Qualité par piste | Non mesurée. Avis (non écouté) : utile pour voix / basse / piano (sources pitchées, hors stem piano site) ; **pas** pour batterie. |
+| Recommandation produit | Décision Loïc. Si go : chemin opt-in type SheetSage2, script/runtime local, pas de bouton tant que #170 n’est pas tranché. **Stem piano du site marketing quasi silencieux** — à corriger avant toute démo publique. |
 
 ## Contenu du dossier
 
@@ -109,9 +110,7 @@ docs/basicpitch-trial/
   note-details.json
   ab-compare-stats.json     ← RMS / chroma (corrélats, pas scores qualité)
   midi/*.mid
-  excerpts/*-original-8s.wav
-  excerpts/*-midi-sonify-8s.wav
-  excerpts/ab/*-ab-*.mp3
+  excerpts/ab/*-ab-*.mp3    ← extraits A/B (WAV redondants retirés du dépôt)
   excerpts/piano-synthetic-fixture.wav
   spectrograms/*-ab-spectrogram.png
 ```
