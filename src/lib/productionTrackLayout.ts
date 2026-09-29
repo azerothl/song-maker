@@ -2,6 +2,16 @@ import type { MixTrack } from "./types";
 
 export type ProductionTrackDensity = "compact" | "confortable";
 
+export type ProductionViewId = "mix" | "clips" | "tools";
+
+/** Mode mix compact : chrome réduit pour maximiser la hauteur de la liste (#137). */
+export function shouldUseProductionTightLayout(
+  productionView: ProductionViewId,
+  density: ProductionTrackDensity,
+): boolean {
+  return productionView === "mix" && density === "compact";
+}
+
 export type TrackFamilyId = "voix" | "rythmique" | "harmonie";
 
 const DENSITY_STORAGE_KEY = "song-maker:production-track-density";

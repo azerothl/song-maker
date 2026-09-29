@@ -27,6 +27,7 @@ import {
   loadProductionTrackDensity,
   saveCollapsedTrackFamily,
   saveProductionTrackDensity,
+  shouldUseProductionTightLayout,
   waveHeightForDensity,
   type ProductionTrackDensity,
   type TrackFamilyId,
@@ -176,6 +177,8 @@ export function ProductionWorkspace({
     [mix],
   );
   const waveHeight = waveHeightForDensity(density);
+  const tightMixLayout = shouldUseProductionTightLayout(productionView, density);
+  const masterWaveHeight = tightMixLayout ? 32 : 38;
 
   const setDensityPersist = (next: ProductionTrackDensity) => {
     setDensity(next);
@@ -192,43 +195,50 @@ export function ProductionWorkspace({
 
   return (
     <section
-      className="song-workspace-panel wide production-workspace"
+      className={
+        tightMixLayout
+          ? "song-workspace-panel wide production-workspace production-workspace-tight"
+          : "song-workspace-panel wide production-workspace"
+      }
       role="tabpanel"
       id="song-panel-production"
       aria-labelledby="song-tab-production"
     >
-      <header className="song-workspace-heading production-heading-compact">
-        <h2>{workspaceTitle("production")}</h2>
-        <p className="hint">{workspaceIntro("production")}</p>
-      </header>
+      <div className="production-chrome-stack">
+        <div className="production-chrome-row">
+          <header className="song-workspace-heading production-heading-compact">
+            <h2>{workspaceTitle("production")}</h2>
+            <p className="hint">{workspaceIntro("production")}</p>
+          </header>
 
-      <nav
-        className="song-subnav"
-        role="tablist"
-        aria-label={t("workspace.production.nav")}
-      >
-        {PRODUCTION_VIEWS.map((view) => (
-          <button
-            key={view}
-            type="button"
-            role="tab"
-            className="song-subnav-tab"
-            aria-selected={productionView === view}
-            id={`production-view-${view}`}
-            aria-controls={`production-panel-${view}`}
-            tabIndex={productionView === view ? 0 : -1}
-            onClick={() => setProductionView(view)}
+          <nav
+            className="song-subnav production-subnav"
+            role="tablist"
+            aria-label={t("workspace.production.nav")}
           >
-            {productionViewLabel(view)}
-          </button>
-        ))}
-      </nav>
+            {PRODUCTION_VIEWS.map((view) => (
+              <button
+                key={view}
+                type="button"
+                role="tab"
+                className="song-subnav-tab"
+                aria-selected={productionView === view}
+                id={`production-view-${view}`}
+                aria-controls={`production-panel-${view}`}
+                tabIndex={productionView === view ? 0 : -1}
+                onClick={() => setProductionView(view)}
+              >
+                {productionViewLabel(view)}
+              </button>
+            ))}
+          </nav>
+        </div>
 
-      <p className="hint song-subview-intro production-subview-intro">
-        {productionViewIntro(productionView)}
-      </p>
+        <p className="hint song-subview-intro production-subview-intro">
+          {productionViewIntro(productionView)}
+        </p>
 
-      <details className="production-actions-drawer">
+        <details className="production-actions-drawer" data-default-closed>
         <summary>{t("mix.actions.toggle")}</summary>
         <div className="production-global-actions">
           <div className="song-actions">
@@ -311,7 +321,8 @@ export function ProductionWorkspace({
             onError={setError}
           />
         </div>
-      </details>
+        </details>
+      </div>
 
       <div
         id="production-panel-mix"
@@ -380,7 +391,7 @@ export function ProductionWorkspace({
                     peaks={playback?.mixPeaks ?? null}
                     progress={playback?.current ?? 0}
                     duration={playback?.duration ?? 0}
-                    height={38}
+                    height={masterWaveHeight}
                     status={
                       !playback || playback.loading || !playback.ready
                         ? "loading"
@@ -411,11 +422,8 @@ export function ProductionWorkspace({
                   }
                 />
               </div>
-            </div>
-
-            <div className="production-mix-scroll">
               <div
-                className="production-mix-toolbar"
+                className="production-mix-toolbar production-mix-toolbar-sticky"
                 role="toolbar"
                 aria-label={t("workspace.production.mix")}
               >
@@ -542,17 +550,21 @@ export function ProductionWorkspace({
                     : "\u00a0"}
                 </p>
               </div>
+            </div>
 
-              <div
-                className="production-mix-colheaders production-mix-grid"
-                aria-hidden="true"
-              >
-                <span>{t("mix.columns.track")}</span>
-                <span>{t("mix.columns.gain")}</span>
-                <span>{t("mix.columns.pan")}</span>
-                <span>{t("mix.columns.ms")}</span>
-                <span>{t("mix.columns.waveform")}</span>
-              </div>
+            <div className="production-mix-scroll">
+              {!tightMixLayout && (
+                <div
+                  className="production-mix-colheaders production-mix-grid"
+                  aria-hidden="true"
+                >
+                  <span>{t("mix.columns.track")}</span>
+                  <span>{t("mix.columns.gain")}</span>
+                  <span>{t("mix.columns.pan")}</span>
+                  <span>{t("mix.columns.ms")}</span>
+                  <span>{t("mix.columns.waveform")}</span>
+                </div>
+              )}
 
               <div className="production-mix-list" role="list" aria-label={t("mix.tracksTitle")}>
                 {(() => {
@@ -587,7 +599,7 @@ export function ProductionWorkspace({
                       >
                         <div className="production-mix-name">
                           <span className="production-mix-strip" aria-hidden />
-                          <span className="production-mix-track-label">
+                          <span className="production-mix-track-label" title={tr.name}>
                             {tr.name}
                             {experimental && (
                               <>
