@@ -3,27 +3,16 @@ import type { StemProviderId } from "./registry.js";
 /** Track focus used to recommend a separator (#166). */
 export type SeparationTrackFocus = "vocals" | "drums" | "mix";
 
-export type TimeKind = "estimation" | "mesure";
+export type TimeKind = "mesure" | "exemple_non_mesure";
 
 export type SeparatorTimeStat = {
-  /** Measured milliseconds of wall time per second of audio. */
+  /** Measured milliseconds of wall time per second of audio (includes model load). */
   msPerAudioSec: number;
   samples: number;
 };
 
-/**
- * Baseline wall-time estimates (ms of work per second of audio) for a mid GPU.
- * Labeled « estimation » until the host records a measured sample.
- */
-export const SEPARATOR_TIME_BASELINE_MS_PER_AUDIO_SEC: Record<
-  StemProviderId,
-  number
-> = {
-  htdemucs: 250,
-  mel_band_roformer: 500,
-  bs_roformer: 420,
-  htdemucs_6s: 700,
-};
+const UNMEASURED_RECOMMENDATION_FR =
+  "Recommandation non mesurée — deviendra un conseil après tests sur nos propres pistes.";
 
 export function recommendSeparator(
   focus: SeparationTrackFocus,
@@ -43,28 +32,36 @@ export function recommendSeparator(
 }
 
 export function recommendReasonFr(focus: SeparationTrackFocus): string {
-  switch (focus) {
-    case "vocals":
-      return "Pour une piste voix / instrumental, Mel-Band RoFormer « Kim Vocal 2 » est recommandé.";
-    case "drums":
-      return "Pour isoler la batterie dans un mix, HTDemucs (4 stems) est recommandé.";
-    case "mix":
-      return "Pour un mix complet (voix, batterie, basse, accompagnement), HTDemucs est recommandé.";
-    default: {
-      const _exhaustive: never = focus;
-      return _exhaustive;
+  const base = (() => {
+    switch (focus) {
+      case "vocals":
+        return "Pour une piste voix / instrumental, Mel-Band RoFormer « Kim Vocal 2 » est proposé.";
+      case "drums":
+        return "Pour isoler la batterie dans un mix, HTDemucs (4 stems) est proposé.";
+      case "mix":
+        return "Pour un mix complet (voix, batterie, basse, accompagnement), HTDemucs est proposé.";
+      default: {
+        const _exhaustive: never = focus;
+        return _exhaustive;
+      }
     }
-  }
+  })();
+  return `${UNMEASURED_RECOMMENDATION_FR} ${base}`;
+}
+
+export function unmeasuredRecommendationNoticeFr(): string {
+  return UNMEASURED_RECOMMENDATION_FR;
 }
 
 export type QualityTimeOption = {
   id: StemProviderId;
-  estimatedMs: number;
+  estimatedMs: number | null;
   kind: TimeKind;
   recommended: boolean;
 };
 
-export function formatDurationFr(ms: number): string {
+export function formatDurationFr(ms: number | null): string {
+  if (ms == null || ms <= 0) return "—";
   const sec = Math.max(1, Math.round(ms / 1000));
   if (sec < 60) return `~${sec} s`;
   const m = Math.floor(sec / 60);
@@ -73,12 +70,21 @@ export function formatDurationFr(ms: number): string {
 }
 
 export function timeLabelFr(kind: TimeKind): string {
-  return kind === "mesure" ? "mesuré" : "estimation";
+  switch (kind) {
+    case "mesure":
+      return "mesuré (chargement du modèle inclus)";
+    case "exemple_non_mesure":
+      return "exemple, non mesuré";
+    default: {
+      const _exhaustive: never = kind;
+      return _exhaustive;
+    }
+  }
 }
 
 /**
- * Builds the quality-option rows shown before separation.
- * Every option always carries a displayable time (#166 acceptance).
+ * Builds the quality-option rows shown before separation (#166).
+ * No invented wall-time: only measured stats produce a duration estimate.
  */
 export function buildQualityTimeOptions(args: {
   focus: SeparationTrackFocus;
@@ -96,16 +102,14 @@ export function buildQualityTimeOptions(args: {
   const duration = Math.max(1, args.audioDurationSec);
   return ids.map((id) => {
     const measured = args.measured?.[id];
-    const rate =
-      measured && measured.samples > 0 && measured.msPerAudioSec > 0
-        ? measured.msPerAudioSec
-        : SEPARATOR_TIME_BASELINE_MS_PER_AUDIO_SEC[id];
-    const kind: TimeKind =
-      measured && measured.samples > 0 ? "mesure" : "estimation";
+    const hasMeasure =
+      measured != null && measured.samples > 0 && measured.msPerAudioSec > 0;
     return {
       id,
-      estimatedMs: Math.round(rate * duration),
-      kind,
+      estimatedMs: hasMeasure
+        ? Math.round(measured.msPerAudioSec * duration)
+        : null,
+      kind: hasMeasure ? "mesure" : "exemple_non_mesure",
       recommended: id === recommended,
     };
   });

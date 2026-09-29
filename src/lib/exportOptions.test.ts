@@ -57,9 +57,8 @@ describe("separation recommend + license (#166 #167)", () => {
     });
     assert.ok(options.length >= 2);
     for (const opt of options) {
-      assert.ok(opt.estimatedMs > 0);
       const label = `${formatDurationFr(opt.estimatedMs)} · ${timeLabelFr(opt.kind)}`;
-      assert.match(label, /estimation|mesuré/);
+      assert.match(label, /exemple, non mesuré|mesuré/);
     }
     assert.equal(recommendSeparator("vocals"), "mel_band_roformer");
   });
