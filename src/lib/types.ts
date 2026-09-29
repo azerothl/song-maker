@@ -213,6 +213,8 @@ export type AppSettings = {
   ccByNcAccepted?: boolean;
   /** Consentement distinct au modèle principal YuE2 CC BY-NC 4.0. */
   yue2LicenseAccepted?: boolean;
+  /** Génération YuE2 locale (false si « continuer sans génération »). */
+  localYue2Enabled?: boolean;
   yue2ArLora?: string | null;
   yue2NarLora?: string | null;
   yue2ArLoraScale?: number;
@@ -284,6 +286,7 @@ export type HealthSnapshot = {
   vramMib?: number | null;
   suggestedPack: string;
   suggestedPackReasonFr?: string;
+  localYue2Enabled: boolean;
   modelsOk: boolean;
   binaryOk: boolean;
   serverHealthy: boolean;

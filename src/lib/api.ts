@@ -23,10 +23,11 @@ import type {
 export const api = {
   getHealth: () => invoke<HealthSnapshot>("get_health"),
   getSetupGpuInfo: () => invoke<SetupGpuInfo>("get_setup_gpu_info"),
-  getInstallPlan: (pack: "q4" | "q8") =>
-    invoke<InstallPlan>("get_install_plan", { pack }),
+  getInstallPlan: (pack: "q4" | "q8", mixOnly?: boolean) =>
+    invoke<InstallPlan>("get_install_plan", { pack, mixOnly: mixOnly ?? null }),
   installRequiredAssets: (pack: "q4" | "q8", acceptedLicense: boolean) =>
     invoke<string>("install_required_assets", { pack, acceptedLicense }),
+  installMixOnlyAssets: () => invoke<string>("install_mix_only_assets"),
   getSettings: () => invoke<AppSettings>("get_settings"),
   updateSettings: (settings: AppSettings) =>
     invoke<AppSettings>("update_settings", { settings }),

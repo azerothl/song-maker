@@ -19,7 +19,12 @@ pub fn get_setup_gpu_info() -> crate::models::SetupGpuInfo {
 }
 
 #[tauri::command]
-pub fn get_install_plan(pack: String) -> Result<crate::models::InstallPlan, String> {
+pub fn get_install_plan(pack: String, mix_only: Option<bool>) -> Result<crate::models::InstallPlan, String> {
+    if mix_only.unwrap_or(false) {
+        let settings = load_settings()?;
+        let cache = PathBuf::from(&settings.cache_dir);
+        return crate::installer::install_plan_mix_only_for_cache(&cache);
+    }
     crate::installer::install_plan_for_pack(pack)
 }
 
@@ -36,6 +41,14 @@ pub async fn install_required_assets(
     accepted_license: bool,
 ) -> Result<String, String> {
     crate::installer::install(app, state, pack, accepted_license).await
+}
+
+#[tauri::command]
+pub async fn install_mix_only_assets(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    crate::installer::install_mix_only(app, state).await
 }
 
 #[tauri::command]
