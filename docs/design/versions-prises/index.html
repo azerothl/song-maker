@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Song Maker — Maquette : onglet Versions (issue #133)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* Tokens repris de ../songmaker-mockup-creer/index.html */
+:root{
+  --bg:#141218; --bg2:#1b1723; --card:#221e2c; --card2:#2a2536; --line:#3d3654; --line2:#7a6ea1;
+  --text:#f3f0fa; --muted:#bdb6cf; --teal:#5ed8c9; --purple:#a58bff; --purple-btn:#805cdf; --purple-btn-h:#6a3fd9;
+  --ok:#7fe0a1; --focus:#ffd76a; --field:#171320; --warn:#ffb454;
+  --serif:"Fraunces","Source Serif Pro","Noto Serif",Georgia,serif;
+  --sans:"Inter","Segoe UI",system-ui,-apple-system,"Noto Sans",Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:#0b0a0e;color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+body{font-size:14px;line-height:1.4}
+.app{height:100vh;display:grid;grid-template-columns:208px minmax(0,1fr);
+  background:radial-gradient(900px 500px at 15% -10%,#2b2050 0%,transparent 60%),radial-gradient(800px 500px at 100% 110%,#1d2a3a 0%,transparent 55%),var(--bg)}
+.side{border-right:1px solid var(--line);background:rgba(27,23,35,.85);padding:14px 10px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 14px;font-family:var(--serif);font-weight:600;font-size:18px}
+.brand .logo{width:32px;height:32px;border-radius:9px;background:var(--purple-btn);display:grid;place-items:center;font-size:16px;flex:none}
+.side a.item{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;border:1px solid transparent}
+.side a.item:hover{background:#2f2a3d;color:var(--text)}
+.side a.item[aria-current="page"]{background:#2c2650;color:var(--text);border-color:var(--line2)}
+.side .ic{width:20px;text-align:center;flex:none}
+.main{display:flex;flex-direction:column;min-width:0;min-height:0}
+header.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:6px 32px 0}
+.title{display:flex;align-items:baseline;gap:12px}
+.eyebrow{font-variant-caps:all-small-caps;letter-spacing:.14em;font-weight:600;font-size:14px;color:var(--teal)}
+h1{font-family:var(--serif);font-weight:600;font-size:22px;line-height:1.15;letter-spacing:-.01em}
+.mockbadge{font-size:11px;color:#e8e1ff;border:1px dashed var(--purple);border-radius:8px;padding:4px 8px;background:#2a2050;white-space:nowrap}
+.tabs{display:flex;gap:4px;padding:2px 32px 0;border-bottom:1px solid var(--line)}
+.tab{font:inherit;font-weight:600;font-size:14.5px;color:var(--muted);background:transparent;border:0;border-bottom:3px solid transparent;min-height:44px;padding:0 18px;cursor:pointer;border-radius:10px 10px 0 0;margin-bottom:-1px}
+.tab:hover{color:var(--text);background:#2f2a3d}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--purple-btn);background:rgba(128,92,223,.14)}
+.tag-ex{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1a1424;background:#e9c46a;border-radius:5px;padding:1px 6px;white-space:nowrap;vertical-align:middle}
+
+/* ---------- Versions ---------- */
+.content{flex:1;min-height:0;overflow:auto;padding:0 32px 18px;scrollbar-color:#5a4f80 #1b1723;scroll-padding-top:44px}
+.content::-webkit-scrollbar{width:12px}.content::-webkit-scrollbar-track{background:#1b1723}
+.content::-webkit-scrollbar-thumb{background:#5a4f80;border-radius:6px;border:2px solid #1b1723}
+.wrap{max-width:1000px;margin:0 auto}
+.intro{position:sticky;top:0;z-index:12;background:var(--bg);padding:10px 0 8px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line)}
+.intro h2{font-family:var(--serif);font-size:18px;font-weight:600}
+.intro h2 span{font-family:var(--sans);font-size:13px;font-weight:500;color:var(--muted);margin-left:8px}
+.intro p{font-size:13px;color:var(--muted)}
+.day{position:sticky;top:53px;z-index:10;background:var(--bg);padding:10px 0 6px;font-variant-caps:all-small-caps;letter-spacing:.12em;font-weight:700;font-size:14px;color:var(--teal);display:flex;align-items:center;gap:10px}
+.day::after{content:"";flex:1;height:1px;background:var(--line)}
+.list{list-style:none;padding:0}
+
+/* Une prise = une carte sur une ligne de temps */
+.take{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);column-gap:10px;padding-bottom:10px}
+.take::before{content:"";position:absolute;left:10px;top:0;bottom:0;width:2px;background:var(--line)}
+.dot{position:relative;z-index:1;margin-top:20px;width:22px;height:22px;border-radius:50%;background:var(--bg2);border:2px solid var(--line2);display:grid;place-items:center;font-size:11px;font-weight:800;color:var(--muted)}
+.take.active .dot{background:var(--teal);border-color:var(--teal);color:#0d2a26}
+.take.bad .dot{border-color:var(--warn);color:var(--warn);background:#2a2014}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px 8px}
+.take.active .card{border:2px solid var(--teal);background:#1f2830;padding:9px 13px 7px}
+.take.bad .card{border-style:dashed;border-color:#a07a3a}
+.top2{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center}
+.nameline{display:flex;align-items:center;gap:2px;min-height:34px;flex-wrap:wrap}
+.take h3{font-size:16px;font-weight:700;letter-spacing:-.005em;margin-right:4px}
+.when{color:var(--muted);font-size:13px;font-weight:500}
+.iconbtn{font:inherit;width:44px;height:44px;margin:-6px -2px -6px 0;border-radius:10px;background:transparent;border:1px solid transparent;color:var(--muted);cursor:pointer;display:grid;place-items:center;flex:none}
+.iconbtn:hover{background:#2f2a3d;border-color:var(--line2);color:var(--text)}
+.iconbtn svg{width:16px;height:16px}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:13.5px;color:var(--text);margin-top:1px}
+.meta .style{color:var(--muted)}
+.meta .sep{color:var(--line2)}
+.link{color:#c9b6ff;font-weight:600;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px;border-radius:4px}
+.link:hover{color:#fff}
+.has{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--text);background:var(--field);border:1px solid var(--line);border-radius:999px;padding:1px 9px}
+.pill i{font-style:normal;color:var(--ok);font-weight:800}
+.pill.no i{color:var(--warn)}
+.acts{display:flex;gap:8px;align-items:center}
+.btn{font:inherit;font-weight:700;font-size:14px;border-radius:12px;padding:0 16px;min-height:44px;border:2px solid transparent;cursor:pointer;color:#fff;background:var(--purple-btn);display:inline-flex;gap:8px;align-items:center;justify-content:center;white-space:nowrap}
+.btn:hover{background:var(--purple-btn-h)}
+.btn.sec{background:var(--field);color:var(--text);border-color:var(--line2);font-weight:600}
+.btn.sec:hover{background:#2f2a3d;border-color:var(--purple)}
+.activebadge{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:12px;border:2px solid var(--teal);color:#d9fbf6;font-weight:700;font-size:14px;background:#12332f;white-space:nowrap}
+.activebadge b{width:20px;height:20px;border-radius:50%;background:var(--teal);color:#0d2a26;display:grid;place-items:center;font-size:12px}
+.warnmsg{display:flex;gap:10px;align-items:center;margin-top:4px;color:#ffe2b8;font-weight:600;font-size:14px}
+.warnmsg .wi{width:22px;height:22px;flex:none;border-radius:6px;background:var(--warn);color:#2a1a00;display:grid;place-items:center;font-weight:900;font-size:14px}
+.warnmsg small{display:block;color:var(--muted);font-weight:400;font-size:12.5px}
+
+/* Événements dans une prise */
+.evs{list-style:none;padding:0;margin:8px 0 0;border-top:1px solid var(--line)}
+.ev{display:flex;align-items:center;gap:8px;min-height:28px;font-size:13px;color:var(--muted)}
+.ev .ei{width:16px;text-align:center;color:var(--purple);font-weight:800}
+.ev b{color:var(--text);font-weight:600}
+
+/* Événements entre deux prises */
+.between{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);column-gap:10px;padding-bottom:10px}
+.between::before{content:"";position:absolute;left:10px;top:0;bottom:0;width:2px;background:var(--line)}
+.between .dot{margin-top:11px;width:22px;height:22px;background:#2c2650;border-color:var(--purple);color:#e8e1ff;border-radius:6px;transform:rotate(45deg) scale(.72)}
+.between .dot span{transform:rotate(-45deg)}
+.evrow{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border:1px dashed var(--line2);border-radius:12px;background:rgba(44,38,80,.45);font-size:13.5px}
+.evrow .grow{flex:1;min-width:0}
+.evrow b{font-weight:700}
+.evrow .when{margin-left:6px}
+.btn.small{min-height:44px;font-size:13.5px}
+
+/* Détails techniques */
+.dt{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:13px;font-weight:600;color:var(--muted);background:transparent;border:0;border-radius:8px;min-height:44px;padding:0 8px;margin:0 0 0 -8px;cursor:pointer}
+.dt:hover{color:var(--text);background:#2f2a3d}
+.dt .ch{display:inline-block;transition:transform .15s;width:14px;text-align:center}
+.dt[aria-expanded="true"] .ch{transform:rotate(90deg)}
+.foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}
+.dpanel{margin:0 0 6px;background:var(--field);border:1px solid var(--line2);border-radius:10px;padding:10px 14px;display:grid;grid-template-columns:auto 1fr auto;gap:6px 18px;align-items:center;font-size:13px}
+.dpanel[hidden]{display:none}
+.dpanel dt{color:var(--muted)}
+.dpanel dd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;color:var(--text)}
+.dpanel .cp{grid-row:1 / span 5;grid-column:3;align-self:start}
+.dpanel .h{grid-column:1 / 3;color:var(--muted);font-size:12.5px;margin-bottom:2px}
+.dpanel dl{display:contents}
+
+/* Renommage en ligne */
+.renamewrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.renamewrap input{font:inherit;font-size:16px;font-weight:700;color:var(--text);background:var(--field);border:1.5px solid var(--line2);border-radius:10px;padding:0 12px;min-height:44px;width:260px}
+.renamewrap .btn{min-height:44px;padding:0 14px}
+
+/* Focus visible partout */
+.btn:focus-visible,a:focus-visible,.tab:focus-visible,.iconbtn:focus-visible,.dt:focus-visible,.link:focus-visible,input:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+input:focus-visible{border-color:var(--focus)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.flash .card{animation:fl 1.4s ease-out}
+@keyframes fl{0%{box-shadow:0 0 0 4px var(--focus)}100%{box-shadow:0 0 0 0 transparent}}
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:60;background:#0f0c16;border:1.5px solid var(--line2);border-radius:12px;padding:10px 16px;display:none;align-items:center;gap:14px;box-shadow:0 12px 30px rgba(0,0,0,.55)}
+.toast.show{display:flex}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+ <nav class="side" aria-label="Navigation principale">
+  <div class="brand"><span class="logo" aria-hidden="true">♪</span><span class="name">Song Maker</span></div>
+  <a class="item" href="#" aria-current="page" aria-label="Bibliothèque"><span class="ic" aria-hidden="true">☰</span><span class="txt">Bibliothèque</span></a>
+  <a class="item" href="#" aria-label="Nouveau"><span class="ic" aria-hidden="true">✎</span><span class="txt">Nouveau</span></a>
+  <a class="item" href="#" aria-label="Paramètres"><span class="ic" aria-hidden="true">▣</span><span class="txt">Paramètres</span></a>
+ </nav>
+ <div class="main">
+  <header class="top">
+   <div class="title"><span class="eyebrow">Projet</span><h1>Versions</h1></div>
+   <span class="mockbadge">Maquette · valeurs d’exemple</span>
+  </header>
+  <div class="tabs" role="tablist" aria-label="Étapes du morceau">
+   <button class="tab" role="tab" aria-selected="false" tabindex="-1" type="button">Créer</button>
+   <button class="tab" role="tab" aria-selected="false" tabindex="-1" type="button">Partition</button>
+   <button class="tab" role="tab" aria-selected="false" tabindex="-1" type="button">Production</button>
+   <button class="tab" role="tab" id="t-versions" aria-selected="true" aria-controls="p-versions" type="button">Versions</button>
+  </div>
+
+  <main class="content" id="p-versions" role="tabpanel" aria-labelledby="t-versions">
+   <div class="wrap">
+    <div class="intro">
+     <h2>Prises de « test 3 » <span class="tag-ex">exemple</span><span id="count">13 prises</span></h2>
+     <p>Chaque prise garde sa musique, sa partition et son mix. Revenir à une version ne supprime rien.</p>
+    </div>
+    <div id="days"></div>
+   </div>
+  </main>
+ </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-t"></span><button class="btn sec small" type="button" id="toast-undo">Annuler</button></div>
+
+<script>
+/* ---------- Données d'exemple (13 prises) ----------
+   st : ok | interrupted ; from : numéro de la prise d'origine ; ev : événements dans la prise ; after : événement entre cette prise et la plus ancienne suivante */
+const D=(n,day,time,style,o={})=>({n,day,time,style,name:'Prise '+n,st:'ok',audio:1,score:1,mix:1,...o});
+const TAKES=[
+ D(13,'Aujourd’hui','15:31','Death-metal mélodique · 140 BPM · voix gutturales',{st:'interrupted',from:12,audio:0,score:0,mix:0,id:'gen-013',seed:'7710294',scoreId:'—',mixId:'—',tech:'melody · interrupted'}),
+ D(12,'Aujourd’hui','14:22','Death-metal mélodique · 140 BPM · cordes sombres',{from:11,active:1,id:'gen-012',seed:'5528341',scoreId:'score-v4',mixId:'mix-v3',tech:'full',
+   ev:[['Mix modifié','14:40','≋'],['Partition mise à jour','14:31','♯']],
+   after:{txt:'Pistes séparées à nouveau',when:'aujourd’hui 13:50',rev:'Revenir à la séparation précédente'}}),
+ D(11,'Aujourd’hui','13:05','Death-metal mélodique · 140 BPM · chœurs lointains',{from:9,id:'gen-011',seed:'3391872',scoreId:'score-v3',mixId:'mix-v2',tech:'full'}),
+ D(10,'Aujourd’hui','11:40','Mélodique clair · 128 BPM · ambiance épique',{from:9,id:'gen-010',seed:'9904115',scoreId:'score-v3',mixId:'mix-v1',tech:'full',name:'Essai plus lumineux'}),
+ D(9,'Hier','17:35','Death-metal mélodique · 140 BPM · synthés métalliques',{from:8,id:'gen-009',seed:'2246680',scoreId:'score-v3',mixId:'mix-v2',tech:'full',
+   ev:[['Mix modifié','hier 17:50','≋']],
+   after:{txt:'Pistes séparées',when:'hier 16:20'}}),
+ D(8,'Hier','15:10','Death-metal mélodique · 140 BPM · guitares graves',{from:7,id:'gen-008',seed:'6183350',scoreId:'score-v2',mixId:'mix-v1',tech:'full'}),
+ D(7,'Hier','14:02','Death-metal mélodique · 140 BPM · blast beats',{from:6,id:'gen-007',seed:'1470926',scoreId:'score-v2',mixId:'—',tech:'melody · interrupted',st:'interrupted',audio:0,score:0,mix:0}),
+ D(6,'Hier','12:48','Death-metal mélodique · 140 BPM · atmosphère industrielle',{from:4,id:'gen-006',seed:'8052213',scoreId:'score-v2',mixId:'mix-v1',tech:'full',
+   ev:[['Partition mise à jour','hier 13:05','♯']]}),
+ D(5,'Hier','11:30','Néo-classique sombre · 110 BPM · cordes et chœurs',{id:'gen-005',seed:'4419087',scoreId:'score-v1',mixId:'mix-v1',tech:'full'}),
+ D(4,'Hier','10:05','Death-metal mélodique · 140 BPM',{from:3,id:'gen-004',seed:'3007718',scoreId:'score-v1',mixId:'mix-v1',tech:'full',name:'Version démo'}),
+ D(3,'Dimanche 27 septembre','18:40','Death-metal mélodique · 150 BPM · très rapide',{from:2,id:'gen-003',seed:'5561904',scoreId:'score-v1',mixId:'—',tech:'full',mix:0}),
+ D(2,'Dimanche 27 septembre','17:12','Death-metal mélodique · 140 BPM · voix claires',{from:1,id:'gen-002',seed:'1928845',scoreId:'score-v1',mixId:'—',tech:'full',mix:0}),
+ D(1,'Dimanche 27 septembre','16:30','Death-metal mélodique · 140 BPM',{id:'gen-001',seed:'6604271',scoreId:'score-v1',mixId:'—',tech:'full',mix:0})
+];
+const byN=Object.fromEntries(TAKES.map(t=>[t.n,t]));
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const whenTxt=t=>t.day==='Aujourd’hui'?'aujourd’hui '+t.time:t.day==='Hier'?'hier '+t.time:'dim. 27 sept. '+t.time;
+const pencil='<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M11.5 1.8l2.7 2.7-8.6 8.6-3.4.7.7-3.4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+
+let active=12,undoTo=null;
+function pill(label,ok){return `<span class="pill${ok?'':' no'}"><i aria-hidden="true">${ok?'✓':'–'}</i>${label}<span class="sr-only">${ok?'présent':'absent'}</span></span>`}
+function takeHTML(t){
+  const isA=t.n===active, bad=t.st==='interrupted';
+  const from=t.from?`<span class="sep" aria-hidden="true">·</span><span>à partir de la <a class="link" href="#take-${t.from}" data-goto="${t.from}">prise ${t.from}</a></span>`:'';
+  const acts=bad?`<button class="btn" type="button" data-relaunch="${t.n}">↻ Relancer</button>`
+    :`<button class="btn sec" type="button" data-play="${t.n}" aria-label="Écouter ${esc(t.name)}">▶ Écouter</button>`+
+     (isA?`<span class="activebadge"><b aria-hidden="true">✓</b>Version active</span>`
+          :`<button class="btn" type="button" data-revert="${t.n}" aria-label="Revenir à cette version : ${esc(t.name)}">Revenir à cette version</button>`);
+  const body=bad?`<div class="warnmsg"><span class="wi" aria-hidden="true">!</span><span>Génération interrompue, non utilisable<small>La prise n’a pas pu aller au bout. Les autres prises ne sont pas touchées.</small></span></div>`
+    :`<div class="has" aria-label="Contenu de la prise">${pill('Musique',t.audio)}${pill('Partition',t.score)}${pill('Mix',t.mix)}</div>`;
+  const evs=(t.ev||[]).length?`<ul class="evs" aria-label="Historique de la prise">${t.ev.map(e=>`<li class="ev"><span class="ei" aria-hidden="true">${e[2]}</span><b>${e[0]}</b><span>· ${e[1]}</span></li>`).join('')}</ul>`:'';
+  return `<li class="take${isA?' active':''}${bad?' bad':''}" id="take-${t.n}" data-n="${t.n}">
+   <span class="dot" aria-hidden="true">${isA?'✓':bad?'!':''}</span>
+   <article class="card" aria-labelledby="nm-${t.n}">
+    <div class="top2">
+     <div>
+      <div class="nameline" data-nameline>
+       <h3 id="nm-${t.n}">${esc(t.name)}</h3><span class="when">${whenTxt(t)}</span>
+       <button class="iconbtn" type="button" data-rename="${t.n}" aria-label="Renommer ${esc(t.name)}">${pencil}</button>
+      </div>
+      <div class="meta"><span class="style">${esc(t.style)}</span>${from}</div>
+      ${body}
+     </div>
+     <div class="acts">${acts}</div>
+    </div>
+    ${evs}
+    <div class="foot"><button class="dt" type="button" aria-expanded="false" aria-controls="dp-${t.n}" data-dt="${t.n}"><span class="ch" aria-hidden="true">›</span>Détails</button></div>
+    <div class="dpanel" id="dp-${t.n}" hidden>
+     <div class="h">Identifiants techniques, à communiquer au support si besoin.</div>
+     <dl><dt>Génération</dt><dd>${t.id}</dd><dt>Graine (seed)</dt><dd>${t.seed}</dd><dt>Partition</dt><dd>${t.scoreId}</dd><dt>Mix</dt><dd>${t.mixId}</dd><dt>État interne</dt><dd>${t.tech}</dd></dl>
+     <button class="btn sec cp" type="button" data-copy="${t.n}">Copier</button>
+    </div>
+   </article></li>`;
+}
+function betweenHTML(t){
+  const a=t.after;
+  return `<li class="between" aria-label="Événement">
+   <span class="dot" aria-hidden="true"><span>⇄</span></span>
+   <div class="evrow"><span class="grow"><b>${a.txt}</b><span class="when">${a.when}</span></span>${a.rev?`<button class="btn sec small" type="button" data-prevsep="${t.n}">${a.rev}</button>`:''}</div></li>`;
+}
+function render(){
+  const days=[];TAKES.forEach(t=>{let d=days.find(x=>x.name===t.day);if(!d)days.push(d={name:t.day,items:[]});d.items.push(t)});
+  document.getElementById('days').innerHTML=days.map((d,i)=>`<section aria-labelledby="day-${i}"><h2 class="day" id="day-${i}">${d.name}</h2><ol class="list">${d.items.map(t=>takeHTML(t)+(t.after?betweenHTML(t):'')).join('')}</ol></section>`).join('');
+}
+render();
+
+/* ---------- Interactions ---------- */
+const $=s=>document.querySelector(s);
+function toast(msg,undo){$('#toast-t').textContent=msg;$('#toast').classList.add('show');undoTo=undo;$('#toast-undo').style.display=undo?'':'none';clearTimeout(toast.t);toast.t=setTimeout(()=>$('#toast').classList.remove('show'),6000)}
+$('#toast-undo').onclick=()=>{if(undoTo!=null){active=undoTo;render();}$('#toast').classList.remove('show')};
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-revert],[data-dt],[data-rename],[data-goto],[data-play],[data-relaunch],[data-copy],[data-prevsep]');if(!b)return;
+  if(b.dataset.revert){const prev=active;active=+b.dataset.revert;render();toast(`Version active : ${byN[active].name}. Rien n’a été supprimé.`,prev);}
+  else if(b.dataset.dt){const p=document.getElementById('dp-'+b.dataset.dt);const open=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',!open);p.hidden=open}
+  else if(b.dataset.goto){e.preventDefault();const el=document.getElementById('take-'+b.dataset.goto);el.scrollIntoView({block:'start'});el.classList.add('flash');el.querySelector('h3').closest('.card').setAttribute('tabindex','-1');el.querySelector('.card').focus({preventScroll:true});setTimeout(()=>el.classList.remove('flash'),1500)}
+  else if(b.dataset.rename)startRename(+b.dataset.rename);
+  else if(b.dataset.play)toast('Lecture de '+byN[b.dataset.play].name+' (maquette)');
+  else if(b.dataset.relaunch)toast('Relance de la génération de '+byN[b.dataset.relaunch].name+' (maquette)');
+  else if(b.dataset.copy)toast('Identifiants copiés (maquette)');
+  else if(b.dataset.prevsep)toast('Séparation précédente rétablie (maquette)');
+});
+function startRename(n){
+  const t=byN[n];const nl=document.querySelector(`#take-${n} [data-nameline]`);
+  nl.innerHTML=`<form class="renamewrap" onsubmit="return false"><label class="sr-only" for="rn-${n}">Nom de la prise</label><input id="rn-${n}" type="text" value="${esc(t.name)}" maxlength="40" autocomplete="off"><button class="btn" type="submit">Enregistrer</button><button class="btn sec" type="button" data-cancel>Annuler</button></form>`;
+  const f=nl.querySelector('form'),i=f.querySelector('input');i.focus();i.select();
+  const done=save=>{if(save&&i.value.trim())t.name=i.value.trim();render();document.querySelector(`#take-${n} [data-rename]`).focus()};
+  f.addEventListener('submit',()=>done(true));f.querySelector('[data-cancel]').onclick=()=>done(false);
+  i.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();done(false)}});
+}
+/* Onglets : flèches */
+const tabs=[...document.querySelectorAll('[role=tab]')];
+tabs.forEach((t,i)=>t.addEventListener('keydown',e=>{const d={ArrowRight:1,ArrowLeft:-1}[e.key];if(!d)return;
+  const nt=tabs[(i+d+tabs.length)%tabs.length];tabs.forEach(x=>{x.tabIndex=-1;x.setAttribute('aria-selected','false')});
+  nt.tabIndex=0;nt.setAttribute('aria-selected','true');nt.focus()}));
+</script>
+</body>
+</html>
