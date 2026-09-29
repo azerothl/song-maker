@@ -13,29 +13,26 @@ import {
 } from "./captureDemoMix";
 import {
   loadCollapsedTrackFamilies,
-  loadProductionTrackDensity,
   saveCollapsedTrackFamily,
-  saveProductionTrackDensity,
-  type ProductionTrackDensity,
+  saveProductionDensityPreference,
 } from "../lib/productionTrackLayout";
 import type { MixDoc } from "../lib/types";
+import { measureProductionMix } from "./productionCaptureMetrics";
+import { parseCaptureHash } from "./productionCaptureHash";
 import "../App.css";
 
 function applyCaptureHashPrefs() {
-  const hash = (globalThis.location?.hash ?? "").replace(/^#/, "");
-  if (hash.includes("confortable")) {
-    saveProductionTrackDensity("confortable");
-  } else {
-    saveProductionTrackDensity("compact");
-  }
-  if (hash.includes("collapsed")) {
+  const prefs = parseCaptureHash(globalThis.location?.hash ?? "");
+  saveProductionDensityPreference(prefs.densityPreference);
+  if (prefs.rythmiqueCollapsed) {
     saveCollapsedTrackFamily("rythmique", true);
-  } else if (hash.includes("expanded")) {
+  } else {
     saveCollapsedTrackFamily("rythmique", false);
   }
+  return prefs;
 }
 
-applyCaptureHashPrefs();
+const capturePrefs = applyCaptureHashPrefs();
 
 function CaptureSidebar() {
   return (
@@ -59,7 +56,10 @@ function CaptureSidebar() {
 }
 
 function ProductionCaptureApp() {
-  const mix = useMemo(() => buildCaptureDemoMix(), []);
+  const mix = useMemo(
+    () => buildCaptureDemoMix(capturePrefs.trackCount),
+    [capturePrefs.trackCount],
+  );
   const project = useMemo(() => buildCaptureProject(), []);
   const playbackSources = useMemo(() => buildCapturePlaybackSources(mix), [mix]);
   const separationInfo = useMemo(() => buildCaptureSeparationInfo(), []);
@@ -87,10 +87,8 @@ function ProductionCaptureApp() {
     };
   }, [mix]);
 
-  const density: ProductionTrackDensity = loadProductionTrackDensity();
-
   return (
-    <div className="app-shell production-capture-root" data-capture-density={density}>
+    <div className="app-shell production-capture-root" data-capture-tracks={capturePrefs.trackCount}>
       <CaptureSidebar />
       <main className="main">
         <div className="song-layout song-layout-production song-layout-production-fill">
@@ -178,41 +176,12 @@ if (root) {
   );
 }
 
-// Expose pour Playwright : recompte des lignes entièrement visibles.
 declare global {
   interface Window {
-    __productionCaptureMetrics?: () => {
-      totalRows: number;
-      visibleRows: number;
-      fullyVisibleRows: number;
-      rowHeightPx: number;
-      density: string;
-    };
+    __productionCaptureMetrics?: () => ReturnType<typeof measureProductionMix>;
   }
 }
 
-window.__productionCaptureMetrics = () => {
-  const scroll = document.querySelector(".production-mix-scroll");
-  const rows = Array.from(document.querySelectorAll(".production-mix-row")).filter(
-    (r) => (r as HTMLElement).offsetParent !== null,
-  );
-  const scrollRect = scroll?.getBoundingClientRect();
-  const fully =
-    scrollRect == null
-      ? []
-      : rows.filter((r) => {
-          const b = r.getBoundingClientRect();
-          return b.top >= scrollRect.top - 1 && b.bottom <= scrollRect.bottom + 1;
-        });
-  const rowH = rows[0]?.getBoundingClientRect().height ?? 0;
-  return {
-    totalRows: rows.length,
-    visibleRows: rows.length,
-    fullyVisibleRows: fully.length,
-    rowHeightPx: Math.round(rowH),
-    density: document.querySelector(".mixer-density")?.getAttribute("data-density") ?? "",
-  };
-};
+window.__productionCaptureMetrics = () => measureProductionMix();
 
-// Indique que les groupes repliés sont lus au premier rendu.
 void loadCollapsedTrackFamilies();

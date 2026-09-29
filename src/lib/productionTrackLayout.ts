@@ -2,14 +2,34 @@ import type { MixTrack } from "./types";
 
 export type ProductionTrackDensity = "compact" | "confortable";
 
+export type ProductionDensityPreference = "auto" | ProductionTrackDensity;
+
 export type ProductionViewId = "mix" | "clips" | "tools";
 
-/** Mode mix compact : chrome réduit pour maximiser la hauteur de la liste (#137). */
+export function effectiveDensityFromPreference(
+  preference: ProductionDensityPreference,
+  autoResolved: ProductionTrackDensity,
+): ProductionTrackDensity {
+  return preference === "auto" ? autoResolved : preference;
+}
+
+/** Marge pour bordures / arrondis avant de basculer l’auto en compact (#150). */
+export const AUTO_DENSITY_OVERFLOW_TOLERANCE_PX = 16;
+
+/** Passe en compact auto uniquement si la liste déborde verticalement. */
+export function shouldUseCompactForAutoDensity(
+  scrollHeight: number,
+  clientHeight: number,
+): boolean {
+  return scrollHeight > clientHeight + AUTO_DENSITY_OVERFLOW_TOLERANCE_PX;
+}
+
+/** Vue mix : chrome resserré pour maximiser la hauteur de la liste (#137, #150). */
 export function shouldUseProductionTightLayout(
   productionView: ProductionViewId,
-  density: ProductionTrackDensity,
+  _density: ProductionTrackDensity,
 ): boolean {
-  return productionView === "mix" && density === "compact";
+  return productionView === "mix";
 }
 
 export type TrackFamilyId = "voix" | "rythmique" | "harmonie";
@@ -47,24 +67,37 @@ export function buildTrackFamilyGroups(tracks: MixTrack[]): TrackFamilyGroup[] {
     .map((family) => ({ family, tracks: buckets[family] }));
 }
 
-export function loadProductionTrackDensity(): ProductionTrackDensity {
-  if (typeof localStorage === "undefined") return "compact";
+export function loadProductionDensityPreference(): ProductionDensityPreference {
+  if (typeof localStorage === "undefined") return "auto";
   try {
     const raw = localStorage.getItem(DENSITY_STORAGE_KEY);
-    if (raw === "confortable" || raw === "compact") return raw;
+    if (raw === "auto" || raw === "confortable" || raw === "compact") return raw;
   } catch {
     /* private mode */
   }
-  return "compact";
+  return "auto";
 }
 
-export function saveProductionTrackDensity(density: ProductionTrackDensity): void {
+export function saveProductionDensityPreference(
+  preference: ProductionDensityPreference,
+): void {
   if (typeof localStorage === "undefined") return;
   try {
-    localStorage.setItem(DENSITY_STORAGE_KEY, density);
+    localStorage.setItem(DENSITY_STORAGE_KEY, preference);
   } catch {
     /* quota */
   }
+}
+
+/** @deprecated Utiliser loadProductionDensityPreference */
+export function loadProductionTrackDensity(): ProductionTrackDensity {
+  const pref = loadProductionDensityPreference();
+  return pref === "auto" ? "confortable" : pref;
+}
+
+/** @deprecated Utiliser saveProductionDensityPreference */
+export function saveProductionTrackDensity(density: ProductionTrackDensity): void {
+  saveProductionDensityPreference(density);
 }
 
 export function loadCollapsedTrackFamilies(): Record<string, boolean> {

@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 import type { MixTrack } from "./types";
 import {
   buildTrackFamilyGroups,
+  effectiveDensityFromPreference,
   isExperimentalStemTrack,
+  shouldUseCompactForAutoDensity,
   shouldUseProductionTightLayout,
   trackFamilyForRole,
 } from "./productionTrackLayout";
@@ -52,10 +54,28 @@ describe("buildTrackFamilyGroups", () => {
 });
 
 describe("shouldUseProductionTightLayout", () => {
-  it("active uniquement en vue mix + densité compacte", () => {
+  it("active en vue mix (toutes densités)", () => {
     assert.equal(shouldUseProductionTightLayout("mix", "compact"), true);
-    assert.equal(shouldUseProductionTightLayout("mix", "confortable"), false);
+    assert.equal(shouldUseProductionTightLayout("mix", "confortable"), true);
     assert.equal(shouldUseProductionTightLayout("clips", "compact"), false);
+  });
+});
+
+describe("effectiveDensityFromPreference", () => {
+  it("respecte le choix manuel et résout Auto", () => {
+    assert.equal(effectiveDensityFromPreference("compact", "confortable"), "compact");
+    assert.equal(effectiveDensityFromPreference("confortable", "compact"), "confortable");
+    assert.equal(effectiveDensityFromPreference("auto", "compact"), "compact");
+    assert.equal(effectiveDensityFromPreference("auto", "confortable"), "confortable");
+  });
+});
+
+describe("shouldUseCompactForAutoDensity", () => {
+  it("bascule en compact seulement si la liste déborde", () => {
+    assert.equal(shouldUseCompactForAutoDensity(500, 400), true);
+    assert.equal(shouldUseCompactForAutoDensity(400, 400), false);
+    assert.equal(shouldUseCompactForAutoDensity(488, 486), false);
+    assert.equal(shouldUseCompactForAutoDensity(520, 486), true);
   });
 });
 

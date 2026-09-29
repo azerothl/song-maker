@@ -1,23 +1,442 @@
 {
-  "compact": {
-    "totalRows": 12,
-    "visibleRows": 12,
-    "fullyVisibleRows": 9,
-    "rowHeightPx": 44,
-    "density": "compact"
+  "six_auto": {
+    "density": "confortable",
+    "densityPreference": "auto",
+    "tracksTotal": 6,
+    "rowHeightPx": [
+      72
+    ],
+    "msButtonPx": {
+      "w": 32,
+      "h": 32,
+      "wSolo": 32,
+      "hMute": 32,
+      "gapX": 4,
+      "sameRow": true,
+      "minWAllRows": 32,
+      "minHAllRows": 32,
+      "pairTotalW": 68,
+      "pairTotalH": 32
+    },
+    "knobsPx": [
+      {
+        "w": 44,
+        "h": 44,
+        "marginTop": 13.5,
+        "marginBottom": 14.5
+      },
+      {
+        "w": 44,
+        "h": 44,
+        "marginTop": 13.5,
+        "marginBottom": 14.5
+      }
+    ],
+    "knobMinVerticalMarginAllRows": 13.5,
+    "groupHeader": {
+      "heightPx": 24,
+      "msVisiblePx": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "msHitHeightPx": 22
+    },
+    "nameColumnPx": 192,
+    "truncatedHaveTitle": true,
+    "rowsFullyVisible": 6,
+    "listScrolls": true,
+    "scrollHeight": 488,
+    "clientHeight": 486
   },
-  "confortable": {
-    "totalRows": 12,
-    "visibleRows": 12,
-    "fullyVisibleRows": 3,
-    "rowHeightPx": 72,
-    "density": "confortable"
+  "six_confortable": {
+    "density": "confortable",
+    "densityPreference": "confortable",
+    "tracksTotal": 6,
+    "rowHeightPx": [
+      72
+    ],
+    "msButtonPx": {
+      "w": 32,
+      "h": 32,
+      "wSolo": 32,
+      "hMute": 32,
+      "gapX": 4,
+      "sameRow": true,
+      "minWAllRows": 32,
+      "minHAllRows": 32,
+      "pairTotalW": 68,
+      "pairTotalH": 32
+    },
+    "knobsPx": [
+      {
+        "w": 44,
+        "h": 44,
+        "marginTop": 13.5,
+        "marginBottom": 14.5
+      },
+      {
+        "w": 44,
+        "h": 44,
+        "marginTop": 13.5,
+        "marginBottom": 14.5
+      }
+    ],
+    "knobMinVerticalMarginAllRows": 13.5,
+    "groupHeader": {
+      "heightPx": 24,
+      "msVisiblePx": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "msHitHeightPx": 22
+    },
+    "nameColumnPx": 192,
+    "truncatedHaveTitle": true,
+    "rowsFullyVisible": 6,
+    "listScrolls": true,
+    "scrollHeight": 488,
+    "clientHeight": 486
   },
-  "collapsed": {
-    "totalRows": 9,
-    "visibleRows": 9,
-    "fullyVisibleRows": 9,
-    "rowHeightPx": 44,
-    "density": "compact"
+  "six_compact": {
+    "density": "compact",
+    "densityPreference": "compact",
+    "tracksTotal": 6,
+    "rowHeightPx": [
+      44
+    ],
+    "msButtonPx": {
+      "w": 28,
+      "h": 28,
+      "wSolo": 28,
+      "hMute": 28,
+      "gapX": 4,
+      "sameRow": true,
+      "minWAllRows": 28,
+      "minHAllRows": 28,
+      "pairTotalW": 60,
+      "pairTotalH": 28
+    },
+    "knobsPx": [
+      {
+        "w": 36,
+        "h": 36,
+        "marginTop": 3.5,
+        "marginBottom": 4.5
+      },
+      {
+        "w": 36,
+        "h": 36,
+        "marginTop": 3.5,
+        "marginBottom": 4.5
+      }
+    ],
+    "knobMinVerticalMarginAllRows": 3.5,
+    "groupHeader": {
+      "heightPx": 24,
+      "msVisiblePx": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "msHitHeightPx": 22
+    },
+    "nameColumnPx": 192,
+    "truncatedHaveTitle": true,
+    "rowsFullyVisible": 6,
+    "listScrolls": false,
+    "scrollHeight": 494,
+    "clientHeight": 494
+  },
+  "sixteen_auto": {
+    "density": "compact",
+    "densityPreference": "auto",
+    "tracksTotal": 16,
+    "rowHeightPx": [
+      44
+    ],
+    "msButtonPx": {
+      "w": 28,
+      "h": 28,
+      "wSolo": 28,
+      "hMute": 28,
+      "gapX": 4,
+      "sameRow": true,
+      "minWAllRows": 28,
+      "minHAllRows": 28,
+      "pairTotalW": 60,
+      "pairTotalH": 28
+    },
+    "knobsPx": [
+      {
+        "w": 36,
+        "h": 36,
+        "marginTop": 3.5,
+        "marginBottom": 4.5
+      },
+      {
+        "w": 36,
+        "h": 36,
+        "marginTop": 3.5,
+        "marginBottom": 4.5
+      }
+    ],
+    "knobMinVerticalMarginAllRows": 3.5,
+    "groupHeader": {
+      "heightPx": 24,
+      "msVisiblePx": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "msHitHeightPx": 22
+    },
+    "nameColumnPx": 192,
+    "truncatedHaveTitle": true,
+    "rowsFullyVisible": 9,
+    "listScrolls": true,
+    "scrollHeight": 784,
+    "clientHeight": 494
+  },
+  "sixteen_confortable": {
+    "density": "confortable",
+    "densityPreference": "confortable",
+    "tracksTotal": 16,
+    "rowHeightPx": [
+      72
+    ],
+    "msButtonPx": {
+      "w": 32,
+      "h": 32,
+      "wSolo": 32,
+      "hMute": 32,
+      "gapX": 4,
+      "sameRow": true,
+      "minWAllRows": 32,
+      "minHAllRows": 32,
+      "pairTotalW": 68,
+      "pairTotalH": 32
+    },
+    "knobsPx": [
+      {
+        "w": 44,
+        "h": 44,
+        "marginTop": 13.5,
+        "marginBottom": 14.5
+      },
+      {
+        "w": 44,
+        "h": 44,
+        "marginTop": 13.5,
+        "marginBottom": 14.5
+      }
+    ],
+    "knobMinVerticalMarginAllRows": 13.5,
+    "groupHeader": {
+      "heightPx": 24,
+      "msVisiblePx": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "msHitHeightPx": 22
+    },
+    "nameColumnPx": 192,
+    "truncatedHaveTitle": true,
+    "rowsFullyVisible": 6,
+    "listScrolls": true,
+    "scrollHeight": 1232,
+    "clientHeight": 486
+  },
+  "sixteen_compact": {
+    "density": "compact",
+    "densityPreference": "compact",
+    "tracksTotal": 16,
+    "rowHeightPx": [
+      44
+    ],
+    "msButtonPx": {
+      "w": 28,
+      "h": 28,
+      "wSolo": 28,
+      "hMute": 28,
+      "gapX": 4,
+      "sameRow": true,
+      "minWAllRows": 28,
+      "minHAllRows": 28,
+      "pairTotalW": 60,
+      "pairTotalH": 28
+    },
+    "knobsPx": [
+      {
+        "w": 36,
+        "h": 36,
+        "marginTop": 3.5,
+        "marginBottom": 4.5
+      },
+      {
+        "w": 36,
+        "h": 36,
+        "marginTop": 3.5,
+        "marginBottom": 4.5
+      }
+    ],
+    "knobMinVerticalMarginAllRows": 3.5,
+    "groupHeader": {
+      "heightPx": 24,
+      "msVisiblePx": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "msHitHeightPx": 22
+    },
+    "nameColumnPx": 192,
+    "truncatedHaveTitle": true,
+    "rowsFullyVisible": 9,
+    "listScrolls": true,
+    "scrollHeight": 784,
+    "clientHeight": 494
+  },
+  "twelve_compact": {
+    "density": "compact",
+    "densityPreference": "compact",
+    "tracksTotal": 12,
+    "rowHeightPx": [
+      44
+    ],
+    "msButtonPx": {
+      "w": 28,
+      "h": 28,
+      "wSolo": 28,
+      "hMute": 28,
+      "gapX": 4,
+      "sameRow": true,
+      "minWAllRows": 28,
+      "minHAllRows": 28,
+      "pairTotalW": 60,
+      "pairTotalH": 28
+    },
+    "knobsPx": [
+      {
+        "w": 36,
+        "h": 36,
+        "marginTop": 3.5,
+        "marginBottom": 4.5
+      },
+      {
+        "w": 36,
+        "h": 36,
+        "marginTop": 3.5,
+        "marginBottom": 4.5
+      }
+    ],
+    "knobMinVerticalMarginAllRows": 3.5,
+    "groupHeader": {
+      "heightPx": 24,
+      "msVisiblePx": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "msHitHeightPx": 22
+    },
+    "nameColumnPx": 192,
+    "truncatedHaveTitle": true,
+    "rowsFullyVisible": 9,
+    "listScrolls": true,
+    "scrollHeight": 608,
+    "clientHeight": 494
+  },
+  "twelve_confortable": {
+    "density": "confortable",
+    "densityPreference": "confortable",
+    "tracksTotal": 12,
+    "rowHeightPx": [
+      72
+    ],
+    "msButtonPx": {
+      "w": 32,
+      "h": 32,
+      "wSolo": 32,
+      "hMute": 32,
+      "gapX": 4,
+      "sameRow": true,
+      "minWAllRows": 32,
+      "minHAllRows": 32,
+      "pairTotalW": 68,
+      "pairTotalH": 32
+    },
+    "knobsPx": [
+      {
+        "w": 44,
+        "h": 44,
+        "marginTop": 13.5,
+        "marginBottom": 14.5
+      },
+      {
+        "w": 44,
+        "h": 44,
+        "marginTop": 13.5,
+        "marginBottom": 14.5
+      }
+    ],
+    "knobMinVerticalMarginAllRows": 13.5,
+    "groupHeader": {
+      "heightPx": 24,
+      "msVisiblePx": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "msHitHeightPx": 22
+    },
+    "nameColumnPx": 192,
+    "truncatedHaveTitle": true,
+    "rowsFullyVisible": 6,
+    "listScrolls": true,
+    "scrollHeight": 944,
+    "clientHeight": 486
   }
 }
