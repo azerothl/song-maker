@@ -43,3 +43,4 @@ src-tauri/gen/
 training-jobs/*
 !training-jobs/.gitkeep
 __pycache__/
+artifacts/
