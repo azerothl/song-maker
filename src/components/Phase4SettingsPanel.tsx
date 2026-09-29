@@ -474,9 +474,18 @@ export function Phase4SettingsPanel({
       {view === "lora" && (
         <div className="settings-page-content">
       <p className="hint">{t("phase4.styleLora.intro")}</p>
-      <p className="hint">{t("phase4.styleLora.licenseNotice")}</p>
-      <label className="phase3-check">
+      <p className="hint">
+        {t("phase4.styleLora.licenseNotice")}{" "}
+        <span className="nc-model-badge" data-testid="style-lora-nc-badge">
+          <span className="sep-license-icon" aria-hidden="true">
+            ⊘
+          </span>
+          {t("phase4.styleLora.ncBadge")}
+        </span>
+      </p>
+      <label className="phase3-check" htmlFor="phase4-lora-cc-gate">
         <input
+          id="phase4-lora-cc-gate"
           type="checkbox"
           checked={Boolean(settings?.ccByNcAccepted)}
           onChange={(e) => void toggleCcByNc(e.target.checked)}

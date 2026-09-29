@@ -12,12 +12,14 @@ import {
   describeStemProvidersFr,
   canDownloadSeparator,
   separatorLicense,
+  EXCLUDED_SEPARATOR_NOTES_FR,
   type StemProviderId,
 } from "@song-maker/stem-providers";
 import { api } from "../lib/api";
 import type { AppSettings, InstallProgress, Phase3Status } from "../lib/types";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
+import { SeparatorLicenseBadge } from "./SeparatorLicenseBadge";
 
 export function Phase3SettingsPanel({
   view,
@@ -31,6 +33,7 @@ export function Phase3SettingsPanel({
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [installingHtDemucs6s, setInstallingHtDemucs6s] = useState(false);
+  const [installingHtDemucs, setInstallingHtDemucs] = useState(false);
   const [installingBsRoFormer, setInstallingBsRoFormer] = useState(false);
   const [installingMelBand, setInstallingMelBand] = useState(false);
   const [bsProgress, setBsProgress] = useState<InstallProgress | null>(null);
@@ -185,6 +188,30 @@ export function Phase3SettingsPanel({
     }
   };
 
+  const installHtDemucs = async () => {
+    if (
+      !canDownloadSeparator(
+        "htdemucs",
+        settings?.acceptedSeparatorLicenses ??
+          phase3?.acceptedSeparatorLicenses,
+      )
+    ) {
+      setDownloadNotice(t("separate.license.blocked"));
+      return;
+    }
+    setInstallingHtDemucs(true);
+    setDownloadNotice(null);
+    try {
+      const path = await api.installMixOnlyAssets();
+      await refreshPhase3();
+      setDownloadNotice(`${t("separate.license.htdemucs.install")}\n${path}`);
+    } catch (e) {
+      setDownloadNotice(String(e));
+    } finally {
+      setInstallingHtDemucs(false);
+    }
+  };
+
   const toggleLicense = async (id: StemProviderId, accepted: boolean) => {
     if (!settings) return;
     try {
@@ -295,81 +322,122 @@ export function Phase3SettingsPanel({
             settings.acceptedSeparatorLicenses?.[p.id] ??
               phase3?.acceptedSeparatorLicenses?.[p.id],
           );
+          const weightsMissing =
+            (p.id === "htdemucs" && !(phase3?.htdemucsAvailable ?? false)) ||
+            (p.id === "bs_roformer" && !p.runnable) ||
+            (p.id === "mel_band_roformer" && !p.runnable) ||
+            (p.id === "htdemucs_6s" && !p.runnable);
+          const showLicenseAccept =
+            Boolean(license?.requiresAcceptBeforeDownload) &&
+            (weightsMissing || !accepted);
+          const licenseCbId = `sep-license-accept-${p.id}`;
           return (
-            <label key={p.id} className="phase3-provider">
-              <input
-                type="radio"
-                name="stem-separator"
-                checked={selected}
-                disabled={!p.runnable && p.id !== "htdemucs"}
-                onChange={() => void selectSeparator(p.id)}
-              />
-              <span>
-                <strong>{p.displayNameFr}</strong>
-                {license && (
-                  <>
-                    {" "}
-                    <span className="sep-license-badge">{license.badgeFr}</span>
-                  </>
-                )}
-                <br />
-                <span className="hint">{p.stemLayoutNoteFr}</span>
-                {license && (
-                  <>
-                    <br />
-                    <a href={license.sourceUrl} target="_blank" rel="noreferrer">
-                      {license.sourceLabelFr}
-                    </a>
-                  </>
-                )}
-                {!p.runnable && p.id === "bs_roformer" && (
-                  <>
-                    <br />
-                    <span className="hint warn">
-                      {t("phase3.separator.bsMissing")}
-                      {phase3 ? ` — ${phase3.bsRoformerPath}` : ""}
-                    </span>
-                  </>
-                )}
-                {!p.runnable && p.id === "mel_band_roformer" && (
-                  <>
-                    <br />
-                    <span className="hint warn">
-                      {t("phase3.separator.melMissing")}
-                      {phase3 ? ` — ${phase3.melBandRoformerPath}` : ""}
-                    </span>
-                  </>
-                )}
-                {!p.runnable && p.id === "htdemucs_6s" && (
-                  <>
-                    <br />
-                    <span className="hint warn">
-                      {t("phase3.separator.onnxRuntimeMissing")}
-                    </span>
-                  </>
-                )}
-                {license?.requiresAcceptBeforeDownload && !p.runnable && (
-                  <>
-                    <br />
-                    <span className="sep-license-cb">
-                      <input
-                        type="checkbox"
-                        checked={accepted}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          void toggleLicense(p.id, e.target.checked);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      {t("separate.license.accept")}
-                    </span>
-                  </>
-                )}
-              </span>
-            </label>
+            <div key={p.id} className="phase3-provider">
+              <label className="phase3-provider-main">
+                <input
+                  type="radio"
+                  name="stem-separator"
+                  checked={selected}
+                  disabled={!p.runnable && p.id !== "htdemucs"}
+                  onChange={() => void selectSeparator(p.id)}
+                />
+                <span>
+                  <strong>{p.displayNameFr}</strong>
+                  {license && (
+                    <>
+                      {" "}
+                      <SeparatorLicenseBadge license={license} />
+                    </>
+                  )}
+                  <br />
+                  <span className="hint">{p.stemLayoutNoteFr}</span>
+                  {license && (
+                    <>
+                      <br />
+                      <a
+                        href={license.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {license.sourceLabelFr}
+                      </a>
+                      <br />
+                      <span
+                        className="hint warn"
+                        data-testid={`sep-license-notice-${p.id}`}
+                      >
+                        {license.noticeFr}
+                      </span>
+                    </>
+                  )}
+                  {!p.runnable && p.id === "bs_roformer" && (
+                    <>
+                      <br />
+                      <span className="hint warn">
+                        {t("phase3.separator.bsMissing")}
+                        {phase3 ? ` — ${phase3.bsRoformerPath}` : ""}
+                      </span>
+                    </>
+                  )}
+                  {!p.runnable && p.id === "mel_band_roformer" && (
+                    <>
+                      <br />
+                      <span className="hint warn">
+                        {t("phase3.separator.melMissing")}
+                        {phase3 ? ` — ${phase3.melBandRoformerPath}` : ""}
+                      </span>
+                    </>
+                  )}
+                  {!p.runnable && p.id === "htdemucs_6s" && (
+                    <>
+                      <br />
+                      <span className="hint warn">
+                        {t("phase3.separator.onnxRuntimeMissing")}
+                      </span>
+                    </>
+                  )}
+                  {p.id === "htdemucs" &&
+                    !(phase3?.htdemucsAvailable ?? false) && (
+                      <>
+                        <br />
+                        <span className="hint warn">
+                          {t("separate.license.htdemucs.missing")}
+                        </span>
+                      </>
+                    )}
+                </span>
+              </label>
+              {showLicenseAccept && license && (
+                <label className="sep-license-cb" htmlFor={licenseCbId}>
+                  <input
+                    id={licenseCbId}
+                    type="checkbox"
+                    checked={accepted}
+                    aria-label={t("separate.license.acceptNamed", {
+                      name: p.displayNameFr,
+                    })}
+                    onChange={(e) => {
+                      void toggleLicense(p.id, e.target.checked);
+                    }}
+                  />
+                  {t("separate.license.acceptNamed", {
+                    name: p.displayNameFr,
+                  })}
+                </label>
+              )}
+            </div>
           );
         })}
       </div>
+      <h4>{t("separate.license.exclusions")}</h4>
+      <ul
+        className="sep-license-exclusions"
+        data-testid="sep-license-exclusions"
+      >
+        {EXCLUDED_SEPARATOR_NOTES_FR.map((note) => (
+          <li key={note}>{note}</li>
+        ))}
+      </ul>
       {!phase3?.melBandRoformerAvailable && (
         <div className="phase3-bs-install">
           <p className="hint">{t("phase3.separator.melInstallHint")}</p>
@@ -466,6 +534,37 @@ export function Phase3SettingsPanel({
           )}
         </div>
       )}
+      {!phase3?.htdemucsAvailable && (
+        <div className="phase3-bs-install">
+          <p className="hint">{t("separate.license.htdemucs.missing")}</p>
+          <button
+            type="button"
+            className="btn"
+            disabled={
+              installingHtDemucs ||
+              !canDownloadSeparator(
+                "htdemucs",
+                settings.acceptedSeparatorLicenses ??
+                  phase3?.acceptedSeparatorLicenses,
+              )
+            }
+            title={
+              canDownloadSeparator(
+                "htdemucs",
+                settings.acceptedSeparatorLicenses ??
+                  phase3?.acceptedSeparatorLicenses,
+              )
+                ? undefined
+                : t("separate.license.blocked")
+            }
+            onClick={() => void installHtDemucs()}
+          >
+            {installingHtDemucs
+              ? t("separate.license.htdemucs.installing")
+              : t("separate.license.htdemucs.install")}
+          </button>
+        </div>
+      )}
       {!phase3?.htdemucs6sRuntimeAvailable && (
         <button
           type="button"
@@ -508,8 +607,17 @@ export function Phase3SettingsPanel({
 
       {view === "lora" && (
         <>
-      <label className="phase3-check">
+      <p className="hint" data-testid="lora-nc-badge-row">
+        <span className="nc-model-badge" data-testid="lora-nc-badge">
+          <span className="sep-license-icon" aria-hidden="true">
+            ⊘
+          </span>
+          {t("phase4.styleLora.ncBadge")}
+        </span>
+      </p>
+      <label className="phase3-check" htmlFor="phase3-lora-cc-gate">
         <input
+          id="phase3-lora-cc-gate"
           type="checkbox"
           checked={Boolean(settings.ccByNcAccepted)}
           onChange={(e) => void toggleCcByNc(e.target.checked)}

@@ -386,7 +386,13 @@ export function SheetSage2Panel({
       </ol>
       <p className="hint warn" role="note">
         {REINTERPRETATION_DISCLAIMER_FR}{" "}
-        {t("sheetsage.licenseLimits")}
+        {t("sheetsage.licenseLimits")}{" "}
+        <span className="nc-model-badge" data-testid="sheetsage-nc-badge">
+          <span className="sep-license-icon" aria-hidden="true">
+            ⊘
+          </span>
+          {t("sheetsage.license.badge")}
+        </span>
       </p>
       {readiness.status !== "license_not_accepted" && (
         <p className="hint">{readiness.messageFr}</p>

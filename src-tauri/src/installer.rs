@@ -722,6 +722,37 @@ fn extract_engine(
     Ok(())
 }
 
+/// Pure gate used by first-build / mix-only installers (#167).
+/// When HTDemucs GGUF is already valid on disk, download is skipped → Ok.
+/// Otherwise the user must have accepted the separator licence.
+pub(crate) fn htdemucs_download_allowed(
+    weights_already_valid: bool,
+    license_accepted: bool,
+) -> Result<(), String> {
+    if weights_already_valid {
+        return Ok(());
+    }
+    if license_accepted {
+        return Ok(());
+    }
+    Err(
+        "Téléchargement HTDemucs bloqué : cochez « J’ai lu la licence » pour HTDemucs \
+         (Demucs #327 — poids « only for scientific purposes », 23 mai 2022) avant de continuer."
+            .into(),
+    )
+}
+
+fn require_htdemucs_license_for_download(cache: &Path) -> Result<(), String> {
+    let weights_valid = artifact_on_disk_valid(&htdemucs_path(cache), Some(HTDEMUCS_SHA));
+    let settings = crate::library::load_settings()?;
+    let accepted = settings
+        .accepted_separator_licenses
+        .get("htdemucs")
+        .copied()
+        .unwrap_or(false);
+    htdemucs_download_allowed(weights_valid, accepted)
+}
+
 pub async fn install(
     app: tauri::AppHandle,
     state: tauri::State<'_, crate::commands::AppState>,
@@ -735,6 +766,9 @@ pub async fn install(
     if pack != "q4" && pack != "q8" {
         return Err("Choisissez le pack Q4 ou Q8.".into());
     }
+    let settings = crate::library::load_settings()?;
+    let cache = PathBuf::from(&settings.cache_dir);
+    require_htdemucs_license_for_download(&cache)?;
     if state.setup_installing.swap(true, Ordering::AcqRel) {
         return Err("Une installation est déjà en cours.".into());
     }
@@ -750,6 +784,9 @@ pub async fn install_mix_only(
     app: tauri::AppHandle,
     state: tauri::State<'_, crate::commands::AppState>,
 ) -> Result<String, String> {
+    let settings = crate::library::load_settings()?;
+    let cache = PathBuf::from(&settings.cache_dir);
+    require_htdemucs_license_for_download(&cache)?;
     if state.setup_installing.swap(true, Ordering::AcqRel) {
         return Err("Une installation est déjà en cours.".into());
     }
@@ -917,6 +954,21 @@ mod tests {
     use std::io::Write;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
+
+    #[test]
+    fn htdemucs_download_gate_blocks_without_license() {
+        use super::htdemucs_download_allowed;
+        assert!(htdemucs_download_allowed(true, false).is_ok());
+        assert!(htdemucs_download_allowed(true, true).is_ok());
+        assert!(htdemucs_download_allowed(false, true).is_ok());
+        let err = htdemucs_download_allowed(false, false).unwrap_err();
+        assert!(
+            err.contains("only for scientific purposes"),
+            "unexpected: {err}"
+        );
+        assert!(err.contains("Demucs #327"), "unexpected: {err}");
+        assert!(err.contains("J’ai lu la licence"), "unexpected: {err}");
+    }
 
     #[test]
     fn partial_path_matches_download_suffix() {

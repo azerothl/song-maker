@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Licences modèles — #167</title>
+    <style>
+      :root {
+        --bg: #1a1f24;
+        --panel: #232a32;
+        --text: #e8eef4;
+        --muted: #9aa7b5;
+        --accent: #3d7ea6;
+        --line: #3a4552;
+        --warn: #a16207;
+        --nc: #b45309;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background: linear-gradient(160deg, #14191e, #1e2830 50%, #182028);
+        color: var(--text);
+      }
+      .stage {
+        width: 1280px;
+        height: 720px;
+        margin: 24px auto;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        position: relative;
+        overflow: hidden;
+        padding: 1.5rem 1.75rem;
+      }
+      h1 { font-size: 1.2rem; margin: 0 0 0.35rem; }
+      h2 { font-size: 1rem; margin: 1rem 0 0.4rem; }
+      .hint { color: var(--muted); font-size: 0.88rem; margin: 0.25rem 0 0.75rem; }
+      .warn { color: #e7c07b; }
+      .provider {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 0.75rem 0.9rem;
+        margin: 0.45rem 0;
+      }
+      .sep-license-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+        font-size: 0.72rem;
+        padding: 0.12rem 0.4rem;
+        border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+        border-radius: 2px;
+        line-height: 1.3;
+      }
+      .sep-license-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1rem;
+        height: 1rem;
+        font-weight: 700;
+        font-size: 0.7rem;
+        border: 1px solid currentColor;
+        border-radius: 50%;
+      }
+      .sep-license-status { font-weight: 700; }
+      .sep-license-badge.unverified { border-color: var(--warn); color: var(--warn); }
+      .nc-model-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.72rem;
+        padding: 0.12rem 0.4rem;
+        border: 1px solid var(--nc);
+        color: var(--nc);
+        border-radius: 2px;
+      }
+      .sep-license-cb {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 0.45rem 0 0;
+        font-size: 0.9rem;
+      }
+      .sep-license-exclusions {
+        margin: 0.5rem 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .sep-license-exclusions li {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        margin: 0.2rem 0;
+      }
+      .sep-license-exclusions li::before {
+        content: "✕ ";
+        color: #b91c1c;
+        font-weight: 700;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem 1.25rem;
+      }
+      a { color: #8ec8e8; }
+      .caption {
+        position: absolute;
+        left: 1.5rem;
+        bottom: 0.9rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage" id="capture-licenses-167" data-testid="capture-licenses-167">
+      <h1>Réglages · Production · licences modèles (#167)</h1>
+      <p class="hint">Statut typé (icône + texte) · date de lecture · case accessible · exclusions affichées</p>
+      <div class="grid">
+        <div class="provider" data-testid="card-htdemucs">
+          <strong>HTDemucs</strong>
+          <span class="sep-license-badge unverified" data-testid="sep-license-badge-htdemucs" data-license-status="unverified">
+            <span class="sep-license-icon" aria-hidden="true">!</span>
+            <span class="sep-license-status">non vérifié</span>
+            · usage scientifique (only for scientific purposes)
+            <span> (lu le 2026-09-29)</span>
+          </span>
+          <p class="hint warn" data-testid="sep-license-notice-htdemucs">
+            Poids HTDemucs : le mainteneur adefossez a écrit le 23 mai 2022 (Demucs #327) que les poids
+            « are not covered by the MIT license, and are provided only for scientific purposes ».
+            Source : Demucs #327. Lu le 2026-09-29.
+          </p>
+          <a href="#">Demucs #327 · adefossez · 23 mai 2022</a>
+          <label class="sep-license-cb" for="cb-htdemucs">
+            <input id="cb-htdemucs" type="checkbox" aria-label="J'ai lu la licence de HTDemucs" />
+            J'ai lu la licence de HTDemucs
+          </label>
+        </div>
+        <div class="provider" data-testid="card-bs">
+          <strong>BS-RoFormer ep368</strong>
+          <span class="sep-license-badge unverified" data-testid="sep-license-badge-bs_roformer" data-license-status="unverified">
+            <span class="sep-license-icon" aria-hidden="true">!</span>
+            <span class="sep-license-status">non vérifié</span>
+            · source du checkpoint non documentée
+            <span> (lu le 2026-09-29)</span>
+          </span>
+          <p class="hint warn">BS-RoFormer ep368 : non vérifié. Source primaire du checkpoint non documentée.</p>
+          <label class="sep-license-cb" for="cb-bs">
+            <input id="cb-bs" type="checkbox" aria-label="J'ai lu la licence de BS-RoFormer" />
+            J'ai lu la licence de BS-RoFormer
+          </label>
+        </div>
+        <div class="provider" data-testid="card-kim">
+          <strong>Mel-Band RoFormer · Kim Vocal 2</strong>
+          <span class="sep-license-badge unverified" data-testid="sep-license-badge-mel_band_roformer" data-license-status="unverified">
+            <span class="sep-license-icon" aria-hidden="true">!</span>
+            <span class="sep-license-status">non vérifié</span>
+            · source primaire absente
+            <span> (lu le 2026-09-29)</span>
+          </span>
+          <p class="hint warn">Kim Vocal 2 : non vérifié — pas de source primaire ; conversion tierce non acceptée comme MIT.</p>
+          <label class="sep-license-cb" for="cb-kim">
+            <input id="cb-kim" type="checkbox" aria-label="J'ai lu la licence de Mel-Band RoFormer" />
+            J'ai lu la licence de Mel-Band RoFormer « Kim Vocal 2 »
+          </label>
+        </div>
+        <div class="provider" data-testid="card-nc">
+          <strong>SheetSage2 / LoRA</strong>
+          <span class="nc-model-badge" data-testid="sheetsage-nc-badge">
+            <span class="sep-license-icon" aria-hidden="true">⊘</span>
+            usage non commercial
+          </span>
+          <p class="hint">Conservés en attendant la décision Loïc — marqués « usage non commercial » (CC BY-NC).</p>
+          <h2>Modèles exclus</h2>
+          <ul class="sep-license-exclusions" data-testid="sep-license-exclusions">
+            <li>BS-Roformer 6 stems (jarredou) — tous droits réservés : non proposé.</li>
+            <li>Banquet / ADTOF — CC BY-NC-SA : écartés du socle (usage non commercial).</li>
+          </ul>
+        </div>
+      </div>
+      <p class="caption">Capture preuve #167 — badges icône + textes, HTDemucs Demucs #327, exclusions, case accessible</p>
+    </div>
+  </body>
+</html>

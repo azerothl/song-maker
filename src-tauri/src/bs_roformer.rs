@@ -17,9 +17,10 @@ const HF_URL: &str =
 
 /// License notice shown before / during opt-in install (weights from audio-cpp/audio.cpp-gguf).
 pub const LICENSE_NOTICE_FR: &str = "\
-BS-RoFormer (GGUF q8_0) est optionnel (~165 Mo). Source : Hugging Face audio-cpp/audio.cpp-gguf. \
-Le poids n’est pas inclus dans l’installeur premier build. HTDemucs reste le séparateur par défaut. \
-Licence du dépôt modèle : voir la fiche Hugging Face du paquet ; usage sous votre responsabilité.";
+BS-RoFormer ep368 (GGUF q8_0) est optionnel (~165 Mo). Source : Hugging Face audio-cpp/audio.cpp-gguf. \
+Licence non vérifiée : la fiche audio.cpp cite Apache-2.0 mais la source primaire du checkpoint \
+n’est pas documentée. Le poids n’est pas inclus dans l’installeur premier build. \
+HTDemucs reste le séparateur par défaut.";
 
 pub fn download_url() -> &'static str {
     HF_URL
