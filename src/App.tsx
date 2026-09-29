@@ -3,6 +3,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { api } from "./lib/api";
 import { shouldHandleSidebarToggleShortcut } from "./lib/sidebarKeyboard";
+import { bindSidebarTipDismiss } from "./lib/sidebarTooltips";
 import {
   applySidebarToggle,
   clearNarrowOverrideOnWideViewport,
@@ -205,6 +206,15 @@ export function Sidebar() {
     };
   }, [collapsed, screen]);
 
+  const sidebarRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (screen === "splash" || !collapsed) return;
+    const el = sidebarRef.current;
+    if (!el) return;
+    return bindSidebarTipDismiss(el);
+  }, [collapsed, screen]);
+
   if (screen === "splash") return null;
 
   const gpuLabel = !health
@@ -218,6 +228,7 @@ export function Sidebar() {
 
   return (
     <aside
+      ref={sidebarRef}
       id="sidebar"
       className={`sidebar${collapsed ? " is-collapsed" : ""}`}
       data-collapsed={collapsed ? "true" : "false"}

@@ -31,3 +31,33 @@ export const SIDEBAR_HOVER_CONTRAST_RATIO = contrastRatio(
   SIDEBAR_HOVER_TEXT,
   SIDEBAR_HOVER_BG,
 );
+
+const CSS_RGB_RE =
+  /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*[\d.]+\s*)?\)$/i;
+
+/** Convertit `rgb()` / `rgba()` en hex 6 chiffres pour mesure DOM. */
+export function cssRgbToHex(css: string): string | null {
+  const trimmed = css.trim();
+  if (trimmed.startsWith("#")) {
+    const h = trimmed.replace("#", "");
+    if (h.length === 3) {
+      return `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`.toLowerCase();
+    }
+    if (h.length === 6) return `#${h}`.toLowerCase();
+    return null;
+  }
+  const m = CSS_RGB_RE.exec(trimmed);
+  if (!m) return null;
+  const r = Math.round(Number(m[1]));
+  const g = Math.round(Number(m[2]));
+  const b = Math.round(Number(m[3]));
+  const toHex = (n: number) => n.toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+export function contrastRatioFromCssColors(fgCss: string, bgCss: string): number | null {
+  const fg = cssRgbToHex(fgCss);
+  const bg = cssRgbToHex(bgCss);
+  if (!fg || !bg) return null;
+  return contrastRatio(fg, bg);
+}

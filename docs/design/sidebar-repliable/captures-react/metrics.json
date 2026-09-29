@@ -25,12 +25,19 @@
         44
       ]
     ],
-    "hoverContrastRatio": 12.277830571699933,
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": null,
     "checks": {
       "widthMatchesExpanded": true,
       "widthMatchesCollapsed": false,
       "targetsAtLeast44Px": true,
-      "hoverContrastAa": true
+      "hoverContrastAa": true,
+      "tooltipVisible": false
     }
   },
   "replie_1280": {
@@ -59,12 +66,19 @@
         44
       ]
     ],
-    "hoverContrastRatio": 12.277830571699933,
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": null,
     "checks": {
       "widthMatchesExpanded": false,
       "widthMatchesCollapsed": true,
       "targetsAtLeast44Px": true,
-      "hoverContrastAa": true
+      "hoverContrastAa": true,
+      "tooltipVisible": false
     }
   },
   "tooltip_1280": {
@@ -93,12 +107,121 @@
         44
       ]
     ],
-    "hoverContrastRatio": 12.277830571699933,
+    "hoverContrast": {
+      "ratio": 12.349998525131042,
+      "foregroundCss": "rgb(239, 240, 251)",
+      "backgroundCss": "rgb(44, 38, 80)",
+      "source": "dom"
+    },
+    "tooltip": {
+      "widthPx": 92.81,
+      "heightPx": 31.19,
+      "leftPx": 58,
+      "topPx": 134.19,
+      "gapToTriggerPx": 8,
+      "opacity": 1,
+      "foregroundCss": "rgb(239, 240, 251)",
+      "backgroundCss": "rgb(32, 36, 58)",
+      "contrastRatio": 13.48
+    },
     "checks": {
       "widthMatchesExpanded": false,
       "widthMatchesCollapsed": true,
       "targetsAtLeast44Px": true,
-      "hoverContrastAa": true
+      "hoverContrastAa": true,
+      "tooltipVisible": true
+    }
+  },
+  "tooltip_escape_before": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.349998525131042,
+      "foregroundCss": "rgb(239, 240, 251)",
+      "backgroundCss": "rgb(44, 38, 80)",
+      "source": "dom"
+    },
+    "tooltip": {
+      "widthPx": 92.81,
+      "heightPx": 31.19,
+      "leftPx": 58,
+      "topPx": 134.19,
+      "gapToTriggerPx": 8,
+      "opacity": 1,
+      "foregroundCss": "rgb(239, 240, 251)",
+      "backgroundCss": "rgb(32, 36, 58)",
+      "contrastRatio": 13.48
+    },
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": true
+    }
+  },
+  "tooltip_escape_after": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.349998525131042,
+      "foregroundCss": "rgb(239, 240, 251)",
+      "backgroundCss": "rgb(44, 38, 80)",
+      "source": "dom"
+    },
+    "tooltip": null,
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": false
     }
   },
   "focus_toggle": {
@@ -127,12 +250,19 @@
         44
       ]
     ],
-    "hoverContrastRatio": 12.277830571699933,
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": null,
     "checks": {
       "widthMatchesExpanded": true,
       "widthMatchesCollapsed": false,
       "targetsAtLeast44Px": true,
-      "hoverContrastAa": true
+      "hoverContrastAa": true,
+      "tooltipVisible": false
     }
   },
   "auto_1024": {
@@ -161,12 +291,19 @@
         44
       ]
     ],
-    "hoverContrastRatio": 12.277830571699933,
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": null,
     "checks": {
       "widthMatchesExpanded": false,
       "widthMatchesCollapsed": true,
       "targetsAtLeast44Px": true,
-      "hoverContrastAa": true
+      "hoverContrastAa": true,
+      "tooltipVisible": false
     }
   }
 }

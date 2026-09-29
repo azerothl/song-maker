@@ -113,6 +113,7 @@ option {
   width: var(--sidebar-width-collapsed);
   padding-left: 0.3125rem;
   padding-right: 0.3125rem;
+  overflow: visible;
 }
 
 .sidebar-top {
@@ -338,8 +339,8 @@ option {
   display: flex;
 }
 
-.sidebar.is-collapsed .sidebar-row:hover .sidebar-tip,
-.sidebar.is-collapsed .sidebar-row:has(:focus-visible) .sidebar-tip {
+.sidebar.is-collapsed .sidebar-row:hover:not(.tip-off) .sidebar-tip,
+.sidebar.is-collapsed .sidebar-row:has(:focus-visible):not(.tip-off) .sidebar-tip {
   opacity: 1;
 }
 

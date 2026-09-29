@@ -29,11 +29,26 @@ async function metrics(page: import("playwright").Page): Promise<Metrics | null>
   return page.evaluate(() => window.__sidebarCaptureMetrics?.() ?? null);
 }
 
+async function waitTooltipVisible(page: import("playwright").Page): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const tips = document.querySelectorAll(".sidebar.is-collapsed .sidebar-tip");
+      return Array.from(tips).some((tip) => {
+        const style = getComputedStyle(tip);
+        const opacity = parseFloat(style.opacity);
+        const rect = tip.getBoundingClientRect();
+        return opacity >= 0.95 && rect.width > 4 && rect.height > 4;
+      });
+    },
+    { timeout: 5000 },
+  );
+}
+
 async function shot(
   page: import("playwright").Page,
   filename: string,
 ): Promise<Metrics | null> {
-  await page.waitForTimeout(450);
+  await page.waitForTimeout(150);
   const m = await metrics(page);
   await page.screenshot({ path: path.join(OUT, filename), fullPage: false });
   console.log(JSON.stringify({ file: filename, ...m }, null, 0));
@@ -66,9 +81,34 @@ try {
   page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   await page.goto(`${BASE}#collapsed`);
   await page.waitForSelector("#sidebar.is-collapsed", { timeout: 30_000 });
-  await page.hover("#sidebar-nav button");
-  await page.waitForTimeout(400);
+  const libraryBtn = page.locator("#sidebar-nav button").first();
+  await libraryBtn.hover();
+  await waitTooltipVisible(page);
   results.tooltip_1280 = await shot(page, "sidebar-react-replie-tooltip-1280x720.png");
+  await page.close();
+
+  page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  await page.goto(`${BASE}#collapsed`);
+  await page.waitForSelector("#sidebar.is-collapsed", { timeout: 30_000 });
+  await page.locator("#sidebar-nav button").first().hover();
+  await waitTooltipVisible(page);
+  results.tooltip_escape_before = await shot(
+    page,
+    "sidebar-react-replie-tooltip-avant-echap-1280x720.png",
+  );
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(
+    () => {
+      const row = document.querySelector("#sidebar-nav .sidebar-row");
+      return row?.classList.contains("tip-off") === true;
+    },
+    { timeout: 3000 },
+  );
+  await page.waitForTimeout(150);
+  results.tooltip_escape_after = await shot(
+    page,
+    "sidebar-react-replie-tooltip-apres-echap-1280x720.png",
+  );
   await page.close();
 
   page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
