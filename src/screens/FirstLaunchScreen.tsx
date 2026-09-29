@@ -5,6 +5,7 @@ import { isTauriRuntime } from "../lib/runtimeHost";
 import {
   NVIDIA_DRIVERS_URL,
   YUE2_LICENSE_URL,
+  browserDemoFromHash,
   bucketPlanBytes,
   buildFileRows,
   demoInstallPlan,
@@ -97,15 +98,20 @@ export function FirstLaunchScreen() {
   const refreshHealth = useAppStore((s) => s.refreshHealth);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
   const setScreen = useAppStore((s) => s.setScreen);
+  const setStoreError = useAppStore((s) => s.setError);
   const settings = useAppStore((s) => s.settings);
+  const browser = !isTauriRuntime();
+  const initialDemo = browser ? browserDemoFromHash() : null;
 
-  const [loading, setLoading] = useState(true);
-  const [gpu, setGpu] = useState<SetupGpuInfo | null>(null);
-  const [plan, setPlan] = useState<InstallPlan | null>(null);
-  const [pack, setPack] = useState<ModelPack>("q4");
-  const [accepted, setAccepted] = useState(false);
+  const [loading, setLoading] = useState(!browser);
+  const [gpu, setGpu] = useState<SetupGpuInfo | null>(initialDemo?.gpu ?? null);
+  const [plan, setPlan] = useState<InstallPlan | null>(initialDemo?.plan ?? null);
+  const [pack, setPack] = useState<ModelPack>(initialDemo?.pack ?? "q4");
+  const [accepted, setAccepted] = useState(Boolean(initialDemo?.progress));
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState<InstallProgress | null>(null);
+  const [progress, setProgress] = useState<InstallProgress | null>(
+    initialDemo?.progress ?? null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [interruptDismissed, setInterruptDismissed] = useState(false);
   const [techOpen, setTechOpen] = useState(false);
@@ -116,18 +122,20 @@ export function FirstLaunchScreen() {
     return next;
   }, []);
 
+  const applyDemo = useCallback(() => {
+    const demo = browserDemoFromHash();
+    setGpu(demo.gpu);
+    setPack(demo.pack);
+    setPlan(demo.plan);
+    setProgress(demo.progress);
+    setInterruptDismissed(false);
+    setAccepted(Boolean(demo.progress));
+    setLoading(false);
+  }, []);
+
   const bootstrap = useCallback(async () => {
     if (!isTauriRuntime()) {
-      const hash = globalThis.location?.hash?.slice(1) ?? "";
-      const metal = hash === "metal";
-      const none = hash === "b" || hash === "nogpu";
-      const interrupted = hash === "c" || hash === "interrompu";
-      const gpuInfo = demoSetupGpu(metal ? "appleMetal" : none ? "none" : "nvidiaCuda");
-      setGpu(gpuInfo);
-      setPack(parsePack(gpuInfo.suggestedPack));
-      setPlan(demoInstallPlan(parsePack(gpuInfo.suggestedPack), interrupted));
-      if (interrupted) setProgress(demoProgressError());
-      setLoading(false);
+      applyDemo();
       return;
     }
     const [gpuInfo] = await Promise.all([
@@ -152,9 +160,10 @@ export function FirstLaunchScreen() {
     setAccepted(current.settings?.yue2LicenseAccepted ?? false);
     await loadPlan(nextPack);
     setLoading(false);
-  }, [loadPlan, refreshHealth, refreshSettings, setScreen]);
+  }, [applyDemo, loadPlan, refreshHealth, refreshSettings, setScreen]);
 
   useEffect(() => {
+    setStoreError(null);
     let active = true;
     void bootstrap().catch((reason) => {
       if (!active) return;
@@ -164,7 +173,17 @@ export function FirstLaunchScreen() {
     return () => {
       active = false;
     };
-  }, [bootstrap]);
+  }, [bootstrap, setStoreError]);
+
+  useEffect(() => {
+    if (!browser) return undefined;
+    const onHash = () => {
+      applyDemo();
+      setScreen("splash");
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, [applyDemo, browser, setScreen]);
 
   useEffect(() => {
     if (!isTauriRuntime()) return undefined;
@@ -406,8 +425,9 @@ export function FirstLaunchScreen() {
                 : usage personnel et non commercial uniquement, vous ne pouvez pas vendre
                 ou monétiser les morceaux générés.
               </p>
-              <label className="fl-cb">
+              <label className="fl-cb" htmlFor="fl-license-accept">
                 <input
+                  id="fl-license-accept"
                   type="checkbox"
                   checked={accepted}
                   disabled={busy}
