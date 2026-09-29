@@ -61,7 +61,7 @@ describe("Dialogues séparation / export a11y (#187 / #191)", () => {
 
   it("comportement pied export : voir anchoredPopinFooter.behavior.test.mts", () => {
     assert.match(
-      readSrc("src/dev/anchoredPopinFooter.behavior.test.mts"),
+      readSrc("src/dev/anchoredPopinFooter.behavior.test.ts"),
       /export-drawer-12-after-export/,
     );
   });
