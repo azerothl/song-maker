@@ -4,6 +4,7 @@
   "version": "0.1.1",
   "type": "module",
   "description": "Song Maker — local Tauri desktop app (YuE2 / audio.cpp) and monorepo packages",
+  "license": "Apache-2.0",
   "packageManager": "pnpm@10.33.3",
   "scripts": {
     "dev": "vite",

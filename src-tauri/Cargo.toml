@@ -3,6 +3,7 @@ name = "song-maker"
 version = "0.1.0"
 description = "Song Maker — premier build (phase 1)"
 authors = ["Song Maker"]
+license = "Apache-2.0"
 edition = "2021"
 
 [lib]

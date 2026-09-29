@@ -1,0 +1,145 @@
+Song Maker
+Copyright 2026 Loïc Peaudecerf
+
+This product includes software developed by third parties. The sections below
+list components that require attribution or special license terms. Model weight
+files (GGUF and related) are not listed here; each weight carries its own
+license, surfaced in the application per product policy.
+
+================================================================================
+Song Maker application code
+================================================================================
+
+Licensed under the Apache License, Version 2.0. See the LICENSE file in this
+repository.
+
+================================================================================
+audio.cpp (external runtime, separate process)
+================================================================================
+
+Component: audio.cpp server and CLI binaries (audiocpp_server, audiocpp_cli).
+Pinned release: tag v0.8.2 (commit 4d88768fbcae4e6eb3352c6ab1422dabb7d90b58).
+Source: https://github.com/0xShug0/audio.cpp
+
+Song Maker downloads these binaries at install time (or via first-run scripts)
+and runs them as a separate process; they are not linked into the Tauri shell.
+No NOTICE file is present in the upstream repository at tag v0.8.2.
+
+Upstream LICENSE (Apache-2.0), copyright line read from
+https://github.com/0xShug0/audio.cpp/blob/v0.8.2/LICENSE :
+
+    Copyright 2026 ShugoAI LLC
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+================================================================================
+FFmpeg (external binary, not bundled)
+================================================================================
+
+Component: ffmpeg (and ffprobe where applicable), invoked as an external
+process for resampling (libsoxr) and mix export (WAV/FLAC/MP3).
+
+Song Maker does not ship an ffmpeg binary in the Tauri installer bundle
+(tauri.conf.json defines icons only; resolution is via PATH, winget-style
+locations, or SONG_MAKER_FFMPEG). The user installs ffmpeg separately; the
+README recommends builds such as Gyan.FFmpeg on Windows.
+
+FFmpeg is licensed under the GNU Lesser General Public License (LGPL) version
+2.1 or later; some optional components and common full builds (including many
+Gyan.dev Windows builds) are under GPL version 2 or later when GPL-enabled
+parts are included. See https://ffmpeg.org/legal.html
+
+Song Maker does not convey ffmpeg with the application; GPL source-offer
+obligations for ffmpeg apply to whoever distributes a given ffmpeg build, not
+to Song Maker solely for invoking a user-installed binary.
+
+================================================================================
+Rust dependencies (src-tauri / song-maker crate)
+================================================================================
+
+Third-party crates are resolved via Cargo.lock. As of the license audit for
+issue #173, `cargo license` in src-tauri reports:
+
+  - MIT (majority of GUI/runtime crates)
+  - Apache-2.0 OR MIT (majority of ecosystem crates, including Tauri)
+  - MPL-2.0 (5 crates): cssparser, cssparser-macros, dtoa-short, option-ext,
+    selectors
+  - Apache-2.0 OR LGPL-2.1-or-later OR MIT (2 crates): r-efi
+  - (Apache-2.0 OR MIT) AND Unicode-3.0 (1 crate): unicode-ident
+  - Unicode-3.0 (ICU / normalization stack): icu_collections, icu_locale_core,
+    icu_normalizer, icu_normalizer_data, icu_properties, icu_properties_data,
+    icu_provider, litemap, potential_utf, tinystr, writeable, yoke, yoke-derive,
+    zerofrom, zerofrom-derive, zerotrie, zerovec, zerovec-derive
+
+MPL-2.0 section 3.3: if you modify files licensed under MPL-2.0, you must
+make those modifications available under MPL-2.0. Unmodified use in compiled
+form is governed by the MPL-2.0 text: https://www.mozilla.org/MPL/2.0/
+
+Regenerate the full crate list with:
+
+    cargo license --manifest-path src-tauri/Cargo.toml
+
+================================================================================
+npm dependencies — desktop app (repository root package.json)
+================================================================================
+
+Direct runtime dependencies include, among others:
+
+  - @tauri-apps/api — Apache-2.0 OR MIT
+  - abcjs — MIT
+  - react, react-dom — MIT
+  - zustand — MIT
+
+Dev tooling includes @tauri-apps/cli, TypeScript, Vite, Playwright, etc.,
+under their respective SPDX identifiers in each package's package.json.
+
+================================================================================
+npm dependencies — website/ (marketing site, not shipped in desktop installer)
+================================================================================
+
+Direct dependencies include:
+
+  - next — MIT
+  - react, react-dom — MIT
+  - framer-motion — MIT (used in Hero, FrameGallery, WaveformPlayer)
+  - next-mdx-remote — MPL-2.0
+  - gray-matter, remark-gfm — MIT
+  - gsap — see non-OSI section below
+
+================================================================================
+gsap (non-OSI license) — website only
+================================================================================
+
+Component: gsap 3.15.0 (npm), including ScrollTrigger plugin.
+
+SPDX: not OSI-approved. Upstream package.json states:
+"Standard 'no charge' license: https://gsap.com/standard-license."
+
+License terms (Standard "No Charge" GSAP License) were read from
+https://gsap.com/community/standard-license/ (effective date April 30, 2025;
+copyright notice on page: Copyright (c) 2025, Webflow). Webflow grants a
+non-exclusive license for permitted website/web-app use; prohibited uses include
+building no-code visual animation competitors to Webflow. Full text is not
+reproduced here; see the URL above.
+
+Code references:
+  - website/package.json (dependency)
+  - website/components/ScrollMotion.tsx (gsap + ScrollTrigger scroll animations)
+
+Note: ScrollMotion.tsx is present in the tree; the current landing page
+(LandingExperience) uses framer-motion instead and does not import ScrollMotion.
+Older section components still carry data-* hooks intended for ScrollMotion.
+
+================================================================================
+Excluded from this NOTICE
+================================================================================
+
+  - Neural network weight files (YuE2, HTDemucs, optional packs): separate
+    licenses, UI disclosure (#167).
+  - CUDA/cudart redistributables shipped with audio.cpp Windows archives:
+    governed by NVIDIA's license for those binaries (see audio.cpp release
+    artifacts).

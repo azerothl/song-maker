@@ -2,6 +2,7 @@
   "name": "@song-maker/sheetsage",
   "version": "0.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "SheetSage2 audio→ABC contract — readiness checks + honest stub until binary/weights present",
   "exports": {
