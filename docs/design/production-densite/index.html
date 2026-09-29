@@ -132,10 +132,10 @@ h1{font-family:var(--serif);font-weight:600;font-size:22px;line-height:1.15;lett
 .mb.m[aria-pressed="true"]{background:var(--amber)}
 .mb.s[aria-pressed="true"]{background:var(--teal)}
 .mb:focus-visible{z-index:2}
-/* M/S de groupe : l'en-tête ne fait que 24 px -> bouton 28 x 22 visible, zone cliquable étendue à 28 x 30 */
+/* M/S de groupe : l'en-tête ne fait que 24 px -> bouton 28 x 22 visible, zone cliquable étendue à 28 x 24 au minimum (WCAG 2.2, cible 24 px) */
 .grp .ms{width:68px}
 .grp .mb{width:28px;min-width:28px;height:22px;min-height:22px;font-size:12px;border-radius:6px}
-.grp .mb::after{content:"";position:absolute;inset:-4px 0}/* 22 + 8 = 30 px de zone cliquable */
+.grp .mb::after{content:"";position:absolute;inset:-1px 0}/* 22 + 2 = 24 px de zone cliquable */
 
 /* Forme d'onde */
 .wave{height:var(--wave-h);border-radius:8px;background:var(--field);border:1px solid var(--line);overflow:hidden;position:relative;min-width:0}
