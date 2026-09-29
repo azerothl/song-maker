@@ -1,0 +1,172 @@
+{
+  "deplie_1280": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 220,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "true",
+    "toggleAriaLabel": "Réduire le menu",
+    "toggleSizePx": [
+      199,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        199,
+        44
+      ],
+      [
+        199,
+        44
+      ],
+      [
+        199,
+        44
+      ]
+    ],
+    "hoverContrastRatio": 12.277830571699933,
+    "checks": {
+      "widthMatchesExpanded": true,
+      "widthMatchesCollapsed": false,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true
+    }
+  },
+  "replie_1280": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrastRatio": 12.277830571699933,
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true
+    }
+  },
+  "tooltip_1280": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrastRatio": 12.277830571699933,
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true
+    }
+  },
+  "focus_toggle": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 220,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "true",
+    "toggleAriaLabel": "Réduire le menu",
+    "toggleSizePx": [
+      199,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        199,
+        44
+      ],
+      [
+        199,
+        44
+      ],
+      [
+        199,
+        44
+      ]
+    ],
+    "hoverContrastRatio": 12.277830571699933,
+    "checks": {
+      "widthMatchesExpanded": true,
+      "widthMatchesCollapsed": false,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true
+    }
+  },
+  "auto_1024": {
+    "viewportWidth": 1024,
+    "viewportHeight": 700,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrastRatio": 12.277830571699933,
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true
+    }
+  }
+}

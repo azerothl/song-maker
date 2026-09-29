@@ -1,20 +1,51 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  applySidebarToggle,
+  clearNarrowOverrideOnWideViewport,
+  computeSidebarCollapsed,
   SIDEBAR_COLLAPSED_KEY,
-  effectiveSidebarCollapsed,
   readSidebarCollapsedPref,
   writeSidebarCollapsedPref,
 } from "./sidebarCollapse";
 
-describe("sidebarCollapse", () => {
-  it("effectiveSidebarCollapsed forces collapse on narrow viewports", () => {
-    assert.equal(effectiveSidebarCollapsed(false, true), true);
-    assert.equal(effectiveSidebarCollapsed(true, true), true);
-    assert.equal(effectiveSidebarCollapsed(false, false), false);
-    assert.equal(effectiveSidebarCollapsed(true, false), true);
+describe("computeSidebarCollapsed", () => {
+  it("repli automatique en fenêtre étroite sauf override", () => {
+    assert.equal(computeSidebarCollapsed(false, true, false), true);
+    assert.equal(computeSidebarCollapsed(false, true, true), false);
+    assert.equal(computeSidebarCollapsed(true, false, false), true);
+    assert.equal(computeSidebarCollapsed(false, false, false), false);
+  });
+});
+
+describe("applySidebarToggle", () => {
+  it("bascule narrowOverride en fenêtre étroite sans écraser la préférence large", () => {
+    assert.deepEqual(applySidebarToggle(false, true, false), {
+      userCollapsed: false,
+      narrowOverride: true,
+    });
+    assert.deepEqual(applySidebarToggle(false, true, true), {
+      userCollapsed: false,
+      narrowOverride: false,
+    });
   });
 
+  it("bascule la préférence mémorisée en fenêtre large", () => {
+    assert.deepEqual(applySidebarToggle(false, false, false), {
+      userCollapsed: true,
+      narrowOverride: false,
+    });
+  });
+});
+
+describe("clearNarrowOverrideOnWideViewport", () => {
+  it("réinitialise l’override quand la fenêtre redevient large", () => {
+    assert.equal(clearNarrowOverrideOnWideViewport(false, true), false);
+    assert.equal(clearNarrowOverrideOnWideViewport(true, true), true);
+  });
+});
+
+describe("sidebarCollapse storage", () => {
   it("reads and writes the localStorage preference", () => {
     const map = new Map<string, string>();
     const storage = {
