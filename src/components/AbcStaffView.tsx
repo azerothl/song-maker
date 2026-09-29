@@ -94,7 +94,9 @@ export function AbcStaffView({
     try {
       const tunes = abcjs.renderAbc(paper, trimmed, {
         add_classes: true,
-        responsive: "resize",
+        // Défaut abcjs : responsive "off". "resize" recompose la portée à chaque
+        // redimensionnement du conteneur (ouverture d'onglet, chrome) et annule
+        // `scale` (zoom inopérant). Voir bench `pnpm bench:score-tab`.
         scale,
         paddingtop: 8,
         paddingbottom: 8,

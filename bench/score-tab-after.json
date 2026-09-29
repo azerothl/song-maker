@@ -1,0 +1,114 @@
+{
+  "capturedAt": "2026-09-29T10:35:15.243Z",
+  "microbenches": {
+    "stats": {
+      "noteCount": 1233,
+      "maxTick": 4978560,
+      "pianoRollWidthPx": 199142.4
+    },
+    "abcChars": 14171,
+    "withResize": [
+      {
+        "phase": "abcjs.renderAbc (legacy responsive: resize)",
+        "durationMs": 234.09999999997672,
+        "detail": {
+          "chars": 14171,
+          "tunes": 1
+        }
+      },
+      {
+        "phase": "reflow SVG (offsetWidth/Height)",
+        "durationMs": 51.29999999993015,
+        "detail": {
+          "nodes": 17932,
+          "paperWidth": 1280,
+          "paperHeight": 94422
+        }
+      }
+    ],
+    "withoutResize": [
+      {
+        "phase": "abcjs.renderAbc (responsive off)",
+        "durationMs": 168.89999999990687
+      },
+      {
+        "phase": "reflow SVG (responsive off)",
+        "durationMs": 48.20000000006985,
+        "detail": {
+          "nodes": 17932
+        }
+      }
+    ],
+    "abcStaffViewOnly": [
+      {
+        "phase": "AbcStaffView seul → SVG",
+        "durationMs": 229.19999999995343
+      }
+    ],
+    "pianoRoll": [
+      {
+        "phase": "PianoRoll mount (hidden tabpanel path)",
+        "durationMs": 29.70000000006985,
+        "detail": {
+          "noteButtons": 1233,
+          "gridWidthPx": 199142.4
+        }
+      }
+    ],
+    "resizeStorm": [
+      {
+        "phase": "resize storm (5×, responsive: resize)",
+        "durationMs": 127.90000000002328
+      }
+    ],
+    "viewportResizeLegacy": {
+      "phase": "layout après resize (viewportHorizontal + responsive: resize)",
+      "durationMs": 42.199999999953434,
+      "detail": {
+        "passes": 8
+      }
+    },
+    "viewportResizeFixed": {
+      "phase": "layout après resize (viewportHorizontal, responsive off)",
+      "durationMs": 36.39999999990687,
+      "detail": {
+        "passes": 8
+      }
+    }
+  },
+  "scorePanelOpen": {
+    "stats": {
+      "noteCount": 1233,
+      "maxTick": 4978560,
+      "pianoRollWidthPx": 199142.4
+    },
+    "abcChars": 14171,
+    "abcLines": 1312,
+    "phases": [
+      {
+        "phase": "ScorePanel mount (1 frame)",
+        "durationMs": 223.69999999995343
+      },
+      {
+        "phase": "attente rendu portée (abcjs useEffect)",
+        "durationMs": 0,
+        "detail": {
+          "hasSvg": true
+        }
+      },
+      {
+        "phase": "rafales resize après montage (post-ouverture)",
+        "durationMs": 109.20000000006985
+      },
+      {
+        "phase": "ouverture → portée visible (total)",
+        "durationMs": 332.9000000000233,
+        "detail": {
+          "hasSvg": true
+        }
+      }
+    ],
+    "longTasksMs": 204,
+    "longTaskCount": 1
+  }
+}
