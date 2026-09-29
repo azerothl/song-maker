@@ -18,14 +18,17 @@ Voir `../contrastes.md` : ratio documenté par constantes maquette, ou lu dans l
 |-----|----------|
 | `sidebar-react-deplie-1280x720.png` | `#expanded` |
 | `sidebar-react-replie-1280x720.png` | `#collapsed` |
-| `sidebar-react-replie-tooltip-1280x720.png` | replié + survol Bibliothèque (infobulle visible après délai CSS) |
-| `sidebar-react-replie-tooltip-avant-echap-1280x720.png` | infobulle visible avant Échap (WCAG 1.4.13) |
-| `sidebar-react-replie-tooltip-apres-echap-1280x720.png` | après Échap : `tip-off`, infobulle masquée |
-| `sidebar-react-focus-toggle-1280x720.png` | focus clavier sur la bascule |
+| `sidebar-react-replie-icon-center-avant-1280x720.png` | replié, régression gap (#161) |
+| `sidebar-react-replie-icon-center-apres-1280x720.png` | replié, icônes centrées (28 px ±1) |
+| `sidebar-react-replie-tooltip-1280x720.png` | replié + survol Bibliothèque |
+| `sidebar-react-replie-tooltip-avant-echap-1280x720.png` | infobulle avant Échap |
+| `sidebar-react-replie-tooltip-apres-echap-1280x720.png` | après Échap |
+| `sidebar-react-focus-toggle-1280x720.png` | focus bascule |
 | `sidebar-react-auto-1024x700.png` | `#auto` viewport 1024×700 |
 
 ### `metrics.json`
 
-- `hoverContrast` : ratio, couleurs, `source` (`dom` ou `constants`).
-- `tooltip` (scénarios survol / Échap avant) : taille, position, `gapToTriggerPx`, contraste texte/fond de l’infobulle.
-- `checks.tooltipVisible` : `true` lorsque l’infobulle est réellement affichée (opacité ≥ 0,95, boîte non nulle).
+- `collapsedIconCenters` : centre horizontal de chaque icône (SVG / `brand-mark`) vs centre colonne 56 px.
+- `checks.iconCenterById` : un booléen par icône ; `collapsedIconsCentered` si toutes à **28 px ±1**.
+- `deplie_1280_ref` / `deplie_1280` : largeurs dépliées inchangées après correctif.
+- `replie_icon_center_avant_1280` / `replie_icon_center_apres_1280` : avant / après centrage.

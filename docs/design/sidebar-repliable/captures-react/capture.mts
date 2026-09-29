@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -55,6 +55,38 @@ async function shot(
   return m;
 }
 
+function pickDeplieRef(m: Metrics | null): Metrics | null {
+  if (!m || typeof m !== "object") return null;
+  const {
+    sidebarWidthPx,
+    toggleSizePx,
+    navTargetSizesPx,
+    mockupSidebarExpandedPx,
+    checks,
+  } = m as Record<string, unknown>;
+  return {
+    sidebarWidthPx,
+    toggleSizePx,
+    navTargetSizesPx,
+    mockupSidebarExpandedPx,
+    checks: checks && typeof checks === "object"
+      ? {
+          widthMatchesExpanded: (checks as Record<string, unknown>).widthMatchesExpanded,
+          targetsAtLeast44Px: (checks as Record<string, unknown>).targetsAtLeast44Px,
+        }
+      : undefined,
+  };
+}
+
+function assertIconCenterChecks(results: Record<string, Metrics | null>): void {
+  const after =
+    results.replie_icon_center_apres_1280 ?? results.replie_1280;
+  const checks = (after as { checks?: { collapsedIconsCentered?: boolean } } | null)?.checks;
+  if (!checks?.collapsedIconsCentered) {
+    throw new Error("checks.collapsedIconsCentered manquant ou faux après correctif");
+  }
+}
+
 const vite = spawn("pnpm", ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)], {
   cwd: ROOT,
   stdio: "ignore",
@@ -66,9 +98,26 @@ try {
   const browser = await chromium.launch();
   const results: Record<string, Metrics | null> = {};
 
+  let existing: Record<string, Metrics | null> = {};
+  try {
+    existing = JSON.parse(readFileSync(path.join(OUT, "metrics.json"), "utf8")) as Record<
+      string,
+      Metrics | null
+    >;
+  } catch {
+    /* premier run */
+  }
+
+  if (existing.replie_icon_center_avant_1280) {
+    results.replie_icon_center_avant_1280 = existing.replie_icon_center_avant_1280;
+  } else {
+    await pageSimulateRegressionGap(browser, results);
+  }
+
   let page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   await page.goto(`${BASE}#expanded`);
   await page.waitForSelector("#sidebar", { timeout: 30_000 });
+  results.deplie_1280_ref = pickDeplieRef(await metrics(page));
   results.deplie_1280 = await shot(page, "sidebar-react-deplie-1280x720.png");
   await page.close();
 
@@ -76,6 +125,11 @@ try {
   await page.goto(`${BASE}#collapsed`);
   await page.waitForSelector("#sidebar.is-collapsed", { timeout: 30_000 });
   results.replie_1280 = await shot(page, "sidebar-react-replie-1280x720.png");
+  results.replie_icon_center_apres_1280 = results.replie_1280;
+  await page.screenshot({
+    path: path.join(OUT, "sidebar-react-replie-icon-center-apres-1280x720.png"),
+    fullPage: false,
+  });
   await page.close();
 
   page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
@@ -132,7 +186,36 @@ try {
 
   await browser.close();
 
+  assertIconCenterChecks(results);
   writeFileSync(path.join(OUT, "metrics.json"), JSON.stringify(results, null, 2), "utf8");
 } finally {
   vite.kill("SIGTERM");
+}
+
+async function pageSimulateRegressionGap(
+  browser: import("playwright").Browser,
+  results: Record<string, Metrics | null>,
+): Promise<void> {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  await page.goto(`${BASE}#collapsed`);
+  await page.waitForSelector("#sidebar.is-collapsed", { timeout: 30_000 });
+  await page.addStyleTag({
+    content: `
+      .sidebar.is-collapsed .sidebar-toggle,
+      .sidebar.is-collapsed nav button,
+      .sidebar.is-collapsed .sidebar-meta-row {
+        gap: 0.65rem !important;
+      }
+    `,
+  });
+  await page.waitForTimeout(100);
+  results.replie_icon_center_avant_1280 = await metrics(page);
+  await page.screenshot({
+    path: path.join(OUT, "sidebar-react-replie-icon-center-avant-1280x720.png"),
+    fullPage: false,
+  });
+  console.log(
+    JSON.stringify({ file: "sidebar-react-replie-icon-center-avant-1280x720.png", ...results.replie_icon_center_avant_1280 }, null, 0),
+  );
+  await page.close();
 }
