@@ -1,27 +1,11 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as abcjs from "abcjs";
 import type { NoteTimingEvent, TimingCallbacks } from "abcjs";
-import {
-  abcBarDurationSeconds,
-  sliceAbcMeasures,
-  splitAbcMeasures,
-} from "../lib/staffAbc";
-import { traceTiming } from "../lib/perfTrace";
 import { t } from "../ui/i18n";
 
 const SCALE_MIN = 0.6;
 const SCALE_MAX = 1.8;
 const SCALE_STEP = 0.15;
-
-/**
- * Mesures composées d'un coup par abcjs.
- *
- * abcjs compose la portée de façon synchrone sur le thread principal : un
- * morceau de plusieurs minutes gèle l'interface plusieurs secondes à chaque
- * visite de l'onglet. On ne compose donc qu'une fenêtre, l'utilisateur
- * demande la suite explicitement.
- */
-const MEASURES_PER_WINDOW = 24;
 
 export type AbcStaffViewProps = {
   /** ABC source already validated / proposed — never invented here. */
@@ -84,67 +68,10 @@ export function AbcStaffView({
   playbackReadyRef.current = playbackReady;
   playbackSecondsRef.current = playbackSeconds;
 
-  // Retarde la composition : React peint d'abord l'onglet, puis abcjs compose
-  // la fenêtre dans un rendu de priorité basse au lieu de bloquer l'arrivée.
-  const deferredAbc = useDeferredValue(abc);
-  const isStale = deferredAbc !== abc;
-
-  const [windowStart, setWindowStart] = useState(0);
   const [scale, setScale] = useState(1);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [renderWarnings, setRenderWarnings] = useState<string[]>([]);
   const [seekHint, setSeekHint] = useState<string | null>(null);
-
-  const { totalBars, windowed, windowBars, barSeconds } = useMemo(() => {
-    const splitStart = performance.now();
-    const split = splitAbcMeasures(deferredAbc);
-    traceTiming("splitAbcMeasures", splitStart, {
-      bars: split.barCount,
-      voices: split.blocks.length,
-      windowable: split.windowable,
-      abcChars: deferredAbc.length,
-    });
-    if (split.barCount === 0) {
-      return { totalBars: 0, windowed: false, windowBars: 0, barSeconds: null };
-    }
-    const metric = abcBarDurationSeconds(split.header);
-    // Sans métrique connue on ne sait pas replacer la lecture dans la
-    // fenêtre, donc on compose le tune entier plutôt qu'un curseur faux.
-    if (!split.windowable || metric == null) {
-      return {
-        totalBars: split.barCount,
-        windowed: false,
-        windowBars: split.barCount,
-        barSeconds: metric,
-      };
-    }
-    const step = compact
-      ? Math.max(8, Math.floor(MEASURES_PER_WINDOW / 2))
-      : MEASURES_PER_WINDOW;
-    return {
-      totalBars: split.barCount,
-      windowed: true,
-      windowBars: Math.min(step, split.barCount),
-      barSeconds: metric,
-    };
-  }, [deferredAbc, compact]);
-
-  const visibleAbc = useMemo(
-    () => sliceAbcMeasures(deferredAbc, windowStart, windowBars),
-    [deferredAbc, windowStart, windowBars],
-  );
-
-  // abcjs chronomètre la portion qu'il reçoit : on retire donc l'offset de la
-  // fenêtre pour que le curseur et le clic-pour-seek visent le bon instant du
-  // morceau entier.
-  const windowOffsetSeconds = (barSeconds ?? 0) * windowStart;
-  const windowOffsetRef = useRef(windowOffsetSeconds);
-  windowOffsetRef.current = windowOffsetSeconds;
-
-  // Un nouveau tune repart du début de la partition.
-  useEffect(() => {
-    setWindowStart(0);
-  }, [deferredAbc]);
 
   useEffect(() => {
     const paper = paperRef.current;
@@ -158,23 +85,16 @@ export function AbcStaffView({
     setRenderWarnings([]);
     setSeekHint(null);
 
-    const trimmed = visibleAbc.trim();
+    const trimmed = abc.trim();
     if (!trimmed) {
       setRenderError(t("score.staff.emptyAbc"));
       return;
     }
 
     try {
-      const renderStart = performance.now();
       const tunes = abcjs.renderAbc(paper, trimmed, {
         add_classes: true,
-        // `responsive` est volontairement absent : sa valeur par défaut est
-        // "off". Avec "resize", abcjs installe un écouteur de redimensionnement
-        // qui recompose la portée, et neutralise `scale` — le zoom des boutons
-        // ne/agissait donc pas. La composition JS est rapide (27 ms) ; le gel
-        // restant venait de la mise en page du SVG par le navigateur, que ni
-        // traceTiming ni <Profiler> ne mesurent. Le conteneur `.abc-staff-scroll`
-        // défile déjà horizontalement, la largeur fixe ne perd rien.
+        responsive: "resize",
         scale,
         paddingtop: 8,
         paddingbottom: 8,
@@ -192,34 +112,11 @@ export function AbcStaffView({
             return;
           }
           setSeekHint(null);
-          onSeekRef.current(
-            Math.max(0, ms / 1000 + windowOffsetRef.current),
-          );
+          onSeekRef.current(Math.max(0, ms / 1000));
         },
       });
 
       const tune = tunes[0];
-      // La composition est du JS, mais le cout real est dans la mise en page du
-      // SVG par le navigateur, qui n'a lieu qu'a la peinture. Lire une
-      // propriete de geometrie force ce calcul et le rend mesurable ; ni
-      // traceTiming ni <Profiler> ne le voient, car il sort de React.
-      const layoutStart = performance.now();
-      const nodeCount = paper.getElementsByTagName("*").length;
-      const paperWidth = paper.offsetWidth;
-      traceTiming("layout SVG", layoutStart, {
-        nodes: nodeCount,
-        paperWidth,
-        height: paper.offsetHeight,
-      });
-      traceTiming("abcjs.renderAbc", renderStart, {
-        bars: windowBars,
-        windowStart,
-        totalBars,
-        windowed,
-        abcChars: trimmed.length,
-        compact,
-        scale,
-      });
       if (!tune) {
         setRenderError(t("score.staff.renderFailed"));
         return;
@@ -242,10 +139,7 @@ export function AbcStaffView({
         },
       });
       timingRef.current = timing;
-      timing.setProgress(
-        Math.max(0, playbackSecondsRef.current - windowOffsetRef.current),
-        "seconds",
-      );
+      timing.setProgress(playbackSecondsRef.current, "seconds");
     } catch (e) {
       paper.innerHTML = "";
       timingRef.current = null;
@@ -257,22 +151,15 @@ export function AbcStaffView({
       timingRef.current = null;
       clearHighlights(paper);
     };
-  }, [visibleAbc, scale]);
+  }, [abc, scale]);
 
   useEffect(() => {
     const timing = timingRef.current;
     if (!timing) return;
-    // abcjs chronomètre la fenêtre rendue : on retire son offset pour viser le
-    // bon instant du morceau entier.
-    timing.setProgress(
-      Math.max(0, playbackSeconds - windowOffsetSeconds),
-      "seconds",
-    );
-  }, [playbackSeconds, windowOffsetSeconds]);
+    timing.setProgress(Math.max(0, playbackSeconds), "seconds");
+  }, [playbackSeconds]);
 
   const allWarnings = [...warnings, ...renderWarnings];
-  const canPage = windowed && windowStart + windowBars < totalBars;
-  const hasPrevious = windowed && windowStart > 0;
 
   return (
     <div
@@ -313,49 +200,9 @@ export function AbcStaffView({
         )}
       </div>
 
-      {isStale && (
-        <p className="hint" role="status">
-          {t("score.staff.composing")}
-        </p>
-      )}
-
       <div className="abc-staff-scroll">
         <div className="abc-staff-paper" ref={paperRef} />
       </div>
-
-      {windowed && totalBars > windowBars && (
-        <div
-          className="abc-staff-pages"
-          role="group"
-          aria-label={t("score.staff.pages.nav")}
-        >
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={!hasPrevious}
-            onClick={() =>
-              setWindowStart((s) => Math.max(0, s - windowBars))
-            }
-          >
-            {t("score.staff.pages.previous")}
-          </button>
-          <span className="abc-staff-zoom-label">
-            {t("score.staff.pages.position", {
-              from: windowStart + 1,
-              to: Math.min(totalBars, windowStart + windowBars),
-              total: totalBars,
-            })}
-          </span>
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={!canPage}
-            onClick={() => setWindowStart((s) => s + windowBars)}
-          >
-            {t("score.staff.pages.next")}
-          </button>
-        </div>
-      )}
 
       {renderError && (
         <p className="score-issues error" role="alert">

@@ -19,7 +19,6 @@ import { PianoRoll } from "./PianoRoll";
 import { ScoreAssistantPanel } from "./ScoreAssistantPanel";
 import { ScoreBranchPanel } from "./ScoreBranchPanel";
 import { useAppStore } from "../store/appStore";
-import { PerfProbe, traceTiming } from "../lib/perfTrace";
 import { t } from "../ui/i18n";
 
 type ScoreViewMode = "staff" | "piano" | "abc";
@@ -118,15 +117,7 @@ export function ScorePanel({
 
   const staffAbc = useMemo(() => {
     if (!document) return null;
-    const startedAt = performance.now();
-    const result = buildStaffAbc(document, title || undefined);
-    traceTiming("buildStaffAbc", startedAt, {
-      voices: document.voices.length,
-      notes: document.voices.reduce((a, v) => a + v.notes.length, 0),
-      ok: result.ok,
-      abcChars: result.ok ? result.abc.length : 0,
-    });
-    return result;
+    return buildStaffAbc(document, title || undefined);
   }, [document, title]);
 
   async function persist(doc: ScoreDocument) {
@@ -412,15 +403,13 @@ export function ScorePanel({
             hidden={viewMode !== "staff"}
           >
             {staffAbc?.ok ? (
-              <PerfProbe id="AbcStaffView">
-                <AbcStaffView
-                  abc={staffAbc.abc}
-                  warnings={staffAbc.warnings}
-                  playbackSeconds={playbackSeconds}
-                  playbackReady={playbackReady}
-                  onSeek={onSeekPlayback}
-                />
-              </PerfProbe>
+              <AbcStaffView
+                abc={staffAbc.abc}
+                warnings={staffAbc.warnings}
+                playbackSeconds={playbackSeconds}
+                playbackReady={playbackReady}
+                onSeek={onSeekPlayback}
+              />
             ) : (
               <div className="score-staff-fallback">
                 <p className="hint" role="alert">
@@ -444,16 +433,14 @@ export function ScorePanel({
             aria-labelledby="score-view-piano"
             hidden={viewMode !== "piano"}
           >
-            <PerfProbe id="PianoRoll">
-              <PianoRoll
-                document={document}
-                onChange={(doc) => {
-                  onDocumentChange(doc);
-                  setAbcPreview(null);
-                }}
-                onError={onError}
-              />
-            </PerfProbe>
+            <PianoRoll
+              document={document}
+              onChange={(doc) => {
+                onDocumentChange(doc);
+                setAbcPreview(null);
+              }}
+              onError={onError}
+            />
             <MidiInstrumentPanel
               document={document}
               onDocumentChange={(doc) => {
