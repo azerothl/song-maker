@@ -2,8 +2,9 @@ use super::separation::read_separation_info;
 use super::{push_undo, AppState};
 use crate::library::{load_project, project_folder, save_project};
 use crate::mix::{
-    downsample_wav_bit_depth, export_flac_with_bit_depth, export_mp3_with_bitrate, package_export_delivery,
-    render_mix, write_export_json_with_warnings, write_interleaved_f32_wav,
+    downsample_wav_bit_depth, export_flac_with_bit_depth, export_mp3_with_bitrate,
+    package_export_delivery, render_mix, write_export_json_with_warnings,
+    write_interleaved_f32_wav,
 };
 use crate::models::*;
 use crate::paths::{
@@ -402,13 +403,8 @@ pub fn export_audio(id: String, req: ExportRequest) -> Result<String, String> {
     }
     let bundle_dir = exports.join(format!("export-{stamp}-livraison"));
     let zip_path = exports.join(format!("export-{stamp}.zip"));
-    let delivered = package_export_delivery(
-        &pack,
-        &bundle_dir,
-        &zip_path,
-        &final_path,
-        &json_path,
-    )?;
+    let delivered =
+        package_export_delivery(&pack, &bundle_dir, &zip_path, &final_path, &json_path)?;
     if let Some(dest) = req.destination {
         let dest = PathBuf::from(dest);
         if pack == "zip" {
@@ -531,13 +527,8 @@ pub fn export_pcm_audio(id: String, req: ExportPcmRequest) -> Result<String, Str
     }
     let bundle_dir = exports.join(format!("{safe_stem}-livraison"));
     let zip_path = exports.join(format!("{safe_stem}.zip"));
-    let delivered = package_export_delivery(
-        &pack,
-        &bundle_dir,
-        &zip_path,
-        &final_path,
-        &json_path,
-    )?;
+    let delivered =
+        package_export_delivery(&pack, &bundle_dir, &zip_path, &final_path, &json_path)?;
     if let Some(dest) = req.destination {
         let dest = PathBuf::from(dest);
         if pack == "zip" {

@@ -746,8 +746,7 @@ mod tests {
 
     #[test]
     fn sixteen_bit_export_uses_tpdf_dither_not_plain_round() {
-        let root =
-            std::env::temp_dir().join(format!("song-maker-dither-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("song-maker-dither-{}", uuid::Uuid::new_v4()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).unwrap();
         let src = root.join("src.wav");
