@@ -93,6 +93,13 @@ try {
 
   writeFileSync(path.join(OUT, "metrics.json"), JSON.stringify(results, null, 2), "utf8");
 
+  for (const key of ["six_auto", "six_confortable"] as const) {
+    const row = results[key] as { checks?: { listFits?: boolean } } | null;
+    if (!row?.checks?.listFits) {
+      throw new Error(`metrics ${key}: attendu checks.listFits (scrollHeight <= clientHeight)`);
+    }
+  }
+
   const sixteenCompact = results.sixteen_compact as {
     rowsFullyVisible?: number;
     msButtonPx?: { minWAllRows?: number; minHAllRows?: number };

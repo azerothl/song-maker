@@ -45,14 +45,21 @@
           "h": 22
         }
       ],
-      "msHitHeightPx": 22
+      "msHitHeightPx": 24
     },
     "nameColumnPx": 192,
     "truncatedHaveTitle": true,
     "rowsFullyVisible": 6,
-    "listScrolls": true,
-    "scrollHeight": 488,
-    "clientHeight": 486
+    "listScrolls": false,
+    "scrollHeight": 489,
+    "clientHeight": 489,
+    "checks": {
+      "listFits": true,
+      "knobMarginMinPx": 13.5,
+      "knobMarginOk": true,
+      "groupMsHitHeightPx": 24,
+      "groupMsHitOk": true
+    }
   },
   "six_confortable": {
     "density": "confortable",
@@ -100,14 +107,21 @@
           "h": 22
         }
       ],
-      "msHitHeightPx": 22
+      "msHitHeightPx": 24
     },
     "nameColumnPx": 192,
     "truncatedHaveTitle": true,
     "rowsFullyVisible": 6,
-    "listScrolls": true,
-    "scrollHeight": 488,
-    "clientHeight": 486
+    "listScrolls": false,
+    "scrollHeight": 489,
+    "clientHeight": 489,
+    "checks": {
+      "listFits": true,
+      "knobMarginMinPx": 13.5,
+      "knobMarginOk": true,
+      "groupMsHitHeightPx": 24,
+      "groupMsHitOk": true
+    }
   },
   "six_compact": {
     "density": "compact",
@@ -155,14 +169,21 @@
           "h": 22
         }
       ],
-      "msHitHeightPx": 22
+      "msHitHeightPx": 24
     },
     "nameColumnPx": 192,
     "truncatedHaveTitle": true,
     "rowsFullyVisible": 6,
     "listScrolls": false,
-    "scrollHeight": 494,
-    "clientHeight": 494
+    "scrollHeight": 497,
+    "clientHeight": 497,
+    "checks": {
+      "listFits": true,
+      "knobMarginMinPx": 3.5,
+      "knobMarginOk": true,
+      "groupMsHitHeightPx": 24,
+      "groupMsHitOk": true
+    }
   },
   "sixteen_auto": {
     "density": "compact",
@@ -210,14 +231,21 @@
           "h": 22
         }
       ],
-      "msHitHeightPx": 22
+      "msHitHeightPx": 24
     },
     "nameColumnPx": 192,
     "truncatedHaveTitle": true,
     "rowsFullyVisible": 9,
     "listScrolls": true,
-    "scrollHeight": 784,
-    "clientHeight": 494
+    "scrollHeight": 776,
+    "clientHeight": 497,
+    "checks": {
+      "listFits": false,
+      "knobMarginMinPx": 3.5,
+      "knobMarginOk": true,
+      "groupMsHitHeightPx": 24,
+      "groupMsHitOk": true
+    }
   },
   "sixteen_confortable": {
     "density": "confortable",
@@ -265,14 +293,21 @@
           "h": 22
         }
       ],
-      "msHitHeightPx": 22
+      "msHitHeightPx": 24
     },
     "nameColumnPx": 192,
     "truncatedHaveTitle": true,
     "rowsFullyVisible": 6,
     "listScrolls": true,
-    "scrollHeight": 1232,
-    "clientHeight": 486
+    "scrollHeight": 1224,
+    "clientHeight": 489,
+    "checks": {
+      "listFits": false,
+      "knobMarginMinPx": 13.5,
+      "knobMarginOk": true,
+      "groupMsHitHeightPx": 24,
+      "groupMsHitOk": true
+    }
   },
   "sixteen_compact": {
     "density": "compact",
@@ -320,14 +355,21 @@
           "h": 22
         }
       ],
-      "msHitHeightPx": 22
+      "msHitHeightPx": 24
     },
     "nameColumnPx": 192,
     "truncatedHaveTitle": true,
     "rowsFullyVisible": 9,
     "listScrolls": true,
-    "scrollHeight": 784,
-    "clientHeight": 494
+    "scrollHeight": 776,
+    "clientHeight": 497,
+    "checks": {
+      "listFits": false,
+      "knobMarginMinPx": 3.5,
+      "knobMarginOk": true,
+      "groupMsHitHeightPx": 24,
+      "groupMsHitOk": true
+    }
   },
   "twelve_compact": {
     "density": "compact",
@@ -375,14 +417,21 @@
           "h": 22
         }
       ],
-      "msHitHeightPx": 22
+      "msHitHeightPx": 24
     },
     "nameColumnPx": 192,
     "truncatedHaveTitle": true,
     "rowsFullyVisible": 9,
     "listScrolls": true,
-    "scrollHeight": 608,
-    "clientHeight": 494
+    "scrollHeight": 600,
+    "clientHeight": 497,
+    "checks": {
+      "listFits": false,
+      "knobMarginMinPx": 3.5,
+      "knobMarginOk": true,
+      "groupMsHitHeightPx": 24,
+      "groupMsHitOk": true
+    }
   },
   "twelve_confortable": {
     "density": "confortable",
@@ -430,13 +479,20 @@
           "h": 22
         }
       ],
-      "msHitHeightPx": 22
+      "msHitHeightPx": 24
     },
     "nameColumnPx": 192,
     "truncatedHaveTitle": true,
     "rowsFullyVisible": 6,
     "listScrolls": true,
-    "scrollHeight": 944,
-    "clientHeight": 486
+    "scrollHeight": 936,
+    "clientHeight": 489,
+    "checks": {
+      "listFits": false,
+      "knobMarginMinPx": 13.5,
+      "knobMarginOk": true,
+      "groupMsHitHeightPx": 24,
+      "groupMsHitOk": true
+    }
   }
 }

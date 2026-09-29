@@ -13,15 +13,29 @@ export function effectiveDensityFromPreference(
   return preference === "auto" ? autoResolved : preference;
 }
 
-/** Marge pour bordures / arrondis avant de basculer l’auto en compact (#150). */
-export const AUTO_DENSITY_OVERFLOW_TOLERANCE_PX = 16;
+/** Seuil minimal de marge verticale des potards (compact, demi-pixels acceptés). */
+export const MIN_KNOB_VERTICAL_MARGIN_PX = 3.5;
 
-/** Passe en compact auto uniquement si la liste déborde verticalement. */
+/** Hauteur minimale de la zone cliquable M/S de groupe (WCAG 2.2). */
+export const MIN_GROUP_MS_HIT_HEIGHT_PX = 24;
+
+/** Extension verticale du pseudo-élément de hit M/S de groupe (chaque côté). */
+export const GROUP_MS_HIT_EXTENSION_PX = 1;
+
+/** La liste tient dans le viewport scrollable sans défilement. */
+export function productionListFitsInScroll(
+  scrollHeight: number,
+  clientHeight: number,
+): boolean {
+  return scrollHeight <= clientHeight;
+}
+
+/** Passe en compact auto uniquement si la liste déborde (strict, sans tolérance). */
 export function shouldUseCompactForAutoDensity(
   scrollHeight: number,
   clientHeight: number,
 ): boolean {
-  return scrollHeight > clientHeight + AUTO_DENSITY_OVERFLOW_TOLERANCE_PX;
+  return scrollHeight > clientHeight;
 }
 
 /** Vue mix : chrome resserré pour maximiser la hauteur de la liste (#137, #150). */

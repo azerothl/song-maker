@@ -5,6 +5,8 @@ import {
   buildTrackFamilyGroups,
   effectiveDensityFromPreference,
   isExperimentalStemTrack,
+  MIN_KNOB_VERTICAL_MARGIN_PX,
+  productionListFitsInScroll,
   shouldUseCompactForAutoDensity,
   shouldUseProductionTightLayout,
   trackFamilyForRole,
@@ -71,11 +73,24 @@ describe("effectiveDensityFromPreference", () => {
 });
 
 describe("shouldUseCompactForAutoDensity", () => {
-  it("bascule en compact seulement si la liste déborde", () => {
+  it("bascule en compact seulement si scrollHeight > clientHeight (strict)", () => {
     assert.equal(shouldUseCompactForAutoDensity(500, 400), true);
     assert.equal(shouldUseCompactForAutoDensity(400, 400), false);
-    assert.equal(shouldUseCompactForAutoDensity(488, 486), false);
-    assert.equal(shouldUseCompactForAutoDensity(520, 486), true);
+    assert.equal(shouldUseCompactForAutoDensity(486, 486), false);
+    assert.equal(shouldUseCompactForAutoDensity(487, 486), true);
+  });
+});
+
+describe("productionListFitsInScroll", () => {
+  it("exige scrollHeight <= clientHeight", () => {
+    assert.equal(productionListFitsInScroll(486, 486), true);
+    assert.equal(productionListFitsInScroll(488, 486), false);
+  });
+});
+
+describe("MIN_KNOB_VERTICAL_MARGIN_PX", () => {
+  it("fixe le seuil d’acceptation des marges potards", () => {
+    assert.equal(MIN_KNOB_VERTICAL_MARGIN_PX, 3.5);
   });
 });
 

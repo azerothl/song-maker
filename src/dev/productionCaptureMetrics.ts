@@ -1,5 +1,12 @@
 /** Mesures DOM pour captures Playwright (getBoundingClientRect). */
 
+import {
+  GROUP_MS_HIT_EXTENSION_PX,
+  MIN_GROUP_MS_HIT_HEIGHT_PX,
+  MIN_KNOB_VERTICAL_MARGIN_PX,
+  productionListFitsInScroll,
+} from "../lib/productionTrackLayout";
+
 function r1(v: number): number {
   return Math.round(v * 100) / 100;
 }
@@ -7,6 +14,14 @@ function r1(v: number): number {
 function rect(el: Element): DOMRect {
   return el.getBoundingClientRect();
 }
+
+export type ProductionCaptureChecks = {
+  listFits: boolean;
+  knobMarginMinPx: number | null;
+  knobMarginOk: boolean;
+  groupMsHitHeightPx: number | null;
+  groupMsHitOk: boolean;
+};
 
 export type ProductionCaptureMetrics = {
   density: string;
@@ -38,7 +53,34 @@ export type ProductionCaptureMetrics = {
   listScrolls: boolean;
   scrollHeight: number;
   clientHeight: number;
+  checks: ProductionCaptureChecks;
 };
+
+export function buildProductionCaptureChecks(
+  metrics: Pick<
+    ProductionCaptureMetrics,
+    "scrollHeight" | "clientHeight" | "knobMinVerticalMarginAllRows" | "groupHeader"
+  >,
+): ProductionCaptureChecks {
+  const knobMarginMinPx = metrics.knobMinVerticalMarginAllRows;
+  const groupMsHitHeightPx = metrics.groupHeader?.msHitHeightPx ?? null;
+  return {
+    listFits: productionListFitsInScroll(metrics.scrollHeight, metrics.clientHeight),
+    knobMarginMinPx,
+    knobMarginOk:
+      knobMarginMinPx == null ? false : knobMarginMinPx >= MIN_KNOB_VERTICAL_MARGIN_PX,
+    groupMsHitHeightPx,
+    groupMsHitOk:
+      groupMsHitHeightPx == null
+        ? false
+        : groupMsHitHeightPx >= MIN_GROUP_MS_HIT_HEIGHT_PX,
+  };
+}
+
+function groupMsHitHeightPx(btn: Element): number {
+  const b = rect(btn);
+  return r1(b.height + GROUP_MS_HIT_EXTENSION_PX * 2);
+}
 
 export function measureProductionMix(): ProductionCaptureMetrics | null {
   const scroll = document.querySelector(".production-mix-scroll");
@@ -119,15 +161,20 @@ export function measureProductionMix(): ProductionCaptureMetrics | null {
   let groupHeader: ProductionCaptureMetrics["groupHeader"] = null;
   const gh = groups[0];
   if (gh) {
-    const gms = Array.from(gh.querySelectorAll(".track-ms-btn")).map(rect);
+    const gms = Array.from(gh.querySelectorAll(".track-ms-btn"));
+    const gmsRect = gms.map(rect);
+    const hitH = gms[0] ? groupMsHitHeightPx(gms[0]) : 0;
     groupHeader = {
       heightPx: r1(rect(gh).height),
-      msVisiblePx: gms.map((b) => ({ w: r1(b.width), h: r1(b.height) })),
-      msHitHeightPx: gms[0] ? r1(gms[0].height) : 0,
+      msVisiblePx: gmsRect.map((b) => ({ w: r1(b.width), h: r1(b.height) })),
+      msHitHeightPx: hitH,
     };
   }
 
-  return {
+  const scrollHeight = scroll.scrollHeight;
+  const clientHeight = scroll.clientHeight;
+
+  const base = {
     density: panel.getAttribute("data-density") ?? "",
     densityPreference: panel.getAttribute("data-density-preference") ?? "",
     tracksTotal: rows.length,
@@ -139,8 +186,13 @@ export function measureProductionMix(): ProductionCaptureMetrics | null {
     nameColumnPx,
     truncatedHaveTitle,
     rowsFullyVisible: fullyRows.length,
-    listScrolls: scroll.scrollHeight > scroll.clientHeight + 1,
-    scrollHeight: scroll.scrollHeight,
-    clientHeight: scroll.clientHeight,
+    listScrolls: scrollHeight > clientHeight,
+    scrollHeight,
+    clientHeight,
+  };
+
+  return {
+    ...base,
+    checks: buildProductionCaptureChecks(base),
   };
 }
