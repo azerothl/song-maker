@@ -1,4 +1,4 @@
-/** Persist and compute left-sidebar collapsed state (#125). */
+/** Persist and compute left-sidebar collapsed state (#125, #155). */
 
 export const SIDEBAR_COLLAPSED_KEY = "song-maker.sidebar.collapsed";
 
@@ -6,6 +6,9 @@ export const SIDEBAR_COLLAPSED_KEY = "song-maker.sidebar.collapsed";
 export const SIDEBAR_NARROW_MAX_PX = 1099;
 
 export const SIDEBAR_NARROW_MEDIA = `(max-width: ${SIDEBAR_NARROW_MAX_PX}px)`;
+
+export const SIDEBAR_WIDTH_EXPANDED_PX = 220;
+export const SIDEBAR_WIDTH_COLLAPSED_PX = 56;
 
 export function readSidebarCollapsedPref(
   storage: Pick<Storage, "getItem"> | null | undefined = globalThis.localStorage,
@@ -29,12 +32,39 @@ export function writeSidebarCollapsedPref(
 }
 
 /**
- * Effective collapsed state: auto-collapsed under the narrow breakpoint,
- * otherwise the persisted user preference.
+ * État visuel replié : fenêtre étroite sauf si l’utilisateur a forcé le dépliage (`narrowOverride`).
  */
+export function computeSidebarCollapsed(
+  userCollapsed: boolean,
+  narrowViewport: boolean,
+  narrowOverride: boolean,
+): boolean {
+  if (narrowViewport) return !narrowOverride;
+  return userCollapsed;
+}
+
+/** @deprecated Utiliser computeSidebarCollapsed avec narrowOverride */
 export function effectiveSidebarCollapsed(
   userCollapsed: boolean,
   narrowViewport: boolean,
 ): boolean {
-  return narrowViewport || userCollapsed;
+  return computeSidebarCollapsed(userCollapsed, narrowViewport, false);
+}
+
+export function applySidebarToggle(
+  userCollapsed: boolean,
+  narrowViewport: boolean,
+  narrowOverride: boolean,
+): { userCollapsed: boolean; narrowOverride: boolean } {
+  if (narrowViewport) {
+    return { userCollapsed, narrowOverride: !narrowOverride };
+  }
+  return { userCollapsed: !userCollapsed, narrowOverride: false };
+}
+
+export function clearNarrowOverrideOnWideViewport(
+  narrowViewport: boolean,
+  narrowOverride: boolean,
+): boolean {
+  return narrowViewport ? narrowOverride : false;
 }

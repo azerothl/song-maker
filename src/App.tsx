@@ -2,10 +2,14 @@ import { useEffect, useRef, useState, type ReactNode, type SVGProps } from "reac
 import { isTauri } from "@tauri-apps/api/core";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { api } from "./lib/api";
+import { shouldHandleSidebarToggleShortcut } from "./lib/sidebarKeyboard";
+import { bindSidebarTipDismiss } from "./lib/sidebarTooltips";
 import {
-  SIDEBAR_NARROW_MEDIA,
-  effectiveSidebarCollapsed,
+  applySidebarToggle,
+  clearNarrowOverrideOnWideViewport,
+  computeSidebarCollapsed,
   readSidebarCollapsedPref,
+  SIDEBAR_NARROW_MEDIA,
   writeSidebarCollapsedPref,
 } from "./lib/sidebarCollapse";
 import { UpdateNotice } from "./components/UpdateNotice";
@@ -120,35 +124,58 @@ function IconJob(props: IconProps) {
 
 function useSidebarCollapsed() {
   const [userCollapsed, setUserCollapsed] = useState(readSidebarCollapsedPref);
+  const [narrowOverride, setNarrowOverride] = useState(false);
   const [narrow, setNarrow] = useState(() => {
     if (typeof window === "undefined" || !window.matchMedia) return false;
     return window.matchMedia(SIDEBAR_NARROW_MEDIA).matches;
   });
+  const [liveMessage, setLiveMessage] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
     const mq = window.matchMedia(SIDEBAR_NARROW_MEDIA);
-    const sync = () => setNarrow(mq.matches);
+    const sync = () => {
+      const matches = mq.matches;
+      setNarrow(matches);
+      setNarrowOverride((prev) => clearNarrowOverrideOnWideViewport(matches, prev));
+    };
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  const collapsed = effectiveSidebarCollapsed(userCollapsed, narrow);
-  const collapsedRef = useRef(collapsed);
-  collapsedRef.current = collapsed;
+  const collapsed = computeSidebarCollapsed(userCollapsed, narrow, narrowOverride);
+  const stateRef = useRef({ userCollapsed, narrow, narrowOverride });
+  stateRef.current = { userCollapsed, narrow, narrowOverride };
 
-  const setCollapsed = (next: boolean) => {
-    setUserCollapsed(next);
-    writeSidebarCollapsedPref(next);
+  const toggle = (announce = false) => {
+    const { userCollapsed: uc, narrow: nv, narrowOverride: no } = stateRef.current;
+    const next = applySidebarToggle(uc, nv, no);
+    setUserCollapsed(next.userCollapsed);
+    setNarrowOverride(next.narrowOverride);
+    if (!nv) writeSidebarCollapsedPref(next.userCollapsed);
+    if (announce) {
+      const after = computeSidebarCollapsed(next.userCollapsed, nv, next.narrowOverride);
+      setLiveMessage(after ? t("nav.menuCollapsedLive") : t("nav.menuExpandedLive"));
+    }
   };
 
-  const toggle = () => setCollapsed(!collapsedRef.current);
+  const toggleRef = useRef(toggle);
+  toggleRef.current = toggle;
 
-  return { collapsed, toggle };
+  return { collapsed, narrow, toggle, toggleRef, liveMessage };
 }
 
-function Sidebar() {
+function SidebarRow({ tip, children }: { tip: string; children: ReactNode }) {
+  return (
+    <div className="sidebar-row">
+      {children}
+      <span className="sidebar-tip" aria-hidden="true">{tip}</span>
+    </div>
+  );
+}
+
+export function Sidebar() {
   const screen = useAppStore((s) => s.screen);
   const setScreen = useAppStore((s) => s.setScreen);
   const health = useAppStore((s) => s.health);
@@ -156,31 +183,18 @@ function Sidebar() {
   const project = useAppStore((s) => s.project);
   const openProject = useAppStore((s) => s.openProject);
   const setError = useAppStore((s) => s.setError);
-  const { collapsed, toggle } = useSidebarCollapsed();
-  const toggleRef = useRef(toggle);
-  toggleRef.current = toggle;
+  const { collapsed, narrow, toggle, toggleRef, liveMessage } = useSidebarCollapsed();
 
   useEffect(() => {
     if (screen === "splash") return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-      if (event.key.toLowerCase() !== "b") return;
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT" ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
+      if (!shouldHandleSidebarToggleShortcut(event, event.target)) return;
       event.preventDefault();
-      toggleRef.current();
+      toggleRef.current(true);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [screen]);
+  }, [screen, toggleRef]);
 
   useEffect(() => {
     if (screen === "splash") return;
@@ -192,94 +206,153 @@ function Sidebar() {
     };
   }, [collapsed, screen]);
 
+  const sidebarRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (screen === "splash" || !collapsed) return;
+    const el = sidebarRef.current;
+    if (!el) return;
+    return bindSidebarTipDismiss(el);
+  }, [collapsed, screen]);
+
   if (screen === "splash") return null;
 
   const gpuLabel = !health
     ? "…"
     : (health.gpuName ?? (health.cudaAvailable ? "GPU NVIDIA" : t("nav.gpuAbsent")));
   const toggleLabel = collapsed ? t("nav.expandMenu") : t("nav.collapseMenu");
+  const toggleTitle = collapsed
+    ? toggleLabel
+    : t("nav.collapseMenuShortcutTitle");
+  const autoCollapsed = narrow && collapsed;
 
   return (
     <aside
+      ref={sidebarRef}
+      id="sidebar"
       className={`sidebar${collapsed ? " is-collapsed" : ""}`}
       data-collapsed={collapsed ? "true" : "false"}
+      data-auto={autoCollapsed ? "true" : "false"}
       aria-label={t("nav.sidebar")}
     >
       <div className="sidebar-top">
-        <button
-          type="button"
-          className="sidebar-toggle"
-          onClick={toggle}
-          aria-expanded={!collapsed}
-          aria-controls="sidebar-nav"
-          title={toggleLabel}
-          aria-label={toggleLabel}
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">♪</span>
+          <span className="brand-name sidebar-label">{t("app.name")}</span>
+        </div>
+        <SidebarRow
+          tip={
+            collapsed
+              ? `${t("nav.expandMenu")} ${t("nav.shortcutKeys")}`
+              : toggleLabel
+          }
         >
-          {collapsed ? <IconPanelExpand /> : <IconPanelCollapse />}
-          <span className="sidebar-label">{toggleLabel}</span>
-        </button>
-        {!collapsed && <div className="brand">{t("app.name")}</div>}
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={() => toggle(true)}
+            aria-expanded={!collapsed}
+            aria-controls="sidebar"
+            aria-keyshortcuts="Control+B"
+            title={toggleTitle}
+            aria-label={toggleLabel}
+          >
+            {collapsed ? <IconPanelExpand /> : <IconPanelCollapse />}
+            <span className="sidebar-toggle-text">
+              <span className="sidebar-label">{toggleLabel}</span>
+              {!collapsed && (
+                <span className="sidebar-toggle-hint" aria-hidden="true">
+                  <kbd>Ctrl</kbd>+<kbd>B</kbd>
+                </span>
+              )}
+            </span>
+          </button>
+        </SidebarRow>
       </div>
+      <div className="sidebar-sep" role="presentation" />
       <nav id="sidebar-nav" aria-label={t("nav.main")}>
-        <button
-          type="button"
-          className={screen === "library" ? "active" : ""}
-          onClick={() => setScreen("library")}
-          title={t("nav.library")}
-          aria-label={t("nav.library")}
-          aria-current={screen === "library" ? "page" : undefined}
-        >
-          <IconLibrary />
-          <span className="sidebar-label">{t("nav.library")}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            const title = window.prompt("Titre") || "Sans titre";
-            void api
-              .createProject(title)
-              .then((p) => openProject(p.id))
-              .catch((e) => setError(String(e)));
-          }}
-          title={t("nav.new")}
-          aria-label={t("nav.new")}
-        >
-          <IconPlus />
-          <span className="sidebar-label">{t("nav.new")}</span>
-        </button>
-        <button
-          type="button"
-          className={screen === "settings" || screen === "licenses" ? "active" : ""}
-          onClick={() => setScreen("settings")}
-          title={t("nav.settings")}
-          aria-label={t("nav.settings")}
-          aria-current={screen === "settings" || screen === "licenses" ? "page" : undefined}
-        >
-          <IconSettings />
-          <span className="sidebar-label">{t("nav.settings")}</span>
-        </button>
+        <SidebarRow tip={t("nav.library")}>
+          <button
+            type="button"
+            className={screen === "library" ? "active" : ""}
+            onClick={() => setScreen("library")}
+            aria-label={t("nav.library")}
+            aria-current={screen === "library" ? "page" : undefined}
+          >
+            <IconLibrary />
+            <span className="sidebar-label">{t("nav.library")}</span>
+          </button>
+        </SidebarRow>
+        <SidebarRow tip={t("nav.new")}>
+          <button
+            type="button"
+            onClick={() => {
+              const title = window.prompt("Titre") || "Sans titre";
+              void api
+                .createProject(title)
+                .then((p) => openProject(p.id))
+                .catch((e) => setError(String(e)));
+            }}
+            aria-label={t("nav.new")}
+          >
+            <IconPlus />
+            <span className="sidebar-label">{t("nav.new")}</span>
+          </button>
+        </SidebarRow>
+        <SidebarRow tip={t("nav.settings")}>
+          <button
+            type="button"
+            className={screen === "settings" || screen === "licenses" ? "active" : ""}
+            onClick={() => setScreen("settings")}
+            aria-label={t("nav.settings")}
+            aria-current={screen === "settings" || screen === "licenses" ? "page" : undefined}
+          >
+            <IconSettings />
+            <span className="sidebar-label">{t("nav.settings")}</span>
+          </button>
+        </SidebarRow>
       </nav>
       <div className="sidebar-meta">
-        <div className="sidebar-meta-row" title={gpuLabel} aria-label={gpuLabel}>
-          <IconGpu />
-          <span className="sidebar-label">{gpuLabel}</span>
-        </div>
-        {job && job.state !== "idle" && (
-          <div className="sidebar-meta-row job-step" title={job.label} aria-label={job.label}>
-            <IconJob />
-            <span className="sidebar-label">{job.label}</span>
+        <SidebarRow tip={gpuLabel}>
+          <div
+            className="sidebar-meta-row"
+            role="group"
+            aria-label={gpuLabel}
+            tabIndex={collapsed ? 0 : undefined}
+          >
+            <IconGpu />
+            <span className="sidebar-label">{gpuLabel}</span>
           </div>
+        </SidebarRow>
+        {job && job.state !== "idle" && (
+          <SidebarRow tip={job.label}>
+            <div
+              className="sidebar-meta-row job-step"
+              role="group"
+              aria-label={job.label}
+              tabIndex={collapsed ? 0 : undefined}
+            >
+              <IconJob />
+              <span className="sidebar-label">{job.label}</span>
+            </div>
+          </SidebarRow>
         )}
         {project && (
-          <div
-            className="sidebar-meta-row open-title"
-            title={project.title}
-            aria-label={project.title}
-          >
-            <IconProject />
-            <span className="sidebar-label">{project.title}</span>
-          </div>
+          <SidebarRow tip={project.title}>
+            <div
+              className="sidebar-meta-row open-title"
+              role="group"
+              aria-label={project.title}
+              tabIndex={collapsed ? 0 : undefined}
+            >
+              <IconProject />
+              <span className="sidebar-label">{project.title}</span>
+            </div>
+          </SidebarRow>
         )}
+      </div>
+      <div className="sr-only" role="status" aria-live="polite">
+        {liveMessage}
       </div>
     </aside>
   );
