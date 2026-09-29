@@ -35,13 +35,11 @@ pub fn validate_title(title: &str) -> Result<(), FormError> {
 pub fn validate_lyrics(lyrics: &str, instrumental_mode: bool) -> Result<(), FormError> {
     let t = lyrics.trim();
     if t.chars().count() > 4000 {
-        return Err(FormError::Message(
-            if instrumental_mode {
-                "Les paroles sont limitées à 4000 caractères.".into()
-            } else {
-                "Les paroles sont obligatoires (1 à 4000 caractères).".into()
-            },
-        ));
+        return Err(FormError::Message(if instrumental_mode {
+            "Les paroles sont limitées à 4000 caractères.".into()
+        } else {
+            "Les paroles sont obligatoires (1 à 4000 caractères).".into()
+        }));
     }
     if t.is_empty() && !instrumental_mode {
         return Err(FormError::Message(
@@ -87,7 +85,9 @@ pub fn validate_draft_form(input: &FormInput) -> Result<(), FormError> {
 }
 
 pub fn validate_target_duration(sec: u32) -> Result<u32, FormError> {
-    if !(DURATION_SEC_MIN..=DURATION_SEC_MAX).contains(&sec) || sec % DURATION_SEC_STEP != 0 {
+    if !(DURATION_SEC_MIN..=DURATION_SEC_MAX).contains(&sec)
+        || !sec.is_multiple_of(DURATION_SEC_STEP)
+    {
         return Err(FormError::Message(format!(
             "Durée cible : {DURATION_SEC_MIN} à {DURATION_SEC_MAX} s, par pas de {DURATION_SEC_STEP}."
         )));
@@ -168,8 +168,8 @@ pub fn assemble_style_sent(input: &FormInput) -> Result<String, FormError> {
     let style_lower = style.to_lowercase();
     let push_unique = |parts: &mut Vec<String>, fragment: String| {
         let lower = fragment.to_lowercase();
-        let already = parts.iter().any(|p| p.eq_ignore_ascii_case(&fragment))
-            || style_lower.contains(&lower);
+        let already =
+            parts.iter().any(|p| p.eq_ignore_ascii_case(&fragment)) || style_lower.contains(&lower);
         if !already && !fragment.is_empty() {
             parts.push(fragment);
         }
@@ -197,11 +197,7 @@ pub fn assemble_style_sent(input: &FormInput) -> Result<String, FormError> {
     }
 
     let joined = parts.join(", ");
-    let cleaned = joined
-        .trim()
-        .trim_matches(',')
-        .trim()
-        .to_string();
+    let cleaned = joined.trim().trim_matches(',').trim().to_string();
     if cleaned.is_empty() || cleaned.chars().count() > 1000 {
         return Err(FormError::Message(
             "Style assemblé invalide (1 à 1000 caractères).".into(),

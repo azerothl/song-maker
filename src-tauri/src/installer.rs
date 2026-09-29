@@ -226,8 +226,12 @@ async fn download_artifact(
 }
 
 fn extract_zip(archive: &Path, destination: &Path) -> Result<(), String> {
-    let file = std::fs::File::open(archive)
-        .map_err(|e| format!("Extraction impossible (ouverture de {}) : {e}", archive.display()))?;
+    let file = std::fs::File::open(archive).map_err(|e| {
+        format!(
+            "Extraction impossible (ouverture de {}) : {e}",
+            archive.display()
+        )
+    })?;
     let mut zip = zip::ZipArchive::new(file)
         .map_err(|e| format!("Extraction impossible (archive ZIP invalide) : {e}"))?;
     for i in 0..zip.len() {
@@ -235,13 +239,17 @@ fn extract_zip(archive: &Path, destination: &Path) -> Result<(), String> {
             .by_index(i)
             .map_err(|e| format!("Extraction impossible (entrée ZIP) : {e}"))?;
         let Some(relative) = entry.enclosed_name() else {
-            return Err("Extraction impossible : l’archive contient un chemin de fichier non sûr.".into());
+            return Err(
+                "Extraction impossible : l’archive contient un chemin de fichier non sûr.".into(),
+            );
         };
         if entry
             .unix_mode()
             .is_some_and(|mode| mode & 0o170000 == 0o120000)
         {
-            return Err("Extraction impossible : l’archive contient un lien symbolique inattendu.".into());
+            return Err(
+                "Extraction impossible : l’archive contient un lien symbolique inattendu.".into(),
+            );
         }
         let output = destination.join(relative);
         if entry.is_dir() {
@@ -258,8 +266,12 @@ fn extract_zip(archive: &Path, destination: &Path) -> Result<(), String> {
 }
 
 fn extract_tar_gz(archive: &Path, destination: &Path) -> Result<(), String> {
-    let file = std::fs::File::open(archive)
-        .map_err(|e| format!("Extraction impossible (ouverture de {}) : {e}", archive.display()))?;
+    let file = std::fs::File::open(archive).map_err(|e| {
+        format!(
+            "Extraction impossible (ouverture de {}) : {e}",
+            archive.display()
+        )
+    })?;
     let decoder = flate2::read::GzDecoder::new(file);
     tar::Archive::new(decoder)
         .unpack(destination)
@@ -323,7 +335,10 @@ fn extract_engine(
     }
     let extract_dir = binary_dir.join(platform);
     extract_archive(&archive_path, &extract_dir).map_err(|e| {
-        format!("Extraction de {archive_name} vers {} : {e}", extract_dir.display())
+        format!(
+            "Extraction de {archive_name} vers {} : {e}",
+            extract_dir.display()
+        )
     })?;
 
     if let Some(cudart_name) = cudart_name {
@@ -450,9 +465,7 @@ async fn install_inner(app: tauri::AppHandle, pack: String) -> Result<String, St
         }
     }
     crate::audiocpp::AudioCppServer::find_server_binary(&PathBuf::from(&settings.cache_dir))
-        .map_err(|detail| {
-            format!("Détection du moteur audio après installation : {detail}")
-        })?;
+        .map_err(|detail| format!("Détection du moteur audio après installation : {detail}"))?;
     emit(&app, InstallProgress::complete());
     Ok(format!(
         "Installation terminée : YuE2 {pack}, HTDemucs et moteur audio."
@@ -530,13 +543,7 @@ mod tests {
             ],
         );
 
-        extract_engine(
-            &binary_dir,
-            bin_name,
-            "windows-cuda12.4",
-            Some(cudart_name),
-        )
-        .unwrap();
+        extract_engine(&binary_dir, bin_name, "windows-cuda12.4", Some(cudart_name)).unwrap();
 
         let extract = binary_dir.join("windows-cuda12.4");
         let server = locate_extracted_server(&extract).expect("server after extract");

@@ -14,17 +14,14 @@ pub struct SyncArtifactMeta {
     pub byte_length: u64,
 }
 
-const EXCLUDED_PREFIXES: &[&str] = &[
-    "settings",
-    "tokens",
-    "cache",
-    "lora-cache",
-    ".sync-key",
-];
+const EXCLUDED_PREFIXES: &[&str] = &["settings", "tokens", "cache", "lora-cache", ".sync-key"];
 
 fn should_include(rel: &str) -> bool {
     let lower = rel.replace('\\', "/").to_ascii_lowercase();
-    if EXCLUDED_PREFIXES.iter().any(|p| lower.starts_with(p) || lower.contains(&format!("/{p}"))) {
+    if EXCLUDED_PREFIXES
+        .iter()
+        .any(|p| lower.starts_with(p) || lower.contains(&format!("/{p}")))
+    {
         return false;
     }
     // Secrets / credentials patterns

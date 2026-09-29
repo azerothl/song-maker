@@ -38,7 +38,8 @@ pub fn library_snapshot(folder: &Path, doc: &ProjectDoc) -> (Option<i64>, String
 
 fn duration_from_active_audio(folder: &Path, doc: &ProjectDoc) -> Option<i64> {
     if let Some(mix_id) = doc.active_mix_id.as_deref() {
-        if let Ok(text) = std::fs::read_to_string(folder.join("mixes").join(format!("{mix_id}.json")))
+        if let Ok(text) =
+            std::fs::read_to_string(folder.join("mixes").join(format!("{mix_id}.json")))
         {
             if let Ok(mix) = serde_json::from_str::<crate::models::MixDoc>(&text) {
                 let mut max_ms = 0i64;
@@ -253,19 +254,27 @@ pub fn load_settings() -> Result<AppSettings, String> {
 /// cannot be replayed safely without the original in-memory request context.
 pub fn recover_generation_jobs() -> Result<(), String> {
     let root = projects_root();
-    if !root.exists() { return Ok(()); }
+    if !root.exists() {
+        return Ok(());
+    }
     for project in std::fs::read_dir(root).map_err(|e| e.to_string())? {
         let project_path = project.map_err(|e| e.to_string())?.path();
         let generations = project_path.join("generations");
-        if !generations.is_dir() { continue; }
+        if !generations.is_dir() {
+            continue;
+        }
         for generation in std::fs::read_dir(generations).map_err(|e| e.to_string())? {
             let generation_path = generation.map_err(|e| e.to_string())?.path();
             let job_path = generation_path.join("job.json");
-            if !job_path.is_file() { continue; }
-            if generation_path.join("result.json").is_file() { continue; }
-            let mut job: serde_json::Value = serde_json::from_slice(
-                &std::fs::read(&job_path).map_err(|e| e.to_string())?,
-            ).map_err(|e| e.to_string())?;
+            if !job_path.is_file() {
+                continue;
+            }
+            if generation_path.join("result.json").is_file() {
+                continue;
+            }
+            let mut job: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(&job_path).map_err(|e| e.to_string())?)
+                    .map_err(|e| e.to_string())?;
             let state = job.get("state").and_then(|v| v.as_str()).unwrap_or("");
             if state == "queued" || state == "running" {
                 job["state"] = serde_json::Value::String("interrupted".into());
@@ -278,10 +287,12 @@ pub fn recover_generation_jobs() -> Result<(), String> {
             for separation in std::fs::read_dir(separations).map_err(|e| e.to_string())? {
                 let separation_path = separation.map_err(|e| e.to_string())?.path();
                 let job_path = separation_path.join("job.json");
-                if !job_path.is_file() || separation_path.join("separation.json").is_file() { continue; }
-                let mut job: serde_json::Value = serde_json::from_slice(
-                    &std::fs::read(&job_path).map_err(|e| e.to_string())?,
-                ).map_err(|e| e.to_string())?;
+                if !job_path.is_file() || separation_path.join("separation.json").is_file() {
+                    continue;
+                }
+                let mut job: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(&job_path).map_err(|e| e.to_string())?)
+                        .map_err(|e| e.to_string())?;
                 let state = job.get("state").and_then(|v| v.as_str()).unwrap_or("");
                 if state == "queued" || state == "running" || state == "preparing" {
                     job["state"] = serde_json::Value::String("interrupted".into());
@@ -340,25 +351,6 @@ pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
     atomic_write_json(&settings_path(), settings)
 }
 
-#[cfg(test)]
-mod settings_tests {
-    use super::{default_settings, migrate_binary_pin};
-    use crate::pins::AUDIOCPP_TAG;
-    use crate::paths::pinned_archive_name;
-
-    #[test]
-    fn upgrades_existing_settings_to_the_current_pinned_binary() {
-        let mut settings = default_settings();
-        settings.binary_tag = "v0.8.1".into();
-        settings.binary_archive = "audio-v0.8.1-bin-windows-x64-cuda12.4.zip".into();
-        settings.binary_sha256 = "old-sha".into();
-
-        assert!(migrate_binary_pin(&mut settings));
-        assert_eq!(settings.binary_tag, AUDIOCPP_TAG);
-        assert_eq!(settings.binary_archive, pinned_archive_name());
-    }
-}
-
 pub fn project_folder(id: &str) -> PathBuf {
     projects_root().join(id)
 }
@@ -378,4 +370,23 @@ pub fn load_project(folder: &Path) -> Result<ProjectDoc, String> {
 
 pub fn save_project(folder: &Path, doc: &ProjectDoc) -> Result<(), String> {
     atomic_write_json(&folder.join("project.json"), doc)
+}
+
+#[cfg(test)]
+mod settings_tests {
+    use super::{default_settings, migrate_binary_pin};
+    use crate::paths::pinned_archive_name;
+    use crate::pins::AUDIOCPP_TAG;
+
+    #[test]
+    fn upgrades_existing_settings_to_the_current_pinned_binary() {
+        let mut settings = default_settings();
+        settings.binary_tag = "v0.8.1".into();
+        settings.binary_archive = "audio-v0.8.1-bin-windows-x64-cuda12.4.zip".into();
+        settings.binary_sha256 = "old-sha".into();
+
+        assert!(migrate_binary_pin(&mut settings));
+        assert_eq!(settings.binary_tag, AUDIOCPP_TAG);
+        assert_eq!(settings.binary_archive, pinned_archive_name());
+    }
 }

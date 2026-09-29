@@ -75,11 +75,7 @@ pub fn detect_gpu() -> (bool, Option<String>, Option<String>, Option<u64>) {
 /// Présence seule — pas de SHA-256 ici (les archives/GGUF font plusieurs Go ;
 /// un hash sync bloquerait le thread UI Tauri à chaque get_health).
 fn artifact_present(path: &Path) -> bool {
-    path.is_file()
-        && path
-            .metadata()
-            .map(|m| m.len() > 0)
-            .unwrap_or(false)
+    path.is_file() && path.metadata().map(|m| m.len() > 0).unwrap_or(false)
 }
 
 pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
@@ -110,7 +106,9 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
     let models_ok = artifact_present(&gguf)
         && artifact_present(&vae)
         && artifact_present(&htdemucs_path(&cache))
-        && sidecars.iter().all(|name| artifact_present(&yue2.join("sidecars").join(name)));
+        && sidecars
+            .iter()
+            .all(|name| artifact_present(&yue2.join("sidecars").join(name)));
 
     let server_healthy = server_url
         .and_then(|url| {

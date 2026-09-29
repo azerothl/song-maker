@@ -4,9 +4,7 @@
 use crate::hashutil::sha256_file;
 use crate::models::InstallProgress;
 use crate::paths::{bs_roformer_path, ensure_dir};
-use crate::pins::{
-    BS_ROFORMER_BYTES, BS_ROFORMER_GGUF, BS_ROFORMER_REMOTE, BS_ROFORMER_SHA,
-};
+use crate::pins::{BS_ROFORMER_BYTES, BS_ROFORMER_GGUF, BS_ROFORMER_REMOTE, BS_ROFORMER_SHA};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -34,10 +32,7 @@ pub fn weights_valid(cache: &Path) -> bool {
 pub fn verify_sha256(cache: &Path) -> Result<(), String> {
     let path = bs_roformer_path(cache);
     if !path.is_file() {
-        return Err(format!(
-            "GGUF BS-RoFormer absent : {}",
-            path.display()
-        ));
+        return Err(format!("GGUF BS-RoFormer absent : {}", path.display()));
     }
     let got = sha256_file(&path)?;
     if got != BS_ROFORMER_SHA {
@@ -90,10 +85,7 @@ fn free_disk_bytes(dir: &Path) -> Option<u64> {
             .args([
                 "-NoProfile",
                 "-Command",
-                &format!(
-                    "(Get-Item -LiteralPath '{}').PSDrive.Free",
-                    probe.display()
-                ),
+                &format!("(Get-Item -LiteralPath '{}').PSDrive.Free", probe.display()),
             ])
             .output()
             .ok()?;
@@ -112,7 +104,9 @@ fn free_disk_bytes(dir: &Path) -> Option<u64> {
 
 fn ensure_disk_space(dest_dir: &Path, needed: u64) -> Result<(), String> {
     // Require ~20% headroom above the GGUF size.
-    let want = needed.saturating_add(needed / 5).max(needed + 32 * 1024 * 1024);
+    let want = needed
+        .saturating_add(needed / 5)
+        .max(needed + 32 * 1024 * 1024);
     match free_disk_bytes(dest_dir) {
         Some(free) if free < want => Err(format!(
             "Espace disque insuffisant pour BS-RoFormer : {free} o libres, ~{want} o requis \
@@ -157,9 +151,7 @@ pub async fn install(
     emit(
         &app,
         InstallProgress::phase(
-            &format!(
-                "BS-RoFormer — {LICENSE_NOTICE_FR} Téléchargement de {BS_ROFORMER_REMOTE}…"
-            ),
+            &format!("BS-RoFormer — {LICENSE_NOTICE_FR} Téléchargement de {BS_ROFORMER_REMOTE}…"),
             0,
             1,
         ),
@@ -198,8 +190,7 @@ pub async fn install(
             response.status()
         ));
     }
-    let append =
-        resumed > 0 && response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
+    let append = resumed > 0 && response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
     let received_before = if append { resumed } else { 0 };
     let total = response
         .content_length()

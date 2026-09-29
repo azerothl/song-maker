@@ -17,11 +17,7 @@ pub struct AbcAlignRequest {
 }
 
 impl AbcAlignRequest {
-    pub fn from_form(
-        tempo_bpm: Option<u32>,
-        key: Option<KeySig>,
-        meter: Option<Meter>,
-    ) -> Self {
+    pub fn from_form(tempo_bpm: Option<u32>, key: Option<KeySig>, meter: Option<Meter>) -> Self {
         Self {
             tempo_bpm,
             key,
@@ -30,9 +26,7 @@ impl AbcAlignRequest {
     }
 
     fn has_request(&self) -> bool {
-        self.tempo_bpm.filter(|b| *b > 0).is_some()
-            || self.key.is_some()
-            || self.meter.is_some()
+        self.tempo_bpm.filter(|b| *b > 0).is_some() || self.key.is_some() || self.meter.is_some()
     }
 }
 
@@ -196,10 +190,7 @@ pub fn align_abc_headers(abc: &str, request: &AbcAlignRequest) -> String {
     let mut to_insert = Vec::new();
     if !saw_m {
         if let Some(ref meter) = request.meter {
-            to_insert.push(format!(
-                "M:{}/{}",
-                meter.numerator, meter.denominator
-            ));
+            to_insert.push(format!("M:{}/{}", meter.numerator, meter.denominator));
         }
     }
     if !saw_q {
@@ -237,11 +228,7 @@ pub fn align_abc_headers(abc: &str, request: &AbcAlignRequest) -> String {
             drift_bits.push(format!("M={}/{}", got.numerator, got.denominator));
         }
     }
-    if !drift_bits.is_empty()
-        && !lines
-            .iter()
-            .any(|l| l.starts_with("% song-maker-meta:"))
-    {
+    if !drift_bits.is_empty() && !lines.iter().any(|l| l.starts_with("% song-maker-meta:")) {
         let note = format!(
             "% song-maker-meta: model {} (aligned to request)",
             drift_bits.join(" ")

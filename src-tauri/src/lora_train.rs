@@ -203,7 +203,9 @@ pub fn read_text(path: String) -> Result<Option<String>, String> {
     if !p.is_file() {
         return Ok(None);
     }
-    Ok(Some(std::fs::read_to_string(&p).map_err(|e| e.to_string())?))
+    Ok(Some(
+        std::fs::read_to_string(&p).map_err(|e| e.to_string())?,
+    ))
 }
 
 pub fn path_exists(path: String) -> Result<bool, String> {
@@ -272,7 +274,10 @@ pub fn launch_trainer(
         if let Ok(raw) = std::fs::read_to_string(&manifest) {
             if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&raw) {
                 value["status"] = serde_json::json!("running");
-                let _ = std::fs::write(&manifest, serde_json::to_string_pretty(&value).unwrap_or(raw));
+                let _ = std::fs::write(
+                    &manifest,
+                    serde_json::to_string_pretty(&value).unwrap_or(raw),
+                );
             }
         }
     }
@@ -298,7 +303,11 @@ pub fn poll_trainer(jobs: &LoraTrainJobs, job_id: String) -> Result<LaunchTraine
                 map.remove(&job_id);
                 let ok = status.success();
                 return Ok(LaunchTrainerResult {
-                    status: if ok { "completed".into() } else { "failed".into() },
+                    status: if ok {
+                        "completed".into()
+                    } else {
+                        "failed".into()
+                    },
                     job_id,
                     pid: None,
                     message_fr: if ok {

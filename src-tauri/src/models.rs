@@ -110,7 +110,10 @@ pub struct Clip {
     pub source_tempo_bpm: Option<f32>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub follow_project_tempo: bool,
-    #[serde(default = "default_stretch_ratio", skip_serializing_if = "is_default_stretch")]
+    #[serde(
+        default = "default_stretch_ratio",
+        skip_serializing_if = "is_default_stretch"
+    )]
     pub time_stretch_ratio: f32,
     #[serde(default, skip_serializing_if = "is_zero_f32")]
     pub pitch_semitones: f32,
@@ -229,7 +232,9 @@ pub struct AppSettings {
     pub yue2_nar_lora_scale: f32,
 }
 
-fn default_lora_scale() -> f32 { 1.0 }
+fn default_lora_scale() -> f32 {
+    1.0
+}
 
 fn default_audio_latency_ms() -> u32 {
     20
@@ -285,22 +290,70 @@ pub struct InstallProgress {
 
 impl InstallProgress {
     pub fn starting(file_count: usize) -> Self {
-        Self { state: "downloading".into(), label: "Préparation du téléchargement…".into(), file_index: 0, file_count, received_bytes: 0, total_bytes: None }
+        Self {
+            state: "downloading".into(),
+            label: "Préparation du téléchargement…".into(),
+            file_index: 0,
+            file_count,
+            received_bytes: 0,
+            total_bytes: None,
+        }
     }
-    pub fn downloading(label: &str, file_index: usize, file_count: usize, received_bytes: u64, total_bytes: Option<u64>) -> Self {
-        Self { state: "downloading".into(), label: label.into(), file_index, file_count, received_bytes, total_bytes }
+    pub fn downloading(
+        label: &str,
+        file_index: usize,
+        file_count: usize,
+        received_bytes: u64,
+        total_bytes: Option<u64>,
+    ) -> Self {
+        Self {
+            state: "downloading".into(),
+            label: label.into(),
+            file_index,
+            file_count,
+            received_bytes,
+            total_bytes,
+        }
     }
     pub fn file_done(label: &str, file_index: usize, file_count: usize) -> Self {
-        Self { state: "downloading".into(), label: label.into(), file_index, file_count, received_bytes: 1, total_bytes: Some(1) }
+        Self {
+            state: "downloading".into(),
+            label: label.into(),
+            file_index,
+            file_count,
+            received_bytes: 1,
+            total_bytes: Some(1),
+        }
     }
     pub fn phase(label: &str, file_index: usize, file_count: usize) -> Self {
-        Self { state: "preparing".into(), label: label.into(), file_index, file_count, received_bytes: 0, total_bytes: None }
+        Self {
+            state: "preparing".into(),
+            label: label.into(),
+            file_index,
+            file_count,
+            received_bytes: 0,
+            total_bytes: None,
+        }
     }
     pub fn failed(label: &str) -> Self {
-        Self { state: "error".into(), label: label.into(), file_index: 0, file_count: 0, received_bytes: 0, total_bytes: None }
+        Self {
+            state: "error".into(),
+            label: label.into(),
+            file_index: 0,
+            file_count: 0,
+            received_bytes: 0,
+            total_bytes: None,
+        }
     }
     pub fn complete() -> Self {
-        Self { state: "complete".into(), label: "Installation terminée".into(), file_index: 1, file_count: 1, received_bytes: 1, total_bytes: Some(1) }
+        Self {
+            state: "complete".into(),
+            label: "Installation terminée".into(),
+            file_index: 1,
+            file_count: 1,
+            received_bytes: 1,
+            total_bytes: Some(1),
+        }
     }
 }
 

@@ -17,8 +17,7 @@ fn ffmpeg_candidates() -> Vec<PathBuf> {
         out.push(PathBuf::from("ffmpeg.exe"));
         if let Ok(local) = std::env::var("LOCALAPPDATA") {
             // winget ajoute un shim ici même si le PATH du processus GUI est figé
-            let links = PathBuf::from(&local)
-                .join(r"Microsoft\WinGet\Links\ffmpeg.exe");
+            let links = PathBuf::from(&local).join(r"Microsoft\WinGet\Links\ffmpeg.exe");
             if links.is_file() {
                 out.push(links);
             }
@@ -58,8 +57,18 @@ fn ffmpeg_candidates() -> Vec<PathBuf> {
             );
         }
         if let Ok(pf) = std::env::var("ProgramFiles") {
-            out.push(PathBuf::from(&pf).join("ffmpeg").join("bin").join("ffmpeg.exe"));
-            out.push(PathBuf::from(&pf).join("FFmpeg").join("bin").join("ffmpeg.exe"));
+            out.push(
+                PathBuf::from(&pf)
+                    .join("ffmpeg")
+                    .join("bin")
+                    .join("ffmpeg.exe"),
+            );
+            out.push(
+                PathBuf::from(&pf)
+                    .join("FFmpeg")
+                    .join("bin")
+                    .join("ffmpeg.exe"),
+            );
         }
         out.push(PathBuf::from(r"C:\ffmpeg\bin\ffmpeg.exe"));
     }

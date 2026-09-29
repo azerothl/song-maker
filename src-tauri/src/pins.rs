@@ -33,24 +33,24 @@ pub const ARCHIVE_MACOS_X64_SHA: &str =
     "6edcf84ea530f782c465fb9b37c7f3c1e8ac1e8ded865a9a59ebacc5140d8b67";
 
 pub fn backend_name() -> &'static str {
-    if cfg!(target_os = "macos") { "metal" } else { "cuda" }
+    if cfg!(target_os = "macos") {
+        "metal"
+    } else {
+        "cuda"
+    }
 }
 
 pub const YUE2_REPO: &str = "audio-cpp/Yue2-3B-GGUF";
 pub const YUE2_REVISION: &str = "eb116220931de5f373d024d48800338178c7de51";
 pub const YUE2_Q8: &str = "yue2-3b-q8_0.gguf";
-pub const YUE2_Q8_SHA: &str =
-    "f3a9e3b197bfd05aa4ae6ab2d4b93f6d57c8cc0ea39a4af7d151f58697c7cfb6";
+pub const YUE2_Q8_SHA: &str = "f3a9e3b197bfd05aa4ae6ab2d4b93f6d57c8cc0ea39a4af7d151f58697c7cfb6";
 pub const YUE2_Q4: &str = "yue2-3b-q4_0.gguf";
-pub const YUE2_Q4_SHA: &str =
-    "97af67d7f800b362faee6e6bec806bddfcccb93f25fd3f9a1012724d95af6f4a";
+pub const YUE2_Q4_SHA: &str = "97af67d7f800b362faee6e6bec806bddfcccb93f25fd3f9a1012724d95af6f4a";
 pub const YUE2_VAE: &str = "yue2-vae-f16.gguf";
-pub const YUE2_VAE_SHA: &str =
-    "d4f4a05d8f291ae820cd1e43609da3fa91b56465810091a2b08c3350b751719d";
+pub const YUE2_VAE_SHA: &str = "d4f4a05d8f291ae820cd1e43609da3fa91b56465810091a2b08c3350b751719d";
 
 pub const HTDEMUCS_GGUF: &str = "htdemucs-q8_0.gguf";
-pub const HTDEMUCS_SHA: &str =
-    "b0f532ac6e5f373aeb11fa0df73253251e133832d9c8b9942dc58f50bc5b4388";
+pub const HTDEMUCS_SHA: &str = "b0f532ac6e5f373aeb11fa0df73253251e133832d9c8b9942dc58f50bc5b4388";
 pub const HTDEMUCS_PACKAGE: &str = "htdemucs_q8_0";
 
 /// BS-RoFormer — optional phase-3 second separator (not in first-build installer).
@@ -58,15 +58,13 @@ pub const BS_ROFORMER_GGUF: &str = "bs-roformer-ep368-q8_0.gguf";
 pub const BS_ROFORMER_SHA: &str =
     "9a55a8cad369d00f6e0fb208bb0cd87e30e25430772b8491e20a4eace6423ad2";
 pub const BS_ROFORMER_PACKAGE: &str = "bs_roformer_q8_0";
-pub const BS_ROFORMER_REMOTE: &str =
-    "BS-RoFormer-ep368-GGUF/bs-roformer-ep368-q8_0.gguf";
+pub const BS_ROFORMER_REMOTE: &str = "BS-RoFormer-ep368-GGUF/bs-roformer-ep368-q8_0.gguf";
 /// Exact on-disk size of the pinned GGUF (bytes).
 pub const BS_ROFORMER_BYTES: u64 = 172_532_256;
 
 /// SheetSage2 — opt-in MIDI transcription weights (hors premier build, CC BY-NC 4.0).
 pub const SHEETSAGE2_GGUF: &str = "sheetsage2-orig.gguf";
-pub const SHEETSAGE2_SHA: &str =
-    "52bb5846c452037d39931aa8050885b6c751b9c7afcc8ef6d6d3067d241731a4";
+pub const SHEETSAGE2_SHA: &str = "52bb5846c452037d39931aa8050885b6c751b9c7afcc8ef6d6d3067d241731a4";
 pub const SHEETSAGE2_REPO: &str = "audio-cpp/SheetSage2-GGUF";
 pub const SHEETSAGE2_REMOTE: &str = "sheetsage2-orig.gguf";
 /// Exact on-disk size of the pinned GGUF (bytes). Spec §19 / packages/sheetsage.
@@ -121,14 +119,20 @@ pub fn semantic_token_budget(sec: u32, lyrics: &str, prefer_full_lyrics: bool) -
     // musical space. Real vocal pacing varies and the old 80 wpm estimate cut
     // off a full test verse before its final lines.
     let lyric_estimate_sec = lyric_words.saturating_add(30);
-    let target_with_headroom = target_sec
-        .saturating_add((target_sec / 4).max(DURATION_SEC_STEP));
+    let target_with_headroom = target_sec.saturating_add((target_sec / 4).max(DURATION_SEC_STEP));
     let max_sec = lyric_estimate_sec
         .max(target_with_headroom)
         .min(SEMANTIC_MAX_DURATION_SEC);
-    let max_sec = ((max_sec + DURATION_SEC_STEP - 1) / DURATION_SEC_STEP) * DURATION_SEC_STEP;
-    (target_tokens, max_sec.min(SEMANTIC_MAX_DURATION_SEC) * SEMANTIC_HZ)
+    let max_sec = max_sec.div_ceil(DURATION_SEC_STEP) * DURATION_SEC_STEP;
+    (
+        target_tokens,
+        max_sec.min(SEMANTIC_MAX_DURATION_SEC) * SEMANTIC_HZ,
+    )
 }
+
+pub const TONICS: &[&str] = &[
+    "C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B",
+];
 
 #[cfg(test)]
 mod semantic_budget_tests {
@@ -136,7 +140,7 @@ mod semantic_budget_tests {
 
     #[test]
     fn lyrics_first_mode_keeps_target_as_minimum_and_adds_lyric_headroom() {
-        let lyrics = format!("{}", (0..500).map(|_| "word").collect::<Vec<_>>().join(" "));
+        let lyrics = (0..500).map(|_| "word").collect::<Vec<_>>().join(" ");
         let (min_tokens, max_tokens) = semantic_token_budget(30, &lyrics, true);
         assert_eq!(min_tokens, 30 * SEMANTIC_HZ);
         assert!(max_tokens > min_tokens);
@@ -163,7 +167,3 @@ mod semantic_budget_tests {
         assert_eq!(plain, tagged);
     }
 }
-
-pub const TONICS: &[&str] = &[
-    "C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B",
-];

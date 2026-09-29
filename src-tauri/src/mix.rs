@@ -67,30 +67,28 @@ fn unique_user_track_name(mix: &MixDoc, display_name: &str) -> String {
     candidate
 }
 
-fn default_clip_fields() -> (
-    Option<f32>,
-    bool,
-    f32,
-    f32,
-    bool,
-    Option<Vec<i64>>,
-    Option<String>,
-    Option<i32>,
-    Option<String>,
-    bool,
-) {
-    (
-        None,
-        false,
-        1.0,
-        0.0,
-        true,
-        None,
-        None,
-        None,
-        None,
-        true,
-    )
+/// Valeurs par défaut des champs optionnels d'un `Clip` importé.
+#[derive(Clone)]
+struct DefaultClipFields {
+    source_tempo_bpm: Option<f32>,
+    follow_project_tempo: bool,
+    time_stretch_ratio: f32,
+    pitch_semitones: f32,
+    processing_enabled: bool,
+    transient_markers_ms: Option<Vec<i64>>,
+}
+
+impl DefaultClipFields {
+    fn new() -> Self {
+        Self {
+            source_tempo_bpm: None,
+            follow_project_tempo: false,
+            time_stretch_ratio: 1.0,
+            pitch_semitones: 0.0,
+            processing_enabled: true,
+            transient_markers_ms: None,
+        }
+    }
 }
 
 /// Append one user track with one or more takes (same start, take lane).
@@ -105,29 +103,16 @@ pub fn append_user_audio_takes(
     assert!(!takes.is_empty(), "au moins une prise");
     let track_id = format!("trk-user-{}", Uuid::new_v4());
     let name = unique_user_track_name(mix, display_name);
-    let group = take_group_id
-        .map(|s| s.to_string())
-        .or_else(|| {
-            if takes.len() > 1 {
-                Some(format!("takes-{}", Uuid::new_v4()))
-            } else {
-                None
-            }
-        });
+    let group = take_group_id.map(|s| s.to_string()).or_else(|| {
+        if takes.len() > 1 {
+            Some(format!("takes-{}", Uuid::new_v4()))
+        } else {
+            None
+        }
+    });
     let mut clips = Vec::with_capacity(takes.len());
     for (i, (rel, sha, dur, label)) in takes.iter().enumerate() {
-        let (
-            source_tempo_bpm,
-            follow_project_tempo,
-            time_stretch_ratio,
-            pitch_semitones,
-            processing_enabled,
-            transient_markers_ms,
-            _,
-            _,
-            _,
-            _,
-        ) = default_clip_fields();
+        let fields = DefaultClipFields::new();
         clips.push(Clip {
             id: format!("clip-{}", Uuid::new_v4()),
             track_id: track_id.clone(),
@@ -139,12 +124,12 @@ pub fn append_user_audio_takes(
             gain_db: 0.0,
             fade_in_ms: 0,
             fade_out_ms: 0,
-            source_tempo_bpm,
-            follow_project_tempo,
-            time_stretch_ratio,
-            pitch_semitones,
-            processing_enabled,
-            transient_markers_ms,
+            source_tempo_bpm: fields.source_tempo_bpm,
+            follow_project_tempo: fields.follow_project_tempo,
+            time_stretch_ratio: fields.time_stretch_ratio,
+            pitch_semitones: fields.pitch_semitones,
+            processing_enabled: fields.processing_enabled,
+            transient_markers_ms: fields.transient_markers_ms,
             take_group_id: group.clone(),
             take_index: Some(i as i32),
             take_label: Some((*label).to_string()),
@@ -206,16 +191,7 @@ pub fn new_mix_from_separation(
             take_label,
             take_active,
         ) = (
-            None,
-            false,
-            1.0_f32,
-            0.0_f32,
-            true,
-            None,
-            None,
-            None,
-            None,
-            true,
+            None, false, 1.0_f32, 0.0_f32, true, None, None, None, None, true,
         );
         let clip = Clip {
             id: format!("clip-{}", Uuid::new_v4()),
@@ -281,7 +257,7 @@ fn ms_to_samples(ms: i64) -> usize {
     if ms <= 0 {
         return 0;
     }
-    ((ms as i64) * SAMPLE_RATE as i64 / 1000) as usize
+    (ms * SAMPLE_RATE as i64 / 1000) as usize
 }
 
 fn fade_gain(pos_in_clip: usize, duration_samples: usize, fade_in: usize, fade_out: usize) -> f32 {
@@ -349,6 +325,14 @@ fn read_stereo_f32(path: &Path) -> Result<(Vec<f32>, Vec<f32>, u32), String> {
     Ok((left, right, spec.sample_rate))
 }
 
+/// Niveaux de gain et de panoramique appliqués à un clip lors du rendu.
+struct ClipLevels {
+    track_lin: f32,
+    pan_l: f32,
+    pan_r: f32,
+    master: f32,
+}
+
 /// Place un clip sur la timeline (start / offset / durée / fondus).
 fn render_clip_onto(
     out_l: &mut [f32],
@@ -356,10 +340,7 @@ fn render_clip_onto(
     src_l: &[f32],
     src_r: &[f32],
     clip: &Clip,
-    track_lin: f32,
-    pan_l: f32,
-    pan_r: f32,
-    master: f32,
+    levels: ClipLevels,
 ) {
     let start = ms_to_samples(clip.start_ms);
     let offset = ms_to_samples(clip.offset_ms);
@@ -367,7 +348,7 @@ fn render_clip_onto(
     let fade_in = ms_to_samples(clip.fade_in_ms).min(dur);
     let fade_out = ms_to_samples(clip.fade_out_ms).min(dur.saturating_sub(fade_in));
     let clip_lin = db_to_linear(clip.gain_db);
-    let lin = master * track_lin * clip_lin;
+    let lin = levels.master * levels.track_lin * clip_lin;
 
     for i in 0..dur {
         let out_idx = start + i;
@@ -378,8 +359,8 @@ fn render_clip_onto(
         let l = src_l.get(src_idx).copied().unwrap_or(0.0);
         let r = src_r.get(src_idx).copied().unwrap_or(0.0);
         let fade = fade_gain(i, dur, fade_in, fade_out);
-        out_l[out_idx] += lin * pan_l * l * fade;
-        out_r[out_idx] += lin * pan_r * r * fade;
+        out_l[out_idx] += lin * levels.pan_l * l * fade;
+        out_r[out_idx] += lin * levels.pan_r * r * fade;
     }
 }
 
@@ -427,10 +408,12 @@ pub fn render_mix(mix: &MixDoc, project_root: &Path, out_wav: &Path) -> Result<f
                 &src_l,
                 &src_r,
                 clip,
-                track_lin,
-                pan_l,
-                pan_r,
-                master,
+                ClipLevels {
+                    track_lin,
+                    pan_l,
+                    pan_r,
+                    master,
+                },
             );
         }
     }
@@ -552,7 +535,7 @@ pub fn write_interleaved_f32_wav(
     channels: u16,
     out_wav: &Path,
 ) -> Result<(), String> {
-    if channels == 0 || pcm_le.len() % (4 * channels as usize) != 0 {
+    if channels == 0 || !pcm_le.len().is_multiple_of(4 * channels as usize) {
         return Err("Tampon PCM invalide (attendu f32 LE entrelacé).".into());
     }
     if sample_rate != SAMPLE_RATE {
@@ -576,15 +559,14 @@ pub fn write_interleaved_f32_wav(
     for i in 0..frames {
         let base = i * frame_bytes;
         let mut samples = [0f32; 2];
-        for ch in 0..channels.min(2) as usize {
+        for (ch, slot) in samples
+            .iter_mut()
+            .enumerate()
+            .take(channels.min(2) as usize)
+        {
             let o = base + ch * 4;
-            let bits = u32::from_le_bytes([
-                pcm_le[o],
-                pcm_le[o + 1],
-                pcm_le[o + 2],
-                pcm_le[o + 3],
-            ]);
-            samples[ch] = f32::from_bits(bits);
+            let bits = u32::from_le_bytes([pcm_le[o], pcm_le[o + 1], pcm_le[o + 2], pcm_le[o + 3]]);
+            *slot = f32::from_bits(bits);
         }
         if channels == 1 {
             samples[1] = samples[0];

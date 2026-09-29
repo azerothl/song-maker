@@ -27,7 +27,11 @@ pub fn settings_path() -> PathBuf {
 
 pub fn default_cache_dir() -> PathBuf {
     cache_dir()
-        .unwrap_or_else(|| home_dir().unwrap_or_else(|| PathBuf::from(".")).join(".cache"))
+        .unwrap_or_else(|| {
+            home_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(".cache")
+        })
         .join("song-maker")
 }
 
@@ -86,7 +90,9 @@ pub fn demucs_onnx_venv(cache: &Path) -> PathBuf {
 pub fn demucs_onnx_cli(cache: &Path) -> PathBuf {
     #[cfg(target_os = "windows")]
     {
-        demucs_onnx_venv(cache).join("Scripts").join("demucs-onnx.exe")
+        demucs_onnx_venv(cache)
+            .join("Scripts")
+            .join("demucs-onnx.exe")
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -111,10 +117,7 @@ pub fn demucs_onnx_model_cache(cache: &Path) -> PathBuf {
 
 pub fn bs_roformer_weights_present(cache: &Path) -> bool {
     let path = bs_roformer_path(cache);
-    match std::fs::metadata(&path) {
-        Ok(meta) if meta.is_file() && meta.len() == crate::pins::BS_ROFORMER_BYTES => true,
-        _ => false,
-    }
+    matches!(std::fs::metadata(&path), Ok(meta) if meta.is_file() && meta.len() == crate::pins::BS_ROFORMER_BYTES)
 }
 
 pub fn pinned_archive_name() -> &'static str {

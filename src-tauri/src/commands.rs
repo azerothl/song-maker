@@ -9,8 +9,9 @@ use crate::library::{
     load_settings, project_folder, save_project, save_settings, upsert_library_row,
 };
 use crate::mix::{
-    append_user_audio_takes, append_user_audio_track, empty_mix, export_flac, export_mp3, new_mix_from_separation,
-    render_mix, wav_duration_ms, write_export_json_with_warnings, write_interleaved_f32_wav,
+    append_user_audio_takes, append_user_audio_track, empty_mix, export_flac, export_mp3,
+    new_mix_from_separation, render_mix, wav_duration_ms, write_export_json_with_warnings,
+    write_interleaved_f32_wav,
 };
 use crate::models::*;
 use crate::paths::{
@@ -94,39 +95,60 @@ pub async fn install_required_assets(
 }
 
 #[tauri::command]
-pub fn update_settings(state: tauri::State<'_, AppState>, settings: AppSettings) -> Result<AppSettings, String> {
+pub fn update_settings(
+    state: tauri::State<'_, AppState>,
+    settings: AppSettings,
+) -> Result<AppSettings, String> {
     let mut s = settings;
     let cache = PathBuf::from(&s.cache_dir);
     s.stem_separator = normalize_stem_separator(&s.stem_separator).to_string();
-    if s.stem_separator == "bs_roformer" {
-        if !crate::paths::bs_roformer_weights_present(&cache) {
-            return Err(
-                "Impossible d’activer BS-RoFormer : GGUF absent ou invalide. \
-                 Installez-le (opt-in) dans Paramètres → Production audio."
-                    .into(),
-            );
-        }
+    if s.stem_separator == "bs_roformer" && !crate::paths::bs_roformer_weights_present(&cache) {
+        return Err(
+            "Impossible d’activer BS-RoFormer : GGUF absent ou invalide. \
+             Installez-le (opt-in) dans Paramètres → Production audio."
+                .into(),
+        );
     }
     if s.stem_separator == "htdemucs_6s" && !crate::demucs_onnx::is_installed(&cache) {
         return Err("Installez d’abord le runtime ONNX HTDemucs 6 stems dans Paramètres → Production audio.".into());
     }
-    if !(0.0..=2.0).contains(&s.yue2_ar_lora_scale) || !(0.0..=2.0).contains(&s.yue2_nar_lora_scale) {
+    if !(0.0..=2.0).contains(&s.yue2_ar_lora_scale) || !(0.0..=2.0).contains(&s.yue2_nar_lora_scale)
+    {
         return Err("L’échelle LoRA doit être comprise entre 0 et 2.".into());
     }
     for path in [&mut s.yue2_ar_lora, &mut s.yue2_nar_lora] {
         if let Some(raw) = path.as_ref() {
-            let file = PathBuf::from(raw).canonicalize().map_err(|_| format!("Fichier LoRA introuvable : {raw}"))?;
-            let lora_root = cache.join("models").join("lora").canonicalize()
-                .map_err(|_| "Le dossier local models/lora est introuvable dans le cache.".to_string())?;
-            if !file.starts_with(&lora_root) || !file.is_file() || !file.extension().is_some_and(|e| e.eq_ignore_ascii_case("safetensors")) {
-                return Err("Choisissez un fichier .safetensors situé dans cache/models/lora.".into());
+            let file = PathBuf::from(raw)
+                .canonicalize()
+                .map_err(|_| format!("Fichier LoRA introuvable : {raw}"))?;
+            let lora_root = cache
+                .join("models")
+                .join("lora")
+                .canonicalize()
+                .map_err(|_| {
+                    "Le dossier local models/lora est introuvable dans le cache.".to_string()
+                })?;
+            if !file.starts_with(&lora_root)
+                || !file.is_file()
+                || !file
+                    .extension()
+                    .is_some_and(|e| e.eq_ignore_ascii_case("safetensors"))
+            {
+                return Err(
+                    "Choisissez un fichier .safetensors situé dans cache/models/lora.".into(),
+                );
             }
             *path = Some(file.display().to_string());
         }
     }
     let old = load_settings().ok();
     save_settings(&s)?;
-    if old.as_ref().is_some_and(|o| o.yue2_ar_lora != s.yue2_ar_lora || o.yue2_nar_lora != s.yue2_nar_lora || o.yue2_ar_lora_scale != s.yue2_ar_lora_scale || o.yue2_nar_lora_scale != s.yue2_nar_lora_scale) {
+    if old.as_ref().is_some_and(|o| {
+        o.yue2_ar_lora != s.yue2_ar_lora
+            || o.yue2_nar_lora != s.yue2_nar_lora
+            || o.yue2_ar_lora_scale != s.yue2_ar_lora_scale
+            || o.yue2_nar_lora_scale != s.yue2_nar_lora_scale
+    }) {
         state.server.shutdown();
     }
     Ok(s)
@@ -143,9 +165,7 @@ pub fn get_phase3_status() -> Result<Phase3Status, String> {
         stem_separator: selected.to_string(),
         htdemucs_available: htdemucs_path(&cache).is_file(),
         bs_roformer_available: bs_present,
-        bs_roformer_path: crate::paths::bs_roformer_path(&cache)
-            .display()
-            .to_string(),
+        bs_roformer_path: crate::paths::bs_roformer_path(&cache).display().to_string(),
         htdemucs_6s_runtime_available: onnx_runtime_present,
         cc_by_nc_accepted: settings.cc_by_nc_accepted,
         guitar_piano_available: selected == "htdemucs_6s" && onnx_runtime_present,
@@ -175,10 +195,7 @@ pub async fn install_bs_roformer(
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     use std::sync::atomic::Ordering;
-    if state
-        .bs_roformer_installing
-        .swap(true, Ordering::AcqRel)
-    {
+    if state.bs_roformer_installing.swap(true, Ordering::AcqRel) {
         return Err("Un téléchargement BS-RoFormer est déjà en cours.".into());
     }
     let settings = match load_settings() {
@@ -190,8 +207,7 @@ pub async fn install_bs_roformer(
     };
     let cache = PathBuf::from(&settings.cache_dir);
     let cancel = state.bs_roformer_cancel.clone();
-    let result =
-        crate::bs_roformer::install(app, cache.clone(), cancel).await;
+    let result = crate::bs_roformer::install(app, cache.clone(), cancel).await;
     state.bs_roformer_installing.store(false, Ordering::Release);
     match result {
         Ok(path) => {
@@ -234,24 +250,40 @@ pub fn bs_roformer_install_info() -> Result<serde_json::Value, String> {
 #[tauri::command]
 pub fn list_lora_adapters() -> Result<Vec<LocalLoraAdapter>, String> {
     let settings = load_settings()?;
-    let root = PathBuf::from(settings.cache_dir).join("models").join("lora");
+    let root = PathBuf::from(settings.cache_dir)
+        .join("models")
+        .join("lora");
     list_lora_adapters_at(&root)
 }
 
 fn list_lora_adapters_at(root: &Path) -> Result<Vec<LocalLoraAdapter>, String> {
-    if !root.is_dir() { return Ok(Vec::new()); }
+    if !root.is_dir() {
+        return Ok(Vec::new());
+    }
     let mut adapters = Vec::new();
     for entry in walkdir::WalkDir::new(root).follow_links(false) {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
-        if !entry.file_type().is_file() || !path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("safetensors")) {
+        if !entry.file_type().is_file()
+            || !path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("safetensors"))
+        {
             continue;
         }
-        let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?;
-        let relative_name = path.strip_prefix(root).unwrap_or(path).display().to_string();
+        let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
+        let relative_name = path
+            .strip_prefix(root)
+            .unwrap_or(path)
+            .display()
+            .to_string();
         adapters.push(LocalLoraAdapter {
             name: relative_name,
-            path: path.canonicalize().unwrap_or_else(|_| path.to_path_buf()).display().to_string(),
+            path: path
+                .canonicalize()
+                .unwrap_or_else(|_| path.to_path_buf())
+                .display()
+                .to_string(),
             size_bytes: metadata.len(),
         });
     }
@@ -260,10 +292,14 @@ fn list_lora_adapters_at(root: &Path) -> Result<Vec<LocalLoraAdapter>, String> {
 }
 
 #[tauri::command]
-pub async fn import_lora_adapters(app: tauri::AppHandle) -> Result<Option<Vec<LocalLoraAdapter>>, String> {
+pub async fn import_lora_adapters(
+    app: tauri::AppHandle,
+) -> Result<Option<Vec<LocalLoraAdapter>>, String> {
     use tauri_plugin_dialog::DialogExt;
 
-    let Some(selected_files) = app.dialog().file()
+    let Some(selected_files) = app
+        .dialog()
+        .file()
         .add_filter("LoRA YuE2 (SafeTensors)", &["safetensors"])
         .blocking_pick_files()
     else {
@@ -271,28 +307,53 @@ pub async fn import_lora_adapters(app: tauri::AppHandle) -> Result<Option<Vec<Lo
     };
 
     let settings = load_settings()?;
-    let lora_root = PathBuf::from(settings.cache_dir).join("models").join("lora");
+    let lora_root = PathBuf::from(settings.cache_dir)
+        .join("models")
+        .join("lora");
     let adapters = tokio::task::spawn_blocking(move || {
         std::fs::create_dir_all(&lora_root).map_err(|e| e.to_string())?;
         let imported_root = lora_root.join("imported");
         std::fs::create_dir_all(&imported_root).map_err(|e| e.to_string())?;
 
         for selected in selected_files {
-            let source = selected.into_path().map_err(|e| format!("Chemin LoRA invalide : {e}"))?;
-            if !source.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("safetensors")) {
-                return Err(format!("Format refusé : {}. Choisissez un fichier .safetensors.", source.display()));
+            let source = selected
+                .into_path()
+                .map_err(|e| format!("Chemin LoRA invalide : {e}"))?;
+            if !source
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("safetensors"))
+            {
+                return Err(format!(
+                    "Format refusé : {}. Choisissez un fichier .safetensors.",
+                    source.display()
+                ));
             }
-            let source = source.canonicalize().map_err(|e| format!("Fichier LoRA inaccessible : {e}"))?;
+            let source = source
+                .canonicalize()
+                .map_err(|e| format!("Fichier LoRA inaccessible : {e}"))?;
             if !source.is_file() {
-                return Err(format!("Ce chemin n’est pas un fichier : {}", source.display()));
+                return Err(format!(
+                    "Ce chemin n’est pas un fichier : {}",
+                    source.display()
+                ));
             }
             if source.starts_with(&lora_root) {
                 continue;
             }
 
-            let file_name = source.file_name().ok_or_else(|| "Le fichier LoRA n’a pas de nom valide.".to_string())?;
-            let stem = source.file_stem().unwrap_or_default().to_string_lossy().into_owned();
-            let extension = source.extension().unwrap_or_default().to_string_lossy().into_owned();
+            let file_name = source
+                .file_name()
+                .ok_or_else(|| "Le fichier LoRA n’a pas de nom valide.".to_string())?;
+            let stem = source
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned();
+            let extension = source
+                .extension()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned();
             let mut destination = imported_root.join(file_name);
             let mut suffix = 2;
             while destination.exists() {
@@ -304,7 +365,9 @@ pub async fn import_lora_adapters(app: tauri::AppHandle) -> Result<Option<Vec<Lo
         }
 
         list_lora_adapters_at(&lora_root)
-    }).await.map_err(|e| format!("Import LoRA interrompu : {e}"))??;
+    })
+    .await
+    .map_err(|e| format!("Import LoRA interrompu : {e}"))??;
     Ok(Some(adapters))
 }
 
@@ -404,8 +467,8 @@ pub fn save_project_form(id: String, form: FormInput) -> Result<ProjectDoc, Stri
     doc.tempo_bpm = form.tempo_bpm;
     doc.key = form.key;
     doc.meter = form.meter;
-    doc.target_duration_sec = validate_target_duration(form.target_duration_sec)
-        .map_err(|e| e.to_string())?;
+    doc.target_duration_sec =
+        validate_target_duration(form.target_duration_sec).map_err(|e| e.to_string())?;
     doc.prefer_full_lyrics = form.prefer_full_lyrics;
     doc.instrumental_mode = form.instrumental_mode;
     doc.updated_at = now_iso();
@@ -479,12 +542,13 @@ pub async fn start_generation(
     let style_sent = validate_form(&form).map_err(|e| e.to_string())?;
     let target_duration_sec =
         validate_target_duration(form.target_duration_sec).map_err(|e| e.to_string())?;
-    let (mut semantic_min_tokens, mut semantic_max_tokens) = semantic_token_budget(
-        target_duration_sec,
-        &form.lyrics,
-        form.prefer_full_lyrics,
-    );
-    let stop_after_abc = match stop_after.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+    let (mut semantic_min_tokens, mut semantic_max_tokens) =
+        semantic_token_budget(target_duration_sec, &form.lyrics, form.prefer_full_lyrics);
+    let stop_after_abc = match stop_after
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
         None => false,
         Some("abc") => true,
         Some(other) => {
@@ -498,9 +562,7 @@ pub async fn start_generation(
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
     if abc_trimmed.is_some() && form.cot == "off" {
-        return Err(
-            "Un ABC avec cot=off est interdit (erreur locale, avant l'appel).".into(),
-        );
+        return Err("Un ABC avec cot=off est interdit (erreur locale, avant l'appel).".into());
     }
     if stop_after_abc {
         if form.cot == "off" {
@@ -513,7 +575,9 @@ pub async fn start_generation(
             return Err("stop_after=abc est incompatible avec une continuation.".into());
         }
         if source_generation_id.is_some() {
-            return Err("stop_after=abc est incompatible avec un rendu depuis un score existant.".into());
+            return Err(
+                "stop_after=abc est incompatible avec un rendu depuis un score existant.".into(),
+            );
         }
     }
     let folder = project_folder(&id);
@@ -524,19 +588,14 @@ pub async fn start_generation(
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string());
     if let Some(ref src_id) = source_gen_id {
-        let score_path = folder
-            .join("generations")
-            .join(src_id)
-            .join("score.abc");
+        let score_path = folder.join("generations").join(src_id).join("score.abc");
         if !score_path.is_file() {
             return Err(format!(
                 "Score ABC introuvable pour {src_id} (attendu generations/{src_id}/score.abc)."
             ));
         }
         if abc_trimmed.is_none() {
-            abc_trimmed = Some(
-                std::fs::read_to_string(&score_path).map_err(|e| e.to_string())?,
-            );
+            abc_trimmed = Some(std::fs::read_to_string(&score_path).map_err(|e| e.to_string())?);
         }
     }
     let continuation = form.continuation_generation_id.as_deref();
@@ -653,13 +712,16 @@ pub async fn start_generation(
         "loraWarnings": lora_warnings
     });
     atomic_write_json(&gen_dir.join("request.json"), &request)?;
-    atomic_write_json(&gen_dir.join("job.json"), &json!({
-        "id": gen_id,
-        "projectId": id,
-        "kind": job_kind,
-        "state": "queued",
-        "updatedAt": now_iso(),
-    }))?;
+    atomic_write_json(
+        &gen_dir.join("job.json"),
+        &json!({
+            "id": gen_id,
+            "projectId": id,
+            "kind": job_kind,
+            "state": "queued",
+            "updatedAt": now_iso(),
+        }),
+    )?;
 
     let queue = state.queue.clone();
     let queue_ref = queue.clone();
@@ -676,11 +738,8 @@ pub async fn start_generation(
     let gen_dir_for_job = gen_dir.clone();
     let project_id_for_job = id.clone();
     let job_kind_for_job = job_kind.to_string();
-    let abc_align = AbcAlignRequest::from_form(
-        form.tempo_bpm,
-        form.key.clone(),
-        form.meter.clone(),
-    );
+    let abc_align =
+        AbcAlignRequest::from_form(form.tempo_bpm, form.key.clone(), form.meter.clone());
     let result = queue
         .run_exclusive(
             Some(id.clone()),
@@ -927,24 +986,30 @@ pub async fn start_generation(
 
     let duration = match result {
         Ok(duration) => {
-            atomic_write_json(&gen_dir.join("job.json"), &json!({
-                "id": gen_id,
-                "projectId": id,
-                "kind": job_kind,
-                "state": "completed",
-                "updatedAt": now_iso(),
-            }))?;
+            atomic_write_json(
+                &gen_dir.join("job.json"),
+                &json!({
+                    "id": gen_id,
+                    "projectId": id,
+                    "kind": job_kind,
+                    "state": "completed",
+                    "updatedAt": now_iso(),
+                }),
+            )?;
             duration
         }
         Err(error) => {
-            atomic_write_json(&gen_dir.join("job.json"), &json!({
-                "id": gen_id,
-                "projectId": id,
-                "kind": job_kind,
-                "state": if error == "cancelled" { "cancelled" } else { "failed" },
-                "error": error,
-                "updatedAt": now_iso(),
-            }))?;
+            atomic_write_json(
+                &gen_dir.join("job.json"),
+                &json!({
+                    "id": gen_id,
+                    "projectId": id,
+                    "kind": job_kind,
+                    "state": if error == "cancelled" { "cancelled" } else { "failed" },
+                    "error": error,
+                    "updatedAt": now_iso(),
+                }),
+            )?;
             return Err(error);
         }
     };
@@ -974,15 +1039,7 @@ pub async fn render_from_generation(
     let mut form = form;
     // Rendering from a score is a fresh audio take, not a semantic continuation.
     form.continuation_generation_id = None;
-    start_generation(
-        state,
-        id,
-        form,
-        None,
-        None,
-        Some(source_gen_id),
-    )
-    .await
+    start_generation(state, id, form, None, None, Some(source_gen_id)).await
 }
 
 #[tauri::command]
@@ -1004,14 +1061,17 @@ pub async fn start_separation(
     let sep_id = next_folder_id(&folder.join("separations"), "sep-")?;
     let sep_dir = folder.join("separations").join(&sep_id);
     ensure_dir(&sep_dir).map_err(|e| e.to_string())?;
-    atomic_write_json(&sep_dir.join("job.json"), &json!({
-        "id": sep_id,
-        "projectId": id,
-        "kind": "separation",
-        "generationId": gen_id,
-        "state": "preparing",
-        "updatedAt": now_iso(),
-    }))?;
+    atomic_write_json(
+        &sep_dir.join("job.json"),
+        &json!({
+            "id": sep_id,
+            "projectId": id,
+            "kind": "separation",
+            "generationId": gen_id,
+            "state": "preparing",
+            "updatedAt": now_iso(),
+        }),
+    )?;
 
     let input_44100 = sep_dir.join("input-44100.wav");
     resample_soxr(&gen_wav, &input_44100, SEPARATOR_SAMPLE_RATE)?;
@@ -1048,86 +1108,91 @@ pub async fn start_separation(
     let generation_id_for_job = gen_id.clone();
     let model_id = separator.to_string();
     let cache_dir = PathBuf::from(&settings.cache_dir);
-    atomic_write_json(&sep_dir.join("job.json"), &json!({
-        "id": sep_id,
-        "projectId": id,
-        "kind": "separation",
-        "generationId": gen_id,
-        "state": "queued",
-        "updatedAt": now_iso(),
-    }))?;
+    atomic_write_json(
+        &sep_dir.join("job.json"),
+        &json!({
+            "id": sep_id,
+            "projectId": id,
+            "kind": "separation",
+            "generationId": gen_id,
+            "state": "queued",
+            "updatedAt": now_iso(),
+        }),
+    )?;
 
     let separator_result = queue
-        .run_exclusive(
-            Some(id.clone()),
-            "Séparation en cours",
-            async move {
-                atomic_write_json(&sep_dir_clone.join("job.json"), &json!({
+        .run_exclusive(Some(id.clone()), "Séparation en cours", async move {
+            atomic_write_json(
+                &sep_dir_clone.join("job.json"),
+                &json!({
                     "id": sep_id_for_job,
                     "projectId": project_id_for_job.clone(),
                     "kind": "separation",
                     "generationId": generation_id_for_job,
                     "state": "running",
                     "updatedAt": now_iso(),
-                }))?;
-                queue_ref.set_state(
-                    "separating",
-                    "Séparation en cours",
-                    Some(project_id_for_job.clone()),
-                );
-                if model_id == "htdemucs_6s" {
-                    crate::demucs_onnx::separate(
-                        cache_dir,
-                        input_44100_clone,
-                        sep_dir_clone,
-                    )
-                    .await?;
-                } else {
-                    // Contrat audiocpp_server /v1/tasks/run : champ `request` avec
-                    // audio = chemin WAV 44,1 kHz, réponses base64 nommées.
-                    let body = json!({
-                        "model": model_id,
-                        "request": {
-                            "audio": input_44100_clone.display().to_string()
-                        }
-                    });
-                    let response = AudioCppServer::run_task(
-                        server_url.as_deref().ok_or("Serveur audio indisponible.")?,
-                        body,
-                    )
-                    .await?;
-                    AudioCppServer::write_named_audio_outputs(&response, &sep_dir_clone)?;
-                }
-                Ok(())
-            },
-        )
+                }),
+            )?;
+            queue_ref.set_state(
+                "separating",
+                "Séparation en cours",
+                Some(project_id_for_job.clone()),
+            );
+            if model_id == "htdemucs_6s" {
+                crate::demucs_onnx::separate(cache_dir, input_44100_clone, sep_dir_clone).await?;
+            } else {
+                // Contrat audiocpp_server /v1/tasks/run : champ `request` avec
+                // audio = chemin WAV 44,1 kHz, réponses base64 nommées.
+                let body = json!({
+                    "model": model_id,
+                    "request": {
+                        "audio": input_44100_clone.display().to_string()
+                    }
+                });
+                let response = AudioCppServer::run_task(
+                    server_url.as_deref().ok_or("Serveur audio indisponible.")?,
+                    body,
+                )
+                .await?;
+                AudioCppServer::write_named_audio_outputs(&response, &sep_dir_clone)?;
+            }
+            Ok(())
+        })
         .await;
     if let Err(error) = separator_result {
-        atomic_write_json(&sep_dir.join("job.json"), &json!({
-            "id": sep_id,
-            "projectId": id,
-            "kind": "separation",
-            "generationId": gen_id,
-            "state": if error == "cancelled" { "cancelled" } else { "failed" },
-            "error": error,
-            "updatedAt": now_iso(),
-        }))?;
+        atomic_write_json(
+            &sep_dir.join("job.json"),
+            &json!({
+                "id": sep_id,
+                "projectId": id,
+                "kind": "separation",
+                "generationId": gen_id,
+                "state": if error == "cancelled" { "cancelled" } else { "failed" },
+                "error": error,
+                "updatedAt": now_iso(),
+            }),
+        )?;
         return Err(error);
     }
 
     if state.queue.cancel_requested() {
-        atomic_write_json(&sep_dir.join("job.json"), &json!({
-            "id": sep_id,
-            "projectId": id,
-            "kind": "separation",
-            "generationId": gen_id,
-            "state": "cancelled",
-            "updatedAt": now_iso(),
-        }))?;
+        atomic_write_json(
+            &sep_dir.join("job.json"),
+            &json!({
+                "id": sep_id,
+                "projectId": id,
+                "kind": "separation",
+                "generationId": gen_id,
+                "state": "cancelled",
+                "updatedAt": now_iso(),
+            }),
+        )?;
         return Err("Annulation demandée. L’appel GPU déjà lancé va jusqu’au bout ; les fichiers déjà écrits restent.".into());
     }
 
-    state.queue.set_state("importing_tracks", "Import des pistes", Some(id.clone()));
+    state
+        .queue
+        .set_state("importing_tracks", "Import des pistes", Some(id.clone()));
 
     let (family, package, gguf, sha, roles, warnings) = match separator {
         "bs_roformer" => (
@@ -1147,9 +1212,7 @@ pub async fn start_separation(
             "htdemucs_6s_fp16weights",
             "htdemucs_6s_fp16weights.onnx",
             crate::demucs_onnx::MODEL_SHA256,
-            &[
-                "vocals", "drums", "bass", "other", "guitar", "piano",
-            ][..],
+            &["vocals", "drums", "bass", "other", "guitar", "piano"][..],
             vec![
                 "estimated-separation".to_string(),
                 "experimental-guitar-piano".to_string(),
@@ -1227,14 +1290,17 @@ pub async fn start_separation(
         "warnings": warnings
     });
     atomic_write_json(&sep_dir.join("separation.json"), &sep_json)?;
-    atomic_write_json(&sep_dir.join("job.json"), &json!({
-        "id": sep_id,
-        "projectId": id,
-        "kind": "separation",
-        "generationId": gen_id,
-        "state": "completed",
-        "updatedAt": now_iso(),
-    }))?;
+    atomic_write_json(
+        &sep_dir.join("job.json"),
+        &json!({
+            "id": sep_id,
+            "projectId": id,
+            "kind": "separation",
+            "generationId": gen_id,
+            "state": "completed",
+            "updatedAt": now_iso(),
+        }),
+    )?;
 
     let mix_id = next_folder_id(&folder.join("mixes"), "mix-v")?;
     let mut mix = new_mix_from_separation(&mix_id, &sep_id, &stem_meta);
@@ -1272,7 +1338,9 @@ pub fn load_mix(id: String) -> Result<Option<MixDoc>, String> {
     };
     let path = folder.join("mixes").join(format!("{mix_id}.json"));
     let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-    Ok(Some(serde_json::from_str(&text).map_err(|e| e.to_string())?))
+    Ok(Some(
+        serde_json::from_str(&text).map_err(|e| e.to_string())?,
+    ))
 }
 
 #[tauri::command]
@@ -1368,10 +1436,7 @@ pub fn update_mix(
                         return Err("Paramètres de clip invalides (valeurs négatives).".into());
                     }
                     if clip.fade_in_ms + clip.fade_out_ms > clip.duration_ms {
-                        return Err(format!(
-                            "Fondus trop longs pour le clip {}.",
-                            clip.id
-                        ));
+                        return Err(format!("Fondus trop longs pour le clip {}.", clip.id));
                     }
                     if clip.time_stretch_ratio <= 0.0
                         || !(0.25..=4.0).contains(&clip.time_stretch_ratio)
@@ -1495,9 +1560,8 @@ fn prepare_user_audio_asset(
             })
             .unwrap_or_else(|| "bin".into());
         let dest = root.join("originals").join(format!("{asset_id}.{ext}"));
-        std::fs::copy(source, &dest).map_err(|e| {
-            format!("Impossible de copier l’original dans le projet : {e}")
-        })?;
+        std::fs::copy(source, &dest)
+            .map_err(|e| format!("Impossible de copier l’original dans le projet : {e}"))?;
         original_rel = Some(format!("user-audio/originals/{asset_id}.{ext}"));
         copied_original = Some(dest);
     }
@@ -1595,13 +1659,8 @@ fn ingest_user_audio_file(
     copy_original: bool,
     original_ext: Option<&str>,
 ) -> Result<MixDoc, String> {
-    let asset = prepare_user_audio_asset(
-        folder,
-        source,
-        display_name,
-        copy_original,
-        original_ext,
-    )?;
+    let asset =
+        prepare_user_audio_asset(folder, source, display_name, copy_original, original_ext)?;
 
     let (mut mix, mix_path) = load_or_create_active_mix(folder, doc)?;
     let track_count_before = mix.tracks.len();
@@ -1652,15 +1711,8 @@ pub async fn import_user_audio_track(
     tokio::task::spawn_blocking(move || {
         let folder = project_folder(&id);
         let mut doc = load_project(&folder)?;
-        ingest_user_audio_file(
-            &folder,
-            &mut doc,
-            &source,
-            &display_name,
-            true,
-            Some(&ext),
-        )
-        .map(Some)
+        ingest_user_audio_file(&folder, &mut doc, &source, &display_name, true, Some(&ext))
+            .map(Some)
     })
     .await
     .map_err(|e| format!("Import audio interrompu : {e}"))?
@@ -1675,7 +1727,8 @@ pub fn begin_user_audio_capture(id: String) -> Result<UserAudioCaptureSession, S
     let rel = format!("user-audio/capture/{session_id}.webm");
     let abs = folder.join(&rel);
     // Create empty file so append can open for write.
-    std::fs::File::create(&abs).map_err(|e| format!("Impossible de créer le fichier de capture : {e}"))?;
+    std::fs::File::create(&abs)
+        .map_err(|e| format!("Impossible de créer le fichier de capture : {e}"))?;
     Ok(UserAudioCaptureSession {
         session_id,
         relative_path: rel,
@@ -1778,7 +1831,7 @@ pub fn finalize_user_audio_capture(
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FinalizeCaptureTakesRequest {
     pub session_ids: Vec<String>,
@@ -1951,8 +2004,7 @@ pub fn render_preview(id: String) -> Result<String, String> {
         _ => true,
     };
     if need_copy {
-        std::fs::copy(&source, &playback)
-            .map_err(|e| format!("Préparation lecture audio: {e}"))?;
+        std::fs::copy(&source, &playback).map_err(|e| format!("Préparation lecture audio: {e}"))?;
     }
     Ok(playback.display().to_string())
 }
@@ -1963,17 +2015,16 @@ pub fn playback_sources(id: String) -> Result<PlaybackSources, String> {
     let folder = project_folder(&id);
     let doc = load_project(&folder)?;
     let gen_id = doc.active_generation_id.clone();
-    let gen_wav = gen_id.as_ref().map(|gid| {
-        folder.join("generations").join(gid).join("audio.wav")
-    });
+    let gen_wav = gen_id
+        .as_ref()
+        .map(|gid| folder.join("generations").join(gid).join("audio.wav"));
     let gen_wav_ok = gen_wav.as_ref().is_some_and(|p| p.is_file());
 
     if let Some(mix_id) = &doc.active_mix_id {
         let path = folder.join("mixes").join(format!("{mix_id}.json"));
-        let mix: MixDoc = serde_json::from_str(
-            &std::fs::read_to_string(&path).map_err(|e| e.to_string())?,
-        )
-        .map_err(|e| e.to_string())?;
+        let mix: MixDoc =
+            serde_json::from_str(&std::fs::read_to_string(&path).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
         let mut stems = Vec::new();
         for track in &mix.tracks {
             let Some(clip) = track.clips.first() else {
@@ -2061,10 +2112,9 @@ pub fn export_audio(id: String, req: ExportRequest) -> Result<String, String> {
     let wav_out = exports.join(format!("export-{stamp}.wav"));
     let peak_trim = if let Some(mix_id) = &doc.active_mix_id {
         let path = folder.join("mixes").join(format!("{mix_id}.json"));
-        let mix: MixDoc = serde_json::from_str(
-            &std::fs::read_to_string(&path).map_err(|e| e.to_string())?,
-        )
-        .map_err(|e| e.to_string())?;
+        let mix: MixDoc =
+            serde_json::from_str(&std::fs::read_to_string(&path).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
         render_mix(&mix, &folder, &wav_out)?
     } else if let Some(gen_id) = &doc.active_generation_id {
         let src = folder.join("generations").join(gen_id).join("audio.wav");
@@ -2262,7 +2312,10 @@ pub fn save_production_overlay(
 }
 
 #[tauri::command]
-pub fn load_production_overlay(id: String, mix_id: String) -> Result<Option<serde_json::Value>, String> {
+pub fn load_production_overlay(
+    id: String,
+    mix_id: String,
+) -> Result<Option<serde_json::Value>, String> {
     let path = project_folder(&id)
         .join("mixes")
         .join(format!("{mix_id}.production.json"));
@@ -2352,9 +2405,8 @@ pub fn export_project_package(id: String) -> Result<serde_json::Value, String> {
                                     let src_path = PathBuf::from(src);
                                     if src_path.is_absolute() {
                                         if let Ok(rel) = src_path.strip_prefix(&folder) {
-                                            clip["sourcePath"] = json!(rel
-                                                .to_string_lossy()
-                                                .replace('\\', "/"));
+                                            clip["sourcePath"] =
+                                                json!(rel.to_string_lossy().replace('\\', "/"));
                                         }
                                     }
                                 }
@@ -2368,8 +2420,7 @@ pub fn export_project_package(id: String) -> Result<serde_json::Value, String> {
                     .to_string_lossy()
                     .replace('\\', "/");
                 let bytes = serde_json::to_vec_pretty(&mix_val).map_err(|e| e.to_string())?;
-                zip.start_file(&rel, options)
-                    .map_err(|e| e.to_string())?;
+                zip.start_file(&rel, options).map_err(|e| e.to_string())?;
                 use std::io::Write;
                 zip.write_all(&bytes).map_err(|e| e.to_string())?;
                 estimated_bytes += bytes.len() as u64;
@@ -2398,9 +2449,7 @@ pub fn export_project_package(id: String) -> Result<serde_json::Value, String> {
             continue;
         }
         // Mix JSON already written with rewritten paths.
-        if rel.starts_with("mixes/")
-            && rel.ends_with(".json")
-            && !rel.ends_with(".production.json")
+        if rel.starts_with("mixes/") && rel.ends_with(".json") && !rel.ends_with(".production.json")
         {
             continue;
         }
@@ -2408,8 +2457,7 @@ pub fn export_project_package(id: String) -> Result<serde_json::Value, String> {
         let len = meta.len();
         let include = portable_should_include(&rel);
         if include {
-            zip.start_file(&rel, options)
-                .map_err(|e| e.to_string())?;
+            zip.start_file(&rel, options).map_err(|e| e.to_string())?;
             let bytes = std::fs::read(abs).map_err(|e| e.to_string())?;
             use std::io::Write;
             zip.write_all(&bytes).map_err(|e| e.to_string())?;
@@ -2482,9 +2530,7 @@ fn resolve_lora_slot_provenance(
     slot: &str,
     warnings: &mut Vec<String>,
 ) -> Option<serde_json::Value> {
-    let Some(raw) = path_opt.clone() else {
-        return None;
-    };
+    let raw = path_opt.clone()?;
     let path = PathBuf::from(&raw);
     if !path.is_file() {
         warnings.push(format!(
@@ -2573,9 +2619,8 @@ fn normalize_sha256_hex(raw: &str) -> Option<String> {
 }
 
 fn verify_cache_file_sha256(path: &Path, expected: &str) -> Result<(), String> {
-    let want = normalize_sha256_hex(expected).ok_or_else(|| {
-        format!("Hash SHA-256 catalogue invalide (64 hex attendus) : {expected}")
-    })?;
+    let want = normalize_sha256_hex(expected)
+        .ok_or_else(|| format!("Hash SHA-256 catalogue invalide (64 hex attendus) : {expected}"))?;
     let got = sha256_file(path)?;
     if got != want {
         let _ = std::fs::remove_file(path);
@@ -2593,17 +2638,13 @@ fn verify_cache_file_sha256(path: &Path, expected: &str) -> Result<(), String> {
 pub async fn download_cache_file(req: DownloadCacheFileRequest) -> Result<String, String> {
     let settings = load_settings()?;
     if !settings.cc_by_nc_accepted {
-        return Err(
-            "Accepter CC BY-NC 4.0 avant tout téléchargement optionnel de LoRA.".into(),
-        );
+        return Err("Accepter CC BY-NC 4.0 avant tout téléchargement optionnel de LoRA.".into());
     }
     let rel = req.relative_cache_path.replace('\\', "/");
     if !rel.starts_with("models/lora/") || rel.contains("..") {
         return Err("Chemin cache invalide (models/lora/… uniquement).".into());
     }
-    if !(req.url.starts_with("https://huggingface.co/")
-        || req.url.starts_with("https://hf.co/"))
-    {
+    if !(req.url.starts_with("https://huggingface.co/") || req.url.starts_with("https://hf.co/")) {
         return Err("URL refusée : hôte Hugging Face uniquement.".into());
     }
 
@@ -2642,9 +2683,7 @@ pub async fn download_cache_file(req: DownloadCacheFileRequest) -> Result<String
     std::fs::write(&tmp, &bytes).map_err(|e| e.to_string())?;
     std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
     if let Some(ref expected) = req.expected_sha256 {
-        if let Err(e) = verify_cache_file_sha256(&dest, expected) {
-            return Err(e);
-        }
+        verify_cache_file_sha256(&dest, expected)?;
     }
     Ok(dest.display().to_string())
 }
@@ -2689,8 +2728,10 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
         } else {
             let job_state = serde_json::from_slice::<serde_json::Value>(
                 &std::fs::read(entry.path().join("job.json")).unwrap_or_default(),
-            ).ok().and_then(|j| j.get("state").and_then(|v| v.as_str()).map(str::to_string))
-                .unwrap_or_else(|| "interrupted".into());
+            )
+            .ok()
+            .and_then(|j| j.get("state").and_then(|v| v.as_str()).map(str::to_string))
+            .unwrap_or_else(|| "interrupted".into());
             (job_state, false, None)
         };
         let gen_id = req
@@ -2710,11 +2751,7 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
                 .unwrap_or("")
                 .into(),
             seed: req.get("seed").and_then(|v| v.as_u64()).unwrap_or(0),
-            cot: req
-                .get("cot")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .into(),
+            cot: req.get("cot").and_then(|v| v.as_str()).unwrap_or("").into(),
             state,
             has_score,
             parent_generation_id: req
@@ -2755,10 +2792,7 @@ pub fn read_score_abc(id: String, gen_id: String) -> Result<Option<String>, Stri
 }
 
 #[tauri::command]
-pub fn save_score(
-    id: String,
-    document: serde_json::Value,
-) -> Result<(ProjectDoc, String), String> {
+pub fn save_score(id: String, document: serde_json::Value) -> Result<(ProjectDoc, String), String> {
     let folder = project_folder(&id);
     let mut doc = load_project(&folder)?;
     let scores_dir = folder.join("scores");
@@ -2822,8 +2856,7 @@ pub fn list_scores(id: String) -> Result<Vec<ScoreSummary>, String> {
             continue;
         }
         let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        let value: serde_json::Value =
-            serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        let value: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
         let score_id = value
             .get("id")
             .and_then(|v| v.as_str())
@@ -2858,10 +2891,7 @@ pub fn list_scores(id: String) -> Result<Vec<ScoreSummary>, String> {
                 .get("branchName")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
-            version: value
-                .get("version")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(1) as u32,
+            version: value.get("version").and_then(|v| v.as_u64()).unwrap_or(1) as u32,
             source: value
                 .get("source")
                 .and_then(|v| v.as_str())
@@ -2957,10 +2987,7 @@ pub fn import_remote_generation(
     let wav_bytes = base64::engine::general_purpose::STANDARD
         .decode(payload.audio_base64.as_bytes())
         .map_err(|e| format!("Décodage WAV distant: {e}"))?;
-    if wav_bytes.len() < 12
-        || &wav_bytes[0..4] != b"RIFF"
-        || &wav_bytes[8..12] != b"WAVE"
-    {
+    if wav_bytes.len() < 12 || &wav_bytes[0..4] != b"RIFF" || &wav_bytes[8..12] != b"WAVE" {
         return Err("Artefact distant : octets reçus sans en-tête WAV RIFF/WAVE.".into());
     }
     let out_wav = gen_dir.join("audio.wav");
@@ -2979,7 +3006,11 @@ pub fn import_remote_generation(
         // Verify remote checksum on the raw bytes first, then align headers (#106).
         std::fs::write(&score_path, abc).map_err(|e| e.to_string())?;
         let raw_sha = sha256_file(&score_path)?;
-        if let Some(exp) = payload.score_sha256.as_ref().filter(|s| !s.trim().is_empty()) {
+        if let Some(exp) = payload
+            .score_sha256
+            .as_ref()
+            .filter(|s| !s.trim().is_empty())
+        {
             if exp.trim().to_ascii_lowercase() != raw_sha {
                 let _ = std::fs::remove_dir_all(&gen_dir);
                 return Err(format!(
@@ -3061,10 +3092,9 @@ pub fn undo_mix(state: tauri::State<'_, AppState>, id: String) -> Result<Option<
         .active_mix_id
         .ok_or_else(|| "Aucun mix actif.".to_string())?;
     let path = folder.join("mixes").join(format!("{mix_id}.json"));
-    let current: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(&path).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
+    let current: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
     entry.1.push(current);
     atomic_write_json(&path, &prev)?;
     let mix: MixDoc = serde_json::from_value(prev).map_err(|e| e.to_string())?;
@@ -3084,10 +3114,9 @@ pub fn redo_mix(state: tauri::State<'_, AppState>, id: String) -> Result<Option<
         .active_mix_id
         .ok_or_else(|| "Aucun mix actif.".to_string())?;
     let path = folder.join("mixes").join(format!("{mix_id}.json"));
-    let current: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(&path).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
+    let current: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
     entry.0.push(current);
     atomic_write_json(&path, &next)?;
     let mix: MixDoc = serde_json::from_value(next).map_err(|e| e.to_string())?;
@@ -3220,15 +3249,18 @@ pub(crate) fn resolve_semantic_prefix_for_continuation(
                     .into(),
             );
         }
-        if existing_abc.map(str::trim).filter(|s| !s.is_empty()).is_none() {
+        if existing_abc
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .is_none()
+        {
             parent_score_abc = abc;
         }
     }
 
-    let prefix: Vec<u32> = serde_json::from_slice(
-        &std::fs::read(&semantic).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| format!("Tokens de continuation invalides : {e}"))?;
+    let prefix: Vec<u32> =
+        serde_json::from_slice(&std::fs::read(&semantic).map_err(|e| e.to_string())?)
+            .map_err(|e| format!("Tokens de continuation invalides : {e}"))?;
     let frame_count = prefix.len();
     let token_ceiling = (SEMANTIC_MAX_DURATION_SEC * SEMANTIC_HZ) as usize;
     if frame_count >= token_ceiling {
@@ -3275,7 +3307,11 @@ mod continuation_tests {
         )
         .unwrap();
         if with_semantic {
-            fs::write(gen.join("semantic.json"), serde_json::to_string(frames).unwrap()).unwrap();
+            fs::write(
+                gen.join("semantic.json"),
+                serde_json::to_string(frames).unwrap(),
+            )
+            .unwrap();
         }
         if with_score {
             fs::write(gen.join("score.abc"), "X:1\nK:C\nC").unwrap();
@@ -3311,9 +3347,8 @@ mod continuation_tests {
         let root = temp_dir("not-truncated");
         write_parent_gen(&root, false, true, true, &[10, 20]);
         let parent = root.join("generations").join("gen-001");
-        let err =
-            resolve_semantic_prefix_for_continuation(&parent, "gen-001", "melody", None)
-                .unwrap_err();
+        let err = resolve_semantic_prefix_for_continuation(&parent, "gen-001", "melody", None)
+            .unwrap_err();
         assert!(err.contains("tronquées"));
         let _ = fs::remove_dir_all(root);
     }

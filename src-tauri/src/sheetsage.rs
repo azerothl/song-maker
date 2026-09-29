@@ -6,9 +6,7 @@ use crate::audiocpp::AudioCppServer;
 use crate::hashutil::sha256_file;
 use crate::library::load_settings;
 use crate::models::InstallProgress;
-use crate::paths::{
-    binaries_dir, ensure_dir, sheetsage2_weights_path, sheetsage2_weights_present,
-};
+use crate::paths::{binaries_dir, ensure_dir, sheetsage2_weights_path, sheetsage2_weights_present};
 use crate::pins::{
     backend_name, SHEETSAGE2_BYTES, SHEETSAGE2_GGUF, SHEETSAGE2_REMOTE, SHEETSAGE2_SHA,
 };
@@ -140,10 +138,7 @@ fn free_disk_bytes(dir: &Path) -> Option<u64> {
             .args([
                 "-NoProfile",
                 "-Command",
-                &format!(
-                    "(Get-Item -LiteralPath '{}').PSDrive.Free",
-                    probe.display()
-                ),
+                &format!("(Get-Item -LiteralPath '{}').PSDrive.Free", probe.display()),
             ])
             .output()
             .ok()?;
@@ -231,9 +226,7 @@ pub async fn install(
     emit(
         &app,
         InstallProgress::phase(
-            &format!(
-                "SheetSage2 — {LICENSE_NOTICE_FR} Téléchargement de {SHEETSAGE2_REMOTE}…"
-            ),
+            &format!("SheetSage2 — {LICENSE_NOTICE_FR} Téléchargement de {SHEETSAGE2_REMOTE}…"),
             0,
             1,
         ),
@@ -273,8 +266,7 @@ pub async fn install(
             response.status()
         ));
     }
-    let append =
-        resumed > 0 && response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
+    let append = resumed > 0 && response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
     let received_before = if append { resumed } else { 0 };
     let total = response
         .content_length()
