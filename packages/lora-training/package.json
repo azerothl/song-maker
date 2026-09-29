@@ -2,6 +2,7 @@
   "name": "@song-maker/lora-training",
   "version": "0.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "Local NAR LoRA training pilot — corpus validate, job manifests, honest trainer stub",
   "exports": {

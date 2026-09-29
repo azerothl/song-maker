@@ -2,6 +2,7 @@
   "name": "@song-maker/stem-providers",
   "version": "0.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "Phase 3 — StemSeparatorProvider: HTDemucs default + BS-RoFormer (vocals/instrumental)",
   "exports": {

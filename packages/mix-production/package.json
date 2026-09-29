@@ -2,6 +2,7 @@
   "name": "@song-maker/mix-production",
   "version": "0.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "Phase 3 — mix automation, limiter/compressor, sidechain ducking, loudness meter",
   "exports": {
