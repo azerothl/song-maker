@@ -1,10 +1,16 @@
 {
   "aaMin": 4.5,
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
   "screens": [
     {
+      "id": "bibliotheque",
       "screen": "Bibliothèque",
       "selector": ".panel.library .btn.primary",
       "label": "Nouveau morceau",
+      "file": "bibliotheque-primary-1280x720.png",
       "states": [
         {
           "state": "normal",
@@ -13,14 +19,14 @@
           "opacity": 1,
           "stops": [
             {
-              "stop": "accent",
+              "stop": "top",
               "backgroundCss": "rgb(196, 168, 255)",
               "backgroundHex": "#c4a8ff",
               "ratio": 8.72,
               "pass": true
             },
             {
-              "stop": "accent-2",
+              "stop": "bottom",
               "backgroundCss": "rgb(167, 139, 250)",
               "backgroundHex": "#a78bfa",
               "ratio": 6.47,
@@ -37,21 +43,21 @@
           "opacity": 1,
           "stops": [
             {
-              "stop": "accent",
-              "backgroundCss": "rgb(196, 168, 255)",
-              "backgroundHex": "#c4a8ff",
-              "ratio": 8.72,
+              "stop": "top",
+              "backgroundCss": "color(srgb 0.824157 0.740706 1)",
+              "backgroundHex": "#d2bdff",
+              "ratio": 10.46,
               "pass": true
             },
             {
-              "stop": "accent-2",
-              "backgroundCss": "rgb(167, 139, 250)",
-              "backgroundHex": "#a78bfa",
-              "ratio": 6.47,
+              "stop": "bottom",
+              "backgroundCss": "color(srgb 0.691294 0.58149 0.986667)",
+              "backgroundHex": "#b094fc",
+              "ratio": 7.12,
               "pass": true
             }
           ],
-          "minRatio": 6.47,
+          "minRatio": 7.12,
           "pass": true
         },
         {
@@ -61,14 +67,14 @@
           "opacity": 1,
           "stops": [
             {
-              "stop": "accent",
+              "stop": "top",
               "backgroundCss": "rgb(196, 168, 255)",
               "backgroundHex": "#c4a8ff",
               "ratio": 8.72,
               "pass": true
             },
             {
-              "stop": "accent-2",
+              "stop": "bottom",
               "backgroundCss": "rgb(167, 139, 250)",
               "backgroundHex": "#a78bfa",
               "ratio": 6.47,
@@ -80,35 +86,30 @@
         },
         {
           "state": "disabled",
-          "foregroundCss": "rgb(21, 24, 39)",
-          "foregroundHex": "#151827",
+          "foregroundCss": "rgb(167, 174, 196)",
+          "foregroundHex": "#a7aec4",
           "opacity": 1,
           "stops": [
             {
-              "stop": "disabled-top",
-              "backgroundCss": "color(srgb 0.856549 0.788471 1)",
-              "backgroundHex": "#dac9ff",
-              "ratio": 11.56,
-              "pass": true
-            },
-            {
-              "stop": "disabled-bottom",
-              "backgroundCss": "color(srgb 0.786039 0.717961 0.987843)",
-              "backgroundHex": "#c8b7fc",
-              "ratio": 9.76,
+              "stop": "flat",
+              "backgroundCss": "color(srgb 0.111373 0.125647 0.203451)",
+              "backgroundHex": "#1c2034",
+              "ratio": 7.27,
               "pass": true
             }
           ],
-          "minRatio": 9.76,
+          "minRatio": 7.27,
           "pass": true
         }
       ],
       "pass": true
     },
     {
+      "id": "creer",
       "screen": "Créer",
       "selector": ".song-create-generate-btn",
       "label": "Générer",
+      "file": "creer-primary-1280x720.png",
       "states": [
         {
           "state": "normal",
@@ -117,14 +118,14 @@
           "opacity": 1,
           "stops": [
             {
-              "stop": "accent",
+              "stop": "top",
               "backgroundCss": "rgb(196, 168, 255)",
               "backgroundHex": "#c4a8ff",
               "ratio": 8.72,
               "pass": true
             },
             {
-              "stop": "accent-2",
+              "stop": "bottom",
               "backgroundCss": "rgb(167, 139, 250)",
               "backgroundHex": "#a78bfa",
               "ratio": 6.47,
@@ -141,21 +142,21 @@
           "opacity": 1,
           "stops": [
             {
-              "stop": "accent",
-              "backgroundCss": "rgb(196, 168, 255)",
-              "backgroundHex": "#c4a8ff",
-              "ratio": 8.72,
+              "stop": "top",
+              "backgroundCss": "color(srgb 0.824157 0.740706 1)",
+              "backgroundHex": "#d2bdff",
+              "ratio": 10.46,
               "pass": true
             },
             {
-              "stop": "accent-2",
-              "backgroundCss": "rgb(167, 139, 250)",
-              "backgroundHex": "#a78bfa",
-              "ratio": 6.47,
+              "stop": "bottom",
+              "backgroundCss": "color(srgb 0.691294 0.58149 0.986667)",
+              "backgroundHex": "#b094fc",
+              "ratio": 7.12,
               "pass": true
             }
           ],
-          "minRatio": 6.47,
+          "minRatio": 7.12,
           "pass": true
         },
         {
@@ -165,14 +166,14 @@
           "opacity": 1,
           "stops": [
             {
-              "stop": "accent",
+              "stop": "top",
               "backgroundCss": "rgb(196, 168, 255)",
               "backgroundHex": "#c4a8ff",
               "ratio": 8.72,
               "pass": true
             },
             {
-              "stop": "accent-2",
+              "stop": "bottom",
               "backgroundCss": "rgb(167, 139, 250)",
               "backgroundHex": "#a78bfa",
               "ratio": 6.47,
@@ -184,26 +185,910 @@
         },
         {
           "state": "disabled",
+          "foregroundCss": "rgb(167, 174, 196)",
+          "foregroundHex": "#a7aec4",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "flat",
+              "backgroundCss": "color(srgb 0.111373 0.125647 0.203451)",
+              "backgroundHex": "#1c2034",
+              "ratio": 7.27,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.27,
+          "pass": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "production-armer",
+      "screen": "Production — Armer",
+      "selector": ".record-panel button.btn.primary",
+      "label": "Armer",
+      "file": "production-armer-primary-1280x720.png",
+      "states": [
+        {
+          "state": "normal",
           "foregroundCss": "rgb(21, 24, 39)",
           "foregroundHex": "#151827",
           "opacity": 1,
           "stops": [
             {
-              "stop": "disabled-top",
-              "backgroundCss": "color(srgb 0.856549 0.788471 1)",
-              "backgroundHex": "#dac9ff",
-              "ratio": 11.56,
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
               "pass": true
             },
             {
-              "stop": "disabled-bottom",
-              "backgroundCss": "color(srgb 0.786039 0.717961 0.987843)",
-              "backgroundHex": "#c8b7fc",
-              "ratio": 9.76,
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
               "pass": true
             }
           ],
-          "minRatio": 9.76,
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "color(srgb 0.824157 0.740706 1)",
+              "backgroundHex": "#d2bdff",
+              "ratio": 10.46,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "color(srgb 0.691294 0.58149 0.986667)",
+              "backgroundHex": "#b094fc",
+              "ratio": 7.12,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.12,
+          "pass": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(167, 174, 196)",
+          "foregroundHex": "#a7aec4",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "flat",
+              "backgroundCss": "color(srgb 0.111373 0.125647 0.203451)",
+              "backgroundHex": "#1c2034",
+              "ratio": 7.27,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.27,
+          "pass": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "production-mesurer",
+      "screen": "Production — Mesurer le mix rendu",
+      "selector": ".phase3-actions button.btn.primary",
+      "label": "Mesurer le mix rendu",
+      "file": "production-mesurer-primary-1280x720.png",
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "color(srgb 0.824157 0.740706 1)",
+              "backgroundHex": "#d2bdff",
+              "ratio": 10.46,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "color(srgb 0.691294 0.58149 0.986667)",
+              "backgroundHex": "#b094fc",
+              "ratio": 7.12,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.12,
+          "pass": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(167, 174, 196)",
+          "foregroundHex": "#a7aec4",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "flat",
+              "backgroundCss": "color(srgb 0.111373 0.125647 0.203451)",
+              "backgroundHex": "#1c2034",
+              "ratio": 7.27,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.27,
+          "pass": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "production-zip",
+      "screen": "Production — Créer l'archive ZIP",
+      "selector": ".export-wizard button.btn.primary",
+      "label": "Créer l’archive ZIP",
+      "file": "production-zip-primary-1280x720.png",
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "color(srgb 0.824157 0.740706 1)",
+              "backgroundHex": "#d2bdff",
+              "ratio": 10.46,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "color(srgb 0.691294 0.58149 0.986667)",
+              "backgroundHex": "#b094fc",
+              "ratio": 7.12,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.12,
+          "pass": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(167, 174, 196)",
+          "foregroundHex": "#a7aec4",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "flat",
+              "backgroundCss": "color(srgb 0.111373 0.125647 0.203451)",
+              "backgroundHex": "#1c2034",
+              "ratio": 7.27,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.27,
+          "pass": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "reglages-lora",
+      "screen": "Réglages — LoRA (primaire visible)",
+      "selector": ".phase3-lora-list button.btn.primary",
+      "label": "Télécharger vers le cache",
+      "file": "reglages-lora-primary-1280x720.png",
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "color(srgb 0.824157 0.740706 1)",
+              "backgroundHex": "#d2bdff",
+              "ratio": 10.46,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "color(srgb 0.691294 0.58149 0.986667)",
+              "backgroundHex": "#b094fc",
+              "ratio": 7.12,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.12,
+          "pass": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(167, 174, 196)",
+          "foregroundHex": "#a7aec4",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "flat",
+              "backgroundCss": "color(srgb 0.111373 0.125647 0.203451)",
+              "backgroundHex": "#1c2034",
+              "ratio": 7.27,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.27,
+          "pass": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "confirmation-regeneration-gate",
+      "screen": "Confirmation — RegenerationGate",
+      "selector": ".regeneration-gate button.btn.primary, button.btn.primary",
+      "label": "Capturer et générer",
+      "file": "confirmation-regeneration-gate-primary-1280x720.png",
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "color(srgb 0.824157 0.740706 1)",
+              "backgroundHex": "#d2bdff",
+              "ratio": 10.46,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "color(srgb 0.691294 0.58149 0.986667)",
+              "backgroundHex": "#b094fc",
+              "ratio": 7.12,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.12,
+          "pass": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(167, 174, 196)",
+          "foregroundHex": "#a7aec4",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "flat",
+              "backgroundCss": "color(srgb 0.111373 0.125647 0.203451)",
+              "backgroundHex": "#1c2034",
+              "ratio": 7.27,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.27,
+          "pass": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "confirmation-invariant-panel",
+      "screen": "Confirmation — InvariantPanel",
+      "selector": ".invariant-panel button.btn.primary",
+      "label": "Vérifier",
+      "file": "confirmation-invariant-panel-primary-1280x720.png",
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "color(srgb 0.824157 0.740706 1)",
+              "backgroundHex": "#d2bdff",
+              "ratio": 10.46,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "color(srgb 0.691294 0.58149 0.986667)",
+              "backgroundHex": "#b094fc",
+              "ratio": 7.12,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.12,
+          "pass": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(167, 174, 196)",
+          "foregroundHex": "#a7aec4",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "flat",
+              "backgroundCss": "color(srgb 0.111373 0.125647 0.203451)",
+              "backgroundHex": "#1c2034",
+              "ratio": 7.27,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.27,
+          "pass": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "confirmation-remote-generate",
+      "screen": "Confirmation — RemoteGenerateConfirm",
+      "selector": ".remote-generate-confirm button.btn.primary",
+      "label": "Consentir et envoyer",
+      "file": "confirmation-remote-generate-primary-1280x720.png",
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "color(srgb 0.824157 0.740706 1)",
+              "backgroundHex": "#d2bdff",
+              "ratio": 10.46,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "color(srgb 0.691294 0.58149 0.986667)",
+              "backgroundHex": "#b094fc",
+              "ratio": 7.12,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.12,
+          "pass": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(167, 174, 196)",
+          "foregroundHex": "#a7aec4",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "flat",
+              "backgroundCss": "color(srgb 0.111373 0.125647 0.203451)",
+              "backgroundHex": "#1c2034",
+              "ratio": 7.27,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.27,
+          "pass": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "confirmation-separation-recommend",
+      "screen": "Confirmation — SeparationRecommendDialog",
+      "selector": ".separation-recommend-popin button.btn.primary, button.btn.primary",
+      "label": "Lancer la séparation",
+      "file": "confirmation-separation-recommend-primary-1280x720.png",
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "color(srgb 0.824157 0.740706 1)",
+              "backgroundHex": "#d2bdff",
+              "ratio": 10.46,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "color(srgb 0.691294 0.58149 0.986667)",
+              "backgroundHex": "#b094fc",
+              "ratio": 7.12,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.12,
+          "pass": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(167, 174, 196)",
+          "foregroundHex": "#a7aec4",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "flat",
+              "backgroundCss": "color(srgb 0.111373 0.125647 0.203451)",
+              "backgroundHex": "#1c2034",
+              "ratio": 7.27,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.27,
+          "pass": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "confirmation-update-notice",
+      "screen": "Confirmation — UpdateNotice",
+      "selector": ".update-notice button.btn.primary",
+      "label": "Mettre à jour",
+      "file": "confirmation-update-notice-primary-1280x720.png",
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "color(srgb 0.824157 0.740706 1)",
+              "backgroundHex": "#d2bdff",
+              "ratio": 10.46,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "color(srgb 0.691294 0.58149 0.986667)",
+              "backgroundHex": "#b094fc",
+              "ratio": 7.12,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.12,
+          "pass": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(167, 174, 196)",
+          "foregroundHex": "#a7aec4",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "flat",
+              "backgroundCss": "color(srgb 0.111373 0.125647 0.203451)",
+              "backgroundHex": "#1c2034",
+              "ratio": 7.27,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.27,
           "pass": true
         }
       ],

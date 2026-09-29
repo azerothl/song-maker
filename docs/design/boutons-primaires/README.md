@@ -4,13 +4,19 @@ Correctif d’accessibilité pour `.btn.primary` (issue #186).
 
 ## Problème
 
-Texte blanc sur le dégradé `--accent` (`#c4a8ff`) → `--accent-2` (`#a78bfa`) : ~2,0–2,7:1 (exigence WCAG 2.2 AA : 4,5:1).
+1. Texte blanc sur le dégradé `--accent` → `--accent-2` (~2,0–2,7:1) — corrigé dans #189 (`#151827`).
+2. État **désactivé trop clair** (dégradé lavé encore « primaire ») et **pas de survol net** — cette livraison.
 
 ## Correction
 
-Texte sombre `#151827` sur le dégradé inchangé (identité visuelle claire). État désactivé : même teinte, dégradé légèrement lavé (`color-mix` vers blanc) et `opacity: 1` pour que le contraste reste ≥ 4,5:1 après peinture (l’`opacity: 0,45` générique de `.btn:disabled` tombait sous le seuil).
+- Texte sombre `#151827` sur le dégradé actif (inchangé).
+- **Survol** : dégradé légèrement plus lumineux (`.btn.primary:hover:not(:disabled)`).
+- **Focus-visible** : anneau cyan explicite.
+- **Désactivé** : fond éteint (`--bg2` / `--bg0`), texte `--muted`, bordure `--line`, `opacity: 1` — lisiblement inactif, contraste ≥ 4,5:1.
+
+Aucun changement de mise en page.
 
 ## Contenu
 
-- `contrastes.md` : mesures DOM (normal / survol / focus / désactivé).
-- `captures-react/` : captures 1280×720 de l’app React réelle + script de régénération.
+- `contrastes.md` : mesures DOM (normal / survol / focus / désactivé) par écran capturé.
+- `captures-react/` : PNG 1280×720 React réels + script de régénération + liste des **non vérifiés**.

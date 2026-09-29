@@ -10,6 +10,8 @@ describe("parseCaptureHash", () => {
       rythmiqueCollapsed: false,
       midPlayback: false,
       progressRatio: 0,
+      productionView: "mix",
+      recordOpen: false,
     });
     assert.deepEqual(parseCaptureHash("16,compact,collapsed"), {
       trackCount: 16,
@@ -17,6 +19,8 @@ describe("parseCaptureHash", () => {
       rythmiqueCollapsed: true,
       midPlayback: false,
       progressRatio: 0,
+      productionView: "mix",
+      recordOpen: false,
     });
     assert.deepEqual(parseCaptureHash("confortable"), {
       trackCount: 12,
@@ -24,6 +28,8 @@ describe("parseCaptureHash", () => {
       rythmiqueCollapsed: false,
       midPlayback: false,
       progressRatio: 0,
+      productionView: "mix",
+      recordOpen: false,
     });
     assert.equal(parseCaptureHash("16,auto,midplay").midPlayback, true);
     assert.equal(parseCaptureHash("16,auto,midplay").progressRatio, 0.5);
@@ -32,5 +38,11 @@ describe("parseCaptureHash", () => {
   it("résout midplay et progress explicite", () => {
     assert.equal(parseCaptureHash("6,confortable,midplay").progressRatio, 0.5);
     assert.equal(parseCaptureHash("6,auto,progress=0.45").progressRatio, 0.45);
+  });
+
+  it("résout la vue production et le panneau enregistrement", () => {
+    assert.equal(parseCaptureHash("12,confortable,view-clips").productionView, "clips");
+    assert.equal(parseCaptureHash("12,confortable,view-tools").productionView, "tools");
+    assert.equal(parseCaptureHash("12,confortable,record-open").recordOpen, true);
   });
 });
