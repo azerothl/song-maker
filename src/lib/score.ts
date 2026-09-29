@@ -363,12 +363,19 @@ export function primaryVoiceId(doc: ScoreDocument): string | null {
   return vocal?.id ?? doc.voices[0]?.id ?? null;
 }
 
+/** Verdict de `prepareAbcForGeneration` : ABC prêt, ou motif de refus. */
+export type ScoreGate = {
+  abc: string | null;
+  error: string | null;
+  issues: ScoreIssue[];
+};
+
 /** Prepare ABC for generation, or null when no user score (phase 1 path). */
 export function prepareAbcForGeneration(
   document: ScoreDocument | null,
   cot: string,
   title: string,
-): { abc: string | null; error: string | null; issues: ScoreIssue[] } {
+): ScoreGate {
   if (!document) {
     return { abc: null, error: null, issues: [] };
   }
