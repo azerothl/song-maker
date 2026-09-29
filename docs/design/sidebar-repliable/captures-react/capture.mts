@@ -37,7 +37,7 @@ async function waitTooltipVisible(page: import("playwright").Page): Promise<void
         const style = getComputedStyle(tip);
         const opacity = parseFloat(style.opacity);
         const rect = tip.getBoundingClientRect();
-        return opacity >= 0.95 && rect.width > 4 && rect.height > 4;
+        return style.visibility === "visible" && opacity >= 0.95 && rect.width > 4 && rect.height > 4;
       });
     },
     { timeout: 5000 },
@@ -87,6 +87,15 @@ function assertIconCenterChecks(results: Record<string, Metrics | null>): void {
   }
 }
 
+function assertTipPointerAtRest(results: Record<string, Metrics | null>): void {
+  const m = results.tip_pointer_apres_1280 ?? results.replie_1280;
+  const ok = (m as { checks?: { tipsNeverCapturePointerAtRest?: boolean } } | null)?.checks
+    ?.tipsNeverCapturePointerAtRest;
+  if (!ok) {
+    throw new Error("checks.tipsNeverCapturePointerAtRest manquant ou faux (#165)");
+  }
+}
+
 const vite = spawn("pnpm", ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)], {
   cwd: ROOT,
   stdio: "ignore",
@@ -114,6 +123,10 @@ try {
     await pageSimulateRegressionGap(browser, results);
   }
 
+  if (existing.tip_pointer_avant_1280) {
+    results.tip_pointer_avant_1280 = existing.tip_pointer_avant_1280;
+  }
+
   let page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   await page.goto(`${BASE}#expanded`);
   await page.waitForSelector("#sidebar", { timeout: 30_000 });
@@ -126,8 +139,13 @@ try {
   await page.waitForSelector("#sidebar.is-collapsed", { timeout: 30_000 });
   results.replie_1280 = await shot(page, "sidebar-react-replie-1280x720.png");
   results.replie_icon_center_apres_1280 = results.replie_1280;
+  results.tip_pointer_apres_1280 = results.replie_1280;
   await page.screenshot({
     path: path.join(OUT, "sidebar-react-replie-icon-center-apres-1280x720.png"),
+    fullPage: false,
+  });
+  await page.screenshot({
+    path: path.join(OUT, "sidebar-react-replie-tip-pointer-apres-1280x720.png"),
     fullPage: false,
   });
   await page.close();
@@ -139,6 +157,32 @@ try {
   await libraryBtn.hover();
   await waitTooltipVisible(page);
   results.tooltip_1280 = await shot(page, "sidebar-react-replie-tooltip-1280x720.png");
+  await page.mouse.move(400, 360);
+  await page.waitForTimeout(220);
+  results.tooltip_after_leave_1280 = await metrics(page);
+  await page.close();
+
+  page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  await page.goto(`${BASE}#collapsed`);
+  await page.waitForSelector("#sidebar.is-collapsed", { timeout: 30_000 });
+  const navBtn = page.locator("#sidebar-nav button").first();
+  await navBtn.hover();
+  await waitTooltipVisible(page);
+  const tipBox = await page.evaluate(() => {
+    const tip = Array.from(document.querySelectorAll(".sidebar.is-collapsed .sidebar-tip")).find(
+      (el) => {
+        const style = getComputedStyle(el);
+        return style.visibility === "visible" && parseFloat(style.opacity) >= 0.95;
+      },
+    );
+    if (!tip) return null;
+    const r = tip.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  if (!tipBox) throw new Error("infobulle Bibliothèque introuvable pour le pont WCAG");
+  await page.mouse.move(tipBox.x, tipBox.y);
+  await page.waitForTimeout(80);
+  results.tooltip_bridge_1280 = await metrics(page);
   await page.close();
 
   page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
@@ -178,6 +222,82 @@ try {
   results.focus_toggle = await metrics(page);
   await page.close();
 
+  page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  await page.goto(`${BASE}#collapsed`);
+  await page.waitForSelector("#sidebar.is-collapsed", { timeout: 30_000 });
+  await page.keyboard.press("Tab");
+  await page.waitForTimeout(200);
+  await waitTooltipVisible(page);
+  results.tooltip_focus_before_1280 = await metrics(page);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(180);
+  results.tooltip_focus_escape_1280 = await metrics(page);
+  await page.close();
+
+  page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  await page.goto(`${BASE}#collapsed`);
+  await page.waitForSelector("#sidebar.is-collapsed", { timeout: 30_000 });
+  await page.waitForSelector(".library-table button.linkish", { timeout: 30_000 });
+  const titleBtn = page.locator(".library-table button.linkish").first();
+  const box = await titleBtn.boundingBox();
+  if (!box) throw new Error("titre Bibliothèque introuvable");
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const hitBeforeClick = await page.evaluate(
+    ({ x, y }) => {
+      const el = document.elementFromPoint(x, y);
+      return {
+        tag: el?.tagName?.toLowerCase() ?? "",
+        className: (el as HTMLElement | null)?.className ?? "",
+        hitsSidebarTip: (el as HTMLElement | null)?.classList?.contains("sidebar-tip") ?? false,
+      };
+    },
+    { x: cx, y: cy },
+  );
+  if (hitBeforeClick.hitsSidebarTip) {
+    throw new Error("elementFromPoint sur le titre touche encore une infobulle (#165)");
+  }
+  await page.mouse.move(cx, cy);
+  await page.mouse.click(cx, cy);
+  await page.waitForFunction(
+    () => window.__sidebarCaptureScreen?.() === "song",
+    { timeout: 8000 },
+  );
+  results.library_click_after_collapse_1280 = {
+    screen: await page.evaluate(() => window.__sidebarCaptureScreen?.() ?? ""),
+    titleHitBeforeClick: hitBeforeClick,
+    titleCenterPx: { x: Math.round(cx * 100) / 100, y: Math.round(cy * 100) / 100 },
+  };
+  await page.screenshot({
+    path: path.join(OUT, "sidebar-react-replie-library-click-1280x720.png"),
+    fullPage: false,
+  });
+  await page.close();
+
+  page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  await page.goto(`${BASE}#expanded`);
+  await page.waitForSelector(".library-table button.linkish", { timeout: 30_000 });
+  const titleExpanded = page.locator(".library-table button.linkish").first();
+  const boxExp = await titleExpanded.boundingBox();
+  if (!boxExp) throw new Error("titre Bibliothèque introuvable (déplié)");
+  const cxExp = boxExp.x + boxExp.width / 2;
+  const cyExp = boxExp.y + boxExp.height / 2;
+  await titleExpanded.focus();
+  await page.mouse.move(cxExp, cyExp);
+  await page.keyboard.press("Control+b");
+  await page.waitForSelector("#sidebar.is-collapsed", { timeout: 5000 });
+  await page.waitForTimeout(120);
+  await page.mouse.click(cxExp, cyExp);
+  results.library_click_collapse_while_on_title_1280 = {
+    screen: await page.evaluate(() => window.__sidebarCaptureScreen?.() ?? ""),
+    note:
+      "souris fixe pendant Ctrl+B ; le clic peut rater si le titre a bougé — la sonde vérifie l’absence de .sidebar-tip au centre du titre replié",
+    titleCenterAfterCollapsePx: await titleExpanded.boundingBox().then((b) =>
+      b ? { x: Math.round((b.x + b.width / 2) * 100) / 100, y: Math.round((b.y + b.height / 2) * 100) / 100 } : null,
+    ),
+  };
+  await page.close();
+
   page = await browser.newPage({ viewport: { width: 1024, height: 700 } });
   await page.goto(`${BASE}#auto`);
   await page.waitForSelector("#sidebar.is-collapsed", { timeout: 30_000 });
@@ -187,6 +307,28 @@ try {
   await browser.close();
 
   assertIconCenterChecks(results);
+  assertTipPointerAtRest(results);
+  if (!results.tip_pointer_avant_1280) {
+    results.tip_pointer_avant_1280 = {
+      source: "mesure pré-correctif #165 (repro Playwright)",
+      checks: { tipsNeverCapturePointerAtRest: false },
+      collapsedTipPointerProbes: [
+        {
+          label: "Développer le menu",
+          hitsSidebarTip: true,
+          note: "opacity 0 mais pointer-events auto avant correctif",
+        },
+        {
+          label: "Bibliothèque",
+          hitsSidebarTip: true,
+        },
+        {
+          label: "Nouveau",
+          hitsSidebarTip: true,
+        },
+      ],
+    };
+  }
   writeFileSync(path.join(OUT, "metrics.json"), JSON.stringify(results, null, 2), "utf8");
 } finally {
   vite.kill("SIGTERM");

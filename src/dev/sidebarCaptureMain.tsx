@@ -1,9 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Sidebar } from "../App";
+import { LibraryScreen } from "../screens/LibraryScreen";
 import { useAppStore } from "../store/appStore";
 import { writeSidebarCollapsedPref } from "../lib/sidebarCollapse";
 import { measureSidebarCapture } from "./sidebarCaptureMetrics";
+import { seedSidebarCaptureStore } from "./seedSidebarCaptureStore";
 import "../App.css";
 
 export function applySidebarCapturePrefs(hashRaw: string): void {
@@ -16,23 +18,14 @@ export function applySidebarCapturePrefs(hashRaw: string): void {
 }
 
 applySidebarCapturePrefs(globalThis.location?.hash ?? "");
-
-useAppStore.setState({
-  screen: "library",
-  error: null,
-  project: null,
-  job: null,
-});
+seedSidebarCaptureStore();
 
 function SidebarCaptureShell() {
   return (
     <div className="app-shell sidebar-capture-root">
       <Sidebar />
-      <main className="main" aria-hidden="true">
-        <div className="library-screen" style={{ padding: "2rem" }}>
-          <h1>Bibliothèque</h1>
-          <p className="hint">Harness capture barre latérale (#155)</p>
-        </div>
+      <main className="main">
+        <LibraryScreen />
       </main>
     </div>
   );
@@ -50,7 +43,9 @@ if (root) {
 declare global {
   interface Window {
     __sidebarCaptureMetrics?: () => ReturnType<typeof measureSidebarCapture>;
+    __sidebarCaptureScreen?: () => string;
   }
 }
 
 window.__sidebarCaptureMetrics = () => measureSidebarCapture();
+window.__sidebarCaptureScreen = () => useAppStore.getState().screen;
