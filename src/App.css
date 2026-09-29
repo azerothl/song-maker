@@ -11,8 +11,12 @@
   --accent-coral: #ff858d;
   --line2: #7a6ea1;
   --purple-btn: #805cdf;
+  --purple-btn-h: #6a3fd9;
   --danger: #ff777e;
   --ok: #69d6aa;
+  --sidebar-width: 220px;
+  --sidebar-width-collapsed: 56px;
+  --sidebar-transition: width 180ms ease, padding 180ms ease, gap 180ms ease;
   --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
   --font-ui: "Source Sans 3", "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
@@ -75,9 +79,14 @@ option {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: var(--sidebar-width) 1fr;
   min-height: 100%;
   height: 100%;
+  transition: grid-template-columns 180ms ease;
+}
+
+.app-shell.sidebar-collapsed {
+  grid-template-columns: var(--sidebar-width-collapsed) 1fr;
 }
 
 .app-shell:has(.splash),
@@ -87,18 +96,65 @@ option {
 }
 
 .sidebar {
+  width: var(--sidebar-width);
+  min-width: 0;
+  flex-shrink: 0;
   background: linear-gradient(180deg, var(--bg1), #111321);
   border-right: 1px solid var(--line);
-  padding: 1.25rem 1rem;
+  padding: 0.75rem 0.75rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
+  overflow: hidden;
+  transition: var(--sidebar-transition);
+}
+
+.sidebar.is-collapsed {
+  width: var(--sidebar-width-collapsed);
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+  gap: 0.65rem;
+}
+
+.sidebar-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  align-items: stretch;
+}
+
+.sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 44px;
+  min-width: 44px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 2px solid var(--line2);
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.sidebar-toggle:hover {
+  background: var(--bg2);
+  border-color: var(--purple-btn);
+}
+
+.sidebar.is-collapsed .sidebar-toggle {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .brand {
   font-family: var(--font-display);
   font-size: 1.35rem;
   letter-spacing: 0.02em;
+  padding-inline: 0.35rem;
 }
 
 .sidebar nav {
@@ -107,7 +163,13 @@ option {
   gap: 0.35rem;
 }
 
-.sidebar nav button {
+.sidebar nav button,
+.sidebar-meta-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 44px;
+  width: 100%;
   text-align: left;
   background: transparent;
   border: 0;
@@ -117,10 +179,47 @@ option {
   cursor: pointer;
 }
 
+.sidebar-meta-row {
+  cursor: default;
+  padding-left: 0.7rem;
+  padding-right: 0.7rem;
+}
+
 .sidebar nav button:hover,
 .sidebar nav button.active {
   background: var(--bg2);
   color: var(--text);
+}
+
+.sidebar nav button.active {
+  box-shadow: inset 3px 0 0 var(--purple-btn);
+}
+
+.sidebar .sidebar-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar.is-collapsed .sidebar-label,
+.sidebar.is-collapsed .brand {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sidebar.is-collapsed nav button,
+.sidebar.is-collapsed .sidebar-meta-row {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .sidebar-meta {
@@ -129,12 +228,19 @@ option {
   color: var(--muted);
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.25rem;
 }
 
 .open-title {
   color: var(--text);
   font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell,
+  .sidebar {
+    transition: none;
+  }
 }
 
 .main {
@@ -3841,17 +3947,21 @@ details[open] > summary {
 }
 
 @media (max-width: 900px) {
-  .app-shell {
-    grid-template-columns: 1fr;
+  .app-shell:not(:has(.splash)):not(:has(.setup-screen)):not(:has(.first-launch)) {
+    grid-template-columns: var(--sidebar-width-collapsed) 1fr;
+  }
+  .app-shell.sidebar-collapsed {
+    grid-template-columns: var(--sidebar-width-collapsed) 1fr;
   }
   .sidebar {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
+    width: var(--sidebar-width-collapsed);
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
   }
   .sidebar-meta {
-    margin-top: 0;
-    width: 100%;
+    margin-top: auto;
+    width: auto;
   }
   .song-workspace-chrome,
   .song-workspace-body {
