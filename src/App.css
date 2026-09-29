@@ -1432,6 +1432,11 @@ option {
   width: 100%;
 }
 
+.mix-master-wave .waveform-canvas {
+  --track-wave: var(--accent);
+  --track-wave-played: var(--accent-cyan);
+}
+
 .mix-master-knob {
   flex: 0 0 auto;
 }

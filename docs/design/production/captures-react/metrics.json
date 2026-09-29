@@ -66,5 +66,29 @@
       "waveformWidthShare": 0.6733546401515151,
       "rowsFullyVisible": 7
     }
+  },
+  "playheadContrast1280x720": {
+    "playheadStrokeCss": "#ffffff",
+    "playheadHaloCss": "#1a1424",
+    "playedFillSampleRgb": {
+      "r": 85,
+      "g": 255,
+      "b": 255
+    },
+    "playheadEdgePixelRgb": {
+      "r": 26,
+      "g": 20,
+      "b": 36
+    },
+    "playedComputedVar": "#5eecf8",
+    "contrastRatioHaloOnPlayed": 14.65,
+    "contrastRatioWorstScan": 1.17,
+    "contrastRatio": 14.65,
+    "wcag1411Pass": true,
+    "playheadXCssPx": 395,
+    "waveComputedVar": "#c4a8ff",
+    "playedCssVar": "#5eecf8",
+    "playedColorResolved": "#5eecf8",
+    "playheadHaloComputed": "#1a1424"
   }
 }

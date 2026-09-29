@@ -8,16 +8,20 @@ describe("parseCaptureHash", () => {
       trackCount: 6,
       densityPreference: "auto",
       rythmiqueCollapsed: false,
+      midPlayback: false,
     });
     assert.deepEqual(parseCaptureHash("16,compact,collapsed"), {
       trackCount: 16,
       densityPreference: "compact",
       rythmiqueCollapsed: true,
+      midPlayback: false,
     });
     assert.deepEqual(parseCaptureHash("confortable"), {
       trackCount: 12,
       densityPreference: "confortable",
       rythmiqueCollapsed: false,
+      midPlayback: false,
     });
+    assert.equal(parseCaptureHash("16,auto,midplay").midPlayback, true);
   });
 });

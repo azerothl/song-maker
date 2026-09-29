@@ -156,12 +156,19 @@ export function Waveform({
       ctx.fillRect(x, mid - amp, Math.max(1, barW * 0.85), amp * 2);
     }
 
-    // Cursor stays high-contrast white, distinct from stem colors.
-    ctx.strokeStyle = "rgba(255,255,255,0.85)";
-    ctx.lineWidth = 1.5;
+    const playheadX = playedX + 0.5;
+    // Contour sombre + trait blanc : lisible sur la zone jouée claire (WCAG 1.4.11).
+    ctx.strokeStyle = "#1a1424";
+    ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.moveTo(playedX + 0.5, 0);
-    ctx.lineTo(playedX + 0.5, height);
+    ctx.moveTo(playheadX, 0);
+    ctx.lineTo(playheadX, height);
+    ctx.stroke();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(playheadX, 0);
+    ctx.lineTo(playheadX, height);
     ctx.stroke();
   }, [peaks, progress, duration, height, muted, status, color, playedColor, role]);
 

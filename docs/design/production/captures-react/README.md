@@ -7,6 +7,7 @@ Captures **réelles** (harness `production-capture.html`, mock Tauri), scénario
 ```bash
 pnpm exec tsx docs/design/production/captures-react/capture.mts avant   # état de référence (branche main)
 pnpm exec tsx docs/design/production/captures-react/capture.mts apres   # après correctif + assertions
+pnpm exec tsx docs/design/production/captures-react/measure-playhead.mts  # curseur en lecture (milieu, 1280×720)
 ```
 
 Écrit les PNG `production-transport-{avant|apres}-{1280x720|1024x700}.png` et fusionne les mesures `getBoundingClientRect` dans `metrics.json`.
