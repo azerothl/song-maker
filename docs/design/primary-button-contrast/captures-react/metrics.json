@@ -387,6 +387,261 @@
       "referenceButton": null,
       "stateMeasures": [],
       "pageMetricsPass": true
+    },
+    {
+      "id": "confirmation-regeneration-gate",
+      "label": "Confirmation — RegenerationGate (mock baseline)",
+      "file": "primary-btn-confirmation-regeneration-gate-1280x720.png",
+      "buttonsOnPage": 1,
+      "referenceButton": "Capturer et générer",
+      "stateMeasures": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [],
+          "worstStopContrast": null,
+          "flatBackgroundContrast": 6.474523394225762,
+          "passAa": true
+        }
+      ],
+      "pageMetricsPass": true
+    },
+    {
+      "id": "confirmation-invariant-panel",
+      "label": "Confirmation — InvariantPanel (baseline mockée)",
+      "file": "primary-btn-confirmation-invariant-panel-1280x720.png",
+      "buttonsOnPage": 1,
+      "referenceButton": "Vérifier",
+      "stateMeasures": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [],
+          "worstStopContrast": null,
+          "flatBackgroundContrast": 6.474523394225762,
+          "passAa": true
+        }
+      ],
+      "pageMetricsPass": true
+    },
+    {
+      "id": "confirmation-remote-generate",
+      "label": "Confirmation — RemoteGenerateConfirm (prefs mockées)",
+      "file": "primary-btn-confirmation-remote-generate-1280x720.png",
+      "buttonsOnPage": 1,
+      "referenceButton": "Consentir et envoyer",
+      "stateMeasures": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [],
+          "worstStopContrast": null,
+          "flatBackgroundContrast": 6.474523394225762,
+          "passAa": true
+        }
+      ],
+      "pageMetricsPass": true
+    },
+    {
+      "id": "confirmation-separation-recommend",
+      "label": "Confirmation — SeparationRecommendDialog (mock phase3)",
+      "file": "primary-btn-confirmation-separation-recommend-1280x720.png",
+      "buttonsOnPage": 1,
+      "referenceButton": "Lancer la séparation",
+      "stateMeasures": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [],
+          "worstStopContrast": null,
+          "flatBackgroundContrast": 6.474523394225762,
+          "passAa": true
+        }
+      ],
+      "pageMetricsPass": true
+    },
+    {
+      "id": "confirmation-update-notice",
+      "label": "Confirmation — UpdateNotice (Update mocké)",
+      "file": "primary-btn-confirmation-update-notice-1280x720.png",
+      "buttonsOnPage": 1,
+      "referenceButton": "Mettre à jour",
+      "stateMeasures": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [],
+          "worstStopContrast": null,
+          "flatBackgroundContrast": 6.474523394225762,
+          "passAa": true
+        }
+      ],
+      "pageMetricsPass": true
     }
   ]
 }

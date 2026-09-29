@@ -1,6 +1,7 @@
 # Captures React — contraste boutons primaires (#186)
 
-Captures **1280×720** de l’application réelle (harness Vite + mock Tauri), mesures via `getComputedStyle` (couleur du texte + stops `rgb()` du `background-image` calculé).
+Captures **1280×720** de composants React réels (`App.css`, harness Vite + mock Tauri).  
+**Ce dossier ne couvre pas l’application entière** : seulement les scénarios listés ci‑dessous + mesures DOM associées.
 
 ## Génération
 
@@ -8,54 +9,36 @@ Captures **1280×720** de l’application réelle (harness Vite + mock Tauri), m
 pnpm exec tsx docs/design/primary-button-contrast/captures-react/capture.mts
 ```
 
-Produit les PNG `primary-btn-*-1280x720.png` et `metrics.json`.
+Produit les PNG `primary-btn-*-1280x720.png` et `metrics.json` (contraste via `getComputedStyle` : couleur du texte + stops `rgb()` du dégradé ou `background-color`).
 
-## Usages `btn primary` dans `src/` (36 composants)
+## Scénarios capturés
 
-| Fichier | Occurrences |
-|---------|-------------|
-| `src/bench/scoreTabBenchApp.tsx` | 1 |
-| `src/screens/song/ProductionWorkspace.tsx` | 1 |
-| `src/screens/song/CreateWorkspace.tsx` | 2 |
-| `src/screens/LibraryScreen.tsx` | 1 |
-| `src/components/RecordTrackPanel.tsx` | 4 |
-| `src/components/ExportDialog.tsx` | 2 |
-| `src/components/InvariantPanel.tsx` | 1 |
-| `src/components/Phase3SettingsPanel.tsx` | 1 |
-| `src/components/ClipTimeline.tsx` | 1 |
-| `src/components/RegenerationGate.tsx` | 3 |
-| `src/components/ProductionAssistPanel.tsx` | 2 |
-| `src/components/SeparationRecommendDialog.tsx` | 1 |
-| `src/components/ScoreBranchPanel.tsx` | 1 |
-| `src/components/ScorePanel.tsx` | 2 |
-| `src/components/MidiInstrumentPanel.tsx` | 2 |
-| `src/components/SheetSage2Panel.tsx` | 1 |
-| `src/components/UpdateNotice.tsx` | 1 |
-| `src/components/ExportWizard.tsx` | 2 |
-| `src/components/MixAssistPanel.tsx` | 3 |
-| `src/components/PianoRoll.tsx` | 1 |
-| `src/components/Phase3MixPanel.tsx` | 1 |
-| `src/components/Phase4SettingsPanel.tsx` | 1 |
-| `src/components/RemoteGenerateConfirm.tsx` | 1 |
+| ID | Écran / composant | Harness |
+|----|-------------------|---------|
+| `bibliotheque` | Bibliothèque | `sidebar-capture.html` |
+| `creer` | Onglet Créer | `create-capture.html` |
+| `score` | Onglet Score | `create-capture.html` + onglet Score |
+| `production-*` | Production (mix, clips, outils, enregistrement) | `production-capture.html` + hash |
+| `reglages-*` | Réglages (séparation, distant, hôte) | `settings-capture.html` |
+| `confirmation-regeneration-gate` | `RegenerationGate` (phase choix niveau) | `confirm-dialogs-capture.html` — baseline score **mockée** |
+| `confirmation-invariant-panel` | `InvariantPanel` | idem — baseline **pré-capturée** en mémoire |
+| `confirmation-remote-generate` | `RemoteGenerateConfirm` | idem — prefs + payload **mockés** |
+| `confirmation-separation-recommend` | `SeparationRecommendDialog` | idem — `get_phase3_status` **mocké** |
+| `confirmation-update-notice` | `UpdateNotice` | idem — type `Update` **mocké** (sans updater Tauri) |
 
-## Couverture des écrans
+Dialogues de confirmation : `src/dev/confirmDialogsCaptureMain.tsx` (composants `src/`, pas de maquette HTML statique).
 
-| Scénario capture | Composants / écrans couverts |
-|------------------|------------------------------|
-| bibliotheque | `LibraryScreen` |
-| creer | `CreateWorkspace` |
-| score | `ScorePanel`, `SheetSage2Panel`, `PianoRoll`, `MidiInstrumentPanel`, `ScoreBranchPanel` (selon sous-mode) |
-| production-mix | `Phase3MixPanel`, `MixAssistPanel`, `ExportDialog`, `ExportWizard`, `ProductionWorkspace`, copilote, etc. |
-| production-clips | `ClipTimeline` |
-| production-tools | `ProductionAssistPanel` |
-| production-enregistrement | `RecordTrackPanel` |
-| reglages-separation | `Phase3SettingsPanel` |
-| reglages-distance / reglages-hote | `Phase4SettingsPanel` |
+## Non vérifié (captures / contraste DOM)
 
-### Non capturés (harness / runtime)
+| Élément | Raison |
+|---------|--------|
+| `src/bench/scoreTabBenchApp.tsx` | Banc de perf interne, hors parcours produit (reporté à plus tard). |
+| Modales non montées sans harness dédié | Ex. `RegenerationGate` phases « conserver » / violations seules — autres états couverts indirectement par le même composant en capture « pick level » ; pas de parcours backend complet pour rouvrir chaque modale dans l’app entière. |
+| Runtime Tauri natif | Mesures Chromium (Playwright), pas WebKitGTK. |
+| Lecteur d’écran | Non testé (contraste uniquement). |
 
-- `RegenerationGate`, `InvariantPanel`, `RemoteGenerateConfirm`, `SeparationRecommendDialog` : modales conditionnelles (flux génération / séparation) — non reproduites sans scénario backend complet.
-- `UpdateNotice` : bandeau mise à jour Tauri (`plugin-updater`).
-- `scoreTabBenchApp` : banc de perf dev, pas un écran produit.
+## Usages `btn primary` dans `src/` (36)
 
-Voir `contrastes.md` pour le détail calculé vs mesuré DOM.
+Voir tableau dans les commits / issue #186 — tous les composants ne possèdent pas un scénario de capture dédié ; les écrans principaux et les **cinq** dialogues de confirmation ci‑dessus sont prioritaires pour cette PR.
+
+Rapport contraste : [`../contrastes.md`](../contrastes.md).

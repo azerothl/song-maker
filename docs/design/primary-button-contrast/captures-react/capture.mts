@@ -83,6 +83,39 @@ const SCENARIOS: Scenario[] = [
       await page.locator(".settings-card-grid button").nth(6).click();
     },
   },
+  {
+    id: "confirmation-regeneration-gate",
+    label: "Confirmation — RegenerationGate (mock baseline)",
+    path: "/confirm-dialogs-capture.html",
+    hash: "#regeneration-gate",
+  },
+  {
+    id: "confirmation-invariant-panel",
+    label: "Confirmation — InvariantPanel (baseline mockée)",
+    path: "/confirm-dialogs-capture.html",
+    hash: "#invariant-panel",
+  },
+  {
+    id: "confirmation-remote-generate",
+    label: "Confirmation — RemoteGenerateConfirm (prefs mockées)",
+    path: "/confirm-dialogs-capture.html",
+    hash: "#remote-generate-confirm",
+  },
+  {
+    id: "confirmation-separation-recommend",
+    label: "Confirmation — SeparationRecommendDialog (mock phase3)",
+    path: "/confirm-dialogs-capture.html",
+    hash: "#separation-recommend",
+    prepare: async (page) => {
+      await page.waitForSelector(".separation-recommend-popin", { timeout: 10_000 });
+    },
+  },
+  {
+    id: "confirmation-update-notice",
+    label: "Confirmation — UpdateNotice (Update mocké)",
+    path: "/confirm-dialogs-capture.html",
+    hash: "#update-notice",
+  },
 ];
 
 export type StateMeasure = {

@@ -2,7 +2,11 @@
 
 ## Correction
 
-Texte `#151827` sur le dégradé `--accent` → `--accent-2` (recommandation Alphonse). État désactivé : dégradé atténué + `opacity: 1` pour conserver le ratio AA (l’opacité globale `.btn:disabled` reste sur les boutons secondaires).
+Texte `#151827` sur le dégradé `--accent` → `--accent-2` (recommandation Alphonse). État désactivé : fond plein `--accent-2`, `opacity: 1` (évite `.btn:disabled { opacity: 0.45 }`).
+
+## Périmètre
+
+Les captures listées dans `captures-react/README.md` ne couvrent **pas** toute l’app (voir section « Non vérifié »).
 
 ## Mesure
 
@@ -28,5 +32,6 @@ Détails complets : `captures-react/metrics.json`.
 
 ## Limites de test
 
-- **WebKitGTK** (runtime Tauri Linux) : mesures effectuées sous Chromium (Playwright), pas WebKitGTK.
-- **Lecteur d’écran** : non vérifié dans cette PR (contraste uniquement).
+- **WebKitGTK** (runtime Tauri Linux) : mesures Chromium (Playwright), pas WebKitGTK.
+- **Lecteur d’écran** : non vérifié (contraste uniquement).
+- **`scoreTabBenchApp`** : banc interne, non capturé.

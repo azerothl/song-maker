@@ -154,6 +154,23 @@ export async function invoke<T>(
       return captureHealth as T;
     case "get_settings":
       return captureSettings as T;
+    case "get_phase3_status":
+      return {
+        stemSeparator: "htdemucs",
+        htdemucsAvailable: true,
+        bsRoformerAvailable: false,
+        bsRoformerPath: "",
+        melBandRoformerAvailable: false,
+        melBandRoformerPath: "",
+        htdemucs6sRuntimeAvailable: false,
+        ccByNcAccepted: true,
+        acceptedSeparatorLicenses: { htdemucs: true },
+        separatorTimeStats: {
+          htdemucs: { msPerAudioSec: 1200, samples: 3 },
+        },
+        guitarPianoAvailable: false,
+        honestyFr: "Capture mock.",
+      } as T;
     default:
       console.warn(`[capture mock] invoke non géré : ${cmd}`);
       return null as T;
