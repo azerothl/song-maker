@@ -1,0 +1,403 @@
+[
+  {
+    "stem": "vocals",
+    "ok": true,
+    "source": "midi",
+    "voices": [
+      {
+        "id": "voice-0",
+        "role": "other",
+        "notes": 0
+      },
+      {
+        "id": "voice-1",
+        "role": "melody",
+        "notes": 44
+      }
+    ],
+    "notes": 44,
+    "ppq": 960,
+    "tempoBpm": null,
+    "issueCount": 17,
+    "issues": [
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      }
+    ],
+    "suggestedQuantizeTicks": 120,
+    "originalTracks": [
+      {
+        "name": null,
+        "notes": null,
+        "channel": null
+      },
+      {
+        "name": null,
+        "notes": null,
+        "channel": 0
+      }
+    ]
+  },
+  {
+    "stem": "bass",
+    "ok": true,
+    "source": "midi",
+    "voices": [
+      {
+        "id": "voice-0",
+        "role": "other",
+        "notes": 0
+      },
+      {
+        "id": "voice-1",
+        "role": "melody",
+        "notes": 86
+      }
+    ],
+    "notes": 86,
+    "ppq": 960,
+    "tempoBpm": null,
+    "issueCount": 111,
+    "issues": [
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      }
+    ],
+    "suggestedQuantizeTicks": 120,
+    "originalTracks": [
+      {
+        "name": null,
+        "notes": null,
+        "channel": null
+      },
+      {
+        "name": null,
+        "notes": null,
+        "channel": 0
+      }
+    ]
+  },
+  {
+    "stem": "piano",
+    "ok": true,
+    "source": "midi",
+    "voices": [
+      {
+        "id": "voice-0",
+        "role": "other",
+        "notes": 0
+      },
+      {
+        "id": "voice-1",
+        "role": "melody",
+        "notes": 81
+      }
+    ],
+    "notes": 81,
+    "ppq": 960,
+    "tempoBpm": null,
+    "issueCount": 96,
+    "issues": [
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      }
+    ],
+    "suggestedQuantizeTicks": 120,
+    "originalTracks": [
+      {
+        "name": null,
+        "notes": null,
+        "channel": null
+      },
+      {
+        "name": null,
+        "notes": null,
+        "channel": 0
+      }
+    ]
+  },
+  {
+    "stem": "drums",
+    "ok": true,
+    "source": "midi",
+    "voices": [
+      {
+        "id": "voice-0",
+        "role": "other",
+        "notes": 0
+      },
+      {
+        "id": "voice-1",
+        "role": "melody",
+        "notes": 4
+      }
+    ],
+    "notes": 4,
+    "ppq": 960,
+    "tempoBpm": null,
+    "issueCount": 2,
+    "issues": [
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "validation_failed",
+        "message": "quantification proposée (triple-croche / 120 ticks) — confirmation requise"
+      }
+    ],
+    "suggestedQuantizeTicks": 120,
+    "originalTracks": [
+      {
+        "name": null,
+        "notes": null,
+        "channel": null
+      },
+      {
+        "name": null,
+        "notes": null,
+        "channel": 0
+      }
+    ]
+  },
+  {
+    "stem": "piano_synthetic",
+    "ok": true,
+    "source": "midi",
+    "voices": [
+      {
+        "id": "voice-0",
+        "role": "other",
+        "notes": 0
+      },
+      {
+        "id": "voice-1",
+        "role": "melody",
+        "notes": 16
+      }
+    ],
+    "notes": 16,
+    "ppq": 960,
+    "tempoBpm": null,
+    "issueCount": 17,
+    "issues": [
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      }
+    ],
+    "suggestedQuantizeTicks": 120,
+    "originalTracks": [
+      {
+        "name": null,
+        "notes": null,
+        "channel": null
+      },
+      {
+        "name": null,
+        "notes": null,
+        "channel": 0
+      }
+    ]
+  },
+  {
+    "stem": "piano_sketch",
+    "ok": true,
+    "source": "midi",
+    "voices": [
+      {
+        "id": "voice-0",
+        "role": "other",
+        "notes": 0
+      },
+      {
+        "id": "voice-1",
+        "role": "melody",
+        "notes": 15
+      }
+    ],
+    "notes": 15,
+    "ppq": 960,
+    "tempoBpm": null,
+    "issueCount": 3,
+    "issues": [
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "midi_overlapping_notes",
+        "message": "notes superposées à l'import"
+      },
+      {
+        "severity": "warning",
+        "code": "validation_failed",
+        "message": "quantification proposée (triple-croche / 120 ticks) — confirmation requise"
+      }
+    ],
+    "suggestedQuantizeTicks": 120,
+    "originalTracks": [
+      {
+        "name": null,
+        "notes": null,
+        "channel": null
+      },
+      {
+        "name": null,
+        "notes": null,
+        "channel": 0
+      }
+    ]
+  }
+]

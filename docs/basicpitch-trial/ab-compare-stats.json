@@ -1,0 +1,54 @@
+{
+  "vocals": {
+    "rms_original": 0.08009524444337403,
+    "rms_sonify": 0.21550934771111202,
+    "chroma_cosine_mean_vector": 0.8779,
+    "chroma_cosine_frame_mean": 0.448,
+    "onset_density_orig_per_s": 12.932,
+    "onset_density_midi_per_s": 6.655,
+    "duration_s": 8.0
+  },
+  "bass": {
+    "rms_original": 0.11025909406547495,
+    "rms_sonify": 0.16805454206222842,
+    "chroma_cosine_mean_vector": 0.9653,
+    "chroma_cosine_frame_mean": 0.5793,
+    "onset_density_orig_per_s": 12.932,
+    "onset_density_midi_per_s": 12.932,
+    "duration_s": 8.0
+  },
+  "drums": {
+    "rms_original": 0.10507126368809852,
+    "rms_sonify": 0.09981717865054625,
+    "window": "8s-16s (notes MIDI only appear after ~9s)",
+    "note": "First 0-8s MIDI sonify was silent; window shifted for A/B",
+    "duration_s": 8.0
+  },
+  "piano_stem": {
+    "rms_original": 6.933178830930294e-05,
+    "rms_sonify": 0.1340857760240933,
+    "chroma_cosine_mean_vector": 0.7995,
+    "chroma_cosine_frame_mean": 0.2944,
+    "onset_density_orig_per_s": 12.932,
+    "onset_density_midi_per_s": 11.551,
+    "duration_s": 8.0
+  },
+  "piano_synthetic": {
+    "rms_original": 0.079183128978499,
+    "rms_sonify": 0.19980143930147454,
+    "chroma_cosine_mean_vector": 0.9954,
+    "chroma_cosine_frame_mean": 0.7831,
+    "onset_density_orig_per_s": 12.965,
+    "onset_density_midi_per_s": 12.965,
+    "duration_s": 7.83
+  },
+  "piano_sketch": {
+    "rms_original": 0.1272347003597032,
+    "rms_sonify": 0.49733192814570815,
+    "chroma_cosine_mean_vector": 0.9637,
+    "chroma_cosine_frame_mean": 0.907,
+    "onset_density_orig_per_s": 12.91,
+    "onset_density_midi_per_s": 12.91,
+    "duration_s": 5.0
+  }
+}
