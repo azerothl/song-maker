@@ -8,8 +8,11 @@ import { createEmptyScoreDocument } from "./score.ts";
 import {
   abcBarDurationSeconds,
   buildStaffAbc,
+  sanitizeAbcBarContent,
+  sanitizeAbcForStaffRender,
   sliceAbcMeasures,
   splitAbcMeasures,
+  summarizeStaffRenderWarnings,
 } from "./staffAbc.ts";
 
 describe("buildStaffAbc", () => {
@@ -202,5 +205,83 @@ describe("sliceAbcMeasures", () => {
     const sliced = sliceAbcMeasures(TUNE, 2, 2);
     assert.match(sliced, /Q:1\/4=120/);
     assert.match(sliced, /K:C/);
+  });
+});
+
+describe("sanitizeAbcForStaffRender", () => {
+  it("décompose un silence de durée 5 (z5 → z4z)", () => {
+    assert.equal(sanitizeAbcBarContent("z5"), "z4z");
+    assert.equal(
+      sanitizeAbcForStaffRender("M:4/4\nL:1/16\nK:C\nz5|"),
+      "M:4/4\nL:1/16\nK:C\nz4z|",
+    );
+  });
+
+  it("décompose une note de durée 5", () => {
+    assert.equal(sanitizeAbcBarContent("c5"), "c4c");
+    assert.equal(sanitizeAbcBarContent("A5"), "A4A");
+  });
+
+  it("laisse intactes les durées admises et les repos Z multi-mesures", () => {
+    assert.equal(sanitizeAbcBarContent("A1B1c1d1"), "A1B1c1d1");
+    assert.equal(sanitizeAbcBarContent("Z4"), "Z4");
+    assert.equal(sanitizeAbcBarContent("z4"), "z4");
+  });
+
+  it("buildStaffAbc ne laisse pas de z5 dans l'ABC portée", () => {
+    const midi = buildMinimalMidi({
+      ppq: 960,
+      tempoBpm: 120,
+      notes: [
+        { startTick: 0, durationTick: 240, pitch: 60 },
+        { startTick: 1440, durationTick: 240, pitch: 64 },
+      ],
+    });
+    const { document } = importMidiToScoreDocument(midi, { id: "z5-gap" });
+    const result = buildStaffAbc(document, "Gap");
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.doesNotMatch(result.abc, /\bz5\b/);
+  });
+});
+
+describe("summarizeStaffRenderWarnings", () => {
+  it("retire le HTML et compte les problèmes", () => {
+    const summary = summarizeStaffRenderWarnings([
+      'Music Line:11:259: <span class="abc-warning">Duration not representable: z5</span>',
+      "Music Line:12:40: Duration not representable: c5",
+    ]);
+    assert.ok(summary);
+    assert.equal(summary!.issueCount, 2);
+    assert.equal(summary!.details.length, 2);
+    assert.doesNotMatch(summary!.details[0]!, /<span/i);
+    assert.match(summary!.details[0]!, /Duration not representable: z5/);
+  });
+});
+
+describe("partition longue (fenêtrage portée)", () => {
+  function longDocument(bars: number) {
+    const ppq = 960;
+    const barTicks = ppq * 4;
+    const notes = [];
+    for (let i = 0; i < bars; i++) {
+      notes.push({
+        startTick: i * barTicks,
+        durationTick: 240,
+        pitch: 60 + (i % 12),
+      });
+    }
+    const midi = buildMinimalMidi({ ppq, tempoBpm: 120, notes });
+    return importMidiToScoreDocument(midi, { id: `long-${bars}` }).document;
+  }
+
+  it("exporte plus de 24 mesures fenêtrables sans durées brutes z5", () => {
+    const result = buildStaffAbc(longDocument(90), "Long");
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    const split = splitAbcMeasures(result.abc);
+    assert.ok(split.barCount >= 90);
+    assert.equal(split.windowable, true);
+    assert.doesNotMatch(result.abc, /\bz5\b/);
   });
 });
