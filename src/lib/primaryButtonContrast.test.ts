@@ -39,11 +39,15 @@ describe("bouton primaire — tokens (#186)", () => {
     }
   });
 
-  it("documente un contraste AA pour texte muted sur fond désactivé (calculé)", () => {
-    const ratio = contrastRatio("#a7aec4", "#1c2034");
+  it("documente le texte désactivé #848ba0 ~4,7:1 (distinct du secondaire, #193)", () => {
+    const ratio = contrastRatio("#848ba0", "#1c2034");
     assert.ok(
-      ratio >= WCAG_AA_TEXT_MIN,
-      `attendu ≥ 4,5:1, obtenu ${ratio.toFixed(2)}:1`,
+      ratio >= 3,
+      `attendu ≥ 3:1 (lisibilité désactivé), obtenu ${ratio.toFixed(2)}:1`,
+    );
+    assert.ok(
+      ratio >= 4.5 && ratio < 5.5,
+      `cible ~4,7:1, obtenu ${ratio.toFixed(2)}:1`,
     );
   });
 });
