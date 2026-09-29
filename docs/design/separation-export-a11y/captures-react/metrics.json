@@ -1,0 +1,903 @@
+{
+  "sep-header": {
+    "scene": "sep-header",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "popinRect": {
+      "x": 204,
+      "y": 136,
+      "width": 520,
+      "height": 576,
+      "top": 136,
+      "right": 724,
+      "bottom": 712,
+      "left": 204
+    },
+    "footerReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 648.40625,
+        "left": 205,
+        "bottom": 711,
+        "right": 723
+      }
+    },
+    "exportRunReach": null,
+    "sepRunReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 658.203125,
+        "left": 301.296875,
+        "bottom": 702.203125,
+        "right": 465.21875
+      }
+    },
+    "titleReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 147.390625,
+        "left": 217,
+        "bottom": 169.390625,
+        "right": 711
+      }
+    },
+    "downloadReasonReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 1342.921875,
+        "left": 255.1875,
+        "bottom": 1361.921875,
+        "right": 701.40625
+      }
+    },
+    "downloadReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 1294.921875,
+        "left": 255.1875,
+        "bottom": 1338.921875,
+        "right": 431.828125
+      }
+    },
+    "exclusionsSummaryReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 478.390625,
+        "left": 226.796875,
+        "bottom": 498.390625,
+        "right": 701.203125
+      }
+    },
+    "revertReach": null,
+    "runBlockedReasonReach": null,
+    "formatLivePresent": false,
+    "exportDisabledReasonReach": null,
+    "horizontalOverflow": {
+      "scrollWidth": 518,
+      "clientWidth": 518,
+      "ok": true
+    },
+    "downloadAriaDisabled": true,
+    "contrast": {
+      "badge": 12.264673345269193,
+      "readDate": 6.905866467138596,
+      "exclusionX": 8.04768324733754
+    },
+    "mockupNoteAbsent": true
+  },
+  "sep-footer": {
+    "scene": "sep-footer",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "popinRect": {
+      "x": 204,
+      "y": 136,
+      "width": 520,
+      "height": 576,
+      "top": 136,
+      "right": 724,
+      "bottom": 712,
+      "left": 204
+    },
+    "footerReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 648.40625,
+        "left": 205,
+        "bottom": 711,
+        "right": 723
+      }
+    },
+    "exportRunReach": null,
+    "sepRunReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 658.203125,
+        "left": 301.296875,
+        "bottom": 702.203125,
+        "right": 465.21875
+      }
+    },
+    "titleReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": -1550.609375,
+        "left": 217,
+        "bottom": -1528.609375,
+        "right": 711
+      }
+    },
+    "downloadReasonReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": -355.078125,
+        "left": 255.1875,
+        "bottom": -336.078125,
+        "right": 701.40625
+      }
+    },
+    "downloadReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": -403.078125,
+        "left": 255.1875,
+        "bottom": -359.078125,
+        "right": 431.828125
+      }
+    },
+    "exclusionsSummaryReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": -1219.609375,
+        "left": 226.796875,
+        "bottom": -1199.609375,
+        "right": 701.203125
+      }
+    },
+    "revertReach": null,
+    "runBlockedReasonReach": null,
+    "formatLivePresent": false,
+    "exportDisabledReasonReach": null,
+    "horizontalOverflow": {
+      "scrollWidth": 518,
+      "clientWidth": 518,
+      "ok": true
+    },
+    "downloadAriaDisabled": true,
+    "contrast": {
+      "badge": 12.264673345269193,
+      "readDate": 6.905866467138596,
+      "exclusionX": 8.04768324733754
+    },
+    "mockupNoteAbsent": true
+  },
+  "sep-download": {
+    "scene": "sep-download",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "popinRect": {
+      "x": 204,
+      "y": 136,
+      "width": 520,
+      "height": 576,
+      "top": 136,
+      "right": 724,
+      "bottom": 712,
+      "left": 204
+    },
+    "footerReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 648.40625,
+        "left": 205,
+        "bottom": 711,
+        "right": 723
+      }
+    },
+    "exportRunReach": null,
+    "sepRunReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 658.203125,
+        "left": 301.296875,
+        "bottom": 702.203125,
+        "right": 465.21875
+      }
+    },
+    "titleReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": -776.609375,
+        "left": 217,
+        "bottom": -754.609375,
+        "right": 711
+      }
+    },
+    "downloadReasonReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 418.921875,
+        "left": 255.1875,
+        "bottom": 437.921875,
+        "right": 701.40625
+      }
+    },
+    "downloadReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 370.921875,
+        "left": 255.1875,
+        "bottom": 414.921875,
+        "right": 431.828125
+      }
+    },
+    "exclusionsSummaryReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": -445.609375,
+        "left": 226.796875,
+        "bottom": -425.609375,
+        "right": 701.203125
+      }
+    },
+    "revertReach": null,
+    "runBlockedReasonReach": null,
+    "formatLivePresent": false,
+    "exportDisabledReasonReach": null,
+    "horizontalOverflow": {
+      "scrollWidth": 518,
+      "clientWidth": 518,
+      "ok": true
+    },
+    "downloadAriaDisabled": true,
+    "contrast": {
+      "badge": 12.264673345269193,
+      "readDate": 6.905866467138596,
+      "exclusionX": 8.04768324733754
+    },
+    "mockupNoteAbsent": true
+  },
+  "sep-exclusions": {
+    "scene": "sep-exclusions",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "popinRect": {
+      "x": 204,
+      "y": 136,
+      "width": 520,
+      "height": 576,
+      "top": 136,
+      "right": 724,
+      "bottom": 712,
+      "left": 204
+    },
+    "footerReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 648.40625,
+        "left": 205,
+        "bottom": 711,
+        "right": 723
+      }
+    },
+    "exportRunReach": null,
+    "sepRunReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 658.203125,
+        "left": 301.296875,
+        "bottom": 702.203125,
+        "right": 465.21875
+      }
+    },
+    "titleReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 147.390625,
+        "left": 217,
+        "bottom": 169.390625,
+        "right": 711
+      }
+    },
+    "downloadReasonReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 1342.921875,
+        "left": 255.1875,
+        "bottom": 1361.921875,
+        "right": 701.40625
+      }
+    },
+    "downloadReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 1294.921875,
+        "left": 255.1875,
+        "bottom": 1338.921875,
+        "right": 431.828125
+      }
+    },
+    "exclusionsSummaryReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 478.390625,
+        "left": 226.796875,
+        "bottom": 498.390625,
+        "right": 701.203125
+      }
+    },
+    "revertReach": null,
+    "runBlockedReasonReach": null,
+    "formatLivePresent": false,
+    "exportDisabledReasonReach": null,
+    "horizontalOverflow": {
+      "scrollWidth": 518,
+      "clientWidth": 518,
+      "ok": true
+    },
+    "downloadAriaDisabled": true,
+    "contrast": {
+      "badge": 12.264673345269193,
+      "readDate": 6.905866467138596,
+      "exclusionX": 8.04768324733754
+    },
+    "mockupNoteAbsent": true
+  },
+  "sep-revert": {
+    "scene": "sep-revert",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "popinRect": {
+      "x": 204,
+      "y": 136,
+      "width": 520,
+      "height": 576,
+      "top": 136,
+      "right": 724,
+      "bottom": 712,
+      "left": 204
+    },
+    "footerReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 622.21875,
+        "left": 205,
+        "bottom": 711,
+        "right": 723
+      }
+    },
+    "exportRunReach": null,
+    "sepRunReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 658.203125,
+        "left": 301.296875,
+        "bottom": 702.203125,
+        "right": 465.21875
+      }
+    },
+    "titleReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 147.390625,
+        "left": 217,
+        "bottom": 169.390625,
+        "right": 711
+      }
+    },
+    "downloadReasonReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 1402.921875,
+        "left": 255.1875,
+        "bottom": 1421.921875,
+        "right": 701.40625
+      }
+    },
+    "downloadReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 1354.921875,
+        "left": 255.1875,
+        "bottom": 1398.921875,
+        "right": 431.828125
+      }
+    },
+    "exclusionsSummaryReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 538.390625,
+        "left": 226.796875,
+        "bottom": 558.390625,
+        "right": 701.203125
+      }
+    },
+    "revertReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 469.390625,
+        "left": 217,
+        "bottom": 513.390625,
+        "right": 442.34375
+      }
+    },
+    "runBlockedReasonReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 632.015625,
+        "left": 217,
+        "bottom": 651.015625,
+        "right": 711
+      }
+    },
+    "formatLivePresent": false,
+    "exportDisabledReasonReach": null,
+    "horizontalOverflow": {
+      "scrollWidth": 518,
+      "clientWidth": 518,
+      "ok": true
+    },
+    "downloadAriaDisabled": true,
+    "sepRunAriaDisabled": true,
+    "contrast": {
+      "badge": 12.264673345269193,
+      "readDate": 6.905866467138596,
+      "exclusionX": 8.04768324733754
+    },
+    "mockupNoteAbsent": true
+  },
+  "sep-run-blocked": {
+    "scene": "sep-run-blocked",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "popinRect": {
+      "x": 204,
+      "y": 136,
+      "width": 520,
+      "height": 576,
+      "top": 136,
+      "right": 724,
+      "bottom": 712,
+      "left": 204
+    },
+    "footerReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 622.21875,
+        "left": 205,
+        "bottom": 711,
+        "right": 723
+      }
+    },
+    "exportRunReach": null,
+    "sepRunReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 658.203125,
+        "left": 301.296875,
+        "bottom": 702.203125,
+        "right": 465.21875
+      }
+    },
+    "titleReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 147.390625,
+        "left": 217,
+        "bottom": 169.390625,
+        "right": 711
+      }
+    },
+    "downloadReasonReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 1402.921875,
+        "left": 255.1875,
+        "bottom": 1421.921875,
+        "right": 701.40625
+      }
+    },
+    "downloadReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 1354.921875,
+        "left": 255.1875,
+        "bottom": 1398.921875,
+        "right": 431.828125
+      }
+    },
+    "exclusionsSummaryReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 538.390625,
+        "left": 226.796875,
+        "bottom": 558.390625,
+        "right": 701.203125
+      }
+    },
+    "revertReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 469.390625,
+        "left": 217,
+        "bottom": 513.390625,
+        "right": 442.34375
+      }
+    },
+    "runBlockedReasonReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 632.015625,
+        "left": 217,
+        "bottom": 651.015625,
+        "right": 711
+      }
+    },
+    "formatLivePresent": false,
+    "exportDisabledReasonReach": null,
+    "horizontalOverflow": {
+      "scrollWidth": 518,
+      "clientWidth": 518,
+      "ok": true
+    },
+    "downloadAriaDisabled": true,
+    "sepRunAriaDisabled": true,
+    "contrast": {
+      "badge": 12.264673345269193,
+      "readDate": 6.905866467138596,
+      "exclusionX": 8.04768324733754
+    },
+    "mockupNoteAbsent": true
+  },
+  "export-drawer-12": {
+    "scene": "export-drawer-12",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "popinRect": {
+      "x": 285.28125,
+      "y": 87.625,
+      "width": 520,
+      "height": 576,
+      "top": 87.625,
+      "right": 805.28125,
+      "bottom": 663.625,
+      "left": 285.28125
+    },
+    "footerReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 600.03125,
+        "left": 286.28125,
+        "bottom": 662.625,
+        "right": 804.28125
+      }
+    },
+    "exportRunReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 609.828125,
+        "left": 706.234375,
+        "bottom": 653.828125,
+        "right": 792.28125
+      }
+    },
+    "sepRunReach": null,
+    "titleReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 99.015625,
+        "left": 298.28125,
+        "bottom": 121.015625,
+        "right": 792.28125
+      }
+    },
+    "downloadReasonReach": null,
+    "downloadReach": null,
+    "exclusionsSummaryReach": null,
+    "revertReach": null,
+    "runBlockedReasonReach": null,
+    "formatLivePresent": false,
+    "exportDisabledReasonReach": null,
+    "horizontalOverflow": {
+      "scrollWidth": 518,
+      "clientWidth": 518,
+      "ok": true
+    },
+    "downloadAriaDisabled": false,
+    "contrast": {
+      "badge": null,
+      "readDate": null,
+      "exclusionX": null
+    },
+    "mockupNoteAbsent": true
+  },
+  "export-drawer-12-after-export": {
+    "scene": "export-drawer-12-after-export",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "popinRect": {
+      "x": 285.28125,
+      "y": 87.625,
+      "width": 520,
+      "height": 576,
+      "top": 87.625,
+      "right": 805.28125,
+      "bottom": 663.625,
+      "left": 285.28125
+    },
+    "footerReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 573.84375,
+        "left": 286.28125,
+        "bottom": 662.625,
+        "right": 804.28125
+      }
+    },
+    "exportRunReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 609.828125,
+        "left": 706.234375,
+        "bottom": 653.828125,
+        "right": 792.28125
+      }
+    },
+    "sepRunReach": null,
+    "titleReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 99.015625,
+        "left": 298.28125,
+        "bottom": 121.015625,
+        "right": 792.28125
+      }
+    },
+    "downloadReasonReach": null,
+    "downloadReach": null,
+    "exclusionsSummaryReach": null,
+    "revertReach": null,
+    "runBlockedReasonReach": null,
+    "formatLivePresent": false,
+    "exportDisabledReasonReach": null,
+    "horizontalOverflow": {
+      "scrollWidth": 518,
+      "clientWidth": 518,
+      "ok": true
+    },
+    "downloadAriaDisabled": false,
+    "contrast": {
+      "badge": null,
+      "readDate": null,
+      "exclusionX": null
+    },
+    "mockupNoteAbsent": true
+  },
+  "export-mix": {
+    "scene": "export-mix",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "popinRect": {
+      "x": 285.28125,
+      "y": 181.0625,
+      "width": 520,
+      "height": 482.5625,
+      "top": 181.0625,
+      "right": 805.28125,
+      "bottom": 663.625,
+      "left": 285.28125
+    },
+    "footerReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 600.03125,
+        "left": 286.28125,
+        "bottom": 662.625,
+        "right": 804.28125
+      }
+    },
+    "exportRunReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 609.828125,
+        "left": 706.234375,
+        "bottom": 653.828125,
+        "right": 792.28125
+      }
+    },
+    "sepRunReach": null,
+    "titleReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 192.453125,
+        "left": 298.28125,
+        "bottom": 214.453125,
+        "right": 792.28125
+      }
+    },
+    "downloadReasonReach": null,
+    "downloadReach": null,
+    "exclusionsSummaryReach": null,
+    "revertReach": null,
+    "runBlockedReasonReach": null,
+    "formatLivePresent": true,
+    "exportDisabledReasonReach": null,
+    "horizontalOverflow": {
+      "scrollWidth": 518,
+      "clientWidth": 518,
+      "ok": true
+    },
+    "downloadAriaDisabled": false,
+    "contrast": {
+      "badge": null,
+      "readDate": null,
+      "exclusionX": null
+    },
+    "mockupNoteAbsent": true
+  }
+}

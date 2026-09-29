@@ -5951,12 +5951,103 @@ details[open] > summary {
 }
 
 
-/* StemForge #166–#168 — séparation reco + export unifié */
+/* StemForge #166–#168 / #187 — séparation reco + export unifié */
 .separation-recommend-popin,
 .export-dialog-popin {
+  display: flex;
+  flex-direction: column;
   max-width: min(520px, calc(100vw - 16px));
-  max-height: min(80vh, 720px);
-  overflow: auto;
+  /* Cap to viewport so the action footer stays on-screen (#187). */
+  max-height: min(80vh, calc(100vh - 16px));
+  overflow: hidden;
+  padding: 0;
+}
+
+.anchored-popin-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.65rem 0.75rem;
+}
+
+.anchored-popin-footer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem 0.75rem;
+  border-top: 1px solid var(--line);
+  background: var(--bg2);
+}
+
+.separation-recommend-popin .btn,
+.export-dialog-popin .btn,
+.separation-recommend-popin select,
+.export-dialog-popin select {
+  min-height: 44px;
+}
+
+.separation-recommend-popin .sep-focus label,
+.export-dialog-popin fieldset > label,
+.export-dialog-popin .export-stem-list label,
+.separation-recommend-popin .sep-license-cb {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.separation-recommend-popin .sep-quality-main {
+  min-height: 44px;
+}
+
+.separation-recommend-popin input[type="radio"],
+.separation-recommend-popin input[type="checkbox"],
+.export-dialog-popin input[type="radio"],
+.export-dialog-popin input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sep-download-reason {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+}
+
+.export-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.export-dialog-actions-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.export-dialog-disabled-reason {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.export-dialog-result {
+  margin: 0;
+  font-size: 0.85rem;
+  word-break: break-all;
 }
 .sep-focus {
   display: flex;
@@ -6027,28 +6118,28 @@ details[open] > summary {
   text-transform: lowercase;
 }
 .sep-license-sep {
-  opacity: 0.65;
+  color: color-mix(in srgb, currentColor 75%, var(--text));
 }
 .sep-license-date {
-  opacity: 0.8;
+  color: var(--muted);
   font-weight: 500;
 }
 .sep-license-badge.unverified {
-  border-color: #a16207;
-  color: #a16207;
+  border-color: #fbbf24;
+  color: #fde68a;
 }
 .sep-license-badge.nc,
 .sep-license-badge.non_commercial {
-  border-color: #b45309;
-  color: #b45309;
+  border-color: #fb923c;
+  color: #fed7aa;
 }
 .sep-license-badge.verified {
-  border-color: #15803d;
-  color: #15803d;
+  border-color: #4ade80;
+  color: #bbf7d0;
 }
 .sep-license-badge.excluded {
-  border-color: #b91c1c;
-  color: #b91c1c;
+  border-color: #f87171;
+  color: #fecaca;
 }
 .sep-license-cb {
   display: flex;
@@ -6069,8 +6160,51 @@ details[open] > summary {
 }
 .sep-license-exclusions li::before {
   content: "✕ ";
-  color: #b91c1c;
+  color: #fca5a5;
   font-weight: 700;
+}
+.sep-exclusions-block {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.5rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg1) 55%, transparent);
+}
+.sep-exclusions-summary {
+  margin: 0 0 0.35rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.sep-exclusions-oneline {
+  margin: 0 0 0.45rem;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.sep-exclusions-oneline li {
+  margin: 0.15rem 0;
+}
+.sep-exclusion-x {
+  color: #fca5a5;
+  font-weight: 700;
+}
+.sep-exclusions-oneline li::marker {
+  color: #fca5a5;
+}
+.sep-exclusions-details summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--accent-cyan);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.sep-exclusions-details[open] summary {
+  margin-bottom: 0.35rem;
+}
+.sep-run-blocked-reason {
+  margin: 0;
+  font-size: 0.85rem;
 }
 .nc-model-badge {
   display: inline-flex;
@@ -6089,12 +6223,36 @@ details[open] > summary {
 }
 .sep-install {
   margin: 0.35rem 0 0.2rem 1.6rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.sep-install a,
+.sep-quality-main a {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.sep-install .hint {
+  overflow-wrap: anywhere;
 }
 .mockup-note {
   font-style: italic;
   opacity: 0.85;
 }
-.export-dialog-popin fieldset {
+.production-capture-root[data-capture-drawer="1"] .capture-drawer-bottom {
+  position: fixed;
+  left: calc(var(--sidebar-width) + 12px);
+  right: 12px;
+  bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  z-index: 4;
+}
+.production-capture-root .capture-a11y-main {
+  padding: 1.25rem;
+  min-height: 100%;
+}
   border: none;
   padding: 0.35rem 0;
   margin: 0.35rem 0;
