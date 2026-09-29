@@ -591,6 +591,7 @@ pub fn package_export_delivery(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn write_export_json_with_warnings(
     path: &Path,
     format: &str,
