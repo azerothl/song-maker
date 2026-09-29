@@ -79,6 +79,7 @@ function ProductionCaptureApp() {
   const [productionView, setProductionView] = useState<ProductionView>("mix");
   const [mixState, setMixState] = useState<MixDoc>(mix);
   const [mixSavedAt] = useState(() => new Date());
+  const [captureBusy, setCaptureBusy] = useState(false);
   const playbackDuration = 444;
 
   const playback = useMemo((): PlaybackView => {
@@ -100,6 +101,15 @@ function ProductionCaptureApp() {
       ready: true,
     };
   }, [mix, capturePrefs.midPlayback, capturePrefs.progressRatio]);
+
+  useEffect(() => {
+    window.__productionCaptureSetBusy = (busy: boolean) => {
+      setCaptureBusy(busy);
+    };
+    return () => {
+      delete window.__productionCaptureSetBusy;
+    };
+  }, []);
 
   return (
     <div className="app-shell production-capture-root" data-capture-tracks={capturePrefs.trackCount}>
@@ -136,7 +146,7 @@ function ProductionCaptureApp() {
           </header>
           <div className="song-workspace-body">
             <ProductionWorkspace
-              busy={false}
+              busy={captureBusy}
               form={{
                 title: project.title,
                 style: project.style,
@@ -193,6 +203,7 @@ if (root) {
 
 declare global {
   interface Window {
+    __productionCaptureSetBusy?: (busy: boolean) => void;
     __productionCaptureMetrics?: () => ReturnType<typeof measureProductionMix>;
     __productionTransportMetrics?: () => ReturnType<typeof measureProductionTransport>;
     __productionPlayheadContrast?: () => ReturnType<

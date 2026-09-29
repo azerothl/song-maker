@@ -542,12 +542,24 @@ option {
 .btn.primary:disabled {
   /* Override .btn:disabled opacity: paint-compositing at 0.45 drops below 4.5:1. */
   opacity: 1;
-  color: #151827;
+  /* Muted label (~4.7:1 on washed gradient) — distinct from active secondary in popins (#193). */
+  color: #4d5468;
+  border-color: var(--line);
+  border-style: dashed;
+  cursor: not-allowed;
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--accent) 62%, white),
     color-mix(in srgb, var(--accent-2) 62%, white)
   );
+}
+
+@media (forced-colors: active) {
+  .btn.primary:disabled {
+    color: GrayText;
+    border-color: GrayText;
+    forced-color-adjust: none;
+  }
 }
 
 .btn.ghost {

@@ -15,6 +15,12 @@ import { ScoreWorkspace } from "./song/ScoreWorkspace";
 import { t } from "../ui/i18n";
 import { useAppStore } from "../store/appStore";
 import { useEffect, useMemo, useRef, useState } from "react";
+
+declare global {
+  interface Window {
+    __captureSetGenerateBusy?: (busy: boolean) => void;
+  }
+}
 import { VersionsWorkspace } from "./song/VersionsWorkspace";
 import type { BuiltRemotePayload, RemoteWorkerPreferences } from "@song-maker/remote-worker";
 import type { FormInput, MixDoc, MixTrack, SeparationInfo } from "../lib/types";
@@ -48,6 +54,15 @@ export function SongScreen() {
   const job = useAppStore((s) => s.job);
 
   const [busy, setBusy] = useState(false);
+  const [captureGenerateBusy, setCaptureGenerateBusy] = useState(false);
+
+  useEffect(() => {
+    if (import.meta.env.VITE_CAPTURE !== "1") return;
+    window.__captureSetGenerateBusy = setCaptureGenerateBusy;
+    return () => {
+      delete window.__captureSetGenerateBusy;
+    };
+  }, []);
   const [showFormErrors, setShowFormErrors] = useState(false);
   const [playback, setPlayback] = useState<PlaybackView | null>(null);
   const [candidateCount, setCandidateCount] = useState(2);
@@ -683,7 +698,7 @@ export function SongScreen() {
           <CreateWorkspace
             advancedSettingsPage={advancedSettingsPage}
             advancedSummary={advancedSummary}
-            busy={busy}
+            busy={busy || captureGenerateBusy}
             form={form}
             formFieldErrors={formFieldErrors}
             onGenerate={onGenerate}

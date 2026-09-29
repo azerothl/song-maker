@@ -1,110 +1,12 @@
 {
   "aaMin": 4.5,
+  "generatedAt": "2026-09-29T23:40:07.223Z",
+  "method": {
+    "focus": "keyboard Tab, pointer away, :focus-visible",
+    "disabled": "application state (busy / stems vides / regen gate)"
+  },
+  "actionButtonCapture": null,
   "screens": [
-    {
-      "screen": "Bibliothèque",
-      "selector": ".panel.library .btn.primary",
-      "label": "Nouveau morceau",
-      "states": [
-        {
-          "state": "normal",
-          "foregroundCss": "rgb(21, 24, 39)",
-          "foregroundHex": "#151827",
-          "opacity": 1,
-          "stops": [
-            {
-              "stop": "accent",
-              "backgroundCss": "rgb(196, 168, 255)",
-              "backgroundHex": "#c4a8ff",
-              "ratio": 8.72,
-              "pass": true
-            },
-            {
-              "stop": "accent-2",
-              "backgroundCss": "rgb(167, 139, 250)",
-              "backgroundHex": "#a78bfa",
-              "ratio": 6.47,
-              "pass": true
-            }
-          ],
-          "minRatio": 6.47,
-          "pass": true
-        },
-        {
-          "state": "hover",
-          "foregroundCss": "rgb(21, 24, 39)",
-          "foregroundHex": "#151827",
-          "opacity": 1,
-          "stops": [
-            {
-              "stop": "accent",
-              "backgroundCss": "rgb(196, 168, 255)",
-              "backgroundHex": "#c4a8ff",
-              "ratio": 8.72,
-              "pass": true
-            },
-            {
-              "stop": "accent-2",
-              "backgroundCss": "rgb(167, 139, 250)",
-              "backgroundHex": "#a78bfa",
-              "ratio": 6.47,
-              "pass": true
-            }
-          ],
-          "minRatio": 6.47,
-          "pass": true
-        },
-        {
-          "state": "focus",
-          "foregroundCss": "rgb(21, 24, 39)",
-          "foregroundHex": "#151827",
-          "opacity": 1,
-          "stops": [
-            {
-              "stop": "accent",
-              "backgroundCss": "rgb(196, 168, 255)",
-              "backgroundHex": "#c4a8ff",
-              "ratio": 8.72,
-              "pass": true
-            },
-            {
-              "stop": "accent-2",
-              "backgroundCss": "rgb(167, 139, 250)",
-              "backgroundHex": "#a78bfa",
-              "ratio": 6.47,
-              "pass": true
-            }
-          ],
-          "minRatio": 6.47,
-          "pass": true
-        },
-        {
-          "state": "disabled",
-          "foregroundCss": "rgb(21, 24, 39)",
-          "foregroundHex": "#151827",
-          "opacity": 1,
-          "stops": [
-            {
-              "stop": "disabled-top",
-              "backgroundCss": "color(srgb 0.856549 0.788471 1)",
-              "backgroundHex": "#dac9ff",
-              "ratio": 11.56,
-              "pass": true
-            },
-            {
-              "stop": "disabled-bottom",
-              "backgroundCss": "color(srgb 0.786039 0.717961 0.987843)",
-              "backgroundHex": "#c8b7fc",
-              "ratio": 9.76,
-              "pass": true
-            }
-          ],
-          "minRatio": 9.76,
-          "pass": true
-        }
-      ],
-      "pass": true
-    },
     {
       "screen": "Créer",
       "selector": ".song-create-generate-btn",
@@ -115,6 +17,7 @@
           "foregroundCss": "rgb(21, 24, 39)",
           "foregroundHex": "#151827",
           "opacity": 1,
+          "cursor": "pointer",
           "stops": [
             {
               "stop": "accent",
@@ -132,13 +35,32 @@
             }
           ],
           "minRatio": 6.47,
-          "pass": true
+          "pass": true,
+          "face": {
+            "backgroundCss": "rgb(196, 168, 255)",
+            "backgroundHex": "#c4a8ff",
+            "borderCss": "rgba(0, 0, 0, 0)",
+            "borderHex": "#000000",
+            "backgroundRgb": {
+              "r": 196,
+              "g": 168,
+              "b": 255,
+              "a": 1
+            },
+            "borderRgb": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            }
+          }
         },
         {
           "state": "hover",
           "foregroundCss": "rgb(21, 24, 39)",
           "foregroundHex": "#151827",
           "opacity": 1,
+          "cursor": "pointer",
           "stops": [
             {
               "stop": "accent",
@@ -156,13 +78,32 @@
             }
           ],
           "minRatio": 6.47,
-          "pass": true
+          "pass": true,
+          "face": {
+            "backgroundCss": "rgb(196, 168, 255)",
+            "backgroundHex": "#c4a8ff",
+            "borderCss": "rgba(0, 0, 0, 0)",
+            "borderHex": "#000000",
+            "backgroundRgb": {
+              "r": 196,
+              "g": 168,
+              "b": 255,
+              "a": 1
+            },
+            "borderRgb": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            }
+          }
         },
         {
           "state": "focus",
           "foregroundCss": "rgb(21, 24, 39)",
           "foregroundHex": "#151827",
           "opacity": 1,
+          "cursor": "pointer",
           "stops": [
             {
               "stop": "accent",
@@ -180,34 +121,416 @@
             }
           ],
           "minRatio": 6.47,
-          "pass": true
+          "pass": true,
+          "face": {
+            "backgroundCss": "rgb(196, 168, 255)",
+            "backgroundHex": "#c4a8ff",
+            "borderCss": "rgba(0, 0, 0, 0)",
+            "borderHex": "#000000",
+            "backgroundRgb": {
+              "r": 196,
+              "g": 168,
+              "b": 255,
+              "a": 1
+            },
+            "borderRgb": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            }
+          },
+          "focus": {
+            "focusVisible": true,
+            "outlineWidth": "2px",
+            "outlineStyle": "solid",
+            "outlineColor": "rgb(94, 236, 248)",
+            "outlineOffset": "2px",
+            "cursor": "pointer",
+            "outlineContrastRatio": 1.43
+          }
         },
         {
           "state": "disabled",
-          "foregroundCss": "rgb(21, 24, 39)",
-          "foregroundHex": "#151827",
+          "foregroundCss": "rgb(77, 84, 104)",
+          "foregroundHex": "#4d5468",
           "opacity": 1,
+          "cursor": "not-allowed",
           "stops": [
             {
               "stop": "disabled-top",
               "backgroundCss": "color(srgb 0.856549 0.788471 1)",
               "backgroundHex": "#dac9ff",
-              "ratio": 11.56,
+              "ratio": 4.95,
               "pass": true
             },
             {
               "stop": "disabled-bottom",
               "backgroundCss": "color(srgb 0.786039 0.717961 0.987843)",
               "backgroundHex": "#c8b7fc",
-              "ratio": 9.76,
+              "ratio": 4.18,
               "pass": true
             }
           ],
-          "minRatio": 9.76,
-          "pass": true
+          "minRatio": 4.18,
+          "pass": true,
+          "face": {
+            "backgroundCss": "color(srgb 0.856549 0.788471 1)",
+            "backgroundHex": "#dac9ff",
+            "borderCss": "rgb(48, 53, 80)",
+            "borderHex": "#303550",
+            "backgroundRgb": {
+              "r": 218,
+              "g": 201,
+              "b": 255,
+              "a": 1
+            },
+            "borderRgb": {
+              "r": 48,
+              "g": 53,
+              "b": 80,
+              "a": 1
+            }
+          }
         }
       ],
-      "pass": true
+      "pass": true,
+      "captureFiles": [
+        "captures-react/creer-primary-normal-1280x720.png",
+        "captures-react/creer-primary-hover-1280x720.png",
+        "captures-react/creer-primary-focus-1280x720.png",
+        "captures-react/creer-primary-disabled-1280x720.png"
+      ]
+    },
+    {
+      "screen": "Production — Exporter (déclencheur)",
+      "selector": ".song-actions-export .btn.primary",
+      "label": "Exporter",
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "cursor": "pointer",
+          "stops": [
+            {
+              "stop": "accent",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "accent-2",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true,
+          "face": {
+            "backgroundCss": "rgb(196, 168, 255)",
+            "backgroundHex": "#c4a8ff",
+            "borderCss": "rgba(0, 0, 0, 0)",
+            "borderHex": "#000000",
+            "backgroundRgb": {
+              "r": 196,
+              "g": 168,
+              "b": 255,
+              "a": 1
+            },
+            "borderRgb": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            }
+          }
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "cursor": "pointer",
+          "stops": [
+            {
+              "stop": "accent",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "accent-2",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true,
+          "face": {
+            "backgroundCss": "rgb(196, 168, 255)",
+            "backgroundHex": "#c4a8ff",
+            "borderCss": "rgba(0, 0, 0, 0)",
+            "borderHex": "#000000",
+            "backgroundRgb": {
+              "r": 196,
+              "g": 168,
+              "b": 255,
+              "a": 1
+            },
+            "borderRgb": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            }
+          }
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "cursor": "pointer",
+          "stops": [
+            {
+              "stop": "accent",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "accent-2",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true,
+          "face": {
+            "backgroundCss": "rgb(196, 168, 255)",
+            "backgroundHex": "#c4a8ff",
+            "borderCss": "rgba(0, 0, 0, 0)",
+            "borderHex": "#000000",
+            "backgroundRgb": {
+              "r": 196,
+              "g": 168,
+              "b": 255,
+              "a": 1
+            },
+            "borderRgb": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
+            }
+          },
+          "focus": {
+            "focusVisible": true,
+            "outlineWidth": "2px",
+            "outlineStyle": "solid",
+            "outlineColor": "rgb(94, 236, 248)",
+            "outlineOffset": "2px",
+            "cursor": "pointer",
+            "outlineContrastRatio": 1.43
+          }
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(77, 84, 104)",
+          "foregroundHex": "#4d5468",
+          "opacity": 1,
+          "cursor": "not-allowed",
+          "stops": [
+            {
+              "stop": "disabled-top",
+              "backgroundCss": "color(srgb 0.856549 0.788471 1)",
+              "backgroundHex": "#dac9ff",
+              "ratio": 4.95,
+              "pass": true
+            },
+            {
+              "stop": "disabled-bottom",
+              "backgroundCss": "color(srgb 0.786039 0.717961 0.987843)",
+              "backgroundHex": "#c8b7fc",
+              "ratio": 4.18,
+              "pass": true
+            }
+          ],
+          "minRatio": 4.18,
+          "pass": true,
+          "face": {
+            "backgroundCss": "color(srgb 0.856549 0.788471 1)",
+            "backgroundHex": "#dac9ff",
+            "borderCss": "rgb(48, 53, 80)",
+            "borderHex": "#303550",
+            "backgroundRgb": {
+              "r": 218,
+              "g": 201,
+              "b": 255,
+              "a": 1
+            },
+            "borderRgb": {
+              "r": 48,
+              "g": 53,
+              "b": 80,
+              "a": 1
+            }
+          }
+        }
+      ],
+      "pass": true,
+      "captureFiles": [
+        "captures-react/production-export-trigger-normal-1280x720.png",
+        "captures-react/production-export-trigger-hover-1280x720.png",
+        "captures-react/production-export-trigger-focus-1280x720.png",
+        "captures-react/production-export-trigger-disabled-1280x720.png"
+      ]
+    },
+    {
+      "screen": "Production — Exporter (popin, primaire désactivé)",
+      "selector": ".export-dialog-popin .btn-row .btn.primary",
+      "label": "Exporter",
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(77, 84, 104)",
+          "foregroundHex": "#4d5468",
+          "opacity": 1,
+          "cursor": "not-allowed",
+          "stops": [
+            {
+              "stop": "disabled-top",
+              "backgroundCss": "color(srgb 0.856549 0.788471 1)",
+              "backgroundHex": "#dac9ff",
+              "ratio": 4.95,
+              "pass": true
+            },
+            {
+              "stop": "disabled-bottom",
+              "backgroundCss": "color(srgb 0.786039 0.717961 0.987843)",
+              "backgroundHex": "#c8b7fc",
+              "ratio": 4.18,
+              "pass": true
+            }
+          ],
+          "minRatio": 4.18,
+          "pass": true,
+          "face": {
+            "backgroundCss": "color(srgb 0.856549 0.788471 1)",
+            "backgroundHex": "#dac9ff",
+            "borderCss": "rgb(48, 53, 80)",
+            "borderHex": "#303550",
+            "backgroundRgb": {
+              "r": 218,
+              "g": 201,
+              "b": 255,
+              "a": 1
+            },
+            "borderRgb": {
+              "r": 48,
+              "g": 53,
+              "b": 80,
+              "a": 1
+            }
+          }
+        }
+      ],
+      "pass": true,
+      "popinCompare": {
+        "primarySel": ".export-dialog-popin .btn-row .btn.primary",
+        "secondarySel": ".export-dialog-popin .btn-row .btn.ghost",
+        "primaryFaceHex": "#dac9ff",
+        "secondaryFaceHex": "#20243a",
+        "primaryBorderHex": "#303550",
+        "secondaryBorderHex": "#303550",
+        "primaryBorderStyle": "dashed",
+        "secondaryBorderStyle": "solid",
+        "deltaE00Face": 69.54,
+        "deltaE00Border": 0,
+        "bordersMatch": false
+      },
+      "captureFiles": [
+        "captures-react/production-export-popin-primary-disabled-normal-1280x720.png"
+      ]
+    },
+    {
+      "screen": "RegenerationGate",
+      "selector": ".modal.regeneration-gate .btn-row .btn.primary",
+      "label": "Capturer et générer",
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(77, 84, 104)",
+          "foregroundHex": "#4d5468",
+          "opacity": 1,
+          "cursor": "not-allowed",
+          "stops": [
+            {
+              "stop": "disabled-top",
+              "backgroundCss": "color(srgb 0.856549 0.788471 1)",
+              "backgroundHex": "#dac9ff",
+              "ratio": 4.95,
+              "pass": true
+            },
+            {
+              "stop": "disabled-bottom",
+              "backgroundCss": "color(srgb 0.786039 0.717961 0.987843)",
+              "backgroundHex": "#c8b7fc",
+              "ratio": 4.18,
+              "pass": true
+            }
+          ],
+          "minRatio": 4.18,
+          "pass": true,
+          "face": {
+            "backgroundCss": "color(srgb 0.856549 0.788471 1)",
+            "backgroundHex": "#dac9ff",
+            "borderCss": "rgb(48, 53, 80)",
+            "borderHex": "#303550",
+            "backgroundRgb": {
+              "r": 218,
+              "g": 201,
+              "b": 255,
+              "a": 1
+            },
+            "borderRgb": {
+              "r": 48,
+              "g": 53,
+              "b": 80,
+              "a": 1
+            }
+          }
+        }
+      ],
+      "pass": true,
+      "popinCompare": {
+        "primarySel": ".modal.regeneration-gate .btn-row .btn.primary",
+        "secondarySel": ".modal.regeneration-gate .btn-row .btn.ghost",
+        "primaryFaceHex": "#dac9ff",
+        "secondaryFaceHex": "#20243a",
+        "primaryBorderHex": "#303550",
+        "secondaryBorderHex": "#303550",
+        "primaryBorderStyle": "dashed",
+        "secondaryBorderStyle": "solid",
+        "deltaE00Face": 69.54,
+        "deltaE00Border": 0,
+        "bordersMatch": false
+      },
+      "captureFiles": [
+        "captures-react/regeneration-gate-primary-disabled-normal-1280x720.png",
+        "captures-react/regeneration-gate-cancel-focus-1280x720.png"
+      ]
     }
   ]
 }
