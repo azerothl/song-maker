@@ -745,8 +745,22 @@ mod tests {
         assert_eq!(mix.tracks[1].name, "Custom (2)");
     }
 
+    fn ffmpeg_on_path() -> bool {
+        std::process::Command::new("ffmpeg")
+            .arg("-version")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    }
+
     #[test]
     fn sixteen_bit_export_uses_tpdf_dither_not_plain_round() {
+        if !ffmpeg_on_path() {
+            eprintln!("skip sixteen_bit_export_uses_tpdf_dither_not_plain_round : ffmpeg absent");
+            return;
+        }
         let root = std::env::temp_dir().join(format!("song-maker-dither-{}", uuid::Uuid::new_v4()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).unwrap();
