@@ -54,6 +54,7 @@ const captureHealth: HealthSnapshot = {
   vramMib: 12288,
   suggestedPack: "q4",
   suggestedPackReasonFr: "Capture navigateur.",
+  localYue2Enabled: true,
   modelsOk: true,
   binaryOk: true,
   serverHealthy: true,

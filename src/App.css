@@ -2620,10 +2620,11 @@ details[open] > summary {
   display: flex;
   gap: 10px;
   align-items: center;
-  margin-top: 8px;
+  margin-top: 0;
   font-weight: 600;
   font-size: 14px;
   min-height: 44px;
+  box-sizing: border-box;
   cursor: pointer;
   position: relative;
   z-index: 1;
@@ -2697,6 +2698,21 @@ details[open] > summary {
   font-size: 12px;
   color: var(--fl-muted);
   margin: 0;
+}
+
+.fl-license-required {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fl-text);
+  margin: 0;
+  text-align: right;
+}
+
+.fl-vram-risk {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fl-warn);
+  margin: 8px 0 0;
 }
 
 .fl-alert,
@@ -2975,6 +2991,7 @@ details[open] > summary {
   padding: 4px 6px;
   border-radius: 6px;
   min-height: 44px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
 }

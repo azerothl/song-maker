@@ -309,19 +309,50 @@ pub fn artifacts(cache: &Path, pack: &str, include_engine: bool) -> Result<Vec<A
     Ok(out)
 }
 
-pub fn install_plan_for_cache(cache: &Path, pack: &str) -> Result<InstallPlan, String> {
-    let pack = pack.to_lowercase();
-    if pack != "q4" && pack != "q8" {
-        return Err("Choisissez le pack Q4 ou Q8.".into());
+/// Moteur audio (+ CUDA runtime Windows) et HTDemucs uniquement — sans YuE2.
+pub fn mix_only_artifacts(cache: &Path, include_engine: bool) -> Result<Vec<Artifact>, String> {
+    let (archive, archive_sha, _) = platform_archive();
+    let binary_dir = binaries_dir(cache);
+    let mut out = Vec::new();
+    if include_engine {
+        out.push(Artifact {
+            name: archive.into(),
+            url: format!(
+                "https://github.com/0xShug0/audio.cpp/releases/download/{AUDIOCPP_TAG}/{archive}"
+            ),
+            path: binary_dir.join(archive),
+            sha256: Some(archive_sha),
+            expected_bytes: artifact_expected_bytes(archive, "q4"),
+        });
+        if let Some((name, sha)) = crate::paths::pinned_cudart_archive() {
+            out.push(Artifact {
+                name: name.into(),
+                url: format!(
+                    "https://github.com/0xShug0/audio.cpp/releases/download/{AUDIOCPP_TAG}/{name}"
+                ),
+                path: binary_dir.join(name),
+                sha256: Some(sha),
+                expected_bytes: artifact_expected_bytes(name, "q4"),
+            });
+        }
     }
-    let needs_extract = !crate::audiocpp::AudioCppServer::has_server_binary(cache);
-    let items = artifacts(cache, &pack, needs_extract)?;
+    out.push(Artifact {
+        name: HTDEMUCS_GGUF.into(),
+        url: format!("https://huggingface.co/audio-cpp/audio.cpp-gguf/resolve/main/HTDemucs-GGUF/{HTDEMUCS_GGUF}"),
+        path: htdemucs_path(cache),
+        sha256: Some(HTDEMUCS_SHA),
+        expected_bytes: Some(HTDEMUCS_BYTES),
+    });
+    Ok(out)
+}
+
+fn install_plan_from_items(pack: &str, items: &[Artifact]) -> InstallPlan {
     let mut files = Vec::new();
     let mut bytes_to_download = 0u64;
     let mut bytes_known = true;
     let mut has_partial = false;
 
-    for item in &items {
+    for item in items {
         let partial = partial_path_for(&item.path);
         let partial_len = partial.metadata().map(|m| m.len()).unwrap_or(0);
         if partial_len > 0 {
@@ -359,14 +390,30 @@ pub fn install_plan_for_cache(cache: &Path, pack: &str) -> Result<InstallPlan, S
         });
     }
 
-    Ok(InstallPlan {
-        pack,
+    InstallPlan {
+        pack: pack.into(),
         file_count: files.len(),
         bytes_to_download,
         bytes_known,
         has_partial_downloads: has_partial,
         files,
-    })
+    }
+}
+
+pub fn install_plan_for_cache(cache: &Path, pack: &str) -> Result<InstallPlan, String> {
+    let pack = pack.to_lowercase();
+    if pack != "q4" && pack != "q8" {
+        return Err("Choisissez le pack Q4 ou Q8.".into());
+    }
+    let needs_extract = !crate::audiocpp::AudioCppServer::has_server_binary(cache);
+    let items = artifacts(cache, &pack, needs_extract)?;
+    Ok(install_plan_from_items(&pack, &items))
+}
+
+pub fn install_plan_mix_only_for_cache(cache: &Path) -> Result<InstallPlan, String> {
+    let needs_extract = !crate::audiocpp::AudioCppServer::has_server_binary(cache);
+    let items = mix_only_artifacts(cache, needs_extract)?;
+    Ok(install_plan_from_items("mix", &items))
 }
 
 pub fn install_plan_for_pack(pack: String) -> Result<InstallPlan, String> {
@@ -699,6 +746,89 @@ pub async fn install(
     result
 }
 
+pub async fn install_mix_only(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, crate::commands::AppState>,
+) -> Result<String, String> {
+    if state.setup_installing.swap(true, Ordering::AcqRel) {
+        return Err("Une installation est déjà en cours.".into());
+    }
+    let result = install_mix_only_inner(app.clone()).await;
+    state.setup_installing.store(false, Ordering::Release);
+    if let Err(error) = &result {
+        emit(&app, InstallProgress::failed_for_file(error, None));
+    }
+    result
+}
+
+async fn install_mix_only_inner(app: tauri::AppHandle) -> Result<String, String> {
+    let mut settings = crate::library::load_settings()?;
+    settings.local_yue2_enabled = false;
+    settings.yue2_license_accepted = false;
+    crate::library::save_settings(&settings)?;
+    let cache = PathBuf::from(&settings.cache_dir);
+    let needs_extract = !crate::audiocpp::AudioCppServer::has_server_binary(&cache);
+    let plan = install_plan_mix_only_for_cache(&cache)?;
+    let items = mix_only_artifacts(&cache, needs_extract)?;
+    let count = items.len();
+    let mut aggregate = AggregateDownloadProgress::from_plan(&plan);
+    let client = reqwest::Client::builder()
+        .user_agent("SongMaker/0.1 model-installer")
+        .build()
+        .map_err(|e| e.to_string())?;
+    emit(&app, InstallProgress::starting(count));
+    for (offset, item) in items.iter().enumerate() {
+        if let Err(error) =
+            download_artifact(&client, &app, item, offset + 1, count, &mut aggregate).await
+        {
+            emit(
+                &app,
+                InstallProgress::failed_for_file(&error, Some(&item.name)),
+            );
+            return Err(error);
+        }
+    }
+
+    let (archive, _, platform) = platform_archive();
+    let binary_dir = binaries_dir(&cache);
+    let cudart_name = crate::paths::pinned_cudart_archive().map(|(name, _)| name);
+    emit(
+        &app,
+        InstallProgress::phase("Préparation du moteur audio…", count, count),
+    );
+    if needs_extract {
+        let archive_name = archive.to_string();
+        let platform = platform.to_string();
+        let cudart_name = cudart_name.map(str::to_string);
+        let binary_dir = binary_dir.clone();
+        tokio::task::spawn_blocking(move || {
+            extract_engine(
+                &binary_dir,
+                &archive_name,
+                &platform,
+                cudart_name.as_deref(),
+            )
+        })
+        .await
+        .map_err(|e| e.to_string())??;
+        #[cfg(unix)]
+        {
+            let cache = PathBuf::from(&settings.cache_dir);
+            let binary = crate::audiocpp::AudioCppServer::find_server_binary(&cache)?;
+            use std::os::unix::fs::PermissionsExt;
+            let mut permissions = std::fs::metadata(&binary)
+                .map_err(|e| e.to_string())?
+                .permissions();
+            permissions.set_mode(0o755);
+            std::fs::set_permissions(binary, permissions).map_err(|e| e.to_string())?;
+        }
+    }
+    crate::audiocpp::AudioCppServer::find_server_binary(&PathBuf::from(&settings.cache_dir))
+        .map_err(|detail| format!("Détection du moteur audio après installation : {detail}"))?;
+    emit(&app, InstallProgress::complete());
+    Ok("Installation terminée : HTDemucs et moteur audio (sans génération YuE2).".into())
+}
+
 async fn install_inner(app: tauri::AppHandle, pack: String) -> Result<String, String> {
     let mut settings = crate::library::load_settings()?;
     settings.model_pack = pack.clone();
@@ -710,6 +840,7 @@ async fn install_inner(app: tauri::AppHandle, pack: String) -> Result<String, St
         settings.model_sha256 = YUE2_Q4_SHA.into();
     }
     settings.yue2_license_accepted = true;
+    settings.local_yue2_enabled = true;
     crate::library::save_settings(&settings)?;
     let cache = PathBuf::from(&settings.cache_dir);
     // Re-run engine download/extract when the server (or Windows cudart beside it) is missing.

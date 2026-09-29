@@ -224,6 +224,9 @@ pub struct AppSettings {
     /// Consentement distinct pour le modèle YuE2 principal sous CC BY-NC 4.0.
     #[serde(default)]
     pub yue2_license_accepted: bool,
+    /// Génération YuE2 locale (désactivé si l’utilisateur continue sans génération au premier lancement).
+    #[serde(default = "default_local_yue2_enabled")]
+    pub local_yue2_enabled: bool,
     /// Optional unfused YuE2 adapters selected from the local LoRA library.
     #[serde(default)]
     pub yue2_ar_lora: Option<String>,
@@ -237,6 +240,10 @@ pub struct AppSettings {
 
 fn default_lora_scale() -> f32 {
     1.0
+}
+
+fn default_local_yue2_enabled() -> bool {
+    true
 }
 
 fn default_audio_latency_ms() -> u32 {
@@ -357,6 +364,7 @@ pub struct HealthSnapshot {
     pub vram_mib: Option<u64>,
     pub suggested_pack: String,
     pub suggested_pack_reason_fr: String,
+    pub local_yue2_enabled: bool,
     pub models_ok: bool,
     pub binary_ok: bool,
     pub server_healthy: bool,

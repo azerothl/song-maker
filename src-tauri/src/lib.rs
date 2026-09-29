@@ -38,6 +38,7 @@ pub fn run() {
             commands::settings::get_setup_gpu_info,
             commands::settings::get_install_plan,
             commands::settings::install_required_assets,
+            commands::settings::install_mix_only_assets,
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::get_phase3_status,

@@ -12,6 +12,7 @@ import {
   demoProgressError,
   demoSetupGpu,
   detectHeadline,
+  fileStatusShowsWarningIcon,
   formatBytesFr,
   formatEtaFr,
   formatRateFr,
@@ -19,11 +20,15 @@ import {
   gpuDetailLine,
   installErrorCopy,
   isMixOnlySkipped,
+  LICENSE_REQUIRED_FR,
+  licenseAllowsDownload,
+  modelPackVramFailureRisk,
   overallReceived,
   overallTotal,
   parsePack,
   packModelBytes,
   persistMixOnlySkip,
+  Q8_VRAM_FAILURE_RISK_FR,
   resolveFirstLaunchView,
   setupComplete,
   vramBarPercent,
@@ -59,19 +64,24 @@ function FileStatusLabel({
         </>
       );
     case "error":
-    case "partial":
       return (
         <>
-          <span aria-hidden="true">⚠</span>
-          <span>
-            Interrompu
-            {etaSeconds != null && (
-              <small>
-                Reste {formatEtaFr(etaSeconds, etaIsEstimate)} après reprise
-              </small>
-            )}
-          </span>
+          {fileStatusShowsWarningIcon(status) ? (
+            <span aria-hidden="true">⚠</span>
+          ) : null}
+          <span>Interrompu</span>
         </>
+      );
+    case "partial":
+      return (
+        <span>
+          Interrompu
+          {etaSeconds != null && (
+            <small>
+              Reste {formatEtaFr(etaSeconds, etaIsEstimate)} après reprise
+            </small>
+          )}
+        </span>
       );
     case "active":
       return (
@@ -407,6 +417,11 @@ export function FirstLaunchScreen() {
                         <i className={peakPct >= 90 ? "hi" : undefined} style={{ width: `${peakPct}%` }} />
                       </div>
                     </div>
+                    {modelPackVramFailureRisk(option, vram) ? (
+                      <p className="fl-vram-risk" role="note">
+                        {Q8_VRAM_FAILURE_RISK_FR}
+                      </p>
+                    ) : null}
                   </label>
                 );
               })}
@@ -437,10 +452,15 @@ export function FirstLaunchScreen() {
               </label>
             </div>
             <div className="fl-actions">
+              {!licenseAllowsDownload(accepted, settings?.yue2LicenseAccepted) ? (
+                <p className="fl-license-required" role="status">
+                  {LICENSE_REQUIRED_FR}
+                </p>
+              ) : null}
               <button
                 className="fl-btn fl-btn-lg"
                 type="button"
-                disabled={busy || !accepted}
+                disabled={busy || !licenseAllowsDownload(accepted, settings?.yue2LicenseAccepted)}
                 onClick={() => void install()}
               >
                 Télécharger ({formatBytesFr(buckets.totalBytes)})
@@ -639,7 +659,7 @@ export function FirstLaunchScreen() {
             <button
               className="fl-btn fl-btn-lg"
               type="button"
-              disabled={busy || (!accepted && !settings?.yue2LicenseAccepted)}
+              disabled={busy || !licenseAllowsDownload(accepted, settings?.yue2LicenseAccepted)}
               onClick={() => void install()}
             >
               {view === "download" ? "Installation en cours…" : "▶ Reprendre le téléchargement"}

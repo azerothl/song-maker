@@ -172,12 +172,16 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
         "yue2-qwen.tiktoken",
         "yue2-vae-config.json",
     ];
-    let models_ok = artifact_present(&gguf)
-        && artifact_present(&vae)
-        && artifact_present(&htdemucs_path(&cache))
-        && sidecars
-            .iter()
-            .all(|name| artifact_present(&yue2.join("sidecars").join(name)));
+    let models_ok = if settings.local_yue2_enabled {
+        artifact_present(&gguf)
+            && artifact_present(&vae)
+            && artifact_present(&htdemucs_path(&cache))
+            && sidecars
+                .iter()
+                .all(|name| artifact_present(&yue2.join("sidecars").join(name)))
+    } else {
+        artifact_present(&htdemucs_path(&cache))
+    };
 
     let server_healthy = server_url
         .and_then(|url| {
@@ -188,9 +192,11 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
         })
         .unwrap_or(false);
 
-    let message = if gpu.acceleration_kind == GPU_ACCEL_NONE {
+    let message = if gpu.acceleration_kind == GPU_ACCEL_NONE && settings.local_yue2_enabled {
         "Accélération indisponible. Song Maker requiert NVIDIA CUDA sous Windows/Linux, ou Apple Metal sous macOS.".into()
-    } else if !models_ok {
+    } else if !settings.local_yue2_enabled && !models_ok {
+        "Télécharger HTDemucs pour la séparation de stems.".into()
+    } else if settings.local_yue2_enabled && !models_ok {
         "Télécharger YuE2 Q8 (ou Q4) et HTDemucs.".into()
     } else if !binary_ok {
         "Télécharger le binaire audio.cpp épinglé (phase 0).".into()
@@ -208,6 +214,7 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
         vram_mib: gpu.vram_mib,
         suggested_pack: gpu.suggested_pack,
         suggested_pack_reason_fr: gpu.suggested_pack_reason_fr,
+        local_yue2_enabled: settings.local_yue2_enabled,
         models_ok,
         binary_ok,
         server_healthy,
