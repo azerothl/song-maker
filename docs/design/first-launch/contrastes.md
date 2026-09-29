@@ -136,8 +136,8 @@ Lecture des lignes « indicatives » (non comptées comme échec) :
 
 - `lang="fr"`, un `<h1>` par écran, landmarks `<main>`, sections nommées : OK.
 - Focus visible défini (`:focus-visible`, 3 px `#FFD76A`) sur boutons, liens, champs, `summary` : OK (2.4.7). Non masqué par un élément fixe : OK (2.4.11).
-- Taille des cibles (2.5.8, 24 px min) : boutons 49–54 px de haut, cartes modèle 548×103, `summary` 134×26 : OK. Les cases/radios natives font 20×20 px mais l'étiquette entière est cliquable ; l'étiquette de la case de licence fait 751×20 px (hauteur 20 < 24 px, exception d'espacement probable, aucun autre contrôle dans un rayon de 24 px). **À surveiller.**
-- La fiche D annonce « cibles ≥ 44 px de hauteur » : vrai pour les boutons (49–54 px) mais pas pour la case de licence (20 px) ni « Détails techniques » (26 px). Formulation à nuancer (aucun changement appliqué).
+- Taille des cibles (2.5.8, 24 px min) : boutons 49–54 px de haut, cartes modèle 548×103 : OK. Les cases/radios natives font 20×20 px mais l'étiquette entière est cliquable ; après correction (29/09/2026), la zone cliquable de la case de licence (20 → 44 px, `min-height:44px` sur `.cb`) et de `summary` « Détails techniques » (26 → 44 px, `min-height:44px`) est portée à 44 px de hauteur : OK.
+- La fiche D annonce « boutons ≥ 44 px de hauteur ; zone cliquable de la case de licence et de « Détails techniques » portée à 44 px » : exact après correction (boutons 49–54 px, case de licence et « Détails techniques » 44 px).
 - Le texte des puces d'exemple en 11 px et les badges 10,5–11 px passent le contraste mais sont petits (lisibilité, non couvert par WCAG AA).
 
 ## 5. Corrections appliquées dans `index.html`
