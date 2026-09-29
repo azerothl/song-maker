@@ -49,12 +49,12 @@ export function CreateWorkspace({
 }: CreateWorkspaceProps) {
   return (
     <section
-      className="song-workspace-panel"
+      className="song-workspace-panel song-create-panel"
       role="tabpanel"
       id="song-panel-create"
       aria-labelledby="song-tab-create"
     >
-      <div className="song-form">
+      <div className="song-form song-create-form">
         <header className="song-form-heading song-workspace-heading">
           {advancedSettingsPage !== null && (
             <button
@@ -84,135 +84,141 @@ export function CreateWorkspace({
         </header>
 
         {advancedSettingsPage === null && (
-          <div className="song-primary-settings">
-            <label className="form-field">
-              {t("form.title")}
-              <input
-                value={form.title}
-                onChange={(e) => setForm({ title: e.target.value })}
-                maxLength={120}
-                aria-invalid={
-                  showFormErrors && Boolean(formFieldErrors.title)
-                }
-              />
-              {showFormErrors && formFieldErrors.title && (
-                <span className="hint error" role="alert">
-                  {formFieldErrors.title}
+          <div className="song-primary-settings song-create-layout">
+            <div className="song-create-main">
+              <label className="form-field">
+                {t("form.title")}
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm({ title: e.target.value })}
+                  maxLength={120}
+                  aria-invalid={
+                    showFormErrors && Boolean(formFieldErrors.title)
+                  }
+                />
+                {showFormErrors && formFieldErrors.title && (
+                  <span className="hint error" role="alert">
+                    {formFieldErrors.title}
+                  </span>
+                )}
+              </label>
+              <label className="form-field form-field-style">
+                {t("form.style")}
+                <textarea
+                  value={form.style}
+                  onChange={(e) => setForm({ style: e.target.value })}
+                  rows={3}
+                  aria-invalid={
+                    showFormErrors && Boolean(formFieldErrors.style)
+                  }
+                />
+                <span className="counter">{form.style.length}/1000</span>
+                <span className="hint">
+                  {t(
+                    form.instrumentalMode
+                      ? "form.style.hintInstrumental"
+                      : "form.style.hint",
+                  )}
                 </span>
-              )}
-            </label>
-            <label className="form-field">
-              {t("form.style")}
-              <textarea
-                value={form.style}
-                onChange={(e) => setForm({ style: e.target.value })}
-                rows={3}
-                aria-invalid={
-                  showFormErrors && Boolean(formFieldErrors.style)
-                }
-              />
-              <span className="counter">{form.style.length}/1000</span>
-              <span className="hint">
+                {showFormErrors && formFieldErrors.style && (
+                  <span className="hint error" role="alert">
+                    {formFieldErrors.style}
+                  </span>
+                )}
+              </label>
+              <label className="form-field form-field-lyrics">
                 {t(
                   form.instrumentalMode
-                    ? "form.style.hintInstrumental"
-                    : "form.style.hint",
+                    ? "form.lyrics.optional"
+                    : "form.lyrics",
                 )}
-              </span>
-              {showFormErrors && formFieldErrors.style && (
-                <span className="hint error" role="alert">
-                  {formFieldErrors.style}
+                <textarea
+                  value={form.lyrics}
+                  onChange={(e) => setForm({ lyrics: e.target.value })}
+                  rows={8}
+                  placeholder={
+                    form.instrumentalMode
+                      ? t("form.lyrics.instrumentalPlaceholder")
+                      : undefined
+                  }
+                  aria-invalid={
+                    showFormErrors && Boolean(formFieldErrors.lyrics)
+                  }
+                />
+                <span className="counter">{form.lyrics.length}/4000</span>
+                <span className="hint">
+                  {t(
+                    form.instrumentalMode
+                      ? "form.lyrics.tagsInstrumental"
+                      : "form.lyrics.tags",
+                  )}
                 </span>
-              )}
-            </label>
-            <label className="instrumental-choice">
-              <input
-                type="checkbox"
-                checked={form.instrumentalMode}
-                onChange={(e) =>
-                  setForm({ instrumentalMode: e.target.checked })
-                }
-              />
-              <span>
-                <strong>{t("form.instrumental")}</strong>
-                <small>{t("form.instrumental.hint")}</small>
-              </span>
-            </label>
-            {form.instrumentalMode && (
-              <p className="hint ok" role="status">
-                {t("form.instrumental.active")}
-              </p>
-            )}
-            <label className="form-field">
-              {t(
-                form.instrumentalMode
-                  ? "form.lyrics.optional"
-                  : "form.lyrics",
-              )}
-              <textarea
-                value={form.lyrics}
-                onChange={(e) => setForm({ lyrics: e.target.value })}
-                rows={10}
-                placeholder={
-                  form.instrumentalMode
-                    ? t("form.lyrics.instrumentalPlaceholder")
-                    : undefined
-                }
-                aria-invalid={
-                  showFormErrors && Boolean(formFieldErrors.lyrics)
-                }
-              />
-              <span className="counter">{form.lyrics.length}/4000</span>
-              <span className="hint">
-                {t(
-                  form.instrumentalMode
-                    ? "form.lyrics.tagsInstrumental"
-                    : "form.lyrics.tags",
+                {showFormErrors && formFieldErrors.lyrics && (
+                  <span className="hint error" role="alert">
+                    {formFieldErrors.lyrics}
+                  </span>
                 )}
-              </span>
-              {showFormErrors && formFieldErrors.lyrics && (
-                <span className="hint error" role="alert">
-                  {formFieldErrors.lyrics}
-                </span>
-              )}
-            </label>
-
-            <div className="song-actions song-actions-sticky">
-              <div className="btn-row song-actions-primary">
-                <button
-                  type="button"
-                  className="btn primary"
-                  disabled={busy || Boolean(scoreGate.error)}
-                  onClick={() => void onGenerate()}
-                >
-                  {t("generate.button")}
-                </button>
-              </div>
-              {scoreGate.error && (
-                <p className="hint error">{scoreGate.error}</p>
-              )}
-              {scoreDocument && !scoreGate.error && (
-                <p className="hint ok">{t("score.willSendAbc")}</p>
-              )}
-              {!scoreDocument && (
-                <p className="hint">{t("score.phase1Path")}</p>
-              )}
+              </label>
             </div>
 
-            <button
-              type="button"
-              className="form-advanced-entry"
-              onClick={() => setAdvancedSettingsPage("index")}
-            >
-              <span className="form-advanced-entry-title">
-                {t("form.advanced")}
-              </span>
-              <span className="hint">{t("form.advanced.cardHint")}</span>
-              <span className="form-advanced-summary">{advancedSummary}</span>
-              <span className="form-advanced-entry-action">
-                {t("settings.openPage")}
-              </span>
-            </button>
+            <aside className="song-create-side">
+              <div className="song-create-side-body">
+                <label className="instrumental-choice">
+                  <input
+                    type="checkbox"
+                    checked={form.instrumentalMode}
+                    onChange={(e) =>
+                      setForm({ instrumentalMode: e.target.checked })
+                    }
+                  />
+                  <span>
+                    <strong>{t("form.instrumental")}</strong>
+                    <small>{t("form.instrumental.hint")}</small>
+                  </span>
+                </label>
+                {form.instrumentalMode && (
+                  <p className="hint ok" role="status">
+                    {t("form.instrumental.active")}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className="form-advanced-entry"
+                  onClick={() => setAdvancedSettingsPage("index")}
+                >
+                  <span className="form-advanced-entry-title">
+                    {t("form.advanced")}
+                  </span>
+                  <span className="hint">{t("form.advanced.cardHint")}</span>
+                  <span className="form-advanced-summary">{advancedSummary}</span>
+                  <span className="form-advanced-entry-action">
+                    {t("settings.openPage")}
+                  </span>
+                </button>
+              </div>
+
+              <div className="song-actions song-actions-sticky song-create-generate">
+                {scoreGate.error && (
+                  <p className="hint error">{scoreGate.error}</p>
+                )}
+                {scoreDocument && !scoreGate.error && (
+                  <p className="hint ok">{t("score.willSendAbc")}</p>
+                )}
+                {!scoreDocument && (
+                  <p className="hint">{t("score.phase1Path")}</p>
+                )}
+                <div className="btn-row song-actions-primary">
+                  <button
+                    type="button"
+                    className="btn primary song-create-generate-btn"
+                    disabled={busy || Boolean(scoreGate.error)}
+                    onClick={() => void onGenerate()}
+                  >
+                    {t("generate.button")}
+                  </button>
+                </div>
+              </div>
+            </aside>
           </div>
         )}
 
