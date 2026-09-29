@@ -9,6 +9,7 @@ Maquette statique, **rien n’est commité ni poussé**, aucune écriture GitHub
 - `production-confortable-1280x720.png` : variante 72 px, 6 pistes (2 groupes + 2 pistes libres).
 - `production-tooltip.png` : info-bulle « Estimé * » (fuites, phases, stems piano/guitare expérimentaux).
 - `production-assistant-popin.png` : popover « Assistant de mix » ouvert (non bloquant).
+- `captures-react/` : **captures de l’app React réelle** (Vite + Playwright), distinctes de la maquette HTML ci-dessus.
 
 ## Valeurs d’exemple
 Pistes, niveaux, durée 7:24, « Enregistré à 14:42 », suggestions de l’assistant : tout est **exemple**. Badge « Maquette · valeurs d’exemple » dans l’en-tête, pastille jaune « exemple » sur la bande master et le titre des popovers.
