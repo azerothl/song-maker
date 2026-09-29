@@ -1144,12 +1144,16 @@ details[open] > summary {
   font-size: 14px;
   min-height: 44px;
   cursor: pointer;
+  position: relative;
+  z-index: 1;
 }
 
 .fl-cb input {
   width: 20px;
   height: 20px;
+  flex: none;
   accent-color: #8f6bff;
+  cursor: pointer;
 }
 
 .first-launch a {

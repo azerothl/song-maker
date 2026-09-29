@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import type { InstallPlan, InstallProgress, SetupGpuInfo } from "./types.ts";
 import {
   FIRST_LAUNCH_TOKENS,
+  browserDemoFromHash,
   bucketPlanBytes,
   buildFileRows,
   contrastRatio,
@@ -164,6 +165,13 @@ describe("firstLaunch view", () => {
       }),
       "download",
     );
+  });
+
+  it("résout les fixtures navigateur depuis le hash", () => {
+    assert.equal(browserDemoFromHash("b").gpu.accelerationKind, "none");
+    assert.equal(browserDemoFromHash("metal").gpu.accelerationKind, "appleMetal");
+    assert.equal(browserDemoFromHash("c").plan.hasPartialDownloads, true);
+    assert.equal(browserDemoFromHash("c").progress?.state, "error");
   });
 });
 

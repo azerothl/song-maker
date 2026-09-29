@@ -76,6 +76,7 @@ export default function App() {
   const [availableUpdate, setAvailableUpdate] = useState<Update | null>(null);
 
   useEffect(() => {
+    if (!isTauri()) return;
     void refreshHealth();
     const jobId = window.setInterval(() => void refreshJob(), 1500);
     return () => window.clearInterval(jobId);

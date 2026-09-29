@@ -443,6 +443,13 @@ export function summarizePartial(files: InstallFilePlan[]): { received: number; 
   return { received, of: known ? of : null };
 }
 
+export type BrowserDemoFixture = {
+  gpu: SetupGpuInfo;
+  pack: ModelPack;
+  plan: InstallPlan;
+  progress: InstallProgress | null;
+};
+
 export function demoSetupGpu(kind: "nvidiaCuda" | "appleMetal" | "none"): SetupGpuInfo {
   if (kind === "appleMetal") {
     return {
@@ -476,6 +483,22 @@ export function demoSetupGpu(kind: "nvidiaCuda" | "appleMetal" | "none"): SetupG
     suggestedPackReasonFr:
       "VRAM détectée : 8 Go — en dessous du seuil de 12 Go pour le pack Q8 ; Q4 recommandé.",
     accelerationAvailable: true,
+  };
+}
+
+/** Fixtures navigateur (hash `#a` / `#metal` / `#b` / `#c`) hors runtime Tauri. */
+export function browserDemoFromHash(hashRaw?: string): BrowserDemoFixture {
+  const hash = (hashRaw ?? globalThis.location?.hash ?? "").replace(/^#/, "");
+  const metal = hash === "metal";
+  const none = hash === "b" || hash === "nogpu";
+  const interrupted = hash === "c" || hash === "interrompu";
+  const gpu = demoSetupGpu(metal ? "appleMetal" : none ? "none" : "nvidiaCuda");
+  const pack = parsePack(gpu.suggestedPack);
+  return {
+    gpu,
+    pack,
+    plan: demoInstallPlan(pack, interrupted),
+    progress: interrupted ? demoProgressError() : null,
   };
 }
 
