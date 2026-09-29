@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ProductionWorkspace } from "../screens/song/ProductionWorkspace";
 import type { PlaybackView } from "../components/AudioPlayer";
@@ -19,6 +19,7 @@ import {
 import type { MixDoc } from "../lib/types";
 import { measureProductionMix } from "./productionCaptureMetrics";
 import { measureProductionTransport } from "./productionTransportMetrics";
+import { measureProductionStemColors } from "./stemCaptureMetrics";
 import { measureMasterWavePlayheadContrast } from "./waveformPlayheadContrast";
 import { parseCaptureHash } from "./productionCaptureHash";
 import "../App.css";
@@ -34,7 +35,16 @@ function applyCaptureHashPrefs() {
   return prefs;
 }
 
-const capturePrefs = applyCaptureHashPrefs();
+function useCaptureHashPrefs() {
+  const [prefs, setPrefs] = useState(() => applyCaptureHashPrefs());
+  useEffect(() => {
+    const sync = () => setPrefs(applyCaptureHashPrefs());
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
+  return prefs;
+}
 
 function CaptureSidebar() {
   return (
@@ -58,6 +68,7 @@ function CaptureSidebar() {
 }
 
 function ProductionCaptureApp() {
+  const capturePrefs = useCaptureHashPrefs();
   const mix = useMemo(
     () => buildCaptureDemoMix(capturePrefs.trackCount),
     [capturePrefs.trackCount],
@@ -69,7 +80,6 @@ function ProductionCaptureApp() {
   const [mixState, setMixState] = useState<MixDoc>(mix);
   const [mixSavedAt] = useState(() => new Date());
   const playbackDuration = 444;
-  const playbackCurrent = capturePrefs.midPlayback ? playbackDuration / 2 : 0;
 
   const playback = useMemo((): PlaybackView => {
     const peaksByTrack: Record<string, Float32Array> = {};
@@ -78,7 +88,7 @@ function ProductionCaptureApp() {
       peaksByTrack[tr.id] = syntheticPeaks(seed++);
     }
     return {
-      current: playbackCurrent,
+      current: playbackDuration * capturePrefs.progressRatio,
       duration: playbackDuration,
       mode: "stems",
       peaksByTrack,
@@ -89,7 +99,7 @@ function ProductionCaptureApp() {
       loading: false,
       ready: true,
     };
-  }, [mix, playbackCurrent, capturePrefs.midPlayback]);
+  }, [mix, capturePrefs.midPlayback, capturePrefs.progressRatio]);
 
   return (
     <div className="app-shell production-capture-root" data-capture-tracks={capturePrefs.trackCount}>
@@ -163,6 +173,7 @@ function ProductionCaptureApp() {
               showMixAssist
               showProductionCopilot
               sourceDurationMsByTrack={{}}
+              capturePaintCollapsedTracks={capturePrefs.rythmiqueCollapsed}
             />
           </div>
         </div>
@@ -187,11 +198,13 @@ declare global {
     __productionPlayheadContrast?: () => ReturnType<
       typeof measureMasterWavePlayheadContrast
     >;
+    __productionStemColors?: () => ReturnType<typeof measureProductionStemColors>;
   }
 }
 
 window.__productionCaptureMetrics = () => measureProductionMix();
 window.__productionTransportMetrics = () => measureProductionTransport();
 window.__productionPlayheadContrast = () => measureMasterWavePlayheadContrast();
+window.__productionStemColors = () => measureProductionStemColors();
 
 void loadCollapsedTrackFamilies();

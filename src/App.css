@@ -9,6 +9,13 @@
   --accent-2: #a78bfa;
   --accent-cyan: #5eecf8;
   --accent-coral: #ff9aa3;
+  /* Stem accents — single source with src/lib/trackRoleColors.ts (#159). */
+  --stem-vocals: #ff8fb1;
+  --stem-drums: #5ed8c9;
+  --stem-bass: #7fe0a1;
+  --stem-guitar: #b79cff;
+  --stem-piano: #ffd76a;
+  --stem-other: #9ee06a;
   --line2: #8b7ab8;
   --purple-btn: #805cdf;
   --purple-btn-h: #6a3fd9;
@@ -1261,6 +1268,7 @@ option {
   min-height: 1.25rem;
   border-radius: 3px;
   flex: 0 0 auto;
+  /* Same `--track-wave` token as the row waveform (#159). */
   background: var(--track-wave, var(--accent));
 }
 
@@ -1271,30 +1279,6 @@ option {
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
-}
-
-.production-mix-row[data-role="vocals"] .production-mix-strip {
-  background: #ff8fb1;
-}
-
-.production-mix-row[data-role="drums"] .production-mix-strip {
-  background: #5ed8c9;
-}
-
-.production-mix-row[data-role="bass"] .production-mix-strip {
-  background: #7fe0a1;
-}
-
-.production-mix-row[data-role="guitar"] .production-mix-strip {
-  background: #b79cff;
-}
-
-.production-mix-row[data-role="piano"] .production-mix-strip {
-  background: #ffd76a;
-}
-
-.production-mix-row[data-role="other"] .production-mix-strip {
-  background: #9ee06a;
 }
 
 .mixer-density .mix-knob-dial {
@@ -1380,6 +1364,16 @@ option {
   border: 1px solid var(--line);
   background: #171320;
   overflow: hidden;
+}
+
+/* Harness #159 : canvas des pistes repliées mesurables sans afficher le groupe. */
+.production-capture-root .production-mix-group-tracks--measure-offscreen {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: min(960px, 100vw);
+  pointer-events: none;
+  visibility: visible;
 }
 
 .production-mix-wave .waveform-canvas {
@@ -4176,39 +4170,40 @@ details[open] > summary {
 }
 
 .track[data-role="vocals"] {
-  border-left-color: var(--accent-coral);
-  --track-wave: var(--accent-coral);
-  --track-wave-played: var(--accent-coral);
+  border-left-color: var(--stem-vocals);
+  --track-wave: var(--stem-vocals);
+  --track-wave-played: var(--stem-vocals);
 }
 
-.track[data-role="drums"] {
-  border-left-color: var(--accent-cyan);
-  --track-wave: var(--accent-cyan);
-  --track-wave-played: var(--accent-cyan);
+.track[data-role="drums"],
+.track[data-role="percussion"] {
+  border-left-color: var(--stem-drums);
+  --track-wave: var(--stem-drums);
+  --track-wave-played: var(--stem-drums);
 }
 
 .track[data-role="bass"] {
-  border-left-color: var(--accent-2);
-  --track-wave: var(--accent-2);
-  --track-wave-played: var(--accent-2);
+  border-left-color: var(--stem-bass);
+  --track-wave: var(--stem-bass);
+  --track-wave-played: var(--stem-bass);
 }
 
 .track[data-role="other"] {
-  border-left-color: var(--accent);
-  --track-wave: var(--accent);
-  --track-wave-played: var(--accent);
+  border-left-color: var(--stem-other);
+  --track-wave: var(--stem-other);
+  --track-wave-played: var(--stem-other);
 }
 
 .track[data-role="guitar"] {
-  border-left-color: var(--accent);
-  --track-wave: var(--accent);
-  --track-wave-played: var(--accent);
+  border-left-color: var(--stem-guitar);
+  --track-wave: var(--stem-guitar);
+  --track-wave-played: var(--stem-guitar);
 }
 
 .track[data-role="piano"] {
-  border-left-color: var(--accent-2);
-  --track-wave: var(--accent-2);
-  --track-wave-played: var(--accent-2);
+  border-left-color: var(--stem-piano);
+  --track-wave: var(--stem-piano);
+  --track-wave-played: var(--stem-piano);
 }
 
 .track[data-role="user"],

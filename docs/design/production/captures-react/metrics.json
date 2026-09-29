@@ -90,5 +90,345 @@
     "playedCssVar": "#5eecf8",
     "playedColorResolved": "#5eecf8",
     "playheadHaloComputed": "#1a1424"
+  },
+  "stemColorsAvant": {
+    "note": "Palette et opacité 48 % avant #159 (main pré-merge)",
+    "bg0": "#0c0e18",
+    "unplayedAlpha": 0.48,
+    "rows": [
+      {
+        "role": "vocals",
+        "baseHex": "#ff9aa3",
+        "unplayedAlpha": 0.48,
+        "upcomingComposite": "#81515b",
+        "upcomingContrast": 2.99,
+        "playedHex": "#ffacb4",
+        "playedVsUpcomingContrast": 3.62
+      },
+      {
+        "role": "drums",
+        "baseHex": "#5eecf8",
+        "unplayedAlpha": 0.48,
+        "upcomingComposite": "#337984",
+        "upcomingContrast": 3.86,
+        "playedHex": "#7beff9",
+        "playedVsUpcomingContrast": 3.7
+      },
+      {
+        "role": "bass",
+        "baseHex": "#a78bfa",
+        "unplayedAlpha": 0.48,
+        "upcomingComposite": "#564a84",
+        "upcomingContrast": 2.48,
+        "playedHex": "#b7a0fb",
+        "playedVsUpcomingContrast": 3.48
+      },
+      {
+        "role": "guitar",
+        "baseHex": "#c4a8ff",
+        "unplayedAlpha": 0.48,
+        "upcomingComposite": "#645887",
+        "upcomingContrast": 3.01,
+        "playedHex": "#cfb8ff",
+        "playedVsUpcomingContrast": 3.64
+      },
+      {
+        "role": "piano",
+        "baseHex": "#a78bfa",
+        "unplayedAlpha": 0.48,
+        "upcomingComposite": "#564a84",
+        "upcomingContrast": 2.48,
+        "playedHex": "#b7a0fb",
+        "playedVsUpcomingContrast": 3.48
+      },
+      {
+        "role": "other",
+        "baseHex": "#c4a8ff",
+        "unplayedAlpha": 0.48,
+        "upcomingComposite": "#645887",
+        "upcomingContrast": 3.01,
+        "playedHex": "#cfb8ff",
+        "playedVsUpcomingContrast": 3.64
+      }
+    ]
+  },
+  "stemColorsApres": {
+    "measuredAt": "2026-09-29T16:02:24.957Z",
+    "viewport": "1280x720",
+    "hash": "16,auto,expanded,midplay",
+    "bg0": "#0c0e18",
+    "unplayedAlpha": 0.65,
+    "theory": [
+      {
+        "role": "vocals",
+        "solidHex": "#ff8fb1",
+        "rawHex": "#ff8fb1",
+        "upcomingCompositeHex": "#aa627b",
+        "upcomingContrast": 4.344203625142839,
+        "playedHex": "#ffc2d4",
+        "playedVsUpcomingContrast": 2.9351630331402156,
+        "upcomingPass": true,
+        "playedVsUpcomingPass": true
+      },
+      {
+        "role": "drums",
+        "solidHex": "#5ed8c9",
+        "rawHex": "#5ed8c9",
+        "upcomingCompositeHex": "#41918b",
+        "upcomingContrast": 5.17364074481849,
+        "playedHex": "#87e2d7",
+        "playedVsUpcomingContrast": 2.4593878971534564,
+        "upcomingPass": true,
+        "playedVsUpcomingPass": true
+      },
+      {
+        "role": "bass",
+        "solidHex": "#7fe0a1",
+        "rawHex": "#7fe0a1",
+        "upcomingCompositeHex": "#579771",
+        "upcomingContrast": 5.560768066376726,
+        "playedHex": "#a3efbe",
+        "playedVsUpcomingContrast": 2.5776881560801295,
+        "upcomingPass": true,
+        "playedVsUpcomingPass": true
+      },
+      {
+        "role": "guitar",
+        "solidHex": "#b79cff",
+        "rawHex": "#b79cff",
+        "upcomingCompositeHex": "#7b6aae",
+        "upcomingContrast": 4.135991876873458,
+        "playedHex": "#d2c2ff",
+        "playedVsUpcomingContrast": 2.857371850582633,
+        "upcomingPass": true,
+        "playedVsUpcomingPass": true
+      },
+      {
+        "role": "piano",
+        "solidHex": "#ffd76a",
+        "rawHex": "#ffd76a",
+        "upcomingCompositeHex": "#aa914d",
+        "upcomingContrast": 6.290123689947096,
+        "playedHex": "#ffe59d",
+        "playedVsUpcomingContrast": 2.4679976935578467,
+        "upcomingPass": true,
+        "playedVsUpcomingPass": true
+      },
+      {
+        "role": "other",
+        "solidHex": "#9ee06a",
+        "rawHex": "#9ee06a",
+        "upcomingCompositeHex": "#6b974d",
+        "upcomingContrast": 5.641954459326174,
+        "playedHex": "#b9ef8e",
+        "playedVsUpcomingContrast": 2.5653742063386993,
+        "upcomingPass": true,
+        "playedVsUpcomingPass": true
+      }
+    ],
+    "theoryOnWaveFrame": [
+      {
+        "role": "vocals",
+        "solidHex": "#ff8fb1",
+        "rawHex": "#ff8fb1",
+        "upcomingCompositeHex": "#ae647e",
+        "upcomingContrast": 4.2800015113866605,
+        "playedHex": "#ffc2d4",
+        "playedVsUpcomingContrast": 2.826921819206325,
+        "upcomingPass": true,
+        "playedVsUpcomingPass": true
+      },
+      {
+        "role": "drums",
+        "solidHex": "#5ed8c9",
+        "rawHex": "#5ed8c9",
+        "upcomingCompositeHex": "#45938e",
+        "upcomingContrast": 5.056448380262925,
+        "playedHex": "#87e2d7",
+        "playedVsUpcomingContrast": 2.387773011985349,
+        "upcomingPass": true,
+        "playedVsUpcomingPass": true
+      },
+      {
+        "role": "bass",
+        "solidHex": "#7fe0a1",
+        "rawHex": "#7fe0a1",
+        "upcomingCompositeHex": "#5b9874",
+        "upcomingContrast": 5.3790966934255104,
+        "playedHex": "#a3efbe",
+        "playedVsUpcomingContrast": 2.5285475435197307,
+        "upcomingPass": true,
+        "playedVsUpcomingPass": true
+      },
+      {
+        "role": "guitar",
+        "solidHex": "#b79cff",
+        "rawHex": "#b79cff",
+        "upcomingCompositeHex": "#7f6cb1",
+        "upcomingContrast": 4.070012376335748,
+        "playedHex": "#d2c2ff",
+        "playedVsUpcomingContrast": 2.7552818207643397,
+        "upcomingPass": true,
+        "playedVsUpcomingPass": true
+      },
+      {
+        "role": "piano",
+        "solidHex": "#ffd76a",
+        "rawHex": "#ffd76a",
+        "upcomingCompositeHex": "#ae9250",
+        "upcomingContrast": 6.1082198132212975,
+        "playedHex": "#ffe59d",
+        "playedVsUpcomingContrast": 2.4115962240461704,
+        "upcomingPass": true,
+        "playedVsUpcomingPass": true
+      },
+      {
+        "role": "other",
+        "solidHex": "#9ee06a",
+        "rawHex": "#9ee06a",
+        "upcomingCompositeHex": "#6f9850",
+        "upcomingContrast": 5.461429499647262,
+        "playedHex": "#b9ef8e",
+        "playedVsUpcomingContrast": 2.5147179732553977,
+        "upcomingPass": true,
+        "playedVsUpcomingPass": true
+      }
+    ],
+    "dom": {
+      "bg0": "#0c0e18",
+      "stems": [
+        {
+          "role": "vocals",
+          "stripHex": "#ff8fb1",
+          "waveVarRaw": "#ff8fb1",
+          "waveBaseHex": "#ff8fb1",
+          "stripMatchesWave": true,
+          "canvasBgHex": "#171320",
+          "unplayedPixelHex": "#ae647e",
+          "playedPixelHex": "#ffc2d4",
+          "upcomingContrastOnBg": 4.28,
+          "playedVsUnplayedContrast": 2.83,
+          "upcomingPass": true,
+          "playedVsUnplayedPass": true,
+          "importedTrackName": "Voix lead"
+        },
+        {
+          "role": "drums",
+          "stripHex": "#5ed8c9",
+          "waveVarRaw": "#5ed8c9",
+          "waveBaseHex": "#5ed8c9",
+          "stripMatchesWave": true,
+          "canvasBgHex": "#171320",
+          "unplayedPixelHex": "#45938e",
+          "playedPixelHex": "#87e2d7",
+          "upcomingContrastOnBg": 5.06,
+          "playedVsUnplayedContrast": 2.39,
+          "upcomingPass": true,
+          "playedVsUnplayedPass": true,
+          "importedTrackName": "Batterie"
+        },
+        {
+          "role": "bass",
+          "stripHex": "#7fe0a1",
+          "waveVarRaw": "#7fe0a1",
+          "waveBaseHex": "#7fe0a1",
+          "stripMatchesWave": true,
+          "canvasBgHex": "#171320",
+          "unplayedPixelHex": "#5a9974",
+          "playedPixelHex": "#a3efbe",
+          "upcomingContrastOnBg": 5.43,
+          "playedVsUnplayedContrast": 2.51,
+          "upcomingPass": true,
+          "playedVsUnplayedPass": true,
+          "importedTrackName": "Basse"
+        },
+        {
+          "role": "guitar",
+          "stripHex": "#b79cff",
+          "waveVarRaw": "#b79cff",
+          "waveBaseHex": "#b79cff",
+          "stripMatchesWave": true,
+          "canvasBgHex": "#171320",
+          "unplayedPixelHex": "#7f6cb1",
+          "playedPixelHex": "#d2c2ff",
+          "upcomingContrastOnBg": 4.07,
+          "playedVsUnplayedContrast": 2.76,
+          "upcomingPass": true,
+          "playedVsUnplayedPass": true,
+          "importedTrackName": "Guitare rythmique * (stem expérimental)"
+        },
+        {
+          "role": "piano",
+          "stripHex": "#ffd76a",
+          "waveVarRaw": "#ffd76a",
+          "waveBaseHex": "#ffd76a",
+          "stripMatchesWave": true,
+          "canvasBgHex": "#171320",
+          "unplayedPixelHex": "#ae9350",
+          "playedPixelHex": "#ffe59d",
+          "upcomingContrastOnBg": 6.16,
+          "playedVsUnplayedContrast": 2.39,
+          "upcomingPass": true,
+          "playedVsUnplayedPass": true,
+          "importedTrackName": "Piano * (stem expérimental)"
+        },
+        {
+          "role": "other",
+          "stripHex": "#9ee06a",
+          "waveVarRaw": "#9ee06a",
+          "waveBaseHex": "#9ee06a",
+          "stripMatchesWave": true,
+          "canvasBgHex": "#171320",
+          "unplayedPixelHex": "#6f9950",
+          "playedPixelHex": "#b9ef8e",
+          "upcomingContrastOnBg": 5.52,
+          "playedVsUnplayedContrast": 2.49,
+          "upcomingPass": true,
+          "playedVsUnplayedPass": true,
+          "importedTrackName": "Accompagnement"
+        }
+      ],
+      "collapsedGroupSample": {
+        "role": "drums",
+        "stripHex": "#5ed8c9",
+        "waveVarRaw": "#5ed8c9",
+        "waveBaseHex": "#5ed8c9",
+        "stripMatchesWave": true,
+        "canvasBgHex": "#171320",
+        "unplayedPixelHex": "#45938e",
+        "playedPixelHex": "#87e2d7",
+        "upcomingContrastOnBg": 5.06,
+        "playedVsUnplayedContrast": 2.39,
+        "upcomingPass": true,
+        "playedVsUnplayedPass": true,
+        "importedTrackName": "Batterie",
+        "groupFamily": "rythmique"
+      },
+      "collapsedCaptureHash": "16,auto,collapsed,midplay"
+    },
+    "trackRoleColors": {
+      "vocals": "#ff8fb1",
+      "drums": "#5ed8c9",
+      "bass": "#7fe0a1",
+      "other": "#9ee06a",
+      "guitar": "#b79cff",
+      "piano": "#ffd76a",
+      "percussion": "#5ed8c9"
+    }
+  },
+  "transport1280x720": {
+    "playButtonPx": {
+      "width": 32,
+      "height": 32
+    },
+    "globalWaveformPx": {
+      "width": 790.92,
+      "height": 56
+    },
+    "bannerPx": {
+      "width": 1048,
+      "height": 62.78
+    },
+    "waveformWidthShare": 0.75
   }
 }

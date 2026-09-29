@@ -8,9 +8,12 @@ Captures **réelles** (harness `production-capture.html`, mock Tauri), scénario
 pnpm exec tsx docs/design/production/captures-react/capture.mts avant   # état de référence (branche main)
 pnpm exec tsx docs/design/production/captures-react/capture.mts apres   # après correctif + assertions
 pnpm exec tsx docs/design/production/captures-react/measure-playhead.mts  # curseur en lecture (milieu, 1280×720)
+pnpm exec tsx docs/design/production/captures-react/measure-stem-colors.mts  # couleurs stems #159
 ```
 
-Écrit les PNG `production-transport-{avant|apres}-{1280x720|1024x700}.png` et fusionne les mesures `getBoundingClientRect` dans `metrics.json`.
+Rapport contrastes : [`../contrastes.md`](../contrastes.md).
+
+Écrit les PNG `production-transport-{avant|apres}-{1280x720|1024x700}.png`, `production-stem-colors-midplay-1280x720.png`, `production-stem-colors-collapsed-midplay-1280x720.png`, et fusionne les mesures dans `metrics.json`.
 
 ## Métriques
 

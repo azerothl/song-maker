@@ -93,6 +93,8 @@ type ProductionWorkspaceProps = {
   showMixAssist: boolean;
   showProductionCopilot: boolean;
   sourceDurationMsByTrack: Record<string, number>;
+  /** Harness capture : pistes de groupes repliés peintes hors écran pour métriques canvas (#159). */
+  capturePaintCollapsedTracks?: boolean;
 };
 
 function formatSavedClock(at: Date): string {
@@ -160,6 +162,7 @@ export function ProductionWorkspace({
   showMixAssist,
   showProductionCopilot,
   sourceDurationMsByTrack,
+  capturePaintCollapsedTracks = false,
 }: ProductionWorkspaceProps) {
   const hasAiStems = mix?.tracks.some((tr) => tr.aiSeparated) ?? false;
 
@@ -816,6 +819,8 @@ export function ProductionWorkspace({
                     const gMute = groupMutePressed(group.tracks);
                     const gSolo = groupSoloPressed(group.tracks);
                     const collapsedNames = group.tracks.map((tr) => tr.name).join(", ");
+                    const measureOffscreen =
+                      capturePaintCollapsedTracks && collapsed && group.family === "rythmique";
                     return (
                       <div key={group.family} className="production-mix-family">
                         <div
@@ -901,10 +906,15 @@ export function ProductionWorkspace({
                         </div>
                         <div
                           id={groupId}
-                          className="production-mix-group-tracks"
+                          className={
+                            measureOffscreen
+                              ? "production-mix-group-tracks production-mix-group-tracks--measure-offscreen"
+                              : "production-mix-group-tracks"
+                          }
                           role="list"
                           aria-label={groupName}
-                          hidden={collapsed}
+                          hidden={collapsed && !measureOffscreen}
+                          aria-hidden={measureOffscreen ? true : undefined}
                         >
                           {group.tracks.map((tr) => renderTrack(tr, true))}
                         </div>
