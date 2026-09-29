@@ -2,14 +2,48 @@ import type { MixTrack } from "./types";
 
 export type ProductionTrackDensity = "compact" | "confortable";
 
+export type ProductionDensityPreference = "auto" | ProductionTrackDensity;
+
 export type ProductionViewId = "mix" | "clips" | "tools";
 
-/** Mode mix compact : chrome réduit pour maximiser la hauteur de la liste (#137). */
+export function effectiveDensityFromPreference(
+  preference: ProductionDensityPreference,
+  autoResolved: ProductionTrackDensity,
+): ProductionTrackDensity {
+  return preference === "auto" ? autoResolved : preference;
+}
+
+/** Seuil minimal de marge verticale des potards (compact, demi-pixels acceptés). */
+export const MIN_KNOB_VERTICAL_MARGIN_PX = 3.5;
+
+/** Hauteur minimale de la zone cliquable M/S de groupe (WCAG 2.2). */
+export const MIN_GROUP_MS_HIT_HEIGHT_PX = 24;
+
+/** Extension verticale du pseudo-élément de hit M/S de groupe (chaque côté). */
+export const GROUP_MS_HIT_EXTENSION_PX = 1;
+
+/** La liste tient dans le viewport scrollable sans défilement. */
+export function productionListFitsInScroll(
+  scrollHeight: number,
+  clientHeight: number,
+): boolean {
+  return scrollHeight <= clientHeight;
+}
+
+/** Passe en compact auto uniquement si la liste déborde (strict, sans tolérance). */
+export function shouldUseCompactForAutoDensity(
+  scrollHeight: number,
+  clientHeight: number,
+): boolean {
+  return scrollHeight > clientHeight;
+}
+
+/** Vue mix : chrome resserré pour maximiser la hauteur de la liste (#137, #150). */
 export function shouldUseProductionTightLayout(
   productionView: ProductionViewId,
-  density: ProductionTrackDensity,
+  _density: ProductionTrackDensity,
 ): boolean {
-  return productionView === "mix" && density === "compact";
+  return productionView === "mix";
 }
 
 export type TrackFamilyId = "voix" | "rythmique" | "harmonie";
@@ -47,24 +81,37 @@ export function buildTrackFamilyGroups(tracks: MixTrack[]): TrackFamilyGroup[] {
     .map((family) => ({ family, tracks: buckets[family] }));
 }
 
-export function loadProductionTrackDensity(): ProductionTrackDensity {
-  if (typeof localStorage === "undefined") return "compact";
+export function loadProductionDensityPreference(): ProductionDensityPreference {
+  if (typeof localStorage === "undefined") return "auto";
   try {
     const raw = localStorage.getItem(DENSITY_STORAGE_KEY);
-    if (raw === "confortable" || raw === "compact") return raw;
+    if (raw === "auto" || raw === "confortable" || raw === "compact") return raw;
   } catch {
     /* private mode */
   }
-  return "compact";
+  return "auto";
 }
 
-export function saveProductionTrackDensity(density: ProductionTrackDensity): void {
+export function saveProductionDensityPreference(
+  preference: ProductionDensityPreference,
+): void {
   if (typeof localStorage === "undefined") return;
   try {
-    localStorage.setItem(DENSITY_STORAGE_KEY, density);
+    localStorage.setItem(DENSITY_STORAGE_KEY, preference);
   } catch {
     /* quota */
   }
+}
+
+/** @deprecated Utiliser loadProductionDensityPreference */
+export function loadProductionTrackDensity(): ProductionTrackDensity {
+  const pref = loadProductionDensityPreference();
+  return pref === "auto" ? "confortable" : pref;
+}
+
+/** @deprecated Utiliser saveProductionDensityPreference */
+export function saveProductionTrackDensity(density: ProductionTrackDensity): void {
+  saveProductionDensityPreference(density);
 }
 
 export function loadCollapsedTrackFamilies(): Record<string, boolean> {

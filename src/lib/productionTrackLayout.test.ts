@@ -3,7 +3,11 @@ import { describe, it } from "node:test";
 import type { MixTrack } from "./types";
 import {
   buildTrackFamilyGroups,
+  effectiveDensityFromPreference,
   isExperimentalStemTrack,
+  MIN_KNOB_VERTICAL_MARGIN_PX,
+  productionListFitsInScroll,
+  shouldUseCompactForAutoDensity,
   shouldUseProductionTightLayout,
   trackFamilyForRole,
 } from "./productionTrackLayout";
@@ -52,10 +56,41 @@ describe("buildTrackFamilyGroups", () => {
 });
 
 describe("shouldUseProductionTightLayout", () => {
-  it("active uniquement en vue mix + densité compacte", () => {
+  it("active en vue mix (toutes densités)", () => {
     assert.equal(shouldUseProductionTightLayout("mix", "compact"), true);
-    assert.equal(shouldUseProductionTightLayout("mix", "confortable"), false);
+    assert.equal(shouldUseProductionTightLayout("mix", "confortable"), true);
     assert.equal(shouldUseProductionTightLayout("clips", "compact"), false);
+  });
+});
+
+describe("effectiveDensityFromPreference", () => {
+  it("respecte le choix manuel et résout Auto", () => {
+    assert.equal(effectiveDensityFromPreference("compact", "confortable"), "compact");
+    assert.equal(effectiveDensityFromPreference("confortable", "compact"), "confortable");
+    assert.equal(effectiveDensityFromPreference("auto", "compact"), "compact");
+    assert.equal(effectiveDensityFromPreference("auto", "confortable"), "confortable");
+  });
+});
+
+describe("shouldUseCompactForAutoDensity", () => {
+  it("bascule en compact seulement si scrollHeight > clientHeight (strict)", () => {
+    assert.equal(shouldUseCompactForAutoDensity(500, 400), true);
+    assert.equal(shouldUseCompactForAutoDensity(400, 400), false);
+    assert.equal(shouldUseCompactForAutoDensity(486, 486), false);
+    assert.equal(shouldUseCompactForAutoDensity(487, 486), true);
+  });
+});
+
+describe("productionListFitsInScroll", () => {
+  it("exige scrollHeight <= clientHeight", () => {
+    assert.equal(productionListFitsInScroll(486, 486), true);
+    assert.equal(productionListFitsInScroll(488, 486), false);
+  });
+});
+
+describe("MIN_KNOB_VERTICAL_MARGIN_PX", () => {
+  it("fixe le seuil d’acceptation des marges potards", () => {
+    assert.equal(MIN_KNOB_VERTICAL_MARGIN_PX, 3.5);
   });
 });
 

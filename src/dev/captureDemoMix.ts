@@ -20,8 +20,28 @@ function track(
   };
 }
 
-/** 12 stems de démo pour captures navigateur (Voix / Rythmique / Harmonie). */
-export function buildCaptureDemoMix(): MixDoc {
+const CAPTURE_DEMO_TRACKS: MixTrack[] = [
+  track("trk-vocals", "vocals", "Voix lead", { gainDb: -3 }),
+  track("trk-choir", "vocals", "Chœurs", { gainDb: -6, pan: -0.2, mute: true }),
+  track("trk-growl", "vocals", "Voix gutturales", { gainDb: -4.5, pan: 0.1 }),
+  track("trk-drums", "drums", "Batterie", { gainDb: -2 }),
+  track("trk-bass", "bass", "Basse", { gainDb: -4 }),
+  track("trk-perc", "percussion", "Percussions", { gainDb: -8, pan: 0.25 }),
+  track("trk-guitar", "guitar", "Guitare rythmique", { gainDb: -7, pan: -0.35 }),
+  track("trk-guitar-lead", "guitar", "Guitare lead", { gainDb: -5, pan: 0.3 }),
+  track("trk-piano", "piano", "Piano", { gainDb: -9, pan: -0.1 }),
+  track("trk-accomp", "other", "Accompagnement", { gainDb: -8, pan: 0.05 }),
+  track("trk-kick", "drums", "Grosse caisse", { gainDb: -3 }),
+  track("trk-other", "other", "Cordes", { gainDb: -8, pan: 0.15 }),
+  track("trk-synth", "other", "Synthés", { gainDb: -10, pan: -0.25 }),
+  track("trk-pad", "other", "Nappes", { gainDb: -12 }),
+  track("trk-brass", "other", "Cuivres", { gainDb: -11, pan: 0.2 }),
+  track("trk-strings", "other", "Cordes aiguës", { gainDb: -9, pan: -0.15 }),
+];
+
+/** Stems de démo pour captures navigateur (6, 12 ou 16 pistes). */
+export function buildCaptureDemoMix(trackCount = 12): MixDoc {
+  const n = Math.min(Math.max(trackCount, 1), CAPTURE_DEMO_TRACKS.length);
   return {
     schema: "mix",
     schemaVersion: 1,
@@ -30,20 +50,7 @@ export function buildCaptureDemoMix(): MixDoc {
     sampleRate: 48_000,
     masterGainDb: 0,
     peakCeilingDb: -1,
-    tracks: [
-      track("trk-vocals", "vocals", "Voix lead", { gainDb: -3 }),
-      track("trk-choir", "vocals", "Chœurs", { gainDb: -6, pan: -0.2, mute: true }),
-      track("trk-growl", "vocals", "Voix gutturales", { gainDb: -4.5, pan: 0.1 }),
-      track("trk-drums", "drums", "Batterie", { gainDb: -2 }),
-      track("trk-bass", "bass", "Basse", { gainDb: -4 }),
-      track("trk-perc", "percussion", "Percussions", { gainDb: -8, pan: 0.25 }),
-      track("trk-guitar", "guitar", "Guitare rythmique", { gainDb: -7, pan: -0.35 }),
-      track("trk-guitar-lead", "guitar", "Guitare lead", { gainDb: -5, pan: 0.3 }),
-      track("trk-piano", "piano", "Piano", { gainDb: -9, pan: -0.1 }),
-      track("trk-other", "other", "Cordes", { gainDb: -8, pan: 0.15 }),
-      track("trk-synth", "other", "Synthés", { gainDb: -10, pan: -0.25 }),
-      track("trk-pad", "other", "Nappes", { gainDb: -12 }),
-    ],
+    tracks: CAPTURE_DEMO_TRACKS.slice(0, n),
   };
 }
 

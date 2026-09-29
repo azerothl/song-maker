@@ -1,11 +1,14 @@
 import {
+  useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type Dispatch,
   SetStateAction,
 } from "react";
+import { TruncatedTrackLabel } from "../../components/TruncatedTrackLabel";
 import { ClipTimeline } from "../../components/ClipTimeline";
 import { ExportWizard } from "../../components/ExportWizard";
 import { ExportTracksPopin } from "../../components/ExportTracksPopin";
@@ -23,12 +26,15 @@ import {
   groupMutePressed,
   groupSoloPressed,
   isExperimentalStemTrack,
+  effectiveDensityFromPreference,
   loadCollapsedTrackFamilies,
-  loadProductionTrackDensity,
+  loadProductionDensityPreference,
   saveCollapsedTrackFamily,
-  saveProductionTrackDensity,
+  saveProductionDensityPreference,
+  shouldUseCompactForAutoDensity,
   shouldUseProductionTightLayout,
   waveHeightForDensity,
+  type ProductionDensityPreference,
   type ProductionTrackDensity,
   type TrackFamilyId,
 } from "../../lib/productionTrackLayout";
@@ -161,10 +167,17 @@ export function ProductionWorkspace({
 
   const mixAssistBtnRef = useRef<HTMLButtonElement>(null);
   const copilotBtnRef = useRef<HTMLButtonElement>(null);
+  const mixScrollRef = useRef<HTMLDivElement>(null);
   const [mixAssistOpen, setMixAssistOpen] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
-  const [density, setDensity] = useState<ProductionTrackDensity>(() =>
-    loadProductionTrackDensity(),
+  const [densityPreference, setDensityPreference] = useState<ProductionDensityPreference>(
+    () => loadProductionDensityPreference(),
+  );
+  const [autoResolvedDensity, setAutoResolvedDensity] =
+    useState<ProductionTrackDensity>("confortable");
+  const effectiveDensity = effectiveDensityFromPreference(
+    densityPreference,
+    autoResolvedDensity,
   );
   const [collapsedFamilies, setCollapsedFamilies] = useState<Record<string, boolean>>(
     () => loadCollapsedTrackFamilies(),
@@ -176,14 +189,53 @@ export function ProductionWorkspace({
     () => (mix ? buildTrackFamilyGroups(mix.tracks) : []),
     [mix],
   );
-  const waveHeight = waveHeightForDensity(density);
-  const tightMixLayout = shouldUseProductionTightLayout(productionView, density);
+  const waveHeight = waveHeightForDensity(effectiveDensity);
+  const tightMixLayout = shouldUseProductionTightLayout(productionView, effectiveDensity);
   const masterWaveHeight = tightMixLayout ? 32 : 38;
 
-  const setDensityPersist = (next: ProductionTrackDensity) => {
-    setDensity(next);
-    saveProductionTrackDensity(next);
+  const setDensityPreferencePersist = (next: ProductionDensityPreference) => {
+    setDensityPreference(next);
+    saveProductionDensityPreference(next);
   };
+
+  const layoutMeasureKey = useMemo(
+    () =>
+      JSON.stringify({
+        tracks: mix?.tracks.length ?? 0,
+        collapsedFamilies,
+        productionView,
+        groups: trackGroups.map((g) => g.tracks.length),
+      }),
+    [mix?.tracks.length, collapsedFamilies, productionView, trackGroups],
+  );
+
+  useLayoutEffect(() => {
+    if (densityPreference !== "auto") return;
+    setAutoResolvedDensity("confortable");
+  }, [densityPreference, layoutMeasureKey]);
+
+  useLayoutEffect(() => {
+    if (densityPreference !== "auto") return;
+    const el = mixScrollRef.current;
+    if (!el) return;
+    if (
+      autoResolvedDensity === "confortable" &&
+      shouldUseCompactForAutoDensity(el.scrollHeight, el.clientHeight)
+    ) {
+      setAutoResolvedDensity("compact");
+    }
+  }, [densityPreference, autoResolvedDensity, layoutMeasureKey]);
+
+  useEffect(() => {
+    if (densityPreference !== "auto") return;
+    const el = mixScrollRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      setAutoResolvedDensity("confortable");
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [densityPreference, layoutMeasureKey]);
 
   const toggleFamilyCollapsed = (family: TrackFamilyId) => {
     setCollapsedFamilies((prev) => {
@@ -333,7 +385,8 @@ export function ProductionWorkspace({
         {mix ? (
           <div
             className="mixer mixer-density production-mix-panel"
-            data-density={density}
+            data-density={effectiveDensity}
+            data-density-preference={densityPreference}
           >
             {onRevertSeparation && (
               <div className="banner info separation-undo-banner" role="status">
@@ -441,8 +494,19 @@ export function ProductionWorkspace({
                   <button
                     type="button"
                     className="production-density-btn"
-                    aria-pressed={density === "compact"}
-                    onClick={() => setDensityPersist("compact")}
+                    aria-pressed={densityPreference === "auto"}
+                    onClick={() => setDensityPreferencePersist("auto")}
+                  >
+                    <span className="production-density-check" aria-hidden>
+                      ✓
+                    </span>
+                    {t("mix.density.auto")}
+                  </button>
+                  <button
+                    type="button"
+                    className="production-density-btn"
+                    aria-pressed={densityPreference === "compact"}
+                    onClick={() => setDensityPreferencePersist("compact")}
                   >
                     <span className="production-density-check" aria-hidden>
                       ✓
@@ -452,8 +516,8 @@ export function ProductionWorkspace({
                   <button
                     type="button"
                     className="production-density-btn"
-                    aria-pressed={density === "confortable"}
-                    onClick={() => setDensityPersist("confortable")}
+                    aria-pressed={densityPreference === "confortable"}
+                    onClick={() => setDensityPreferencePersist("confortable")}
                   >
                     <span className="production-density-check" aria-hidden>
                       ✓
@@ -461,6 +525,17 @@ export function ProductionWorkspace({
                     {t("mix.density.confortable")}
                   </button>
                 </div>
+                {densityPreference === "auto" && (
+                  <p className="production-density-auto-hint" role="status">
+                    {t("mix.density.autoStatus", {
+                      mode: t(
+                        effectiveDensity === "compact"
+                          ? "mix.density.compact"
+                          : "mix.density.confortable",
+                      ),
+                    })}
+                  </p>
+                )}
                 <div className="production-mix-toolbar-actions">
                   {showMixAssist && (
                     <>
@@ -552,7 +627,7 @@ export function ProductionWorkspace({
               </div>
             </div>
 
-            <div className="production-mix-scroll">
+            <div className="production-mix-scroll" ref={mixScrollRef}>
               {!tightMixLayout && (
                 <div
                   className="production-mix-colheaders production-mix-grid"
@@ -599,7 +674,10 @@ export function ProductionWorkspace({
                       >
                         <div className="production-mix-name">
                           <span className="production-mix-strip" aria-hidden />
-                          <span className="production-mix-track-label" title={tr.name}>
+                          <TruncatedTrackLabel
+                            className="production-mix-track-label"
+                            fullTitle={tr.name}
+                          >
                             {tr.name}
                             {experimental && (
                               <>
@@ -610,7 +688,7 @@ export function ProductionWorkspace({
                                 </span>
                               </>
                             )}
-                          </span>
+                          </TruncatedTrackLabel>
                         </div>
                         <MixKnob
                           className="track-gain-knob"
@@ -748,8 +826,8 @@ export function ProductionWorkspace({
                               type="button"
                               className={
                                 gMute
-                                  ? "btn track-ms-btn track-ms-btn-m pressed"
-                                  : "btn track-ms-btn track-ms-btn-m"
+                                  ? "btn track-ms-btn track-ms-btn-m track-ms-btn-group pressed"
+                                  : "btn track-ms-btn track-ms-btn-m track-ms-btn-group"
                               }
                               aria-pressed={gMute}
                               aria-label={t("mix.group.muteNamed", { group: groupName })}
@@ -767,8 +845,8 @@ export function ProductionWorkspace({
                               type="button"
                               className={
                                 gSolo
-                                  ? "btn track-ms-btn track-ms-btn-s pressed"
-                                  : "btn track-ms-btn track-ms-btn-s"
+                                  ? "btn track-ms-btn track-ms-btn-s track-ms-btn-group pressed"
+                                  : "btn track-ms-btn track-ms-btn-s track-ms-btn-group"
                               }
                               aria-pressed={gSolo}
                               aria-label={t("mix.group.soloNamed", { group: groupName })}

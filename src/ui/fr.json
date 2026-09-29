@@ -190,6 +190,8 @@
   "mix.masterBanner": "Bandeau master",
   "mix.tracksTitle": "Pistes",
   "mix.density.group": "Hauteur des lignes",
+  "mix.density.auto": "Auto",
+  "mix.density.autoStatus": "Densité auto → {mode}",
   "mix.density.compact": "Compact",
   "mix.density.confortable": "Confortable",
   "mix.columns.track": "Piste",
