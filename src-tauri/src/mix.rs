@@ -455,7 +455,7 @@ pub fn render_mix(mix: &MixDoc, project_root: &Path, out_wav: &Path) -> Result<f
 }
 
 /// TPDF (triangular) dither for 16-bit delivery exports (#168).
-pub const EXPORT_16BIT_DITHER_AF: &str = "aresample=resampler=soxr:dither_method=triangular";
+pub const EXPORT_16BIT_DITHER_AF: &str = "aresample=dither_method=triangular";
 
 pub fn export_flac_with_bit_depth(
     wav_path: &Path,
