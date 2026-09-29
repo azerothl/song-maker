@@ -1,9 +1,9 @@
 
-> song-maker@0.1.1 bench:score-tab /workspace
+> song-maker@0.1.1 bench:score-tab /tmp/song-maker-main
 > node --import tsx scripts/bench-score-tab.mts
 
 {
-  "capturedAt": "2026-09-29T10:55:20.777Z",
+  "capturedAt": "2026-09-29T10:55:12.746Z",
   "microbenches": {
     "stats": {
       "noteCount": 1233,
@@ -14,7 +14,7 @@
     "withResize": [
       {
         "phase": "abcjs.renderAbc (legacy responsive: resize)",
-        "durationMs": 265.0999999999767,
+        "durationMs": 331.29999999993015,
         "detail": {
           "chars": 14171,
           "tunes": 1
@@ -22,7 +22,7 @@
       },
       {
         "phase": "reflow SVG (offsetWidth/Height)",
-        "durationMs": 58.70000000006985,
+        "durationMs": 83,
         "detail": {
           "nodes": 17932,
           "paperWidth": 1280,
@@ -33,11 +33,11 @@
     "withoutResize": [
       {
         "phase": "abcjs.renderAbc (responsive off)",
-        "durationMs": 235
+        "durationMs": 268.5
       },
       {
         "phase": "reflow SVG (responsive off)",
-        "durationMs": 76.10000000009313,
+        "durationMs": 91,
         "detail": {
           "nodes": 17932
         }
@@ -46,7 +46,7 @@
     "abcStaffViewOnly": [
       {
         "phase": "AbcStaffView seul → SVG",
-        "durationMs": 75.59999999997672
+        "durationMs": 38.79999999993015
       }
     ],
     "pianoRoll": [
@@ -62,19 +62,19 @@
     "resizeStorm": [
       {
         "phase": "resize storm (5×, responsive: resize)",
-        "durationMs": 220.5
+        "durationMs": 213.40000000002328
       }
     ],
     "viewportResizeLegacy": {
       "phase": "layout après resize (viewportHorizontal + responsive: resize)",
-      "durationMs": 114,
+      "durationMs": 68.5,
       "detail": {
         "passes": 8
       }
     },
     "viewportResizeFixed": {
       "phase": "layout après resize (viewportHorizontal, responsive off)",
-      "durationMs": 64,
+      "durationMs": 65.59999999997672,
       "detail": {
         "passes": 8
       }
@@ -91,22 +91,22 @@
     "phases": [
       {
         "phase": "ScorePanel mount (1 frame)",
-        "durationMs": 38.800000000046566
+        "durationMs": 22.099999999976717
       },
       {
         "phase": "attente rendu portée (abcjs useEffect)",
-        "durationMs": 51.199999999953434,
+        "durationMs": 26.79999999993015,
         "detail": {
           "hasSvg": true
         }
       },
       {
         "phase": "rafales resize après montage (post-ouverture)",
-        "durationMs": 126.80000000004657
+        "durationMs": 117.80000000004657
       },
       {
         "phase": "ouverture → portée visible (total)",
-        "durationMs": 216.80000000004657,
+        "durationMs": 166.69999999995343,
         "detail": {
           "hasSvg": true
         }
@@ -114,40 +114,5 @@
     ],
     "longTasksMs": 0,
     "longTaskCount": 0
-  },
-  "scorePanelOpenLong": {
-    "stats": {
-      "noteCount": 9857,
-      "maxTick": 5412480,
-      "pianoRollWidthPx": 216499.2
-    },
-    "abcChars": 28789,
-    "abcLines": 1428,
-    "phases": [
-      {
-        "phase": "ScorePanel mount (1 frame)",
-        "durationMs": 174.30000000004657
-      },
-      {
-        "phase": "attente rendu portée (abcjs useEffect)",
-        "durationMs": 43.79999999993015,
-        "detail": {
-          "hasSvg": true
-        }
-      },
-      {
-        "phase": "rafales resize après montage (post-ouverture)",
-        "durationMs": 115.30000000004657
-      },
-      {
-        "phase": "ouverture → portée visible (total)",
-        "durationMs": 333.4000000000233,
-        "detail": {
-          "hasSvg": true
-        }
-      }
-    ],
-    "longTasksMs": 172,
-    "longTaskCount": 2
   }
 }

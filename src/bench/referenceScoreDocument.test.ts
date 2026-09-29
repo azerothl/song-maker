@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  buildLongReferenceScoreDocument,
   buildReferenceScoreDocument,
   referenceScoreStats,
 } from "./referenceScoreDocument.ts";
@@ -19,6 +20,17 @@ describe("reference score bench fixture", () => {
     if (staff.ok) {
       const lines = staff.abc.split("\n").length;
       assert.ok(lines >= 100, `ABC trop court: ${lines} lignes`);
+    }
+  });
+
+  it("fournit une variante longue pour le bench (~8× mesures)", () => {
+    const ref = referenceScoreStats(buildReferenceScoreDocument());
+    const long = referenceScoreStats(buildLongReferenceScoreDocument());
+    assert.ok(long.noteCount > ref.noteCount * 6);
+    const staff = buildStaffAbc(buildLongReferenceScoreDocument(), "Long");
+    assert.equal(staff.ok, true);
+    if (staff.ok) {
+      assert.ok(staff.abc.length > 20_000);
     }
   });
 });

@@ -14,7 +14,15 @@ const U = TICKS_PER_SIXTEENTH;
  * Calquée sur un morceau réel ~3 min : ~800 notes, export ABC multi-mesures,
  * et une timeline étirée (silences / import MIDI) qui gonfle le PianoRoll caché.
  */
-export function buildReferenceScoreDocument(): ScoreDocument {
+/** ~22 cycles ≈ 90 mesures (partition de référence ~3 min). */
+export const REFERENCE_SCORE_CYCLES = 22;
+
+/**
+ * @param cycleCount nombre de répétitions du motif vocal (défaut : référence bench).
+ */
+export function buildReferenceScoreDocument(
+  cycleCount: number = REFERENCE_SCORE_CYCLES,
+): ScoreDocument {
   const base = buildTonightAwakeFixture({ withChords: true, jazzChords: true });
   const vocal = base.voices[0];
   if (!vocal) {
@@ -25,8 +33,7 @@ export function buildReferenceScoreDocument(): ScoreDocument {
   const notes: NoteEvent[] = [];
   let barOffsetUnits = 0;
   let id = 0;
-  /** ~22 cycles × 8 mesures ≈ 90 mesures, ~770 notes. */
-  const cycles = 22;
+  const cycles = Math.max(1, Math.floor(cycleCount));
   for (let c = 0; c < cycles; c++) {
     let unit = barOffsetUnits;
     for (const n of pattern) {
@@ -86,6 +93,11 @@ export function buildReferenceScoreDocument(): ScoreDocument {
       { id: "sec-outro", kind: "outro", startTick: tailStart },
     ],
   };
+}
+
+/** Partition longue pour prouver que l'ouverture ne croît pas avec la taille (~8× référence). */
+export function buildLongReferenceScoreDocument(): ScoreDocument {
+  return buildReferenceScoreDocument(REFERENCE_SCORE_CYCLES * 8);
 }
 
 export function referenceScoreStats(doc: ScoreDocument): {

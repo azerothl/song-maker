@@ -5,7 +5,9 @@ import { ScorePanel } from "../components/ScorePanel";
 import { PianoRoll } from "../components/PianoRoll";
 import { AbcStaffView } from "../components/AbcStaffView";
 import { buildStaffAbc } from "../lib/staffAbc";
+import type { ScoreDocument } from "@song-maker/score-engine";
 import {
+  buildLongReferenceScoreDocument,
   buildReferenceScoreDocument,
   referenceScoreStats,
 } from "./referenceScoreDocument";
@@ -27,7 +29,9 @@ export type BenchRunResult = {
 };
 
 const referenceDoc = buildReferenceScoreDocument();
+const longReferenceDoc = buildLongReferenceScoreDocument();
 const referenceStats = referenceScoreStats(referenceDoc);
+const longReferenceStats = referenceScoreStats(longReferenceDoc);
 const staffAbc = buildStaffAbc(referenceDoc, "Bench reference");
 
 function pushPhase(
@@ -104,84 +108,111 @@ export function benchAbcStaffNoResize(abc: string): BenchPhaseResult[] {
   return phases;
 }
 
+async function measureScorePanelOpen(
+  scoreDoc: ScoreDocument,
+  title: string,
+): Promise<BenchRunResult> {
+  const phases: BenchPhaseResult[] = [];
+  const openStart = performance.now();
+  const staffBuilt = buildStaffAbc(scoreDoc, title);
+  const stats = referenceScoreStats(scoreDoc);
+
+  const container = document.getElementById("bench-score-panel-root");
+  if (!container) {
+    throw new Error("bench-score-panel-root missing");
+  }
+  container.replaceChildren();
+
+  const root = createRoot(container);
+  root.render(
+    <ScorePanel
+      projectId="bench"
+      document={scoreDoc}
+      cot="full"
+      title={title}
+      onDocumentChange={() => {}}
+      onProjectRefresh={async () => {}}
+      onError={() => {}}
+      defaultOpen
+    />,
+  );
+
+  await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+  pushPhase(phases, "ScorePanel mount (1 frame)", openStart);
+
+  const staffWaitStart = performance.now();
+  for (let i = 0; i < 300; i++) {
+    const svg = container.querySelector(".abc-staff-paper svg");
+    if (svg) break;
+    await new Promise((r) => setTimeout(r, 16));
+  }
+  pushPhase(phases, "attente rendu portée (abcjs useEffect)", staffWaitStart, {
+    hasSvg: Boolean(container.querySelector(".abc-staff-paper svg")),
+  });
+
+  const resizeStart = performance.now();
+  for (let i = 0; i < 8; i++) {
+    window.dispatchEvent(new Event("resize"));
+    await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+  }
+  pushPhase(
+    phases,
+    "rafales resize après montage (post-ouverture)",
+    resizeStart,
+  );
+
+  pushPhase(phases, "ouverture → portée visible (total)", openStart, {
+    hasSvg: Boolean(container.querySelector(".abc-staff-paper svg")),
+  });
+
+  const abc = staffBuilt.ok && staffBuilt.abc ? staffBuilt.abc : "";
+  const longTasks = (
+    window as Window & { __benchLongTasks?: { duration: number }[] }
+  ).__benchLongTasks ?? [];
+  const longTasksMs = longTasks.reduce((s, t) => s + t.duration, 0);
+
+  return {
+    stats,
+    abcChars: abc.length,
+    abcLines: abc.split("\n").length,
+    phases,
+    longTasksMs,
+    longTaskCount: longTasks.length,
+  };
+}
+
 function BenchShell() {
   const [result, setResult] = useState<BenchRunResult | null>(null);
+  const [longResult, setLongResult] = useState<BenchRunResult | null>(null);
   const [running, setRunning] = useState(false);
 
   async function runFullOpen() {
     setRunning(true);
     setResult(null);
     await new Promise((r) => requestAnimationFrame(() => r(undefined)));
-
-    const phases: BenchPhaseResult[] = [];
-    const openStart = performance.now();
-
-    const container = document.getElementById("bench-score-panel-root");
-    if (!container) {
-      setRunning(false);
-      return;
-    }
-    container.replaceChildren();
-
-    const root = createRoot(container);
-    root.render(
-      <ScorePanel
-        projectId="bench"
-        document={referenceDoc}
-        cot="full"
-        title="Bench reference"
-        onDocumentChange={() => {}}
-        onProjectRefresh={async () => {}}
-        onError={() => {}}
-        defaultOpen
-      />,
-    );
-
-    await new Promise((r) => requestAnimationFrame(() => r(undefined)));
-    pushPhase(phases, "ScorePanel mount (1 frame)", openStart);
-
-    const staffWaitStart = performance.now();
-    for (let i = 0; i < 300; i++) {
-      const svg = container.querySelector(".abc-staff-paper svg");
-      if (svg) break;
-      await new Promise((r) => setTimeout(r, 16));
-    }
-    pushPhase(phases, "attente rendu portée (abcjs useEffect)", staffWaitStart, {
-      hasSvg: Boolean(container.querySelector(".abc-staff-paper svg")),
-    });
-
-    const resizeStart = performance.now();
-    for (let i = 0; i < 8; i++) {
-      window.dispatchEvent(new Event("resize"));
-      await new Promise((r) => requestAnimationFrame(() => r(undefined)));
-    }
-    pushPhase(
-      phases,
-      "rafales resize après montage (post-ouverture)",
-      resizeStart,
-    );
-
-    pushPhase(phases, "ouverture → portée visible (total)", openStart, {
-      hasSvg: Boolean(container.querySelector(".abc-staff-paper svg")),
-    });
-
-    const abc =
-      staffAbc.ok && staffAbc.abc
-        ? staffAbc.abc
-        : "";
-    const longTasks = (
+    (
       window as Window & { __benchLongTasks?: { duration: number }[] }
-    ).__benchLongTasks ?? [];
-    const longTasksMs = longTasks.reduce((s, t) => s + t.duration, 0);
+    ).__benchLongTasks = [];
+    const measured = await measureScorePanelOpen(
+      referenceDoc,
+      "Bench reference",
+    );
+    setResult(measured);
+    setRunning(false);
+  }
 
-    setResult({
-      stats: referenceStats,
-      abcChars: abc.length,
-      abcLines: abc.split("\n").length,
-      phases,
-      longTasksMs,
-      longTaskCount: longTasks.length,
-    });
+  async function runLongOpen() {
+    setRunning(true);
+    setLongResult(null);
+    await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+    (
+      window as Window & { __benchLongTasks?: { duration: number }[] }
+    ).__benchLongTasks = [];
+    const measured = await measureScorePanelOpen(
+      longReferenceDoc,
+      "Bench long reference",
+    );
+    setLongResult(measured);
     setRunning(false);
   }
 
@@ -198,10 +229,25 @@ function BenchShell() {
       >
         Monter ScorePanel (référence)
       </button>
+      <button
+        type="button"
+        id="bench-run-long"
+        className="btn"
+        disabled={running}
+        onClick={() => void runLongOpen()}
+      >
+        Monter ScorePanel (longue, ~8×)
+      </button>
+      <pre data-bench-long-stats>{JSON.stringify(longReferenceStats, null, 2)}</pre>
       <div id="bench-score-panel-root" />
       {result && (
         <pre id="bench-result" data-testid="bench-result">
           {JSON.stringify(result, null, 2)}
+        </pre>
+      )}
+      {longResult && (
+        <pre id="bench-result-long" data-testid="bench-result-long">
+          {JSON.stringify(longResult, null, 2)}
         </pre>
       )}
     </div>
@@ -331,8 +377,11 @@ function benchAbcResizeStorm(abc: string, passes = 5): BenchPhaseResult[] {
 
 const api = {
   referenceDoc,
+  longReferenceDoc,
   referenceStats,
+  longReferenceStats,
   staffAbcText: staffAbc.ok ? staffAbc.abc : "",
+  measureScorePanelOpen,
   benchAbcStaffOnly,
   benchAbcStaffNoResize,
   benchPianoRollMount,

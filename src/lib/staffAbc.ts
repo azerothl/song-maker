@@ -103,14 +103,6 @@ export type AbcMeasureSplit = {
 const UNSAFE_BARLINE = /\|\s*[:\]\[]|:\s*\||\[\s*\||\]\s*\||%\s*[:|]/;
 
 /**
- * Découpe un tune ABC en en-tête + mesures par voix.
- *
- * `exportScoreAbc` alterne `V: <voix>` et des lignes de 4 mesures, jusqu'à
- * quatre fois pour la durée d'un morceau. Les mesures des deux voix sont donc
- * entrelacées, pas juxtaposées : une fenêtre doit tronquer chaque voix à la
- * même position temporelle, sinon l'ABC rendu désaligne les parties.
- */
-/**
  * Déplie un repos multi-mesures (`Z4`) en une entrée par mesure.
  *
  * L'exporteur écrit `Z4` quand une voix est silencieuse sur un groupe, donc
@@ -125,6 +117,14 @@ function expandBar(bar: string): string[] {
   return [bar];
 }
 
+/**
+ * Découpe un tune ABC en en-tête + mesures par voix.
+ *
+ * `exportScoreAbc` alterne `V: <voix>` et des lignes de 4 mesures, jusqu'à
+ * quatre fois pour la durée d'un morceau. Les mesures des deux voix sont donc
+ * entrelacées, pas juxtaposées : une fenêtre doit tronquer chaque voix à la
+ * même position temporelle, sinon l'ABC rendu désaligne les parties.
+ */
 export function splitAbcMeasures(abc: string): AbcMeasureSplit {
   const lines = abc.split(/\r?\n/).filter((l) => l.trim());
   const headerLines: string[] = [];
