@@ -1038,12 +1038,8 @@ option {
   flex: 0 0 auto;
 }
 
-.production-capture-root.app-shell {
-  --sidebar-width: 184px;
-}
-
-.production-workspace-tight .production-density-note {
-  /* Évite une 2ᵉ ligne dans la barre d’outils (coûte de la hauteur de liste). */
+.production-workspace-tight .production-density-auto-hint {
+  /* Évite une 2ᵉ ligne dans la barre d’outils (hauteur de liste). */
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1055,6 +1051,10 @@ option {
   border: 0;
 }
 
+.production-capture-root.app-shell {
+  --sidebar-width: 184px;
+}
+
 .production-mix-grid {
   display: grid;
   grid-template-columns: 192px 5.5rem 5rem 60px minmax(0, 1fr);
@@ -1062,25 +1062,6 @@ option {
   column-gap: 0.65rem;
   align-items: center;
   padding: 0 0.35rem;
-}
-
-/* Plus spécifique que `.track` (grille legacy) pour les lignes Production. */
-.mixer-density .production-mix-row.track,
-.mixer-density .production-mix-group-header.production-mix-grid,
-.mixer-density .production-mix-colheaders.production-mix-grid {
-  display: grid;
-  grid-template-columns: 192px minmax(5.5rem, 6.75rem) minmax(4.5rem, 5.75rem) 68px minmax(0, 1fr);
-  column-gap: 0.75rem;
-  gap: 0 0.75rem;
-  align-items: center;
-  padding: 0 0.35rem;
-  border-left: 0;
-  min-height: var(--production-row-h, auto);
-}
-
-.mixer-density .production-mix-group-header.production-mix-grid {
-  min-height: var(--production-group-h, 24px);
-  height: var(--production-group-h, 24px);
 }
 
 .production-mix-colheaders {
