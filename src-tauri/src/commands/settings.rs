@@ -159,7 +159,6 @@ pub fn get_phase3_status() -> Result<Phase3Status, String> {
     })
 }
 
-
 #[tauri::command]
 pub async fn install_htdemucs_6s_runtime() -> Result<String, String> {
     let settings = load_settings()?;
