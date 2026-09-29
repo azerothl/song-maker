@@ -27,6 +27,6 @@ node --import tsx docs/design/production-densite/captures-react/capture.mts
 
 Critère issue #137 : **au moins 8** pistes entièrement visibles en hauteur compacte.
 
-Mesure au moment de la capture (`metrics.json`, clé `compact.fullyVisibleRows`) : **3** lignes de piste entièrement visibles dans `.production-mix-scroll` (hauteur de ligne ~48 px, chrome Projet + onglets + sous-onglets Mix/Clips/Outils + bandeau master + barre d’outils + en-têtes de colonnes). **Sous le seuil de 8** — à traiter dans une évolution produit séparée si besoin.
+Mesure au moment de la capture (`metrics.json`, clé `compact.fullyVisibleRows`) : **9** lignes `.production-mix-row` entièrement visibles (seuil #137 : **≥ 8**). En mode **mix compact** (`production-workspace-tight`), hauteur de ligne **44 px** et en-têtes de groupe **20 px** pour tenir dans 1280×720 avec le chrome réel (onglets morceau, sous-nav Mix/Clips/Outils, tiroir actions sur une ligne, master + barre d’outils collés, pas d’en-tête de colonnes dupliqué).
 
 Définition utilisée : une ligne `.production-mix-row` est « entièrement visible » si son rectangle est inclus dans celui de `.production-mix-scroll` (même logique que `../render.py` sur la maquette).

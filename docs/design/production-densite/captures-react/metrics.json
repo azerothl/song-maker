@@ -2,22 +2,22 @@
   "compact": {
     "totalRows": 12,
     "visibleRows": 12,
-    "fullyVisibleRows": 3,
-    "rowHeightPx": 48,
+    "fullyVisibleRows": 9,
+    "rowHeightPx": 44,
     "density": "compact"
   },
   "confortable": {
     "totalRows": 12,
     "visibleRows": 12,
-    "fullyVisibleRows": 2,
+    "fullyVisibleRows": 3,
     "rowHeightPx": 72,
     "density": "confortable"
   },
   "collapsed": {
     "totalRows": 9,
     "visibleRows": 9,
-    "fullyVisibleRows": 3,
-    "rowHeightPx": 48,
+    "fullyVisibleRows": 9,
+    "rowHeightPx": 44,
     "density": "compact"
   }
 }

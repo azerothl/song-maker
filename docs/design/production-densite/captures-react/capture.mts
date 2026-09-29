@@ -7,7 +7,8 @@ import { chromium } from "playwright";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../../../..");
 const OUT = __dirname;
-const BASE = "http://127.0.0.1:1420/production-capture.html";
+const PORT = 5179;
+const BASE = `http://127.0.0.1:${PORT}/production-capture.html`;
 
 async function waitServer(url: string, timeoutMs = 60_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -45,9 +46,10 @@ async function shot(
   return m;
 }
 
-const vite = spawn("pnpm", ["exec", "vite", "--host", "127.0.0.1", "--port", "1420"], {
+const vite = spawn("pnpm", ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)], {
   cwd: ROOT,
   stdio: "ignore",
+  env: { ...process.env, VITE_CAPTURE: "1" },
 });
 
 try {

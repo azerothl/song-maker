@@ -489,6 +489,25 @@ option {
     flex: 1;
     min-height: 0;
   }
+
+  .song-layout-production-fill {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .song-layout-production-fill .song-workspace-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.main:has(.song-layout-production-fill) {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .song-layout-production .song-workspace-chrome {
@@ -496,10 +515,37 @@ option {
   padding-bottom: 0.55rem;
 }
 
+.song-layout-production-fill .song-workspace-chrome {
+  padding: 0.4rem 1rem 0.3rem;
+  gap: 0.2rem;
+}
+
+.song-layout-production-fill .song-workspace-chrome-top h1 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.song-layout-production-fill .song-workspace-tab {
+  min-height: 36px;
+  padding: 0 0.75rem;
+  font-size: 0.85rem;
+}
+
+.song-layout-production-fill .song-workspace-body {
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  gap: 0.35rem;
+}
+
 .song-layout-production .song-workspace-body {
   padding-top: 0.65rem;
   padding-bottom: 0.75rem;
   gap: 0.55rem;
+}
+
+.song-layout-production-fill .player-block-delegated {
+  display: none;
 }
 
 .song-layout-production .player-block {
@@ -697,6 +743,149 @@ option {
   font-size: 0.82rem;
 }
 
+.production-chrome-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.production-chrome-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.production-workspace-tight .production-chrome-stack {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.55rem;
+}
+
+.production-workspace-tight .production-chrome-stack .production-actions-drawer {
+  flex: 1 1 10rem;
+  min-width: 0;
+  margin: 0;
+  order: 2;
+}
+
+.production-workspace-tight .production-chrome-stack .production-subview-intro {
+  display: none;
+}
+
+.production-workspace-tight {
+  gap: 0.15rem;
+}
+
+.production-workspace-tight .production-chrome-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+}
+
+.production-workspace-tight .production-heading-compact {
+  display: none;
+}
+
+.production-workspace-tight .production-subnav {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.production-workspace-tight .song-subnav-tab {
+  min-height: 32px;
+  padding: 0 0.55rem;
+  font-size: 0.8rem;
+}
+
+.production-workspace-tight .production-subview-intro {
+  display: none;
+}
+
+.production-workspace-tight .production-actions-drawer > summary {
+  min-height: 28px;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.production-workspace-tight .production-actions-drawer {
+  margin: 0;
+}
+
+.production-workspace-tight .production-mix-sticky-master {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.production-workspace-tight .production-mix-master.mix-master-banner {
+  min-height: 44px;
+  padding: 0.2rem 0.35rem;
+  gap: 0.35rem 0.5rem;
+}
+
+.production-workspace-tight .mix-master-play {
+  min-height: 32px;
+  padding: 0 0.5rem;
+  font-size: 0.78rem;
+}
+
+.production-workspace-tight .production-mix-toolbar-sticky {
+  min-height: 0;
+  padding: 0;
+  gap: 0.3rem 0.45rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.production-workspace-tight .production-mix-toolbar-title {
+  display: none;
+}
+
+.production-workspace-tight .mixer-tracks-title {
+  font-size: 0.85rem;
+}
+
+.production-workspace-tight .production-density-btn {
+  min-height: 32px;
+  padding: 0 0.45rem;
+  font-size: 0.75rem;
+}
+
+.production-workspace-tight .production-mix-toolbar-actions .btn,
+.production-workspace-tight .production-mix-toolbar-actions .mix-assist-trigger {
+  min-height: 32px;
+  padding: 0 0.45rem;
+  font-size: 0.75rem;
+}
+
+.production-workspace-tight .production-mix-saved {
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.production-workspace-tight .production-mix-colheaders {
+  display: none;
+}
+
+.production-workspace-tight .production-mix-group-header {
+  height: var(--production-group-h, 24px);
+  min-height: var(--production-group-h, 24px);
+}
+
+.production-workspace-tight .production-mix-group-toggle {
+  min-height: 22px;
+  font-size: 0.8rem;
+}
+
+.production-workspace-tight .production-mix-group-count {
+  font-size: 0.72rem;
+}
+
 .production-workspace #production-panel-mix {
   flex: 1;
   min-height: 0;
@@ -859,6 +1048,12 @@ option {
   --mix-knob-size: 30px;
   --mix-ms-btn-h: 14px;
   --production-name-fs: 0.88rem;
+}
+
+.production-workspace-tight .mixer-density[data-density="compact"] {
+  /* ~48 px visuel ; léger retrait pour tenir 8 pistes à 720p avec en-têtes de groupe. */
+  --production-row-h: 44px;
+  --production-group-h: 20px;
 }
 
 .mixer-density[data-density="confortable"] {

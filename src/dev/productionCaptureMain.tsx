@@ -93,7 +93,7 @@ function ProductionCaptureApp() {
     <div className="app-shell production-capture-root" data-capture-density={density}>
       <CaptureSidebar />
       <main className="main">
-        <div className="song-layout song-layout-production">
+        <div className="song-layout song-layout-production song-layout-production-fill">
           <header className="song-workspace-chrome">
             <div className="song-workspace-chrome-top">
               <div className="song-workspace-project">

@@ -4,6 +4,7 @@ import type { MixTrack } from "./types";
 import {
   buildTrackFamilyGroups,
   isExperimentalStemTrack,
+  shouldUseProductionTightLayout,
   trackFamilyForRole,
 } from "./productionTrackLayout";
 
@@ -47,6 +48,14 @@ describe("buildTrackFamilyGroups", () => {
     assert.deepEqual(groups[0]!.tracks.map((t) => t.id), ["b"]);
     assert.deepEqual(groups[1]!.tracks.map((t) => t.id), ["a", "c"]);
     assert.deepEqual(groups[2]!.tracks.map((t) => t.id), ["d"]);
+  });
+});
+
+describe("shouldUseProductionTightLayout", () => {
+  it("active uniquement en vue mix + densité compacte", () => {
+    assert.equal(shouldUseProductionTightLayout("mix", "compact"), true);
+    assert.equal(shouldUseProductionTightLayout("mix", "confortable"), false);
+    assert.equal(shouldUseProductionTightLayout("clips", "compact"), false);
   });
 });
 

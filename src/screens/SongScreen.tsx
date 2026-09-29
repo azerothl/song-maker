@@ -619,7 +619,13 @@ export function SongScreen() {
     (mix?.tracks.some((tr) => tr.aiSeparated) ?? false);
 
   return (
-    <div className={`song-layout${workspace === "production" ? " song-layout-production" : ""}`}>
+    <div
+      className={`song-layout${
+        workspace === "production"
+          ? " song-layout-production song-layout-production-fill"
+          : ""
+      }`}
+    >
       <header className="song-workspace-chrome">
         <div className="song-workspace-chrome-top">
           <div className="song-workspace-project">
