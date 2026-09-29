@@ -1,0 +1,498 @@
+{
+  "compact_12_toutes_pistes_depliees": {
+    "density": "compact",
+    "mode": "compact",
+    "tracks_total": 12,
+    "rows_rendered": 12,
+    "row_height_px": [
+      44
+    ],
+    "ms_button_px": {
+      "w": 28,
+      "h": 28,
+      "w_solo": 28,
+      "h_mute": 28,
+      "gap_x": 4,
+      "same_row": true,
+      "min_w_all_rows": 28,
+      "min_h_all_rows": 28,
+      "pair_total_w": 60,
+      "pair_total_h": 28
+    },
+    "knobs_px": [
+      {
+        "w": 36,
+        "h": 36,
+        "margin_top": 4,
+        "margin_bottom": 4
+      },
+      {
+        "w": 36,
+        "h": 36,
+        "margin_top": 4,
+        "margin_bottom": 4
+      }
+    ],
+    "knob_min_vertical_margin_all_rows": 4,
+    "group_header": {
+      "height_px": 24,
+      "font_px": "13px",
+      "chevron_button": {
+        "w": 119.06,
+        "h": 22
+      },
+      "chevron_hit_area_with_pseudo_px": {
+        "w": 119.06,
+        "h": 26
+      },
+      "ms_visible_px": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "ms_hit_area_px": {
+        "w": 28,
+        "h": 30
+      }
+    },
+    "name_column_px": 192,
+    "name_text_available_px": 62,
+    "longest_name": "Guitare rythmique * (stem expérimental)",
+    "truncated_names": [],
+    "truncated_have_title": true,
+    "accompagnement_fits": true,
+    "guitare_rythmique_fits": true,
+    "rows_fully_visible": 9,
+    "group_headers_fully_visible": 3,
+    "list_scrolls": true,
+    "scroll_height": 735,
+    "client_height": 636,
+    "list_top_px": 214,
+    "viewport_bottom_px": 720,
+    "toolbar_single_line": true
+  },
+  "clavier": {
+    "solo_espace_avant_apres": [
+      "false",
+      "true"
+    ],
+    "chevron_entree_avant_apres": [
+      "true",
+      "false"
+    ],
+    "aria_labels_exemples": [
+      "Muet : Voix lead",
+      "Solo : Voix lead",
+      "Muet : Chœurs",
+      "Solo : Chœurs"
+    ]
+  },
+  "compact_12_rythmique_replie": {
+    "density": "compact",
+    "mode": "compact",
+    "tracks_total": 12,
+    "rows_rendered": 9,
+    "row_height_px": [
+      44
+    ],
+    "ms_button_px": {
+      "w": 28,
+      "h": 28,
+      "w_solo": 28,
+      "h_mute": 28,
+      "gap_x": 4,
+      "same_row": true,
+      "min_w_all_rows": 28,
+      "min_h_all_rows": 28,
+      "pair_total_w": 60,
+      "pair_total_h": 28
+    },
+    "knobs_px": [
+      {
+        "w": 36,
+        "h": 36,
+        "margin_top": 4,
+        "margin_bottom": 4
+      },
+      {
+        "w": 36,
+        "h": 36,
+        "margin_top": 4,
+        "margin_bottom": 4
+      }
+    ],
+    "knob_min_vertical_margin_all_rows": 4,
+    "group_header": {
+      "height_px": 24,
+      "font_px": "13px",
+      "chevron_button": {
+        "w": 119.06,
+        "h": 22
+      },
+      "chevron_hit_area_with_pseudo_px": {
+        "w": 119.06,
+        "h": 26
+      },
+      "ms_visible_px": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "ms_hit_area_px": {
+        "w": 28,
+        "h": 30
+      }
+    },
+    "name_column_px": 192,
+    "name_text_available_px": 62,
+    "longest_name": "Guitare rythmique * (stem expérimental)",
+    "truncated_names": [],
+    "truncated_have_title": true,
+    "accompagnement_fits": true,
+    "guitare_rythmique_fits": true,
+    "rows_fully_visible": 9,
+    "group_headers_fully_visible": 3,
+    "list_scrolls": false,
+    "scroll_height": 636,
+    "client_height": 636,
+    "list_top_px": 214,
+    "viewport_bottom_px": 720,
+    "toolbar_single_line": true
+  },
+  "auto_12_defaut": {
+    "density": "compact",
+    "mode": "auto",
+    "tracks_total": 12,
+    "rows_rendered": 9,
+    "row_height_px": [
+      44
+    ],
+    "ms_button_px": {
+      "w": 28,
+      "h": 28,
+      "w_solo": 28,
+      "h_mute": 28,
+      "gap_x": 4,
+      "same_row": true,
+      "min_w_all_rows": 28,
+      "min_h_all_rows": 28,
+      "pair_total_w": 60,
+      "pair_total_h": 28
+    },
+    "knobs_px": [
+      {
+        "w": 36,
+        "h": 36,
+        "margin_top": 4,
+        "margin_bottom": 4
+      },
+      {
+        "w": 36,
+        "h": 36,
+        "margin_top": 4,
+        "margin_bottom": 4
+      }
+    ],
+    "knob_min_vertical_margin_all_rows": 4,
+    "group_header": {
+      "height_px": 24,
+      "font_px": "13px",
+      "chevron_button": {
+        "w": 119.06,
+        "h": 22
+      },
+      "chevron_hit_area_with_pseudo_px": {
+        "w": 119.06,
+        "h": 26
+      },
+      "ms_visible_px": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "ms_hit_area_px": {
+        "w": 28,
+        "h": 30
+      }
+    },
+    "name_column_px": 192,
+    "name_text_available_px": 62,
+    "longest_name": "Guitare rythmique * (stem expérimental)",
+    "truncated_names": [],
+    "truncated_have_title": true,
+    "accompagnement_fits": true,
+    "guitare_rythmique_fits": true,
+    "rows_fully_visible": 9,
+    "group_headers_fully_visible": 3,
+    "list_scrolls": false,
+    "scroll_height": 636,
+    "client_height": 636,
+    "list_top_px": 214,
+    "viewport_bottom_px": 720,
+    "toolbar_single_line": true
+  },
+  "popover_ouvert_scroll_possible": true,
+  "confortable_12_manuel": {
+    "density": "confortable",
+    "mode": "confortable",
+    "tracks_total": 12,
+    "rows_rendered": 9,
+    "row_height_px": [
+      72
+    ],
+    "ms_button_px": {
+      "w": 32,
+      "h": 32,
+      "w_solo": 32,
+      "h_mute": 32,
+      "gap_x": 4,
+      "same_row": true,
+      "min_w_all_rows": 32,
+      "min_h_all_rows": 32,
+      "pair_total_w": 68,
+      "pair_total_h": 32
+    },
+    "knobs_px": [
+      {
+        "w": 44,
+        "h": 44,
+        "margin_top": 14,
+        "margin_bottom": 14
+      },
+      {
+        "w": 44,
+        "h": 44,
+        "margin_top": 14,
+        "margin_bottom": 14
+      }
+    ],
+    "knob_min_vertical_margin_all_rows": 14,
+    "group_header": {
+      "height_px": 24,
+      "font_px": "13px",
+      "chevron_button": {
+        "w": 119.06,
+        "h": 22
+      },
+      "chevron_hit_area_with_pseudo_px": {
+        "w": 119.06,
+        "h": 26
+      },
+      "ms_visible_px": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "ms_hit_area_px": {
+        "w": 28,
+        "h": 30
+      }
+    },
+    "name_column_px": 192,
+    "name_text_available_px": 66,
+    "longest_name": "Guitare rythmique * (stem expérimental)",
+    "truncated_names": [],
+    "truncated_have_title": true,
+    "accompagnement_fits": true,
+    "guitare_rythmique_fits": true,
+    "rows_fully_visible": 6,
+    "group_headers_fully_visible": 3,
+    "list_scrolls": true,
+    "scroll_height": 855,
+    "client_height": 636,
+    "list_top_px": 214,
+    "viewport_bottom_px": 720,
+    "toolbar_single_line": true
+  },
+  "auto_6": {
+    "density": "confortable",
+    "mode": "auto",
+    "tracks_total": 6,
+    "rows_rendered": 6,
+    "row_height_px": [
+      72
+    ],
+    "ms_button_px": {
+      "w": 32,
+      "h": 32,
+      "w_solo": 32,
+      "h_mute": 32,
+      "gap_x": 4,
+      "same_row": true,
+      "min_w_all_rows": 32,
+      "min_h_all_rows": 32,
+      "pair_total_w": 68,
+      "pair_total_h": 32
+    },
+    "knobs_px": [
+      {
+        "w": 44,
+        "h": 44,
+        "margin_top": 14,
+        "margin_bottom": 14
+      },
+      {
+        "w": 44,
+        "h": 44,
+        "margin_top": 14,
+        "margin_bottom": 14
+      }
+    ],
+    "knob_min_vertical_margin_all_rows": 14,
+    "group_header": {
+      "height_px": 24,
+      "font_px": "13px",
+      "chevron_button": {
+        "w": 118.94,
+        "h": 22
+      },
+      "chevron_hit_area_with_pseudo_px": {
+        "w": 118.94,
+        "h": 26
+      },
+      "ms_visible_px": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "ms_hit_area_px": {
+        "w": 28,
+        "h": 30
+      }
+    },
+    "name_column_px": 192,
+    "name_text_available_px": 66,
+    "longest_name": "Guitares * (stem expérimental)",
+    "truncated_names": [],
+    "truncated_have_title": true,
+    "accompagnement_fits": null,
+    "guitare_rythmique_fits": null,
+    "rows_fully_visible": 6,
+    "group_headers_fully_visible": 2,
+    "list_scrolls": false,
+    "scroll_height": 636,
+    "client_height": 636,
+    "list_top_px": 214,
+    "viewport_bottom_px": 720,
+    "toolbar_single_line": true
+  },
+  "bascule_6_pistes": {
+    "apres_clic_Compact": "compact",
+    "apres_retour_Auto": "confortable"
+  },
+  "auto_16": {
+    "density": "compact",
+    "mode": "auto",
+    "tracks_total": 16,
+    "rows_rendered": 16,
+    "row_height_px": [
+      44
+    ],
+    "ms_button_px": {
+      "w": 28,
+      "h": 28,
+      "w_solo": 28,
+      "h_mute": 28,
+      "gap_x": 4,
+      "same_row": true,
+      "min_w_all_rows": 28,
+      "min_h_all_rows": 28,
+      "pair_total_w": 60,
+      "pair_total_h": 28
+    },
+    "knobs_px": [
+      {
+        "w": 36,
+        "h": 36,
+        "margin_top": 4,
+        "margin_bottom": 4
+      },
+      {
+        "w": 36,
+        "h": 36,
+        "margin_top": 4,
+        "margin_bottom": 4
+      }
+    ],
+    "knob_min_vertical_margin_all_rows": 4,
+    "group_header": {
+      "height_px": 24,
+      "font_px": "13px",
+      "chevron_button": {
+        "w": 119.06,
+        "h": 22
+      },
+      "chevron_hit_area_with_pseudo_px": {
+        "w": 119.06,
+        "h": 26
+      },
+      "ms_visible_px": [
+        {
+          "w": 28,
+          "h": 22
+        },
+        {
+          "w": 28,
+          "h": 22
+        }
+      ],
+      "ms_hit_area_px": {
+        "w": 28,
+        "h": 30
+      }
+    },
+    "name_column_px": 192,
+    "name_text_available_px": 62,
+    "longest_name": "Guitare rythmique * (stem expérimental)",
+    "truncated_names": [],
+    "truncated_have_title": true,
+    "accompagnement_fits": true,
+    "guitare_rythmique_fits": true,
+    "rows_fully_visible": 9,
+    "group_headers_fully_visible": 3,
+    "list_scrolls": true,
+    "scroll_height": 934,
+    "client_height": 636,
+    "list_top_px": 214,
+    "viewport_bottom_px": 720,
+    "toolbar_single_line": true
+  },
+  "bascule_16_pistes_confortable_manuel": {
+    "density": "confortable",
+    "rows_fully_visible": 6
+  },
+  "criteres": {
+    "ms_cote_a_cote_compact_ge_28": true,
+    "ms_cote_a_cote_confortable_ge_32": true,
+    "marge_verticale_bouton_rotatif_ge_4_compact": true,
+    "marge_verticale_bouton_rotatif_ge_4_confortable": true,
+    "compact_12_pistes_ge_8_lignes_completes": true,
+    "auto_6_confortable_72": true,
+    "auto_16_compact_defilement": true
+  }
+}
