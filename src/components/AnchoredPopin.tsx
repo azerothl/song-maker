@@ -62,8 +62,17 @@ export function AnchoredPopin({
       left = window.innerWidth - panelRect.width - margin;
     }
     if (left < margin) left = margin;
-    if (top + panelRect.height > window.innerHeight - margin) {
-      top = Math.max(margin, rect.top - panelRect.height - margin);
+    // Prefer keeping the capped panel fully in the viewport (sticky footer (#187)).
+    const maxPanelH = Math.min(
+      window.innerHeight * 0.8,
+      window.innerHeight - margin * 2,
+    );
+    if (panelRect.height > maxPanelH - 1) {
+      panel.style.maxHeight = `${maxPanelH}px`;
+    }
+    const height = Math.min(panel.getBoundingClientRect().height, maxPanelH);
+    if (top + height > window.innerHeight - margin) {
+      top = Math.max(margin, window.innerHeight - height - margin);
     }
     panel.style.top = `${top}px`;
     panel.style.left = `${left}px`;

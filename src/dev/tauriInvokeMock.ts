@@ -115,6 +115,39 @@ export async function invoke<T>(
       return null as T;
     case "load_production_overlay_disk":
       return null as T;
+    case "get_settings":
+      return {
+        projectsDir: "/tmp/capture",
+        cacheDir: "/tmp/capture-cache",
+        binaryTag: "v0",
+        binaryArchive: "",
+        binarySha256: "",
+        modelPack: "q8",
+        modelGguf: "",
+        modelSha256: "",
+        serverHost: "127.0.0.1",
+        serverPort: 8090,
+        stemSeparator: "htdemucs",
+        acceptedSeparatorLicenses: {},
+        separatorTimeStats: {},
+      } as T;
+    case "update_settings":
+      return (args?.settings ?? null) as T;
+    case "get_phase3_status":
+      return {
+        stemSeparator: "htdemucs",
+        htdemucsAvailable: true,
+        bsRoformerAvailable: false,
+        bsRoformerPath: "",
+        melBandRoformerAvailable: false,
+        melBandRoformerPath: "",
+        htdemucs6sRuntimeAvailable: false,
+        ccByNcAccepted: false,
+        acceptedSeparatorLicenses: {},
+        separatorTimeStats: {},
+        guitarPianoAvailable: false,
+        honestyFr: "",
+      } as T;
     default:
       console.warn(`[capture mock] invoke non géré : ${cmd}`);
       return null as T;

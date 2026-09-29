@@ -43,4 +43,11 @@ describe("Séparation recommandée (#166)", () => {
       /Maquette Alphonse/i,
     );
   });
+
+  it("propose de revenir à la recommandation après un choix manuel (#187)", () => {
+    assert.equal(
+      t("separate.recommend.revert"),
+      "Revenir à la recommandation",
+    );
+  });
 });

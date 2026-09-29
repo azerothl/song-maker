@@ -1,0 +1,45 @@
+{
+  "separation": {
+    "scene": "separation",
+    "footerVisible": true,
+    "footerBottomInViewport": true,
+    "runButtonVisible": true,
+    "downloadAriaDisabled": true,
+    "downloadReasonVisible": true,
+    "exclusionsVisible": true,
+    "mockupNoteAbsent": true,
+    "minControlHeightPx": 44,
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "export-mix": {
+    "scene": "export-mix",
+    "footerVisible": true,
+    "footerBottomInViewport": true,
+    "formatLivePresent": true,
+    "formatLabeled": true,
+    "disabledReasonVisible": true,
+    "mockupNoteAbsent": true,
+    "minControlHeightPx": 44,
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "export-stems": {
+    "scene": "export-stems",
+    "footerVisible": true,
+    "footerBottomInViewport": true,
+    "formatLivePresent": false,
+    "formatLabeled": false,
+    "disabledReasonVisible": true,
+    "mockupNoteAbsent": true,
+    "minControlHeightPx": 44,
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    }
+  }
+}
