@@ -786,6 +786,7 @@ pub struct SeparationVersionSummary {
     pub mix_id: String,
     pub created_at: String,
     pub is_active: bool,
+    pub generation_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

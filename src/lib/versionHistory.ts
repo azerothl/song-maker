@@ -15,6 +15,8 @@ export type TakeDisplay = {
   ordinal: number;
   /** User-facing title, e.g. « Prise 3 » or a custom name. */
   title: string;
+  /** Default « Prise N » kept after rename (tooltip / Détails). */
+  defaultTitle: string;
   /** Relative clock, e.g. « aujourd’hui 14:22 ». */
   when: string;
   /** Short style blurb; empty when none. */
@@ -25,8 +27,16 @@ export type TakeDisplay = {
   createdAt: string;
   hasAudio: boolean;
   hasScore: boolean;
+  hasMusic: boolean;
+  hasMix: boolean;
+  seed: number;
   state: string;
+  isInterrupted: boolean;
   isActive: boolean;
+  mixId: string | null;
+  scoreArtifactId: string | null;
+  /** Mix / partition updates tied to this take (not separations). */
+  inlineEvents: TimelineEvent[];
 };
 
 export type TimelineEvent = {
@@ -40,6 +50,10 @@ export type TimelineEvent = {
   isActive: boolean;
   /** Separation / mix activation target when applicable. */
   activationId: string | null;
+  /** Second and later separations use « à nouveau ». */
+  isRepeatSeparation: boolean;
+  /** Separation milestones are global, not owned by a single take. */
+  isGlobal: boolean;
 };
 
 export type TimelineItem =
@@ -183,6 +197,56 @@ export function resolveTakeTitle(
   return defaultTakeTitle(ordinal);
 }
 
+function takeForTimestamp(
+  takes: TakeDisplay[],
+  iso: string,
+): TakeDisplay | null {
+  if (!iso.trim()) return takes[0] ?? null;
+  const sorted = [...takes].sort((a, b) => {
+    const ac = a.createdAt || "";
+    const bc = b.createdAt || "";
+    if (ac !== bc) return ac < bc ? -1 : 1;
+    return a.id.localeCompare(b.id);
+  });
+  let match: TakeDisplay | null = null;
+  for (const take of sorted) {
+    const at = take.createdAt || "";
+    if (!at || at <= iso) match = take;
+  }
+  return match ?? sorted[0] ?? null;
+}
+
+export function isTakeRenamed(take: TakeDisplay): boolean {
+  return take.title.trim() !== take.defaultTitle;
+}
+
+/** Tooltip when the user chose a custom take name. */
+export function renamedTakeTooltip(
+  take: TakeDisplay,
+  template: (defaultName: string) => string,
+): string | undefined {
+  if (!isTakeRenamed(take)) return undefined;
+  return template(take.defaultTitle);
+}
+
+export function formatTakeDetails(
+  take: TakeDisplay,
+  generation?: GenerationSummary,
+  options?: { defaultNameLabel?: string },
+): string {
+  const lines = [`gen: ${take.id}`];
+  if (isTakeRenamed(take)) {
+    const label = options?.defaultNameLabel ?? "nom par défaut";
+    lines.push(`${label}: ${take.defaultTitle}`);
+  }
+  lines.push(`graine: ${take.seed}`);
+  if (take.scoreArtifactId) lines.push(`partition: ${take.scoreArtifactId}`);
+  if (take.mixId) lines.push(`mix: ${take.mixId}`);
+  if (generation?.cot) lines.push(`mode: ${generation.cot}`);
+  lines.push(`état: ${take.state}`);
+  return lines.join("\n");
+}
+
 export type BuildTimelineInput = {
   generations: GenerationSummary[];
   separations: SeparationVersionSummary[];
@@ -195,6 +259,7 @@ export type BuildTimelineInput = {
   labels: {
     fromParent: (parentTitle: string) => string;
     separation: string;
+    separationAgain: string;
     mix: string;
     score: string;
   };
@@ -203,6 +268,9 @@ export type BuildTimelineInput = {
 export function buildTakeDisplays(input: BuildTimelineInput): TakeDisplay[] {
   const {
     generations,
+    separations,
+    scores = [],
+    mixes = [],
     activeGenerationId,
     style,
     customNames,
@@ -216,7 +284,14 @@ export function buildTakeDisplays(input: BuildTimelineInput): TakeDisplay[] {
     titleById.set(g.id, resolveTakeTitle(g.id, ordinal, customNames));
   }
   const styleSummary = summarizeStyle(style);
-  return generations.map((g) => {
+  const mixByGen = new Map<string, string>();
+  for (const sep of separations) {
+    if (sep.generationId && sep.mixId) {
+      mixByGen.set(sep.generationId, sep.mixId);
+    }
+  }
+
+  const takes: TakeDisplay[] = generations.map((g) => {
     const ordinal = ordinals.get(g.id) ?? 0;
     const title = titleById.get(g.id) ?? defaultTakeTitle(ordinal);
     const parentIdRaw = g.parentGenerationId ?? null;
@@ -225,10 +300,16 @@ export function buildTakeDisplays(input: BuildTimelineInput): TakeDisplay[] {
       parentKnown && parentIdRaw
         ? labels.fromParent(titleById.get(parentIdRaw)!)
         : null;
+    const hasMusic = g.state === "generated" && Boolean(g.audioPath);
+    const mixId = mixByGen.get(g.id) ?? null;
+    const scoreArtifactId = g.hasScore ? g.id : null;
+    const isInterrupted = !hasMusic && g.state !== "generated";
+    const defaultTitle = defaultTakeTitle(ordinal);
     return {
       id: g.id,
       ordinal,
       title,
+      defaultTitle,
       when: formatRelativeWhen(g.createdAt, now),
       styleSummary,
       fromParent,
@@ -236,20 +317,71 @@ export function buildTakeDisplays(input: BuildTimelineInput): TakeDisplay[] {
       createdAt: g.createdAt,
       hasAudio: Boolean(g.audioPath),
       hasScore: g.hasScore,
+      hasMusic,
+      hasMix: Boolean(mixId),
+      seed: g.seed,
       state: g.state,
+      isInterrupted,
       isActive: g.id === activeGenerationId,
+      mixId,
+      scoreArtifactId,
+      inlineEvents: [],
     };
   });
+
+  const takeById = new Map(takes.map((t) => [t.id, t]));
+
+  for (const mix of mixes) {
+    const owner = takeForTimestamp(takes, mix.createdAt);
+    if (!owner) continue;
+    const take = takeById.get(owner.id);
+    if (!take) continue;
+    take.inlineEvents.push({
+      id: `mix:${mix.id}`,
+      kind: "mix",
+      title: labels.mix,
+      when: formatRelativeWhen(mix.createdAt, now),
+      createdAt: mix.createdAt,
+      technicalId: mix.id,
+      isActive: false,
+      activationId: null,
+      isRepeatSeparation: false,
+      isGlobal: false,
+    });
+  }
+
+  for (const score of scores) {
+    const owner = takeForTimestamp(takes, score.createdAt);
+    if (!owner) continue;
+    const take = takeById.get(owner.id);
+    if (!take) continue;
+    take.scoreArtifactId = score.id;
+    take.inlineEvents.push({
+      id: `score:${score.id}`,
+      kind: "score",
+      title: labels.score,
+      when: formatRelativeWhen(score.createdAt, now),
+      createdAt: score.createdAt,
+      technicalId: score.id,
+      isActive: false,
+      activationId: null,
+      isRepeatSeparation: false,
+      isGlobal: false,
+    });
+  }
+
+  for (const take of takes) {
+    take.inlineEvents.sort((a, b) => {
+      if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1;
+      return a.id.localeCompare(b.id);
+    });
+  }
+
+  return takes;
 }
 
 export function buildTimeline(input: BuildTimelineInput): DayGroup[] {
-  const {
-    separations,
-    scores = [],
-    mixes = [],
-    now = new Date(),
-    labels,
-  } = input;
+  const { separations, now = new Date(), labels } = input;
   const takes = buildTakeDisplays(input);
   const items: TimelineItem[] = [];
 
@@ -257,64 +389,35 @@ export function buildTimeline(input: BuildTimelineInput): DayGroup[] {
     items.push({ type: "take", take, sortAt: take.createdAt || take.id });
   }
 
-  for (const sep of separations) {
+  const sepsSorted = [...separations].sort((a, b) => {
+    const ac = a.createdAt || a.separationId;
+    const bc = b.createdAt || b.separationId;
+    return ac < bc ? -1 : ac > bc ? 1 : 0;
+  });
+
+  sepsSorted.forEach((sep, index) => {
     items.push({
       type: "event",
       sortAt: sep.createdAt || sep.separationId,
       event: {
         id: `sep:${sep.separationId}`,
         kind: "separation",
-        title: labels.separation,
+        title:
+          index === 0 ? labels.separation : labels.separationAgain,
         when: formatRelativeWhen(sep.createdAt, now),
         createdAt: sep.createdAt,
         technicalId: sep.separationId,
         isActive: sep.isActive,
         activationId: sep.separationId,
+        isRepeatSeparation: index > 0,
+        isGlobal: true,
       },
     });
-  }
-
-  for (const mix of mixes) {
-    items.push({
-      type: "event",
-      sortAt: mix.createdAt || mix.id,
-      event: {
-        id: `mix:${mix.id}`,
-        kind: "mix",
-        title: labels.mix,
-        when: formatRelativeWhen(mix.createdAt, now),
-        createdAt: mix.createdAt,
-        technicalId: mix.id,
-        isActive: false,
-        activationId: null,
-      },
-    });
-  }
-
-  for (const score of scores) {
-    items.push({
-      type: "event",
-      sortAt: score.createdAt || score.id,
-      event: {
-        id: `score:${score.id}`,
-        kind: "score",
-        title: labels.score,
-        when: formatRelativeWhen(score.createdAt, now),
-        createdAt: score.createdAt,
-        technicalId: score.id,
-        isActive: false,
-        activationId: null,
-      },
-    });
-  }
+  });
 
   items.sort((a, b) => {
     if (a.sortAt !== b.sortAt) return a.sortAt < b.sortAt ? 1 : -1;
-    return a.type === b.type
-      ? 0
-      : a.type === "take"
-        ? -1
-        : 1;
+    return a.type === b.type ? 0 : a.type === "take" ? -1 : 1;
   });
 
   const groups = new Map<string, TimelineItem[]>();

@@ -448,6 +448,25 @@ export function SongScreen() {
     }
   }
 
+  async function onRetryTake(_generationId: string) {
+    if (!project || formError || scoreGate.error) {
+      setShowFormErrors(true);
+      setWorkspace("create");
+      setAdvancedSettingsPage(null);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await api.startGeneration(project.id, form, scoreGate.abc);
+      await openProject(project.id);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onGenerateBatch(count: number) {
     if (!project || formError || scoreGate.error) {
       setShowFormErrors(true);
@@ -736,6 +755,7 @@ export function SongScreen() {
             onRevertSeparation={
               separationUndo ? () => void onRevertSeparation() : undefined
             }
+            onRetryTake={(genId) => void onRetryTake(genId)}
             onSeparationSwitched={() => setSeparationUndo(null)}
             openProject={openProject}
             project={project}

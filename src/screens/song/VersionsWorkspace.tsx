@@ -24,6 +24,7 @@ type VersionsWorkspaceProps = {
   onContinue: (generationId: string) => Promise<void>;
   onGenerateBatch: (count: number) => Promise<void>;
   onRevertSeparation?: () => void;
+  onRetryTake?: (generationId: string) => void;
   onSeparationSwitched?: () => void;
   openProject: (id: string) => Promise<void>;
   project: ProjectDoc;
@@ -39,6 +40,7 @@ export function VersionsWorkspace({
   onContinue,
   onGenerateBatch,
   onRevertSeparation,
+  onRetryTake,
   onSeparationSwitched,
   openProject,
   project,
@@ -202,11 +204,8 @@ export function VersionsWorkspace({
           onListen={(genId) => {
             void activateTake(genId);
           }}
-          onRestore={(genId) => {
-            if (window.confirm(t("generations.useHint"))) {
-              void activateTake(genId);
-            }
-          }}
+          onActivateTake={activateTake}
+          onRetryTake={onRetryTake}
           onActivateSeparation={(separationId) => {
             void api
               .activateSeparationVersion(project.id, separationId)
