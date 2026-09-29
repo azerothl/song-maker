@@ -11,13 +11,18 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "packages:build": "pnpm -r --filter \"./packages/**\" run build",
     "packages:test": "pnpm -r --filter \"./packages/**\" run test",
     "packages:typecheck": "pnpm -r --filter \"./packages/**\" run typecheck",
+    "rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml",
+    "rust:fmt:check": "cargo fmt --manifest-path src-tauri/Cargo.toml --check",
+    "rust:clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
+    "rust:test": "cargo test --manifest-path src-tauri/Cargo.toml",
     "website:dev": "pnpm --filter website dev",
     "website:build": "pnpm --filter website build",
-    "website:start": "pnpm --filter website start"
+    "website:start": "pnpm --filter website start",
+    "website:lint": "pnpm --filter website lint"
   },
   "dependencies": {
     "@song-maker/akasha-declui": "workspace:*",
@@ -51,5 +56,13 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "@swc/core",
+      "esbuild",
+      "unrs-resolver"
+    ]
   }
 }

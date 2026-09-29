@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref; always keep main green.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: App & packages (TypeScript)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck app
+        run: pnpm typecheck
+
+      - name: Test app
+        run: pnpm test
+
+      - name: Typecheck packages
+        run: pnpm packages:typecheck
+
+      - name: Test packages
+        run: pnpm packages:test
+
+      - name: Build packages
+        run: pnpm packages:build
+
+      - name: Build app bundle
+        run: pnpm build
+
+  rust:
+    name: Backend (Rust)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      # The `tauri` crate links against these on Linux; without them the crate
+      # does not compile, so fmt/clippy/test all fail before running anything.
+      - name: Install Linux build libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential curl file pkg-config libssl-dev \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            librsvg2-dev patchelf
+
+      # Reads the pinned toolchain and its components from rust-toolchain.toml.
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Check formatting
+        run: pnpm rust:fmt:check
+
+      - name: Lint (clippy)
+        run: pnpm rust:clippy
+
+      - name: Test
+        run: pnpm rust:test
+
+  website:
+    name: Website (Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm website:lint
+
+      - name: Build
+        run: pnpm website:build

@@ -16,8 +16,62 @@ permissions:
   contents: write
 
 jobs:
+  verify:
+    name: Verify before release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      # The `tauri` crate links against these on Linux; without them the crate
+      # does not compile and the Rust checks below cannot run.
+      - name: Install Linux build libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential curl file pkg-config libssl-dev \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            librsvg2-dev patchelf
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Same toolchain and components as CI, pinned by rust-toolchain.toml.
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Mirrors .github/workflows/ci.yml so a tag can never publish code that
+      # CI would have rejected.
+      - name: Typecheck and test
+        run: |
+          pnpm typecheck
+          pnpm test
+          pnpm packages:typecheck
+          pnpm packages:test
+
+      - name: Lint and test Rust
+        run: |
+          pnpm rust:fmt:check
+          pnpm rust:clippy
+          pnpm rust:test
+
   draft:
     name: Prepare release draft
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - name: Create the shared draft before parallel builds start
@@ -85,7 +139,7 @@ jobs:
           cache: pnpm
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
           targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
