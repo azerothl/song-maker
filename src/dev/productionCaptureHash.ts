@@ -4,8 +4,10 @@ export type CaptureHashPrefs = {
   trackCount: number;
   densityPreference: ProductionDensityPreference;
   rythmiqueCollapsed: boolean;
-  /** Position de lecture au milieu (capture curseur). */
+  /** Lecture en cours (capture midplay / stems). */
   midPlayback: boolean;
+  /** Position 0–1 dans le morceau. */
+  progressRatio: number;
 };
 
 export function parseCaptureHash(hashRaw: string): CaptureHashPrefs {
@@ -24,7 +26,16 @@ export function parseCaptureHash(hashRaw: string): CaptureHashPrefs {
   else if (hash.includes("auto")) densityPreference = "auto";
 
   const rythmiqueCollapsed = hash.includes("collapsed");
-  const midPlayback = hash.includes("midplay") || hash.includes("playing");
 
-  return { trackCount, densityPreference, rythmiqueCollapsed, midPlayback };
+  let progressRatio = 0;
+  const mid = hash.match(/(?:midplay|progress)(?:=|:)([\d.]+)/);
+  if (mid) {
+    progressRatio = Math.max(0, Math.min(1, Number(mid[1])));
+  } else if (hash.includes("midplay") || hash.includes("playing")) {
+    progressRatio = 0.5;
+  }
+
+  const midPlayback = progressRatio > 0;
+
+  return { trackCount, densityPreference, rythmiqueCollapsed, midPlayback, progressRatio };
 }

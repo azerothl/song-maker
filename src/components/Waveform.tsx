@@ -6,9 +6,10 @@ import {
 } from "react";
 import {
   DEFAULT_WAVE_COLOR,
-  DEFAULT_WAVE_PLAYED,
+  resolveWaveFillColors,
   roleWaveColor,
-  withAlpha,
+  WAVE_PLAYHEAD_OUTLINE,
+  WAVE_PLAYHEAD_STROKE,
 } from "../lib/trackRoleColors";
 import { t } from "../ui/i18n";
 
@@ -69,32 +70,27 @@ function resolveDrawColors(
   el: Element | null,
   opts: { color?: string; playedColor?: string; role?: string },
 ): { unplayed: string; played: string } {
+  // Prefer inherited `--track-wave` so pastille + waveform share one CSS source (#159).
+  const css = readCssWaveColors(el);
   if (opts.color || opts.playedColor) {
-    const base = opts.color ?? roleWaveColor(opts.role);
-    const playedBase = opts.playedColor ?? opts.color ?? roleWaveColor(opts.role);
-    return {
-      unplayed: withAlpha(base, 0.48),
-      played: withAlpha(playedBase, 0.95),
-    };
+    const base = opts.color ?? css.wave ?? roleWaveColor(opts.role);
+    const fills = resolveWaveFillColors(base);
+    if (opts.playedColor) {
+      return { unplayed: fills.unplayed, played: opts.playedColor };
+    }
+    return fills;
+  }
+  if (css.wave) {
+    const fills = resolveWaveFillColors(css.wave);
+    if (css.played && css.played !== css.wave) {
+      return { unplayed: fills.unplayed, played: css.played };
+    }
+    return fills;
   }
   if (opts.role) {
-    const base = roleWaveColor(opts.role);
-    return {
-      unplayed: withAlpha(base, 0.48),
-      played: withAlpha(base, 0.95),
-    };
+    return resolveWaveFillColors(roleWaveColor(opts.role));
   }
-  const css = readCssWaveColors(el);
-  if (css.wave) {
-    return {
-      unplayed: withAlpha(css.wave, 0.48),
-      played: withAlpha(css.played ?? css.wave, 0.95),
-    };
-  }
-  return {
-    unplayed: withAlpha(DEFAULT_WAVE_COLOR, 0.48),
-    played: withAlpha(DEFAULT_WAVE_PLAYED, 0.95),
-  };
+  return resolveWaveFillColors(DEFAULT_WAVE_COLOR);
 }
 
 export function Waveform({
@@ -157,14 +153,13 @@ export function Waveform({
     }
 
     const playheadX = playedX + 0.5;
-    // Contour sombre + trait blanc : lisible sur la zone jouée claire (WCAG 1.4.11).
-    ctx.strokeStyle = "#1a1424";
+    ctx.strokeStyle = WAVE_PLAYHEAD_OUTLINE;
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(playheadX, 0);
     ctx.lineTo(playheadX, height);
     ctx.stroke();
-    ctx.strokeStyle = "#ffffff";
+    ctx.strokeStyle = WAVE_PLAYHEAD_STROKE;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(playheadX, 0);

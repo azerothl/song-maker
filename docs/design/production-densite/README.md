@@ -17,6 +17,8 @@ Maquette statique, **rien n’est commité ni poussé**, aucune écriture GitHub
 - `production-16pistes-auto-1280x720.png` : 16 pistes, Auto → **compact** (44 px), la liste défile.
 - `production-zoom-ms.png` : zoom ×3 d’une ligne (« Chœurs », muette) en compact et en confortable, avec cotes mesurées (M/S, boutons rotatifs, marges, hauteur de ligne).
 - `production-tooltip.png`, `production-assistant-popin.png` : régénérés avec la nouvelle mise en page.
+- `contrastes.md` : audit WCAG 1.4.11 des 6 couleurs de stems (pastille = waveform, partie à venir @ 65 % sur `#0C0E18`) — mesures `getComputedStyle` sur l’app React (#159).
+- `captures-react/production-stem-colors-*-1280x720.png` : captures midplay pour relecture des couleurs.
 
 ## Valeurs mesurées (exemples, Chromium, 1280×720, `metrics.json`)
 | Élément | Compact | Confortable |

@@ -1,8 +1,13 @@
 /** Contraste curseur de lecture vs zone jouée (WCAG 1.4.11, seuil 3:1). */
 
-export const WAVE_PLAYHEAD_STROKE = "#ffffff";
-export const WAVE_PLAYHEAD_HALO = "#1a1424";
-export const WCAG_UI_CONTRAST_MIN = 3;
+import {
+  WCAG_UI_CONTRAST_MIN,
+  WAVE_PLAYHEAD_OUTLINE,
+  WAVE_PLAYHEAD_STROKE,
+} from "../lib/trackRoleColors";
+
+export { WCAG_UI_CONTRAST_MIN, WAVE_PLAYHEAD_STROKE };
+export const WAVE_PLAYHEAD_HALO = WAVE_PLAYHEAD_OUTLINE;
 
 type Rgb = { r: number; g: number; b: number };
 
