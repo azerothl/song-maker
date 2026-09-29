@@ -1,0 +1,70 @@
+{
+  "avant": {
+    "1280x720": {
+      "playButtonPx": {
+        "width": 756.484375,
+        "height": 32
+      },
+      "globalWaveformPx": {
+        "width": 64,
+        "height": 32
+      },
+      "bannerPx": {
+        "width": 1048,
+        "height": 44.375
+      },
+      "waveformWidthShare": 0.061068702290076333,
+      "rowsFullyVisible": 9
+    },
+    "1024x700": {
+      "playButtonPx": {
+        "width": 500.484375,
+        "height": 32
+      },
+      "globalWaveformPx": {
+        "width": 64,
+        "height": 32
+      },
+      "bannerPx": {
+        "width": 792,
+        "height": 44.375
+      },
+      "waveformWidthShare": 0.08080808080808081,
+      "rowsFullyVisible": 8
+    }
+  },
+  "apres": {
+    "1280x720": {
+      "playButtonPx": {
+        "width": 32,
+        "height": 32
+      },
+      "globalWaveformPx": {
+        "width": 789.296875,
+        "height": 56
+      },
+      "bannerPx": {
+        "width": 1048,
+        "height": 64.375
+      },
+      "waveformWidthShare": 0.7531458730916031,
+      "rowsFullyVisible": 9
+    },
+    "1024x700": {
+      "playButtonPx": {
+        "width": 32,
+        "height": 32
+      },
+      "globalWaveformPx": {
+        "width": 533.296875,
+        "height": 56
+      },
+      "bannerPx": {
+        "width": 792,
+        "height": 64.375
+      },
+      "waveformWidthShare": 0.6733546401515151,
+      "rowsFullyVisible": 7
+    }
+  }
+}

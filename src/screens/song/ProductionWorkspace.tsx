@@ -162,8 +162,6 @@ export function ProductionWorkspace({
   sourceDurationMsByTrack,
 }: ProductionWorkspaceProps) {
   const hasAiStems = mix?.tracks.some((tr) => tr.aiSeparated) ?? false;
-  const splitTransport =
-    playbackSources?.mode === "stems" && hasAiStems;
 
   const mixAssistBtnRef = useRef<HTMLButtonElement>(null);
   const copilotBtnRef = useRef<HTMLButtonElement>(null);
@@ -191,7 +189,7 @@ export function ProductionWorkspace({
   );
   const waveHeight = waveHeightForDensity(effectiveDensity);
   const tightMixLayout = shouldUseProductionTightLayout(productionView, effectiveDensity);
-  const masterWaveHeight = tightMixLayout ? 32 : 38;
+  const masterWaveHeight = 56;
 
   const setDensityPreferencePersist = (next: ProductionDensityPreference) => {
     setDensityPreference(next);
@@ -404,28 +402,54 @@ export function ProductionWorkspace({
 
             <div className="production-mix-sticky-master">
               <div
-                className={
-                  splitTransport
-                    ? "mix-master-banner mix-master-banner-split production-mix-master"
-                    : "mix-master-banner production-mix-master"
-                }
+                className="mix-master-banner production-mix-master"
                 aria-label={t("mix.masterBanner")}
               >
-                <button
-                  type="button"
-                  className="btn mix-master-play"
-                  disabled={!playback?.ready || playback.loading}
-                  onClick={() =>
-                    void playback?.toggle().catch((e) => setError(String(e)))
-                  }
-                >
-                  {playback?.loading
-                    ? "…"
-                    : playback?.playing
-                      ? t("player.pause")
-                      : t("player.play")}
-                </button>
-                {splitTransport && (
+                <div className="mix-master-transport-controls">
+                  <button
+                    type="button"
+                    className="btn mix-master-play"
+                    disabled={!playback?.ready || playback.loading}
+                    aria-label={
+                      playback?.loading
+                        ? t("player.loading")
+                        : playback?.playing
+                          ? t("player.pause")
+                          : t("player.play")
+                    }
+                    aria-keyshortcuts="Space"
+                    onClick={() =>
+                      void playback?.toggle().catch((e) => setError(String(e)))
+                    }
+                  >
+                    {playback?.loading ? (
+                      <span className="mix-master-play-loading" aria-hidden>
+                        …
+                      </span>
+                    ) : playback?.playing ? (
+                      <svg
+                        className="mix-master-play-icon"
+                        viewBox="0 0 24 24"
+                        width="18"
+                        height="18"
+                        aria-hidden
+                        focusable="false"
+                      >
+                        <path fill="currentColor" d="M6 5h4v14H6zm8 0h4v14h-4z" />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="mix-master-play-icon"
+                        viewBox="0 0 24 24"
+                        width="18"
+                        height="18"
+                        aria-hidden
+                        focusable="false"
+                      >
+                        <path fill="currentColor" d="M8 5v14l11-7z" />
+                      </svg>
+                    )}
+                  </button>
                   <div
                     className="mix-master-times"
                     aria-label={t("player.seek")}
@@ -438,7 +462,7 @@ export function ProductionWorkspace({
                       {formatPlaybackTime(playback?.duration ?? 0)}
                     </span>
                   </div>
-                )}
+                </div>
                 <div className="mix-master-wave">
                   <Waveform
                     peaks={playback?.mixPeaks ?? null}

@@ -511,6 +511,7 @@
   "track.other": "Accompagnement",
   "player.play": "Lecture",
   "player.pause": "Pause",
+  "player.loading": "Chargement de la lecture",
   "player.seek": "Position",
   "player.mixWave": "Mix",
   "player.stereoWave": "Stéréo",

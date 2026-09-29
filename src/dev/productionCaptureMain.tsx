@@ -18,6 +18,7 @@ import {
 } from "../lib/productionTrackLayout";
 import type { MixDoc } from "../lib/types";
 import { measureProductionMix } from "./productionCaptureMetrics";
+import { measureProductionTransport } from "./productionTransportMetrics";
 import { parseCaptureHash } from "./productionCaptureHash";
 import "../App.css";
 
@@ -179,9 +180,11 @@ if (root) {
 declare global {
   interface Window {
     __productionCaptureMetrics?: () => ReturnType<typeof measureProductionMix>;
+    __productionTransportMetrics?: () => ReturnType<typeof measureProductionTransport>;
   }
 }
 
 window.__productionCaptureMetrics = () => measureProductionMix();
+window.__productionTransportMetrics = () => measureProductionTransport();
 
 void loadCollapsedTrackFamilies();
