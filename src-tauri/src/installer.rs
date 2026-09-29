@@ -407,7 +407,7 @@ pub fn install_plan_for_cache(cache: &Path, pack: &str) -> Result<InstallPlan, S
     }
     let needs_extract = !crate::audiocpp::AudioCppServer::has_server_binary(cache);
     let items = artifacts(cache, &pack, needs_extract)?;
-    Ok(install_plan_from_items(pack, &items))
+    Ok(install_plan_from_items(&pack, &items))
 }
 
 pub fn install_plan_mix_only_for_cache(cache: &Path) -> Result<InstallPlan, String> {
