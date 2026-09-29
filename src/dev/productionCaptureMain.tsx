@@ -22,6 +22,7 @@ import { measureProductionTransport } from "./productionTransportMetrics";
 import { measureProductionStemColors } from "./stemCaptureMetrics";
 import { measureMasterWavePlayheadContrast } from "./waveformPlayheadContrast";
 import { parseCaptureHash } from "./productionCaptureHash";
+import { attachPrimaryButtonMetricsWindow } from "./primaryButtonMetrics";
 import "../App.css";
 
 function applyCaptureHashPrefs() {
@@ -206,5 +207,6 @@ window.__productionCaptureMetrics = () => measureProductionMix();
 window.__productionTransportMetrics = () => measureProductionTransport();
 window.__productionPlayheadContrast = () => measureMasterWavePlayheadContrast();
 window.__productionStemColors = () => measureProductionStemColors();
+attachPrimaryButtonMetricsWindow();
 
 void loadCollapsedTrackFamilies();

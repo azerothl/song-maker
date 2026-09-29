@@ -535,19 +535,32 @@ option {
 .btn.primary {
   background: linear-gradient(180deg, var(--accent), var(--accent-2));
   border-color: transparent;
-  /* Dark text on light accent gradient — WCAG 2.2 AA (≥ 4.5:1), #186. */
+  /* Dark text on light accent gradient — WCAG 2.2 AA (≥ 4.5:1), #186 / #189. */
   color: #151827;
 }
 
-.btn.primary:disabled {
-  /* Override .btn:disabled opacity: paint-compositing at 0.45 drops below 4.5:1. */
-  opacity: 1;
-  color: #151827;
+.btn.primary:hover:not(:disabled) {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--accent) 62%, white),
-    color-mix(in srgb, var(--accent-2) 62%, white)
+    color-mix(in srgb, var(--accent) 76%, white),
+    color-mix(in srgb, var(--accent-2) 68%, var(--accent))
   );
+  border-color: transparent;
+}
+
+.btn.primary:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.btn.primary:disabled {
+  /* Lisible mais clairement inactif (#186) — pas le violet actif (#189). */
+  opacity: 1;
+  cursor: not-allowed;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--bg2) 82%, var(--bg0));
+  border-color: var(--line);
+  background-image: none;
 }
 
 .btn.ghost {

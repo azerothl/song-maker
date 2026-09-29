@@ -1,0 +1,212 @@
+{
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "scenarios": [
+    {
+      "id": "creer",
+      "label": "Onglet Créer — Générer",
+      "buttonSelector": ".song-create-generate-btn",
+      "captures": [
+        {
+          "state": "normal",
+          "file": "primary-btn-creer-normal-1280x720.png",
+          "measure": {
+            "state": "normal",
+            "foregroundCss": "rgb(21, 24, 39)",
+            "backgroundStopsCss": [
+              "rgb(196, 168, 255)",
+              "rgb(167, 139, 250)"
+            ],
+            "worstStopContrast": 6.47,
+            "flatBackgroundContrast": 1.19,
+            "effectiveContrast": 6.47,
+            "passAa": true
+          }
+        },
+        {
+          "state": "hover",
+          "file": "primary-btn-creer-hover-1280x720.png",
+          "measure": {
+            "state": "hover",
+            "foregroundCss": "rgb(21, 24, 39)",
+            "backgroundStopsCss": [
+              "color(srgb 0.824157 0.740706 1)",
+              "color(srgb 0.691294 0.58149 0.986667)"
+            ],
+            "worstStopContrast": 7.12,
+            "flatBackgroundContrast": 1.19,
+            "effectiveContrast": 7.12,
+            "passAa": true
+          }
+        },
+        {
+          "state": "focus",
+          "file": "primary-btn-creer-focus-1280x720.png",
+          "measure": {
+            "state": "focus",
+            "foregroundCss": "rgb(21, 24, 39)",
+            "backgroundStopsCss": [
+              "color(srgb 0.824157 0.740706 1)",
+              "color(srgb 0.691294 0.58149 0.986667)"
+            ],
+            "worstStopContrast": 7.12,
+            "flatBackgroundContrast": 1.19,
+            "effectiveContrast": 7.12,
+            "passAa": true
+          }
+        },
+        {
+          "state": "disabled",
+          "file": "primary-btn-creer-disabled-1280x720.png",
+          "measure": {
+            "state": "disabled",
+            "foregroundCss": "rgb(167, 174, 196)",
+            "backgroundStopsCss": [],
+            "worstStopContrast": null,
+            "flatBackgroundContrast": 7.27,
+            "effectiveContrast": 7.27,
+            "passAa": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "production-exporter",
+      "label": "Production — dialogue Exporter",
+      "buttonSelector": ".export-dialog-popin button.btn.primary",
+      "captures": [
+        {
+          "state": "normal",
+          "file": "primary-btn-production-exporter-normal-1280x720.png",
+          "measure": {
+            "state": "normal",
+            "foregroundCss": "rgb(21, 24, 39)",
+            "backgroundStopsCss": [
+              "rgb(196, 168, 255)",
+              "rgb(167, 139, 250)"
+            ],
+            "worstStopContrast": 6.47,
+            "flatBackgroundContrast": 1.19,
+            "effectiveContrast": 6.47,
+            "passAa": true
+          }
+        },
+        {
+          "state": "hover",
+          "file": "primary-btn-production-exporter-hover-1280x720.png",
+          "measure": {
+            "state": "hover",
+            "foregroundCss": "rgb(21, 24, 39)",
+            "backgroundStopsCss": [
+              "color(srgb 0.824157 0.740706 1)",
+              "color(srgb 0.691294 0.58149 0.986667)"
+            ],
+            "worstStopContrast": 7.12,
+            "flatBackgroundContrast": 1.19,
+            "effectiveContrast": 7.12,
+            "passAa": true
+          }
+        },
+        {
+          "state": "focus",
+          "file": "primary-btn-production-exporter-focus-1280x720.png",
+          "measure": {
+            "state": "focus",
+            "foregroundCss": "rgb(21, 24, 39)",
+            "backgroundStopsCss": [
+              "color(srgb 0.824157 0.740706 1)",
+              "color(srgb 0.691294 0.58149 0.986667)"
+            ],
+            "worstStopContrast": 7.12,
+            "flatBackgroundContrast": 1.19,
+            "effectiveContrast": 7.12,
+            "passAa": true
+          }
+        },
+        {
+          "state": "disabled",
+          "file": "primary-btn-production-exporter-disabled-1280x720.png",
+          "measure": {
+            "state": "disabled",
+            "foregroundCss": "rgb(167, 174, 196)",
+            "backgroundStopsCss": [],
+            "worstStopContrast": null,
+            "flatBackgroundContrast": 7.27,
+            "effectiveContrast": 7.27,
+            "passAa": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "confirmation-regeneration-gate",
+      "label": "Confirmation — RegenerationGate (baseline mockée)",
+      "buttonSelector": ".regeneration-gate button.btn.primary",
+      "captures": [
+        {
+          "state": "normal",
+          "file": "primary-btn-confirmation-regeneration-gate-normal-1280x720.png",
+          "measure": {
+            "state": "normal",
+            "foregroundCss": "rgb(21, 24, 39)",
+            "backgroundStopsCss": [
+              "rgb(196, 168, 255)",
+              "rgb(167, 139, 250)"
+            ],
+            "worstStopContrast": 6.47,
+            "flatBackgroundContrast": 1.19,
+            "effectiveContrast": 6.47,
+            "passAa": true
+          }
+        },
+        {
+          "state": "hover",
+          "file": "primary-btn-confirmation-regeneration-gate-hover-1280x720.png",
+          "measure": {
+            "state": "hover",
+            "foregroundCss": "rgb(21, 24, 39)",
+            "backgroundStopsCss": [
+              "color(srgb 0.824157 0.740706 1)",
+              "color(srgb 0.691294 0.58149 0.986667)"
+            ],
+            "worstStopContrast": 7.12,
+            "flatBackgroundContrast": 1.19,
+            "effectiveContrast": 7.12,
+            "passAa": true
+          }
+        },
+        {
+          "state": "focus",
+          "file": "primary-btn-confirmation-regeneration-gate-focus-1280x720.png",
+          "measure": {
+            "state": "focus",
+            "foregroundCss": "rgb(21, 24, 39)",
+            "backgroundStopsCss": [
+              "color(srgb 0.824157 0.740706 1)",
+              "color(srgb 0.691294 0.58149 0.986667)"
+            ],
+            "worstStopContrast": 7.12,
+            "flatBackgroundContrast": 1.19,
+            "effectiveContrast": 7.12,
+            "passAa": true
+          }
+        },
+        {
+          "state": "disabled",
+          "file": "primary-btn-confirmation-regeneration-gate-disabled-1280x720.png",
+          "measure": {
+            "state": "disabled",
+            "foregroundCss": "rgb(167, 174, 196)",
+            "backgroundStopsCss": [],
+            "worstStopContrast": null,
+            "flatBackgroundContrast": 7.27,
+            "effectiveContrast": 7.27,
+            "passAa": true
+          }
+        }
+      ]
+    }
+  ]
+}
