@@ -618,6 +618,14 @@ export function SongScreen() {
     playbackSources?.mode === "stems" &&
     (mix?.tracks.some((tr) => tr.aiSeparated) ?? false);
 
+  const retryTakeBlockedReason = busy
+    ? t("versions.interrupted.retryBlockedBusy")
+    : formError || scoreGate.error
+      ? t("versions.interrupted.retryBlockedForm")
+      : null;
+  const canRetryTake =
+    !busy && !formError && Boolean(!scoreGate.error);
+
   return (
     <div className={`song-layout${workspace === "production" ? " song-layout-production" : ""}`}>
       <header className="song-workspace-chrome">
@@ -756,6 +764,8 @@ export function SongScreen() {
               separationUndo ? () => void onRevertSeparation() : undefined
             }
             onRetryTake={(genId) => void onRetryTake(genId)}
+            canRetryTake={canRetryTake}
+            retryTakeBlockedReason={retryTakeBlockedReason}
             onSeparationSwitched={() => setSeparationUndo(null)}
             openProject={openProject}
             project={project}

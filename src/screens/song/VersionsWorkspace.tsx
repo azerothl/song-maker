@@ -25,6 +25,8 @@ type VersionsWorkspaceProps = {
   onGenerateBatch: (count: number) => Promise<void>;
   onRevertSeparation?: () => void;
   onRetryTake?: (generationId: string) => void;
+  canRetryTake?: boolean;
+  retryTakeBlockedReason?: string | null;
   onSeparationSwitched?: () => void;
   openProject: (id: string) => Promise<void>;
   project: ProjectDoc;
@@ -41,6 +43,8 @@ export function VersionsWorkspace({
   onGenerateBatch,
   onRevertSeparation,
   onRetryTake,
+  canRetryTake = true,
+  retryTakeBlockedReason = null,
   onSeparationSwitched,
   openProject,
   project,
@@ -137,18 +141,25 @@ export function VersionsWorkspace({
         <p className="hint">{workspaceIntro("versions")}</p>
       </header>
 
-      <CandidateCompare
-        generations={generations}
-        activeId={project.activeGenerationId}
-        busy={busy}
-        candidateCount={candidateCount}
-        onCandidateCount={setCandidateCount}
-        onGenerateBatch={onGenerateBatch}
-        takeLabels={takeLabels}
-        onUse={(genId) => {
-          void activateTake(genId);
-        }}
-      />
+      <details className="version-candidates-fold">
+        <summary className="version-candidates-fold-summary">
+          <span>{t("candidates.title")}</span>
+          <span className="hint">{t("candidates.foldSummary")}</span>
+        </summary>
+        <CandidateCompare
+          generations={generations}
+          activeId={project.activeGenerationId}
+          busy={busy}
+          candidateCount={candidateCount}
+          onCandidateCount={setCandidateCount}
+          onGenerateBatch={onGenerateBatch}
+          takeLabels={takeLabels}
+          showHeading={false}
+          onUse={(genId) => {
+            void activateTake(genId);
+          }}
+        />
+      </details>
 
       {generations.find((g) => g.id === project.activeGenerationId)
         ?.semanticTruncated && (
@@ -206,6 +217,8 @@ export function VersionsWorkspace({
           }}
           onActivateTake={activateTake}
           onRetryTake={onRetryTake}
+          canRetryTake={canRetryTake}
+          retryTakeBlockedReason={retryTakeBlockedReason}
           onActivateSeparation={(separationId) => {
             void api
               .activateSeparationVersion(project.id, separationId)

@@ -5,6 +5,7 @@ import {
 } from "@song-maker/score-engine";
 import { useMemo, useState } from "react";
 import type { GenerationSummary } from "../lib/types";
+import { candidateGenerateLabel } from "./candidateLabels";
 import { t } from "../ui/i18n";
 
 type Props = {
@@ -17,6 +18,8 @@ type Props = {
   onUse: (genId: string) => void;
   /** Readable take titles keyed by generation id (#133). */
   takeLabels?: Record<string, string>;
+  /** Masque le titre intégré (ex. bloc replié dans Versions). */
+  showHeading?: boolean;
 };
 
 function toCandidate(
@@ -45,6 +48,7 @@ export function CandidateCompare({
   onGenerateBatch,
   onUse,
   takeLabels,
+  showHeading = true,
 }: Props) {
   const comparer = useMemo(() => createCandidateComparer(), []);
   const [view, setView] = useState<CandidateCompareView | null>(null);
@@ -67,10 +71,12 @@ export function CandidateCompare({
 
   return (
     <div className="candidate-compare">
-      <div className="candidate-compare-header">
-        <h2>{t("candidates.title")}</h2>
-        <p className="hint">{t("candidates.hint")}</p>
-      </div>
+      {showHeading && (
+        <div className="candidate-compare-header">
+          <h2>{t("candidates.title")}</h2>
+          <p className="hint">{t("candidates.hint")}</p>
+        </div>
+      )}
 
       <div className="candidate-controls">
         <label>
@@ -90,10 +96,10 @@ export function CandidateCompare({
         <button
           type="button"
           className="btn"
-          disabled={busy || candidateCount < 2}
+          disabled={busy || candidateCount < 1}
           onClick={() => void onGenerateBatch(candidateCount)}
         >
-          {t("candidates.generate")}
+          {candidateGenerateLabel(candidateCount)}
         </button>
         <button
           type="button"

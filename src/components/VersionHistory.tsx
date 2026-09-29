@@ -22,6 +22,8 @@ type Props = {
   onListen: (genId: string) => void;
   onActivateTake: (genId: string) => Promise<void>;
   onRetryTake?: (genId: string) => void;
+  canRetryTake?: boolean;
+  retryTakeBlockedReason?: string | null;
   onActivateSeparation?: (separationId: string) => void;
   onRenameTake?: (genId: string, name: string) => Promise<void>;
   onSaveMixVersion?: () => void;
@@ -42,6 +44,8 @@ export function VersionHistory({
   onListen,
   onActivateTake,
   onRetryTake,
+  canRetryTake = true,
+  retryTakeBlockedReason = null,
   onActivateSeparation,
   onRenameTake,
   onSaveMixVersion,
@@ -371,14 +375,30 @@ export function VersionHistory({
                             </span>
                           ) : take.isInterrupted ? (
                             onRetryTake && (
-                              <button
-                                type="button"
-                                className="btn"
-                                disabled={busy}
-                                onClick={() => onRetryTake(take.id)}
-                              >
-                                {t("versions.interrupted.retry")}
-                              </button>
+                              <div className="version-retry-block">
+                                <button
+                                  type="button"
+                                  className="btn"
+                                  disabled={busy || !canRetryTake}
+                                  title={retryTakeBlockedReason ?? undefined}
+                                  aria-describedby={
+                                    retryTakeBlockedReason
+                                      ? `${listId}-retry-hint-${take.id}`
+                                      : undefined
+                                  }
+                                  onClick={() => onRetryTake(take.id)}
+                                >
+                                  {t("versions.interrupted.retry")}
+                                </button>
+                                {retryTakeBlockedReason && (
+                                  <p
+                                    id={`${listId}-retry-hint-${take.id}`}
+                                    className="version-retry-hint hint"
+                                  >
+                                    {retryTakeBlockedReason}
+                                  </p>
+                                )}
+                              </div>
                             )
                           ) : (
                             <>
@@ -424,6 +444,7 @@ export function VersionHistory({
                         <ContentPill
                           label={t("versions.pill.mix")}
                           present={take.hasMix}
+                          absentVisibleLabel={t("versions.pill.noMix")}
                         />
                       </ul>
 
@@ -481,20 +502,23 @@ export function VersionHistory({
 function ContentPill({
   label,
   present,
+  absentVisibleLabel,
 }: {
   label: string;
   present: boolean;
+  absentVisibleLabel?: string;
 }) {
+  const display = present ? label : (absentVisibleLabel ?? label);
   const stateLabel = present
     ? t("versions.pill.present")
     : t("versions.pill.absent");
   return (
     <li
       className={`version-pill${present ? "" : " missing"}`}
-      aria-label={`${label}, ${stateLabel}`}
+      aria-label={`${display}, ${stateLabel}`}
     >
-      <span aria-hidden="true">{present ? "✓" : "–"}</span>
-      {label}
+      {present && <span aria-hidden="true">✓</span>}
+      {display}
     </li>
   );
 }
