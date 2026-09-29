@@ -2,7 +2,7 @@
   "avant": {
     "1280x720": {
       "playButtonPx": {
-        "width": 756.484375,
+        "width": 758.921875,
         "height": 32
       },
       "globalWaveformPx": {
@@ -11,14 +11,14 @@
       },
       "bannerPx": {
         "width": 1048,
-        "height": 44.375
+        "height": 42.78125
       },
       "waveformWidthShare": 0.061068702290076333,
-      "rowsFullyVisible": 9
+      "rowsFullyVisible": 10
     },
     "1024x700": {
       "playButtonPx": {
-        "width": 500.484375,
+        "width": 502.921875,
         "height": 32
       },
       "globalWaveformPx": {
@@ -27,10 +27,10 @@
       },
       "bannerPx": {
         "width": 792,
-        "height": 44.375
+        "height": 42.78125
       },
       "waveformWidthShare": 0.08080808080808081,
-      "rowsFullyVisible": 8
+      "rowsFullyVisible": 9
     }
   },
   "apres": {
@@ -40,14 +40,14 @@
         "height": 32
       },
       "globalWaveformPx": {
-        "width": 789.296875,
+        "width": 790.921875,
         "height": 56
       },
       "bannerPx": {
         "width": 1048,
-        "height": 64.375
+        "height": 62.78125
       },
-      "waveformWidthShare": 0.7531458730916031,
+      "waveformWidthShare": 0.754696445610687,
       "rowsFullyVisible": 9
     },
     "1024x700": {
@@ -56,15 +56,15 @@
         "height": 32
       },
       "globalWaveformPx": {
-        "width": 533.296875,
+        "width": 534.921875,
         "height": 56
       },
       "bannerPx": {
         "width": 792,
-        "height": 64.375
+        "height": 62.78125
       },
-      "waveformWidthShare": 0.6733546401515151,
-      "rowsFullyVisible": 7
+      "waveformWidthShare": 0.6754064078282829,
+      "rowsFullyVisible": 8
     }
   },
   "playheadContrast1280x720": {
@@ -85,7 +85,7 @@
     "contrastRatioWorstScan": 1.17,
     "contrastRatio": 14.65,
     "wcag1411Pass": true,
-    "playheadXCssPx": 395,
+    "playheadXCssPx": 396,
     "waveComputedVar": "#c4a8ff",
     "playedCssVar": "#5eecf8",
     "playedColorResolved": "#5eecf8",
