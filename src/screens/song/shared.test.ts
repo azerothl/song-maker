@@ -6,6 +6,8 @@ import {
   formatDurationLabel,
   formatGainDb,
   formatPan,
+  parseGainDb,
+  parsePan,
   primaryFormError,
   snapDurationSec,
   soundSummaryValue,
@@ -54,25 +56,36 @@ describe("snapDurationSec", () => {
 });
 
 describe("formatGainDb", () => {
-  it("formate à une décimale", () => {
-    assert.equal(formatGainDb(0), "0.0 dB");
-    assert.equal(formatGainDb(-3.5), "-3.5 dB");
+  it("formate à une décimale française avec signe Unicode", () => {
+    assert.equal(formatGainDb(0), "0,0 dB");
+    assert.equal(formatGainDb(-3.5), "−3,5 dB");
   });
 
   it("signe les gains positifs", () => {
-    assert.equal(formatGainDb(3), "+3.0 dB");
+    assert.equal(formatGainDb(3), "+3,0 dB");
   });
 });
 
 describe("formatPan", () => {
-  it("traite le centre comme centré", () => {
-    assert.equal(formatPan(0), "Centre");
-    assert.equal(formatPan(0.01), "Centre");
+  it("traite le centre comme C", () => {
+    assert.equal(formatPan(0), "C");
+    assert.equal(formatPan(0.01), "C");
   });
 
-  it("nomme le côté et la distance", () => {
-    assert.equal(formatPan(-1), "Gauche 1.00");
-    assert.equal(formatPan(1), "Droite 1.00");
+  it("affiche G/D et le pourcentage", () => {
+    assert.equal(formatPan(-1), "G 100");
+    assert.equal(formatPan(0.2), "D 20");
+    assert.equal(formatPan(-0.35), "G 35");
+  });
+});
+
+describe("parseGainDb / parsePan", () => {
+  it("parse les libellés de gain et de pan", () => {
+    assert.equal(parseGainDb("−3,0 dB"), -3);
+    assert.equal(parseGainDb("+1.5"), 1.5);
+    assert.equal(parsePan("G 20"), -0.2);
+    assert.equal(parsePan("D 35"), 0.35);
+    assert.equal(parsePan("C"), 0);
   });
 });
 

@@ -17,7 +17,10 @@ export type PlaybackView = {
   duration: number;
   mode: PlaybackSnapshot["mode"];
   peaksByTrack: Record<string, Float32Array>;
+  mixPeaks: Float32Array | null;
   seek: (seconds: number) => void;
+  toggle: () => Promise<void>;
+  playing: boolean;
   loading: boolean;
   ready: boolean;
 };
@@ -82,7 +85,10 @@ export function AudioPlayer({
         duration: next.duration,
         mode: next.mode,
         peaksByTrack,
+        mixPeaks: next.mixPeaks,
         seek: (seconds: number) => engine.seek(seconds),
+        toggle: () => engine.toggle(),
+        playing: next.playing,
         loading: next.loading,
         ready: next.ready,
       });

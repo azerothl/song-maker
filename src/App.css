@@ -5,11 +5,11 @@
   --line: #303550;
   --text: #eff0fb;
   --muted: #a7aec4;
-  --accent: #b49aff;
-  --accent-2: #8f71e8;
-  --accent-cyan: #69d9e8;
-  --accent-coral: #ff858d;
-  --line2: #7a6ea1;
+  --accent: #c4a8ff;
+  --accent-2: #a78bfa;
+  --accent-cyan: #5eecf8;
+  --accent-coral: #ff9aa3;
+  --line2: #8b7ab8;
   --purple-btn: #805cdf;
   --danger: #ff777e;
   --ok: #69d6aa;
@@ -19,8 +19,8 @@
   color: var(--text);
   color-scheme: dark;
   background:
-    radial-gradient(1200px 600px at 10% -10%, #252044 0%, transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, #17253a 0%, transparent 50%),
+    radial-gradient(1200px 600px at 10% -10%, #2c2450 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, #1a3048 0%, transparent 50%),
     var(--bg0);
   font-family: var(--font-ui);
   font-synthesis: none;
@@ -374,6 +374,21 @@ option {
   min-width: 0;
 }
 
+.song-layout-production .song-workspace-chrome {
+  gap: 0.45rem;
+  padding-bottom: 0.55rem;
+}
+
+.song-layout-production .song-workspace-body {
+  padding-top: 0.65rem;
+  padding-bottom: 0.75rem;
+  gap: 0.55rem;
+}
+
+.song-layout-production .player-block {
+  gap: 0.35rem;
+}
+
 .song-workspace-chrome {
   display: flex;
   flex-direction: column;
@@ -491,9 +506,242 @@ option {
 .production-global-actions {
   display: grid;
   gap: 0.75rem;
-  margin-bottom: 1rem;
-  padding-bottom: 0.85rem;
-  border-bottom: 1px solid var(--line);
+  margin: 0.5rem 0 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+.production-actions-drawer,
+.mix-assist-drawer {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg1) 88%, transparent);
+  padding: 0.15rem 0.55rem 0.35rem;
+}
+
+.production-actions-drawer > summary,
+.mix-assist-drawer > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.4rem 0.15rem;
+  color: var(--text);
+}
+
+.production-actions-drawer > summary::-webkit-details-marker,
+.mix-assist-drawer > summary::-webkit-details-marker {
+  display: none;
+}
+
+.production-actions-drawer > summary::before,
+.mix-assist-drawer > summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 0.4rem;
+  color: var(--accent-cyan);
+  transition: transform 120ms ease;
+}
+
+.production-actions-drawer[open] > summary::before,
+.mix-assist-drawer[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .production-actions-drawer > summary::before,
+  .mix-assist-drawer > summary::before,
+  .mix-knob-indicator {
+    transition: none;
+  }
+}
+
+.production-workspace {
+  gap: 0.55rem;
+}
+
+.production-heading-compact h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.production-heading-compact p {
+  margin: 0.15rem 0 0;
+}
+
+.production-subview-intro {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.mix-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem 0.75rem;
+}
+
+.mix-toolbar-row .mix-assist-drawer {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.mix-autosave {
+  margin: 0;
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  align-self: center;
+  min-height: 1.2em;
+}
+
+.mix-master-banner {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.45rem 0.65rem;
+  align-items: center;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--accent-cyan) 35%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg1) 92%, var(--accent-cyan));
+  backdrop-filter: blur(6px);
+}
+
+.mix-master-wave {
+  min-width: 0;
+}
+
+.mix-master-play {
+  min-height: 28px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+.mixer-compact {
+  gap: 0.45rem;
+}
+
+.mixer-tracks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.mix-knob {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.mix-knob-dial {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 55%, var(--line));
+  background:
+    radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--bg2) 40%, #fff), var(--bg2));
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.08);
+  cursor: ns-resize;
+  flex: 0 0 auto;
+  touch-action: none;
+}
+
+.mix-knob-dial:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.mix-knob-indicator {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  pointer-events: none;
+  transition: transform 80ms linear;
+}
+
+.mix-knob-indicator::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 1px;
+  width: 2px;
+  height: 7px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--accent-cyan);
+}
+
+.mix-knob-value,
+.mix-knob-input {
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  padding: 0;
+  min-width: 3.6rem;
+  text-align: left;
+  cursor: text;
+}
+
+.mix-knob-value:hover,
+.mix-knob-value:focus-visible {
+  color: var(--accent-cyan);
+}
+
+.mix-knob-input {
+  border-bottom: 1px solid var(--accent-cyan);
+  width: 4.2rem;
+  color: var(--text);
+}
+
+.track-ms {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: stretch;
+}
+
+.track-ms-btn {
+  position: relative;
+  min-width: 28px;
+  min-height: 28px;
+  height: 28px;
+  width: 28px;
+  padding: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.track-ms-btn.pressed,
+.track-ms-btn.active {
+  border-style: solid;
+  border-width: 2px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 35%, transparent);
+}
+
+.track-ms-btn.pressed .track-ms-glyph,
+.track-ms-btn.active .track-ms-glyph {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.track-ms-state {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 0.45rem;
+  line-height: 1;
+  color: var(--accent-cyan);
 }
 
 .song-actions-sticky {
@@ -2254,10 +2502,10 @@ details[open] > summary {
 .track,
 .master {
   display: grid;
-  grid-template-columns: minmax(4.5rem, 7rem) auto auto minmax(0, 1fr);
-  gap: 0.45rem 0.5rem;
+  grid-template-columns: minmax(3.5rem, 6rem) auto auto auto minmax(0, 1fr);
+  gap: 0.3rem 0.4rem;
   align-items: center;
-  padding: 0.55rem 0.55rem;
+  padding: 0.25rem 0.35rem;
   border-bottom: 1px solid var(--line);
   min-width: 0;
 }
@@ -2266,6 +2514,7 @@ details[open] > summary {
   border-left: 3px solid var(--line);
   --track-wave: var(--accent);
   --track-wave-played: var(--accent);
+  min-height: 40px;
 }
 
 .track-name {
@@ -2273,16 +2522,17 @@ details[open] > summary {
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+  font-size: 0.82rem;
 }
 
 .track .track-wave {
-  grid-column: 4;
+  grid-column: auto;
   min-width: 0;
 }
 
 .track .track-gain,
 .track .track-pan {
-  grid-column: span 2;
+  grid-column: auto;
   min-width: 0;
 }
 
@@ -2361,8 +2611,8 @@ details[open] > summary {
 
 .track[data-role="user"],
 .track[data-role="custom"] {
-  border-left-color: var(--text-muted, #8a8494);
-  --track-wave: var(--text-muted, #8a8494);
+  border-left-color: var(--text-muted, #9aa3b8);
+  --track-wave: var(--text-muted, #9aa3b8);
   --track-wave-played: var(--text);
 }
 
@@ -2522,12 +2772,12 @@ details[open] > summary {
 
 @container mixer (min-width: 44rem) {
   .track {
-    grid-template-columns: minmax(5rem, 7.5rem) auto auto minmax(0, 1.6fr) minmax(7rem, 0.85fr) minmax(7rem, 0.85fr);
+    grid-template-columns: minmax(4.5rem, 7rem) auto auto auto minmax(0, 1fr);
   }
 
   .track .track-wave,
-  .track .track-gain,
-  .track .track-pan {
+  .track .track-gain-knob,
+  .track .track-pan-knob {
     grid-column: auto;
   }
 }
@@ -3859,14 +4109,21 @@ details[open] > summary {
     padding-right: 1rem;
   }
   .track {
-    grid-template-columns: minmax(4rem, 1fr) auto auto;
+    grid-template-columns: minmax(3.5rem, 1fr) auto auto auto;
   }
   .track .track-wave {
     grid-column: 1 / -1;
   }
-  .track .track-gain,
-  .track .track-pan {
-    grid-column: span 1;
+  .track .track-gain-knob,
+  .track .track-pan-knob {
+    grid-column: auto;
+  }
+  .mix-master-banner {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .mix-master-knob {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
   .master {
     grid-template-columns: 1fr auto;

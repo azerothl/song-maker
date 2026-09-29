@@ -188,15 +188,62 @@ export function snapDurationSec(raw: number): number {
   return Math.round(clamped / DURATION_SEC_STEP) * DURATION_SEC_STEP;
 }
 
+/** French gain label for knobs: « −3,0 dB », « +1,5 dB », « 0,0 dB ». */
 export function formatGainDb(db: number): string {
-  const sign = db > 0 ? "+" : "";
-  return `${sign}${db.toFixed(1)} dB`;
+  const rounded = Math.round(db * 10) / 10;
+  const abs = Math.abs(rounded).toFixed(1).replace(".", ",");
+  if (rounded > 0) return `+${abs} dB`;
+  if (rounded < 0) return `−${abs} dB`;
+  return `${abs} dB`;
 }
 
+/** Compact pan for knobs: « C », « G 20 », « D 35 » (−1…1 → 0…100). */
 export function formatPan(pan: number): string {
-  if (Math.abs(pan) < 0.02) return t("mix.pan.center");
-  if (pan < 0) return t("mix.pan.left", { value: Math.abs(pan).toFixed(2) });
-  return t("mix.pan.right", { value: pan.toFixed(2) });
+  const pct = Math.round(Math.abs(pan) * 100);
+  if (pct < 2) return t("mix.pan.compactCenter");
+  if (pan < 0) return t("mix.pan.compactLeft", { value: pct });
+  return t("mix.pan.compactRight", { value: pct });
+}
+
+/** Parse gain display text (« −3,0 », « 3.0 dB », « +1 ») back to dB. */
+export function parseGainDb(raw: string): number | null {
+  const cleaned = raw
+    .trim()
+    .replace(/\s*dB\s*$/i, "")
+    .replace(/,/g, ".")
+    .replace(/−/g, "-")
+    .replace(/\s+/g, "");
+  if (!cleaned) return null;
+  const num = Number.parseFloat(cleaned);
+  return Number.isFinite(num) ? num : null;
+}
+
+/** Parse pan display (« G 20 », « D35 », « C », « -0.2 ») to −1…1. */
+export function parsePan(raw: string): number | null {
+  const s = raw.trim().toLowerCase().replace(/,/g, ".");
+  if (!s) return null;
+  if (s === "c" || s === "centre" || s === "center" || s === "0") return 0;
+  const compact = s.match(/^([gd])\s*(\d{1,3})$/i);
+  if (compact) {
+    const pct = Number.parseInt(compact[2]!, 10);
+    if (!Number.isFinite(pct)) return null;
+    const mag = Math.min(100, Math.max(0, pct)) / 100;
+    return compact[1]!.toLowerCase() === "g" ? -mag : mag;
+  }
+  const left = s.match(/^(?:gauche|left|l)\s*([+\-]?\d+(?:\.\d+)?)/i);
+  if (left) {
+    const n = Number.parseFloat(left[1]!);
+    return Number.isFinite(n) ? -Math.min(1, Math.abs(n > 1 ? n / 100 : n)) : null;
+  }
+  const right = s.match(/^(?:droite|right|r)\s*([+\-]?\d+(?:\.\d+)?)/i);
+  if (right) {
+    const n = Number.parseFloat(right[1]!);
+    return Number.isFinite(n) ? Math.min(1, Math.abs(n > 1 ? n / 100 : n)) : null;
+  }
+  const num = Number.parseFloat(s.replace(/−/g, "-"));
+  if (!Number.isFinite(num)) return null;
+  if (Math.abs(num) > 1) return Math.max(-1, Math.min(1, num / 100));
+  return Math.max(-1, Math.min(1, num));
 }
 
 const KNOWN_WARNINGS = [
