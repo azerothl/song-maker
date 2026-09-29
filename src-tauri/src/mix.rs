@@ -458,47 +458,73 @@ pub fn render_mix(mix: &MixDoc, project_root: &Path, out_wav: &Path) -> Result<f
 /// Applied only when quantizing to 16 bits; never on 24-bit paths.
 pub const TPDF_DITHER_FILTER: &str = "aresample=dither_method=triangular";
 
-pub fn export_flac_with_bit_depth(
-    wav_path: &Path,
-    flac_path: &Path,
-    bit_depth: u16,
-) -> Result<(), String> {
+/// True only for the 16-bit delivery path (never 24-bit).
+pub fn bit_depth_uses_tpdf_dither(bit_depth: u16) -> bool {
+    bit_depth == 16
+}
+
+/// FFmpeg argv for 16-bit WAV with TPDF dither (no process spawn — unit-testable).
+pub fn wav_16bit_tpdf_ffmpeg_args<'a>(src: &'a str, dest: &'a str) -> Vec<&'a str> {
+    vec![
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        src,
+        "-af",
+        TPDF_DITHER_FILTER,
+        "-c:a",
+        "pcm_s16le",
+        dest,
+    ]
+}
+
+/// FFmpeg argv for FLAC at `bit_depth`. Includes TPDF dither only for 16 bits.
+pub fn flac_bit_depth_ffmpeg_args<'a>(wav: &'a str, flac: &'a str, bit_depth: u16) -> Vec<&'a str> {
     let sample_fmt = if bit_depth == 16 { "s16" } else { "s32" };
-    let wav = wav_path.display().to_string();
-    let flac = flac_path.display().to_string();
-    // 16-bit: TPDF dither via aresample. 24-bit: no dither filter.
-    let result = if bit_depth == 16 {
-        crate::resample::run_ffmpeg(&[
+    if bit_depth_uses_tpdf_dither(bit_depth) {
+        vec![
             "-y",
             "-hide_banner",
             "-loglevel",
             "error",
             "-i",
-            &wav,
+            wav,
             "-af",
             TPDF_DITHER_FILTER,
             "-c:a",
             "flac",
             "-sample_fmt",
             sample_fmt,
-            &flac,
-        ])
+            flac,
+        ]
     } else {
-        crate::resample::run_ffmpeg(&[
+        vec![
             "-y",
             "-hide_banner",
             "-loglevel",
             "error",
             "-i",
-            &wav,
+            wav,
             "-c:a",
             "flac",
             "-sample_fmt",
             sample_fmt,
-            &flac,
-        ])
-    };
-    result.map_err(|e| format!("Export FLAC échoué ({e})."))
+            flac,
+        ]
+    }
+}
+
+pub fn export_flac_with_bit_depth(
+    wav_path: &Path,
+    flac_path: &Path,
+    bit_depth: u16,
+) -> Result<(), String> {
+    let wav = wav_path.display().to_string();
+    let flac = flac_path.display().to_string();
+    let args = flac_bit_depth_ffmpeg_args(&wav, &flac, bit_depth);
+    crate::resample::run_ffmpeg(&args).map_err(|e| format!("Export FLAC échoué ({e})."))
 }
 
 /// Conversion de livraison MP3 (bitrate CBR configurable) à partir du WAV primaire.
@@ -540,20 +566,10 @@ pub fn downsample_wav_bit_depth(src: &Path, dest: &Path, bit_depth: u16) -> Resu
     if bit_depth != 16 {
         return Err("Profondeur de bits : 16 ou 24.".into());
     }
-    crate::resample::run_ffmpeg(&[
-        "-y",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-i",
-        &src.display().to_string(),
-        "-af",
-        TPDF_DITHER_FILTER,
-        "-c:a",
-        "pcm_s16le",
-        &dest.display().to_string(),
-    ])
-    .map_err(|e| format!("Conversion 16 bits échouée ({e})."))
+    let src_s = src.display().to_string();
+    let dest_s = dest.display().to_string();
+    let args = wav_16bit_tpdf_ffmpeg_args(&src_s, &dest_s);
+    crate::resample::run_ffmpeg(&args).map_err(|e| format!("Conversion 16 bits échouée ({e})."))
 }
 
 /// Naive 24→16 without dither (test oracle / contrast with TPDF).
@@ -763,7 +779,29 @@ mod tests {
     }
 
     #[test]
+    fn tpdf_dither_args_are_16bit_only_without_ffmpeg() {
+        assert!(bit_depth_uses_tpdf_dither(16));
+        assert!(!bit_depth_uses_tpdf_dither(24));
+        assert_eq!(TPDF_DITHER_FILTER, "aresample=dither_method=triangular");
+        let wav_args = wav_16bit_tpdf_ffmpeg_args("in.wav", "out.wav");
+        assert!(wav_args.contains(&"-af"));
+        assert!(wav_args.contains(&TPDF_DITHER_FILTER));
+        assert!(wav_args.contains(&"pcm_s16le"));
+        let flac16 = flac_bit_depth_ffmpeg_args("in.wav", "out.flac", 16);
+        assert!(flac16.contains(&TPDF_DITHER_FILTER));
+        let flac24 = flac_bit_depth_ffmpeg_args("in.wav", "out.flac", 24);
+        assert!(!flac24.contains(&TPDF_DITHER_FILTER));
+        assert!(!flac24.contains(&"-af"));
+    }
+
+    #[test]
     fn tpdf_16bit_differs_from_naive_round_on_quiet_signal() {
+        if crate::resample::resolve_ffmpeg().is_err() {
+            eprintln!(
+                "skip tpdf_16bit_differs_from_naive_round_on_quiet_signal: ffmpeg introuvable"
+            );
+            return;
+        }
         let dir = std::env::temp_dir().join(format!(
             "song-maker-dither-{}",
             std::time::SystemTime::now()
@@ -790,6 +828,7 @@ mod tests {
 
     #[test]
     fn downsample_24bit_leaves_wav_unchanged() {
+        // 24-bit path is a filesystem copy — no ffmpeg required.
         let dir = std::env::temp_dir().join(format!(
             "song-maker-bit24-{}",
             std::time::SystemTime::now()
