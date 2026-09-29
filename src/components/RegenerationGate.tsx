@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { ScoreDocument } from "../lib/score";
 import {
   CONSERVATION_LEVEL_LABELS_FR,
@@ -58,6 +58,12 @@ export function RegenerationGate({
   const [level, setLevel] = useState<ConservationLevel>("pitches_and_rhythms");
   const [phase, setPhase] = useState<RegenerationGatePhase>("closed");
   const [result, setResult] = useState<InvariantCheckResult | null>(null);
+  const proceedBlockedId = useId();
+  const proceedBlocked =
+    phase === "pick_level" && !beforeDocument && isRegeneration;
+  const proceedBlockedReason = proceedBlocked
+    ? t("phase4.regenGate.proceedBlocked")
+    : null;
 
   useEffect(() => {
     if (!open) {
@@ -140,12 +146,29 @@ export function RegenerationGate({
                 ))}
               </select>
             </label>
+            {proceedBlockedReason && (
+              <p
+                id={proceedBlockedId}
+                className="hint regen-gate-blocked-reason"
+                role="status"
+                data-testid="regen-gate-proceed-blocked-reason"
+              >
+                {proceedBlockedReason}
+              </p>
+            )}
             <div className="btn-row">
               <button
                 type="button"
                 className="btn primary"
-                disabled={!beforeDocument && isRegeneration}
-                onClick={onConfirmLevel}
+                data-testid="regen-gate-proceed"
+                aria-disabled={proceedBlocked || undefined}
+                aria-describedby={
+                  proceedBlockedReason ? proceedBlockedId : undefined
+                }
+                onClick={() => {
+                  if (proceedBlocked) return;
+                  onConfirmLevel();
+                }}
               >
                 {t("phase4.regenGate.proceed")}
               </button>

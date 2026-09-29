@@ -87,9 +87,13 @@ export function ExportDialog({
   const stemsExportBlocked =
     opts.mode === "stems" &&
     (selected.length === 0 || aiTracks.length === 0);
-  const exportDisabledReason = stemsExportBlocked
-    ? t("export.tracks.disabledNoStems")
-    : null;
+  const exportDisabledReason = useMemo(() => {
+    if (opts.mode !== "stems") return null;
+    if (aiTracks.length === 0) return t("export.tracks.disabledNoStems");
+    if (selected.length === 0) return t("export.tracks.disabledNoneSelected");
+    return null;
+  }, [opts.mode, aiTracks.length, selected.length]);
+  const exportBlockedNotBusy = Boolean(exportDisabledReason) && !busy;
   const showAlignedStems =
     opts.mode === "mix" && mix && sources && opts.format !== "mp3";
 
@@ -370,11 +374,15 @@ export function ExportDialog({
                 type="button"
                 className="btn primary"
                 data-testid="export-run"
-                disabled={busy || stemsExportBlocked}
+                disabled={busy}
+                aria-disabled={exportBlockedNotBusy || undefined}
                 aria-describedby={
                   exportDisabledReason ? exportDisabledId : undefined
                 }
-                onClick={() => void onExport()}
+                onClick={() => {
+                  if (exportBlockedNotBusy || stemsExportBlocked) return;
+                  void onExport();
+                }}
               >
                 {t("export.tracks.run")}
               </button>

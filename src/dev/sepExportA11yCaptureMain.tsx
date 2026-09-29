@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { SeparationRecommendDialog } from "../components/SeparationRecommendDialog";
 import { ExportDialog } from "../components/ExportDialog";
+import { RegenerationGate } from "../components/RegenerationGate";
 import { useAppStore } from "../store/appStore";
 import {
   buildCaptureDemoMix,
@@ -20,7 +21,9 @@ export type CaptureScene =
   | "sep-run-blocked"
   | "export-drawer-12"
   | "export-drawer-12-after-export"
-  | "export-mix";
+  | "export-mix"
+  | "export-stems-none-selected"
+  | "regen-gate-blocked";
 
 function parseScene(hash: string): CaptureScene {
   const h = hash.replace(/^#/, "") as CaptureScene;
@@ -34,6 +37,8 @@ function parseScene(hash: string): CaptureScene {
     "export-drawer-12",
     "export-drawer-12-after-export",
     "export-mix",
+    "export-stems-none-selected",
+    "regen-gate-blocked",
   ];
   return allowed.includes(h) ? h : "sep-header";
 }
@@ -48,7 +53,11 @@ function SepExportA11yCaptureApp() {
   const mix12 = useMemo(() => buildCaptureDemoMix(12), []);
   const sources = useMemo(() => buildCapturePlaybackSources(mix12), [mix12]);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
-  const drawerLayout = scene.startsWith("export-drawer") || scene === "export-mix";
+  const drawerLayout =
+    scene.startsWith("export-drawer") ||
+    scene === "export-mix" ||
+    scene === "export-stems-none-selected";
+  const regenOnly = scene === "regen-gate-blocked";
 
   useEffect(() => {
     registerCaptureProject(project);
@@ -62,28 +71,46 @@ function SepExportA11yCaptureApp() {
   }, []);
 
   useEffect(() => {
+    if (regenOnly) {
+      setSeparateOpen(false);
+      return;
+    }
     if (scene.startsWith("sep-")) {
       setSeparateOpen(true);
       return;
     }
     setSeparateOpen(false);
-  }, [scene]);
+  }, [scene, regenOnly]);
 
   useEffect(() => {
-    if (scene.startsWith("sep-")) return;
+    if (regenOnly || scene.startsWith("sep-")) return;
     const timer = window.setTimeout(() => {
       document
         .querySelector<HTMLButtonElement>("[data-capture-export-trigger]")
         ?.click();
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [scene]);
+  }, [scene, regenOnly]);
 
   useEffect(() => {
     if (scene !== "export-drawer-12-after-export") return;
     const timer = window.setTimeout(() => {
       document.querySelector<HTMLButtonElement>('[data-testid="export-run"]')?.click();
     }, 700);
+    return () => window.clearTimeout(timer);
+  }, [scene]);
+
+  useEffect(() => {
+    if (scene !== "export-stems-none-selected") return;
+    const timer = window.setTimeout(() => {
+      document
+        .querySelectorAll<HTMLInputElement>(
+          ".export-stem-list input[type=checkbox]",
+        )
+        .forEach((cb) => {
+          if (cb.checked) cb.click();
+        });
+    }, 550);
     return () => window.clearTimeout(timer);
   }, [scene]);
 
@@ -124,6 +151,27 @@ function SepExportA11yCaptureApp() {
     }, 400);
     return () => window.clearTimeout(timer);
   }, [scene, separateOpen]);
+
+  if (regenOnly) {
+    return (
+      <div className="app-shell production-capture-root" data-capture-scene={scene}>
+        <main className="main capture-a11y-main">
+          <h1>Régénération</h1>
+          <p className="hint">Capture #191 — {scene}</p>
+          <RegenerationGate
+            open
+            projectId={project.id}
+            beforeDocument={null}
+            isRegeneration
+            onProceed={() => {}}
+            onCancel={() => {}}
+            onConfirmKeep={() => {}}
+            onRevert={() => {}}
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -172,7 +220,12 @@ function SepExportA11yCaptureApp() {
             onBusy={() => {}}
             onError={() => {}}
             initialMode={
-              scene.startsWith("export-drawer") ? "stems" : "mix"
+              scene === "export-mix"
+                ? "mix"
+                : scene === "export-stems-none-selected" ||
+                    scene.startsWith("export-drawer")
+                  ? "stems"
+                  : "mix"
             }
           />
         </div>

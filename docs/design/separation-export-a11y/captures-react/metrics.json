@@ -92,6 +92,7 @@
     "runBlockedReasonReach": null,
     "formatLivePresent": false,
     "exportDisabledReasonReach": null,
+    "exportDescribedByLinked": false,
     "horizontalOverflow": {
       "scrollWidth": 518,
       "clientWidth": 518,
@@ -198,6 +199,7 @@
     "runBlockedReasonReach": null,
     "formatLivePresent": false,
     "exportDisabledReasonReach": null,
+    "exportDescribedByLinked": false,
     "horizontalOverflow": {
       "scrollWidth": 518,
       "clientWidth": 518,
@@ -304,6 +306,7 @@
     "runBlockedReasonReach": null,
     "formatLivePresent": false,
     "exportDisabledReasonReach": null,
+    "exportDescribedByLinked": false,
     "horizontalOverflow": {
       "scrollWidth": 518,
       "clientWidth": 518,
@@ -410,6 +413,7 @@
     "runBlockedReasonReach": null,
     "formatLivePresent": false,
     "exportDisabledReasonReach": null,
+    "exportDescribedByLinked": false,
     "horizontalOverflow": {
       "scrollWidth": 518,
       "clientWidth": 518,
@@ -538,6 +542,7 @@
     },
     "formatLivePresent": false,
     "exportDisabledReasonReach": null,
+    "exportDescribedByLinked": false,
     "horizontalOverflow": {
       "scrollWidth": 518,
       "clientWidth": 518,
@@ -667,6 +672,7 @@
     },
     "formatLivePresent": false,
     "exportDisabledReasonReach": null,
+    "exportDescribedByLinked": false,
     "horizontalOverflow": {
       "scrollWidth": 518,
       "clientWidth": 518,
@@ -741,6 +747,7 @@
     "runBlockedReasonReach": null,
     "formatLivePresent": false,
     "exportDisabledReasonReach": null,
+    "exportDescribedByLinked": false,
     "horizontalOverflow": {
       "scrollWidth": 518,
       "clientWidth": 518,
@@ -814,6 +821,7 @@
     "runBlockedReasonReach": null,
     "formatLivePresent": false,
     "exportDisabledReasonReach": null,
+    "exportDescribedByLinked": false,
     "horizontalOverflow": {
       "scrollWidth": 518,
       "clientWidth": 518,
@@ -887,6 +895,7 @@
     "runBlockedReasonReach": null,
     "formatLivePresent": true,
     "exportDisabledReasonReach": null,
+    "exportDescribedByLinked": false,
     "horizontalOverflow": {
       "scrollWidth": 518,
       "clientWidth": 518,
@@ -898,6 +907,126 @@
       "readDate": null,
       "exclusionX": null
     },
+    "mockupNoteAbsent": true
+  },
+  "export-stems-none-selected": {
+    "scene": "export-stems-none-selected",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "popinRect": {
+      "x": 285.28125,
+      "y": 87.625,
+      "width": 520,
+      "height": 576,
+      "top": 87.625,
+      "right": 805.28125,
+      "bottom": 663.625,
+      "left": 285.28125
+    },
+    "footerReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 573.84375,
+        "left": 286.28125,
+        "bottom": 662.625,
+        "right": 804.28125
+      }
+    },
+    "exportRunReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 609.828125,
+        "left": 706.234375,
+        "bottom": 653.828125,
+        "right": 792.28125
+      }
+    },
+    "sepRunReach": null,
+    "titleReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 99.015625,
+        "left": 298.28125,
+        "bottom": 121.015625,
+        "right": 792.28125
+      }
+    },
+    "downloadReasonReach": null,
+    "downloadReach": null,
+    "exclusionsSummaryReach": null,
+    "revertReach": null,
+    "runBlockedReasonReach": null,
+    "formatLivePresent": false,
+    "exportDisabledReasonReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 583.640625,
+        "left": 298.28125,
+        "bottom": 602.640625,
+        "right": 792.28125
+      }
+    },
+    "exportRunAriaDisabled": true,
+    "exportDescribedByLinked": true,
+    "horizontalOverflow": {
+      "scrollWidth": 518,
+      "clientWidth": 518,
+      "ok": true
+    },
+    "downloadAriaDisabled": false,
+    "contrast": {
+      "badge": null,
+      "readDate": null,
+      "exclusionX": null
+    },
+    "mockupNoteAbsent": true
+  },
+  "regen-gate-blocked": {
+    "scene": "regen-gate-blocked",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "regenProceedReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 449.5,
+        "left": 405,
+        "bottom": 487.875,
+        "right": 563.921875
+      }
+    },
+    "regenProceedReasonReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 410.5,
+        "left": 405,
+        "bottom": 429.5,
+        "right": 875
+      }
+    },
+    "regenProceedAriaDisabled": true,
+    "regenDescribedByLinked": true,
     "mockupNoteAbsent": true
   }
 }

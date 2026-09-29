@@ -6043,6 +6043,10 @@ details[open] > summary {
   margin: 0;
   font-size: 0.85rem;
 }
+.regen-gate-blocked-reason {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 0.85rem;
+}
 
 .export-dialog-result {
   margin: 0;

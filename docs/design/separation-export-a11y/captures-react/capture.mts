@@ -21,6 +21,8 @@ const SCENES = [
   "export-drawer-12",
   "export-drawer-12-after-export",
   "export-mix",
+  "export-stems-none-selected",
+  "regen-gate-blocked",
 ] as const;
 
 type SceneId = (typeof SCENES)[number];
@@ -45,7 +47,12 @@ async function measureScene(
   scene: SceneId,
 ): Promise<SceneMetrics> {
   await page.goto(`${BASE}#${scene}`);
-  await page.waitForTimeout(scene.includes("after-export") ? 1400 : 950);
+  const waitMs = scene.includes("after-export")
+    ? 1400
+    : scene === "export-stems-none-selected"
+      ? 1200
+      : 950;
+  await page.waitForTimeout(waitMs);
 
   const metrics = await page.evaluate(
     ({ sceneName, script }) => {
@@ -53,6 +60,29 @@ async function measureScene(
       eval(script);
     const vh = window.innerHeight;
     const vw = window.innerWidth;
+
+    if (sceneName === "regen-gate-blocked") {
+      const proceed = document.querySelector(
+        '[data-testid="regen-gate-proceed"]',
+      ) as HTMLButtonElement | null;
+      const reason = document.querySelector(
+        '[data-testid="regen-gate-proceed-blocked-reason"]',
+      ) as HTMLElement | null;
+      const describedBy = proceed?.getAttribute("aria-describedby");
+      return {
+        scene: sceneName,
+        viewport: { width: vw, height: vh },
+        regenProceedReach: __measureReachability(proceed),
+        regenProceedReasonReach: __measureReachability(reason),
+        regenProceedAriaDisabled:
+          proceed?.getAttribute("aria-disabled") === "true",
+        regenDescribedByLinked: Boolean(
+          describedBy && document.getElementById(describedBy) === reason,
+        ),
+        mockupNoteAbsent: true,
+      };
+    }
+
     const popin = document.querySelector(
       sceneName.startsWith("export")
         ? ".export-dialog-popin"
@@ -146,6 +176,15 @@ async function measureScene(
       runBlockedReasonReach: __measureReachability(runBlockedReason),
       formatLivePresent: Boolean(formatLive?.getAttribute("aria-live")),
       exportDisabledReasonReach: __measureReachability(disabledReason),
+      exportRunAriaDisabled:
+        exportRun?.getAttribute("aria-disabled") === "true" || undefined,
+      exportDescribedByLinked: Boolean(
+        disabledReason &&
+          exportRun?.getAttribute("aria-describedby") &&
+          document.getElementById(
+            exportRun.getAttribute("aria-describedby") as string,
+          ) === disabledReason,
+      ),
       horizontalOverflow: horiz,
       downloadAriaDisabled: download?.getAttribute("aria-disabled") === "true",
       sepRunAriaDisabled:
@@ -170,6 +209,33 @@ async function measureScene(
 }
 
 function assertScene(scene: SceneId, m: SceneMetrics): void {
+  if (scene === "regen-gate-blocked") {
+    const reason = m.regenProceedReasonReach as { reachable?: boolean } | null;
+    if (!reason?.reachable) {
+      throw new Error("raison RegenerationGate non visible");
+    }
+    if (!m.regenProceedAriaDisabled) {
+      throw new Error("Capturer et générer devrait être aria-disabled");
+    }
+    if (!m.regenDescribedByLinked) {
+      throw new Error("aria-describedby regen non relié");
+    }
+    return;
+  }
+  if (scene === "export-stems-none-selected") {
+    const footer = m.footerReach as { reachable?: boolean } | null;
+    const run = m.exportRunReach as { reachable?: boolean } | null;
+    const dr = m.exportDisabledReasonReach as { reachable?: boolean } | null;
+    if (!footer?.reachable || !run?.reachable) {
+      throw new Error("export 0 piste : pied ou bouton hors vue");
+    }
+    if (!dr?.reachable) throw new Error("raison export 0 piste invisible");
+    if (!m.exportRunAriaDisabled) throw new Error("Exporter sans aria-disabled");
+    if (!m.exportDescribedByLinked) {
+      throw new Error("aria-describedby export non relié");
+    }
+    return;
+  }
   const footer = m.footerReach as { reachable?: boolean } | null;
   if (!footer?.reachable) {
     throw new Error(`B1/I2 pied non atteignable (${scene})`);
@@ -257,7 +323,7 @@ try {
     all[scene] = m;
     console.log(scene, JSON.stringify(m, null, 0));
     assertScene(scene, m);
-    if (!m.mockupNoteAbsent) throw new Error("note Alphonse visible");
+    if (m.mockupNoteAbsent === false) throw new Error("note Alphonse visible");
   }
 
   await browser.close();

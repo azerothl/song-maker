@@ -59,10 +59,21 @@ describe("Dialogues séparation / export a11y (#187 / #191)", () => {
     );
   });
 
-  it("comportement pied export : voir anchoredPopinFooter.behavior.test.mts", () => {
+  it("comportement pied export : voir anchoredPopinFooter.behavior.test.ts", () => {
     assert.match(
       readSrc("src/dev/anchoredPopinFooter.behavior.test.ts"),
       /export-drawer-12-after-export/,
     );
+  });
+
+  it("raison visible + aria-describedby sur Exporter (0 piste) et RegenerationGate", () => {
+    const exp = readSrc("src/components/ExportDialog.tsx");
+    assert.match(exp, /export\.tracks\.disabledNoneSelected/);
+    assert.match(exp, /aria-describedby=\{/);
+    assert.match(exp, /aria-disabled=\{exportBlockedNotBusy/);
+    const regen = readSrc("src/components/RegenerationGate.tsx");
+    assert.match(regen, /regen-gate-proceed-blocked-reason/);
+    assert.match(regen, /phase4\.regenGate\.proceedBlocked/);
+    assert.match(regen, /aria-describedby=\{/);
   });
 });

@@ -18,13 +18,23 @@ describe("captures-react séparation / export (#187 / #191)", () => {
       { footerReach?: Reach; exportRunReach?: Reach; contrast?: Record<string, number> }
     >;
     for (const [scene, m] of Object.entries(metrics)) {
-      assert.equal(
-        m.footerReach?.reachable,
-        true,
-        `${scene} footer`,
-      );
+      if (scene !== "regen-gate-blocked") {
+        assert.equal(
+          m.footerReach?.reachable,
+          true,
+          `${scene} footer`,
+        );
+      }
       if (scene.startsWith("export-drawer")) {
         assert.equal(m.exportRunReach?.reachable, true, `${scene} export`);
+      }
+      if (scene === "export-stems-none-selected") {
+        assert.equal(m.exportDisabledReasonReach?.reachable, true);
+        assert.equal(m.exportDescribedByLinked, true);
+      }
+      if (scene === "regen-gate-blocked") {
+        assert.equal(m.regenProceedReasonReach?.reachable, true);
+        assert.equal(m.regenDescribedByLinked, true);
       }
     }
     const contrast = metrics["sep-header"]?.contrast;
