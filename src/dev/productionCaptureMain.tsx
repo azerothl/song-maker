@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ProductionWorkspace } from "../screens/song/ProductionWorkspace";
 import type { PlaybackView } from "../components/AudioPlayer";
@@ -35,7 +35,16 @@ function applyCaptureHashPrefs() {
   return prefs;
 }
 
-const capturePrefs = applyCaptureHashPrefs();
+function useCaptureHashPrefs() {
+  const [prefs, setPrefs] = useState(() => applyCaptureHashPrefs());
+  useEffect(() => {
+    const sync = () => setPrefs(applyCaptureHashPrefs());
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
+  return prefs;
+}
 
 function CaptureSidebar() {
   return (
@@ -59,6 +68,7 @@ function CaptureSidebar() {
 }
 
 function ProductionCaptureApp() {
+  const capturePrefs = useCaptureHashPrefs();
   const mix = useMemo(
     () => buildCaptureDemoMix(capturePrefs.trackCount),
     [capturePrefs.trackCount],
@@ -163,6 +173,7 @@ function ProductionCaptureApp() {
               showMixAssist
               showProductionCopilot
               sourceDurationMsByTrack={{}}
+              capturePaintCollapsedTracks={capturePrefs.rythmiqueCollapsed}
             />
           </div>
         </div>

@@ -13,7 +13,7 @@ pnpm exec tsx docs/design/production/captures-react/measure-stem-colors.mts  # c
 
 Rapport contrastes : [`../contrastes.md`](../contrastes.md).
 
-Écrit les PNG `production-transport-{avant|apres}-{1280x720|1024x700}.png` et fusionne les mesures `getBoundingClientRect` dans `metrics.json`.
+Écrit les PNG `production-transport-{avant|apres}-{1280x720|1024x700}.png`, `production-stem-colors-midplay-1280x720.png`, `production-stem-colors-collapsed-midplay-1280x720.png`, et fusionne les mesures dans `metrics.json`.
 
 ## Métriques
 

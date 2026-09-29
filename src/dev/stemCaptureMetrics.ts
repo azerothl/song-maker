@@ -2,20 +2,24 @@
 
 import {
   STEM_CONTRAST_ROLES,
-  TRACK_ROLE_COLORS,
-  WAVE_UNPLAYED_ALPHA,
   WAVE_PLAYED_VS_UNPLAYED_MIN,
   WCAG_UI_CONTRAST_MIN,
-  blendOverBackground,
   contrastRatio,
   parseCssColor,
-  playedStemColorHsl,
 } from "../lib/trackRoleColors";
+import {
+  pickSolidBarPixelY,
+  stemWaveformSampleClientXs,
+} from "./stemWaveformSampling";
 
 function rgbToHex(rgb: string): string | null {
   const parsed = parseCssColor(rgb);
   if (!parsed) return null;
   return `#${[parsed.r, parsed.g, parsed.b].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function rgbObjToHex(rgb: { r: number; g: number; b: number }): string {
+  return `#${[rgb.r, rgb.g, rgb.b].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function readCanvasPixel(canvas: HTMLCanvasElement, x: number, y: number) {
@@ -35,16 +39,26 @@ export type StemDomMetrics = {
   waveBaseHex: string | null;
   stripMatchesWave: boolean;
   canvasBgHex: string | null;
+  /** Pixel barre pleine — partie à venir (à droite du curseur). */
   unplayedPixelHex: string | null;
+  /** Pixel barre pleine — partie lue (à gauche du curseur). */
   playedPixelHex: string | null;
-  unplayedContrastOnBg: number;
+  /** Contraste partie à venir (pixel) sur fond canvas. */
+  upcomingContrastOnBg: number;
+  /** Contraste pixel lue vs pixel à venir. */
   playedVsUnplayedContrast: number;
   upcomingPass: boolean;
   playedVsUnplayedPass: boolean;
   importedTrackName?: string;
+  groupFamily?: string;
 };
 
-function metricsForRow(row: Element, role: string): StemDomMetrics | null {
+function parseBgRgb(hexOrCss: string): { r: number; g: number; b: number } {
+  const parsed = parseCssColor(hexOrCss);
+  return parsed ?? { r: 23, g: 19, b: 32 };
+}
+
+function metricsForRow(row: Element, role: string, extra?: Partial<StemDomMetrics>): StemDomMetrics | null {
   const strip = row.querySelector(".production-mix-strip");
   const canvas = row.querySelector(".production-mix-wave .waveform-canvas") as
     | HTMLCanvasElement
@@ -67,42 +81,37 @@ function metricsForRow(row: Element, role: string): StemDomMetrics | null {
   const frameBg = frame ? getComputedStyle(frame).backgroundColor : "";
   const canvasBgHex =
     rgbToHex(frameBg) ?? rgbToHex(canvasStyle.backgroundColor) ?? "#171320";
-  const bg = canvasBgHex;
+  const bgRgb = parseBgRgb(canvasBgHex);
 
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
   const progress = Number(canvas.getAttribute("aria-valuenow") ?? "0");
   const duration = Number(canvas.getAttribute("aria-valuemax") ?? "1");
-  const ratio = duration > 0 ? progress / duration : 0.5;
-  const playX = Math.max(4, Math.min(w - 4, w * ratio));
+  const peakCount = Number(canvas.getAttribute("data-peak-count") ?? "0") || 200;
+  const { playedSampleX, unplayedSampleX } = stemWaveformSampleClientXs(
+    w,
+    progress,
+    duration,
+    peakCount,
+  );
 
-  const sampleY = Math.max(4, h * 0.35);
-  const unplayedPx = readCanvasPixel(canvas, Math.max(2, playX - 16), sampleY);
-  const playedPx = readCanvasPixel(canvas, Math.max(2, playX - 6), sampleY);
+  const readAt = (x: number, y: number) => readCanvasPixel(canvas, x, y);
 
-  const unplayedPixelHex = unplayedPx
-    ? `#${[unplayedPx.r, unplayedPx.g, unplayedPx.b].map((c) => c.toString(16).padStart(2, "0")).join("")}`
-    : null;
-  const playedPixelHex = playedPx
-    ? `#${[playedPx.r, playedPx.g, playedPx.b].map((c) => c.toString(16).padStart(2, "0")).join("")}`
-    : null;
+  const unplayedPick = pickSolidBarPixelY(readAt, unplayedSampleX, h, bgRgb);
+  const playedPick = pickSolidBarPixelY(readAt, playedSampleX, h, bgRgb);
 
-  const base = waveBaseHex ?? TRACK_ROLE_COLORS[role] ?? null;
-  const upcomingComposite =
-    base != null ? blendOverBackground(base, bg, WAVE_UNPLAYED_ALPHA) : bg;
-  const playedExpected = base != null ? playedStemColorHsl(base) : bg;
+  const unplayedPixelHex = unplayedPick ? rgbObjToHex(unplayedPick.rgb) : null;
+  const playedPixelHex = playedPick ? rgbObjToHex(playedPick.rgb) : null;
 
-  const theoreticalUpcomingContrast = contrastRatio(upcomingComposite, bg);
-  const pixelUpcomingContrast =
-    unplayedPixelHex != null ? contrastRatio(unplayedPixelHex, bg) : 0;
-  const unplayedContrastOnBg = Math.max(theoreticalUpcomingContrast, pixelUpcomingContrast);
-
-  const theoreticalPlayedContrast = contrastRatio(playedExpected, upcomingComposite);
-  const pixelPlayedContrast =
-    playedPixelHex && unplayedPixelHex
-      ? contrastRatio(playedPixelHex, unplayedPixelHex)
+  const upcomingContrastOnBg =
+    unplayedPixelHex != null
+      ? Math.round(contrastRatio(unplayedPixelHex, canvasBgHex) * 100) / 100
       : 0;
-  const playedVsUnplayedContrast = Math.max(theoreticalPlayedContrast, pixelPlayedContrast);
+
+  const playedVsUnplayedContrast =
+    playedPixelHex && unplayedPixelHex
+      ? Math.round(contrastRatio(playedPixelHex, unplayedPixelHex) * 100) / 100
+      : 0;
 
   const label = row.querySelector(".production-mix-track-label");
   const importedTrackName = label?.textContent?.trim();
@@ -116,12 +125,25 @@ function metricsForRow(row: Element, role: string): StemDomMetrics | null {
     canvasBgHex,
     unplayedPixelHex,
     playedPixelHex,
-    unplayedContrastOnBg: Math.round(unplayedContrastOnBg * 100) / 100,
-    playedVsUnplayedContrast: Math.round(playedVsUnplayedContrast * 100) / 100,
-    upcomingPass: unplayedContrastOnBg >= WCAG_UI_CONTRAST_MIN,
+    upcomingContrastOnBg,
+    playedVsUnplayedContrast,
+    upcomingPass: upcomingContrastOnBg >= WCAG_UI_CONTRAST_MIN,
     playedVsUnplayedPass: playedVsUnplayedContrast >= WAVE_PLAYED_VS_UNPLAYED_MIN,
     importedTrackName,
+    ...extra,
   };
+}
+
+function measureCollapsedRythmiqueRow(): StemDomMetrics | null {
+  const collapsedTracks =
+    document.querySelector(
+      "#production-group-rythmique.production-mix-group-tracks--measure-offscreen",
+    ) ??
+    document.querySelector("#production-group-rythmique.production-mix-group-tracks[hidden]");
+  const row = collapsedTracks?.querySelector(".production-mix-row[data-role]");
+  if (!row) return null;
+  const role = row.getAttribute("data-role") ?? "drums";
+  return metricsForRow(row, role, { groupFamily: "rythmique" });
 }
 
 export function measureProductionStemColors(): {
@@ -135,16 +157,26 @@ export function measureProductionStemColors(): {
         getComputedStyle(document.documentElement).backgroundColor,
     ) ?? "#0c0e18";
 
+  function visibleRoleRow(role: string): Element | null {
+    const rows = Array.from(
+      document.querySelectorAll(`.production-mix-row[data-role="${role}"]`),
+    );
+    for (const row of rows) {
+      if (!row.closest("[hidden]")) return row;
+    }
+    return null;
+  }
+
   const stems: StemDomMetrics[] = [];
   for (const role of STEM_CONTRAST_ROLES) {
-    const row = document.querySelector(`.production-mix-row[data-role="${role}"]`);
+    const row = visibleRoleRow(role);
     if (!row) continue;
     const m = metricsForRow(row, role);
     if (m) stems.push(m);
   }
 
-  const pianoRow = document.querySelector('.production-mix-row[data-role="piano"]');
-  const guitarRow = document.querySelector('.production-mix-row[data-role="guitar"]');
+  const pianoRow = visibleRoleRow("piano");
+  const guitarRow = visibleRoleRow("guitar");
   if (pianoRow && !stems.some((s) => s.role === "piano")) {
     const m = metricsForRow(pianoRow, "piano");
     if (m) stems.push(m);
@@ -154,13 +186,7 @@ export function measureProductionStemColors(): {
     if (m) stems.push(m);
   }
 
-  let collapsedGroupSample: StemDomMetrics | null = null;
-  const hiddenGroup = document.querySelector(
-    ".production-mix-group-tracks[hidden] .production-mix-row",
-  );
-  if (hiddenGroup) {
-    collapsedGroupSample = metricsForRow(hiddenGroup, hiddenGroup.getAttribute("data-role") ?? "other");
-  }
+  const collapsedGroupSample = measureCollapsedRythmiqueRow();
 
   return { bg0, stems, collapsedGroupSample };
 }

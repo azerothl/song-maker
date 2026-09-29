@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { buildCaptureDemoMix } from "../dev/captureDemoMix";
+import { parseCaptureHash } from "../dev/productionCaptureHash";
 import { roleWaveColor } from "./trackRoleColors";
 
 describe("stems Production — pistes démo (#159)", () => {
@@ -14,5 +15,11 @@ describe("stems Production — pistes démo (#159)", () => {
     assert.ok(piano && guitar);
     assert.equal(roleWaveColor(piano.role), roleWaveColor("piano"));
     assert.equal(roleWaveColor(guitar.role), roleWaveColor("guitar"));
+  });
+
+  it("hash collapsed replie le groupe Rythmique pour la capture #159", () => {
+    const prefs = parseCaptureHash("16,auto,collapsed,midplay");
+    assert.equal(prefs.rythmiqueCollapsed, true);
+    assert.equal(prefs.midPlayback, true);
   });
 });

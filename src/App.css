@@ -1357,6 +1357,16 @@ option {
   overflow: hidden;
 }
 
+/* Harness #159 : canvas des pistes repliées mesurables sans afficher le groupe. */
+.production-capture-root .production-mix-group-tracks--measure-offscreen {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: min(960px, 100vw);
+  pointer-events: none;
+  visibility: visible;
+}
+
 .production-mix-wave .waveform-canvas {
   border-radius: 0;
   background: transparent;

@@ -6,6 +6,7 @@ import {
 } from "react";
 import {
   DEFAULT_WAVE_COLOR,
+  PRODUCTION_WAVE_TRACK_BG,
   resolveWaveFillColors,
   roleWaveColor,
   WAVE_PLAYHEAD_OUTLINE,
@@ -66,6 +67,21 @@ function readCssWaveColors(el: Element | null): {
   };
 }
 
+function readCanvasBackdrop(canvas: HTMLCanvasElement): string {
+  const frame = canvas.closest(".waveform-frame");
+  if (frame) {
+    const bg = getComputedStyle(frame).backgroundColor;
+    if (bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent") {
+      return bg;
+    }
+  }
+  const canvasBg = getComputedStyle(canvas).backgroundColor;
+  if (canvasBg && canvasBg !== "rgba(0, 0, 0, 0)" && canvasBg !== "transparent") {
+    return canvasBg;
+  }
+  return PRODUCTION_WAVE_TRACK_BG;
+}
+
 function resolveDrawColors(
   el: Element | null,
   opts: { color?: string; playedColor?: string; role?: string },
@@ -122,6 +138,8 @@ export function Waveform({
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = readCanvasBackdrop(canvas);
+    ctx.fillRect(0, 0, width, height);
     if (status !== "ready" || !peaks || peaks.length === 0) return;
 
     const mid = height / 2;
@@ -238,6 +256,9 @@ export function Waveform({
           aria-valuenow={Number.isFinite(progress) ? progress : 0}
           aria-valuetext={valueText}
           aria-disabled={!canSeek}
+          data-peak-count={
+            status === "ready" && peaks && peaks.length > 0 ? peaks.length : undefined
+          }
         />
         {statusMessage && (
           <span className="waveform-status" aria-live="polite">

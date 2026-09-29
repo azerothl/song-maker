@@ -24,7 +24,10 @@ const ROOT = path.resolve(__dirname, "../../../..");
 const OUT = __dirname;
 const DOCS = path.resolve(__dirname, "..");
 const PORT = 5183;
-const BASE = `http://127.0.0.1:${PORT}/production-capture.html#16,auto,expanded,midplay`;
+const HASH_EXPANDED = "16,auto,expanded,midplay";
+const HASH_COLLAPSED = "16,auto,collapsed,midplay";
+const BASE_EXPANDED = `http://127.0.0.1:${PORT}/production-capture.html#${HASH_EXPANDED}`;
+const BASE_COLLAPSED = `http://127.0.0.1:${PORT}/production-capture.html#${HASH_COLLAPSED}`;
 
 const LEGACY_ALPHA = 0.48;
 
@@ -74,13 +77,13 @@ const vite = spawn("pnpm", ["exec", "vite", "--host", "127.0.0.1", "--port", Str
 });
 
 try {
-  await waitServer(BASE);
+  await waitServer(BASE_EXPANDED);
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  await page.goto(BASE);
+  await page.goto(BASE_EXPANDED);
   await page.waitForTimeout(900);
 
-  const dom = await page.evaluate(() => window.__productionStemColors?.() ?? null);
+  const domExpanded = await page.evaluate(() => window.__productionStemColors?.() ?? null);
   const theory = measureStemContrasts(PRODUCTION_BG0);
   const theoryOnWaveFrame = measureStemContrasts(PRODUCTION_WAVE_TRACK_BG);
 
@@ -93,6 +96,25 @@ try {
 
   await browser.close();
 
+  const browserCollapsed = await chromium.launch();
+  const pageCollapsed = await browserCollapsed.newPage({ viewport: { width: 1280, height: 720 } });
+  await pageCollapsed.goto(BASE_COLLAPSED);
+  await pageCollapsed.waitForTimeout(1200);
+  const domCollapsed = await pageCollapsed.evaluate(() => window.__productionStemColors?.() ?? null);
+  await pageCollapsed.screenshot({
+    path: path.join(OUT, "production-stem-colors-collapsed-midplay-1280x720.png"),
+    fullPage: false,
+  });
+  await browserCollapsed.close();
+
+  const dom = domExpanded
+    ? {
+        ...domExpanded,
+        collapsedGroupSample: domCollapsed?.collapsedGroupSample ?? null,
+        collapsedCaptureHash: HASH_COLLAPSED,
+      }
+    : null;
+
   const metricsPath = path.join(OUT, "metrics.json");
   let all: Record<string, unknown> = {};
   try {
@@ -104,7 +126,7 @@ try {
   const stemColorsApres = {
     measuredAt: new Date().toISOString(),
     viewport: "1280x720",
-    hash: "16,auto,expanded,midplay",
+    hash: HASH_EXPANDED,
     bg0: dom?.bg0 ?? PRODUCTION_BG0,
     unplayedAlpha: WAVE_UNPLAYED_ALPHA,
     theory,
@@ -144,6 +166,18 @@ try {
     if (!s.upcomingPass || !s.playedVsUnplayedPass) {
       throw new Error(`mesure DOM ${s.role} sous seuil`);
     }
+    if (s.unplayedPixelHex === s.playedPixelHex) {
+      throw new Error(
+        `pixels lue et à venir identiques pour ${s.role} — échantillonnage invalide`,
+      );
+    }
+  }
+  const collapsed = dom?.collapsedGroupSample;
+  if (!collapsed?.stripMatchesWave || !collapsed.upcomingPass || !collapsed.playedVsUnplayedPass) {
+    throw new Error("groupe replié (Rythmique) : mesure pastille/waveform manquante ou sous seuil");
+  }
+  if (collapsed.unplayedPixelHex === collapsed.playedPixelHex) {
+    throw new Error("groupe replié : pixels lue et à venir identiques");
   }
   if ((transport as { rowsFullyVisible?: number } | null)?.rowsFullyVisible != null) {
     const rows = (transport as { rowsFullyVisible: number }).rowsFullyVisible;
@@ -160,13 +194,35 @@ function buildContrastesMd(
   avant: ReturnType<typeof legacyAvantRows>,
 ): string {
   const theory = apres.theory as ReturnType<typeof measureStemContrasts>;
-  const dom = apres.dom as { bg0: string; stems: Array<{ role: string; stripHex: string | null; unplayedContrastOnBg: number; playedVsUnplayedContrast: number }> } | null;
+  const dom = apres.dom as {
+    bg0: string;
+    stems: Array<{
+      role: string;
+      stripHex: string | null;
+      upcomingContrastOnBg: number;
+      playedVsUnplayedContrast: number;
+      unplayedPixelHex: string | null;
+      playedPixelHex: string | null;
+      canvasBgHex: string | null;
+    }>;
+    collapsedGroupSample?: {
+      role: string;
+      groupFamily?: string;
+      upcomingContrastOnBg: number;
+      playedVsUnplayedContrast: number;
+      stripMatchesWave: boolean;
+    } | null;
+    collapsedCaptureHash?: string;
+  } | null;
+
+  const waveBg = dom?.stems[0]?.canvasBgHex ?? PRODUCTION_WAVE_TRACK_BG;
 
   const lines = [
     "# Contrastes WCAG — stems Production (#159)",
     "",
-    "Mesures **réelles** : harness `production-capture.html` (`#16,auto,expanded,midplay`), Chromium 1280×720.",
-    "Pastille = `getComputedStyle(.production-mix-strip)` ; waveform = `var(--track-wave)` + pixels canvas.",
+    `Mesures **réelles** : harness \`production-capture.html\` (\`#${HASH_EXPANDED}\`), Chromium 1280×720.`,
+    "Pastille = `getComputedStyle(.production-mix-strip)` ; pixels canvas = barre pleine à gauche (lue) / droite (à venir) du curseur.",
+    `Groupe replié : \`#${HASH_COLLAPSED}\` — capture \`production-stem-colors-collapsed-midplay-1280x720.png\`.`,
     "",
     "## Source unique (après)",
     "",
@@ -174,34 +230,49 @@ function buildContrastesMd(
     "|---|---|",
     ...theory.map((r) => `| ${r.role} | \`${r.solidHex}\` |`),
     "",
-    "## Partie à venir @ 65 % sur fond réel",
+    "## Partie à venir @ 65 % — mesure DOM (pixels canvas)",
     "",
-    `Fond \`--bg0\` / canvas : **${dom?.bg0 ?? PRODUCTION_BG0}**. Seuil **${WCAG_UI_CONTRAST_MIN}:1**.`,
+    `Fond canvas (\`.waveform-frame\`) : **${waveBg}**. Seuil **${WCAG_UI_CONTRAST_MIN}:1**.`,
     "",
-    "| Stem (plus sombres d’abord) | Composite | Ratio DOM/théorie |",
+    "| Stem (plus sombres d’abord, DOM) | Pixel à venir | Ratio sur fond |",
     "|---|---|---|",
   ];
 
-  const sorted = [...theory].sort((a, b) => a.upcomingContrast - b.upcomingContrast);
-  for (const row of sorted) {
-    const domRow = dom?.stems.find((s) => s.role === row.role);
-    const ratio = domRow?.unplayedContrastOnBg ?? row.upcomingContrast;
+  const sortedDom = [...(dom?.stems ?? [])].sort(
+    (a, b) => a.upcomingContrastOnBg - b.upcomingContrastOnBg,
+  );
+  for (const row of sortedDom) {
     lines.push(
-      `| ${row.role} | \`${row.upcomingCompositeHex}\` | **${ratio.toFixed(2)}:1** |`,
+      `| ${row.role} | \`${row.unplayedPixelHex ?? "—"}\` | **${row.upcomingContrastOnBg.toFixed(2)}:1** |`,
     );
   }
 
   lines.push(
     "",
-    "## Écart partie lue / à venir (≥ 1,3:1)",
+    "## Écart partie lue / à venir — mesure DOM (≥ 1,3:1)",
     "",
-    "| Stem | Ratio |",
-    "|---|---|",
-    ...sorted.map((row) => {
-      const domRow = dom?.stems.find((s) => s.role === row.role);
-      const ratio = domRow?.playedVsUnplayedContrast ?? row.playedVsUpcomingContrast;
-      return `| ${row.role} | **${ratio.toFixed(2)}:1** |`;
+    "| Stem | Pixel lue | Pixel à venir | Ratio |",
+    "|---|---|---|---|",
+    ...sortedDom.map((row) => {
+      return `| ${row.role} | \`${row.playedPixelHex ?? "—"}\` | \`${row.unplayedPixelHex ?? "—"}\` | **${row.playedVsUnplayedContrast.toFixed(2)}:1** |`;
     }),
+    "",
+    "## Calcul théorique (65 % sur `--bg0`, non DOM)",
+    "",
+    "| Stem | Composite calculé | Ratio | Écart lue/à venir |",
+    "|---|---|---|---|",
+    ...[...theory]
+      .sort((a, b) => a.upcomingContrast - b.upcomingContrast)
+      .map(
+        (row) =>
+          `| ${row.role} | \`${row.upcomingCompositeHex}\` | ${row.upcomingContrast.toFixed(2)}:1 | ${row.playedVsUpcomingContrast.toFixed(2)}:1 |`,
+      ),
+    "",
+    "## Groupe Rythmique replié (mesure DOM)",
+    "",
+    dom?.collapsedGroupSample
+      ? `Rôle échantillon : **${dom.collapsedGroupSample.role}** (\`${dom.collapsedGroupSample.groupFamily ?? "rythmique"}\`). À venir **${dom.collapsedGroupSample.upcomingContrastOnBg.toFixed(2)}:1** ; écart lue/à venir **${dom.collapsedGroupSample.playedVsUnplayedContrast.toFixed(2)}:1** ; pastille = waveform : **${dom.collapsedGroupSample.stripMatchesWave ? "oui" : "non"}**.`
+      : "_Non mesuré._",
     "",
     "## Avant #159 (opacité 48 %, bases héritées)",
     "",
