@@ -11,11 +11,21 @@ const metricsPath = path.resolve(
 
 type Reach = { reachable?: boolean };
 
+type SceneMetrics = {
+  footerReach?: Reach;
+  exportRunReach?: Reach;
+  exportDisabledReasonReach?: Reach;
+  exportDescribedByLinked?: boolean;
+  regenProceedReasonReach?: Reach;
+  regenDescribedByLinked?: boolean;
+  contrast?: Record<string, number>;
+};
+
 describe("captures-react séparation / export (#187 / #191)", () => {
   it("prouve visibilité réelle (footerReach.reachable)", () => {
     const metrics = JSON.parse(readFileSync(metricsPath, "utf8")) as Record<
       string,
-      { footerReach?: Reach; exportRunReach?: Reach; contrast?: Record<string, number> }
+      SceneMetrics
     >;
     for (const [scene, m] of Object.entries(metrics)) {
       if (scene !== "regen-gate-blocked") {
