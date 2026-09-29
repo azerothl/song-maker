@@ -242,6 +242,11 @@ export function Waveform({
             {statusMessage}
           </span>
         )}
+        {muted && status === "ready" && (
+          <span className="waveform-muted-tag" aria-hidden>
+            {t("waveform.mutedTag")}
+          </span>
+        )}
       </div>
     </div>
   );

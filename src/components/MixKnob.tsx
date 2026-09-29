@@ -168,6 +168,11 @@ export function MixKnob({
       commit(max);
       return;
     }
+    if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      commit(defaultValue);
+      return;
+    }
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       setDraft(displayValue);
