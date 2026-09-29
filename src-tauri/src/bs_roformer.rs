@@ -77,7 +77,7 @@ fn free_disk_bytes(dir: &Path) -> Option<u64> {
         let line = text.lines().nth(1)?;
         let avail_kb: u64 = line.split_whitespace().nth(3)?.parse().ok()?;
         let _ = c_path; // silence unused when df works
-        return Some(avail_kb.saturating_mul(1024));
+        Some(avail_kb.saturating_mul(1024))
     }
     #[cfg(windows)]
     {

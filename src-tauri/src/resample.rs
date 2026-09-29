@@ -178,14 +178,18 @@ fn which_ffmpeg() -> Option<PathBuf> {
 }
 
 fn ffmpeg_command(bin: &Path) -> Command {
-    let mut cmd = Command::new(bin);
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let mut cmd = Command::new(bin);
         cmd.creation_flags(CREATE_NO_WINDOW);
+        cmd
     }
-    cmd
+    #[cfg(not(windows))]
+    {
+        Command::new(bin)
+    }
 }
 
 pub fn resample_soxr(input: &Path, output: &Path, target_rate: u32) -> Result<(), String> {

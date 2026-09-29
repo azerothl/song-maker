@@ -6,10 +6,13 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn nvidia_smi_candidates() -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    out.push(PathBuf::from("nvidia-smi"));
+    #[cfg(not(windows))]
+    {
+        vec![PathBuf::from("nvidia-smi")]
+    }
     #[cfg(windows)]
     {
+        let mut out = vec![PathBuf::from("nvidia-smi")];
         if let Some(root) = std::env::var_os("SystemRoot") {
             out.push(Path::new(&root).join("System32").join("nvidia-smi.exe"));
         }
@@ -17,8 +20,8 @@ fn nvidia_smi_candidates() -> Vec<PathBuf> {
         out.push(PathBuf::from(
             r"C:\Program Files\NVIDIA Corporation\NVSMI\nvidia-smi.exe",
         ));
+        out
     }
-    out
 }
 
 fn run_nvidia_smi(bin: &Path) -> Option<std::process::Output> {
