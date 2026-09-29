@@ -338,10 +338,7 @@ pub(crate) fn read_separation_info(folder: &Path, doc: &ProjectDoc) -> Option<Se
     })
 }
 
-pub(crate) fn find_mix_id_for_separation(
-    folder: &Path,
-    separation_id: &str,
-) -> Option<String> {
+pub(crate) fn find_mix_id_for_separation(folder: &Path, separation_id: &str) -> Option<String> {
     let mixes_dir = folder.join("mixes");
     if !mixes_dir.is_dir() {
         return None;
@@ -421,10 +418,7 @@ pub fn list_separation_versions_cmd(id: String) -> Result<Vec<SeparationVersionS
 }
 
 #[tauri::command]
-pub fn activate_separation_version(
-    id: String,
-    separation_id: String,
-) -> Result<MixDoc, String> {
+pub fn activate_separation_version(id: String, separation_id: String) -> Result<MixDoc, String> {
     let folder = project_folder(&id);
     let mut doc = load_project(&folder)?;
     let sep_dir = folder.join("separations").join(&separation_id);
@@ -576,10 +570,8 @@ mod separation_version_tests {
 
     #[test]
     fn find_mix_id_for_separation_matches_mix_doc() {
-        let root = std::env::temp_dir().join(format!(
-            "song-maker-sep-test-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("song-maker-sep-test-{}", uuid::Uuid::new_v4()));
         let _ = std::fs::remove_dir_all(&root);
         ensure_dir(&root.join("mixes")).unwrap();
         let mix = new_mix_from_separation(
@@ -601,10 +593,8 @@ mod separation_version_tests {
 
     #[test]
     fn list_separation_versions_marks_active() {
-        let root = std::env::temp_dir().join(format!(
-            "song-maker-sep-list-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("song-maker-sep-list-{}", uuid::Uuid::new_v4()));
         let _ = std::fs::remove_dir_all(&root);
         let sep_dir = root.join("separations/sep-002");
         ensure_dir(&sep_dir).unwrap();
