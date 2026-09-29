@@ -196,7 +196,7 @@ export class HttpProjectSyncTransport implements ProjectSyncTransport {
       }
       return {
         status: "synced",
-        envelope: json.envelope,
+        ...(json.envelope ? { envelope: json.envelope } : {}),
       };
     } catch (e) {
       return {

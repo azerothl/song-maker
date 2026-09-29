@@ -169,10 +169,11 @@ export class FilesystemProjectSyncTransport implements ProjectSyncTransport {
       return {
         status: "synced",
         envelope,
-        error:
-          skipped.length > 0
-            ? `Gros fichiers audio ignorés (${skipped.length}) — politique bande passante.`
-            : undefined,
+        ...(skipped.length > 0
+          ? {
+              error: `Gros fichiers audio ignorés (${skipped.length}) — politique bande passante.`,
+            }
+          : {}),
       };
     } catch (e) {
       return {
