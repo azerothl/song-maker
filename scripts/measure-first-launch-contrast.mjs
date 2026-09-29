@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-/** Mesure les ratios de contraste WCAG AA pour l’écran premier lancement. */
+/**
+ * Grille rapide alignée sur docs/design/first-launch/contrastes.md (PR #122).
+ * Audit complet = Playwright sur la maquette ; ici couples plats pour régression CI locale.
+ */
 
 function srgbToLinear(c) {
   const s = c / 255;
@@ -25,20 +28,27 @@ function contrastRatio(fg, bg) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-const pairs = [
-  ["Texte principal", "#F3F0FA", "#221E2C"],
-  ["Sur-titre teal", "#5ED8C9", "#1F2D2F"],
-  ["Texte atténué (--line2)", "#7A6EA1", "#221E2C"],
-  ["Licence", "#E4DEF3", "#221E2C"],
-  ["Bouton primaire", "#FFFFFF", "#805CDF"],
-  ["Bouton survol", "#FFFFFF", "#6A3FD9"],
-  ["Alerte titre", "#FFD5CF", "#3A1F26"],
-  ["Focus ring", "#FFD76A", "#221E2C"],
-  ["Lien licence", "#C4B2FF", "#221E2C"],
-];
-
-for (const [label, fg, bg] of pairs) {
+function report(label, fg, bg, threshold = 4.5) {
   const ratio = contrastRatio(fg, bg);
-  const aa = ratio >= 4.5 ? "AA OK" : ratio >= 3 ? "AA grand texte" : "FAIL";
+  const aa =
+    ratio >= threshold
+      ? "OK"
+      : threshold === 3 && ratio >= 3
+        ? "OK (3:1 UI)"
+        : "FAIL";
   console.log(`${label}: ${ratio.toFixed(2)}:1 (${aa}) — ${fg} / ${bg}`);
 }
+
+console.log("Référence : docs/design/first-launch/contrastes.md\n");
+
+report("Texte principal", "#F3F0FA", "#221E2C");
+report("Texte atténué (--muted)", "#BDB6CF", "#221E2C");
+report("Sur-titre teal", "#5ED8C9", "#221E2C");
+report("Licence", "#E4DEF3", "#1F1B28");
+report("Lien licence", "#C4B2FF", "#1F1B28");
+report("Bouton primaire (--purple-btn)", "#FFFFFF", "#805CDF");
+report("Bouton survol (--purple-btn-h)", "#FFFFFF", "#6A3FD9", 4.5);
+report("Alerte titre", "#FFD5CF", "#3A1F26");
+report("Focus ring", "#FFD76A", "#221E2C");
+report("Bordure btn sec / pbar (--line2)", "#7A6EA1", "#2A2536", 3);
+report("Remplissage btn principal / carte", "#805CDF", "#1F1B28", 3);
