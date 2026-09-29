@@ -9,6 +9,8 @@
   --accent-2: #8f71e8;
   --accent-cyan: #69d9e8;
   --accent-coral: #ff858d;
+  --line2: #7a6ea1;
+  --purple-btn: #805cdf;
   --danger: #ff777e;
   --ok: #69d6aa;
   --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
@@ -2660,10 +2662,16 @@ details[open] > summary {
 .abc-staff-scroll {
   overflow: auto;
   max-height: min(420px, 55vh);
+  height: fit-content;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #0b0e13;
   padding: 0.35rem;
+}
+
+.abc-staff-scroll.is-windowed {
+  height: auto;
+  min-height: min(280px, 40vh);
 }
 
 .abc-staff-pages {
@@ -2675,17 +2683,42 @@ details[open] > summary {
 
 .abc-staff-paper {
   min-width: 100%;
+  width: fit-content;
+  max-width: 100%;
   color: var(--text);
 }
 
 .abc-staff-paper svg {
-  max-width: none;
+  display: block;
+  max-width: 100%;
+  height: auto;
 }
 
 .abc-staff-paper .abcjs-highlight,
 .abc-staff-paper .abcjs-note_selected {
   fill: #5ec8ff;
   stroke: #5ec8ff;
+}
+
+.abc-staff-toolbar .abc-staff-follow,
+.abc-staff-warnings-toggle {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--line2);
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg1) 88%, transparent);
+}
+
+.abc-staff-toolbar .abc-staff-follow:hover,
+.abc-staff-warnings-toggle:hover {
+  border-color: var(--purple-btn);
+}
+
+.abc-staff-toolbar .abc-staff-follow.active {
+  border-color: var(--purple-btn);
+  background: color-mix(in srgb, var(--purple-btn) 28%, var(--bg1));
+  color: #fff;
 }
 
 .abc-staff-toolbar .btn.ghost.active {
@@ -2705,11 +2738,6 @@ details[open] > summary {
   max-height: 8rem;
   overflow: auto;
   font-size: 0.82rem;
-}
-
-.abc-staff-warnings-toggle {
-  font-size: 0.82rem;
-  padding: 0.15rem 0.45rem;
 }
 
 .score-abc-raw {

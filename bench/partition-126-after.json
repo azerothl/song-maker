@@ -13,5 +13,12 @@
     "warnings": [
       "Music Line:5:3: Duration not representable: z5:  z5<span style=\"text-decoration:underline;font-size:1.3em;font-weight:bold;\">|</span>"
     ]
+  },
+  "scrollFit": {
+    "svgH": 755.28125,
+    "paperH": 755.28125,
+    "scrollH": 420,
+    "slackBelowPaper": -335.28125,
+    "scrollOverflow": 347
   }
 }

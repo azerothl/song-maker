@@ -22,6 +22,10 @@ import {
   DEFAULT_PX_PER_BAR,
   playbackBarIndex,
 } from "../lib/staffWindow";
+import {
+  shouldResumeFollowOnPlaybackRestart,
+  staffScrollTopTo,
+} from "../lib/staffScroll";
 import { t } from "../ui/i18n";
 
 const SCALE_MIN = 0.6;
@@ -66,6 +70,7 @@ function highlightEvent(
   root: HTMLElement | null,
   scrollEl: HTMLElement | null,
   followPlayback: boolean,
+  reducedMotion: boolean,
 ) {
   clearHighlights(root);
   if (!ev?.elements) return;
@@ -99,7 +104,7 @@ function highlightEvent(
     scrollEl.scrollTop +
     (targetRect.top - viewRect.top) -
     viewRect.height * 0.2;
-  scrollEl.scrollTop = Math.max(0, targetTop);
+  staffScrollTopTo(scrollEl, targetTop, reducedMotion);
 }
 
 /**
@@ -126,6 +131,8 @@ export function AbcStaffView({
   const scrollRafRef = useRef<number | null>(null);
   const programmaticScrollRef = useRef(false);
   const followPlaybackRef = useRef(true);
+  const reducedMotionRef = useRef(false);
+  const prevPlaybackSecondsRef = useRef(playbackSeconds);
 
   onSeekRef.current = onSeek;
   playbackReadyRef.current = playbackReady;
@@ -140,6 +147,7 @@ export function AbcStaffView({
 
   const [scale, setScale] = useState(1);
   const [followPlayback, setFollowPlayback] = useState(true);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const [staffWidth, setStaffWidth] = useState(640);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [renderWarnings, setRenderWarnings] = useState<string[]>([]);
@@ -222,6 +230,31 @@ export function AbcStaffView({
   }, [followPlayback]);
 
   useEffect(() => {
+    reducedMotionRef.current = reducedMotion;
+  }, [reducedMotion]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReducedMotion(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    const prev = prevPlaybackSecondsRef.current;
+    prevPlaybackSecondsRef.current = playbackSeconds;
+    if (shouldResumeFollowOnPlaybackRestart(prev, playbackSeconds)) {
+      setFollowPlayback(true);
+    }
+  }, [playbackSeconds]);
+
+  const pauseFollowOnUserScroll = useCallback(() => {
+    if (programmaticScrollRef.current) return;
+    setFollowPlayback(false);
+  }, []);
+
+  useEffect(() => {
     const scroll = scrollRef.current;
     if (!scroll) return;
     const updateWidth = () => {
@@ -248,9 +281,11 @@ export function AbcStaffView({
 
   useEffect(() => {
     const scroll = scrollRef.current;
-    if (!scroll || !windowing) return;
+    if (!scroll) return;
 
     const onScroll = () => {
+      pauseFollowOnUserScroll();
+      if (!windowing) return;
       if (programmaticScrollRef.current) return;
       if (scrollRafRef.current != null) return;
       scrollRafRef.current = requestAnimationFrame(() => {
@@ -259,13 +294,17 @@ export function AbcStaffView({
       });
     };
     scroll.addEventListener("scroll", onScroll, { passive: true });
+    scroll.addEventListener("wheel", pauseFollowOnUserScroll, {
+      passive: true,
+    });
     return () => {
       scroll.removeEventListener("scroll", onScroll);
+      scroll.removeEventListener("wheel", pauseFollowOnUserScroll);
       if (scrollRafRef.current != null) {
         cancelAnimationFrame(scrollRafRef.current);
       }
     };
-  }, [windowing, applyScrollWindow]);
+  }, [windowing, applyScrollWindow, pauseFollowOnUserScroll]);
 
   useEffect(() => {
     if (!followPlayback || !windowing || barSeconds == null) return;
@@ -279,15 +318,23 @@ export function AbcStaffView({
     if (targetY >= top + margin && targetY <= bottom - margin) return;
 
     programmaticScrollRef.current = true;
-    scroll.scrollTop = Math.max(
-      0,
+    staffScrollTopTo(
+      scroll,
       targetY - scroll.clientHeight * 0.35,
+      reducedMotionRef.current,
     );
     applyScrollWindow();
     requestAnimationFrame(() => {
       programmaticScrollRef.current = false;
     });
-  }, [playbackSeconds, windowing, barSeconds, applyScrollWindow, followPlayback]);
+  }, [
+    playbackSeconds,
+    windowing,
+    barSeconds,
+    applyScrollWindow,
+    followPlayback,
+    reducedMotion,
+  ]);
 
   useEffect(() => {
     const paper = paperRef.current;
@@ -360,6 +407,7 @@ export function AbcStaffView({
             paper,
             scrollRef.current,
             followPlaybackRef.current,
+            reducedMotionRef.current,
           );
           return "continue";
         },
@@ -451,7 +499,7 @@ export function AbcStaffView({
         </button>
         <button
           type="button"
-          className={`btn ghost${followPlayback ? " active" : ""}`}
+          className={`btn ghost abc-staff-follow${followPlayback ? " active" : ""}`}
           aria-pressed={followPlayback}
           onClick={() => setFollowPlayback((on) => !on)}
         >
@@ -467,7 +515,10 @@ export function AbcStaffView({
         )}
       </div>
 
-      <div className="abc-staff-scroll" ref={scrollRef}>
+      <div
+        className={`abc-staff-scroll${windowing ? " is-windowed" : ""}`}
+        ref={scrollRef}
+      >
         {windowing && virtualTrackHeight != null ? (
           <div
             className="abc-staff-virtual-track"

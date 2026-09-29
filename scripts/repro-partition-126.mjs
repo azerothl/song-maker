@@ -39,6 +39,7 @@ if (!built.ok) {
 }
 
 let abc = sliceAbcMeasures(built.abc, 0, 20);
+const fitAbcSlice = sliceAbcMeasures(built.abc, 0, 8);
 if (!afterMode) {
   abc = abc.replace(/\bz4z\b/g, "z5");
 }
@@ -50,6 +51,7 @@ const harness = `
 import { chromium } from 'playwright';
 
 const abc = ${JSON.stringify(abc)};
+const fitAbc = ${JSON.stringify(afterMode ? fitAbcSlice : "")};
 const z5 = ${JSON.stringify(z5Tune)};
 const afterMode = ${JSON.stringify(afterMode)};
 
@@ -75,6 +77,27 @@ async function render(source, opts) {
   }, { source, opts });
 }
 
+async function renderInScroll(source, opts) {
+  return page.evaluate(({ source, opts }) => {
+    document.body.innerHTML =
+      '<div id="scroll" style="width:560px;max-height:420px;height:fit-content;overflow:auto;padding:6px;background:#0b0e13;box-sizing:border-box"><div id="paper" style="width:fit-content;max-width:100%"></div></div>';
+    const scroll = document.getElementById('scroll');
+    const paper = document.getElementById('paper');
+    window.ABCJS.renderAbc(paper, source, opts);
+    const svg = paper.querySelector('svg');
+    const svgH = svg?.getBoundingClientRect().height ?? 0;
+    const paperH = paper.getBoundingClientRect().height;
+    const scrollH = scroll.clientHeight;
+    return {
+      svgH,
+      paperH,
+      scrollH,
+      slackBelowPaper: scrollH - paperH,
+      scrollOverflow: scroll.scrollHeight - scroll.clientHeight,
+    };
+  }, { source, opts });
+}
+
 const beforeOpts = { add_classes: true, viewportHorizontal: true, scale: 1 };
 const afterOpts = {
   add_classes: true,
@@ -86,8 +109,9 @@ const afterOpts = {
 const opts = afterMode ? afterOpts : beforeOpts;
 const main = await render(abc, opts);
 const z5case = await render(z5, opts);
+const scrollFit = afterMode && fitAbc ? await renderInScroll(fitAbc, afterOpts) : null;
 await browser.close();
-console.log(JSON.stringify({ afterMode, main, z5case }, null, 2));
+console.log(JSON.stringify({ afterMode, main, z5case, scrollFit }, null, 2));
 `;
 
 const tmp = path.join(root, "bench", "repro-126-run.mjs");
@@ -112,3 +136,11 @@ console.log(`Wrote ${outPath}`);
 console.log(
   `layoutRatio=${result.main.layoutRatio?.toFixed(3)} warnings=${result.main.warnings.length} z5warnings=${result.z5case.warnings.length}`,
 );
+if (afterMode && result.scrollFit) {
+  const slack = result.scrollFit.slackBelowPaper;
+  console.log(`scrollSlackBelowPaper=${slack?.toFixed(1)}px`);
+  if (slack > 24) {
+    console.error("Assertion échouée: vide noir sous la portée (slack > 24px)");
+    process.exit(1);
+  }
+}
