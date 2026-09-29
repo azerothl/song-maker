@@ -22,6 +22,7 @@ import { measureProductionTransport } from "./productionTransportMetrics";
 import { measureProductionStemColors } from "./stemCaptureMetrics";
 import { measureMasterWavePlayheadContrast } from "./waveformPlayheadContrast";
 import { parseCaptureHash } from "./productionCaptureHash";
+import { attachPrimaryButtonMetricsWindow } from "./primaryButtonMetrics";
 import "../App.css";
 
 function applyCaptureHashPrefs() {
@@ -69,6 +70,9 @@ function CaptureSidebar() {
 
 function ProductionCaptureApp() {
   const capturePrefs = useCaptureHashPrefs();
+  useEffect(() => {
+    setProductionView(capturePrefs.productionView);
+  }, [capturePrefs.productionView]);
   const mix = useMemo(
     () => buildCaptureDemoMix(capturePrefs.trackCount),
     [capturePrefs.trackCount],
@@ -76,7 +80,9 @@ function ProductionCaptureApp() {
   const project = useMemo(() => buildCaptureProject(), []);
   const playbackSources = useMemo(() => buildCapturePlaybackSources(mix), [mix]);
   const separationInfo = useMemo(() => buildCaptureSeparationInfo(), []);
-  const [productionView, setProductionView] = useState<ProductionView>("mix");
+  const [productionView, setProductionView] = useState<ProductionView>(
+    () => parseCaptureHash(globalThis.location?.hash ?? "").productionView,
+  );
   const [mixState, setMixState] = useState<MixDoc>(mix);
   const [mixSavedAt] = useState(() => new Date());
   const playbackDuration = 444;
@@ -158,7 +164,7 @@ function ProductionCaptureApp() {
               playbackSources={playbackSources}
               productionView={productionView}
               project={project}
-              recordOpen={false}
+              recordOpen={capturePrefs.recordOpen}
               roleByTrack={Object.fromEntries(mix.tracks.map((tr) => [tr.id, tr.role]))}
               scheduleMixUpdate={(next) => {
                 if (next) setMixState(next);
@@ -206,5 +212,6 @@ window.__productionCaptureMetrics = () => measureProductionMix();
 window.__productionTransportMetrics = () => measureProductionTransport();
 window.__productionPlayheadContrast = () => measureMasterWavePlayheadContrast();
 window.__productionStemColors = () => measureProductionStemColors();
+attachPrimaryButtonMetricsWindow();
 
 void loadCollapsedTrackFamilies();

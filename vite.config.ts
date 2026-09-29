@@ -19,6 +19,18 @@ export default defineConfig(() => ({
               rootDir,
               "src/dev/tauriInvokeMock.ts",
             ),
+            "@tauri-apps/api/event": path.resolve(
+              rootDir,
+              "src/dev/tauriEventMock.ts",
+            ),
+            "@tauri-apps/plugin-updater": path.resolve(
+              rootDir,
+              "src/dev/tauriUpdaterMock.ts",
+            ),
+            "@tauri-apps/plugin-process": path.resolve(
+              rootDir,
+              "src/dev/tauriProcessMock.ts",
+            ),
           }
         : {}),
       "@song-maker/score-engine": path.resolve(

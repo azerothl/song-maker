@@ -1,9 +1,11 @@
 /**
- * Mesure contraste `.btn.primary` dans la page (injecté par capture.mts).
- * Plain JS — évite la sérialisation `__name` de tsx/esbuild via page.evaluate.
+ * Mesure contraste `.btn.primary` depuis styles calculés (injecté par capture.mts).
+ * Lit getComputedStyle réel : stops du dégradé ou background-color plat (désactivé).
  */
 (function () {
   const AA_MIN = 4.5;
+  const GRADIENT_STOP_RE =
+    /(?:rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+(?:\s*,\s*[\d.]+)?\s*\)|color\(\s*srgb[\s\d./]+\)|#[0-9a-f]{3,8})/gi;
 
   function srgbToLinear(c) {
     const s = c / 255;
@@ -31,7 +33,6 @@
         a: rgb[4] != null ? Number(rgb[4]) : 1,
       };
     }
-    // Chromium color-mix often resolves to color(srgb r g b) with 0–1 channels.
     const srgb = raw.match(
       /^color\(\s*srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\s*\)$/i,
     );
@@ -76,21 +77,17 @@
     return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
   }
 
-  function resolveBackground(cssValue) {
-    const probe = document.createElement("div");
-    probe.style.cssText = `position:fixed;left:-9999px;top:0;width:8px;height:8px;background:${cssValue}`;
-    document.body.appendChild(probe);
-    const bg = getComputedStyle(probe).backgroundColor;
-    probe.remove();
-    return bg;
-  }
-
   function blend(fg, bg, alpha) {
     return {
       r: Math.round(alpha * fg.r + (1 - alpha) * bg.r),
       g: Math.round(alpha * fg.g + (1 - alpha) * bg.g),
       b: Math.round(alpha * fg.b + (1 - alpha) * bg.b),
     };
+  }
+
+  function parseGradientStops(backgroundImage) {
+    if (!backgroundImage || backgroundImage === "none") return [];
+    return backgroundImage.match(GRADIENT_STOP_RE) ?? [];
   }
 
   function measureCurrent(sel, stateName) {
@@ -104,52 +101,48 @@
     if (!fg) throw new Error(`couleur texte illisible : ${fgCss}`);
 
     const root = getComputedStyle(document.documentElement);
-    const accent = root.getPropertyValue("--accent").trim() || "#c4a8ff";
-    const accent2 = root.getPropertyValue("--accent-2").trim() || "#a78bfa";
     const bg0 = root.getPropertyValue("--bg0").trim() || "#0c0e18";
-    const pageBg = parseRgb(resolveBackground(bg0)) || {
-      r: 12,
-      g: 14,
-      b: 24,
-    };
+    const pageBg = parseRgb(bg0) || { r: 12, g: 14, b: 24 };
+    const composedFg = blend(fg, pageBg, Number.isFinite(opacity) ? opacity : 1);
 
-    const stopSpecs =
-      stateName === "disabled"
-        ? [
-            ["disabled-top", "color-mix(in srgb, var(--accent) 62%, white)"],
-            [
-              "disabled-bottom",
-              "color-mix(in srgb, var(--accent-2) 62%, white)",
-            ],
-          ]
-        : [
-            ["accent", accent],
-            ["accent-2", accent2],
-          ];
-
-    const stops = stopSpecs.map(([stop, cssValue]) => {
-      const bgCss = resolveBackground(cssValue);
+    const stopCssList = parseGradientStops(style.backgroundImage);
+    let stops;
+    if (stopCssList.length > 0) {
+      stops = stopCssList.map((cssValue, i) => {
+        const bg = parseRgb(cssValue);
+        if (!bg) throw new Error(`fond illisible : ${cssValue}`);
+        const composedBg = blend(bg, pageBg, Number.isFinite(opacity) ? opacity : 1);
+        const ratio = Math.round(contrast(composedFg, composedBg) * 100) / 100;
+        return {
+          stop: stopCssList.length === 2 ? (i === 0 ? "top" : "bottom") : `stop-${i}`,
+          backgroundCss: cssValue,
+          backgroundHex: toHex(bg.r, bg.g, bg.b),
+          ratio,
+          pass: ratio >= AA_MIN,
+        };
+      });
+    } else {
+      const bgCss = style.backgroundColor;
       const bg = parseRgb(bgCss);
-      if (!bg) throw new Error(`fond illisible : ${bgCss}`);
-      const ratio =
-        Math.round(
-          contrast(blend(fg, pageBg, opacity), blend(bg, pageBg, opacity)) *
-            100,
-        ) / 100;
-      return {
-        stop,
-        backgroundCss: bgCss,
-        backgroundHex: toHex(bg.r, bg.g, bg.b),
-        ratio,
-        pass: ratio >= AA_MIN,
-      };
-    });
+      if (!bg) throw new Error(`fond plat illisible : ${bgCss}`);
+      const composedBg = blend(bg, pageBg, Number.isFinite(opacity) ? opacity : 1);
+      const ratio = Math.round(contrast(composedFg, composedBg) * 100) / 100;
+      stops = [
+        {
+          stop: "flat",
+          backgroundCss: bgCss,
+          backgroundHex: toHex(bg.r, bg.g, bg.b),
+          ratio,
+          pass: ratio >= AA_MIN,
+        },
+      ];
+    }
 
     return {
       state: stateName,
       foregroundCss: fgCss,
       foregroundHex: toHex(fg.r, fg.g, fg.b),
-      opacity,
+      opacity: Number.isFinite(opacity) ? opacity : 1,
       stops,
       minRatio: Math.min(...stops.map((s) => s.ratio)),
       pass: stops.every((s) => s.pass),
