@@ -44,11 +44,6 @@ describe("buildStaffAbc", () => {
   });
 });
 
-/**
- * Reproduit la structure réelle de `exportScoreAbc` : déclarations `V:` dans
- * l'en-tête, puis blocs alternés `V: <voix>` + 4 mesures, `% other` en
- * commentaire d'en-tête.
- */
 const TUNE = `X:1
 T:Chanson
 M:4/4
@@ -76,17 +71,14 @@ describe("splitAbcMeasures", () => {
     const { header, blocks, barCount, windowable } = splitAbcMeasures(TUNE);
     assert.equal(windowable, true);
     assert.match(header, /^X:1/);
-    // Les déclarations V: de l'en-tête restent dans l'en-tête.
     assert.match(header, /V: Vocal clef=treble/);
     assert.match(header, /V: Ins clef=treble/);
-    // 6 mesures par voix.
     assert.equal(barCount, 6);
     assert.deepEqual(
       blocks.map((b) => b.voice),
       ["Vocal", "Ins"],
     );
     assert.equal(blocks[0]?.bars.length, 6);
-    // Z2 est déplié : 3 repos de 2 mesures donnent 6 positions, comme Vocal.
     assert.equal(blocks[1]?.bars.length, 6);
   });
 
@@ -121,12 +113,9 @@ describe("splitAbcMeasures", () => {
 
 describe("abcBarDurationSeconds", () => {
   it("calcule la durée d'une mesure depuis M: et Q:", () => {
-    // 4/4 à 120 bpm => 4 noires => 4 x 0,5 s.
     assert.equal(abcBarDurationSeconds("M:4/4\nQ:1/4=120"), 2);
     assert.equal(abcBarDurationSeconds("M:3/4\nQ:1/4=120"), 1.5);
-    // 6/8 : six croches de 0,25 s.
     assert.equal(abcBarDurationSeconds("M:6/8\nQ:1/4=120"), 1.5);
-    // Q: sans fraction explicite.
     assert.equal(abcBarDurationSeconds("M:4/4\nQ:=90"), (4 * 60) / 90);
   });
 
@@ -169,8 +158,14 @@ describe("sliceAbcMeasures", () => {
     const start = 4;
     const count = 2;
     const sliced = splitAbcMeasures(sliceAbcMeasures(TUNE, start, count));
-    assert.deepEqual(sliced.blocks[0]!.bars, full.blocks[0]!.bars.slice(start, start + count));
-    assert.deepEqual(sliced.blocks[1]!.bars, full.blocks[1]!.bars.slice(start, start + count));
+    assert.deepEqual(
+      sliced.blocks[0]!.bars,
+      full.blocks[0]!.bars.slice(start, start + count),
+    );
+    assert.deepEqual(
+      sliced.blocks[1]!.bars,
+      full.blocks[1]!.bars.slice(start, start + count),
+    );
   });
 
   it("couvre l'intégralité du tune par fenêtres consécutives", () => {
@@ -190,9 +185,11 @@ describe("sliceAbcMeasures", () => {
 
   it("borne le départ dans la plage valide", () => {
     const vocal = splitAbcMeasures(TUNE).blocks[0]!.bars;
-    const tooFar = splitAbcMeasures(sliceAbcMeasures(TUNE, 999, 2)).blocks[0]!.bars;
+    const tooFar = splitAbcMeasures(sliceAbcMeasures(TUNE, 999, 2)).blocks[0]!
+      .bars;
     assert.deepEqual(tooFar, vocal.slice(-1));
-    const negative = splitAbcMeasures(sliceAbcMeasures(TUNE, -5, 2)).blocks[0]!.bars;
+    const negative = splitAbcMeasures(sliceAbcMeasures(TUNE, -5, 2)).blocks[0]!
+      .bars;
     assert.equal(negative.length, 2);
   });
 

@@ -500,6 +500,7 @@
   "score.staff.renderError": "Erreur de rendu de la portée",
   "score.staff.renderFailed": "abcjs n’a produit aucune portée.",
   "score.staff.emptyAbc": "ABC vide — rien à afficher sur la portée.",
+  "score.staff.composing": "Composition de la portée…",
   "score.staff.unavailable": "Cette partition ne peut pas être affichée sur portée (export ABC refusé).",
   "score.staff.switchPiano": "Passez au piano roll pour éditer, puis revenez à la portée.",
   "score.staff.composing": "Composition de la portée…",

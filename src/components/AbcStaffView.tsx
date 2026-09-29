@@ -1,4 +1,12 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import * as abcjs from "abcjs";
 import type { NoteTimingEvent, TimingCallbacks } from "abcjs";
 import {
@@ -6,21 +14,21 @@ import {
   sliceAbcMeasures,
   splitAbcMeasures,
 } from "../lib/staffAbc";
+import {
+  blendPxPerBar,
+  computeStaffScrollWindow,
+  DEFAULT_PX_PER_BAR,
+  playbackBarIndex,
+} from "../lib/staffWindow";
 import { t } from "../ui/i18n";
 
 const SCALE_MIN = 0.6;
 const SCALE_MAX = 1.8;
 const SCALE_STEP = 0.15;
 
-/**
- * Mesures composées d'un coup par abcjs.
- *
- * abcjs compose la portée de façon synchrone sur le thread principal : un
- * morceau de plusieurs minutes gèle l'interface plusieurs secondes à chaque
- * visite de l'onglet. On ne compose donc qu'une fenêtre, l'utilisateur
- * demande la suite explicitement.
- */
-const MEASURES_PER_WINDOW = 24;
+/** Au-dessous de ce seuil, le tune entier est composé d'un coup. */
+const MIN_TOTAL_BARS_FOR_WINDOW = 24;
+const MIN_TOTAL_BARS_FOR_WINDOW_COMPACT = 12;
 
 export type AbcStaffViewProps = {
   /** ABC source already validated / proposed — never invented here. */
@@ -44,7 +52,11 @@ function clearHighlights(root: HTMLElement | null) {
     });
 }
 
-function highlightEvent(ev: NoteTimingEvent | null, root: HTMLElement | null) {
+function highlightEvent(
+  ev: NoteTimingEvent | null,
+  root: HTMLElement | null,
+  scrollEl: HTMLElement | null,
+) {
   clearHighlights(root);
   if (!ev?.elements) return;
   for (const set of ev.elements) {
@@ -59,11 +71,21 @@ function highlightEvent(ev: NoteTimingEvent | null, root: HTMLElement | null) {
       block: "nearest",
       inline: "center",
     });
+  } else if (scrollEl && first) {
+    const noteRect = first.getBoundingClientRect();
+    const viewRect = scrollEl.getBoundingClientRect();
+    if (
+      noteRect.top < viewRect.top ||
+      noteRect.bottom > viewRect.bottom
+    ) {
+      first.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
   }
 }
 
 /**
  * Readable ABC staff with playback cursor and click-to-seek.
+ * Compose uniquement la fenêtre visible (+ marge) pour les partitions longues.
  */
 export function AbcStaffView({
   abc,
@@ -73,70 +95,156 @@ export function AbcStaffView({
   warnings = [],
   compact = false,
 }: AbcStaffViewProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const paperRef = useRef<HTMLDivElement>(null);
   const timingRef = useRef<TimingCallbacks | null>(null);
   const lastHighlightKey = useRef<string>("");
   const onSeekRef = useRef(onSeek);
   const playbackReadyRef = useRef(playbackReady);
   const playbackSecondsRef = useRef(playbackSeconds);
+  const windowOffsetRef = useRef(0);
+  const pxPerBarRef = useRef(DEFAULT_PX_PER_BAR);
+  const scrollRafRef = useRef<number | null>(null);
+  const programmaticScrollRef = useRef(false);
+
   onSeekRef.current = onSeek;
   playbackReadyRef.current = playbackReady;
   playbackSecondsRef.current = playbackSeconds;
 
-  // Retarde la composition : React peint d'abord l'onglet, puis abcjs compose
-  // la fenêtre dans un rendu de priorité basse au lieu de bloquer l'arrivée.
   const deferredAbc = useDeferredValue(abc);
   const isStale = deferredAbc !== abc;
 
-  const [windowStart, setWindowStart] = useState(0);
   const [scale, setScale] = useState(1);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [renderWarnings, setRenderWarnings] = useState<string[]>([]);
   const [seekHint, setSeekHint] = useState<string | null>(null);
+  const [pxPerBar, setPxPerBar] = useState(DEFAULT_PX_PER_BAR);
+  const [scrollWindow, setScrollWindow] = useState({
+    renderStart: 0,
+    renderCount: 0,
+  });
 
-  const { totalBars, windowed, windowBars, barSeconds } = useMemo(() => {
-    const split = splitAbcMeasures(deferredAbc);
-    if (split.barCount === 0) {
-      return { totalBars: 0, windowed: false, windowBars: 0, barSeconds: null };
-    }
-    const metric = abcBarDurationSeconds(split.header);
-    // Sans métrique connue on ne sait pas replacer la lecture dans la
-    // fenêtre, donc on compose le tune entier plutôt qu'un curseur faux.
-    if (!split.windowable || metric == null) {
-      return {
-        totalBars: split.barCount,
-        windowed: false,
-        windowBars: split.barCount,
-        barSeconds: metric,
-      };
-    }
-    const step = compact
-      ? Math.max(8, Math.floor(MEASURES_PER_WINDOW / 2))
-      : MEASURES_PER_WINDOW;
-    return {
-      totalBars: split.barCount,
-      windowed: true,
-      windowBars: Math.min(step, split.barCount),
-      barSeconds: metric,
-    };
-  }, [deferredAbc, compact]);
-
-  const visibleAbc = useMemo(
-    () => sliceAbcMeasures(deferredAbc, windowStart, windowBars),
-    [deferredAbc, windowStart, windowBars],
+  const split = useMemo(() => splitAbcMeasures(deferredAbc), [deferredAbc]);
+  const barSeconds = useMemo(
+    () => abcBarDurationSeconds(split.header),
+    [split.header],
   );
 
-  // abcjs chronomètre la portion qu'il reçoit : on retire donc l'offset de la
-  // fenêtre pour que le curseur et le clic-pour-seek visent le bon instant du
-  // morceau entier.
-  const windowOffsetSeconds = (barSeconds ?? 0) * windowStart;
-  const windowOffsetRef = useRef(windowOffsetSeconds);
+  const windowing =
+    split.windowable &&
+    barSeconds != null &&
+    split.barCount >
+      (compact
+        ? MIN_TOTAL_BARS_FOR_WINDOW_COMPACT
+        : MIN_TOTAL_BARS_FOR_WINDOW);
+
+  const applyScrollWindow = useCallback(() => {
+    if (!windowing) return;
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    const next = computeStaffScrollWindow({
+      scrollTop: scroll.scrollTop,
+      viewportHeight: scroll.clientHeight || 420,
+      barCount: split.barCount,
+      pxPerBar: pxPerBarRef.current,
+      minRenderBars: compact ? 12 : 20,
+      maxRenderBars: compact ? 40 : 56,
+    });
+    setScrollWindow((prev) =>
+      prev.renderStart === next.renderStart &&
+      prev.renderCount === next.renderCount
+        ? prev
+        : next,
+    );
+  }, [windowing, split.barCount, compact]);
+
+  const visibleAbc = useMemo(() => {
+    if (!windowing) return deferredAbc;
+    const { renderStart, renderCount } =
+      scrollWindow.renderCount > 0
+        ? scrollWindow
+        : computeStaffScrollWindow({
+            scrollTop: 0,
+            viewportHeight: 420,
+            barCount: split.barCount,
+            pxPerBar: pxPerBarRef.current,
+            minRenderBars: compact ? 12 : 20,
+            maxRenderBars: compact ? 40 : 56,
+          });
+    return sliceAbcMeasures(deferredAbc, renderStart, renderCount);
+  }, [deferredAbc, windowing, scrollWindow, split.barCount, compact]);
+
+  const windowOffsetSeconds =
+    windowing && barSeconds != null
+      ? barSeconds * scrollWindow.renderStart
+      : 0;
   windowOffsetRef.current = windowOffsetSeconds;
 
-  // Un nouveau tune repart du début de la partition.
+  const virtualTrackHeight =
+    windowing && split.barCount > 0
+      ? split.barCount * pxPerBar
+      : undefined;
+
+  const paperTop =
+    windowing && virtualTrackHeight != null
+      ? scrollWindow.renderStart * pxPerBar
+      : 0;
+
   useEffect(() => {
-    setWindowStart(0);
-  }, [deferredAbc]);
+    pxPerBarRef.current = DEFAULT_PX_PER_BAR;
+    setPxPerBar(DEFAULT_PX_PER_BAR);
+    setScrollWindow({ renderStart: 0, renderCount: 0 });
+    const scroll = scrollRef.current;
+    if (scroll) scroll.scrollTop = 0;
+  }, [deferredAbc, scale]);
+
+  useEffect(() => {
+    if (!windowing) return;
+    applyScrollWindow();
+  }, [windowing, applyScrollWindow]);
+
+  useEffect(() => {
+    const scroll = scrollRef.current;
+    if (!scroll || !windowing) return;
+
+    const onScroll = () => {
+      if (programmaticScrollRef.current) return;
+      if (scrollRafRef.current != null) return;
+      scrollRafRef.current = requestAnimationFrame(() => {
+        scrollRafRef.current = null;
+        applyScrollWindow();
+      });
+    };
+    scroll.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      scroll.removeEventListener("scroll", onScroll);
+      if (scrollRafRef.current != null) {
+        cancelAnimationFrame(scrollRafRef.current);
+      }
+    };
+  }, [windowing, applyScrollWindow]);
+
+  useEffect(() => {
+    if (!windowing || barSeconds == null) return;
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    const bar = playbackBarIndex(playbackSeconds, barSeconds);
+    const targetY = bar * pxPerBarRef.current;
+    const margin = scroll.clientHeight * 0.2;
+    const top = scroll.scrollTop;
+    const bottom = top + scroll.clientHeight;
+    if (targetY >= top + margin && targetY <= bottom - margin) return;
+
+    programmaticScrollRef.current = true;
+    scroll.scrollTop = Math.max(
+      0,
+      targetY - scroll.clientHeight * 0.35,
+    );
+    applyScrollWindow();
+    requestAnimationFrame(() => {
+      programmaticScrollRef.current = false;
+    });
+  }, [playbackSeconds, windowing, barSeconds, applyScrollWindow]);
 
   useEffect(() => {
     const paper = paperRef.current;
@@ -158,9 +266,7 @@ export function AbcStaffView({
 
     try {
       // Défaut abcjs : responsive "off". "resize" recompose à chaque
-      // redimensionnement et annule `scale`. Fenêtrage 24 mesures + off :
-      // ~6 ms / 547 nœuds vs full+resize (~53–90 ms / 2023). Voir
-      // `pnpm bench:partition` et `pnpm bench:score-tab`.
+      // redimensionnement et annule `scale`. Voir `pnpm bench:score-tab`.
       const tunes = abcjs.renderAbc(paper, trimmed, {
         add_classes: true,
         scale,
@@ -204,7 +310,7 @@ export function AbcStaffView({
               : `${ev.milliseconds}|${ev.measureNumber ?? ""}|${ev.left ?? ""}`;
           if (key === lastHighlightKey.current) return "continue";
           lastHighlightKey.current = key;
-          highlightEvent(ev, paper);
+          highlightEvent(ev, paper, scrollRef.current);
           return "continue";
         },
       });
@@ -226,11 +332,27 @@ export function AbcStaffView({
     };
   }, [visibleAbc, scale]);
 
+  useLayoutEffect(() => {
+    if (!windowing) return;
+    const paper = paperRef.current;
+    if (!paper || scrollWindow.renderCount <= 0) return;
+    const svg = paper.querySelector("svg");
+    if (!svg) return;
+    const measured = svg.getBoundingClientRect().height / scrollWindow.renderCount;
+    const next = blendPxPerBar(
+      pxPerBarRef.current,
+      measured,
+      scrollWindow.renderCount,
+    );
+    if (Math.abs(next - pxPerBarRef.current) > 0.5) {
+      pxPerBarRef.current = next;
+      setPxPerBar(next);
+    }
+  }, [visibleAbc, scale, windowing, scrollWindow]);
+
   useEffect(() => {
     const timing = timingRef.current;
     if (!timing) return;
-    // abcjs chronomètre la fenêtre rendue : on retire son offset pour viser le
-    // bon instant du morceau entier.
     timing.setProgress(
       Math.max(0, playbackSeconds - windowOffsetSeconds),
       "seconds",
@@ -238,8 +360,6 @@ export function AbcStaffView({
   }, [playbackSeconds, windowOffsetSeconds]);
 
   const allWarnings = [...warnings, ...renderWarnings];
-  const canPage = windowed && windowStart + windowBars < totalBars;
-  const hasPrevious = windowed && windowStart > 0;
 
   return (
     <div
@@ -278,51 +398,34 @@ export function AbcStaffView({
         {!playbackReady && (
           <span className="hint">{t("score.staff.syncHint")}</span>
         )}
-      </div>
-
-      {isStale && (
-        <p className="hint" role="status">
-          {t("score.staff.composing")}
-        </p>
-      )}
-
-      <div className="abc-staff-scroll">
-        <div className="abc-staff-paper" ref={paperRef} />
-      </div>
-
-      {windowed && totalBars > windowBars && (
-        <div
-          className="abc-staff-pages"
-          role="group"
-          aria-label={t("score.staff.pages.nav")}
-        >
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={!hasPrevious}
-            onClick={() =>
-              setWindowStart((s) => Math.max(0, s - windowBars))
-            }
-          >
-            {t("score.staff.pages.previous")}
-          </button>
-          <span className="abc-staff-zoom-label">
-            {t("score.staff.pages.position", {
-              from: windowStart + 1,
-              to: Math.min(totalBars, windowStart + windowBars),
-              total: totalBars,
-            })}
+        {isStale && (
+          <span className="hint" aria-live="polite">
+            {t("score.staff.composing")}
           </span>
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={!canPage}
-            onClick={() => setWindowStart((s) => s + windowBars)}
+        )}
+      </div>
+
+      <div className="abc-staff-scroll" ref={scrollRef}>
+        {windowing && virtualTrackHeight != null ? (
+          <div
+            className="abc-staff-virtual-track"
+            style={{ height: virtualTrackHeight, position: "relative" }}
           >
-            {t("score.staff.pages.next")}
-          </button>
-        </div>
-      )}
+            <div
+              className="abc-staff-paper abc-staff-paper-windowed"
+              ref={paperRef}
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: paperTop,
+              }}
+            />
+          </div>
+        ) : (
+          <div className="abc-staff-paper" ref={paperRef} />
+        )}
+      </div>
 
       {renderError && (
         <p className="score-issues error" role="alert">

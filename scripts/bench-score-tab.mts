@@ -92,12 +92,24 @@ async function main() {
       return el ? JSON.parse(el.textContent ?? "{}") : null;
     });
 
+    await page.evaluate(() => {
+      const w = window as Window & { __benchLongTasks?: { duration: number }[] };
+      w.__benchLongTasks = [];
+    });
+    await page.click("#bench-run-long");
+    await page.waitForSelector("#bench-result-long", { timeout: 180_000 });
+    const longOpen = await page.evaluate(() => {
+      const el = document.getElementById("bench-result-long");
+      return el ? JSON.parse(el.textContent ?? "{}") : null;
+    });
+
     await browser.close();
 
     const report = {
       capturedAt: new Date().toISOString(),
       microbenches: micro,
       scorePanelOpen: full,
+      scorePanelOpenLong: longOpen,
     };
 
     mkdirSync(outDir, { recursive: true });

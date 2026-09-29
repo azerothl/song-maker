@@ -16,7 +16,7 @@ La sortie JSON est écrite dans `bench/score-tab-last.json` et affichée sur std
 2. Chromium headless charge `score-tab-bench.html`, qui monte `ScorePanel` comme à l’ouverture de l’onglet Partition.
 3. Mesures :
    - **Long Tasks** (`PerformanceObserver`, seuil navigateur 50 ms)
-   - **ouverture → portée visible** : jusqu’à la présence du SVG abcjs
+   - **ouverture → portée visible** : jusqu’à la présence du SVG abcjs (référence + partition longue ~8×)
    - Micro-bancs : `abcjs.renderAbc` avec / sans `responsive: "resize"`, reflow SVG forcé, rafales `resize` post-ouverture
 
 ## Interprétation (profil attributif)
