@@ -1,6 +1,7 @@
 # Captures React — boutons primaires
 
-Captures **application React réelle** (Vite + mock Tauri), pas de maquette HTML.
+Captures **application React réelle** (Vite + mock Tauri), pas de maquette HTML.  
+**Ne couvre pas toute l’application** — voir [`../../primary-button-contrast/inventaire.md`](../../primary-button-contrast/inventaire.md).
 
 ## Régénérer
 
@@ -12,14 +13,24 @@ pnpm exec tsx docs/design/boutons-primaires/captures-react/capture.mts
 
 Chromium Playwright embarqué si présent, sinon repli sur le canal `chrome` du système.
 
+## Focus clavier (#193)
+
+État **focus** : souris hors cible → **Tab** jusqu’au bouton → `:focus-visible` réel (pas `page.focus()` seul).  
+`metrics.json` : outline, offset, couleur, curseur.
+
+État **désactivé** : état applicatif réel (`busy` capture, pistes export vides, harnais RegenerationGate) — pas de `btn.disabled = true` forcé dans `capture.mts`.
+
 ## Fichiers (extrait)
 
 | Motif | Écran |
 |-------|--------|
-| `creer-primary-*` | Créer — Générer (normal / survol / focus Tab / désactivé via `busy` capture) |
-| `production-export-trigger-*` | Production — bouton Exporter |
-| `production-export-popin-primary-disabled-*` | Popin export — primaire désactivé (pistes non cochées) |
-| `regeneration-gate-*` | RegenerationGate — primaire désactivé + focus Annuler |
-| `metrics.json` | Contraste DOM, ΔE00 popin, focus (`outline`, offset, curseur) |
+| `creer-primary-*` | Créer — Générer |
+| `production-export-trigger-*` | Production — Exporter (déclencheur) |
+| `production-export-popin-primary-disabled-*` | Popin export — primaire désactivé |
+| `regeneration-gate-*` | RegenerationGate |
 
-Inventaire des 35 usages : [`../../primary-button-contrast/inventaire.md`](../../primary-button-contrast/inventaire.md).
+## Non vérifiés
+
+WebKitGTK, lecteur d’écran, curseur OS réel, Armer / Mesurer le mix / ZIP (détail dans l’inventaire).
+
+La classe `.btn.primary` est globale (`src/App.css`) : les ratios mesurés sur ces scénarios s’appliquent au token partagé, sans capture de chaque occurrence.

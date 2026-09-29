@@ -1,6 +1,6 @@
 {
   "aaMin": 4.5,
-  "generatedAt": "2026-09-29T23:40:07.223Z",
+  "generatedAt": "2026-09-29T23:44:38.251Z",
   "method": {
     "focus": "keyboard Tab, pointer away, :focus-visible",
     "disabled": "application state (busy / stems vides / regen gate)"
@@ -152,38 +152,31 @@
         },
         {
           "state": "disabled",
-          "foregroundCss": "rgb(77, 84, 104)",
-          "foregroundHex": "#4d5468",
+          "foregroundCss": "rgb(132, 139, 160)",
+          "foregroundHex": "#848ba0",
           "opacity": 1,
           "cursor": "not-allowed",
           "stops": [
             {
-              "stop": "disabled-top",
-              "backgroundCss": "color(srgb 0.856549 0.788471 1)",
-              "backgroundHex": "#dac9ff",
-              "ratio": 4.95,
-              "pass": true
-            },
-            {
-              "stop": "disabled-bottom",
-              "backgroundCss": "color(srgb 0.786039 0.717961 0.987843)",
-              "backgroundHex": "#c8b7fc",
-              "ratio": 4.18,
+              "stop": "disabled-flat",
+              "backgroundCss": "rgba(0, 0, 0, 0)",
+              "backgroundHex": "#000000",
+              "ratio": 6.18,
               "pass": true
             }
           ],
-          "minRatio": 4.18,
+          "minRatio": 6.18,
           "pass": true,
           "face": {
-            "backgroundCss": "color(srgb 0.856549 0.788471 1)",
-            "backgroundHex": "#dac9ff",
+            "backgroundCss": "rgba(0, 0, 0, 0)",
+            "backgroundHex": "#000000",
             "borderCss": "rgb(48, 53, 80)",
             "borderHex": "#303550",
             "backgroundRgb": {
-              "r": 218,
-              "g": 201,
-              "b": 255,
-              "a": 1
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
             },
             "borderRgb": {
               "r": 48,
@@ -347,38 +340,31 @@
         },
         {
           "state": "disabled",
-          "foregroundCss": "rgb(77, 84, 104)",
-          "foregroundHex": "#4d5468",
+          "foregroundCss": "rgb(132, 139, 160)",
+          "foregroundHex": "#848ba0",
           "opacity": 1,
           "cursor": "not-allowed",
           "stops": [
             {
-              "stop": "disabled-top",
-              "backgroundCss": "color(srgb 0.856549 0.788471 1)",
-              "backgroundHex": "#dac9ff",
-              "ratio": 4.95,
-              "pass": true
-            },
-            {
-              "stop": "disabled-bottom",
-              "backgroundCss": "color(srgb 0.786039 0.717961 0.987843)",
-              "backgroundHex": "#c8b7fc",
-              "ratio": 4.18,
+              "stop": "disabled-flat",
+              "backgroundCss": "rgba(0, 0, 0, 0)",
+              "backgroundHex": "#000000",
+              "ratio": 6.18,
               "pass": true
             }
           ],
-          "minRatio": 4.18,
+          "minRatio": 6.18,
           "pass": true,
           "face": {
-            "backgroundCss": "color(srgb 0.856549 0.788471 1)",
-            "backgroundHex": "#dac9ff",
+            "backgroundCss": "rgba(0, 0, 0, 0)",
+            "backgroundHex": "#000000",
             "borderCss": "rgb(48, 53, 80)",
             "borderHex": "#303550",
             "backgroundRgb": {
-              "r": 218,
-              "g": 201,
-              "b": 255,
-              "a": 1
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
             },
             "borderRgb": {
               "r": 48,
@@ -404,38 +390,31 @@
       "states": [
         {
           "state": "normal",
-          "foregroundCss": "rgb(77, 84, 104)",
-          "foregroundHex": "#4d5468",
+          "foregroundCss": "rgb(132, 139, 160)",
+          "foregroundHex": "#848ba0",
           "opacity": 1,
           "cursor": "not-allowed",
           "stops": [
             {
-              "stop": "disabled-top",
-              "backgroundCss": "color(srgb 0.856549 0.788471 1)",
-              "backgroundHex": "#dac9ff",
-              "ratio": 4.95,
-              "pass": true
-            },
-            {
-              "stop": "disabled-bottom",
-              "backgroundCss": "color(srgb 0.786039 0.717961 0.987843)",
-              "backgroundHex": "#c8b7fc",
-              "ratio": 4.18,
+              "stop": "disabled-flat",
+              "backgroundCss": "rgba(0, 0, 0, 0)",
+              "backgroundHex": "#000000",
+              "ratio": 6.18,
               "pass": true
             }
           ],
-          "minRatio": 4.18,
+          "minRatio": 6.18,
           "pass": true,
           "face": {
-            "backgroundCss": "color(srgb 0.856549 0.788471 1)",
-            "backgroundHex": "#dac9ff",
+            "backgroundCss": "rgba(0, 0, 0, 0)",
+            "backgroundHex": "#000000",
             "borderCss": "rgb(48, 53, 80)",
             "borderHex": "#303550",
             "backgroundRgb": {
-              "r": 218,
-              "g": 201,
-              "b": 255,
-              "a": 1
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
             },
             "borderRgb": {
               "r": 48,
@@ -450,13 +429,13 @@
       "popinCompare": {
         "primarySel": ".export-dialog-popin .btn-row .btn.primary",
         "secondarySel": ".export-dialog-popin .btn-row .btn.ghost",
-        "primaryFaceHex": "#dac9ff",
+        "primaryFaceHex": "#000000",
         "secondaryFaceHex": "#20243a",
         "primaryBorderHex": "#303550",
         "secondaryBorderHex": "#303550",
         "primaryBorderStyle": "dashed",
         "secondaryBorderStyle": "solid",
-        "deltaE00Face": 69.54,
+        "deltaE00Face": 15.08,
         "deltaE00Border": 0,
         "bordersMatch": false
       },
@@ -471,38 +450,31 @@
       "states": [
         {
           "state": "normal",
-          "foregroundCss": "rgb(77, 84, 104)",
-          "foregroundHex": "#4d5468",
+          "foregroundCss": "rgb(132, 139, 160)",
+          "foregroundHex": "#848ba0",
           "opacity": 1,
           "cursor": "not-allowed",
           "stops": [
             {
-              "stop": "disabled-top",
-              "backgroundCss": "color(srgb 0.856549 0.788471 1)",
-              "backgroundHex": "#dac9ff",
-              "ratio": 4.95,
-              "pass": true
-            },
-            {
-              "stop": "disabled-bottom",
-              "backgroundCss": "color(srgb 0.786039 0.717961 0.987843)",
-              "backgroundHex": "#c8b7fc",
-              "ratio": 4.18,
+              "stop": "disabled-flat",
+              "backgroundCss": "rgba(0, 0, 0, 0)",
+              "backgroundHex": "#000000",
+              "ratio": 6.18,
               "pass": true
             }
           ],
-          "minRatio": 4.18,
+          "minRatio": 6.18,
           "pass": true,
           "face": {
-            "backgroundCss": "color(srgb 0.856549 0.788471 1)",
-            "backgroundHex": "#dac9ff",
+            "backgroundCss": "rgba(0, 0, 0, 0)",
+            "backgroundHex": "#000000",
             "borderCss": "rgb(48, 53, 80)",
             "borderHex": "#303550",
             "backgroundRgb": {
-              "r": 218,
-              "g": 201,
-              "b": 255,
-              "a": 1
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 0
             },
             "borderRgb": {
               "r": 48,
@@ -517,13 +489,13 @@
       "popinCompare": {
         "primarySel": ".modal.regeneration-gate .btn-row .btn.primary",
         "secondarySel": ".modal.regeneration-gate .btn-row .btn.ghost",
-        "primaryFaceHex": "#dac9ff",
+        "primaryFaceHex": "#000000",
         "secondaryFaceHex": "#20243a",
         "primaryBorderHex": "#303550",
         "secondaryBorderHex": "#303550",
         "primaryBorderStyle": "dashed",
         "secondaryBorderStyle": "solid",
-        "deltaE00Face": 69.54,
+        "deltaE00Face": 15.08,
         "deltaE00Border": 0,
         "bordersMatch": false
       },

@@ -5,7 +5,7 @@
 
 ## `forced-colors`
 
-État désactivé du primaire : `GrayText` + bordure `GrayText` dans `@media (forced-colors: active)` (`src/App.css`). Pas de revalidation manuelle sous Windows High Contrast dans cette PR.
+État désactivé du primaire : `GrayText` + bordure `GrayText` dans `@media (forced-colors: active)` (`src/App.css`). Pas de revalidation manuelle sous Windows High Contrast.
 
 ## Focus
 

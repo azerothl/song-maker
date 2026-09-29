@@ -174,7 +174,7 @@
     const accent = root.getPropertyValue("--accent").trim() || "#c4a8ff";
     const accent2 = root.getPropertyValue("--accent-2").trim() || "#a78bfa";
     const faceCss = disabled
-      ? resolveBackground("color-mix(in srgb, var(--accent) 62%, white)")
+      ? resolveBackground("linear-gradient(#1c2034, #1c2034)")
       : resolveBackground(accent);
     const bg = parseRgb(faceCss);
     const border = parseRgb(style.borderTopColor);
@@ -213,13 +213,7 @@
 
     const stopSpecs =
       stateName === "disabled" || disabled
-        ? [
-            ["disabled-top", "color-mix(in srgb, var(--accent) 62%, white)"],
-            [
-              "disabled-bottom",
-              "color-mix(in srgb, var(--accent-2) 62%, white)",
-            ],
-          ]
+        ? [["disabled-flat", "linear-gradient(#1c2034, #1c2034)"]]
         : [
             ["accent", accent],
             ["accent-2", accent2],

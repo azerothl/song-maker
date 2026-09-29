@@ -521,6 +521,7 @@ option {
   padding: 0.45rem 0.85rem;
   border-radius: 6px;
   cursor: pointer;
+  appearance: none;
 }
 
 .btn:hover {
@@ -535,23 +536,41 @@ option {
 .btn.primary {
   background: linear-gradient(180deg, var(--accent), var(--accent-2));
   border-color: transparent;
-  /* Dark text on light accent gradient — WCAG 2.2 AA (≥ 4.5:1), #186. */
+  /* Dark text on light accent gradient — WCAG 2.2 AA (≥ 4.5:1), #186 / #189. */
   color: #151827;
+  transition: background-image 120ms ease, background-color 120ms ease;
 }
 
-.btn.primary:disabled {
-  /* Override .btn:disabled opacity: paint-compositing at 0.45 drops below 4.5:1. */
-  opacity: 1;
-  /* Muted label (~4.7:1 on washed gradient) — distinct from active secondary in popins (#193). */
-  color: #4d5468;
-  border-color: var(--line);
-  border-style: dashed;
-  cursor: not-allowed;
+.btn.primary:hover:not(:disabled) {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--accent) 62%, white),
-    color-mix(in srgb, var(--accent-2) 62%, white)
+    color-mix(in srgb, var(--accent) 76%, white),
+    color-mix(in srgb, var(--accent-2) 68%, var(--accent))
   );
+  border-color: transparent;
+}
+
+/* :focus-visible anneau = règle globale `button:focus-visible` (App.css ~82) — pas de doublon. */
+
+.btn.primary:disabled {
+  /*
+   * Distinct du `.btn` secondaire actif dans les popins (#193) :
+   * texte ~4,7:1 (#848ba0), fond #1c2034 via dégradé plat (Chromium annule
+   * `background-color` sur button:disabled), bordure en tirets.
+   * Seuil lisibilité désactivé : ≥ 3:1 (cible ~4,7:1).
+   */
+  opacity: 1 !important;
+  cursor: not-allowed;
+  color: #848ba0 !important;
+  background-image: linear-gradient(#1c2034, #1c2034) !important;
+  border-color: var(--line) !important;
+  border-style: dashed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn.primary {
+    transition: none;
+  }
 }
 
 @media (forced-colors: active) {

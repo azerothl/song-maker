@@ -1,6 +1,6 @@
 # Contrastes — boutons primaires (#186, #193)
 
-Généré le 2026-09-29T23:40:07.225Z.
+Généré le 2026-09-29T23:44:38.252Z.
 
 Mesures DOM : `getComputedStyle` + ΔE00 (face/bordure) pour primaire désactivé vs secondaire actif dans les popins. Focus : Tab clavier, souris hors cible, `:focus-visible` réel.
 
@@ -12,8 +12,8 @@ Seuil WCAG 2.2 AA texte actif : **4,5:1** ; libellé désactivé : **≥ 3:1** (
 |-------|--------|--------------------|----|---------------|
 | Créer | Générer | 6.47:1 | OK | oui |
 | Production — Exporter (déclencheur) | Exporter | 6.47:1 | OK | oui |
-| Production — Exporter (popin, primaire désactivé) | Exporter | 4.18:1 | OK | non |
-| RegenerationGate | Capturer et générer | 4.18:1 | OK | non |
+| Production — Exporter (popin, primaire désactivé) | Exporter | 6.18:1 | OK | non |
+| RegenerationGate | Capturer et générer | 6.18:1 | OK | non |
 
 ## Créer — `.song-create-generate-btn`
 
@@ -28,8 +28,7 @@ Seuil WCAG 2.2 AA texte actif : **4,5:1** ; libellé désactivé : **≥ 3:1** (
 
 Focus : `:focus-visible`=true, outline=2px rgb(94, 236, 248) offset 2px, contraste anneau≈1.43:1.
 
-| disabled | #4d5468 | 1 | not-allowed | disabled-top | #dac9ff | 4.95:1 | OK |
-| disabled | #4d5468 | 1 | not-allowed | disabled-bottom | #c8b7fc | 4.18:1 | OK |
+| disabled | #848ba0 | 1 | not-allowed | disabled-flat | #000000 | 6.18:1 | OK |
 
 ### Captures
 
@@ -51,8 +50,7 @@ Focus : `:focus-visible`=true, outline=2px rgb(94, 236, 248) offset 2px, contras
 
 Focus : `:focus-visible`=true, outline=2px rgb(94, 236, 248) offset 2px, contraste anneau≈1.43:1.
 
-| disabled | #4d5468 | 1 | not-allowed | disabled-top | #dac9ff | 4.95:1 | OK |
-| disabled | #4d5468 | 1 | not-allowed | disabled-bottom | #c8b7fc | 4.18:1 | OK |
+| disabled | #848ba0 | 1 | not-allowed | disabled-flat | #000000 | 6.18:1 | OK |
 
 ### Captures
 
@@ -63,12 +61,11 @@ Focus : `:focus-visible`=true, outline=2px rgb(94, 236, 248) offset 2px, contras
 
 ## Production — Exporter (popin, primaire désactivé) — `.export-dialog-popin .btn-row .btn.primary`
 
-ΔE00 face primaire désactivé / secondaire actif : **69.54** ; bordures identiques : non.
+ΔE00 face primaire désactivé / secondaire actif : **15.08** ; bordures identiques : non.
 
 | État | Texte | Opacité | Curseur | Arrêt | Fond | Ratio | AA |
 |------|-------|---------|---------|-------|------|-------|----|
-| normal | #4d5468 | 1 | not-allowed | disabled-top | #dac9ff | 4.95:1 | OK |
-| normal | #4d5468 | 1 | not-allowed | disabled-bottom | #c8b7fc | 4.18:1 | OK |
+| normal | #848ba0 | 1 | not-allowed | disabled-flat | #000000 | 6.18:1 | OK |
 
 ### Captures
 
@@ -76,12 +73,11 @@ Focus : `:focus-visible`=true, outline=2px rgb(94, 236, 248) offset 2px, contras
 
 ## RegenerationGate — `.modal.regeneration-gate .btn-row .btn.primary`
 
-ΔE00 face primaire désactivé / secondaire actif : **69.54** ; bordures identiques : non.
+ΔE00 face primaire désactivé / secondaire actif : **15.08** ; bordures identiques : non.
 
 | État | Texte | Opacité | Curseur | Arrêt | Fond | Ratio | AA |
 |------|-------|---------|---------|-------|------|-------|----|
-| normal | #4d5468 | 1 | not-allowed | disabled-top | #dac9ff | 4.95:1 | OK |
-| normal | #4d5468 | 1 | not-allowed | disabled-bottom | #c8b7fc | 4.18:1 | OK |
+| normal | #848ba0 | 1 | not-allowed | disabled-flat | #000000 | 6.18:1 | OK |
 
 ### Captures
 
