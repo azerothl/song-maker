@@ -5,6 +5,7 @@ import type {
   FormInput,
   GenerationSummary,
   HealthSnapshot,
+  InstallPlan,
   JobStatus,
   LibraryRow,
   LocalLoraAdapter,
@@ -14,10 +15,14 @@ import type {
   ProjectDoc,
   ScoreSummary,
   SeparationInfo,
+  SetupGpuInfo,
 } from "./types";
 
 export const api = {
   getHealth: () => invoke<HealthSnapshot>("get_health"),
+  getSetupGpuInfo: () => invoke<SetupGpuInfo>("get_setup_gpu_info"),
+  getInstallPlan: (pack: "q4" | "q8") =>
+    invoke<InstallPlan>("get_install_plan", { pack }),
   installRequiredAssets: (pack: "q4" | "q8", acceptedLicense: boolean) =>
     invoke<string>("install_required_assets", { pack, acceptedLicense }),
   getSettings: () => invoke<AppSettings>("get_settings"),

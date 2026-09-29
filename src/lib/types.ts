@@ -219,12 +219,60 @@ export type Phase3Status = {
   honestyFr: string;
 };
 
-export type HealthSnapshot = {
-  cudaAvailable: boolean;
+/** `nvidiaCuda` | `appleMetal` | `none` — contrat `get_setup_gpu_info` (#116). */
+export type AccelerationKind = "nvidiaCuda" | "appleMetal" | "none" | string;
+
+export type SetupGpuInfo = {
+  accelerationKind: AccelerationKind;
   gpuName?: string | null;
   driverVersion?: string | null;
   vramMib?: number | null;
   suggestedPack: string;
+  suggestedPackReasonFr: string;
+  accelerationAvailable: boolean;
+};
+
+export type InstallFileStatus = "complete" | "partial" | "missing" | string;
+
+export type InstallFilePlan = {
+  name: string;
+  status: InstallFileStatus;
+  totalBytes?: number | null;
+  receivedBytes: number;
+  remainingBytes: number;
+};
+
+export type InstallPlan = {
+  pack: string;
+  fileCount: number;
+  bytesToDownload: number;
+  bytesKnown: boolean;
+  hasPartialDownloads: boolean;
+  files: InstallFilePlan[];
+};
+
+export type InstallErrorCause =
+  | "network"
+  | "diskFull"
+  | "hashInvalid"
+  | "http"
+  | "other"
+  | string;
+
+export type InstallErrorInfo = {
+  message: string;
+  cause: InstallErrorCause;
+  fileName?: string | null;
+};
+
+export type HealthSnapshot = {
+  cudaAvailable: boolean;
+  accelerationKind?: AccelerationKind;
+  gpuName?: string | null;
+  driverVersion?: string | null;
+  vramMib?: number | null;
+  suggestedPack: string;
+  suggestedPackReasonFr?: string;
   modelsOk: boolean;
   binaryOk: boolean;
   serverHealthy: boolean;
@@ -239,6 +287,16 @@ export type InstallProgress = {
   fileCount: number;
   receivedBytes: number;
   totalBytes?: number | null;
+  fileName?: string | null;
+  bytesPerSec?: number | null;
+  etaSeconds?: number | null;
+  etaIsEstimate?: boolean;
+  overallReceivedBytes?: number | null;
+  overallTotalBytes?: number | null;
+  overallBytesPerSec?: number | null;
+  overallEtaSeconds?: number | null;
+  overallEtaIsEstimate?: boolean;
+  error?: InstallErrorInfo | null;
 };
 
 export type JobStatus = {
