@@ -27,8 +27,7 @@ pub fn require_separator_license(settings: &AppSettings, id: &str) -> Result<(),
 }
 
 pub fn artifact_requires_htdemucs_license(artifact_name: &str) -> bool {
-    artifact_name == HTDEMUCS_GGUF
-        || artifact_name.to_ascii_lowercase().contains("htdemucs")
+    artifact_name == HTDEMUCS_GGUF || artifact_name.to_ascii_lowercase().contains("htdemucs")
 }
 
 #[cfg(test)]
