@@ -2688,6 +2688,30 @@ details[open] > summary {
   stroke: #5ec8ff;
 }
 
+.abc-staff-toolbar .btn.ghost.active {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.abc-staff-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+}
+
+.abc-staff-warnings-details {
+  width: 100%;
+  max-height: 8rem;
+  overflow: auto;
+  font-size: 0.82rem;
+}
+
+.abc-staff-warnings-toggle {
+  font-size: 0.82rem;
+  padding: 0.15rem 0.45rem;
+}
+
 .score-abc-raw {
   max-height: min(360px, 50vh);
   overflow: auto;

@@ -1,0 +1,17 @@
+{
+  "afterMode": true,
+  "main": {
+    "w": 550,
+    "h": 1783.272,
+    "layoutRatio": 0.3084218223580026,
+    "warnings": []
+  },
+  "z5case": {
+    "w": 550,
+    "h": 94.617,
+    "layoutRatio": 5.812908885295454,
+    "warnings": [
+      "Music Line:5:3: Duration not representable: z5:  z5<span style=\"text-decoration:underline;font-size:1.3em;font-weight:bold;\">|</span>"
+    ]
+  }
+}

@@ -11,8 +11,10 @@ import * as abcjs from "abcjs";
 import type { NoteTimingEvent, TimingCallbacks } from "abcjs";
 import {
   abcBarDurationSeconds,
+  sanitizeAbcForStaffRender,
   sliceAbcMeasures,
   splitAbcMeasures,
+  summarizeStaffRenderWarnings,
 } from "../lib/staffAbc";
 import {
   blendPxPerBar,
@@ -29,6 +31,13 @@ const SCALE_STEP = 0.15;
 /** Au-dessous de ce seuil, le tune entier est composé d'un coup. */
 const MIN_TOTAL_BARS_FOR_WINDOW = 24;
 const MIN_TOTAL_BARS_FOR_WINDOW_COMPACT = 12;
+
+/** Cible abcjs : 3–4 mesures par système, largeur = panneau. */
+const STAFF_WRAP = {
+  preferredMeasuresPerLine: 4,
+  minSpacing: 1.1,
+  maxSpacing: 2.7,
+} as const;
 
 export type AbcStaffViewProps = {
   /** ABC source already validated / proposed — never invented here. */
@@ -56,6 +65,7 @@ function highlightEvent(
   ev: NoteTimingEvent | null,
   root: HTMLElement | null,
   scrollEl: HTMLElement | null,
+  followPlayback: boolean,
 ) {
   clearHighlights(root);
   if (!ev?.elements) return;
@@ -64,23 +74,32 @@ function highlightEvent(
       el.classList.add("abcjs-note_selected", "abcjs-highlight");
     }
   }
+  if (!followPlayback || !scrollEl) return;
+
   const first = ev.elements[0]?.[0];
-  if (first && typeof first.scrollIntoView === "function") {
-    first.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-      inline: "center",
-    });
-  } else if (scrollEl && first) {
-    const noteRect = first.getBoundingClientRect();
-    const viewRect = scrollEl.getBoundingClientRect();
-    if (
-      noteRect.top < viewRect.top ||
-      noteRect.bottom > viewRect.bottom
-    ) {
-      first.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
+  if (!first) return;
+
+  const staffLine =
+    first.closest<SVGElement>(".abcjs-staff") ??
+    first.closest<SVGElement>("g[class*='staff']");
+  const scrollTarget = staffLine ?? first;
+
+  const targetRect = scrollTarget.getBoundingClientRect();
+  const viewRect = scrollEl.getBoundingClientRect();
+  const margin = viewRect.height * 0.12;
+
+  if (
+    targetRect.top >= viewRect.top + margin &&
+    targetRect.bottom <= viewRect.bottom - margin
+  ) {
+    return;
   }
+
+  const targetTop =
+    scrollEl.scrollTop +
+    (targetRect.top - viewRect.top) -
+    viewRect.height * 0.2;
+  scrollEl.scrollTop = Math.max(0, targetTop);
 }
 
 /**
@@ -106,6 +125,7 @@ export function AbcStaffView({
   const pxPerBarRef = useRef(DEFAULT_PX_PER_BAR);
   const scrollRafRef = useRef<number | null>(null);
   const programmaticScrollRef = useRef(false);
+  const followPlaybackRef = useRef(true);
 
   onSeekRef.current = onSeek;
   playbackReadyRef.current = playbackReady;
@@ -113,10 +133,17 @@ export function AbcStaffView({
 
   const deferredAbc = useDeferredValue(abc);
   const isStale = deferredAbc !== abc;
+  const staffAbc = useMemo(
+    () => sanitizeAbcForStaffRender(deferredAbc),
+    [deferredAbc],
+  );
 
   const [scale, setScale] = useState(1);
+  const [followPlayback, setFollowPlayback] = useState(true);
+  const [staffWidth, setStaffWidth] = useState(640);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [renderWarnings, setRenderWarnings] = useState<string[]>([]);
+  const [warningsExpanded, setWarningsExpanded] = useState(false);
   const [seekHint, setSeekHint] = useState<string | null>(null);
   const [pxPerBar, setPxPerBar] = useState(DEFAULT_PX_PER_BAR);
   const [scrollWindow, setScrollWindow] = useState({
@@ -124,7 +151,7 @@ export function AbcStaffView({
     renderCount: 0,
   });
 
-  const split = useMemo(() => splitAbcMeasures(deferredAbc), [deferredAbc]);
+  const split = useMemo(() => splitAbcMeasures(staffAbc), [staffAbc]);
   const barSeconds = useMemo(
     () => abcBarDurationSeconds(split.header),
     [split.header],
@@ -159,7 +186,7 @@ export function AbcStaffView({
   }, [windowing, split.barCount, compact]);
 
   const visibleAbc = useMemo(() => {
-    if (!windowing) return deferredAbc;
+    if (!windowing) return staffAbc;
     const { renderStart, renderCount } =
       scrollWindow.renderCount > 0
         ? scrollWindow
@@ -171,8 +198,8 @@ export function AbcStaffView({
             minRenderBars: compact ? 12 : 20,
             maxRenderBars: compact ? 40 : 56,
           });
-    return sliceAbcMeasures(deferredAbc, renderStart, renderCount);
-  }, [deferredAbc, windowing, scrollWindow, split.barCount, compact]);
+    return sliceAbcMeasures(staffAbc, renderStart, renderCount);
+  }, [staffAbc, windowing, scrollWindow, split.barCount, compact]);
 
   const windowOffsetSeconds =
     windowing && barSeconds != null
@@ -191,12 +218,28 @@ export function AbcStaffView({
       : 0;
 
   useEffect(() => {
+    followPlaybackRef.current = followPlayback;
+  }, [followPlayback]);
+
+  useEffect(() => {
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    const updateWidth = () => {
+      setStaffWidth(Math.max(280, Math.floor(scroll.clientWidth - 24)));
+    };
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(scroll);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     pxPerBarRef.current = DEFAULT_PX_PER_BAR;
     setPxPerBar(DEFAULT_PX_PER_BAR);
     setScrollWindow({ renderStart: 0, renderCount: 0 });
     const scroll = scrollRef.current;
     if (scroll) scroll.scrollTop = 0;
-  }, [deferredAbc, scale]);
+  }, [staffAbc, scale]);
 
   useEffect(() => {
     if (!windowing) return;
@@ -225,7 +268,7 @@ export function AbcStaffView({
   }, [windowing, applyScrollWindow]);
 
   useEffect(() => {
-    if (!windowing || barSeconds == null) return;
+    if (!followPlayback || !windowing || barSeconds == null) return;
     const scroll = scrollRef.current;
     if (!scroll) return;
     const bar = playbackBarIndex(playbackSeconds, barSeconds);
@@ -244,7 +287,7 @@ export function AbcStaffView({
     requestAnimationFrame(() => {
       programmaticScrollRef.current = false;
     });
-  }, [playbackSeconds, windowing, barSeconds, applyScrollWindow]);
+  }, [playbackSeconds, windowing, barSeconds, applyScrollWindow, followPlayback]);
 
   useEffect(() => {
     const paper = paperRef.current;
@@ -256,6 +299,7 @@ export function AbcStaffView({
     paper.innerHTML = "";
     setRenderError(null);
     setRenderWarnings([]);
+    setWarningsExpanded(false);
     setSeekHint(null);
 
     const trimmed = visibleAbc.trim();
@@ -274,7 +318,8 @@ export function AbcStaffView({
         paddingbottom: 8,
         paddingleft: 8,
         paddingright: 8,
-        viewportHorizontal: true,
+        staffwidth: staffWidth,
+        wrap: STAFF_WRAP,
         clickListener: (abcElem) => {
           const ms = abcElem?.currentTrackMilliseconds;
           if (typeof ms !== "number" || !Number.isFinite(ms)) {
@@ -310,7 +355,12 @@ export function AbcStaffView({
               : `${ev.milliseconds}|${ev.measureNumber ?? ""}|${ev.left ?? ""}`;
           if (key === lastHighlightKey.current) return "continue";
           lastHighlightKey.current = key;
-          highlightEvent(ev, paper, scrollRef.current);
+          highlightEvent(
+            ev,
+            paper,
+            scrollRef.current,
+            followPlaybackRef.current,
+          );
           return "continue";
         },
       });
@@ -330,7 +380,7 @@ export function AbcStaffView({
       timingRef.current = null;
       clearHighlights(paper);
     };
-  }, [visibleAbc, scale]);
+  }, [visibleAbc, scale, staffWidth]);
 
   useLayoutEffect(() => {
     if (!windowing) return;
@@ -360,6 +410,10 @@ export function AbcStaffView({
   }, [playbackSeconds, windowOffsetSeconds]);
 
   const allWarnings = [...warnings, ...renderWarnings];
+  const warningSummary = useMemo(
+    () => summarizeStaffRenderWarnings(allWarnings),
+    [allWarnings],
+  );
 
   return (
     <div
@@ -394,6 +448,14 @@ export function AbcStaffView({
           }
         >
           {t("score.staff.zoomIn")}
+        </button>
+        <button
+          type="button"
+          className={`btn ghost${followPlayback ? " active" : ""}`}
+          aria-pressed={followPlayback}
+          onClick={() => setFollowPlayback((on) => !on)}
+        >
+          {t("score.staff.followPlayback")}
         </button>
         {!playbackReady && (
           <span className="hint">{t("score.staff.syncHint")}</span>
@@ -433,14 +495,35 @@ export function AbcStaffView({
         </p>
       )}
       {seekHint && <p className="hint">{seekHint}</p>}
-      {allWarnings.length > 0 && (
-        <ul className="score-issues">
-          {allWarnings.map((w, i) => (
-            <li key={`sw-${i}`} className="warning">
-              {w}
-            </li>
-          ))}
-        </ul>
+      {warningSummary && (
+        <div className="abc-staff-warnings" role="status">
+          <p className="score-issues warning">
+            {warningSummary.issueCount === 1
+              ? t("score.staff.renderIssueSummaryOne")
+              : t("score.staff.renderIssuesSummary", {
+                  count: warningSummary.issueCount,
+                })}
+          </p>
+          <button
+            type="button"
+            className="btn ghost abc-staff-warnings-toggle"
+            aria-expanded={warningsExpanded}
+            onClick={() => setWarningsExpanded((open) => !open)}
+          >
+            {warningsExpanded
+              ? t("score.staff.hideDetails")
+              : t("score.staff.showDetails")}
+          </button>
+          {warningsExpanded && (
+            <ul className="abc-staff-warnings-details score-issues">
+              {warningSummary.details.map((detail, i) => (
+                <li key={`swd-${i}`} className="warning">
+                  {detail}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );

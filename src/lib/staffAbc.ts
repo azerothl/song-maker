@@ -43,7 +43,7 @@ export function buildStaffAbc(
       }
       return {
         ok: true,
-        abc,
+        abc: sanitizeAbcForStaffRender(abc),
         warnings: [
           ...warnings,
           ...check.issues
@@ -243,4 +243,143 @@ export function sliceAbcMeasures(
   }
 
   return [header, ...body].filter(Boolean).join("\n");
+}
+
+/** Multiplicateurs de durée (L:) admis par abcjs / YuE2 pour la portée. */
+export const STAFF_REPRESENTABLE_DURATIONS = [
+  1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48,
+] as const;
+
+export function isStaffRepresentableDuration(units: number): boolean {
+  return (STAFF_REPRESENTABLE_DURATIONS as readonly number[]).includes(units);
+}
+
+/** Décompose une durée en somme de multiplicateurs admis (ex. 5 → [4, 1]). */
+export function decomposeStaffDuration(units: number): number[] {
+  if (units <= 0 || !Number.isInteger(units)) {
+    throw new Error(`durée ABC invalide: ${units}`);
+  }
+  if (isStaffRepresentableDuration(units)) {
+    return [units];
+  }
+  const allowed = [...STAFF_REPRESENTABLE_DURATIONS].sort((a, b) => b - a);
+  const parts: number[] = [];
+  let remaining = units;
+  while (remaining > 0) {
+    const pick = allowed.find((value) => value <= remaining);
+    if (pick === undefined) {
+      throw new Error(`durée ABC indécomposable: ${units}`);
+    }
+    parts.push(pick);
+    remaining -= pick;
+  }
+  return parts;
+}
+
+function formatRestDurationParts(parts: number[]): string {
+  return parts.map((p) => (p === 1 ? "z" : `z${p}`)).join("");
+}
+
+function formatNoteDurationParts(pitch: string, parts: number[]): string {
+  if (parts.length === 0) return pitch;
+  let out = pitch + (parts[0] === 1 ? "" : String(parts[0]));
+  for (let i = 1; i < parts.length; i++) {
+    const mult = parts[i]!;
+    out += pitch + (mult === 1 ? "" : String(mult));
+  }
+  return out;
+}
+
+/** Corrige les durées non représentables dans le corps d'une mesure (ex. z5 → z4z). */
+export function sanitizeAbcBarContent(content: string): string {
+  let out = content;
+  out = out.replace(/\bz(\d+)\b/g, (match, numStr: string) => {
+    const units = Number(numStr);
+    if (!Number.isFinite(units) || isStaffRepresentableDuration(units)) {
+      return match;
+    }
+    return formatRestDurationParts(decomposeStaffDuration(units));
+  });
+  out = out.replace(
+    /(\^|_|=)?([A-Ga-g][,']*)(\d+)/g,
+    (match, acc: string | undefined, pitchBody: string, numStr: string) => {
+      const units = Number(numStr);
+      if (!Number.isFinite(units) || isStaffRepresentableDuration(units)) {
+        return match;
+      }
+      const pitch = `${acc ?? ""}${pitchBody}`;
+      return formatNoteDurationParts(pitch, decomposeStaffDuration(units));
+    },
+  );
+  return out;
+}
+
+/**
+ * Prépare l'ABC exporté pour abcjs : durées valides, sans toucher à l'en-tête
+ * ni aux barres de repeat.
+ */
+export function sanitizeAbcForStaffRender(abc: string): string {
+  return abc
+    .split(/\r?\n/)
+    .map((line) => {
+      if (!line.includes("|")) return line;
+      return line
+        .split("|")
+        .map((segment) => sanitizeAbcBarContent(segment))
+        .join("|");
+    })
+    .join("\n");
+}
+
+const HTML_ENTITY: Record<string, string> = {
+  nbsp: " ",
+  lt: "<",
+  gt: ">",
+  amp: "&",
+  quot: '"',
+  apos: "'",
+};
+
+/** Retire le balisage abcjs des messages d'avertissement (affichage utilisateur). */
+export function plainTextStaffMessage(raw: string): string {
+  const withoutTags = raw.replace(/<[^>]*>/g, "");
+  return withoutTags
+    .replace(/&([a-z]+);/gi, (full, name: string) => {
+      const decoded = HTML_ENTITY[name.toLowerCase()];
+      return decoded ?? full;
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export type StaffRenderWarningSummary = {
+  /** Nombre de mesures ou segments signalés par abcjs. */
+  issueCount: number;
+  /** Texte technique, une entrée par avertissement. */
+  details: string[];
+};
+
+/** Résume les avertissements abcjs pour l'UI (sans HTML). */
+export function summarizeStaffRenderWarnings(
+  warnings: string[],
+): StaffRenderWarningSummary | null {
+  if (warnings.length === 0) return null;
+  const details = warnings.map(plainTextStaffMessage).filter(Boolean);
+  if (details.length === 0) return null;
+
+  const measureIndexes = new Set<number>();
+  for (const line of details) {
+    const hits = line.matchAll(/(?:^|\s)measure(?:\s+number)?\s*:?\s*(\d+)/gi);
+    for (const hit of hits) {
+      measureIndexes.add(Number(hit[1]));
+    }
+    const musicLine = line.match(/Music Line:(\d+):/i);
+    if (musicLine) {
+      measureIndexes.add(Number(musicLine[1]));
+    }
+  }
+
+  const issueCount =
+    measureIndexes.size > 0 ? measureIndexes.size : details.length;
+  return { issueCount, details };
 }
