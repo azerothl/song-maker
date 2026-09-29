@@ -99,11 +99,27 @@ async function main() {
 
     await detailsBtn.click();
     const take10 = page.locator("h3", { hasText: "Essai plus lumineux" });
-    await take10.scrollIntoViewIfNeeded();
-    const renameBtn = page
+    const take10Card = page
       .locator(".version-take-card")
-      .filter({ has: take10 })
-      .getByRole("button", { name: /Renommer/ });
+      .filter({ has: take10 });
+    await take10Card.scrollIntoViewIfNeeded();
+    const details10 = take10Card.getByRole("button", { name: "Détails" });
+    await details10.click();
+    await take10Card.locator(".version-details-panel").waitFor({ state: "visible" });
+    await take10Card.evaluate((el) =>
+      el.scrollIntoView({ block: "center", behavior: "instant" }),
+    );
+    await page.waitForTimeout(250);
+    await page.screenshot({
+      path: path.join(
+        outDir,
+        "versions-react-details-renomme-1280x720.png",
+      ),
+    });
+    await details10.click();
+
+    await take10Card.scrollIntoViewIfNeeded();
+    const renameBtn = take10Card.getByRole("button", { name: /Renommer/ });
     await renameBtn.click();
     await page.waitForTimeout(250);
     await page.screenshot({

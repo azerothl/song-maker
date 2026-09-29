@@ -90,6 +90,33 @@ describe("renamed take default name", () => {
     assert.equal(tooltip, "Ancien nom : Prise 1");
   });
 
+  it("n’utilise pas l’id gen-* comme identifiant de partition dans Détails", () => {
+    const displays = buildTakeDisplays({
+      generations: [
+        gen({
+          id: "gen-011",
+          createdAt: "2026-09-29T13:05:00.000Z",
+          audioPath: "/a.wav",
+          hasScore: true,
+        }),
+      ],
+      separations: [],
+      scores: [
+        {
+          id: "score-v3",
+          createdAt: "2026-09-29T13:00:00.000Z",
+          kind: "score",
+        },
+      ],
+      style: "pop",
+      labels,
+    });
+    const take = displays.find((t) => t.id === "gen-011")!;
+    const details = formatTakeDetails(take);
+    assert.equal(details.includes("partition: gen-011"), false);
+    assert.match(details, /partition: (score-v3|score\.abc)/);
+  });
+
   it("n’affiche pas le nom par défaut en doublon si la prise n’est pas renommée", () => {
     const displays = buildTakeDisplays({
       generations: [

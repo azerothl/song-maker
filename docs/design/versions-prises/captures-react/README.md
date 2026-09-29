@@ -16,6 +16,7 @@ Le script démarre Vite sur le harness (`main.tsx` → `App` + `SongScreen`, ong
 | `versions-react-default-1280x720.png` | Vue par défaut |
 | `versions-react-defilement-hier-1280x720.png` | Liste défilée sur « Hier » + séparation |
 | `versions-react-details-ouvert-1280x720.png` | Détails ouverts (Prise 11) |
+| `versions-react-details-renomme-1280x720.png` | Détails ouverts (Essai plus lumineux / Prise 10, nom par défaut) |
 | `versions-react-renommer-1280x720.png` | Renommage actif (Essai plus lumineux) |
 
 ## Fixtures
