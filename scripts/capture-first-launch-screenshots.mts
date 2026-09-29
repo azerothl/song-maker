@@ -4,13 +4,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
-const outDir = path.resolve(rootDir, "../artifacts/screenshots");
+const outDir = path.resolve(
+  rootDir,
+  "../docs/design/first-launch/captures-react",
+);
 
 const targets = [
-  { id: "etat-a-gpu", file: "first-launch-etat-a-gpu.png" },
-  { id: "etat-a-metal", file: "first-launch-etat-a-metal.png" },
-  { id: "etat-b-sans-gpu", file: "first-launch-etat-b-sans-gpu.png" },
-  { id: "etat-c-interrompu", file: "first-launch-etat-c-interrompu.png" },
+  { hash: "", file: "etat-a-gpu-nvidia.png" },
+  { hash: "metal", file: "etat-a-variante-apple-metal.png" },
+  { hash: "b", file: "etat-b-sans-gpu.png" },
+  { hash: "c", file: "etat-c-telechargement-interrompu.png" },
 ];
 
 const server = await createServer({
@@ -25,13 +28,14 @@ await new Promise((r) => setTimeout(r, 500));
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-await page.goto(`${baseUrl}/first-launch-screenshots.html`, {
-  waitUntil: "networkidle",
-});
 
-for (const { id, file } of targets) {
-  const el = page.locator(`#${id} .fl-card`);
-  await el.screenshot({ path: path.join(outDir, file) });
+for (const { hash, file } of targets) {
+  const url = hash ? `${baseUrl}/#${hash}` : `${baseUrl}/`;
+  await page.goto(url, { waitUntil: "networkidle" });
+  await page.locator(".first-launch .fl-card").first().waitFor({ state: "visible" });
+  await page.locator(".first-launch .fl-card").first().screenshot({
+    path: path.join(outDir, file),
+  });
 }
 
 await browser.close();
