@@ -2,7 +2,7 @@
 
 Application **desktop locale** (Tauri 2) pour générer, séparer, éditer et mixer un morceau avec **YuE2** via [audio.cpp](https://github.com/0xShug0/audio.cpp) (GGUF) et HTDemucs. Un projet = un morceau. Contrat produit : [`specs/SONG_MAKER_SPEC.md`](specs/SONG_MAKER_SPEC.md) (le spec décrit aussi l’historique des phases ; ce README décrit **ce qui est livré aujourd’hui** sur `main`).
 
-Site marketing bilingue FR/EN : dossier [`website/`](website/).
+Site marketing bilingue FR/EN : dossier [`website/`](website/) — landing, docs MDX, téléchargements. L’UI de l’app desktop est **française uniquement** (`src/ui/fr.json`).
 
 ## Direction produit à long terme
 
@@ -15,7 +15,7 @@ Song Maker vise à devenir un atelier de MAO multipiste assisté par l’IA gén
 
 ## Installer l’application
 
-Téléchargez la dernière version depuis les [Releases GitHub](https://github.com/azerothl/song-maker/releases/latest) :
+Téléchargez la dernière version depuis les [Releases GitHub](https://github.com/azerothl/song-maker/releases/latest) (actuelle : **v0.1.1**) :
 
 - **Windows** : installeur `.msi` ou `.exe`, Windows x64 avec carte **NVIDIA** (CUDA). L’installeur embarque le runtime CUDA (`cudart`) à côté du serveur audio.cpp pour que le moteur soit détecté.
 - **macOS** : `.dmg` Apple Silicon ou Intel (Metal). Chemin de génération moins prioritaire que CUDA Windows/Linux.
@@ -29,13 +29,13 @@ Sur Windows, l’installeur n’est pas encore signé Authenticode ; Windows peu
 
 ## Ce qui est livré aujourd’hui
 
-Parcours principal : **Bibliothèque → Créer → (Partition) → Production → Versions**.
+Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau → onglets **Créer → Partition → Production → Versions**. Barre latérale repliable.
 
 ### Créer — génération YuE2
 
 - Style + paroles → WAV stéréo 48 kHz via le serveur local `audiocpp_server` (file FIFO, `max_loaded_models=1`).
-- **Mode instrumental** : paroles facultatives (chaîne vide acceptée) — pas le LoRA instrumental YuE2 CC BY-NC.
-- Modes `cot` (`full` / `melody` / `off`), durée cible indicative (bornes de tokens, pas une durée musicale garantie), multi-candidats séquentiels, seed écrit.
+- **Mode instrumental** : paroles facultatives (chaîne vide acceptée) — ce n’est **pas** le LoRA instrumental YuE2 CC BY-NC.
+- Modes `cot` (`full` / `melody` / `off`), durée cible indicative (bornes de tokens, pas une durée musicale garantie), multi-candidats **séquentiels** (N appels locaux successifs, pas un échantillonnage parallèle natif), seed écrit.
 - Continuation mid-song (`semantic_prefix` / `continuationGenerationId`) et génération partition seule (`stop_after=abc`).
 - YuE2 **ne consomme pas** d’audio en entrée (`audio_input`) : pas d’inpainting ni de référence audio directe. Une génération = un nouvel appel.
 
@@ -43,30 +43,30 @@ Parcours principal : **Bibliothèque → Créer → (Partition) → Production �
 
 - Import MIDI, piano roll, validation et export ABC dialecte YuE2 (`@song-maker/score-engine`).
 - Aperçu portée ABC synchronisé à la lecture ; métadonnées tempo/tonalité alignées.
-- Instrument MIDI intégré (préécoute + enregistrement Web MIDI) — voir [`docs/midi-instrument.md`](docs/midi-instrument.md).
+- Instrument MIDI intégré (préécoute + enregistrement Web MIDI) : softsynth Web Audio (oscillateurs), **sans banque SF2** — voir [`docs/midi-instrument.md`](docs/midi-instrument.md).
 - **SheetSage2** (opt-in, hors installeur premier build) : audio → ABC → confirmation → nouvelle génération YuE2. Poids ~2,7 Go CC BY-NC. Voir [`docs/sheetsage2-path.md`](docs/sheetsage2-path.md).
 
 ### Production — stems, mix, outils
 
-- Séparation **HTDemucs** (4 stems par défaut). Options : HTDemucs 6 stems ONNX (guitare/piano expérimentaux), **BS-RoFormer** opt-in (voix + instrumental seulement).
+- Séparation **HTDemucs** (4 stems par défaut : voix, batterie, basse, other). Options : HTDemucs 6 stems ONNX (guitare/piano **expérimentaux**, fuites possibles surtout sur le piano), **BS-RoFormer** opt-in (voix + instrumental seulement). Relancer une séparation et conserver l’historique des versions de stems.
 - Mix : gain, pan, mute/solo, master ; groupes / aux / sends ; presets d’intention et équilibre auto des stems.
 - Effets DSP réels (`@song-maker/mix-production`) : filtre HP/LP, EQ (shelf + paramétrique), compresseur / gate / limiteur, delay sync tempo, réverb stéréo, sidechain, correction de justesse vocale, loudness (estimation).
-- Clips : trim, fondus, déplacement, découpe ; grille musicale / arrangement ; étirement tempo / transpose ; capture micro/ligne avec prises (latence WebView documentée — [`docs/capture-low-latency.md`](docs/capture-low-latency.md)).
+- Clips : trim, fondus, déplacement, découpe ; grille musicale / arrangement ; étirement tempo / transpose (WSOLA maison) ; capture micro/ligne avec prises (latence WebView documentée — [`docs/capture-low-latency.md`](docs/capture-low-latency.md)).
 - Copilote de production réversible (suggestions locales, pas d’analyse distante obligatoire).
-- Export mix WAV PCM 24 bits, FLAC 24 bits, MP3 livraison ; stems alignés et paquet projet portable.
+- Export mix WAV PCM 24 bits, FLAC 24 bits, MP3 livraison ; export de pistes / stems sélectionnés (dossier ou zip) et paquet projet portable.
 
 ### Versions & collaboration opt-in
 
-- Historique des prises `gen-*`, comparateur multi-candidats, graphe léger de versions.
+- Historique des prises `gen-*`, comparateur multi-candidats, graphe léger de versions, historique des séparations.
 - Invariants de partition avant régénération (`@song-maker/partition-invariants`).
 - **Worker GPU distant** : client + serveur de référence HTTP, **désactivé par défaut** (local-first, consentement + rétention). Voir [`docs/remote-worker-contract.md`](docs/remote-worker-contract.md).
-- **Akasha / DeclUI** : découverte HTTP réelle si opt-in + hôte joignable ; sinon clairement `unavailable` — pas de faux mode connecté.
+- **Akasha / DeclUI** : découverte HTTP réelle (`GET /v1/host/discover`) si opt-in + hôte joignable ; sinon clairement `unavailable` — pas de faux mode connecté, pas d’hôte DeclUI embarqué.
 - Synchro projet optionnelle (NAS/USB ou HTTP auto-hébergé) — jamais obligatoire. Voir [`docs/project-sync-contract.md`](docs/project-sync-contract.md).
-- Packs LoRA style (opt-in) et pilote d’entraînement NAR local — voir [`docs/lora-training-pilot.md`](docs/lora-training-pilot.md).
+- Packs LoRA style (opt-in) et **pilote** d’entraînement NAR local — voir [`docs/lora-training-pilot.md`](docs/lora-training-pilot.md).
 
 ### Site marketing
 
-Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples. Lancer : `pnpm --filter website dev` → [http://localhost:3000/fr](http://localhost:3000/fr). Détails : [`website/README.md`](website/README.md).
+Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples. Lancer : `pnpm --filter website dev` → [http://localhost:3000/fr](http://localhost:3000/fr). Détails : [`website/README.md`](website/README.md). Positionnement produit pour le site : [`website/PRODUCT.md`](website/PRODUCT.md).
 
 ## Limites assumées
 
@@ -77,10 +77,13 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | **UniverSR** / upscaling audio | Hors périmètre |
 | Runtime Python YuE2 officiel | Non installé, pas un repli |
 | SheetSage2 / BS-RoFormer / LoRA packs | Opt-in, hors installeur minimal |
+| HTDemucs 6 stems (guitare/piano) | Opt-in expérimental ; fuites possibles |
 | Worker distant / Akasha | Opt-in ; sans hôte = indisponible, pas un stub trompeur |
+| Entraînement LoRA NAR | Pilote (format / chargement) — pas un entraînement YuE2 officiel complet |
 | Capture basse latence | Chemin WebView (pas ASIO / WASAPI exclusif) |
 | Licences modèles | YuE2 & SheetSage2 : **CC BY-NC 4.0** — usage commercial des poids restreint |
 | Signature Windows / notarisation macOS | Pas encore |
+| UI app bilingue | Non — français seul ; le site marketing est FR/EN |
 
 ## Stack
 
@@ -141,13 +144,13 @@ Load test CUDA (GPU NVIDIA requis) : `./load-test-cuda.sh` (Windows : `.cmd`). S
 | Paquet | Rôle (état actuel) |
 |---|---|
 | [`@song-maker/score-engine`](packages/score-engine) | ScoreDocument, MIDI, ABC YuE2, clips, candidats, `stop_after` / `semantic_prefix` — branché UI |
-| [`@song-maker/sheetsage`](packages/sheetsage) | SheetSage2 readiness + transcription (runner Tauri live) |
+| [`@song-maker/sheetsage`](packages/sheetsage) | SheetSage2 readiness + transcription (runner Tauri live) — opt-in |
 | [`@song-maker/stem-providers`](packages/stem-providers) | HTDemucs / 6-stems / BS-RoFormer |
 | [`@song-maker/mix-production`](packages/mix-production) | Automation, FX, buses, bake offline, stems alignés — DSP réel |
-| [`@song-maker/lora-packs`](packages/lora-packs) | Registre LoRA + catalogue styles, porte CC BY-NC |
+| [`@song-maker/lora-packs`](packages/lora-packs) | Registre LoRA + catalogue styles, porte CC BY-NC — opt-in |
 | [`@song-maker/lora-training`](packages/lora-training) | Pilote entraînement NAR local |
 | [`@song-maker/partition-invariants`](packages/partition-invariants) | Invariants §11.3 avant régénération |
 | [`@song-maker/project-sync`](packages/project-sync) | Synchro opt-in FS / HTTP |
 | [`@song-maker/remote-worker`](packages/remote-worker) | Client worker GPU distant (local-first) |
 | [`@song-maker/remote-worker-server`](packages/remote-worker-server) | Worker GPU de référence (contrat HTTP) |
-| [`@song-maker/akasha-declui`](packages/akasha-declui) | Hôte Akasha / DeclUI (découverte réelle ou indisponible) |
+| [`@song-maker/akasha-declui`](packages/akasha-declui) | Découverte hôte Akasha (réelle ou `unavailable`) — opt-in |
