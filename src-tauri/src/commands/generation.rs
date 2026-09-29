@@ -1,0 +1,937 @@
+use super::shared::write_checksums;
+use super::AppState;
+use crate::abc_metadata::{write_aligned_score_abc, AbcAlignRequest};
+use crate::audiocpp::AudioCppServer;
+use crate::form::{guidance_scale, validate_form, validate_target_duration};
+use crate::hashutil::{normalize_seed, random_seed, sha256_file};
+use crate::library::{
+    library_row_from_project, load_project, load_settings, project_folder, save_project,
+    upsert_library_row,
+};
+use crate::mix::wav_duration_ms;
+use crate::models::*;
+use crate::paths::{atomic_write_json, ensure_dir, next_folder_id, now_iso};
+use crate::pins::*;
+use serde_json::json;
+use std::path::{Path, PathBuf};
+
+#[tauri::command]
+pub async fn start_generation(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    form: FormInput,
+    abc: Option<String>,
+    stop_after: Option<String>,
+    source_generation_id: Option<String>,
+) -> Result<ProjectDoc, String> {
+    let style_sent = validate_form(&form).map_err(|e| e.to_string())?;
+    let target_duration_sec =
+        validate_target_duration(form.target_duration_sec).map_err(|e| e.to_string())?;
+    let (mut semantic_min_tokens, mut semantic_max_tokens) =
+        semantic_token_budget(target_duration_sec, &form.lyrics, form.prefer_full_lyrics);
+    let stop_after_abc = match stop_after
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        None => false,
+        Some("abc") => true,
+        Some(other) => {
+            return Err(format!(
+                "stop_after={other} hors contrat (seul « abc » est pris en charge)."
+            ));
+        }
+    };
+    let mut abc_trimmed = abc
+        .as_ref()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if abc_trimmed.is_some() && form.cot == "off" {
+        return Err("Un ABC avec cot=off est interdit (erreur locale, avant l'appel).".into());
+    }
+    if stop_after_abc {
+        if form.cot == "off" {
+            return Err("stop_after=abc exige cot=melody|full.".into());
+        }
+        if abc_trimmed.is_some() {
+            return Err("stop_after=abc refuse un ABC externe.".into());
+        }
+        if form.continuation_generation_id.is_some() {
+            return Err("stop_after=abc est incompatible avec une continuation.".into());
+        }
+        if source_generation_id.is_some() {
+            return Err(
+                "stop_after=abc est incompatible avec un rendu depuis un score existant.".into(),
+            );
+        }
+    }
+    let folder = project_folder(&id);
+    let mut doc = load_project(&folder)?;
+    let source_gen_id = source_generation_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+    if let Some(ref src_id) = source_gen_id {
+        let score_path = folder.join("generations").join(src_id).join("score.abc");
+        if !score_path.is_file() {
+            return Err(format!(
+                "Score ABC introuvable pour {src_id} (attendu generations/{src_id}/score.abc)."
+            ));
+        }
+        if abc_trimmed.is_none() {
+            abc_trimmed = Some(std::fs::read_to_string(&score_path).map_err(|e| e.to_string())?);
+        }
+    }
+    let continuation = form.continuation_generation_id.as_deref();
+    let semantic_prefix_path = if let Some(parent_id) = continuation {
+        let parent_dir = folder.join("generations").join(parent_id);
+        let resolved = resolve_semantic_prefix_for_continuation(
+            &parent_dir,
+            parent_id,
+            &form.cot,
+            abc_trimmed.as_deref(),
+        )?;
+        if let Some(abc) = resolved.parent_score_abc {
+            abc_trimmed = Some(abc);
+        }
+        semantic_min_tokens = semantic_min_tokens.max(resolved.frame_count as u32);
+        semantic_max_tokens = semantic_max_tokens
+            .saturating_add(resolved.frame_count as u32)
+            .min(resolved.token_ceiling as u32)
+            .max(semantic_min_tokens);
+        Some(resolved.semantic_path)
+    } else {
+        None
+    };
+    doc.title = form.title.trim().to_string();
+    doc.style = form.style.trim().to_string();
+    if continuation.is_some() {
+        doc.lyrics = format!("{}\n\n{}", doc.lyrics.trim_end(), form.lyrics.trim());
+    } else {
+        doc.lyrics = form.lyrics.clone();
+    }
+    doc.cot = form.cot.clone();
+    doc.singing_language = form.singing_language.clone();
+    doc.tempo_bpm = form.tempo_bpm;
+    doc.key = form.key.clone();
+    doc.meter = form.meter.clone();
+    doc.target_duration_sec = target_duration_sec;
+    doc.prefer_full_lyrics = form.prefer_full_lyrics;
+    doc.instrumental_mode = form.instrumental_mode;
+    doc.updated_at = now_iso();
+    let mut settings = load_settings()?;
+    let (lora_provenance, lora_warnings) = resolve_lora_provenance_for_generation(&mut settings);
+    let seed = normalize_seed(form.seed.unwrap_or_else(random_seed));
+    let gen_id = next_folder_id(&folder.join("generations"), "gen-")?;
+    let gen_dir = folder.join("generations").join(&gen_id);
+    ensure_dir(&gen_dir).map_err(|e| e.to_string())?;
+
+    let lyrics_path = gen_dir.join("lyrics.txt");
+    std::fs::write(&lyrics_path, &form.lyrics).map_err(|e| e.to_string())?;
+
+    let abc_path_rel = if let Some(ref abc_text) = abc_trimmed {
+        std::fs::write(gen_dir.join("input.abc"), abc_text).map_err(|e| e.to_string())?;
+        Some("input.abc")
+    } else {
+        None
+    };
+
+    let (archive, archive_sha) = if cfg!(target_os = "windows") {
+        (ARCHIVE_WINDOWS, ARCHIVE_WINDOWS_SHA)
+    } else {
+        (ARCHIVE_LINUX, ARCHIVE_LINUX_SHA)
+    };
+
+    let parent_generation_id = continuation
+        .or(source_gen_id.as_deref())
+        .or(doc.active_generation_id.as_deref());
+    let job_kind = if continuation.is_some() {
+        "continuation"
+    } else if stop_after_abc {
+        "score_only"
+    } else if source_gen_id.is_some() {
+        "render_from_score"
+    } else {
+        "generation"
+    };
+    let request = json!({
+        "schema": SCHEMA_GEN_REQUEST,
+        "schemaVersion": SCHEMA_VERSION,
+        "id": gen_id,
+        "projectId": id,
+        "parentGenerationId": parent_generation_id,
+        "continuationGenerationId": continuation,
+        "sourceGenerationId": source_gen_id,
+        "stopAfter": if stop_after_abc { Some("abc") } else { None::<&str> },
+        "createdAt": now_iso(),
+        "provider": "audiocpp",
+        "binary": {
+            "tag": AUDIOCPP_TAG,
+            "commit": AUDIOCPP_COMMIT,
+            "archive": archive,
+            "sha256": archive_sha
+        },
+        "model": {
+            "repo": YUE2_REPO,
+            "revision": YUE2_REVISION,
+            "gguf": settings.model_gguf,
+            "sha256": settings.model_sha256,
+            "vae": YUE2_VAE,
+            "vaeSha256": YUE2_VAE_SHA
+        },
+        "backend": "cuda",
+        "styleSent": style_sent,
+        "lyricsPath": "lyrics.txt",
+        "cot": form.cot,
+        "abcPath": abc_path_rel,
+        "seed": seed,
+        "numInferenceSteps": NUM_INFERENCE_STEPS,
+        "guidanceScale": guidance_scale(&form.cot),
+        "targetDurationSec": target_duration_sec,
+        "preferFullLyrics": form.prefer_full_lyrics,
+        "instrumentalMode": form.instrumental_mode,
+        "semanticMinTokens": semantic_min_tokens,
+        "semanticMaxTokens": semantic_max_tokens,
+        "lora": lora_provenance,
+        "loraWarnings": lora_warnings
+    });
+    atomic_write_json(&gen_dir.join("request.json"), &request)?;
+    atomic_write_json(
+        &gen_dir.join("job.json"),
+        &json!({
+            "id": gen_id,
+            "projectId": id,
+            "kind": job_kind,
+            "state": "queued",
+            "updatedAt": now_iso(),
+        }),
+    )?;
+
+    let queue = state.queue.clone();
+    let queue_ref = queue.clone();
+    let server_url = {
+        let s = settings.clone();
+        state.server.ensure_started(&s)?
+    };
+
+    let out_wav = gen_dir.join("audio.wav");
+    let cot = form.cot.clone();
+    let lyrics_for_req = form.lyrics.clone();
+    let abc_for_req = abc_trimmed.clone();
+    let gen_id_for_job = gen_id.clone();
+    let gen_dir_for_job = gen_dir.clone();
+    let project_id_for_job = id.clone();
+    let job_kind_for_job = job_kind.to_string();
+    let abc_align =
+        AbcAlignRequest::from_form(form.tempo_bpm, form.key.clone(), form.meter.clone());
+    let result = queue
+        .run_exclusive(
+            Some(id.clone()),
+            if stop_after_abc {
+                "Génération partition seule"
+            } else {
+                "Génération en cours"
+            },
+            async move {
+                atomic_write_json(&gen_dir_for_job.join("job.json"), &json!({
+                    "id": gen_id_for_job,
+                    "projectId": project_id_for_job,
+                    "kind": job_kind_for_job,
+                    "state": "running",
+                    "updatedAt": now_iso(),
+                }))?;
+                queue_ref.set_state(
+                    "generating",
+                    if stop_after_abc {
+                        "Génération partition seule"
+                    } else {
+                        "Génération en cours"
+                    },
+                    Some(project_id_for_job.clone()),
+                );
+                let mut options = json!({
+                    "style": style_sent,
+                    "cot": cot,
+                    "num_inference_steps": NUM_INFERENCE_STEPS,
+                    "guidance_scale": guidance_scale(&cot),
+                    "semantic_min_tokens": semantic_min_tokens,
+                    "semantic_max_tokens": semantic_max_tokens,
+                    "export_semantic": !stop_after_abc
+                });
+                if stop_after_abc {
+                    options
+                        .as_object_mut()
+                        .ok_or_else(|| "options invalides".to_string())?
+                        .insert("stop_after".into(), json!("abc"));
+                }
+                if let Some(path) = semantic_prefix_path.as_ref() {
+                    options.as_object_mut().ok_or_else(|| "options invalides".to_string())?
+                        .insert("semantic_prefix_file".into(), json!(path.display().to_string()));
+                }
+                if let Some(abc_text) = &abc_for_req {
+                    options
+                        .as_object_mut()
+                        .ok_or_else(|| "options invalides".to_string())?
+                        .insert("abc".into(), json!(abc_text));
+                }
+                let body = json!({
+                    "model": "yue2",
+                    "request": {
+                        "lyrics": lyrics_for_req,
+                        "seed": seed,
+                        "options": options
+                    }
+                });
+                let started = now_iso();
+                let api_result = AudioCppServer::run_task(&server_url, body).await;
+                let finished = now_iso();
+                if queue_ref.cancel_requested() {
+                    let result = json!({
+                        "schema": SCHEMA_GEN_RESULT,
+                        "schemaVersion": SCHEMA_VERSION,
+                        "id": gen_id_for_job,
+                        "state": "cancelled",
+                        "decode": "unsupported",
+                        "startedAt": started,
+                        "finishedAt": finished,
+                        "audio": null,
+                        "score": null,
+                        "error": "cancel_requested"
+                    });
+                    atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                    return Err("cancelled".into());
+                }
+                match api_result {
+                    Ok(response) => {
+                        let semantic_truncated =
+                            AudioCppServer::semantic_truncated(&response);
+                        let semantic_path = gen_dir_for_job.join("semantic.json");
+                        let has_semantic = AudioCppServer::write_semantic_artifact(&response, &semantic_path).unwrap_or(false);
+
+                        if let Some(abc) = AudioCppServer::extract_score_abc(&response) {
+                            // Align Q:/K:/M: on the form request (#106); notes unchanged.
+                            let _ = write_aligned_score_abc(
+                                &gen_dir_for_job.join("score.abc"),
+                                &abc,
+                                &abc_align,
+                            );
+                        } else if let Some(abc_text) = &abc_for_req {
+                            // Conserve l'ABC envoyé si le modèle n'en renvoie pas.
+                            let _ = write_aligned_score_abc(
+                                &gen_dir_for_job.join("score.abc"),
+                                abc_text,
+                                &abc_align,
+                            );
+                        }
+
+                        let score_path = gen_dir_for_job.join("score.abc");
+                        if stop_after_abc {
+                            if !score_path.is_file() {
+                                let err = "Réponse score-only sans score.abc.".to_string();
+                                let result = json!({
+                                    "schema": SCHEMA_GEN_RESULT,
+                                    "schemaVersion": SCHEMA_VERSION,
+                                    "id": gen_id_for_job,
+                                    "state": "failed",
+                                    "decode": "unsupported",
+                                    "startedAt": started,
+                                    "finishedAt": finished,
+                                    "audio": null,
+                                    "score": null,
+                                    "error": err
+                                });
+                                atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                                return Err(err);
+                            }
+                            let score = json!({
+                                "path": "score.abc",
+                                "sha256": sha256_file(&score_path)?
+                            });
+                            let result = json!({
+                                "schema": SCHEMA_GEN_RESULT,
+                                "schemaVersion": SCHEMA_VERSION,
+                                "id": gen_id_for_job,
+                                "state": "score_only",
+                                "decode": "unsupported",
+                                "startedAt": started,
+                                "finishedAt": finished,
+                                "audio": null,
+                                "score": score,
+                                "semanticTruncated": semantic_truncated,
+                                "semanticPath": if has_semantic { Some("semantic.json") } else { None },
+                                "error": null
+                            });
+                            atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                            write_checksums(&gen_dir_for_job)?;
+                            queue_ref.set_state(
+                                "score_only",
+                                "Partition générée (sans audio)",
+                                Some(project_id_for_job.clone()),
+                            );
+                            return Ok(0i64);
+                        }
+
+                        let wav_bytes = match AudioCppServer::extract_wav_bytes(&response) {
+                            Ok(b) => b,
+                            Err(e) => {
+                                let result = json!({
+                                    "schema": SCHEMA_GEN_RESULT,
+                                    "schemaVersion": SCHEMA_VERSION,
+                                    "id": gen_id_for_job,
+                                    "state": "failed",
+                                    "decode": "unsupported",
+                                    "startedAt": started,
+                                    "finishedAt": finished,
+                                    "audio": null,
+                                    "score": null,
+                                    "error": e
+                                });
+                                atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                                return Err(e);
+                            }
+                        };
+                        std::fs::write(&out_wav, &wav_bytes).map_err(|e| e.to_string())?;
+                        if !out_wav.exists() {
+                            let err = "WAV de génération absent après l'appel.".to_string();
+                            let result = json!({
+                                "schema": SCHEMA_GEN_RESULT,
+                                "schemaVersion": SCHEMA_VERSION,
+                                "id": gen_id_for_job,
+                                "state": "failed",
+                                "decode": "unsupported",
+                                "startedAt": started,
+                                "finishedAt": finished,
+                                "audio": null,
+                                "score": null,
+                                "error": err
+                            });
+                            atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                            return Err(err);
+                        }
+                        let duration = wav_duration_ms(&out_wav).unwrap_or(0);
+                        let audio_sha = sha256_file(&out_wav)?;
+                        let score = if score_path.exists() {
+                            json!({
+                                "path": "score.abc",
+                                "sha256": sha256_file(&score_path)?
+                            })
+                        } else {
+                            json!({ "path": "score.abc", "sha256": null })
+                        };
+                        let result = json!({
+                            "schema": SCHEMA_GEN_RESULT,
+                            "schemaVersion": SCHEMA_VERSION,
+                            "id": gen_id_for_job,
+                            "state": "generated",
+                            "decode": "unsupported",
+                            "startedAt": started,
+                            "finishedAt": finished,
+                            "audio": {
+                                "path": "audio.wav",
+                                "sampleRate": SAMPLE_RATE,
+                                "channels": CHANNELS,
+                                "durationMs": duration,
+                                "sha256": audio_sha
+                            },
+                            "score": score,
+                            "semanticTruncated": semantic_truncated,
+                            "semanticPath": if has_semantic { Some("semantic.json") } else { None },
+                            "error": null
+                        });
+                        atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                        write_checksums(&gen_dir_for_job)?;
+                        queue_ref.set_state(
+                            "generated",
+                            "Génération terminée",
+                            Some(project_id_for_job.clone()),
+                        );
+                        Ok(duration)
+                    }
+                    Err(e) => {
+                        let result = json!({
+                            "schema": SCHEMA_GEN_RESULT,
+                            "schemaVersion": SCHEMA_VERSION,
+                            "id": gen_id_for_job,
+                            "state": "failed",
+                            "decode": "unsupported",
+                            "startedAt": started,
+                            "finishedAt": finished,
+                            "audio": null,
+                            "score": null,
+                            "error": e
+                        });
+                        atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                        Err(e)
+                    }
+                }
+            },
+        )
+        .await;
+
+    let duration = match result {
+        Ok(duration) => {
+            atomic_write_json(
+                &gen_dir.join("job.json"),
+                &json!({
+                    "id": gen_id,
+                    "projectId": id,
+                    "kind": job_kind,
+                    "state": "completed",
+                    "updatedAt": now_iso(),
+                }),
+            )?;
+            duration
+        }
+        Err(error) => {
+            atomic_write_json(
+                &gen_dir.join("job.json"),
+                &json!({
+                    "id": gen_id,
+                    "projectId": id,
+                    "kind": job_kind,
+                    "state": if error == "cancelled" { "cancelled" } else { "failed" },
+                    "error": error,
+                    "updatedAt": now_iso(),
+                }),
+            )?;
+            return Err(error);
+        }
+    };
+    doc.active_generation_id = Some(gen_id.clone());
+    // Detach separation when new take
+    doc.active_separation_id = None;
+    doc.active_mix_id = None;
+    doc.updated_at = now_iso();
+    save_project(&folder, &doc)?;
+    let mut row = library_row_from_project(&folder, &doc);
+    if duration > 0 {
+        row.duration_ms = Some(duration);
+    }
+    upsert_library_row(&row)?;
+    Ok(doc)
+}
+
+/// Render audio from an existing generation's immutable `score.abc`.
+/// Sets `parentGenerationId` to the source gen; never uses `stop_after`.
+#[tauri::command]
+pub async fn render_from_generation(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    source_gen_id: String,
+    form: FormInput,
+) -> Result<ProjectDoc, String> {
+    let mut form = form;
+    // Rendering from a score is a fresh audio take, not a semantic continuation.
+    form.continuation_generation_id = None;
+    start_generation(state, id, form, None, None, Some(source_gen_id)).await
+}
+
+fn resolve_lora_slot_provenance(
+    path_opt: &mut Option<String>,
+    scale: f32,
+    slot: &str,
+    warnings: &mut Vec<String>,
+) -> Option<serde_json::Value> {
+    let raw = path_opt.clone()?;
+    let path = PathBuf::from(&raw);
+    if !path.is_file() {
+        warnings.push(format!(
+            "Adaptateur LoRA {slot} introuvable ({raw}) — ignoré pour cette génération. Chemin standard sans LoRA."
+        ));
+        *path_opt = None;
+        return None;
+    }
+    let sha = match sha256_file(&path) {
+        Ok(h) => h,
+        Err(e) => {
+            warnings.push(format!(
+                "Adaptateur LoRA {slot} illisible ({raw}) : {e} — ignoré. Génération standard sans LoRA."
+            ));
+            *path_opt = None;
+            return None;
+        }
+    };
+    let filename = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(&raw)
+        .to_string();
+    // Prefer catalog pack id when path is under models/lora/<packId>/…
+    let pack_id = path
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .filter(|id| !id.is_empty() && *id != "imported" && *id != "lora")
+        .map(|s| s.to_string());
+    Some(json!({
+        "slot": slot,
+        "path": path.display().to_string(),
+        "filename": filename,
+        "sha256": sha,
+        "scale": scale,
+        "packId": pack_id,
+        "version": pack_id,
+    }))
+}
+
+/// Resolve LoRA adapters actually sent to audio.cpp for this generation.
+/// Missing/corrupt adapters are omitted (vanilla path) with a clear warning — never blocks gen.
+fn resolve_lora_provenance_for_generation(
+    settings: &mut AppSettings,
+) -> (serde_json::Value, Vec<String>) {
+    let mut warnings: Vec<String> = Vec::new();
+    let mut adapters = serde_json::Map::new();
+
+    if let Some(entry) = resolve_lora_slot_provenance(
+        &mut settings.yue2_ar_lora,
+        settings.yue2_ar_lora_scale,
+        "ar",
+        &mut warnings,
+    ) {
+        adapters.insert("ar".into(), entry);
+    }
+    if let Some(entry) = resolve_lora_slot_provenance(
+        &mut settings.yue2_nar_lora,
+        settings.yue2_nar_lora_scale,
+        "nar",
+        &mut warnings,
+    ) {
+        adapters.insert("nar".into(), entry);
+    }
+
+    let provenance = if adapters.is_empty() {
+        json!(null)
+    } else {
+        json!({
+            "adapters": adapters,
+            "arScale": settings.yue2_ar_lora_scale,
+            "narScale": settings.yue2_nar_lora_scale
+        })
+    };
+    (provenance, warnings)
+}
+
+fn normalize_sha256_hex(raw: &str) -> Option<String> {
+    let s = raw.trim().to_ascii_lowercase();
+    if s.len() == 64 && s.chars().all(|c| c.is_ascii_hexdigit()) {
+        Some(s)
+    } else {
+        None
+    }
+}
+
+fn verify_cache_file_sha256(path: &Path, expected: &str) -> Result<(), String> {
+    let want = normalize_sha256_hex(expected)
+        .ok_or_else(|| format!("Hash SHA-256 catalogue invalide (64 hex attendus) : {expected}"))?;
+    let got = sha256_file(path)?;
+    if got != want {
+        let _ = std::fs::remove_file(path);
+        return Err(format!(
+            "Fichier LoRA corrompu ou hash incorrect pour {} (attendu {want}, obtenu {got}). Le fichier a été retiré. La génération standard sans LoRA reste disponible.",
+            path.display()
+        ));
+    }
+    Ok(())
+}
+
+/// Opt-in download into the user cache (LoRA packs). Requires CC BY-NC acceptance.
+/// Never called by the first-build installer. Verifies SHA-256 when the catalog provides one.
+#[tauri::command]
+pub async fn download_cache_file(req: DownloadCacheFileRequest) -> Result<String, String> {
+    let settings = load_settings()?;
+    if !settings.cc_by_nc_accepted {
+        return Err("Accepter CC BY-NC 4.0 avant tout téléchargement optionnel de LoRA.".into());
+    }
+    let rel = req.relative_cache_path.replace('\\', "/");
+    if !rel.starts_with("models/lora/") || rel.contains("..") {
+        return Err("Chemin cache invalide (models/lora/… uniquement).".into());
+    }
+    if !(req.url.starts_with("https://huggingface.co/") || req.url.starts_with("https://hf.co/")) {
+        return Err("URL refusée : hôte Hugging Face uniquement.".into());
+    }
+
+    let dest = PathBuf::from(&settings.cache_dir).join(&rel);
+    if let Some(parent) = dest.parent() {
+        ensure_dir(parent).map_err(|e| e.to_string())?;
+    }
+    if dest.is_file() {
+        if let Some(ref expected) = req.expected_sha256 {
+            verify_cache_file_sha256(&dest, expected)?;
+        }
+        return Ok(dest.display().to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(600))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .get(&req.url)
+        .send()
+        .await
+        .map_err(|e| format!("Téléchargement échoué : {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!(
+            "Téléchargement HTTP {} pour {} — pack absent ou inaccessible. La génération standard sans LoRA reste disponible.",
+            resp.status(),
+            req.url
+        ));
+    }
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| format!("Lecture réponse : {e}"))?;
+    let tmp = dest.with_extension("part");
+    std::fs::write(&tmp, &bytes).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
+    if let Some(ref expected) = req.expected_sha256 {
+        verify_cache_file_sha256(&dest, expected)?;
+    }
+    Ok(dest.display().to_string())
+}
+
+#[tauri::command]
+pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
+    let folder = project_folder(&id).join("generations");
+    if !folder.exists() {
+        return Ok(vec![]);
+    }
+    let mut out = Vec::new();
+    let mut entries: Vec<_> = std::fs::read_dir(&folder)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .collect();
+    entries.sort_by_key(|e| e.file_name());
+    for entry in entries {
+        let req_path = entry.path().join("request.json");
+        let res_path = entry.path().join("result.json");
+        if !req_path.exists() {
+            continue;
+        }
+        let req: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(req_path).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
+        let (state, has_score, semantic_truncated) = if res_path.exists() {
+            let res: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(&res_path).map_err(|e| e.to_string())?,
+            )
+            .map_err(|e| e.to_string())?;
+            let st = res
+                .get("state")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string();
+            let score = entry.path().join("score.abc").exists();
+            (
+                st,
+                score,
+                res.get("semanticTruncated").and_then(|v| v.as_bool()),
+            )
+        } else {
+            let job_state = serde_json::from_slice::<serde_json::Value>(
+                &std::fs::read(entry.path().join("job.json")).unwrap_or_default(),
+            )
+            .ok()
+            .and_then(|j| j.get("state").and_then(|v| v.as_str()).map(str::to_string))
+            .unwrap_or_else(|| "interrupted".into());
+            (job_state, false, None)
+        };
+        let gen_id = req
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let audio = entry.path().join("audio.wav");
+        let semantic_frames = std::fs::read(entry.path().join("semantic.json"))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<Vec<u32>>(&bytes).ok());
+        out.push(GenerationSummary {
+            id: gen_id,
+            created_at: req
+                .get("createdAt")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .into(),
+            seed: req.get("seed").and_then(|v| v.as_u64()).unwrap_or(0),
+            cot: req.get("cot").and_then(|v| v.as_str()).unwrap_or("").into(),
+            state,
+            has_score,
+            parent_generation_id: req
+                .get("parentGenerationId")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            audio_path: if audio.is_file() {
+                Some(audio.display().to_string())
+            } else {
+                None
+            },
+            semantic_truncated,
+            can_continue: semantic_truncated == Some(true)
+                && semantic_frames.as_ref().is_some_and(|frames| {
+                    !frames.is_empty() && frames.iter().all(|&frame| frame < 32768)
+                }),
+        });
+    }
+    Ok(out)
+}
+
+/// Artefacts résolus pour une continuation mid-song (`semantic_prefix_file`).
+#[derive(Debug)]
+pub(crate) struct ResolvedSemanticPrefix {
+    pub semantic_path: PathBuf,
+    pub frame_count: usize,
+    pub token_ceiling: usize,
+    /// Score ABC du parent, chargé si `cot != "off"` et qu'aucun ABC n'était fourni.
+    pub parent_score_abc: Option<String>,
+}
+
+/// Gate desktop pour `continuationGenerationId` : exige `result.json` +
+/// `semantic.json`, `semanticTruncated=true`, et un préfixe sous le plafond YuE2.
+pub(crate) fn resolve_semantic_prefix_for_continuation(
+    parent_dir: &Path,
+    parent_id: &str,
+    cot: &str,
+    existing_abc: Option<&str>,
+) -> Result<ResolvedSemanticPrefix, String> {
+    let suffix = parent_id.strip_prefix("gen-").unwrap_or("");
+    if suffix.is_empty() || !suffix.chars().all(|c| c.is_ascii_digit()) {
+        return Err("Identifiant de génération parent invalide.".into());
+    }
+    let semantic = parent_dir.join("semantic.json");
+    if !parent_dir.join("result.json").is_file() || !semantic.is_file() {
+        return Err(
+            "Cette génération n’a pas d’artefact sémantique utilisable pour continuer.".into(),
+        );
+    }
+    let parent_result: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(parent_dir.join("result.json")).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    if parent_result
+        .get("semanticTruncated")
+        .and_then(|v| v.as_bool())
+        != Some(true)
+    {
+        return Err("La continuation est réservée aux générations tronquées.".into());
+    }
+
+    let mut parent_score_abc = None;
+    if cot != "off" {
+        let mut abc = existing_abc.map(str::to_string).filter(|s| !s.is_empty());
+        if abc.is_none() {
+            let score_path = parent_dir.join("score.abc");
+            if score_path.is_file() {
+                abc = Some(std::fs::read_to_string(score_path).map_err(|e| e.to_string())?);
+            }
+        }
+        if abc.is_none() {
+            return Err(
+                "Cette continuation en mode mélodie nécessite le score ABC de la prise source."
+                    .into(),
+            );
+        }
+        if existing_abc
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .is_none()
+        {
+            parent_score_abc = abc;
+        }
+    }
+
+    let prefix: Vec<u32> =
+        serde_json::from_slice(&std::fs::read(&semantic).map_err(|e| e.to_string())?)
+            .map_err(|e| format!("Tokens de continuation invalides : {e}"))?;
+    let frame_count = prefix.len();
+    let token_ceiling = (SEMANTIC_MAX_DURATION_SEC * SEMANTIC_HZ) as usize;
+    if frame_count >= token_ceiling {
+        return Err("Cette prise a déjà atteint la durée maximale prévue pour YuE2.".into());
+    }
+    Ok(ResolvedSemanticPrefix {
+        semantic_path: semantic,
+        frame_count,
+        token_ceiling,
+        parent_score_abc,
+    })
+}
+
+#[cfg(test)]
+mod continuation_tests {
+    use super::*;
+    use std::fs;
+
+    fn temp_dir(label: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "song-maker-continuation-{label}-{}",
+            uuid::Uuid::new_v4()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn write_parent_gen(
+        root: &Path,
+        truncated: bool,
+        with_semantic: bool,
+        with_score: bool,
+        frames: &[u32],
+    ) {
+        let gen = root.join("generations").join("gen-001");
+        fs::create_dir_all(&gen).unwrap();
+        fs::write(
+            gen.join("result.json"),
+            serde_json::json!({
+                "state": "complete",
+                "semanticTruncated": truncated
+            })
+            .to_string(),
+        )
+        .unwrap();
+        if with_semantic {
+            fs::write(
+                gen.join("semantic.json"),
+                serde_json::to_string(frames).unwrap(),
+            )
+            .unwrap();
+        }
+        if with_score {
+            fs::write(gen.join("score.abc"), "X:1\nK:C\nC").unwrap();
+        }
+    }
+
+    #[test]
+    fn accepts_truncated_generation_with_semantic_json() {
+        let root = temp_dir("ok");
+        write_parent_gen(&root, true, true, true, &[1, 2, 3, 4]);
+        let parent = root.join("generations").join("gen-001");
+        let resolved =
+            resolve_semantic_prefix_for_continuation(&parent, "gen-001", "full", None).unwrap();
+        assert_eq!(resolved.frame_count, 4);
+        assert_eq!(resolved.semantic_path, parent.join("semantic.json"));
+        assert!(resolved.parent_score_abc.is_some());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn refuses_when_semantic_json_missing() {
+        let root = temp_dir("missing-semantic");
+        write_parent_gen(&root, true, false, true, &[]);
+        let parent = root.join("generations").join("gen-001");
+        let err =
+            resolve_semantic_prefix_for_continuation(&parent, "gen-001", "full", None).unwrap_err();
+        assert!(err.contains("artefact sémantique"));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn refuses_when_source_generation_is_not_truncated() {
+        let root = temp_dir("not-truncated");
+        write_parent_gen(&root, false, true, true, &[10, 20]);
+        let parent = root.join("generations").join("gen-001");
+        let err = resolve_semantic_prefix_for_continuation(&parent, "gen-001", "melody", None)
+            .unwrap_err();
+        assert!(err.contains("tronquées"));
+        let _ = fs::remove_dir_all(root);
+    }
+}
