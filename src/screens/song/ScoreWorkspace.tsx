@@ -178,37 +178,39 @@ export function ScoreWorkspace({
         hidden={scoreMode !== "reprise"}
         className="sheetsage-section"
       >
-        <SheetSage2Panel
-          projectId={project.id}
-          form={form}
-          mix={mix}
-          busy={busy}
-          hideTitle
-          playbackSeconds={playback?.current ?? 0}
-          playbackReady={Boolean(playback?.ready)}
-          onSeekPlayback={playback?.seek}
-          onOpenScoreDraft={onSheetsageOpenScoreDraft}
-          onConfirmGenerate={async (confirmedAbc, cot) => {
-            setBusy(true);
-            setError(null);
-            try {
-              const formForCall: FormInput = { ...form, cot };
-              await api.startGeneration(
-                project.id,
-                formForCall,
-                confirmedAbc,
-                {
-                  sourceGenerationId: project.activeGenerationId ?? null,
-                },
-              );
-              await openProject(project.id);
-            } catch (e) {
-              setError(String(e));
-            } finally {
-              setBusy(false);
-            }
-          }}
-        />
+        {scoreMode === "reprise" && (
+          <SheetSage2Panel
+            projectId={project.id}
+            form={form}
+            mix={mix}
+            busy={busy}
+            hideTitle
+            playbackSeconds={playback?.current ?? 0}
+            playbackReady={Boolean(playback?.ready)}
+            onSeekPlayback={playback?.seek}
+            onOpenScoreDraft={onSheetsageOpenScoreDraft}
+            onConfirmGenerate={async (confirmedAbc, cot) => {
+              setBusy(true);
+              setError(null);
+              try {
+                const formForCall: FormInput = { ...form, cot };
+                await api.startGeneration(
+                  project.id,
+                  formForCall,
+                  confirmedAbc,
+                  {
+                    sourceGenerationId: project.activeGenerationId ?? null,
+                  },
+                );
+                await openProject(project.id);
+              } catch (e) {
+                setError(String(e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+        )}
       </div>
     </section>
   );

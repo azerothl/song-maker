@@ -402,29 +402,31 @@ export function ScorePanel({
             aria-labelledby="score-view-staff"
             hidden={viewMode !== "staff"}
           >
-            {staffAbc?.ok ? (
-              <AbcStaffView
-                abc={staffAbc.abc}
-                warnings={staffAbc.warnings}
-                playbackSeconds={playbackSeconds}
-                playbackReady={playbackReady}
-                onSeek={onSeekPlayback}
-              />
-            ) : (
-              <div className="score-staff-fallback">
-                <p className="hint" role="alert">
-                  {staffAbc?.error ?? t("score.staff.unavailable")}
-                </p>
-                <p className="hint">{t("score.staff.switchPiano")}</p>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setViewMode("piano")}
-                >
-                  {t("score.view.piano")}
-                </button>
-              </div>
-            )}
+            {/* Mount staff only when visible: abcjs SVG work is the open-tab cost. */}
+            {viewMode === "staff" &&
+              (staffAbc?.ok ? (
+                <AbcStaffView
+                  abc={staffAbc.abc}
+                  warnings={staffAbc.warnings}
+                  playbackSeconds={playbackSeconds}
+                  playbackReady={playbackReady}
+                  onSeek={onSeekPlayback}
+                />
+              ) : (
+                <div className="score-staff-fallback">
+                  <p className="hint" role="alert">
+                    {staffAbc?.error ?? t("score.staff.unavailable")}
+                  </p>
+                  <p className="hint">{t("score.staff.switchPiano")}</p>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setViewMode("piano")}
+                  >
+                    {t("score.view.piano")}
+                  </button>
+                </div>
+              ))}
           </div>
 
           <div
@@ -433,6 +435,7 @@ export function ScorePanel({
             aria-labelledby="score-view-piano"
             hidden={viewMode !== "piano"}
           >
+            {/* Lazy: SoftSynth + wide piano grid must not run on staff open (#113). */}
             {viewMode === "piano" && (
               <>
                 <PianoRoll
@@ -463,22 +466,26 @@ export function ScorePanel({
             aria-labelledby="score-view-abc"
             hidden={viewMode !== "abc"}
           >
-            {staffAbc?.ok ? (
-              <AbcRawPreview abc={staffAbc.abc} />
-            ) : abcPreview ? (
-              <AbcRawPreview abc={abcPreview} />
-            ) : (
-              <p className="hint">{t("score.view.abcEmpty")}</p>
-            )}
-            {staffAbc && !staffAbc.ok && staffAbc.issues.length > 0 && (
-              <ul className="score-issues">
-                {staffAbc.issues.map((issue, i) => (
-                  <li key={`staff-i-${i}`} className={issue.severity}>
-                    {issue.message}
-                  </li>
-                ))}
-              </ul>
-            )}
+            {viewMode === "abc" &&
+              (staffAbc?.ok ? (
+                <AbcRawPreview abc={staffAbc.abc} />
+              ) : abcPreview ? (
+                <AbcRawPreview abc={abcPreview} />
+              ) : (
+                <p className="hint">{t("score.view.abcEmpty")}</p>
+              ))}
+            {viewMode === "abc" &&
+              staffAbc &&
+              !staffAbc.ok &&
+              staffAbc.issues.length > 0 && (
+                <ul className="score-issues">
+                  {staffAbc.issues.map((issue, i) => (
+                    <li key={`staff-i-${i}`} className={issue.severity}>
+                      {issue.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
           </div>
 
           {validation && !validation.ok && (

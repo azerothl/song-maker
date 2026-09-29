@@ -1936,6 +1936,13 @@ details[open] > summary {
   padding: 0.35rem;
 }
 
+.abc-staff-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .abc-staff-paper {
   min-width: 100%;
   color: var(--text);
