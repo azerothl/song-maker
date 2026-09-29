@@ -535,7 +535,19 @@ option {
 .btn.primary {
   background: linear-gradient(180deg, var(--accent), var(--accent-2));
   border-color: transparent;
-  color: white;
+  /* Dark text on light accent gradient — WCAG 2.2 AA (≥ 4.5:1), #186. */
+  color: #151827;
+}
+
+.btn.primary:disabled {
+  /* Override .btn:disabled opacity: paint-compositing at 0.45 drops below 4.5:1. */
+  opacity: 1;
+  color: #151827;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 62%, white),
+    color-mix(in srgb, var(--accent-2) 62%, white)
+  );
 }
 
 .btn.ghost {

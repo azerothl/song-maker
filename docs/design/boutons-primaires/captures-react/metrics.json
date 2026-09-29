@@ -1,0 +1,213 @@
+{
+  "aaMin": 4.5,
+  "screens": [
+    {
+      "screen": "Bibliothèque",
+      "selector": ".panel.library .btn.primary",
+      "label": "Nouveau morceau",
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "accent",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "accent-2",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "accent",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "accent-2",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "accent",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "accent-2",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "disabled-top",
+              "backgroundCss": "color(srgb 0.856549 0.788471 1)",
+              "backgroundHex": "#dac9ff",
+              "ratio": 11.56,
+              "pass": true
+            },
+            {
+              "stop": "disabled-bottom",
+              "backgroundCss": "color(srgb 0.786039 0.717961 0.987843)",
+              "backgroundHex": "#c8b7fc",
+              "ratio": 9.76,
+              "pass": true
+            }
+          ],
+          "minRatio": 9.76,
+          "pass": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "screen": "Créer",
+      "selector": ".song-create-generate-btn",
+      "label": "Générer",
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "accent",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "accent-2",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "accent",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "accent-2",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "accent",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "accent-2",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "disabled-top",
+              "backgroundCss": "color(srgb 0.856549 0.788471 1)",
+              "backgroundHex": "#dac9ff",
+              "ratio": 11.56,
+              "pass": true
+            },
+            {
+              "stop": "disabled-bottom",
+              "backgroundCss": "color(srgb 0.786039 0.717961 0.987843)",
+              "backgroundHex": "#c8b7fc",
+              "ratio": 9.76,
+              "pass": true
+            }
+          ],
+          "minRatio": 9.76,
+          "pass": true
+        }
+      ],
+      "pass": true
+    }
+  ]
+}
