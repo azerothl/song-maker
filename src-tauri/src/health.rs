@@ -1,5 +1,7 @@
 use crate::library::load_settings;
-use crate::models::HealthSnapshot;
+use crate::models::{
+    HealthSnapshot, SetupGpuInfo, GPU_ACCEL_APPLE_METAL, GPU_ACCEL_NONE, GPU_ACCEL_NVIDIA,
+};
 use crate::paths::{htdemucs_path, yue2_dir};
 use crate::pins::*;
 use std::path::{Path, PathBuf};
@@ -40,6 +42,30 @@ fn run_nvidia_smi(bin: &Path) -> Option<std::process::Output> {
     cmd.output().ok()
 }
 
+/// Parse la première ligne CSV de `nvidia-smi --query-gpu=name,driver_version,memory.total`.
+pub fn parse_nvidia_smi_line(line: &str) -> Option<(String, Option<String>, Option<u64>)> {
+    let line = line.trim();
+    if line.is_empty() {
+        return None;
+    }
+    let parts: Vec<&str> = line.split(',').map(|s| s.trim()).collect();
+    let name = parts
+        .first()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())?;
+    let driver = parts
+        .get(1)
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+    let vram = parts.get(2).and_then(|s| {
+        let cleaned = s.replace("MiB", "").replace("MB", "").trim().to_string();
+        cleaned.parse::<f64>().ok().map(|v| v as u64)
+    });
+    Some((name, driver, vram))
+}
+
 pub fn detect_gpu() -> (bool, Option<String>, Option<String>, Option<u64>) {
     for bin in nvidia_smi_candidates() {
         let Some(output) = run_nvidia_smi(&bin) else {
@@ -49,30 +75,78 @@ pub fn detect_gpu() -> (bool, Option<String>, Option<String>, Option<u64>) {
             continue;
         }
         let text = String::from_utf8_lossy(&output.stdout);
-        let line = text.lines().next().unwrap_or("").trim();
-        if line.is_empty() {
-            continue;
-        }
-        let parts: Vec<&str> = line.split(',').map(|s| s.trim()).collect();
-        let name = parts
-            .first()
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string());
-        let driver = parts
-            .get(1)
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string());
-        let vram = parts.get(2).and_then(|s| {
-            let cleaned = s.replace("MiB", "").replace("MB", "").trim().to_string();
-            cleaned.parse::<f64>().ok().map(|v| v as u64)
-        });
-        if name.is_some() {
-            return (true, name, driver, vram);
+        let line = text.lines().next().unwrap_or("");
+        if let Some((name, driver, vram)) = parse_nvidia_smi_line(line) {
+            return (true, Some(name), driver, vram);
         }
     }
     (false, None, None, None)
+}
+
+pub fn suggest_model_pack(vram_mib: Option<u64>, acceleration_kind: &str) -> (String, String) {
+    if acceleration_kind == GPU_ACCEL_APPLE_METAL {
+        return (
+            "q4".into(),
+            "Apple Metal est disponible sur ce Mac. Le pack Q4 est recommandé par défaut \
+             (mémoire unifiée non mesurée par l’assistant)."
+                .into(),
+        );
+    }
+    if vram_mib.unwrap_or(0) >= VRAM_Q8_THRESHOLD_MIB {
+        return (
+            "q8".into(),
+            format!(
+                "VRAM détectée : {} Go — au-dessus du seuil de {} Go pour le pack Q8.",
+                vram_mib.unwrap_or(0) / 1024,
+                VRAM_Q8_THRESHOLD_MIB / 1024
+            ),
+        );
+    }
+    let vram_go = vram_mib.map(|v| v / 1024);
+    let reason = if let Some(go) = vram_go {
+        format!(
+            "VRAM détectée : {} Go — en dessous du seuil de {} Go pour le pack Q8 ; Q4 recommandé.",
+            go,
+            VRAM_Q8_THRESHOLD_MIB / 1024
+        )
+    } else if acceleration_kind == GPU_ACCEL_NVIDIA {
+        "GPU NVIDIA détecté sans mesure fiable de la VRAM — pack Q4 recommandé par prudence.".into()
+    } else {
+        "Aucun GPU compatible détecté — le pack Q4 est le plus léger si vous installez quand même."
+            .into()
+    };
+    ("q4".into(), reason)
+}
+
+pub fn gpu_setup_info() -> SetupGpuInfo {
+    if cfg!(target_os = "macos") {
+        let (pack, reason) = suggest_model_pack(None, GPU_ACCEL_APPLE_METAL);
+        return SetupGpuInfo {
+            acceleration_kind: GPU_ACCEL_APPLE_METAL.into(),
+            gpu_name: Some("Apple Metal".into()),
+            driver_version: None,
+            vram_mib: None,
+            suggested_pack: pack,
+            suggested_pack_reason_fr: reason,
+            acceleration_available: true,
+        };
+    }
+    let (nvidia_ok, name, driver, vram) = detect_gpu();
+    let kind = if nvidia_ok {
+        GPU_ACCEL_NVIDIA
+    } else {
+        GPU_ACCEL_NONE
+    };
+    let (pack, reason) = suggest_model_pack(vram, kind);
+    SetupGpuInfo {
+        acceleration_kind: kind.into(),
+        gpu_name: name,
+        driver_version: driver,
+        vram_mib: vram,
+        suggested_pack: pack,
+        suggested_pack_reason_fr: reason,
+        acceleration_available: kind != GPU_ACCEL_NONE,
+    }
 }
 
 /// Présence seule — pas de SHA-256 ici (les archives/GGUF font plusieurs Go ;
@@ -83,16 +157,8 @@ fn artifact_present(path: &Path) -> bool {
 
 pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
     let settings = load_settings().unwrap_or_else(|_| crate::library::default_settings());
-    let (cuda, gpu_name, driver, vram) = if cfg!(target_os = "macos") {
-        (true, Some("Apple Metal".into()), None, None)
-    } else {
-        detect_gpu()
-    };
-    let suggested = if vram.unwrap_or(0) >= VRAM_Q8_THRESHOLD_MIB {
-        "q8"
-    } else {
-        "q4"
-    };
+    let gpu = gpu_setup_info();
+    let cuda = gpu.acceleration_available;
 
     let cache = PathBuf::from(&settings.cache_dir);
     let binary_ok = crate::audiocpp::AudioCppServer::has_server_binary(&cache);
@@ -122,7 +188,7 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
         })
         .unwrap_or(false);
 
-    let message = if !cuda {
+    let message = if gpu.acceleration_kind == GPU_ACCEL_NONE {
         "Accélération indisponible. Song Maker requiert NVIDIA CUDA sous Windows/Linux, ou Apple Metal sous macOS.".into()
     } else if !models_ok {
         "Télécharger YuE2 Q8 (ou Q4) et HTDemucs.".into()
@@ -136,14 +202,75 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
 
     HealthSnapshot {
         cuda_available: cuda,
-        gpu_name,
-        driver_version: driver,
-        vram_mib: vram,
-        suggested_pack: suggested.into(),
+        acceleration_kind: gpu.acceleration_kind,
+        gpu_name: gpu.gpu_name,
+        driver_version: gpu.driver_version,
+        vram_mib: gpu.vram_mib,
+        suggested_pack: gpu.suggested_pack,
+        suggested_pack_reason_fr: gpu.suggested_pack_reason_fr,
         models_ok,
         binary_ok,
         server_healthy,
         server_url: server_url.map(|s| s.to_string()),
         message,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_nvidia_smi_typical_line() {
+        let (name, driver, vram) =
+            parse_nvidia_smi_line("NVIDIA GeForce RTX 4090, 565.90, 24564").expect("parsed");
+        assert_eq!(name, "NVIDIA GeForce RTX 4090");
+        assert_eq!(driver.as_deref(), Some("565.90"));
+        assert_eq!(vram, Some(24564));
+    }
+
+    #[test]
+    fn parse_nvidia_smi_with_mib_suffix() {
+        let (_, _, vram) = parse_nvidia_smi_line("NVIDIA TITAN, 535.00, 12288 MiB").unwrap();
+        assert_eq!(vram, Some(12288));
+    }
+
+    #[test]
+    fn suggest_q8_when_vram_above_threshold() {
+        let (pack, reason) = suggest_model_pack(Some(VRAM_Q8_THRESHOLD_MIB), GPU_ACCEL_NVIDIA);
+        assert_eq!(pack, "q8");
+        assert!(reason.contains("Q8"));
+    }
+
+    #[test]
+    fn suggest_q4_on_apple_metal_never_none() {
+        let info = if cfg!(target_os = "macos") {
+            gpu_setup_info()
+        } else {
+            let (pack, reason) = suggest_model_pack(None, GPU_ACCEL_APPLE_METAL);
+            SetupGpuInfo {
+                acceleration_kind: GPU_ACCEL_APPLE_METAL.into(),
+                gpu_name: Some("Apple Metal".into()),
+                driver_version: None,
+                vram_mib: None,
+                suggested_pack: pack,
+                suggested_pack_reason_fr: reason,
+                acceleration_available: true,
+            }
+        };
+        assert_eq!(info.acceleration_kind, GPU_ACCEL_APPLE_METAL);
+        assert!(info.acceleration_available);
+        assert_ne!(info.acceleration_kind, GPU_ACCEL_NONE);
+    }
+
+    #[test]
+    fn no_gpu_profile_reports_none_on_linux_windows() {
+        if cfg!(target_os = "macos") {
+            return;
+        }
+        let info = gpu_setup_info();
+        assert!(
+            info.acceleration_kind == GPU_ACCEL_NVIDIA || info.acceleration_kind == GPU_ACCEL_NONE
+        );
     }
 }

@@ -14,6 +14,16 @@ pub fn get_health(state: tauri::State<'_, AppState>) -> HealthSnapshot {
 }
 
 #[tauri::command]
+pub fn get_setup_gpu_info() -> crate::models::SetupGpuInfo {
+    crate::health::gpu_setup_info()
+}
+
+#[tauri::command]
+pub fn get_install_plan(pack: String) -> Result<crate::models::InstallPlan, String> {
+    crate::installer::install_plan_for_pack(pack)
+}
+
+#[tauri::command]
 pub fn get_settings() -> Result<AppSettings, String> {
     load_settings()
 }

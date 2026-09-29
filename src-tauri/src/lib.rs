@@ -35,6 +35,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // Réglages, santé, installation des modèles
             commands::settings::get_health,
+            commands::settings::get_setup_gpu_info,
+            commands::settings::get_install_plan,
             commands::settings::install_required_assets,
             commands::settings::get_settings,
             commands::settings::update_settings,

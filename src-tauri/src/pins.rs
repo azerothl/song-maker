@@ -44,13 +44,53 @@ pub const YUE2_REPO: &str = "audio-cpp/Yue2-3B-GGUF";
 pub const YUE2_REVISION: &str = "eb116220931de5f373d024d48800338178c7de51";
 pub const YUE2_Q8: &str = "yue2-3b-q8_0.gguf";
 pub const YUE2_Q8_SHA: &str = "f3a9e3b197bfd05aa4ae6ab2d4b93f6d57c8cc0ea39a4af7d151f58697c7cfb6";
+/// Taille exacte du GGUF YuE2 Q8 épinglé (octets).
+pub const YUE2_Q8_BYTES: u64 = 4_264_186_432;
 pub const YUE2_Q4: &str = "yue2-3b-q4_0.gguf";
 pub const YUE2_Q4_SHA: &str = "97af67d7f800b362faee6e6bec806bddfcccb93f25fd3f9a1012724d95af6f4a";
+/// Taille exacte du GGUF YuE2 Q4 épinglé (octets).
+pub const YUE2_Q4_BYTES: u64 = 2_665_632_320;
 pub const YUE2_VAE: &str = "yue2-vae-f16.gguf";
 pub const YUE2_VAE_SHA: &str = "d4f4a05d8f291ae820cd1e43609da3fa91b56465810091a2b08c3350b751719d";
+pub const YUE2_VAE_BYTES: u64 = 265_218_656;
 
 pub const HTDEMUCS_GGUF: &str = "htdemucs-q8_0.gguf";
 pub const HTDEMUCS_SHA: &str = "b0f532ac6e5f373aeb11fa0df73253251e133832d9c8b9942dc58f50bc5b4388";
+pub const HTDEMUCS_BYTES: u64 = 61_940_768;
+
+/// Tailles des archives moteur audio.cpp pour l’assistant premier lancement.
+pub const ARCHIVE_WINDOWS_BYTES: u64 = 444_938_499;
+pub const ARCHIVE_WINDOWS_CUDART_BYTES: u64 = 607_273_675;
+pub const ARCHIVE_LINUX_BYTES: u64 = 65_293_844;
+pub const ARCHIVE_MACOS_ARM64_BYTES: u64 = 28_446_530;
+pub const ARCHIVE_MACOS_X64_BYTES: u64 = 30_120_475;
+
+pub const YUE2_SIDECAR_MODEL_CONFIG_BYTES: u64 = 959;
+pub const YUE2_SIDECAR_GENERATION_CONFIG_BYTES: u64 = 466;
+pub const YUE2_SIDECAR_TIKTOKEN_BYTES: u64 = 2_561_218;
+pub const YUE2_SIDECAR_VAE_CONFIG_BYTES: u64 = 1_378;
+
+pub fn yue2_sidecar_bytes(name: &str) -> Option<u64> {
+    match name {
+        "yue2-model-config.json" => Some(YUE2_SIDECAR_MODEL_CONFIG_BYTES),
+        "yue2-generation-config.json" => Some(YUE2_SIDECAR_GENERATION_CONFIG_BYTES),
+        "yue2-qwen.tiktoken" => Some(YUE2_SIDECAR_TIKTOKEN_BYTES),
+        "yue2-vae-config.json" => Some(YUE2_SIDECAR_VAE_CONFIG_BYTES),
+        _ => None,
+    }
+}
+
+pub fn platform_engine_archive_bytes() -> u64 {
+    if cfg!(target_os = "windows") {
+        ARCHIVE_WINDOWS_BYTES
+    } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
+        ARCHIVE_MACOS_ARM64_BYTES
+    } else if cfg!(target_os = "macos") {
+        ARCHIVE_MACOS_X64_BYTES
+    } else {
+        ARCHIVE_LINUX_BYTES
+    }
+}
 pub const HTDEMUCS_PACKAGE: &str = "htdemucs_q8_0";
 
 /// BS-RoFormer — optional phase-3 second separator (not in first-build installer).
