@@ -76,9 +76,9 @@ export type {
   QualityTimeOption,
 } from "./recommend.js";
 export {
-  SEPARATOR_TIME_BASELINE_MS_PER_AUDIO_SEC,
   recommendSeparator,
   recommendReasonFr,
+  unmeasuredRecommendationNoticeFr,
   formatDurationFr,
   timeLabelFr,
   buildQualityTimeOptions,

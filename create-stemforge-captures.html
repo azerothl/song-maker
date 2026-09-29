@@ -87,7 +87,7 @@
     </style>
   </head>
   <body>
-    <p class="caption">capture-166-recommend · 1280×720 · Maquette Alphonse absente</p>
+    <p class="caption">capture-166-recommend · 1280×720 · reco non mesurée + temps honnêtes</p>
     <div class="stage" id="cap-166" data-capture="separation-recommend">
       <div class="chrome">
         <aside class="side"><strong>Song Maker</strong><p class="hint">Production</p></aside>
@@ -99,30 +99,30 @@
           </div>
           <div class="panel" role="dialog" aria-label="Choisir le modèle de séparation">
             <h1>Choisir le modèle de séparation</h1>
-            <p class="hint">Recommandation selon le type de piste, avec le temps estimé pour chaque option de qualité.</p>
-            <p class="mock">Maquette Alphonse absente — interface alignée Production.</p>
+            <p class="hint">Recommandation selon le type de piste, avec le temps pour chaque option de qualité.</p>
             <fieldset>
               <legend>Type de piste</legend>
               <label><input type="radio" name="f" checked /> Mix complet</label>
               <label><input type="radio" name="f" /> Voix</label>
               <label><input type="radio" name="f" /> Batterie</label>
             </fieldset>
-            <p class="hint">Pour un mix complet, HTDemucs est recommandé.</p>
+            <p class="hint" data-testid="sep-recommend-reason">Recommandation non mesurée — deviendra un conseil après tests sur nos propres pistes. Pour un mix complet (voix, batterie, basse, accompagnement), HTDemucs est proposé.</p>
+            <p class="hint" style="color:#e8b86d" data-testid="sep-recommend-unverified-warn">Le modèle recommandé (HTDemucs) a un statut de licence « non vérifié ». Un avertissement s’affichera avant le lancement.</p>
             <div class="opt rec">
               <strong>HTDemucs (défaut)</strong> <span class="badge">Recommandé</span>
-              <div class="time" data-testid="sep-time-htdemucs">~45 s · estimation</div>
-              <span class="badge">MIT (fiche) — non vérifié après 2022</span>
+              <div class="time" data-testid="sep-time-htdemucs">— · exemple, non mesuré</div>
+              <span class="badge">! non vérifié · usage scientifique</span>
             </div>
             <div class="opt">
               <strong>Mel-Band RoFormer « Kim Vocal 2 »</strong>
-              <div class="time" data-testid="sep-time-mel_band_roformer">~90 s · estimation</div>
-              <span class="badge">MIT</span>
-              <label><input type="checkbox" /> J'ai lu la licence</label>
+              <div class="time" data-testid="sep-time-mel_band_roformer">— · exemple, non mesuré</div>
+              <span class="badge">! non vérifié · source primaire absente</span>
+              <label><input type="checkbox" /> J'ai lu la licence — Mel-Band RoFormer « Kim Vocal 2 »</label>
             </div>
             <div class="opt">
               <strong>BS-RoFormer (voix / instrumental)</strong>
-              <div class="time" data-testid="sep-time-bs_roformer">~76 s · estimation</div>
-              <span class="badge">Apache-2.0, source du checkpoint non documentée</span>
+              <div class="time" data-testid="sep-time-bs_roformer">— · exemple, non mesuré</div>
+              <span class="badge">! non vérifié · source du checkpoint non documentée</span>
             </div>
             <div class="btn-row" style="margin-top:0.8rem">
               <button class="btn">Fermer</button>

@@ -5,6 +5,7 @@ import {
   describeStemProvidersFr,
   EXCLUDED_SEPARATOR_NOTES_FR,
   formatDurationFr,
+  licenseStatusLabelFr,
   recommendReasonFr,
   recommendSeparator,
   separatorLicense,
@@ -157,9 +158,22 @@ export function SeparationRecommendDialog({
     }
   };
 
+  const recommendedId = recommendSeparator(focus);
+  const recommendedLicense = separatorLicense(recommendedId);
+  const recommendedUnverified =
+    recommendedLicense != null && recommendedLicense.status !== "verified";
+
   const selectAndRun = async () => {
     if (!settings) return;
     const provider = providers.find((p) => p.id === selected);
+    const selectedLicense = separatorLicense(selected);
+    // Avertissement avant lancement si le modèle (recommandé ou choisi) n’est pas vérifié (#166).
+    if (selectedLicense != null && selectedLicense.status !== "verified") {
+      const ok = window.confirm(
+        `${t("separate.recommend.unverifiedWarn")}\n\n${selectedLicense.noticeFr}`,
+      );
+      if (!ok) return;
+    }
     if (!provider?.runnable && selected !== "htdemucs") {
       setError(t("separate.model.unavailable"));
       return;
@@ -213,9 +227,24 @@ export function SeparationRecommendDialog({
         ))}
       </fieldset>
 
-      <p className="hint" role="status">
+      <p className="hint" role="status" data-testid="sep-recommend-reason">
         {recommendReasonFr(focus)}
       </p>
+
+      {recommendedUnverified && recommendedLicense && (
+        <p
+          className="hint warn"
+          role="status"
+          data-testid="sep-recommend-unverified-warn"
+        >
+          {t("separate.recommend.unverifiedBanner", {
+            model:
+              providers.find((p) => p.id === recommendedId)?.displayNameFr ??
+              recommendedId,
+            status: licenseStatusLabelFr(recommendedLicense.status),
+          })}
+        </p>
+      )}
 
       <ul
         className="sep-quality-list"
