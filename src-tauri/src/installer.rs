@@ -780,8 +780,8 @@ async fn install_inner(app: tauri::AppHandle, pack: String) -> Result<String, St
 #[cfg(test)]
 mod tests {
     use super::{
-        eta_from_speed, extract_engine, extract_zip, locate_extracted_server,
-        partial_path_for, DownloadSpeedTracker,
+        eta_from_speed, extract_engine, extract_zip, locate_extracted_server, partial_path_for,
+        DownloadSpeedTracker,
     };
     use std::io::Write;
     use std::path::{Path, PathBuf};
@@ -838,10 +838,7 @@ mod tests {
             .expect("q4 entry");
         assert_eq!(entry.status, "partial");
         assert_eq!(entry.received_bytes, 4096);
-        assert_eq!(
-            entry.remaining_bytes,
-            crate::pins::YUE2_Q4_BYTES - 4096
-        );
+        assert_eq!(entry.remaining_bytes, crate::pins::YUE2_Q4_BYTES - 4096);
         assert!(plan.has_partial_downloads);
         let _ = std::fs::remove_dir_all(root);
     }
