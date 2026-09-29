@@ -11,22 +11,32 @@ import {
   HTDEMUCS_6S_CAPABILITIES,
   createHtDemucs6sStemSeparator,
 } from "./htdemucs-6s.js";
+import {
+  MEL_BAND_ROFORMER_CAPABILITIES,
+  createMelBandRoFormerStemSeparator,
+} from "./mel-band-roformer.js";
 
-export type StemProviderId = "htdemucs" | "htdemucs_6s" | "bs_roformer";
+export type StemProviderId =
+  | "htdemucs"
+  | "htdemucs_6s"
+  | "bs_roformer"
+  | "mel_band_roformer";
 
 export type StemProviderConfig = {
   /** When false, BS-RoFormer stays listed but separate() must not be selected live. */
   bsRoFormerWeightsPresent: boolean;
+  melBandRoFormerWeightsPresent?: boolean;
   htdemucs6sRuntimeAvailable?: boolean;
 };
 
 const DEFAULT_CONFIG: StemProviderConfig = {
   bsRoFormerWeightsPresent: false,
+  melBandRoFormerWeightsPresent: false,
   htdemucs6sRuntimeAvailable: false,
 };
 
 export function listStemProviderIds(): StemProviderId[] {
-  return ["htdemucs", "htdemucs_6s", "bs_roformer"];
+  return ["htdemucs", "htdemucs_6s", "bs_roformer", "mel_band_roformer"];
 }
 
 export function createStemSeparator(
@@ -40,6 +50,8 @@ export function createStemSeparator(
       return createBsRoFormerStemSeparator(transport);
     case "htdemucs_6s":
       return createHtDemucs6sStemSeparator(transport);
+    case "mel_band_roformer":
+      return createMelBandRoFormerStemSeparator(transport);
     default: {
       const _exhaustive: never = id;
       throw new Error(`Unknown stem provider: ${String(_exhaustive)}`);
@@ -60,6 +72,8 @@ export function isStemProviderRunnable(
       return true;
     case "bs_roformer":
       return config.bsRoFormerWeightsPresent;
+    case "mel_band_roformer":
+      return Boolean(config.melBandRoFormerWeightsPresent);
     case "htdemucs_6s":
       return Boolean(config.htdemucs6sRuntimeAvailable);
     default: {
@@ -87,11 +101,11 @@ export function describeStemProvidersFr(
       unavailableRoles: HTDEMUCS_CAPABILITIES.unavailableRoles,
     },
     {
-      id: "htdemucs_6s",
-      displayNameFr: HTDEMUCS_6S_CAPABILITIES.displayNameFr,
-      stemLayoutNoteFr: HTDEMUCS_6S_CAPABILITIES.stemLayoutNoteFr,
-      runnable: isStemProviderRunnable("htdemucs_6s", config),
-      unavailableRoles: HTDEMUCS_6S_CAPABILITIES.unavailableRoles,
+      id: "mel_band_roformer",
+      displayNameFr: MEL_BAND_ROFORMER_CAPABILITIES.displayNameFr,
+      stemLayoutNoteFr: MEL_BAND_ROFORMER_CAPABILITIES.stemLayoutNoteFr,
+      runnable: isStemProviderRunnable("mel_band_roformer", config),
+      unavailableRoles: MEL_BAND_ROFORMER_CAPABILITIES.unavailableRoles,
     },
     {
       id: "bs_roformer",
@@ -99,6 +113,13 @@ export function describeStemProvidersFr(
       stemLayoutNoteFr: BS_ROFORMER_CAPABILITIES.stemLayoutNoteFr,
       runnable: isStemProviderRunnable("bs_roformer", config),
       unavailableRoles: BS_ROFORMER_CAPABILITIES.unavailableRoles,
+    },
+    {
+      id: "htdemucs_6s",
+      displayNameFr: HTDEMUCS_6S_CAPABILITIES.displayNameFr,
+      stemLayoutNoteFr: HTDEMUCS_6S_CAPABILITIES.stemLayoutNoteFr,
+      runnable: isStemProviderRunnable("htdemucs_6s", config),
+      unavailableRoles: HTDEMUCS_6S_CAPABILITIES.unavailableRoles,
     },
   ];
 }

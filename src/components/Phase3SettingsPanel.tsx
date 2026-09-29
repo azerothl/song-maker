@@ -10,6 +10,8 @@ import {
 } from "@song-maker/lora-packs";
 import {
   describeStemProvidersFr,
+  canDownloadSeparator,
+  separatorLicense,
   type StemProviderId,
 } from "@song-maker/stem-providers";
 import { api } from "../lib/api";
@@ -30,15 +32,20 @@ export function Phase3SettingsPanel({
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [installingHtDemucs6s, setInstallingHtDemucs6s] = useState(false);
   const [installingBsRoFormer, setInstallingBsRoFormer] = useState(false);
+  const [installingMelBand, setInstallingMelBand] = useState(false);
   const [bsProgress, setBsProgress] = useState<InstallProgress | null>(null);
   const [bsInfo, setBsInfo] = useState<Awaited<
     ReturnType<typeof api.bsRoFormerInstallInfo>
+  > | null>(null);
+  const [melInfo, setMelInfo] = useState<Awaited<
+    ReturnType<typeof api.melBandRoFormerInstallInfo>
   > | null>(null);
 
   const refreshPhase3 = async () => {
     try {
       setPhase3(await api.getPhase3Status());
       setBsInfo(await api.bsRoFormerInstallInfo());
+      setMelInfo(await api.melBandRoFormerInstallInfo());
     } catch (e) {
       setError(String(e));
     }
@@ -64,10 +71,16 @@ export function Phase3SettingsPanel({
     () =>
       describeStemProvidersFr({
         bsRoFormerWeightsPresent: phase3?.bsRoformerAvailable ?? false,
+        melBandRoFormerWeightsPresent:
+          phase3?.melBandRoformerAvailable ?? false,
         htdemucs6sRuntimeAvailable:
           phase3?.htdemucs6sRuntimeAvailable ?? false,
       }),
-    [phase3?.bsRoformerAvailable, phase3?.htdemucs6sRuntimeAvailable],
+    [
+      phase3?.bsRoformerAvailable,
+      phase3?.melBandRoformerAvailable,
+      phase3?.htdemucs6sRuntimeAvailable,
+    ],
   );
 
   if (!settings) return null;
@@ -99,7 +112,66 @@ export function Phase3SettingsPanel({
     }
   };
 
+  const installBsRoFormer = async () => {
+    if (
+      !canDownloadSeparator(
+        "bs_roformer",
+        settings?.acceptedSeparatorLicenses ??
+          phase3?.acceptedSeparatorLicenses,
+      )
+    ) {
+      setDownloadNotice(t("separate.license.blocked"));
+      return;
+    }
+    setInstallingBsRoFormer(true);
+    setDownloadNotice(null);
+    setBsProgress(null);
+    try {
+      const path = await api.installBsRoFormer();
+      await refreshPhase3();
+      setDownloadNotice(`${t("phase3.separator.bsInstallOk")}\n${path}`);
+    } catch (e) {
+      setDownloadNotice(String(e));
+    } finally {
+      setInstallingBsRoFormer(false);
+    }
+  };
+
+  const installMelBand = async () => {
+    if (
+      !canDownloadSeparator(
+        "mel_band_roformer",
+        settings?.acceptedSeparatorLicenses ??
+          phase3?.acceptedSeparatorLicenses,
+      )
+    ) {
+      setDownloadNotice(t("separate.license.blocked"));
+      return;
+    }
+    setInstallingMelBand(true);
+    setDownloadNotice(null);
+    try {
+      const path = await api.installMelBandRoFormer();
+      await refreshPhase3();
+      setDownloadNotice(`${t("phase3.separator.melInstallOk")}\n${path}`);
+    } catch (e) {
+      setDownloadNotice(String(e));
+    } finally {
+      setInstallingMelBand(false);
+    }
+  };
+
   const installHtDemucs6s = async () => {
+    if (
+      !canDownloadSeparator(
+        "htdemucs_6s",
+        settings?.acceptedSeparatorLicenses ??
+          phase3?.acceptedSeparatorLicenses,
+      )
+    ) {
+      setDownloadNotice(t("separate.license.blocked"));
+      return;
+    }
     setInstallingHtDemucs6s(true);
     setDownloadNotice(null);
     try {
@@ -113,18 +185,20 @@ export function Phase3SettingsPanel({
     }
   };
 
-  const installBsRoFormer = async () => {
-    setInstallingBsRoFormer(true);
-    setDownloadNotice(null);
-    setBsProgress(null);
+  const toggleLicense = async (id: StemProviderId, accepted: boolean) => {
+    if (!settings) return;
     try {
-      const path = await api.installBsRoFormer();
+      await api.updateSettings({
+        ...settings,
+        acceptedSeparatorLicenses: {
+          ...(settings.acceptedSeparatorLicenses ?? {}),
+          [id]: accepted,
+        },
+      });
+      await refreshSettings();
       await refreshPhase3();
-      setDownloadNotice(`${t("phase3.separator.bsInstallOk")}\n${path}`);
     } catch (e) {
-      setDownloadNotice(String(e));
-    } finally {
-      setInstallingBsRoFormer(false);
+      setError(String(e));
     }
   };
 
@@ -216,6 +290,11 @@ export function Phase3SettingsPanel({
           const selected =
             (settings.stemSeparator ?? phase3?.stemSeparator ?? "htdemucs") ===
             p.id;
+          const license = separatorLicense(p.id);
+          const accepted = Boolean(
+            settings.acceptedSeparatorLicenses?.[p.id] ??
+              phase3?.acceptedSeparatorLicenses?.[p.id],
+          );
           return (
             <label key={p.id} className="phase3-provider">
               <input
@@ -227,14 +306,37 @@ export function Phase3SettingsPanel({
               />
               <span>
                 <strong>{p.displayNameFr}</strong>
+                {license && (
+                  <>
+                    {" "}
+                    <span className="sep-license-badge">{license.badgeFr}</span>
+                  </>
+                )}
                 <br />
                 <span className="hint">{p.stemLayoutNoteFr}</span>
+                {license && (
+                  <>
+                    <br />
+                    <a href={license.sourceUrl} target="_blank" rel="noreferrer">
+                      {license.sourceLabelFr}
+                    </a>
+                  </>
+                )}
                 {!p.runnable && p.id === "bs_roformer" && (
                   <>
                     <br />
                     <span className="hint warn">
                       {t("phase3.separator.bsMissing")}
                       {phase3 ? ` — ${phase3.bsRoformerPath}` : ""}
+                    </span>
+                  </>
+                )}
+                {!p.runnable && p.id === "mel_band_roformer" && (
+                  <>
+                    <br />
+                    <span className="hint warn">
+                      {t("phase3.separator.melMissing")}
+                      {phase3 ? ` — ${phase3.melBandRoformerPath}` : ""}
                     </span>
                   </>
                 )}
@@ -246,11 +348,60 @@ export function Phase3SettingsPanel({
                     </span>
                   </>
                 )}
+                {license?.requiresAcceptBeforeDownload && !p.runnable && (
+                  <>
+                    <br />
+                    <span className="sep-license-cb">
+                      <input
+                        type="checkbox"
+                        checked={accepted}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          void toggleLicense(p.id, e.target.checked);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      {t("separate.license.accept")}
+                    </span>
+                  </>
+                )}
               </span>
             </label>
           );
         })}
       </div>
+      {!phase3?.melBandRoformerAvailable && (
+        <div className="phase3-bs-install">
+          <p className="hint">{t("phase3.separator.melInstallHint")}</p>
+          {melInfo && <p className="hint">{melInfo.licenseNoticeFr}</p>}
+          <button
+            type="button"
+            className="btn"
+            disabled={
+              installingMelBand ||
+              !canDownloadSeparator(
+                "mel_band_roformer",
+                settings.acceptedSeparatorLicenses ??
+                  phase3?.acceptedSeparatorLicenses,
+              )
+            }
+            title={
+              canDownloadSeparator(
+                "mel_band_roformer",
+                settings.acceptedSeparatorLicenses ??
+                  phase3?.acceptedSeparatorLicenses,
+              )
+                ? undefined
+                : t("separate.license.blocked")
+            }
+            onClick={() => void installMelBand()}
+          >
+            {installingMelBand
+              ? t("phase3.separator.melInstalling")
+              : t("phase3.separator.melInstall")}
+          </button>
+        </div>
+      )}
       {!phase3?.bsRoformerAvailable && (
         <div className="phase3-bs-install">
           <p className="hint">{t("phase3.separator.bsInstallHint")}</p>
@@ -267,7 +418,23 @@ export function Phase3SettingsPanel({
             <button
               type="button"
               className="btn"
-              disabled={installingBsRoFormer}
+              disabled={
+                installingBsRoFormer ||
+                !canDownloadSeparator(
+                  "bs_roformer",
+                  settings.acceptedSeparatorLicenses ??
+                    phase3?.acceptedSeparatorLicenses,
+                )
+              }
+              title={
+                canDownloadSeparator(
+                  "bs_roformer",
+                  settings.acceptedSeparatorLicenses ??
+                    phase3?.acceptedSeparatorLicenses,
+                )
+                  ? undefined
+                  : t("separate.license.blocked")
+              }
               onClick={() => void installBsRoFormer()}
             >
               {installingBsRoFormer
@@ -303,7 +470,23 @@ export function Phase3SettingsPanel({
         <button
           type="button"
           className="btn"
-          disabled={installingHtDemucs6s}
+          disabled={
+            installingHtDemucs6s ||
+            !canDownloadSeparator(
+              "htdemucs_6s",
+              settings.acceptedSeparatorLicenses ??
+                phase3?.acceptedSeparatorLicenses,
+            )
+          }
+          title={
+            canDownloadSeparator(
+              "htdemucs_6s",
+              settings.acceptedSeparatorLicenses ??
+                phase3?.acceptedSeparatorLicenses,
+            )
+              ? undefined
+              : t("separate.license.blocked")
+          }
           onClick={() => void installHtDemucs6s()}
         >
           {installingHtDemucs6s

@@ -32,6 +32,11 @@ export async function exportProjectAudio(
   format: "wav" | "flac" | "mp3",
   mix: MixDoc | null,
   sources: PlaybackSources | null,
+  options?: {
+    bitDepth?: 16 | 24;
+    bitrateKbps?: 128 | 192 | 320;
+    pack?: "folder" | "zip";
+  },
 ): Promise<string> {
   if (
     shouldUseProductionExport() &&
@@ -50,9 +55,16 @@ export async function exportProjectAudio(
       peakTrimDb: baked.peakTrimDb,
       renderPath: `mix-production-ts/${baked.path}`,
       matchMode: "approximate",
+      bitDepth: options?.bitDepth,
+      bitrateKbps: options?.bitrateKbps,
+      pack: options?.pack,
     });
   }
-  return api.exportAudio(projectId, format);
+  return api.exportAudio(projectId, format, {
+    bitDepth: options?.bitDepth,
+    bitrateKbps: options?.bitrateKbps,
+    pack: options?.pack,
+  });
 }
 
 function tracksToRenderInput(
@@ -104,6 +116,7 @@ export type StemExportOptions = {
   selectedTrackIds: string[];
   includeMaster?: boolean;
   sampleRate?: number;
+  bitDepth?: 16 | 24;
 };
 
 /**
@@ -154,6 +167,7 @@ export async function exportAlignedStems(
       renderPath: `mix-production-ts/stem/${stem.fileStem}`,
       matchMode: "approximate",
       fileStem: `stem-${stem.fileStem}`,
+      bitDepth: opts.bitDepth,
     });
     paths.push(path);
   }

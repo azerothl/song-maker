@@ -3,6 +3,7 @@ use tauri::Manager;
 mod abc_metadata;
 mod audiocpp;
 mod bs_roformer;
+mod mel_band_roformer;
 mod commands;
 mod demucs_onnx;
 mod form;
@@ -46,6 +47,9 @@ pub fn run() {
             commands::settings::install_bs_roformer,
             commands::settings::cancel_bs_roformer_install,
             commands::settings::bs_roformer_install_info,
+            commands::settings::install_mel_band_roformer,
+            commands::settings::cancel_mel_band_roformer_install,
+            commands::settings::mel_band_roformer_install_info,
             commands::settings::list_lora_adapters,
             commands::settings::import_lora_adapters,
             commands::settings::confirm_model_pack,

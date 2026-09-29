@@ -3,7 +3,10 @@ import {
   BS_ROFORMER_CAPABILITIES,
   BS_ROFORMER_PACKAGE,
   HTDEMUCS_PACKAGE,
+  MEL_BAND_ROFORMER_PACKAGE,
   STEM_DISPLAY_NAMES,
+  buildQualityTimeOptions,
+  canDownloadSeparator,
   createStemSeparator,
   describeStemProvidersFr,
   isCoreStemRole,
@@ -12,13 +15,21 @@ import {
   mapBsRoFormerStemIds,
   mapHtDemucsStemIds,
   mapHtDemucs6sStemIds,
+  recommendSeparator,
+  separatorLicense,
+  timeLabelFr,
   reliabilityForRole,
   type AudiocppSepTransport,
 } from "./index.js";
 
 describe("stem-providers", () => {
   it("lists the supported providers without colliding ids", () => {
-    expect(listStemProviderIds()).toEqual(["htdemucs", "htdemucs_6s", "bs_roformer"]);
+    expect(listStemProviderIds()).toEqual([
+      "htdemucs",
+      "htdemucs_6s",
+      "bs_roformer",
+      "mel_band_roformer",
+    ]);
   });
 
   it("pins HTDemucs package hash from the first-build contract", () => {
@@ -146,5 +157,50 @@ describe("stem-providers", () => {
     ).toBe(true);
     const rows = describeStemProvidersFr({ bsRoFormerWeightsPresent: false });
     expect(rows.find((r) => r.id === "bs_roformer")?.runnable).toBe(false);
+  });
+
+  it("pins Mel-Band RoFormer package and recommends it for vocals", () => {
+    expect(MEL_BAND_ROFORMER_PACKAGE.gguf).toBe("mel-band-roformer-q8_0.gguf");
+    expect(MEL_BAND_ROFORMER_PACKAGE.sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(recommendSeparator("vocals")).toBe("mel_band_roformer");
+    expect(recommendSeparator("mix")).toBe("htdemucs");
+    expect(recommendSeparator("drums")).toBe("htdemucs");
+    expect(
+      isStemProviderRunnable("mel_band_roformer", {
+        bsRoFormerWeightsPresent: false,
+        melBandRoFormerWeightsPresent: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("shows a time for every quality option (#166)", () => {
+    const options = buildQualityTimeOptions({
+      focus: "vocals",
+      audioDurationSec: 180,
+    });
+    expect(options.length).toBeGreaterThanOrEqual(2);
+    for (const opt of options) {
+      expect(opt.estimatedMs).toBeGreaterThan(0);
+      expect(timeLabelFr(opt.kind)).toMatch(/estimation|mesuré/);
+    }
+    expect(options.find((o) => o.id === "mel_band_roformer")?.recommended).toBe(
+      true,
+    );
+    const measured = buildQualityTimeOptions({
+      focus: "mix",
+      audioDurationSec: 60,
+      measured: { htdemucs: { msPerAudioSec: 200, samples: 2 } },
+    });
+    expect(measured.find((o) => o.id === "htdemucs")?.kind).toBe("mesure");
+  });
+
+  it("blocks download until license accepted (#167)", () => {
+    expect(canDownloadSeparator("bs_roformer", {})).toBe(false);
+    expect(canDownloadSeparator("bs_roformer", { bs_roformer: true })).toBe(
+      true,
+    );
+    expect(separatorLicense("bs_roformer")?.badgeFr).toMatch(/Apache-2\.0/);
+    expect(separatorLicense("htdemucs")?.badgeFr).toMatch(/non vérifié/);
+    expect(separatorLicense("mel_band_roformer")?.badgeFr).toBe("MIT");
   });
 });

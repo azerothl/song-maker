@@ -104,7 +104,9 @@ export function SettingsScreen() {
       ? "HTDemucs · 6 stems"
       : settings.stemSeparator === "bs_roformer"
         ? "BS-RoFormer"
-        : "HTDemucs · 4 stems";
+        : settings.stemSeparator === "mel_band_roformer"
+          ? "Mel-Band RoFormer"
+          : "HTDemucs · 4 stems";
 
   return (
     <div className="panel settings">

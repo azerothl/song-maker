@@ -11,7 +11,8 @@ import {
 import { TruncatedTrackLabel } from "../../components/TruncatedTrackLabel";
 import { ClipTimeline } from "../../components/ClipTimeline";
 import { ExportWizard } from "../../components/ExportWizard";
-import { ExportTracksPopin } from "../../components/ExportTracksPopin";
+import { ExportDialog } from "../../components/ExportDialog";
+import { SeparationRecommendDialog } from "../../components/SeparationRecommendDialog";
 import { EstimatedSeparationMarker } from "../../components/EstimatedSeparationMarker";
 import { AnchoredPopin } from "../../components/AnchoredPopin";
 import { MixAssistPanel } from "../../components/MixAssistPanel";
@@ -140,7 +141,7 @@ export function ProductionWorkspace({
   listeningMix,
   mix,
   mixSavedAt,
-  onExport,
+  onExport: _onExport,
   onImportUserAudio,
   onSeparate,
   onRevertSeparation,
@@ -168,6 +169,8 @@ export function ProductionWorkspace({
 
   const mixAssistBtnRef = useRef<HTMLButtonElement>(null);
   const copilotBtnRef = useRef<HTMLButtonElement>(null);
+  const separateBtnRef = useRef<HTMLButtonElement>(null);
+  const [separateOpen, setSeparateOpen] = useState(false);
   const mixScrollRef = useRef<HTMLDivElement>(null);
   const [mixAssistOpen, setMixAssistOpen] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
@@ -297,13 +300,25 @@ export function ProductionWorkspace({
           <div className="song-actions">
             <div className="btn-row song-actions-primary">
               <button
+                ref={separateBtnRef}
                 type="button"
                 className={hasAiStems ? "btn" : "btn primary"}
                 disabled={!project.activeGenerationId || busy}
-                onClick={() => void onSeparate()}
+                onClick={() => setSeparateOpen(true)}
               >
                 {hasAiStems ? t("separate.again") : t("separate.button")}
               </button>
+              <SeparationRecommendDialog
+                open={separateOpen}
+                onClose={() => setSeparateOpen(false)}
+                anchorRef={separateBtnRef}
+                audioDurationSec={project.targetDurationSec ?? 180}
+                busy={busy}
+                onConfirm={() => {
+                  setSeparateOpen(false);
+                  void onSeparate();
+                }}
+              />
             </div>
             <div
               className="btn-row song-actions-export"
@@ -311,33 +326,10 @@ export function ProductionWorkspace({
               aria-label={t("export.group")}
             >
               <span className="song-actions-label">{t("export.group")}</span>
-              <button
-                type="button"
-                className="btn"
-                disabled={!project.activeGenerationId || busy}
-                onClick={() => void onExport("wav")}
-              >
-                {t("export.wav")}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                disabled={!project.activeGenerationId || busy}
-                onClick={() => void onExport("flac")}
-              >
-                {t("export.flac")}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                disabled={!project.activeGenerationId || busy}
-                onClick={() => void onExport("mp3")}
-              >
-                {t("export.mp3")}
-              </button>
-              <ExportTracksPopin
-                projectId={project.id}
+              <ExportDialog
+                project={project}
                 mix={mix}
+                sources={playbackSources}
                 busy={busy}
                 onBusy={setBusy}
                 onError={setError}
@@ -634,16 +626,18 @@ export function ProductionWorkspace({
                     type="button"
                     className="btn"
                     disabled={!project.activeGenerationId || busy}
-                    onClick={() => void onSeparate()}
+                    onClick={() => setSeparateOpen(true)}
                   >
                     {hasAiStems ? t("separate.again") : t("separate.button")}
                   </button>
-                  <ExportTracksPopin
-                    projectId={project.id}
+                  <ExportDialog
+                    project={project}
                     mix={mix}
+                    sources={playbackSources}
                     busy={busy}
                     onBusy={setBusy}
                     onError={setError}
+                    initialMode="stems"
                   />
                 </div>
                 <p className="mix-autosave production-mix-saved" role="status">

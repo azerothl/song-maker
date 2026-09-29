@@ -454,7 +454,8 @@ pub fn render_mix(mix: &MixDoc, project_root: &Path, out_wav: &Path) -> Result<f
     Ok(peak_trim_db)
 }
 
-pub fn export_flac(wav_path: &Path, flac_path: &Path) -> Result<(), String> {
+pub fn export_flac_with_bit_depth(wav_path: &Path, flac_path: &Path, bit_depth: u16) -> Result<(), String> {
+    let sample_fmt = if bit_depth == 16 { "s16" } else { "s32" };
     crate::resample::run_ffmpeg(&[
         "-y",
         "-hide_banner",
@@ -465,14 +466,19 @@ pub fn export_flac(wav_path: &Path, flac_path: &Path) -> Result<(), String> {
         "-c:a",
         "flac",
         "-sample_fmt",
-        "s32",
+        sample_fmt,
         &flac_path.display().to_string(),
     ])
     .map_err(|e| format!("Export FLAC échoué ({e})."))
 }
 
-/// Conversion de livraison MP3 (320 kbps CBR) à partir du WAV primaire.
-pub fn export_mp3(wav_path: &Path, mp3_path: &Path) -> Result<(), String> {
+/// Conversion de livraison MP3 (bitrate CBR configurable) à partir du WAV primaire.
+pub fn export_mp3_with_bitrate(wav_path: &Path, mp3_path: &Path, bitrate_kbps: u16) -> Result<(), String> {
+    let rate = match bitrate_kbps {
+        128 | 192 | 320 => bitrate_kbps,
+        _ => 320,
+    };
+    let bitrate = format!("{rate}k");
     crate::resample::run_ffmpeg(&[
         "-y",
         "-hide_banner",
@@ -483,10 +489,35 @@ pub fn export_mp3(wav_path: &Path, mp3_path: &Path) -> Result<(), String> {
         "-codec:a",
         "libmp3lame",
         "-b:a",
-        "320k",
+        &bitrate,
         &mp3_path.display().to_string(),
     ])
     .map_err(|e| format!("Export MP3 échoué ({e}). Conversion de livraison uniquement."))
+}
+
+/// Re-encode a 24-bit WAV to 16-bit PCM when the user picks profondeur 16 (#168).
+pub fn downsample_wav_bit_depth(src: &Path, dest: &Path, bit_depth: u16) -> Result<(), String> {
+    if bit_depth == 24 || bit_depth == 0 {
+        if src != dest {
+            std::fs::copy(src, dest).map_err(|e| e.to_string())?;
+        }
+        return Ok(());
+    }
+    if bit_depth != 16 {
+        return Err("Profondeur de bits : 16 ou 24.".into());
+    }
+    crate::resample::run_ffmpeg(&[
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        &src.display().to_string(),
+        "-c:a",
+        "pcm_s16le",
+        &dest.display().to_string(),
+    ])
+    .map_err(|e| format!("Conversion 16 bits échouée ({e})."))
 }
 
 pub fn write_export_json_with_warnings(

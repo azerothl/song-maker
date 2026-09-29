@@ -4,7 +4,7 @@ use crate::audiocpp::AudioCppServer;
 use crate::hashutil::sha256_file;
 use crate::library::{
     library_row_from_project, load_project, load_settings, project_folder, save_project,
-    upsert_library_row,
+    save_settings, upsert_library_row,
 };
 use crate::mix::{new_mix_from_separation, wav_duration_ms};
 use crate::models::*;
@@ -51,6 +51,7 @@ pub async fn start_separation(
 
     let settings = load_settings()?;
     let separator = normalize_stem_separator(&settings.stem_separator);
+    let sep_started = std::time::Instant::now();
     if separator == "bs_roformer" {
         let cache = PathBuf::from(&settings.cache_dir);
         if !crate::paths::bs_roformer_weights_present(&cache) {
@@ -63,6 +64,18 @@ pub async fn start_separation(
         // Full SHA check before real separation — no fake success on corrupt weights.
         crate::bs_roformer::verify_sha256(&cache)?;
         // Reload server config so bs_roformer is registered.
+        state.server.shutdown();
+    }
+    if separator == "mel_band_roformer" {
+        let cache = PathBuf::from(&settings.cache_dir);
+        if !crate::paths::mel_band_roformer_weights_present(&cache) {
+            return Err(format!(
+                "Mel-Band RoFormer sélectionné mais le GGUF est absent ou invalide. \
+                 Installez-le dans Paramètres → Production audio (téléchargement opt-in \
+                 de {MEL_BAND_ROFORMER_REMOTE}, SHA vérifié), ou revenez à HTDemucs."
+            ));
+        }
+        crate::mel_band_roformer::verify_sha256(&cache)?;
         state.server.shutdown();
     }
 
@@ -180,6 +193,18 @@ pub async fn start_separation(
                 "drums-bass-guitar-piano-unavailable".to_string(),
             ],
         ),
+        "mel_band_roformer" => (
+            "mel_band_roformer",
+            MEL_BAND_ROFORMER_PACKAGE,
+            MEL_BAND_ROFORMER_GGUF,
+            MEL_BAND_ROFORMER_SHA,
+            &["vocals", "other"][..],
+            vec![
+                "estimated-separation".to_string(),
+                "bs-roformer-vocals-instrumental-only".to_string(),
+                "drums-bass-guitar-piano-unavailable".to_string(),
+            ],
+        ),
         "htdemucs_6s" => (
             "htdemucs_6s_onnx",
             "htdemucs_6s_fp16weights",
@@ -205,8 +230,8 @@ pub async fn start_separation(
         ),
     };
 
-    // BS-RoFormer writes instrumental.wav — alias to other before lookup.
-    if separator == "bs_roformer" {
+    // Vocal separators write instrumental.wav — alias to other before lookup.
+    if separator == "bs_roformer" || separator == "mel_band_roformer" {
         alias_instrumental_to_other(&sep_dir)?;
     }
 
@@ -230,7 +255,7 @@ pub async fn start_separation(
     }
 
     let unavailable: Vec<&str> = match separator {
-        "bs_roformer" => vec!["drums", "bass", "guitar", "piano"],
+        "bs_roformer" | "mel_band_roformer" => vec!["drums", "bass", "guitar", "piano"],
         "htdemucs_6s" => vec![],
         _ => vec!["guitar", "piano"],
     };
@@ -297,6 +322,37 @@ pub async fn start_separation(
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
     upsert_library_row(&library_row_from_project(&folder, &doc))?;
+
+    // Record measured wall time for future « mesuré » estimates (#166).
+    let wall_ms = sep_started.elapsed().as_millis() as f64;
+    let audio_sec = stem_meta
+        .iter()
+        .map(|(_, _, _, dur)| *dur)
+        .max()
+        .unwrap_or(0) as f64
+        / 1000.0;
+    if audio_sec > 0.5 && wall_ms > 0.0 {
+        let mut next_settings = settings.clone();
+        let sample = wall_ms / audio_sec;
+        let entry = next_settings
+            .separator_time_stats
+            .entry(separator.to_string())
+            .or_insert_with(|| crate::models::SeparatorTimeStat {
+                ms_per_audio_sec: sample,
+                samples: 0,
+            });
+        if entry.samples == 0 {
+            entry.ms_per_audio_sec = sample;
+            entry.samples = 1;
+        } else {
+            let n = entry.samples + 1;
+            entry.ms_per_audio_sec =
+                (entry.ms_per_audio_sec * f64::from(entry.samples) + sample) / f64::from(n);
+            entry.samples = n;
+        }
+        let _ = save_settings(&next_settings);
+    }
+
     state.queue.set_state("completed", "Terminé", Some(id));
     state.queue.clear_current();
     Ok(mix)
