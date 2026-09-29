@@ -12,6 +12,7 @@
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "bench:score-tab": "node --import tsx scripts/bench-score-tab.mts",
     "packages:build": "pnpm -r --filter \"./packages/**\" run build",
     "packages:test": "pnpm -r --filter \"./packages/**\" run test",
     "packages:typecheck": "pnpm -r --filter \"./packages/**\" run typecheck",
@@ -50,6 +51,7 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.3.4",
+    "playwright": "1.51.0",
     "tsx": "^4.19.3",
     "typescript": "~5.8.3",
     "vite": "^6.3.5"

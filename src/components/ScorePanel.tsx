@@ -433,24 +433,28 @@ export function ScorePanel({
             aria-labelledby="score-view-piano"
             hidden={viewMode !== "piano"}
           >
-            <PianoRoll
-              document={document}
-              onChange={(doc) => {
-                onDocumentChange(doc);
-                setAbcPreview(null);
-              }}
-              onError={onError}
-            />
-            <MidiInstrumentPanel
-              document={document}
-              onDocumentChange={(doc) => {
-                onDocumentChange(doc);
-                setAbcPreview(null);
-              }}
-              latencyMs={latencyMs}
-              onLatencyChange={(ms) => void persistLatency(ms)}
-              onError={onError}
-            />
+            {viewMode === "piano" && (
+              <>
+                <PianoRoll
+                  document={document}
+                  onChange={(doc) => {
+                    onDocumentChange(doc);
+                    setAbcPreview(null);
+                  }}
+                  onError={onError}
+                />
+                <MidiInstrumentPanel
+                  document={document}
+                  onDocumentChange={(doc) => {
+                    onDocumentChange(doc);
+                    setAbcPreview(null);
+                  }}
+                  latencyMs={latencyMs}
+                  onLatencyChange={(ms) => void persistLatency(ms)}
+                  onError={onError}
+                />
+              </>
+            )}
           </div>
 
           <div
