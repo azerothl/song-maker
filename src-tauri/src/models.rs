@@ -53,6 +53,9 @@ pub struct ProjectDoc {
     pub active_mix_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_score_id: Option<String>,
+    /// Noms parlants des prises (clé = id gen-*), choisis par l’utilisateur (#133).
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub generation_names: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -714,6 +717,19 @@ pub struct ScoreSummary {
     pub version: u32,
     pub source: String,
     pub note_count: u32,
+    /// ISO timestamp from file mtime when the document has no createdAt (#133).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+}
+
+/// Mix snapshot for the Versions timeline (#133).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MixVersionSummary {
+    pub id: String,
+    pub separation_id: String,
+    pub created_at: String,
+    pub is_active: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,15 +1,21 @@
 import { useEffect, useState, type Dispatch, SetStateAction } from "react";
 import { CandidateCompare } from "../../components/CandidateCompare";
-import { VersionGraph } from "../../components/VersionGraph";
+import { VersionHistory } from "../../components/VersionHistory";
 import { api } from "../../lib/api";
-import { t } from "../../ui/i18n";
-import type { GenerationSummary, ProjectDoc, SeparationVersionSummary } from "../../lib/types";
 import {
-  workspaceIntro,
-  workspaceTitle,
-} from "./shared";
+  assignTakeOrdinals,
+  resolveTakeTitle,
+  type VersionEventSource,
+} from "../../lib/versionHistory";
+import { t } from "../../ui/i18n";
+import type {
+  GenerationSummary,
+  ProjectDoc,
+  SeparationVersionSummary,
+} from "../../lib/types";
+import { workspaceIntro, workspaceTitle } from "./shared";
 
-/** Onglet Versions : historique des générations et continuation. */
+/** Onglet Versions : historique lisible des prises et événements. */
 type VersionsWorkspaceProps = {
   busy: boolean;
   candidateCount: number;
@@ -42,6 +48,8 @@ export function VersionsWorkspace({
   const [separations, setSeparations] = useState<SeparationVersionSummary[]>(
     [],
   );
+  const [scores, setScores] = useState<VersionEventSource[]>([]);
+  const [mixes, setMixes] = useState<VersionEventSource[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,10 +61,67 @@ export function VersionsWorkspace({
       .catch(() => {
         if (!cancelled) setSeparations([]);
       });
+    void api
+      .listScores(project.id)
+      .then((list) => {
+        if (cancelled) return;
+        setScores(
+          list
+            .filter((s) => s.createdAt)
+            .map((s) => ({
+              id: s.id,
+              createdAt: s.createdAt!,
+              kind: "score" as const,
+            })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setScores([]);
+      });
+    void api
+      .listMixVersions(project.id)
+      .then((list) => {
+        if (cancelled) return;
+        setMixes(
+          list.map((m) => ({
+            id: m.id,
+            createdAt: m.createdAt,
+            kind: "mix" as const,
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setMixes([]);
+      });
     return () => {
       cancelled = true;
     };
-  }, [project.id, project.activeSeparationId, project.activeMixId]);
+  }, [
+    project.id,
+    project.activeSeparationId,
+    project.activeMixId,
+    project.activeScoreId,
+    generations.length,
+  ]);
+
+  const takeLabels = (() => {
+    const ordinals = assignTakeOrdinals(generations);
+    const labels: Record<string, string> = {};
+    for (const g of generations) {
+      const ordinal = ordinals.get(g.id) ?? 0;
+      labels[g.id] = resolveTakeTitle(
+        g.id,
+        ordinal,
+        project.generationNames,
+      );
+    }
+    return labels;
+  })();
+
+  async function activateTake(genId: string) {
+    await api.useGeneration(project.id, genId);
+    await openProject(project.id);
+  }
 
   return (
     <section
@@ -77,10 +142,9 @@ export function VersionsWorkspace({
         candidateCount={candidateCount}
         onCandidateCount={setCandidateCount}
         onGenerateBatch={onGenerateBatch}
+        takeLabels={takeLabels}
         onUse={(genId) => {
-          void api
-            .useGeneration(project.id, genId)
-            .then(() => openProject(project.id));
+          void activateTake(genId);
         }}
       />
 
@@ -107,9 +171,8 @@ export function VersionsWorkspace({
             disabled={
               busy ||
               !continuationLyrics.trim() ||
-              !generations.find(
-                (g) => g.id === project.activeGenerationId,
-              )?.canContinue
+              !generations.find((g) => g.id === project.activeGenerationId)
+                ?.canContinue
             }
             onClick={() => {
               const active = generations.find(
@@ -123,75 +186,43 @@ export function VersionsWorkspace({
         </section>
       )}
 
-      {separations.length > 0 && (
-        <section
-          className="separation-versions"
-          aria-labelledby="separation-versions-title"
-        >
-          <h3 id="separation-versions-title">{t("versions.separations.title")}</h3>
-          <p className="hint">{t("versions.separations.hint")}</p>
-          {onRevertSeparation && (
-            <div className="banner info separation-undo-banner" role="status">
-              <p>{t("separation.revert.hint")}</p>
-              <button
-                type="button"
-                className="btn"
-                disabled={busy}
-                onClick={onRevertSeparation}
-              >
-                {t("separation.revert.action")}
-              </button>
-            </div>
-          )}
-          <ul className="separation-versions-list">
-            {separations.map((sep) => (
-              <li key={sep.separationId}>
-                <span className="mono">{sep.separationId}</span>
-                {sep.isActive ? (
-                  <span className="separation-versions-active">
-                    {t("versions.separations.active")}
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={busy || !sep.mixId}
-                    onClick={() => {
-                      void api
-                        .activateSeparationVersion(
-                          project.id,
-                          sep.separationId,
-                        )
-                        .then(() => {
-                          onSeparationSwitched?.();
-                          return openProject(project.id);
-                        });
-                    }}
-                  >
-                    {t("versions.separations.use")}
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
       <div className="version-history">
         <h3>
           {t("versions.history", {
             count: String(generations.length),
           })}
         </h3>
-        <p className="hint">{t("versions.hint")}</p>
-        <VersionGraph
+        <VersionHistory
           generations={generations}
-          activeId={project.activeGenerationId}
-          onUse={(genId) => {
-            void api
-              .useGeneration(project.id, genId)
-              .then(() => openProject(project.id));
+          separations={separations}
+          scores={scores}
+          mixes={mixes}
+          project={project}
+          busy={busy}
+          onListen={(genId) => {
+            void activateTake(genId);
           }}
+          onRestore={(genId) => {
+            if (window.confirm(t("generations.useHint"))) {
+              void activateTake(genId);
+            }
+          }}
+          onActivateSeparation={(separationId) => {
+            void api
+              .activateSeparationVersion(project.id, separationId)
+              .then(() => {
+                onSeparationSwitched?.();
+                return openProject(project.id);
+              });
+          }}
+          onRenameTake={async (genId, name) => {
+            await api.renameGeneration(project.id, genId, name);
+            await openProject(project.id);
+          }}
+          onSaveMixVersion={() => {
+            void api.saveMixVersion(project.id).then(() => openProject(project.id));
+          }}
+          onRevertSeparation={onRevertSeparation}
         />
       </div>
     </section>

@@ -1,7 +1,7 @@
 use crate::abc_metadata::AbcAlignRequest;
 use crate::library::{load_project, project_folder, save_project};
 use crate::models::*;
-use crate::paths::{atomic_write_json, ensure_dir, next_folder_id, now_iso};
+use crate::paths::{atomic_write_json, ensure_dir, file_mtime_iso, next_folder_id, now_iso};
 use crate::pins::*;
 use serde_json::json;
 
@@ -113,6 +113,11 @@ pub fn list_scores(id: String) -> Result<Vec<ScoreSummary>, String> {
                     .sum()
             })
             .unwrap_or(0);
+        let created_at = value
+            .get("createdAt")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .or_else(|| file_mtime_iso(&path));
         out.push(ScoreSummary {
             id: score_id,
             parent_score_id: value
@@ -130,6 +135,7 @@ pub fn list_scores(id: String) -> Result<Vec<ScoreSummary>, String> {
                 .unwrap_or("manual")
                 .to_string(),
             note_count,
+            created_at,
         });
     }
     Ok(out)

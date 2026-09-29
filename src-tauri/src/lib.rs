@@ -77,6 +77,7 @@ pub fn run() {
             commands::mix::undo_mix,
             commands::mix::redo_mix,
             commands::mix::save_mix_version,
+            commands::mix::list_mix_versions,
             commands::mix::render_preview,
             commands::mix::playback_sources,
             commands::mix::read_preview_audio,
@@ -104,6 +105,7 @@ pub fn run() {
             commands::score::set_active_score,
             // Versions
             commands::versions::use_generation,
+            commands::versions::rename_generation,
             commands::versions::import_remote_generation,
             // SheetSage2
             commands::sheetsage_cmds::install_sheetsage2,

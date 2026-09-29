@@ -1002,9 +1002,146 @@ details[open] > summary {
   margin-bottom: 0.65rem;
 }
 
-.score-edit-section,
-.advanced-production,
 .version-history {
+  border-top: 1px solid var(--line);
+  padding-top: 0.65rem;
+}
+
+.version-history-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.version-history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.version-day {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.version-day-label {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.version-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.version-take,
+.version-event {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.55rem 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid var(--line);
+  background: color-mix(in srgb, var(--bg1) 88%, transparent);
+}
+
+.version-take.active,
+.version-event.active {
+  border-left-color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 12%, var(--bg1));
+}
+
+.version-take.highlight {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 1px;
+}
+
+.version-take:focus-visible,
+.version-event:focus-visible,
+.version-from-parent:focus-visible,
+.version-details summary:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.version-take-main,
+.version-event-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.65rem;
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+
+.version-take-main strong,
+.version-event-main strong {
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.version-when,
+.version-style {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.version-from-parent {
+  border: 0;
+  background: transparent;
+  color: var(--accent-cyan);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0;
+}
+
+.version-badge {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--accent-2);
+}
+
+.version-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.version-rename input {
+  min-width: 10rem;
+  font: inherit;
+  font-weight: 650;
+}
+
+.version-details {
+  font-size: 0.78rem;
+}
+
+.version-details summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.version-details .mono {
+  margin: 0.25rem 0 0;
+  word-break: break-all;
+}
+
+.score-edit-section,
+.advanced-production {
   border-top: 1px solid var(--line);
   padding-top: 0.65rem;
 }

@@ -15,10 +15,16 @@ type Props = {
   onCandidateCount: (n: number) => void;
   onGenerateBatch: (count: number) => Promise<void>;
   onUse: (genId: string) => void;
+  /** Readable take titles keyed by generation id (#133). */
+  takeLabels?: Record<string, string>;
 };
 
-function toCandidate(g: GenerationSummary): GenerationCandidate | null {
+function toCandidate(
+  g: GenerationSummary,
+  takeLabels?: Record<string, string>,
+): GenerationCandidate | null {
   if (!g.audioPath) return null;
+  const title = takeLabels?.[g.id] ?? g.id;
   return {
     id: g.id,
     generationFolder: g.id,
@@ -26,7 +32,7 @@ function toCandidate(g: GenerationSummary): GenerationCandidate | null {
     createdAt: g.createdAt,
     audioPath: g.audioPath,
     scoreAbcPath: g.hasScore ? "score.abc" : null,
-    label: `${g.id} · seed ${g.seed}`,
+    label: title,
   };
 }
 
@@ -38,6 +44,7 @@ export function CandidateCompare({
   onCandidateCount,
   onGenerateBatch,
   onUse,
+  takeLabels,
 }: Props) {
   const comparer = useMemo(() => createCandidateComparer(), []);
   const [view, setView] = useState<CandidateCompareView | null>(null);
@@ -49,7 +56,7 @@ export function CandidateCompare({
     setError(null);
     const candidates = ready
       .slice(-Math.max(2, Math.min(4, ready.length)))
-      .map(toCandidate)
+      .map((g) => toCandidate(g, takeLabels))
       .filter((c): c is GenerationCandidate => c !== null);
     try {
       setView(comparer.openCompare(candidates));
@@ -142,7 +149,11 @@ export function CandidateCompare({
 
       {view && view.selectedId && (
         <p className="hint ok">
-          {t("candidates.selected", { id: view.selectedId })}
+          {t("candidates.selected", {
+            id:
+              view.candidates.find((c) => c.id === view.selectedId)?.label ??
+              view.selectedId,
+          })}
         </p>
       )}
       {view && !view.selectedId && (

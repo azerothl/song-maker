@@ -176,6 +176,13 @@ pub fn now_iso() -> String {
     chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
+/// Best-effort ISO timestamp from filesystem mtime (Versions timeline, #133).
+pub fn file_mtime_iso(path: &Path) -> Option<String> {
+    let modified = path.metadata().ok()?.modified().ok()?;
+    let datetime: chrono::DateTime<chrono::Utc> = modified.into();
+    Some(datetime.format("%Y-%m-%dT%H:%M:%SZ").to_string())
+}
+
 pub fn next_folder_id(parent: &Path, prefix: &str) -> Result<String, String> {
     ensure_dir(parent).map_err(|e| e.to_string())?;
     let mut max = 0u32;

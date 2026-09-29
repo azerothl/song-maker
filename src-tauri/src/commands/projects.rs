@@ -51,6 +51,7 @@ pub fn create_project(input: CreateProjectInput) -> Result<ProjectDoc, String> {
         active_separation_id: None,
         active_mix_id: None,
         active_score_id: None,
+        generation_names: Default::default(),
     };
     save_project(&folder, &doc)?;
     upsert_library_row(&LibraryRow {

@@ -630,6 +630,7 @@ mod separation_version_tests {
             active_separation_id: Some("sep-002".into()),
             active_mix_id: Some("mix-v002".into()),
             active_score_id: None,
+            generation_names: Default::default(),
         };
         let list = list_separation_versions(&root, &doc);
         assert_eq!(list.len(), 1);
