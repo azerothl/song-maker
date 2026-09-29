@@ -1,5 +1,6 @@
 use crate::hashutil::sha256_file;
-use crate::models::InstallProgress;
+use crate::library::load_settings;
+use crate::models::{InstallDownloadMetrics, InstallFilePlan, InstallPlan, InstallProgress};
 use crate::paths::{binaries_dir, ensure_dir, htdemucs_path, yue2_dir};
 use crate::pins::*;
 use reqwest::header::RANGE;
@@ -9,11 +10,213 @@ use std::time::{Duration, Instant};
 use tauri::Emitter;
 use tokio::io::AsyncWriteExt;
 
-struct Artifact {
-    name: String,
-    url: String,
-    path: PathBuf,
-    sha256: Option<&'static str>,
+pub struct Artifact {
+    pub name: String,
+    pub url: String,
+    pub path: PathBuf,
+    pub sha256: Option<&'static str>,
+    pub expected_bytes: Option<u64>,
+}
+
+/// Chemin `.partial` utilisé par `download_artifact` pour la reprise HTTP Range.
+pub fn partial_path_for(final_path: &Path) -> PathBuf {
+    final_path.with_extension(format!(
+        "{}partial",
+        final_path
+            .extension()
+            .and_then(|s| s.to_str())
+            .map(|s| format!("{s}."))
+            .unwrap_or_default()
+    ))
+}
+
+pub fn artifact_on_disk_valid(path: &Path, sha256: Option<&str>) -> bool {
+    if !path.is_file() {
+        return false;
+    }
+    match sha256 {
+        Some(expected) => sha256_file(path)
+            .map(|actual| actual == expected)
+            .unwrap_or(false),
+        None => path.metadata().map(|m| m.len() > 0).unwrap_or(false),
+    }
+}
+
+fn artifact_expected_bytes(name: &str, pack: &str) -> Option<u64> {
+    if name == YUE2_Q8 {
+        return Some(YUE2_Q8_BYTES);
+    }
+    if name == YUE2_Q4 {
+        return Some(YUE2_Q4_BYTES);
+    }
+    if name == YUE2_VAE {
+        return Some(YUE2_VAE_BYTES);
+    }
+    if name == HTDEMUCS_GGUF {
+        return Some(HTDEMUCS_BYTES);
+    }
+    if name == ARCHIVE_WINDOWS {
+        return Some(ARCHIVE_WINDOWS_BYTES);
+    }
+    if name == ARCHIVE_WINDOWS_CUDART {
+        return Some(ARCHIVE_WINDOWS_CUDART_BYTES);
+    }
+    if name == ARCHIVE_LINUX {
+        return Some(ARCHIVE_LINUX_BYTES);
+    }
+    if name == ARCHIVE_MACOS_ARM64 {
+        return Some(ARCHIVE_MACOS_ARM64_BYTES);
+    }
+    if name == ARCHIVE_MACOS_X64 {
+        return Some(ARCHIVE_MACOS_X64_BYTES);
+    }
+    if let Some(bytes) = yue2_sidecar_bytes(name) {
+        return Some(bytes);
+    }
+    let (archive, _, _) = platform_archive();
+    if name == archive {
+        return Some(platform_engine_archive_bytes());
+    }
+    let _ = pack;
+    None
+}
+
+#[derive(Debug, Clone)]
+struct AggregateDownloadProgress {
+    total_remaining_bytes: u64,
+    completed_bytes: u64,
+    speed: DownloadSpeedTracker,
+}
+
+impl AggregateDownloadProgress {
+    fn from_plan(plan: &InstallPlan) -> Self {
+        Self {
+            total_remaining_bytes: plan.bytes_to_download,
+            completed_bytes: 0,
+            speed: DownloadSpeedTracker::new(),
+        }
+    }
+
+    fn metrics_for_file(
+        &mut self,
+        file_received: u64,
+        file_total: Option<u64>,
+    ) -> InstallDownloadMetrics {
+        let file_remaining = file_total
+            .map(|t| t.saturating_sub(file_received))
+            .unwrap_or(0);
+        let (file_bps, file_eta, file_eta_est) =
+            self.speed
+                .file_eta(file_received, file_total, file_remaining);
+        let overall_received = self.completed_bytes + file_received;
+        let overall_total = self.total_remaining_bytes + self.completed_bytes;
+        let overall_remaining = overall_total.saturating_sub(overall_received);
+        let (overall_bps, overall_eta, overall_eta_est) =
+            self.speed
+                .overall_eta(overall_received, overall_total, overall_remaining);
+        InstallDownloadMetrics {
+            bytes_per_sec: file_bps,
+            eta_seconds: file_eta,
+            eta_is_estimate: file_eta_est,
+            overall_received_bytes: Some(overall_received),
+            overall_total_bytes: Some(overall_total),
+            overall_bytes_per_sec: overall_bps,
+            overall_eta_seconds: overall_eta,
+            overall_eta_is_estimate: overall_eta_est,
+        }
+    }
+
+    fn complete_file(&mut self, bytes: u64) {
+        self.completed_bytes += bytes;
+        self.speed.reset_window();
+    }
+}
+
+/// Estimation de débit glissante pour l’événement `setup-progress`.
+#[derive(Debug, Clone)]
+pub struct DownloadSpeedTracker {
+    window_start: Instant,
+    window_bytes: u64,
+    measured_bps: Option<f64>,
+}
+
+impl DownloadSpeedTracker {
+    pub fn new() -> Self {
+        Self {
+            window_start: Instant::now(),
+            window_bytes: 0,
+            measured_bps: None,
+        }
+    }
+
+    pub fn reset_window(&mut self) {
+        self.window_start = Instant::now();
+        self.window_bytes = 0;
+    }
+
+    pub fn record_bytes(&mut self, chunk_len: u64) {
+        self.window_bytes += chunk_len;
+        let elapsed = self.window_start.elapsed().as_secs_f64();
+        if elapsed >= 0.5 && self.window_bytes > 0 {
+            let bps = self.window_bytes as f64 / elapsed;
+            self.measured_bps = Some(bps);
+            self.window_start = Instant::now();
+            self.window_bytes = 0;
+        }
+    }
+
+    pub fn file_eta(
+        &mut self,
+        received: u64,
+        total: Option<u64>,
+        remaining: u64,
+    ) -> (Option<f64>, Option<u64>, bool) {
+        eta_from_speed(self.measured_bps, received, total, remaining)
+    }
+
+    pub fn overall_eta(
+        &mut self,
+        received: u64,
+        total: u64,
+        remaining: u64,
+    ) -> (Option<f64>, Option<u64>, bool) {
+        eta_from_speed(self.measured_bps, received, Some(total), remaining)
+    }
+}
+
+/// Retourne (débit o/s, ETA secondes, ETA estimée).
+pub fn eta_from_speed(
+    measured_bps: Option<f64>,
+    received: u64,
+    total: Option<u64>,
+    remaining: u64,
+) -> (Option<f64>, Option<u64>, bool) {
+    let _ = received;
+    let _ = total;
+    match measured_bps {
+        Some(bps) if bps > 1.0 => {
+            let eta = (remaining as f64 / bps).ceil() as u64;
+            (Some(bps), Some(eta), false)
+        }
+        _ => {
+            const ASSUMED_BPS: f64 = 8.0 * 1024.0 * 1024.0;
+            let rough = if remaining > 0 {
+                Some((remaining as f64 / ASSUMED_BPS).ceil() as u64)
+            } else {
+                None
+            };
+            (None, rough, true)
+        }
+    }
+}
+
+fn map_io_error(context: &str, file: &str, err: &std::io::Error) -> String {
+    if err.kind() == std::io::ErrorKind::StorageFull {
+        return format!(
+            "Espace disque insuffisant lors de l’écriture de {file} ({context}) : {err}"
+        );
+    }
+    format!("{context} ({file}) : {err}")
 }
 
 fn platform_archive() -> (&'static str, &'static str, &'static str) {
@@ -32,7 +235,7 @@ fn platform_archive() -> (&'static str, &'static str, &'static str) {
     }
 }
 
-fn artifacts(cache: &Path, pack: &str, include_engine: bool) -> Result<Vec<Artifact>, String> {
+pub fn artifacts(cache: &Path, pack: &str, include_engine: bool) -> Result<Vec<Artifact>, String> {
     let (archive, archive_sha, _) = platform_archive();
     let binary_dir = binaries_dir(cache);
     let yue_dir = yue2_dir(cache);
@@ -54,6 +257,7 @@ fn artifacts(cache: &Path, pack: &str, include_engine: bool) -> Result<Vec<Artif
             ),
             path: binary_dir.join(archive),
             sha256: Some(archive_sha),
+            expected_bytes: artifact_expected_bytes(archive, pack),
         });
         if let Some((name, sha)) = crate::paths::pinned_cudart_archive() {
             out.push(Artifact {
@@ -63,6 +267,7 @@ fn artifacts(cache: &Path, pack: &str, include_engine: bool) -> Result<Vec<Artif
                 ),
                 path: binary_dir.join(name),
                 sha256: Some(sha),
+                expected_bytes: artifact_expected_bytes(name, pack),
             });
         }
     }
@@ -71,12 +276,14 @@ fn artifacts(cache: &Path, pack: &str, include_engine: bool) -> Result<Vec<Artif
         url: format!("{yue_base}/{}", selected.0),
         path: yue_dir.join(selected.0),
         sha256: Some(selected.1),
+        expected_bytes: artifact_expected_bytes(selected.0, pack),
     });
     out.push(Artifact {
         name: YUE2_VAE.into(),
         url: format!("{yue_base}/{YUE2_VAE}"),
         path: yue_dir.join(YUE2_VAE),
         sha256: Some(YUE2_VAE_SHA),
+        expected_bytes: Some(YUE2_VAE_BYTES),
     });
     for sidecar in [
         "yue2-model-config.json",
@@ -89,6 +296,7 @@ fn artifacts(cache: &Path, pack: &str, include_engine: bool) -> Result<Vec<Artif
             url: format!("{yue_base}/sidecars/{sidecar}"),
             path: yue_dir.join("sidecars").join(sidecar),
             sha256: None,
+            expected_bytes: yue2_sidecar_bytes(sidecar),
         });
     }
     out.push(Artifact {
@@ -96,8 +304,75 @@ fn artifacts(cache: &Path, pack: &str, include_engine: bool) -> Result<Vec<Artif
         url: format!("https://huggingface.co/audio-cpp/audio.cpp-gguf/resolve/main/HTDemucs-GGUF/{HTDEMUCS_GGUF}"),
         path: htdemucs_path(cache),
         sha256: Some(HTDEMUCS_SHA),
+        expected_bytes: Some(HTDEMUCS_BYTES),
     });
     Ok(out)
+}
+
+pub fn install_plan_for_cache(cache: &Path, pack: &str) -> Result<InstallPlan, String> {
+    let pack = pack.to_lowercase();
+    if pack != "q4" && pack != "q8" {
+        return Err("Choisissez le pack Q4 ou Q8.".into());
+    }
+    let needs_extract = !crate::audiocpp::AudioCppServer::has_server_binary(cache);
+    let items = artifacts(cache, &pack, needs_extract)?;
+    let mut files = Vec::new();
+    let mut bytes_to_download = 0u64;
+    let mut bytes_known = true;
+    let mut has_partial = false;
+
+    for item in &items {
+        let partial = partial_path_for(&item.path);
+        let partial_len = partial.metadata().map(|m| m.len()).unwrap_or(0);
+        if partial_len > 0 {
+            has_partial = true;
+        }
+
+        if artifact_on_disk_valid(&item.path, item.sha256) {
+            let total = item
+                .expected_bytes
+                .or_else(|| item.path.metadata().ok().map(|m| m.len()));
+            files.push(InstallFilePlan {
+                name: item.name.clone(),
+                status: "complete".into(),
+                total_bytes: total,
+                received_bytes: total.unwrap_or(0),
+                remaining_bytes: 0,
+            });
+            continue;
+        }
+
+        let total = item.expected_bytes;
+        if total.is_none() {
+            bytes_known = false;
+        }
+        let received = partial_len;
+        let remaining = total.map(|t| t.saturating_sub(received)).unwrap_or(0);
+        bytes_to_download += remaining;
+        let status = if received > 0 { "partial" } else { "missing" };
+        files.push(InstallFilePlan {
+            name: item.name.clone(),
+            status: status.into(),
+            total_bytes: total,
+            received_bytes: received,
+            remaining_bytes: remaining,
+        });
+    }
+
+    Ok(InstallPlan {
+        pack,
+        file_count: files.len(),
+        bytes_to_download,
+        bytes_known,
+        has_partial_downloads: has_partial,
+        files,
+    })
+}
+
+pub fn install_plan_for_pack(pack: String) -> Result<InstallPlan, String> {
+    let settings = load_settings()?;
+    let cache = PathBuf::from(&settings.cache_dir);
+    install_plan_for_cache(&cache, &pack)
 }
 
 fn emit(app: &tauri::AppHandle, progress: InstallProgress) {
@@ -110,6 +385,7 @@ async fn download_artifact(
     item: &Artifact,
     index: usize,
     count: usize,
+    aggregate: &mut AggregateDownloadProgress,
 ) -> Result<(), String> {
     if let Some(parent) = item.path.parent() {
         ensure_dir(parent).map_err(|e| e.to_string())?;
@@ -124,20 +400,18 @@ async fn download_artifact(
             },
         );
         if valid {
+            let bytes = item
+                .expected_bytes
+                .or_else(|| item.path.metadata().ok().map(|m| m.len()))
+                .unwrap_or(0);
+            aggregate.complete_file(bytes);
             emit(app, InstallProgress::file_done(&item.name, index, count));
             return Ok(());
         }
         let _ = tokio::fs::remove_file(&item.path).await;
     }
 
-    let partial = item.path.with_extension(format!(
-        "{}partial",
-        item.path
-            .extension()
-            .and_then(|s| s.to_str())
-            .map(|s| format!("{s}."))
-            .unwrap_or_default()
-    ));
+    let partial = partial_path_for(&item.path);
     let resumed = tokio::fs::metadata(&partial)
         .await
         .map(|m| m.len())
@@ -182,21 +456,40 @@ async fn download_artifact(
     let mut response = response;
     let mut received = received_before;
     let mut last_emit = Instant::now();
+    let mut metrics = aggregate.metrics_for_file(received, total);
     emit(
         app,
-        InstallProgress::downloading(&item.name, index, count, received, total),
+        InstallProgress::downloading_with_metrics(
+            &item.name,
+            index,
+            count,
+            received,
+            total,
+            Some(&metrics),
+        ),
     );
     while let Some(chunk) = response
         .chunk()
         .await
         .map_err(|e| format!("Téléchargement de {} : {e}", item.name))?
     {
-        file.write_all(&chunk).await.map_err(|e| e.to_string())?;
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| map_io_error("écriture du fichier", &item.name, &e))?;
         received += chunk.len() as u64;
+        aggregate.speed.record_bytes(chunk.len() as u64);
         if last_emit.elapsed() >= Duration::from_millis(500) {
+            metrics = aggregate.metrics_for_file(received, total);
             emit(
                 app,
-                InstallProgress::downloading(&item.name, index, count, received, total),
+                InstallProgress::downloading_with_metrics(
+                    &item.name,
+                    index,
+                    count,
+                    received,
+                    total,
+                    Some(&metrics),
+                ),
             );
             last_emit = Instant::now();
         }
@@ -213,14 +506,16 @@ async fn download_artifact(
         if actual != expected {
             let _ = tokio::fs::remove_file(&partial).await;
             return Err(format!(
-                "Téléchargement de {} : empreinte SHA-256 incorrecte.",
+                "La vérification de {} a échoué : empreinte SHA-256 incorrecte.",
                 item.name
             ));
         }
     }
     tokio::fs::rename(&partial, &item.path)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| map_io_error("finalisation du fichier", &item.name, &e))?;
+    let file_bytes = total.unwrap_or(received);
+    aggregate.complete_file(file_bytes);
     emit(app, InstallProgress::file_done(&item.name, index, count));
     Ok(())
 }
@@ -399,7 +694,7 @@ pub async fn install(
     let result = install_inner(app.clone(), pack).await;
     state.setup_installing.store(false, Ordering::Release);
     if let Err(error) = &result {
-        emit(&app, InstallProgress::failed(error));
+        emit(&app, InstallProgress::failed_for_file(error, None));
     }
     result
 }
@@ -419,15 +714,25 @@ async fn install_inner(app: tauri::AppHandle, pack: String) -> Result<String, St
     let cache = PathBuf::from(&settings.cache_dir);
     // Re-run engine download/extract when the server (or Windows cudart beside it) is missing.
     let needs_extract = !crate::audiocpp::AudioCppServer::has_server_binary(&cache);
+    let plan = install_plan_for_pack(pack.clone())?;
     let items = artifacts(&cache, &pack, needs_extract)?;
     let count = items.len();
+    let mut aggregate = AggregateDownloadProgress::from_plan(&plan);
     let client = reqwest::Client::builder()
         .user_agent("SongMaker/0.1 model-installer")
         .build()
         .map_err(|e| e.to_string())?;
     emit(&app, InstallProgress::starting(count));
     for (offset, item) in items.iter().enumerate() {
-        download_artifact(&client, &app, item, offset + 1, count).await?;
+        if let Err(error) =
+            download_artifact(&client, &app, item, offset + 1, count, &mut aggregate).await
+        {
+            emit(
+                &app,
+                InstallProgress::failed_for_file(&error, Some(&item.name)),
+            );
+            return Err(error);
+        }
     }
 
     let (archive, _, platform) = platform_archive();
@@ -474,9 +779,69 @@ async fn install_inner(app: tauri::AppHandle, pack: String) -> Result<String, St
 
 #[cfg(test)]
 mod tests {
-    use super::{extract_engine, extract_zip, locate_extracted_server};
+    use super::{
+        eta_from_speed, extract_engine, extract_zip, locate_extracted_server, partial_path_for,
+        DownloadSpeedTracker,
+    };
     use std::io::Write;
     use std::path::{Path, PathBuf};
+    use std::time::Duration;
+
+    #[test]
+    fn partial_path_matches_download_suffix() {
+        let path = Path::new("/cache/models/yue2-3b-q4_0.gguf");
+        assert_eq!(
+            partial_path_for(path),
+            Path::new("/cache/models/yue2-3b-q4_0.gguf.partial")
+        );
+    }
+
+    #[test]
+    fn eta_is_estimate_until_speed_measured() {
+        let (bps, eta, est) = eta_from_speed(None, 0, Some(1_000_000), 1_000_000);
+        assert!(bps.is_none());
+        assert!(est);
+        assert!(eta.is_some());
+        let (bps, eta, est) = eta_from_speed(Some(1_000_000.0), 500_000, Some(1_000_000), 500_000);
+        assert_eq!(bps, Some(1_000_000.0));
+        assert!(!est);
+        assert_eq!(eta, Some(1));
+    }
+
+    #[test]
+    fn speed_tracker_records_throughput() {
+        let mut tracker = DownloadSpeedTracker::new();
+        for _ in 0..20 {
+            tracker.record_bytes(512 * 1024);
+            std::thread::sleep(Duration::from_millis(30));
+        }
+        let (bps, _, est) =
+            tracker.file_eta(10 * 1024 * 1024, Some(20 * 1024 * 1024), 10 * 1024 * 1024);
+        assert!(bps.is_some() || est);
+    }
+
+    #[test]
+    fn install_plan_counts_partial_bytes() {
+        use super::install_plan_for_cache;
+        let root = temp_dir("partial-plan");
+        let cache = root.join("cache");
+        let yue2 = cache.join("models").join("Yue2-3B-GGUF");
+        std::fs::create_dir_all(yue2.join("sidecars")).unwrap();
+        let gguf = yue2.join("yue2-3b-q4_0.gguf");
+        let partial = partial_path_for(&gguf);
+        std::fs::write(&partial, vec![0u8; 4096]).unwrap();
+        let plan = install_plan_for_cache(&cache, "q4").expect("plan");
+        let entry = plan
+            .files
+            .iter()
+            .find(|f| f.name.contains("q4"))
+            .expect("q4 entry");
+        assert_eq!(entry.status, "partial");
+        assert_eq!(entry.received_bytes, 4096);
+        assert_eq!(entry.remaining_bytes, crate::pins::YUE2_Q4_BYTES - 4096);
+        assert!(plan.has_partial_downloads);
+        let _ = std::fs::remove_dir_all(root);
+    }
 
     fn temp_dir(label: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(

@@ -262,19 +262,124 @@ pub struct Phase3Status {
     pub honesty_fr: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Valeurs de `accelerationKind` / `SetupGpuInfo.accelerationKind`.
+pub const GPU_ACCEL_NVIDIA: &str = "nvidiaCuda";
+pub const GPU_ACCEL_APPLE_METAL: &str = "appleMetal";
+pub const GPU_ACCEL_NONE: &str = "none";
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct HealthSnapshot {
-    pub cuda_available: bool,
+pub struct SetupGpuInfo {
+    /// `nvidiaCuda` | `appleMetal` | `none`
+    pub acceleration_kind: String,
     pub gpu_name: Option<String>,
     pub driver_version: Option<String>,
     pub vram_mib: Option<u64>,
     pub suggested_pack: String,
+    pub suggested_pack_reason_fr: String,
+    /// Alias historique : vrai pour NVIDIA CUDA et Apple Metal.
+    pub acceleration_available: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallFilePlan {
+    pub name: String,
+    pub status: String,
+    pub total_bytes: Option<u64>,
+    pub received_bytes: u64,
+    pub remaining_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallPlan {
+    pub pack: String,
+    pub file_count: usize,
+    pub bytes_to_download: u64,
+    pub bytes_known: bool,
+    pub has_partial_downloads: bool,
+    pub files: Vec<InstallFilePlan>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallErrorInfo {
+    pub message: String,
+    /// `network` | `diskFull` | `hashInvalid` | `http` | `other`
+    pub cause: String,
+    pub file_name: Option<String>,
+}
+
+pub fn classify_install_error(message: &str, file_name: Option<&str>) -> InstallErrorInfo {
+    let lower = message.to_lowercase();
+    let cause =
+        if lower.contains("sha-256") || lower.contains("empreinte") || lower.contains("hash") {
+            "hashInvalid"
+        } else if lower.contains("espace disque")
+            || lower.contains("disk full")
+            || lower.contains("no space")
+            || lower.contains("storage full")
+        {
+            "diskFull"
+        } else if lower.contains("http ") || lower.contains("http/") || lower.starts_with("http") {
+            "http"
+        } else if lower.contains("téléchargement")
+            || lower.contains("telechargement")
+            || lower.contains("connexion")
+            || lower.contains("connection")
+            || lower.contains("timed out")
+            || lower.contains("timeout")
+            || lower.contains("réseau")
+            || lower.contains("network")
+        {
+            "network"
+        } else {
+            "other"
+        };
+    InstallErrorInfo {
+        message: message.into(),
+        cause: cause.into(),
+        file_name: file_name.map(str::to_string),
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthSnapshot {
+    pub cuda_available: bool,
+    pub acceleration_kind: String,
+    pub gpu_name: Option<String>,
+    pub driver_version: Option<String>,
+    pub vram_mib: Option<u64>,
+    pub suggested_pack: String,
+    pub suggested_pack_reason_fr: String,
     pub models_ok: bool,
     pub binary_ok: bool,
     pub server_healthy: bool,
     pub server_url: Option<String>,
     pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallDownloadMetrics {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bytes_per_sec: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eta_seconds: Option<u64>,
+    #[serde(default)]
+    pub eta_is_estimate: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overall_received_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overall_total_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overall_bytes_per_sec: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overall_eta_seconds: Option<u64>,
+    #[serde(default)]
+    pub overall_eta_is_estimate: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -286,9 +391,43 @@ pub struct InstallProgress {
     pub file_count: usize,
     pub received_bytes: u64,
     pub total_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bytes_per_sec: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eta_seconds: Option<u64>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub eta_is_estimate: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overall_received_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overall_total_bytes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overall_bytes_per_sec: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overall_eta_seconds: Option<u64>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub overall_eta_is_estimate: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<InstallErrorInfo>,
 }
 
 impl InstallProgress {
+    fn apply_metrics(mut self, metrics: Option<&InstallDownloadMetrics>) -> Self {
+        if let Some(m) = metrics {
+            self.bytes_per_sec = m.bytes_per_sec;
+            self.eta_seconds = m.eta_seconds;
+            self.eta_is_estimate = m.eta_is_estimate;
+            self.overall_received_bytes = m.overall_received_bytes;
+            self.overall_total_bytes = m.overall_total_bytes;
+            self.overall_bytes_per_sec = m.overall_bytes_per_sec;
+            self.overall_eta_seconds = m.overall_eta_seconds;
+            self.overall_eta_is_estimate = m.overall_eta_is_estimate;
+        }
+        self
+    }
+
     pub fn starting(file_count: usize) -> Self {
         Self {
             state: "downloading".into(),
@@ -297,6 +436,16 @@ impl InstallProgress {
             file_count,
             received_bytes: 0,
             total_bytes: None,
+            file_name: None,
+            bytes_per_sec: None,
+            eta_seconds: None,
+            eta_is_estimate: false,
+            overall_received_bytes: None,
+            overall_total_bytes: None,
+            overall_bytes_per_sec: None,
+            overall_eta_seconds: None,
+            overall_eta_is_estimate: false,
+            error: None,
         }
     }
     pub fn downloading(
@@ -306,6 +455,23 @@ impl InstallProgress {
         received_bytes: u64,
         total_bytes: Option<u64>,
     ) -> Self {
+        Self::downloading_with_metrics(
+            label,
+            file_index,
+            file_count,
+            received_bytes,
+            total_bytes,
+            None,
+        )
+    }
+    pub fn downloading_with_metrics(
+        label: &str,
+        file_index: usize,
+        file_count: usize,
+        received_bytes: u64,
+        total_bytes: Option<u64>,
+        metrics: Option<&InstallDownloadMetrics>,
+    ) -> Self {
         Self {
             state: "downloading".into(),
             label: label.into(),
@@ -313,7 +479,18 @@ impl InstallProgress {
             file_count,
             received_bytes,
             total_bytes,
+            file_name: Some(label.into()),
+            bytes_per_sec: None,
+            eta_seconds: None,
+            eta_is_estimate: false,
+            overall_received_bytes: None,
+            overall_total_bytes: None,
+            overall_bytes_per_sec: None,
+            overall_eta_seconds: None,
+            overall_eta_is_estimate: false,
+            error: None,
         }
+        .apply_metrics(metrics)
     }
     pub fn file_done(label: &str, file_index: usize, file_count: usize) -> Self {
         Self {
@@ -323,6 +500,16 @@ impl InstallProgress {
             file_count,
             received_bytes: 1,
             total_bytes: Some(1),
+            file_name: Some(label.into()),
+            bytes_per_sec: None,
+            eta_seconds: None,
+            eta_is_estimate: false,
+            overall_received_bytes: None,
+            overall_total_bytes: None,
+            overall_bytes_per_sec: None,
+            overall_eta_seconds: None,
+            overall_eta_is_estimate: false,
+            error: None,
         }
     }
     pub fn phase(label: &str, file_index: usize, file_count: usize) -> Self {
@@ -333,9 +520,22 @@ impl InstallProgress {
             file_count,
             received_bytes: 0,
             total_bytes: None,
+            file_name: None,
+            bytes_per_sec: None,
+            eta_seconds: None,
+            eta_is_estimate: false,
+            overall_received_bytes: None,
+            overall_total_bytes: None,
+            overall_bytes_per_sec: None,
+            overall_eta_seconds: None,
+            overall_eta_is_estimate: false,
+            error: None,
         }
     }
     pub fn failed(label: &str) -> Self {
+        Self::failed_for_file(label, None)
+    }
+    pub fn failed_for_file(label: &str, file_name: Option<&str>) -> Self {
         Self {
             state: "error".into(),
             label: label.into(),
@@ -343,6 +543,16 @@ impl InstallProgress {
             file_count: 0,
             received_bytes: 0,
             total_bytes: None,
+            file_name: file_name.map(str::to_string),
+            bytes_per_sec: None,
+            eta_seconds: None,
+            eta_is_estimate: false,
+            overall_received_bytes: None,
+            overall_total_bytes: None,
+            overall_bytes_per_sec: None,
+            overall_eta_seconds: None,
+            overall_eta_is_estimate: false,
+            error: Some(classify_install_error(label, file_name)),
         }
     }
     pub fn complete() -> Self {
@@ -353,6 +563,16 @@ impl InstallProgress {
             file_count: 1,
             received_bytes: 1,
             total_bytes: Some(1),
+            file_name: None,
+            bytes_per_sec: None,
+            eta_seconds: None,
+            eta_is_estimate: false,
+            overall_received_bytes: None,
+            overall_total_bytes: None,
+            overall_bytes_per_sec: None,
+            overall_eta_seconds: None,
+            overall_eta_is_estimate: false,
+            error: None,
         }
     }
 }
