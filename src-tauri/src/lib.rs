@@ -19,6 +19,7 @@ mod pins;
 mod project_sync;
 mod queue;
 mod resample;
+mod separator_license;
 mod sheetsage;
 
 use commands::AppState;

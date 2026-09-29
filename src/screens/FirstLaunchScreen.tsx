@@ -21,7 +21,8 @@ import {
   installErrorCopy,
   isMixOnlySkipped,
   LICENSE_REQUIRED_FR,
-  licenseAllowsDownload,
+  firstLaunchInstallAllowed,
+  htdemucsLicenseAllowsDownload,
   modelPackVramFailureRisk,
   overallReceived,
   overallTotal,
@@ -36,8 +37,11 @@ import {
   type FileRowStatus,
   type ModelPack,
 } from "../lib/firstLaunch";
+import { separatorLicense } from "@song-maker/stem-providers";
 import type { InstallPlan, InstallProgress, SetupGpuInfo } from "../lib/types";
 import { useAppStore } from "../store/appStore";
+import { SeparatorLicenseBadge } from "../components/SeparatorLicenseBadge";
+import { t } from "../ui/i18n";
 
 function invokeError(reason: unknown): string {
   if (typeof reason === "string") return reason;
@@ -118,6 +122,7 @@ export function FirstLaunchScreen() {
   const [plan, setPlan] = useState<InstallPlan | null>(initialDemo?.plan ?? null);
   const [pack, setPack] = useState<ModelPack>(initialDemo?.pack ?? "q4");
   const [accepted, setAccepted] = useState(Boolean(initialDemo?.progress));
+  const [htdemucsAccepted, setHtdemucsAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<InstallProgress | null>(
     initialDemo?.progress ?? null,
@@ -168,6 +173,9 @@ export function FirstLaunchScreen() {
     );
     setPack(nextPack);
     setAccepted(current.settings?.yue2LicenseAccepted ?? false);
+    setHtdemucsAccepted(
+      Boolean(current.settings?.acceptedSeparatorLicenses?.htdemucs),
+    );
     await loadPlan(nextPack);
     setLoading(false);
   }, [applyDemo, loadPlan, refreshHealth, refreshSettings, setScreen]);
@@ -229,6 +237,13 @@ export function FirstLaunchScreen() {
   const etaIsEstimate = Boolean(
     progress?.overallEtaIsEstimate ?? progress?.etaIsEstimate ?? true,
   );
+  const installAllowed = firstLaunchInstallAllowed(
+    accepted,
+    settings?.yue2LicenseAccepted,
+    htdemucsAccepted,
+    settings?.acceptedSeparatorLicenses,
+  );
+  const htdemucsLicense = separatorLicense("htdemucs");
   const etaLabel = formatEtaFr(
     progress?.overallEtaSeconds ?? progress?.etaSeconds ?? null,
     etaIsEstimate || progress == null,
@@ -246,10 +261,29 @@ export function FirstLaunchScreen() {
     }
     setProgress(null);
     try {
-      await api.installRequiredAssets(
-        pack,
-        accepted || Boolean(settings?.yue2LicenseAccepted),
+      const yue2Ok = accepted || Boolean(settings?.yue2LicenseAccepted);
+      const htdOk = htdemucsLicenseAllowsDownload(
+        htdemucsAccepted,
+        settings?.acceptedSeparatorLicenses,
       );
+      if (!yue2Ok || !htdOk) {
+        setError(
+          "Acceptez les licences YuE2 et HTDemucs avant le téléchargement.",
+        );
+        setBusy(false);
+        return;
+      }
+      if (htdemucsAccepted && settings) {
+        await api.updateSettings({
+          ...settings,
+          acceptedSeparatorLicenses: {
+            ...(settings.acceptedSeparatorLicenses ?? {}),
+            htdemucs: true,
+          },
+        });
+        await refreshSettings();
+      }
+      await api.installRequiredAssets(pack, yue2Ok);
       await Promise.all([refreshHealth(), refreshSettings()]);
       setScreen("library");
     } catch (reason) {
@@ -448,11 +482,33 @@ export function FirstLaunchScreen() {
                   disabled={busy}
                   onChange={(event) => setAccepted(event.target.checked)}
                 />
-                J’ai lu et j’accepte la licence
+                J’ai lu et j’accepte la licence YuE2
               </label>
+              {htdemucsLicense && (
+                <div className="fl-license fl-license-htdemucs">
+                  <p className="fl-hint">
+                    <SeparatorLicenseBadge license={htdemucsLicense} />{" "}
+                    {htdemucsLicense.noticeFr}
+                  </p>
+                  <label className="fl-cb" htmlFor="fl-htdemucs-license">
+                    <input
+                      id="fl-htdemucs-license"
+                      type="checkbox"
+                      checked={htdemucsAccepted}
+                      disabled={busy}
+                      onChange={(event) =>
+                        setHtdemucsAccepted(event.target.checked)
+                      }
+                    />
+                    {t("separate.license.acceptNamed", {
+                      model: "HTDemucs",
+                    })}
+                  </label>
+                </div>
+              )}
             </div>
             <div className="fl-actions">
-              {!licenseAllowsDownload(accepted, settings?.yue2LicenseAccepted) ? (
+              {!installAllowed ? (
                 <p className="fl-license-required" role="status">
                   {LICENSE_REQUIRED_FR}
                 </p>
@@ -460,7 +516,7 @@ export function FirstLaunchScreen() {
               <button
                 className="fl-btn fl-btn-lg"
                 type="button"
-                disabled={busy || !licenseAllowsDownload(accepted, settings?.yue2LicenseAccepted)}
+                disabled={busy || !installAllowed}
                 onClick={() => void install()}
               >
                 Télécharger ({formatBytesFr(buckets.totalBytes)})
@@ -659,7 +715,7 @@ export function FirstLaunchScreen() {
             <button
               className="fl-btn fl-btn-lg"
               type="button"
-              disabled={busy || !licenseAllowsDownload(accepted, settings?.yue2LicenseAccepted)}
+              disabled={busy || !installAllowed}
               onClick={() => void install()}
             >
               {view === "download" ? "Installation en cours…" : "▶ Reprendre le téléchargement"}

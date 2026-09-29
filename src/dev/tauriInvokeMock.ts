@@ -1,8 +1,13 @@
 import type {
+  AppSettings,
   FormInput,
   PlaybackSources,
   ProjectDoc,
 } from "../lib/types";
+import {
+  PHASE3_CAPTURE_SETTINGS,
+  PHASE3_CAPTURE_STATUS,
+} from "./seedPhase3LicenseCaptureStore";
 import { CAPTURE_PROJECT_ID } from "./seedCreateTabCaptureStore";
 import { SIDEBAR_CAPTURE_PROJECT_ID } from "./seedSidebarCaptureStore";
 
@@ -115,6 +120,38 @@ export async function invoke<T>(
       return null as T;
     case "load_production_overlay_disk":
       return null as T;
+    case "get_settings":
+      return PHASE3_CAPTURE_SETTINGS as T;
+    case "update_settings":
+      return ((args?.settings as AppSettings) ?? PHASE3_CAPTURE_SETTINGS) as T;
+    case "get_phase3_status":
+      return PHASE3_CAPTURE_STATUS as T;
+    case "bs_roformer_install_info":
+      return {
+        gguf: "bs-roformer-ep368-q8_0.gguf",
+        sha256: "abc",
+        bytes: 165_000_000,
+        remotePath: "",
+        url: "",
+        licenseNoticeFr: "Notice BS-RoFormer (capture).",
+        path: "",
+        available: false,
+        defaultSeparator: "htdemucs",
+        stemLayoutFr: "",
+      } as T;
+    case "mel_band_roformer_install_info":
+      return {
+        gguf: "mel-band-roformer-q8_0.gguf",
+        sha256: "def",
+        bytes: 120_000_000,
+        remotePath: "",
+        url: "",
+        licenseNoticeFr: "Notice Mel-Band (capture).",
+        path: "",
+        available: false,
+        defaultSeparator: "htdemucs",
+        stemLayoutFr: "",
+      } as T;
     default:
       console.warn(`[capture mock] invoke non géré : ${cmd}`);
       return null as T;

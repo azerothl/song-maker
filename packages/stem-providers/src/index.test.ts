@@ -199,8 +199,9 @@ describe("stem-providers", () => {
     expect(canDownloadSeparator("bs_roformer", { bs_roformer: true })).toBe(
       true,
     );
-    expect(separatorLicense("bs_roformer")?.badgeFr).toMatch(/Apache-2\.0/);
-    expect(separatorLicense("htdemucs")?.badgeFr).toMatch(/non vérifié/);
-    expect(separatorLicense("mel_band_roformer")?.badgeFr).toBe("MIT");
+    expect(separatorLicense("bs_roformer")?.status).toBe("unverified");
+    expect(separatorLicense("htdemucs")?.status).toBe("unverified");
+    expect(separatorLicense("mel_band_roformer")?.status).toBe("unverified");
+    expect(separatorLicense("mel_band_roformer")?.commercialOk).toBeUndefined();
   });
 });

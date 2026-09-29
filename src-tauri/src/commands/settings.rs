@@ -159,24 +159,11 @@ pub fn get_phase3_status() -> Result<Phase3Status, String> {
     })
 }
 
-fn require_separator_license(settings: &AppSettings, id: &str) -> Result<(), String> {
-    if settings
-        .accepted_separator_licenses
-        .get(id)
-        .copied()
-        .unwrap_or(false)
-    {
-        return Ok(());
-    }
-    Err(format!(
-        "Téléchargement bloqué : cochez « J’ai lu la licence » pour le modèle « {id} » avant de continuer."
-    ))
-}
 
 #[tauri::command]
 pub async fn install_htdemucs_6s_runtime() -> Result<String, String> {
     let settings = load_settings()?;
-    require_separator_license(&settings, "htdemucs_6s")?;
+    crate::separator_license::require_separator_license(&settings, "htdemucs_6s")?;
     crate::demucs_onnx::install(PathBuf::from(settings.cache_dir)).await
 }
 
@@ -198,7 +185,7 @@ pub async fn install_bs_roformer(
             return Err(e);
         }
     };
-    if let Err(e) = require_separator_license(&settings, "bs_roformer") {
+    if let Err(e) = crate::separator_license::require_separator_license(&settings, "bs_roformer") {
         state.bs_roformer_installing.store(false, Ordering::Release);
         return Err(e);
     }
@@ -265,7 +252,9 @@ pub async fn install_mel_band_roformer(
             return Err(e);
         }
     };
-    if let Err(e) = require_separator_license(&settings, "mel_band_roformer") {
+    if let Err(e) =
+        crate::separator_license::require_separator_license(&settings, "mel_band_roformer")
+    {
         state
             .mel_band_roformer_installing
             .store(false, Ordering::Release);

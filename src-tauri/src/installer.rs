@@ -763,6 +763,7 @@ pub async fn install_mix_only(
 
 async fn install_mix_only_inner(app: tauri::AppHandle) -> Result<String, String> {
     let mut settings = crate::library::load_settings()?;
+    crate::separator_license::require_separator_license(&settings, "htdemucs")?;
     settings.local_yue2_enabled = false;
     settings.yue2_license_accepted = false;
     crate::library::save_settings(&settings)?;
@@ -778,6 +779,9 @@ async fn install_mix_only_inner(app: tauri::AppHandle) -> Result<String, String>
         .map_err(|e| e.to_string())?;
     emit(&app, InstallProgress::starting(count));
     for (offset, item) in items.iter().enumerate() {
+        if crate::separator_license::artifact_requires_htdemucs_license(&item.name) {
+            crate::separator_license::require_separator_license(&settings, "htdemucs")?;
+        }
         if let Err(error) =
             download_artifact(&client, &app, item, offset + 1, count, &mut aggregate).await
         {
@@ -831,6 +835,7 @@ async fn install_mix_only_inner(app: tauri::AppHandle) -> Result<String, String>
 
 async fn install_inner(app: tauri::AppHandle, pack: String) -> Result<String, String> {
     let mut settings = crate::library::load_settings()?;
+    crate::separator_license::require_separator_license(&settings, "htdemucs")?;
     settings.model_pack = pack.clone();
     if pack == "q8" {
         settings.model_gguf = YUE2_Q8.into();
@@ -855,6 +860,9 @@ async fn install_inner(app: tauri::AppHandle, pack: String) -> Result<String, St
         .map_err(|e| e.to_string())?;
     emit(&app, InstallProgress::starting(count));
     for (offset, item) in items.iter().enumerate() {
+        if crate::separator_license::artifact_requires_htdemucs_license(&item.name) {
+            crate::separator_license::require_separator_license(&settings, "htdemucs")?;
+        }
         if let Err(error) =
             download_artifact(&client, &app, item, offset + 1, count, &mut aggregate).await
         {

@@ -373,7 +373,17 @@ export function SheetSage2Panel({
       aria-labelledby={hideTitle ? undefined : "sheetsage-title"}
       aria-label={hideTitle ? t("sheetsage.title") : undefined}
     >
-      {!hideTitle && <h3 id="sheetsage-title">{t("sheetsage.title")}</h3>}
+      {!hideTitle && (
+        <h3 id="sheetsage-title">
+          {t("sheetsage.title")}{" "}
+          <span className="sep-license-badge nc">
+            <span className="sep-license-badge-icon" aria-hidden="true">ⓘ</span>
+            <span className="sep-license-badge-text">
+              {t("separate.license.nc")}
+            </span>
+          </span>
+        </h3>
+      )}
       <p className="hint">{t("sheetsage.intro")}</p>
       <ol className="sheetsage-steps hint">
         <li>{t("sheetsage.step.source")}</li>

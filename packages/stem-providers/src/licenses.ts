@@ -1,22 +1,31 @@
 import type { StemProviderId } from "./registry.js";
 
+/** Statut de licence affiché avant tout téléchargement (#167). */
+export type SeparatorLicenseStatus =
+  | "verified"
+  | "unverified"
+  | "non_commercial"
+  | "excluded";
+
 /**
  * Licence metadata for separator weights (#167).
  * Not legal advice — labels follow audio.cpp model_licenses + issue notes.
- * NC weights (Banquet, ADTOF, jarredou 6 stems all-rights) stay out of this catalog.
  */
 export type SeparatorLicenseInfo = {
   id: StemProviderId;
-  /** Short badge text shown in UI. */
+  status: SeparatorLicenseStatus;
+  /** Short badge text shown in UI (with icon). */
   badgeFr: string;
   /** Full notice before download. */
   noticeFr: string;
+  /** Lien affiché dans l’UI (peut être une fiche projet, pas toujours la source primaire des poids). */
   sourceUrl: string;
   sourceLabelFr: string;
-  /** True when commercial redistribution of weights is clearly allowed. */
-  commercialOk: boolean;
-  /** Non-commercial restriction badge. */
-  nonCommercial: boolean;
+  /**
+   * Source primaire des poids + date de lecture — obligatoire si `status === "verified"`.
+   */
+  primarySourceUrl?: string;
+  primarySourceReadAt?: string;
   /** Weights may be downloaded / offered in the product. */
   offered: boolean;
   /** Requires explicit « J'ai lu la licence » before download. */
@@ -26,68 +35,110 @@ export type SeparatorLicenseInfo = {
 const MODEL_LICENSES_DOC =
   "https://github.com/0xShug0/audio.cpp/blob/main/docs/model_licenses.md";
 
+const HTDEMUCS_MAINTAINER_QUOTE_FR =
+  "Les poids seraient « only for scientific purposes » (adefossez, décembre 2022 — voir facebookresearch/demucs#327). La fiche Hugging Face actuelle des poids convertis ne comporte pas de licence claire.";
+
+const HTDEMUCS_NOTICE_FR = `Poids HTDemucs (GGUF) : ${HTDEMUCS_MAINTAINER_QUOTE_FR} Ne pas présenter comme libre de droits sans contrôle juridique. Le code audio.cpp est Apache-2.0 (ne couvre pas les poids).`;
+
 export const SEPARATOR_LICENSES: Record<StemProviderId, SeparatorLicenseInfo> = {
   htdemucs: {
     id: "htdemucs",
-    badgeFr: "MIT (fiche) — non vérifié après 2022",
-    noticeFr:
-      "Poids HTDemucs : la fiche audio.cpp indique MIT (facebookresearch/demucs), mais la licence des poids après 2022 n’est pas vérifiée ici (Demucs #327 évoque un usage scientifique). Ne pas présenter comme libre sans contrôle. Code audio.cpp = Apache-2.0 (ne couvre pas les poids).",
-    sourceUrl: "https://github.com/facebookresearch/demucs",
-    sourceLabelFr: "facebookresearch/demucs",
-    commercialOk: false,
-    nonCommercial: false,
+    status: "unverified",
+    badgeFr: "Non vérifié",
+    noticeFr: HTDEMUCS_NOTICE_FR,
+    sourceUrl: "https://github.com/facebookresearch/demucs/issues/327",
+    sourceLabelFr: "facebookresearch/demucs#327 (citation 2022)",
     offered: true,
     requiresAcceptBeforeDownload: true,
   },
   htdemucs_6s: {
     id: "htdemucs_6s",
-    badgeFr: "MIT (fiche) — non vérifié après 2022",
-    noticeFr:
-      "Runtime / poids HTDemucs 6 stems (ONNX) : même famille Demucs — MIT sur la fiche audio.cpp, non vérifié après 2022. Hors chemin audio.cpp GGUF. Le BS-Roformer 6 stems de jarredou (tous droits réservés) n’est pas proposé.",
+    status: "unverified",
+    badgeFr: "Non vérifié",
+    noticeFr: `Runtime / poids HTDemucs 6 stems (ONNX) : même famille Demucs — ${HTDEMUCS_MAINTAINER_QUOTE_FR} Hors chemin audio.cpp GGUF.`,
     sourceUrl: MODEL_LICENSES_DOC,
     sourceLabelFr: "audio.cpp model_licenses (htdemucs_6stems)",
-    commercialOk: false,
-    nonCommercial: false,
     offered: true,
     requiresAcceptBeforeDownload: true,
   },
   bs_roformer: {
     id: "bs_roformer",
-    badgeFr: "Apache-2.0, source du checkpoint non documentée",
+    status: "unverified",
+    badgeFr: "Non vérifié",
     noticeFr:
-      "BS-RoFormer ep368 (GGUF q8_0) : Apache-2.0 selon la fiche audio.cpp, mais la source du checkpoint n’est pas documentée — ne pas présenter comme vérifié. Opt-in hors installeur premier build.",
-    sourceUrl:
-      "https://huggingface.co/audio-cpp/audio.cpp-gguf/tree/main/BS-RoFormer-ep368-GGUF",
-    sourceLabelFr: "audio-cpp/audio.cpp-gguf · BS-RoFormer-ep368",
-    commercialOk: false,
-    nonCommercial: false,
+      "BS-RoFormer ep368 (GGUF q8_0) : Apache-2.0 selon la fiche audio.cpp, mais la source du checkpoint d’entraînement n’est pas documentée — ne pas présenter comme vérifié. Opt-in hors installeur premier build.",
+    sourceUrl: MODEL_LICENSES_DOC,
+    sourceLabelFr: "audio.cpp model_licenses (BS-RoFormer-ep368)",
     offered: true,
     requiresAcceptBeforeDownload: true,
   },
   mel_band_roformer: {
     id: "mel_band_roformer",
-    badgeFr: "MIT",
+    status: "unverified",
+    badgeFr: "Non vérifié",
     noticeFr:
-      "Mel-Band RoFormer « Kim Vocal 2 » (GGUF Q8) : MIT selon audio.cpp model_licenses (mlx-community/mel-roformer-mlx). Opt-in hors installeur. Les poids sous licence non commerciale (Banquet, ADTOF) restent écartés du socle.",
-    sourceUrl: "https://huggingface.co/mlx-community/mel-roformer-mlx",
-    sourceLabelFr: "mlx-community/mel-roformer-mlx",
-    commercialOk: true,
-    nonCommercial: false,
+      "Mel-Band RoFormer « Kim Vocal 2 » (GGUF Q8) : MIT indiqué sur la fiche audio.cpp pour mlx-community/mel-roformer-mlx, mais la chaîne de conversion des poids n’est pas vérifiée ici — ne pas présenter comme vérifié. Opt-in hors installeur.",
+    sourceUrl: MODEL_LICENSES_DOC,
+    sourceLabelFr: "audio.cpp model_licenses (Kim Vocal 2)",
     offered: true,
     requiresAcceptBeforeDownload: true,
   },
 };
 
-/** Models deliberately excluded (no established redistributable license). */
+/** Modèles exclus du catalogue téléchargeable (explications affichées dans l’UI). */
 export const EXCLUDED_SEPARATOR_NOTES_FR = [
-  "BS-Roformer 6 stems (jarredou) — tous droits réservés : non proposé.",
-  "Banquet / ADTOF — CC BY-NC-SA : écartés du socle.",
+  "BS-Roformer 6 stems (jarredou) — tous droits réservés : non proposé dans Song Maker.",
+  "Poids CC BY-NC (Banquet, ADTOF, jarredou 6 stems) — écartés du socle de séparation.",
 ] as const;
 
 export function separatorLicense(
   id: StemProviderId,
 ): SeparatorLicenseInfo | undefined {
   return SEPARATOR_LICENSES[id];
+}
+
+export function licenseStatusLabelFr(status: SeparatorLicenseStatus): string {
+  switch (status) {
+    case "verified":
+      return "Vérifié";
+    case "unverified":
+      return "Non vérifié";
+    case "non_commercial":
+      return "Usage non commercial";
+    case "excluded":
+      return "Exclu";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
+
+/** Icône textuelle affichée à côté du libellé (accessibilité : doublée par le texte). */
+export function licenseStatusIcon(status: SeparatorLicenseStatus): string {
+  switch (status) {
+    case "verified":
+      return "✓";
+    case "unverified":
+      return "⚠";
+    case "non_commercial":
+      return "ⓘ";
+    case "excluded":
+      return "⊘";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
+
+export function assertVerifiedLicenseShape(info: SeparatorLicenseInfo): void {
+  if (info.status !== "verified") return;
+  if (!info.primarySourceUrl || !info.primarySourceReadAt) {
+    throw new Error(
+      `Licence « vérifiée » pour ${info.id} : source primaire et date de lecture requises.`,
+    );
+  }
 }
 
 export function canDownloadSeparator(

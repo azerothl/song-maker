@@ -5965,15 +5965,31 @@ details[open] > summary {
   font-weight: 600;
 }
 .sep-license-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   font-size: 0.72rem;
   padding: 0.1rem 0.35rem;
   border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
   border-radius: 2px;
 }
+.sep-license-badge.unverified {
+  border-color: #b45309;
+  color: #b45309;
+}
 .sep-license-badge.nc {
   border-color: #b45309;
   color: #b45309;
+}
+.sep-license-badge-icon {
+  font-weight: 700;
+  line-height: 1;
+}
+.sep-excluded-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--text) 85%, transparent);
 }
 .sep-license-cb {
   display: flex;

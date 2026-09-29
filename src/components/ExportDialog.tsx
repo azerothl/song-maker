@@ -30,7 +30,6 @@ type Props = {
 /**
  * Unified export screen (#168): format-aware options (hide unused),
  * folder vs zip always, mix + stems in one place.
- * Maquette Alphonse absente — UI alignée Production.
  */
 export function ExportDialog({
   project,
@@ -160,7 +159,6 @@ export function ExportDialog({
         <header className="anchored-popin-header">
           <h3 id={titleId}>{t("export.dialog.title")}</h3>
           <p className="hint">{t("export.dialog.intro")}</p>
-          <p className="hint mockup-note">{t("export.dialog.mockupMissing")}</p>
         </header>
 
         <fieldset disabled={busy}>

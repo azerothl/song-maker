@@ -11,6 +11,7 @@ import {
   type SeparationTrackFocus,
   type StemProviderId,
 } from "@song-maker/stem-providers";
+import { SeparatorLicenseBadge } from "./SeparatorLicenseBadge";
 import { api } from "../lib/api";
 import type { AppSettings, Phase3Status } from "../lib/types";
 import { useAppStore } from "../store/appStore";
@@ -29,7 +30,6 @@ type Props = {
 /**
  * Pre-separation dialog (#166 + #167): recommend a model, show times,
  * license badges, optional install gated by « J'ai lu la licence ».
- * Maquette Alphonse absente — UI alignée Production.
  */
 export function SeparationRecommendDialog({
   open,
@@ -184,7 +184,6 @@ export function SeparationRecommendDialog({
       <header className="anchored-popin-header">
         <h3 id={titleId}>{t("separate.recommend.title")}</h3>
         <p className="hint">{t("separate.recommend.intro")}</p>
-        <p className="hint mockup-note">{t("separate.recommend.mockupMissing")}</p>
       </header>
 
       <fieldset className="sep-focus" disabled={busy}>
@@ -254,18 +253,7 @@ export function SeparationRecommendDialog({
                   {license && (
                     <>
                       <br />
-                      <span
-                        className={
-                          license.nonCommercial
-                            ? "sep-license-badge nc"
-                            : "sep-license-badge"
-                        }
-                      >
-                        {license.badgeFr}
-                        {license.nonCommercial
-                          ? ` · ${t("separate.license.nc")}`
-                          : ""}
-                      </span>{" "}
+                      <SeparatorLicenseBadge license={license} />{" "}
                       <a
                         href={license.sourceUrl}
                         target="_blank"
@@ -277,6 +265,23 @@ export function SeparationRecommendDialog({
                   )}
                 </span>
               </label>
+              {runnable && license?.requiresAcceptBeforeDownload && !acceptedHere && (
+                <div className="sep-install">
+                  <p className="hint">{license.noticeFr}</p>
+                  <label className="sep-license-cb">
+                    <input
+                      type="checkbox"
+                      checked={acceptedHere}
+                      onChange={(e) =>
+                        void persistLicense(opt.id, e.target.checked)
+                      }
+                    />
+                    {t("separate.license.acceptNamed", {
+                      model: provider?.displayNameFr ?? opt.id,
+                    })}
+                  </label>
+                </div>
+              )}
               {!runnable && license && (
                 <div className="sep-install">
                   <p className="hint">{license.noticeFr}</p>
@@ -288,7 +293,9 @@ export function SeparationRecommendDialog({
                         void persistLicense(opt.id, e.target.checked)
                       }
                     />
-                    {t("separate.license.accept")}
+                    {t("separate.license.acceptNamed", {
+                      model: provider?.displayNameFr ?? opt.id,
+                    })}
                   </label>
                   <button
                     type="button"

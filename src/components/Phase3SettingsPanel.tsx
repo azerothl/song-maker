@@ -11,9 +11,11 @@ import {
 import {
   describeStemProvidersFr,
   canDownloadSeparator,
+  EXCLUDED_SEPARATOR_NOTES_FR,
   separatorLicense,
   type StemProviderId,
 } from "@song-maker/stem-providers";
+import { SeparatorLicenseBadge } from "./SeparatorLicenseBadge";
 import { api } from "../lib/api";
 import type { AppSettings, InstallProgress, Phase3Status } from "../lib/types";
 import { useAppStore } from "../store/appStore";
@@ -295,33 +297,42 @@ export function Phase3SettingsPanel({
             settings.acceptedSeparatorLicenses?.[p.id] ??
               phase3?.acceptedSeparatorLicenses?.[p.id],
           );
+          const licenseInputId = `sep-license-${p.id}`;
+          const showLicenseAccept =
+            Boolean(license?.requiresAcceptBeforeDownload) && !accepted;
           return (
-            <label key={p.id} className="phase3-provider">
-              <input
-                type="radio"
-                name="stem-separator"
-                checked={selected}
-                disabled={!p.runnable && p.id !== "htdemucs"}
-                onChange={() => void selectSeparator(p.id)}
-              />
-              <span>
-                <strong>{p.displayNameFr}</strong>
-                {license && (
-                  <>
-                    {" "}
-                    <span className="sep-license-badge">{license.badgeFr}</span>
-                  </>
-                )}
-                <br />
-                <span className="hint">{p.stemLayoutNoteFr}</span>
-                {license && (
-                  <>
-                    <br />
-                    <a href={license.sourceUrl} target="_blank" rel="noreferrer">
-                      {license.sourceLabelFr}
-                    </a>
-                  </>
-                )}
+            <div key={p.id} className="phase3-provider">
+              <label className="phase3-provider-radio">
+                <input
+                  type="radio"
+                  name="stem-separator"
+                  checked={selected}
+                  disabled={!p.runnable && p.id !== "htdemucs"}
+                  onChange={() => void selectSeparator(p.id)}
+                  aria-describedby={
+                    showLicenseAccept ? `${licenseInputId}-label` : undefined
+                  }
+                />
+                <span>
+                  <strong>{p.displayNameFr}</strong>
+                  {license && (
+                    <>
+                      {" "}
+                      <SeparatorLicenseBadge license={license} />
+                    </>
+                  )}
+                  <br />
+                  <span className="hint">{p.stemLayoutNoteFr}</span>
+                  {license && (
+                    <>
+                      <br />
+                      <span className="hint">{license.noticeFr}</span>
+                      <br />
+                      <a href={license.sourceUrl} target="_blank" rel="noreferrer">
+                        {license.sourceLabelFr}
+                      </a>
+                    </>
+                  )}
                 {!p.runnable && p.id === "bs_roformer" && (
                   <>
                     <br />
@@ -348,28 +359,37 @@ export function Phase3SettingsPanel({
                     </span>
                   </>
                 )}
-                {license?.requiresAcceptBeforeDownload && !p.runnable && (
-                  <>
-                    <br />
-                    <span className="sep-license-cb">
-                      <input
-                        type="checkbox"
-                        checked={accepted}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          void toggleLicense(p.id, e.target.checked);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      {t("separate.license.accept")}
-                    </span>
-                  </>
-                )}
               </span>
-            </label>
+              </label>
+              {showLicenseAccept && license && (
+                <label
+                  id={`${licenseInputId}-label`}
+                  className="sep-license-cb"
+                  htmlFor={licenseInputId}
+                >
+                  <input
+                    id={licenseInputId}
+                    type="checkbox"
+                    checked={accepted}
+                    onChange={(e) => {
+                      void toggleLicense(p.id, e.target.checked);
+                    }}
+                  />
+                  {t("separate.license.acceptNamed", {
+                    model: p.displayNameFr,
+                  })}
+                </label>
+              )}
+            </div>
           );
         })}
       </div>
+      <h4>{t("separate.license.excludedTitle")}</h4>
+      <ul className="sep-excluded-list">
+        {EXCLUDED_SEPARATOR_NOTES_FR.map((note) => (
+          <li key={note}>{note}</li>
+        ))}
+      </ul>
       {!phase3?.melBandRoformerAvailable && (
         <div className="phase3-bs-install">
           <p className="hint">{t("phase3.separator.melInstallHint")}</p>
@@ -523,6 +543,12 @@ export function Phase3SettingsPanel({
           <li key={pack.id}>
             <div>
               <strong>{pack.displayName}</strong>
+              <span className="sep-license-badge nc">
+                <span className="sep-license-badge-icon" aria-hidden="true">ⓘ</span>
+                <span className="sep-license-badge-text">
+                  {t("separate.license.nc")}
+                </span>
+              </span>
               <span className="hint">
                 {" "}
                 · {pack.kind} · {compatibilityLabelFr(pack.compatibilityStatus)} · {pack.license} · {pack.repo}

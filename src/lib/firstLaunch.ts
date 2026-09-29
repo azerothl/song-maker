@@ -225,6 +225,25 @@ export function licenseAllowsDownload(
   return accepted || Boolean(settingsLicenseAccepted);
 }
 
+export function htdemucsLicenseAllowsDownload(
+  acceptedLocal: boolean,
+  acceptedSeparatorLicenses?: Record<string, boolean>,
+): boolean {
+  return acceptedLocal || Boolean(acceptedSeparatorLicenses?.htdemucs);
+}
+
+export function firstLaunchInstallAllowed(
+  yue2Accepted: boolean,
+  yue2SettingsAccepted: boolean | undefined,
+  htdemucsAccepted: boolean,
+  acceptedSeparatorLicenses?: Record<string, boolean>,
+): boolean {
+  return (
+    licenseAllowsDownload(yue2Accepted, yue2SettingsAccepted) &&
+    htdemucsLicenseAllowsDownload(htdemucsAccepted, acceptedSeparatorLicenses)
+  );
+}
+
 /** Q8 reste choisissable même si le pic YuE2 dépasse la VRAM détectée. */
 export function modelPackVramFailureRisk(
   pack: ModelPack,

@@ -16,6 +16,8 @@ import {
   gpuDetailLine,
   installErrorCopy,
   LICENSE_REQUIRED_FR,
+  firstLaunchInstallAllowed,
+  htdemucsLicenseAllowsDownload,
   licenseAllowsDownload,
   modelPackVramFailureRisk,
   parsePack,
@@ -259,6 +261,16 @@ describe("firstLaunch licence et VRAM", () => {
     assert.equal(licenseAllowsDownload(false, false), false);
     assert.equal(licenseAllowsDownload(true, false), true);
     assert.equal(licenseAllowsDownload(false, true), true);
+    assert.equal(htdemucsLicenseAllowsDownload(false, {}), false);
+    assert.equal(
+      htdemucsLicenseAllowsDownload(false, { htdemucs: true }),
+      true,
+    );
+    assert.equal(
+      firstLaunchInstallAllowed(true, false, true, { htdemucs: true }),
+      true,
+    );
+    assert.equal(firstLaunchInstallAllowed(true, false, false, {}), false);
   });
 
   it("signale le risque Q8 quand le pic dépasse la VRAM détectée", () => {
