@@ -141,6 +141,7 @@
   "form.seed.placeholder": "Vide = nouvelle variation",
   "form.seed.hint": "Saisissez le seed d’une génération pour tenter de la reproduire.",
   "generate.button": "Générer",
+  "generate.shortcut": "Ctrl+Entrée pour lancer la génération",
   "separate.button": "Séparer les pistes",
   "separate.again": "Séparer à nouveau…",
   "separate.again.confirm": "Une nouvelle séparation crée un nouveau mix : les réglages actuels des pistes issues de l'IA repartent de zéro. Vos pistes importées ou enregistrées sont conservées.",
