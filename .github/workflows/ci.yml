@@ -69,9 +69,10 @@ jobs:
             libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
             librsvg2-dev patchelf
 
-      # Reads the pinned toolchain and its components from rust-toolchain.toml.
+      # Installs channel/components from rust-toolchain.toml. dtolnay/rust-toolchain@master
+      # requires `with.toolchain` and does not read the file.
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
+        run: rustup toolchain install
 
       - name: Cache Rust build
         uses: swatinem/rust-cache@v2
