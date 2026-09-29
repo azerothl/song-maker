@@ -1,84 +1,27 @@
-import { useEffect, useMemo, useState } from "react";
-import type { MixDoc, PlaybackSources, ProjectDoc } from "../lib/types";
+import { useState } from "react";
+import type { ProjectDoc } from "../lib/types";
 import {
-  exportAlignedStems,
   exportPortablePackage,
   formatBytes,
   planPortablePackage,
 } from "../lib/exportMix";
 import type { PortablePackagePlan } from "../lib/projectPackage";
-import { estimatePcmByteSize } from "@song-maker/mix-production";
 import { t } from "../ui/i18n";
 
 type Props = {
   project: ProjectDoc;
-  mix: MixDoc | null;
-  sources: PlaybackSources | null;
   busy: boolean;
   onBusy: (busy: boolean) => void;
   onError: (message: string | null) => void;
 };
 
 /**
- * Stem batch export + portable package wizard (#99).
+ * Portable project package only (#99). Mix / stems export lives in ExportDialog (#168)
+ * so there is no second export screen.
  */
-export function ExportWizard({
-  project,
-  mix,
-  sources,
-  busy,
-  onBusy,
-  onError,
-}: Props) {
-  const tracks = mix?.tracks ?? [];
-  const [selected, setSelected] = useState<string[]>([]);
-  const [format, setFormat] = useState<"wav" | "flac">("wav");
-  const [includeMaster, setIncludeMaster] = useState(true);
+export function ExportWizard({ project, busy, onBusy, onError }: Props) {
   const [plan, setPlan] = useState<PortablePackagePlan | null>(null);
   const [resultPaths, setResultPaths] = useState<string[]>([]);
-
-  useEffect(() => {
-    setSelected(tracks.map((tr) => tr.id));
-  }, [mix?.id]);
-
-  const durationSec = useMemo(() => {
-    if (!mix || !sources?.stems?.length) return 0;
-    // Rough: use sampleRate and a placeholder; UI estimate only.
-    return Math.max(1, project.targetDurationSec ?? 180);
-  }, [mix, sources, project.targetDurationSec]);
-
-  const estimate = useMemo(() => {
-    const sr = mix?.sampleRate || 48000;
-    const frames = Math.round(durationSec * sr);
-    const perStem = estimatePcmByteSize(frames, 2, 24);
-    const count = selected.length + (includeMaster ? 1 : 0);
-    return perStem * count;
-  }, [durationSec, mix?.sampleRate, selected.length, includeMaster]);
-
-  const toggle = (id: string) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
-
-  const onExportStems = async () => {
-    if (!mix || !sources) return;
-    onBusy(true);
-    onError(null);
-    setResultPaths([]);
-    try {
-      const paths = await exportAlignedStems(project.id, mix, sources, {
-        format,
-        selectedTrackIds: selected,
-        includeMaster,
-      });
-      setResultPaths(paths);
-    } catch (e) {
-      onError(String(e));
-    } finally {
-      onBusy(false);
-    }
-  };
 
   const onPlanPackage = async () => {
     onBusy(true);
@@ -108,63 +51,18 @@ export function ExportWizard({
   };
 
   return (
-    <section className="export-wizard" aria-label={t("export.wizard.title")}>
+    <section
+      className="export-wizard"
+      aria-label={t("export.package.title")}
+      data-testid="portable-package-panel"
+    >
       <header>
-        <h3>{t("export.wizard.title")}</h3>
-        <p className="hint">{t("export.wizard.intro")}</p>
+        <h3>{t("export.package.title")}</h3>
+        <p className="hint">{t("export.package.hint")}</p>
       </header>
 
-      <fieldset disabled={busy || !mix}>
-        <legend>{t("export.stems.title")}</legend>
-        <p className="hint">{t("export.stems.hint")}</p>
-        <ul className="export-stem-list">
-          {tracks.map((tr) => (
-            <li key={tr.id}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={selected.includes(tr.id)}
-                  onChange={() => toggle(tr.id)}
-                />
-                {tr.name} ({tr.role})
-              </label>
-            </li>
-          ))}
-        </ul>
-        <label>
-          {t("export.stems.format")}
-          <select
-            value={format}
-            onChange={(e) => setFormat(e.target.value as "wav" | "flac")}
-          >
-            <option value="wav">WAV 24 bits · {mix?.sampleRate || 48000} Hz</option>
-            <option value="flac">FLAC 24 bits · {mix?.sampleRate || 48000} Hz</option>
-          </select>
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={includeMaster}
-            onChange={(e) => setIncludeMaster(e.target.checked)}
-          />
-          {t("export.stems.includeMaster")}
-        </label>
-        <p className="hint">
-          {t("export.stems.estimate", { size: formatBytes(estimate) })}
-        </p>
-        <button
-          type="button"
-          className="btn primary"
-          disabled={busy || selected.length === 0 || !sources}
-          onClick={() => void onExportStems()}
-        >
-          {t("export.stems.run")}
-        </button>
-      </fieldset>
-
       <fieldset disabled={busy}>
-        <legend>{t("export.package.title")}</legend>
-        <p className="hint">{t("export.package.hint")}</p>
+        <legend className="sr-only">{t("export.package.title")}</legend>
         <div className="btn-row">
           <button
             type="button"
