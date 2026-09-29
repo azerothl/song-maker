@@ -34,7 +34,8 @@ Depuis la racine du dépôt :
 python scripts/basicpitch-trial/run_trial.py
 ```
 
-Sorties : `docs/basicpitch-trial/midi/`, `docs/basicpitch-trial/excerpts/`, `docs/basicpitch-trial/metrics.json`.
+Sorties : `docs/basicpitch-trial/midi/`, `docs/basicpitch-trial/metrics.json`.  
+Les WAV d’extraits ne sont plus écrits sous `docs/` (preuves A/B = mp3 + spectrogrammes).
 
 Compte rendu : [`docs/basicpitch-trial/REPORT.md`](../../docs/basicpitch-trial/REPORT.md).
 

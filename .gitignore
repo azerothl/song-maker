@@ -44,3 +44,6 @@ training-jobs/*
 !training-jobs/.gitkeep
 __pycache__/
 artifacts/
+
+# BasicPitch trial: WAV excerpts are redundant with mp3 A/B (issue #169)
+docs/basicpitch-trial/excerpts/*.wav

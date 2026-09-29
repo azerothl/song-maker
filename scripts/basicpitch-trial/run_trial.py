@@ -15,7 +15,6 @@ Usage (depuis la racine du dépôt) :
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 from pathlib import Path
 from time import perf_counter
@@ -24,7 +23,6 @@ ROOT = Path(__file__).resolve().parents[2]
 STEMS_DIR = ROOT / "website" / "public" / "examples" / "real-generation-6"
 OUT = ROOT / "docs" / "basicpitch-trial"
 MIDI_DIR = OUT / "midi"
-EXCERPT_DIR = OUT / "excerpts"
 WORK = Path("/tmp/bp-work-song-maker")
 
 
@@ -123,7 +121,6 @@ def run() -> int:
     wav_dir.mkdir(exist_ok=True)
     out_dir.mkdir(exist_ok=True)
     MIDI_DIR.mkdir(parents=True, exist_ok=True)
-    EXCERPT_DIR.mkdir(parents=True, exist_ok=True)
 
     jobs: list[tuple[str, Path, str | None]] = []
     for stem in ("vocals", "bass", "piano", "drums"):
@@ -134,10 +131,9 @@ def run() -> int:
         ffmpeg("-i", str(src), "-ac", "1", "-ar", "44100", str(wav))
         jobs.append((stem, wav, None))
 
-    synth = EXCERPT_DIR / "piano-synthetic-fixture.wav"
-    synthesize_piano_fixture(synth)
+    # Fixture synthétique en /tmp uniquement (pas de WAV commités sous docs/).
     synth_wav = wav_dir / "piano_synthetic.wav"
-    shutil.copy(synth, synth_wav)
+    synthesize_piano_fixture(synth_wav)
     jobs.append(("piano_synthetic", synth_wav, "piano-fixture-supplement"))
 
     sketch_src = ROOT / "website" / "public" / "examples" / "piano-roll-sketch.wav"
@@ -162,12 +158,7 @@ def run() -> int:
         mid = out_dir / f"{stem}_basic_pitch.mid"
         dest = MIDI_DIR / f"{stem}.mid"
         dest.write_bytes(mid.read_bytes())
-        son = out_dir / f"{stem}_basic_pitch.wav"
-        excerpt_orig = EXCERPT_DIR / f"{stem}-original-8s.wav"
-        excerpt_midi = EXCERPT_DIR / f"{stem}-midi-sonify-8s.wav"
-        ffmpeg("-i", str(audio), "-t", "8", str(excerpt_orig))
-        if son.is_file():
-            ffmpeg("-i", str(son), "-t", "8", str(excerpt_midi))
+        # Pas d'écriture de WAV d'extraits sous docs/ : redondants avec les mp3 A/B.
         row = {
             "stem": stem,
             "elapsed_seconds": round(elapsed, 3),
