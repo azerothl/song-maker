@@ -63,6 +63,9 @@ async function main() {
       await errorDismiss.first().click();
     }
     await page.waitForTimeout(400);
+    await page
+      .locator(".version-candidates-fold")
+      .evaluate((el) => el.removeAttribute("open"));
 
     await page.screenshot({
       path: path.join(outDir, "versions-react-default-1280x720.png"),
@@ -81,12 +84,14 @@ async function main() {
 
     await page.evaluate(() => window.scrollTo(0, 0));
     const take11 = page.locator("h3", { hasText: "Prise 11" }).first();
-    await take11.scrollIntoViewIfNeeded();
-    const detailsBtn = page
-      .locator(".version-take-card")
-      .filter({ has: take11 })
-      .getByRole("button", { name: "Détails" });
+    const take11Card = page.locator(".version-take-card").filter({ has: take11 });
+    await take11Card.scrollIntoViewIfNeeded();
+    const detailsBtn = take11Card.getByRole("button", { name: "Détails" });
     await detailsBtn.click();
+    await take11Card.locator(".version-details-panel").waitFor({ state: "visible" });
+    await take11Card.evaluate((el) =>
+      el.scrollIntoView({ block: "center", behavior: "instant" }),
+    );
     await page.waitForTimeout(250);
     await page.screenshot({
       path: path.join(outDir, "versions-react-details-ouvert-1280x720.png"),
@@ -94,11 +99,27 @@ async function main() {
 
     await detailsBtn.click();
     const take10 = page.locator("h3", { hasText: "Essai plus lumineux" });
-    await take10.scrollIntoViewIfNeeded();
-    const renameBtn = page
+    const take10Card = page
       .locator(".version-take-card")
-      .filter({ has: take10 })
-      .getByRole("button", { name: /Renommer/ });
+      .filter({ has: take10 });
+    await take10Card.scrollIntoViewIfNeeded();
+    const details10 = take10Card.getByRole("button", { name: "Détails" });
+    await details10.click();
+    await take10Card.locator(".version-details-panel").waitFor({ state: "visible" });
+    await take10Card.evaluate((el) =>
+      el.scrollIntoView({ block: "center", behavior: "instant" }),
+    );
+    await page.waitForTimeout(250);
+    await page.screenshot({
+      path: path.join(
+        outDir,
+        "versions-react-details-renomme-1280x720.png",
+      ),
+    });
+    await details10.click();
+
+    await take10Card.scrollIntoViewIfNeeded();
+    const renameBtn = take10Card.getByRole("button", { name: /Renommer/ });
     await renameBtn.click();
     await page.waitForTimeout(250);
     await page.screenshot({

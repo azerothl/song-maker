@@ -12,7 +12,12 @@ function CaptureRoot() {
       .getState()
       .openProject(PROJECT_ID)
       .then(() => {
-        useAppStore.setState({ screen: "song" });
+        const state = useAppStore.getState();
+        useAppStore.setState({
+          screen: "song",
+          // Formulaire invalide → « Relancer » grisé + explication (prise 13).
+          form: { ...state.form, style: "", lyrics: "" },
+        });
         setReady(true);
       })
       .catch((e) => {

@@ -240,7 +240,11 @@ export function formatTakeDetails(
     lines.push(`${label}: ${take.defaultTitle}`);
   }
   lines.push(`graine: ${take.seed}`);
-  if (take.scoreArtifactId) lines.push(`partition: ${take.scoreArtifactId}`);
+  if (take.scoreArtifactId) {
+    lines.push(`partition: ${take.scoreArtifactId}`);
+  } else if (take.hasScore) {
+    lines.push("partition: score.abc");
+  }
   if (take.mixId) lines.push(`mix: ${take.mixId}`);
   if (generation?.cot) lines.push(`mode: ${generation.cot}`);
   lines.push(`état: ${take.state}`);
@@ -302,7 +306,8 @@ export function buildTakeDisplays(input: BuildTimelineInput): TakeDisplay[] {
         : null;
     const hasMusic = g.state === "generated" && Boolean(g.audioPath);
     const mixId = mixByGen.get(g.id) ?? null;
-    const scoreArtifactId = g.hasScore ? g.id : null;
+    /** Renseigné depuis `scores[]` (score-v*), jamais l’id gen-*. */
+    const scoreArtifactId: string | null = null;
     const isInterrupted = !hasMusic && g.state !== "generated";
     const defaultTitle = defaultTakeTitle(ordinal);
     return {
