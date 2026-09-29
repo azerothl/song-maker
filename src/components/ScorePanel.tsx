@@ -19,7 +19,7 @@ import { PianoRoll } from "./PianoRoll";
 import { ScoreAssistantPanel } from "./ScoreAssistantPanel";
 import { ScoreBranchPanel } from "./ScoreBranchPanel";
 import { useAppStore } from "../store/appStore";
-import { traceTiming } from "../lib/perfTrace";
+import { PerfProbe, traceTiming } from "../lib/perfTrace";
 import { t } from "../ui/i18n";
 
 type ScoreViewMode = "staff" | "piano" | "abc";
@@ -412,13 +412,15 @@ export function ScorePanel({
             hidden={viewMode !== "staff"}
           >
             {staffAbc?.ok ? (
-              <AbcStaffView
-                abc={staffAbc.abc}
-                warnings={staffAbc.warnings}
-                playbackSeconds={playbackSeconds}
-                playbackReady={playbackReady}
-                onSeek={onSeekPlayback}
-              />
+              <PerfProbe id="AbcStaffView">
+                <AbcStaffView
+                  abc={staffAbc.abc}
+                  warnings={staffAbc.warnings}
+                  playbackSeconds={playbackSeconds}
+                  playbackReady={playbackReady}
+                  onSeek={onSeekPlayback}
+                />
+              </PerfProbe>
             ) : (
               <div className="score-staff-fallback">
                 <p className="hint" role="alert">
@@ -442,14 +444,16 @@ export function ScorePanel({
             aria-labelledby="score-view-piano"
             hidden={viewMode !== "piano"}
           >
-            <PianoRoll
-              document={document}
-              onChange={(doc) => {
-                onDocumentChange(doc);
-                setAbcPreview(null);
-              }}
-              onError={onError}
-            />
+            <PerfProbe id="PianoRoll">
+              <PianoRoll
+                document={document}
+                onChange={(doc) => {
+                  onDocumentChange(doc);
+                  setAbcPreview(null);
+                }}
+                onError={onError}
+              />
+            </PerfProbe>
             <MidiInstrumentPanel
               document={document}
               onDocumentChange={(doc) => {

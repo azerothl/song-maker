@@ -5,6 +5,7 @@ import { ScoreOnlyGenerate } from "../../components/ScoreOnlyGenerate";
 import { ScorePanel } from "../../components/ScorePanel";
 import { SheetSage2Panel } from "../../components/SheetSage2Panel";
 import { api } from "../../lib/api";
+import { PerfProbe } from "../../lib/perfTrace";
 import { t } from "../../ui/i18n";
 import type { FormInput, GenerationSummary, MixDoc, ProjectDoc } from "../../lib/types";
 import type { ScoreDocument } from "../../lib/score";
@@ -110,6 +111,7 @@ export function ScoreWorkspace({
         hidden={scoreMode !== "edit"}
       >
         <div className="score-edit-section">
+          <PerfProbe id="ScorePanel">
           <ScorePanel
             projectId={project.id}
             document={scoreDocument}
@@ -124,6 +126,7 @@ export function ScoreWorkspace({
             playbackReady={Boolean(playback?.ready)}
             onSeekPlayback={playback?.seek}
           />
+          </PerfProbe>
         </div>
 
         {!scoreDocument && (
@@ -159,6 +162,7 @@ export function ScoreWorkspace({
           </div>
         )}
 
+        <PerfProbe id="AbcTakePreview">
         <AbcTakePreview
           abc={scoreAbc}
           open={scoreOpen}
@@ -169,6 +173,7 @@ export function ScoreWorkspace({
             meter: form.meter,
           }}
         />
+        </PerfProbe>
       </div>
 
       <div
@@ -178,6 +183,7 @@ export function ScoreWorkspace({
         hidden={scoreMode !== "reprise"}
         className="sheetsage-section"
       >
+        <PerfProbe id="SheetSage2Panel">
         <SheetSage2Panel
           projectId={project.id}
           form={form}
@@ -209,6 +215,7 @@ export function ScoreWorkspace({
             }
           }}
         />
+        </PerfProbe>
       </div>
     </section>
   );
