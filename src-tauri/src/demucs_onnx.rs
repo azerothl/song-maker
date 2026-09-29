@@ -42,29 +42,35 @@ fn python_bootstrap() -> Result<(PathBuf, Vec<String>), String> {
         ));
     }
 
-    let mut candidates = vec![
+    #[cfg(not(target_os = "windows"))]
+    let candidates = vec![
         (PathBuf::from("python"), Vec::<String>::new()),
         (PathBuf::from("py"), vec!["-3".into()]),
     ];
     #[cfg(target_os = "windows")]
-    {
+    let candidates = {
+        let mut list = vec![
+            (PathBuf::from("python"), Vec::<String>::new()),
+            (PathBuf::from("py"), vec!["-3".into()]),
+        ];
         if let Some(home) = dirs::home_dir() {
             for folder in ["anaconda3", "miniconda3", "AppData/Local/Programs/Python"] {
                 let root = home.join(folder);
                 if folder.ends_with("Python") {
                     if let Ok(entries) = std::fs::read_dir(&root) {
-                        candidates.extend(
+                        list.extend(
                             entries
                                 .flatten()
                                 .map(|entry| (entry.path().join("python.exe"), Vec::new())),
                         );
                     }
                 } else {
-                    candidates.push((root.join("python.exe"), Vec::new()));
+                    list.push((root.join("python.exe"), Vec::new()));
                 }
             }
         }
-    }
+        list
+    };
     for (program, prefix) in candidates {
         if program.components().count() > 1 && !program.is_file() {
             continue;
