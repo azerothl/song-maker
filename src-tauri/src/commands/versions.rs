@@ -29,11 +29,7 @@ pub fn use_generation(id: String, gen_id: String) -> Result<ProjectDoc, String> 
 
 /// Persist a human-readable take name (Versions tab, #133).
 #[tauri::command]
-pub fn rename_generation(
-    id: String,
-    gen_id: String,
-    name: String,
-) -> Result<ProjectDoc, String> {
+pub fn rename_generation(id: String, gen_id: String, name: String) -> Result<ProjectDoc, String> {
     let folder = project_folder(&id);
     let mut doc = load_project(&folder)?;
     let gen_dir = folder.join("generations").join(&gen_id);

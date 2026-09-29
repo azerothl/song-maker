@@ -5,7 +5,9 @@ use crate::mix::{
     export_flac, export_mp3, render_mix, write_export_json_with_warnings, write_interleaved_f32_wav,
 };
 use crate::models::*;
-use crate::paths::{atomic_write_json, default_cache_dir, ensure_dir, file_mtime_iso, next_folder_id, now_iso};
+use crate::paths::{
+    atomic_write_json, default_cache_dir, ensure_dir, file_mtime_iso, next_folder_id, now_iso,
+};
 use std::path::{Path, PathBuf};
 
 #[tauri::command]
@@ -146,8 +148,7 @@ pub fn list_mix_versions(id: String) -> Result<Vec<MixVersionSummary>, String> {
             continue;
         }
         let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        let value: serde_json::Value =
-            serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        let value: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
         let mix_id = value
             .get("id")
             .and_then(|v| v.as_str())
@@ -182,7 +183,11 @@ pub fn list_mix_versions(id: String) -> Result<Vec<MixVersionSummary>, String> {
             });
         }
     }
-    out.sort_by(|a, b| a.created_at.cmp(&b.created_at).then_with(|| a.id.cmp(&b.id)));
+    out.sort_by(|a, b| {
+        a.created_at
+            .cmp(&b.created_at)
+            .then_with(|| a.id.cmp(&b.id))
+    });
     Ok(out)
 }
 
