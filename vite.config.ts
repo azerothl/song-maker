@@ -6,12 +6,21 @@ import { fileURLToPath } from "node:url";
 
 const host = process.env.TAURI_DEV_HOST;
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
+const captureMode = process.env.VITE_CAPTURE === "1";
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [react()],
   resolve: {
     alias: {
+      ...(captureMode
+        ? {
+            "@tauri-apps/api/core": path.resolve(
+              rootDir,
+              "src/dev/tauriInvokeMock.ts",
+            ),
+          }
+        : {}),
       "@song-maker/score-engine": path.resolve(
         rootDir,
         "packages/score-engine/src/index.ts",
@@ -61,9 +70,9 @@ export default defineConfig(() => ({
   clearScreen: false,
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {
-    port: 1420,
-    strictPort: true,
-    host: host || false,
+    port: captureMode ? 5179 : 1420,
+    strictPort: !captureMode,
+    host: captureMode ? true : host || false,
     hmr: host
       ? {
           protocol: "ws",
