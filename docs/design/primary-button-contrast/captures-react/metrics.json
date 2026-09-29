@@ -1,0 +1,392 @@
+{
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "reports": [
+    {
+      "id": "bibliotheque",
+      "label": "Bibliothèque",
+      "file": "primary-btn-bibliotheque-1280x720.png",
+      "buttonsOnPage": 1,
+      "referenceButton": "Nouveau morceau",
+      "stateMeasures": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [],
+          "worstStopContrast": null,
+          "flatBackgroundContrast": 6.474523394225762,
+          "passAa": true
+        }
+      ],
+      "pageMetricsPass": true
+    },
+    {
+      "id": "creer",
+      "label": "Onglet Créer",
+      "file": "primary-btn-creer-1280x720.png",
+      "buttonsOnPage": 1,
+      "referenceButton": "Générer",
+      "stateMeasures": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [],
+          "worstStopContrast": null,
+          "flatBackgroundContrast": 6.474523394225762,
+          "passAa": true
+        }
+      ],
+      "pageMetricsPass": true
+    },
+    {
+      "id": "score",
+      "label": "Onglet Score",
+      "file": "primary-btn-score-1280x720.png",
+      "buttonsOnPage": 1,
+      "referenceButton": "Importer MIDI",
+      "stateMeasures": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [],
+          "worstStopContrast": null,
+          "flatBackgroundContrast": 6.474523394225762,
+          "passAa": true
+        }
+      ],
+      "pageMetricsPass": true
+    },
+    {
+      "id": "production-mix",
+      "label": "Production — mixage",
+      "file": "primary-btn-production-mix-1280x720.png",
+      "buttonsOnPage": 1,
+      "referenceButton": "",
+      "stateMeasures": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [],
+          "worstStopContrast": null,
+          "flatBackgroundContrast": 6.474523394225762,
+          "passAa": true
+        }
+      ],
+      "pageMetricsPass": true
+    },
+    {
+      "id": "production-clips",
+      "label": "Production — clips",
+      "file": "primary-btn-production-clips-1280x720.png",
+      "buttonsOnPage": 0,
+      "referenceButton": "",
+      "stateMeasures": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [],
+          "worstStopContrast": null,
+          "flatBackgroundContrast": 6.474523394225762,
+          "passAa": true
+        }
+      ],
+      "pageMetricsPass": true
+    },
+    {
+      "id": "production-tools",
+      "label": "Production — outils",
+      "file": "primary-btn-production-tools-1280x720.png",
+      "buttonsOnPage": 2,
+      "referenceButton": "",
+      "stateMeasures": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [],
+          "worstStopContrast": null,
+          "flatBackgroundContrast": 6.474523394225762,
+          "passAa": true
+        }
+      ],
+      "pageMetricsPass": true
+    },
+    {
+      "id": "production-enregistrement",
+      "label": "Production — panneau enregistrement",
+      "file": "primary-btn-production-enregistrement-1280x720.png",
+      "buttonsOnPage": 3,
+      "referenceButton": "",
+      "stateMeasures": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [
+            "rgb(196, 168, 255)",
+            "rgb(167, 139, 250)"
+          ],
+          "worstStopContrast": 6.474523394225762,
+          "flatBackgroundContrast": 1.1918361449781698,
+          "passAa": true
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "backgroundStopsCss": [],
+          "worstStopContrast": null,
+          "flatBackgroundContrast": 6.474523394225762,
+          "passAa": true
+        }
+      ],
+      "pageMetricsPass": true
+    },
+    {
+      "id": "reglages-separation",
+      "label": "Réglages — séparation",
+      "file": "primary-btn-reglages-separation-1280x720.png",
+      "buttonsOnPage": 0,
+      "referenceButton": null,
+      "stateMeasures": [],
+      "pageMetricsPass": true
+    },
+    {
+      "id": "reglages-distance",
+      "label": "Réglages — génération distante",
+      "file": "primary-btn-reglages-distance-1280x720.png",
+      "buttonsOnPage": 0,
+      "referenceButton": null,
+      "stateMeasures": [],
+      "pageMetricsPass": true
+    },
+    {
+      "id": "reglages-hote",
+      "label": "Réglages — hôte",
+      "file": "primary-btn-reglages-hote-1280x720.png",
+      "buttonsOnPage": 0,
+      "referenceButton": null,
+      "stateMeasures": [],
+      "pageMetricsPass": true
+    }
+  ]
+}

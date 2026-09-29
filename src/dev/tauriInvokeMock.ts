@@ -1,5 +1,7 @@
 import type {
+  AppSettings,
   FormInput,
+  HealthSnapshot,
   PlaybackSources,
   ProjectDoc,
 } from "../lib/types";
@@ -20,6 +22,39 @@ const emptyPlayback: PlaybackSources = {
   generationWav: null,
   stems: [],
   label: "",
+};
+
+const captureHealth: HealthSnapshot = {
+  cudaAvailable: true,
+  accelerationKind: "nvidiaCuda",
+  gpuName: "Capture (mock)",
+  driverVersion: "560.00",
+  vramMib: 12288,
+  suggestedPack: "q4",
+  suggestedPackReasonFr: "Capture navigateur.",
+  localYue2Enabled: true,
+  modelsOk: true,
+  binaryOk: true,
+  serverHealthy: true,
+  serverUrl: null,
+  message: "Capture navigateur — backend mocké.",
+};
+
+const captureSettings: AppSettings = {
+  projectsDir: "/tmp/capture-projects",
+  cacheDir: "/tmp/capture-cache",
+  binaryTag: "capture",
+  binaryArchive: "capture.zip",
+  binarySha256: "",
+  modelPack: "q4",
+  modelGguf: "capture.gguf",
+  modelSha256: "",
+  serverHost: "127.0.0.1",
+  serverPort: 8080,
+  stemSeparator: "htdemucs",
+  ccByNcAccepted: true,
+  yue2LicenseAccepted: true,
+  localYue2Enabled: true,
 };
 
 export function isTauri(): boolean {
@@ -115,6 +150,10 @@ export async function invoke<T>(
       return null as T;
     case "load_production_overlay_disk":
       return null as T;
+    case "get_health":
+      return captureHealth as T;
+    case "get_settings":
+      return captureSettings as T;
     default:
       console.warn(`[capture mock] invoke non géré : ${cmd}`);
       return null as T;

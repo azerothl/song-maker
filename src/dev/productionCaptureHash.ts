@@ -8,6 +8,8 @@ export type CaptureHashPrefs = {
   midPlayback: boolean;
   /** Position 0–1 dans le morceau. */
   progressRatio: number;
+  productionView: "mix" | "clips" | "tools";
+  recordOpen: boolean;
 };
 
 export function parseCaptureHash(hashRaw: string): CaptureHashPrefs {
@@ -37,5 +39,22 @@ export function parseCaptureHash(hashRaw: string): CaptureHashPrefs {
 
   const midPlayback = progressRatio > 0;
 
-  return { trackCount, densityPreference, rythmiqueCollapsed, midPlayback, progressRatio };
+  let productionView: CaptureHashPrefs["productionView"] = "mix";
+  if (hash.includes("view-clips") || hash.includes("clips-view")) {
+    productionView = "clips";
+  } else if (hash.includes("view-tools") || hash.includes("tools-view")) {
+    productionView = "tools";
+  }
+
+  const recordOpen = hash.includes("record-open");
+
+  return {
+    trackCount,
+    densityPreference,
+    rythmiqueCollapsed,
+    midPlayback,
+    progressRatio,
+    productionView,
+    recordOpen,
+  };
 }

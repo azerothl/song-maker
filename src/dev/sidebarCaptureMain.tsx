@@ -6,6 +6,7 @@ import { useAppStore } from "../store/appStore";
 import { writeSidebarCollapsedPref } from "../lib/sidebarCollapse";
 import { measureSidebarCapture } from "./sidebarCaptureMetrics";
 import { seedSidebarCaptureStore } from "./seedSidebarCaptureStore";
+import { attachPrimaryButtonMetricsWindow } from "./primaryButtonMetrics";
 import "../App.css";
 
 export function applySidebarCapturePrefs(hashRaw: string): void {
@@ -49,3 +50,4 @@ declare global {
 
 window.__sidebarCaptureMetrics = () => measureSidebarCapture();
 window.__sidebarCaptureScreen = () => useAppStore.getState().screen;
+attachPrimaryButtonMetricsWindow();
