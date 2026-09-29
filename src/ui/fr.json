@@ -159,6 +159,7 @@
   "separate.recommend.badge": "Recommandé",
   "separate.recommend.cancel": "Fermer",
   "separate.recommend.run": "Lancer la séparation",
+  "separate.recommend.unverifiedWarn": "Le modèle sélectionné n’a pas de licence vérifiée. Continuer quand même ?",
   "separate.license.accept": "J'ai lu la licence",
   "separate.license.acceptNamed": "J'ai lu la licence — {model}",
   "separate.license.excludedTitle": "Modèles non proposés",

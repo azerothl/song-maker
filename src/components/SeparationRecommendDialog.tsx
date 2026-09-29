@@ -158,6 +158,13 @@ export function SeparationRecommendDialog({
   const selectAndRun = async () => {
     if (!settings) return;
     const provider = providers.find((p) => p.id === selected);
+    const selectedLicense = separatorLicense(selected);
+    if (selectedLicense?.status === "unverified") {
+      const ok = window.confirm(
+        `${t("separate.recommend.unverifiedWarn")}\n\n${selectedLicense.noticeFr}`,
+      );
+      if (!ok) return;
+    }
     if (!provider?.runnable && selected !== "htdemucs") {
       setError(t("separate.model.unavailable"));
       return;

@@ -16,6 +16,7 @@ import {
   mapHtDemucsStemIds,
   mapHtDemucs6sStemIds,
   recommendSeparator,
+  recommendReasonFr,
   separatorLicense,
   timeLabelFr,
   reliabilityForRole,
@@ -173,16 +174,17 @@ describe("stem-providers", () => {
     ).toBe(true);
   });
 
-  it("shows a time for every quality option (#166)", () => {
+  it("shows measured time or exemple label without invented ms (#166)", () => {
     const options = buildQualityTimeOptions({
       focus: "vocals",
       audioDurationSec: 180,
     });
     expect(options.length).toBeGreaterThanOrEqual(2);
     for (const opt of options) {
-      expect(opt.estimatedMs).toBeGreaterThan(0);
-      expect(timeLabelFr(opt.kind)).toMatch(/estimation|mesuré/);
+      expect(opt.estimatedMs).toBeNull();
+      expect(timeLabelFr(opt.kind)).toBe("exemple, non mesuré");
     }
+    expect(recommendReasonFr("vocals")).toMatch(/Recommandation non mesurée/);
     expect(options.find((o) => o.id === "mel_band_roformer")?.recommended).toBe(
       true,
     );

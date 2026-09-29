@@ -49,6 +49,7 @@ import type {
 } from "../../lib/types";
 import type { ScoreGate } from "../../lib/score";
 import type { PlaybackView } from "../../components/AudioPlayer";
+import { separationAudioDurationSec } from "../../lib/separationDuration";
 import {
   formatGainDb,
   formatPan,
@@ -166,6 +167,16 @@ export function ProductionWorkspace({
   capturePaintCollapsedTracks = false,
 }: ProductionWorkspaceProps) {
   const hasAiStems = mix?.tracks.some((tr) => tr.aiSeparated) ?? false;
+  const separationAudioSec = useMemo(
+    () =>
+      separationAudioDurationSec({
+        project,
+        mix,
+        playbackSources,
+        sourceDurationMsByTrack,
+      }),
+    [project, mix, playbackSources, sourceDurationMsByTrack],
+  );
 
   const mixAssistBtnRef = useRef<HTMLButtonElement>(null);
   const copilotBtnRef = useRef<HTMLButtonElement>(null);
@@ -312,7 +323,7 @@ export function ProductionWorkspace({
                 open={separateOpen}
                 onClose={() => setSeparateOpen(false)}
                 anchorRef={separateBtnRef}
-                audioDurationSec={project.targetDurationSec ?? 180}
+                audioDurationSec={separationAudioSec}
                 busy={busy}
                 onConfirm={() => {
                   setSeparateOpen(false);
