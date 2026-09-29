@@ -64,7 +64,8 @@ const SCENARIOS: Scenario[] = [
     label: "Réglages — séparation",
     path: "/settings-capture.html",
     prepare: async (page) => {
-      await page.locator(".settings-card-grid button").nth(1).click();
+      await page.waitForSelector(".settings-card-grid", { timeout: 20_000 });
+      await page.getByRole("button", { name: /Séparation des pistes/i }).click();
     },
   },
   {
@@ -72,7 +73,8 @@ const SCENARIOS: Scenario[] = [
     label: "Réglages — génération distante",
     path: "/settings-capture.html",
     prepare: async (page) => {
-      await page.locator(".settings-card-grid button").nth(4).click();
+      await page.waitForSelector(".settings-card-grid", { timeout: 20_000 });
+      await page.getByRole("button", { name: /Worker GPU distant/i }).click();
     },
   },
   {
@@ -80,7 +82,8 @@ const SCENARIOS: Scenario[] = [
     label: "Réglages — hôte",
     path: "/settings-capture.html",
     prepare: async (page) => {
-      await page.locator(".settings-card-grid button").nth(6).click();
+      await page.waitForSelector(".settings-card-grid", { timeout: 20_000 });
+      await page.getByRole("button", { name: /Intégration Akasha/i }).click();
     },
   },
   {
