@@ -194,6 +194,7 @@ option {
   justify-content: center;
   padding-left: 0;
   padding-right: 0;
+  gap: 0;
 }
 
 .sidebar-toggle-text {
@@ -290,11 +291,19 @@ option {
   overflow: hidden;
 }
 
+.sidebar.is-collapsed .brand {
+  justify-content: center;
+  gap: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .sidebar.is-collapsed nav button,
 .sidebar.is-collapsed .sidebar-meta-row {
   justify-content: center;
   padding-left: 0;
   padding-right: 0;
+  gap: 0;
 }
 
 .sidebar.is-collapsed .sidebar-meta-row[tabindex="0"]:hover,

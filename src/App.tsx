@@ -23,9 +23,10 @@ import "./App.css";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
-function Icon({ children, ...props }: IconProps & { children: ReactNode }) {
+function Icon({ children, className, ...props }: IconProps & { children: ReactNode }) {
   return (
     <svg
+      className={className ? `sidebar-icon ${className}` : "sidebar-icon"}
       viewBox="0 0 24 24"
       width="20"
       height="20"

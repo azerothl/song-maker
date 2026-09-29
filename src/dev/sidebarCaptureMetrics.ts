@@ -8,6 +8,11 @@ import {
   SIDEBAR_HOVER_CONTRAST_RATIO,
   SIDEBAR_HOVER_TEXT,
 } from "../lib/sidebarContrast";
+import {
+  collapsedColumnCenterX,
+  iconCenterWithinTolerance,
+  iconCenterXFromRect,
+} from "../lib/sidebarIconCenter";
 
 function r1(v: number): number {
   return Math.round(v * 100) / 100;
@@ -36,6 +41,14 @@ export type TooltipMeasure = {
   contrastRatio: number;
 };
 
+export type CollapsedIconCenterMeasure = {
+  id: string;
+  centerXPx: number;
+  expectedCenterXPx: number;
+  deltaPx: number;
+  withinTolerance: boolean;
+};
+
 export type SidebarCaptureMetrics = {
   viewportWidth: number;
   viewportHeight: number;
@@ -48,12 +61,15 @@ export type SidebarCaptureMetrics = {
   navTargetSizesPx: Array<[number, number]>;
   hoverContrast: HoverContrastMeasure;
   tooltip: TooltipMeasure | null;
+  collapsedIconCenters: CollapsedIconCenterMeasure[] | null;
   checks: {
     widthMatchesExpanded: boolean;
     widthMatchesCollapsed: boolean;
     targetsAtLeast44Px: boolean;
     hoverContrastAa: boolean;
     tooltipVisible: boolean;
+    collapsedIconsCentered: boolean;
+    iconCenterById: Record<string, boolean>;
   };
 };
 
@@ -110,6 +126,46 @@ function measureVisibleTooltip(): TooltipMeasure | null {
   return null;
 }
 
+export function measureCollapsedIconCenters(sidebar: Element): CollapsedIconCenterMeasure[] | null {
+  if (!sidebar.classList.contains("is-collapsed")) return null;
+
+  const sidebarRect = rect(sidebar);
+  const expected = r1(collapsedColumnCenterX(sidebarRect.left, sidebarRect.width));
+
+  const entries: Array<{ id: string; el: Element }> = [];
+
+  const brand = sidebar.querySelector(".brand-mark");
+  if (brand) entries.push({ id: "brand-mark", el: brand });
+
+  const toggleIcon = sidebar.querySelector(".sidebar-toggle .sidebar-icon");
+  if (toggleIcon) entries.push({ id: "toggle", el: toggleIcon });
+
+  sidebar.querySelectorAll<HTMLButtonElement>("#sidebar-nav button").forEach((btn) => {
+    const icon = btn.querySelector(".sidebar-icon");
+    const label = btn.getAttribute("aria-label") ?? "nav";
+    if (icon) entries.push({ id: `nav:${label}`, el: icon });
+  });
+
+  sidebar.querySelectorAll<HTMLElement>(".sidebar-meta .sidebar-meta-row").forEach((row) => {
+    const icon = row.querySelector(".sidebar-icon");
+    const label = row.getAttribute("aria-label") ?? "meta";
+    if (icon) entries.push({ id: `meta:${label}`, el: icon });
+  });
+
+  return entries.map(({ id, el }) => {
+    const r = rect(el);
+    const centerX = r1(iconCenterXFromRect(r.left, r.width));
+    const delta = r1(centerX - expected);
+    return {
+      id,
+      centerXPx: centerX,
+      expectedCenterXPx: expected,
+      deltaPx: delta,
+      withinTolerance: iconCenterWithinTolerance(centerX, expected),
+    };
+  });
+}
+
 export function measureSidebarCapture(): SidebarCaptureMetrics | null {
   const sidebar = document.querySelector("#sidebar");
   const toggle = document.querySelector(".sidebar-toggle");
@@ -131,6 +187,18 @@ export function measureSidebarCapture(): SidebarCaptureMetrics | null {
 
   const tooltip = measureVisibleTooltip();
   const hoverContrast = measureHoverContrastFromDom() ?? constantsHoverContrast();
+  const collapsedIconCenters = measureCollapsedIconCenters(sidebar);
+  const iconCenterById: Record<string, boolean> = {};
+  if (collapsedIconCenters) {
+    for (const row of collapsedIconCenters) {
+      iconCenterById[row.id] = row.withinTolerance;
+    }
+  }
+  const collapsedIconsCentered =
+    collapsedIconCenters == null
+      ? true
+      : collapsedIconCenters.length > 0 &&
+        collapsedIconCenters.every((row) => row.withinTolerance);
 
   return {
     viewportWidth: window.innerWidth,
@@ -144,12 +212,15 @@ export function measureSidebarCapture(): SidebarCaptureMetrics | null {
     navTargetSizesPx: sizes,
     hoverContrast,
     tooltip,
+    collapsedIconCenters,
     checks: {
       widthMatchesExpanded: expanded,
       widthMatchesCollapsed: collapsed,
       targetsAtLeast44Px: targetsOk,
       hoverContrastAa: hoverContrast.ratio >= 4.5,
       tooltipVisible: tooltip != null,
+      collapsedIconsCentered,
+      iconCenterById,
     },
   };
 }
