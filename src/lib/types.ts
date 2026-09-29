@@ -179,6 +179,13 @@ export type SeparationInfo = {
   warnings: string[];
 };
 
+export type SeparationVersionSummary = {
+  separationId: string;
+  mixId: string;
+  createdAt: string;
+  isActive: boolean;
+};
+
 export type AppSettings = {
   projectsDir: string;
   cacheDir: string;

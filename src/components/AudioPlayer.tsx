@@ -29,6 +29,8 @@ type Props = {
   projectId: string;
   sources: PlaybackSources | null;
   mix: MixDoc | null;
+  /** Vue split : le master porte lecture et temps (#132). */
+  delegateTransport?: boolean;
   onError?: (message: string) => void;
   onPlaybackChange?: (view: PlaybackView | null) => void;
 };
@@ -57,6 +59,7 @@ export function AudioPlayer({
   projectId,
   sources,
   mix,
+  delegateTransport = false,
   onError,
   onPlaybackChange,
 }: Props) {
@@ -143,7 +146,7 @@ export function AudioPlayer({
     return () => window.removeEventListener("keydown", onKey);
   }, [engine, onError]);
 
-  const showMixWave = snap.mode === "stems";
+  const showMixWave = snap.mode === "stems" && !delegateTransport;
   const showStereoWave = snap.mode === "generation";
   const mainWaveStatus =
     snap.loading || !snap.ready
@@ -153,7 +156,13 @@ export function AudioPlayer({
         : "empty";
 
   return (
-    <div className="player-block">
+    <div
+      className={
+        delegateTransport
+          ? "player-block player-block-delegated"
+          : "player-block"
+      }
+    >
       {(showMixWave || showStereoWave) && (
         <Waveform
           peaks={snap.mixPeaks}
@@ -170,30 +179,32 @@ export function AudioPlayer({
         />
       )}
 
-      <div className="player">
-        <button
-          type="button"
-          className="btn"
-          onClick={() =>
-            void engine.toggle().catch((err) => onError?.(String(err)))
-          }
-          disabled={!snap.ready || snap.loading}
-        >
-          {snap.loading
-            ? "…"
-            : snap.playing
-              ? t("player.pause")
-              : t("player.play")}
-        </button>
-        <div className="player-times" aria-label={t("player.seek")}>
-          <span className="player-time">{formatTime(snap.current)}</span>
-          <span className="player-time-sep">/</span>
-          <span className="player-time">{formatTime(snap.duration)}</span>
+      {!delegateTransport && (
+        <div className="player">
+          <button
+            type="button"
+            className="btn"
+            onClick={() =>
+              void engine.toggle().catch((err) => onError?.(String(err)))
+            }
+            disabled={!snap.ready || snap.loading}
+          >
+            {snap.loading
+              ? "…"
+              : snap.playing
+                ? t("player.pause")
+                : t("player.play")}
+          </button>
+          <div className="player-times" aria-label={t("player.seek")}>
+            <span className="player-time">{formatTime(snap.current)}</span>
+            <span className="player-time-sep">/</span>
+            <span className="player-time">{formatTime(snap.duration)}</span>
+          </div>
+          <span className="path" title={snap.label}>
+            {snap.label || t("library.dash")}
+          </span>
         </div>
-        <span className="path" title={snap.label}>
-          {snap.label || t("library.dash")}
-        </span>
-      </div>
+      )}
     </div>
   );
 }

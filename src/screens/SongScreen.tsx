@@ -67,6 +67,10 @@ export function SongScreen() {
   const [separationInfo, setSeparationInfo] = useState<SeparationInfo | null>(
     null,
   );
+  const [separationUndo, setSeparationUndo] = useState<{
+    separationId: string;
+    mixId: string;
+  } | null>(null);
   const [importingAudio, setImportingAudio] = useState(false);
   const [mixPreview, setMixPreview] = useState<MixDoc | null>(null);
   const [mixSavedAt, setMixSavedAt] = useState<Date | null>(null);
@@ -395,11 +399,44 @@ export function SongScreen() {
 
   async function onSeparate() {
     if (!project) return;
+    const hasAiStems = mix?.tracks.some((tr) => tr.aiSeparated) ?? false;
+    if (hasAiStems) {
+      const ok = window.confirm(t("separate.again.confirm"));
+      if (!ok) return;
+    }
+    const prevSep = project.activeSeparationId ?? null;
+    const prevMix = project.activeMixId ?? null;
     setBusy(true);
     setError(null);
     try {
       const m = await api.startSeparation(project.id);
       setMix(m);
+      await openProject(project.id);
+      const info = await api.loadSeparationInfo(project.id);
+      setSeparationInfo(info);
+      if (hasAiStems && prevSep && prevMix) {
+        setSeparationUndo({ separationId: prevSep, mixId: prevMix });
+      } else {
+        setSeparationUndo(null);
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRevertSeparation() {
+    if (!project || !separationUndo) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const m = await api.activateSeparationVersion(
+        project.id,
+        separationUndo.separationId,
+      );
+      setMix(m);
+      setSeparationUndo(null);
       await openProject(project.id);
       const info = await api.loadSeparationInfo(project.id);
       setSeparationInfo(info);
@@ -556,6 +593,10 @@ export function SongScreen() {
     playbackSources?.mode === "stems" &&
     (playbackSources.stems?.length ?? 0) > 0;
   const showProductionCopilot = !!mix && mix.tracks.length > 0;
+  const splitTransport =
+    workspace === "production" &&
+    playbackSources?.mode === "stems" &&
+    (mix?.tracks.some((tr) => tr.aiSeparated) ?? false);
 
   return (
     <div className={`song-layout${workspace === "production" ? " song-layout-production" : ""}`}>
@@ -596,6 +637,7 @@ export function SongScreen() {
             projectId={project.id}
             sources={playbackSources}
             mix={listeningMix}
+            delegateTransport={splitTransport}
             onError={setError}
             onPlaybackChange={setPlayback}
           />
@@ -657,6 +699,9 @@ export function SongScreen() {
             onExport={onExport}
             onImportUserAudio={onImportUserAudio}
             onSeparate={onSeparate}
+            onRevertSeparation={
+              separationUndo ? () => void onRevertSeparation() : undefined
+            }
             onUserTrackAdded={onUserTrackAdded}
             playback={playback}
             playbackSources={playbackSources}
@@ -687,6 +732,10 @@ export function SongScreen() {
             generations={generations}
             onContinue={onContinue}
             onGenerateBatch={onGenerateBatch}
+            onRevertSeparation={
+              separationUndo ? () => void onRevertSeparation() : undefined
+            }
+            onSeparationSwitched={() => setSeparationUndo(null)}
             openProject={openProject}
             project={project}
             setCandidateCount={setCandidateCount}

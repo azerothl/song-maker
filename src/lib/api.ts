@@ -15,6 +15,7 @@ import type {
   ProjectDoc,
   ScoreSummary,
   SeparationInfo,
+  SeparationVersionSummary,
   SetupGpuInfo,
 } from "./types";
 
@@ -97,6 +98,26 @@ export const api = {
   loadMix: (id: string) => invoke<MixDoc | null>("load_mix", { id }),
   loadSeparationInfo: (id: string) =>
     invoke<SeparationInfo | null>("load_separation_info", { id }),
+  listSeparationVersions: (id: string) =>
+    invoke<SeparationVersionSummary[]>("list_separation_versions_cmd", { id }),
+  activateSeparationVersion: (id: string, separationId: string) =>
+    invoke<MixDoc>("activate_separation_version", { id, separationId }),
+  exportSeparationStems: (
+    id: string,
+    req: {
+      trackIds: string[];
+      pack: "folder" | "zip";
+      destination: string | null;
+    },
+  ) =>
+    invoke<string | null>("export_separation_stems", {
+      id,
+      req: {
+        trackIds: req.trackIds,
+        pack: req.pack,
+        destination: req.destination,
+      },
+    }),
   updateMix: (
     id: string,
     update: {

@@ -68,6 +68,9 @@ pub fn run() {
             // Séparation de stems
             commands::separation::start_separation,
             commands::separation::load_separation_info,
+            commands::separation::list_separation_versions_cmd,
+            commands::separation::activate_separation_version,
+            commands::separation::export_separation_stems,
             // Mixage, rendu, export
             commands::mix::load_mix,
             commands::mix::update_mix,

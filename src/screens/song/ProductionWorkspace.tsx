@@ -1,6 +1,9 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useId, useRef, useState, type Dispatch, SetStateAction } from "react";
 import { ClipTimeline } from "../../components/ClipTimeline";
 import { ExportWizard } from "../../components/ExportWizard";
+import { ExportTracksPopin } from "../../components/ExportTracksPopin";
+import { EstimatedSeparationMarker } from "../../components/EstimatedSeparationMarker";
+import { AnchoredPopin } from "../../components/AnchoredPopin";
 import { MixAssistPanel } from "../../components/MixAssistPanel";
 import { MixKnob } from "../../components/MixKnob";
 import { Phase3MixPanel } from "../../components/Phase3MixPanel";
@@ -19,7 +22,6 @@ import {
   PRODUCTION_VIEWS,
   productionViewIntro,
   productionViewLabel,
-  warningLabel,
   workspaceIntro,
   workspaceTitle,
   type ProductionView,
@@ -38,6 +40,7 @@ type ProductionWorkspaceProps = {
   onExport: (format: "wav" | "flac" | "mp3") => Promise<void>;
   onImportUserAudio: () => Promise<void>;
   onSeparate: () => Promise<void>;
+  onRevertSeparation?: () => void;
   onUserTrackAdded: (next: MixDoc) => Promise<void>;
   playback: PlaybackView | null;
   playbackSources: PlaybackSources | null;
@@ -64,6 +67,13 @@ function formatSavedClock(at: Date): string {
   return `${h}:${m}`;
 }
 
+function formatPlaybackTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 function patchTrack(
   mix: MixDoc,
   trackId: string,
@@ -85,6 +95,7 @@ export function ProductionWorkspace({
   onExport,
   onImportUserAudio,
   onSeparate,
+  onRevertSeparation,
   onUserTrackAdded,
   playback,
   playbackSources,
@@ -104,6 +115,17 @@ export function ProductionWorkspace({
   showProductionCopilot,
   sourceDurationMsByTrack,
 }: ProductionWorkspaceProps) {
+  const hasAiStems = mix?.tracks.some((tr) => tr.aiSeparated) ?? false;
+  const splitTransport =
+    playbackSources?.mode === "stems" && hasAiStems;
+
+  const mixAssistBtnRef = useRef<HTMLButtonElement>(null);
+  const copilotBtnRef = useRef<HTMLButtonElement>(null);
+  const [mixAssistOpen, setMixAssistOpen] = useState(false);
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const mixAssistTitleId = useId();
+  const copilotTitleId = useId();
+
   return (
     <section
       className="song-workspace-panel wide production-workspace"
@@ -149,11 +171,11 @@ export function ProductionWorkspace({
             <div className="btn-row song-actions-primary">
               <button
                 type="button"
-                className="btn primary"
+                className={hasAiStems ? "btn" : "btn primary"}
                 disabled={!project.activeGenerationId || busy}
                 onClick={() => void onSeparate()}
               >
-                {t("separate.button")}
+                {hasAiStems ? t("separate.again") : t("separate.button")}
               </button>
             </div>
             <div
@@ -186,6 +208,13 @@ export function ProductionWorkspace({
               >
                 {t("export.mp3")}
               </button>
+              <ExportTracksPopin
+                projectId={project.id}
+                mix={mix}
+                busy={busy}
+                onBusy={setBusy}
+                onError={setError}
+              />
             </div>
           </div>
 
@@ -228,48 +257,84 @@ export function ProductionWorkspace({
       >
         {mix ? (
           <div className="mixer mixer-compact">
-            {separationInfo && separationInfo.warnings.length > 0 && (
-              <aside
-                className="banner warn separation-warn"
-                role="status"
-                aria-live="polite"
-              >
-                <div>
-                  <strong>{t("separation.warn.title")}</strong>
-                  <ul className="separation-warn-list">
-                    {separationInfo.warnings.map((code) => (
-                      <li key={code}>{warningLabel(code)}</li>
-                    ))}
-                  </ul>
-                </div>
-              </aside>
+            {onRevertSeparation && (
+              <div className="banner info separation-undo-banner" role="status">
+                <p>{t("separation.revert.hint")}</p>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  onClick={onRevertSeparation}
+                >
+                  {t("separation.revert.action")}
+                </button>
+              </div>
             )}
 
             <div className="mix-toolbar-row">
               {showMixAssist && (
-                <details className="mix-assist-drawer">
-                  <summary>{t("mix.assist.drawer")}</summary>
-                  <MixAssistPanel
-                    mix={mix}
-                    sources={playbackSources}
-                    listeningMix={listeningMix ?? mix}
-                    onCommitMix={(next) => scheduleMixUpdate(next)}
-                    onPreviewMix={setMixPreview}
-                  />
-                </details>
+                <>
+                  <button
+                    ref={mixAssistBtnRef}
+                    type="button"
+                    className="btn mix-assist-trigger"
+                    aria-expanded={mixAssistOpen}
+                    aria-controls="mix-assist-popin"
+                    onClick={() => setMixAssistOpen((v) => !v)}
+                  >
+                    {t("mix.assist.drawer")}
+                  </button>
+                  <AnchoredPopin
+                    open={mixAssistOpen}
+                    onClose={() => setMixAssistOpen(false)}
+                    anchorRef={mixAssistBtnRef}
+                    labelId={mixAssistTitleId}
+                    className="mix-assist-popin"
+                  >
+                    <header className="anchored-popin-header">
+                      <h3 id={mixAssistTitleId}>{t("mix.assist.title")}</h3>
+                    </header>
+                    <MixAssistPanel
+                      mix={mix}
+                      sources={playbackSources}
+                      listeningMix={listeningMix ?? mix}
+                      onCommitMix={(next) => scheduleMixUpdate(next)}
+                      onPreviewMix={setMixPreview}
+                    />
+                  </AnchoredPopin>
+                </>
               )}
               {showProductionCopilot && (
-                <details className="mix-assist-drawer mix-copilot-drawer">
-                  <summary>{t("copilot.title")}</summary>
-                  <ProductionAssistPanel
-                    mix={mix}
-                    sources={playbackSources}
-                    scoreIssues={scoreGate.issues}
-                    listeningMix={listeningMix ?? mix}
-                    onCommitMix={(next) => scheduleMixUpdate(next)}
-                    onPreviewMix={setMixPreview}
-                  />
-                </details>
+                <>
+                  <button
+                    ref={copilotBtnRef}
+                    type="button"
+                    className="btn mix-assist-trigger"
+                    aria-expanded={copilotOpen}
+                    onClick={() => setCopilotOpen((v) => !v)}
+                  >
+                    {t("copilot.title")}
+                  </button>
+                  <AnchoredPopin
+                    open={copilotOpen}
+                    onClose={() => setCopilotOpen(false)}
+                    anchorRef={copilotBtnRef}
+                    labelId={copilotTitleId}
+                    className="mix-copilot-popin"
+                  >
+                    <header className="anchored-popin-header">
+                      <h3 id={copilotTitleId}>{t("copilot.title")}</h3>
+                    </header>
+                    <ProductionAssistPanel
+                      mix={mix}
+                      sources={playbackSources}
+                      scoreIssues={scoreGate.issues}
+                      listeningMix={listeningMix ?? mix}
+                      onCommitMix={(next) => scheduleMixUpdate(next)}
+                      onPreviewMix={setMixPreview}
+                    />
+                  </AnchoredPopin>
+                </>
               )}
               <p className="mix-autosave" aria-live="polite">
                 {mixSavedAt
@@ -279,7 +344,11 @@ export function ProductionWorkspace({
             </div>
 
             <div
-              className="mix-master-banner"
+              className={
+                splitTransport
+                  ? "mix-master-banner mix-master-banner-split"
+                  : "mix-master-banner"
+              }
               aria-label={t("mix.masterBanner")}
             >
               <div className="mix-master-wave">
@@ -299,11 +368,27 @@ export function ProductionWorkspace({
                   onSeek={playback?.seek}
                 />
               </div>
+              {splitTransport && (
+                <div
+                  className="mix-master-times"
+                  aria-label={t("player.seek")}
+                >
+                  <span className="player-time">
+                    {formatPlaybackTime(playback?.current ?? 0)}
+                  </span>
+                  <span className="player-time-sep">/</span>
+                  <span className="player-time">
+                    {formatPlaybackTime(playback?.duration ?? 0)}
+                  </span>
+                </div>
+              )}
               <button
                 type="button"
                 className="btn mix-master-play"
                 disabled={!playback?.ready || playback.loading}
-                onClick={() => void playback?.toggle().catch((e) => setError(String(e)))}
+                onClick={() =>
+                  void playback?.toggle().catch((e) => setError(String(e)))
+                }
               >
                 {playback?.loading
                   ? "…"
@@ -329,6 +414,13 @@ export function ProductionWorkspace({
                   scheduleMixUpdate({ ...mix, masterGainDb: gainDb })
                 }
               />
+            </div>
+
+            <div className="mixer-tracks-heading">
+              <h3 className="mixer-tracks-title">{t("mix.tracksTitle")}</h3>
+              {separationInfo && separationInfo.warnings.length > 0 && (
+                <EstimatedSeparationMarker warningCodes={separationInfo.warnings} />
+              )}
             </div>
 
             <div className="mixer-tracks">

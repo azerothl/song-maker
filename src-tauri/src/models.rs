@@ -761,3 +761,22 @@ pub struct SeparationInfo {
     pub family: String,
     pub warnings: Vec<String>,
 }
+
+/// One completed separation + its mix snapshot (for Versions / undo).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeparationVersionSummary {
+    pub separation_id: String,
+    pub mix_id: String,
+    pub created_at: String,
+    pub is_active: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportSeparationStemsRequest {
+    pub track_ids: Vec<String>,
+    /// `folder` copies WAV files; `zip` writes a single archive.
+    pub pack: String,
+    pub destination: Option<String>,
+}

@@ -12,6 +12,7 @@ use crate::paths::{atomic_write_json, ensure_dir, next_folder_id, now_iso};
 use crate::pins::*;
 use crate::resample::resample_soxr;
 use serde_json::json;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 #[tauri::command]
@@ -335,4 +336,304 @@ pub(crate) fn read_separation_info(folder: &Path, doc: &ProjectDoc) -> Option<Se
         family,
         warnings,
     })
+}
+
+pub(crate) fn find_mix_id_for_separation(folder: &Path, separation_id: &str) -> Option<String> {
+    let mixes_dir = folder.join("mixes");
+    if !mixes_dir.is_dir() {
+        return None;
+    }
+    for entry in std::fs::read_dir(&mixes_dir).ok()? {
+        let path = entry.ok()?.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path).ok()?;
+        let mix: MixDoc = serde_json::from_str(&text).ok()?;
+        if mix.separation_id == separation_id {
+            return Some(mix.id);
+        }
+    }
+    None
+}
+
+pub(crate) fn list_separation_versions(
+    folder: &Path,
+    doc: &ProjectDoc,
+) -> Vec<SeparationVersionSummary> {
+    let separations_dir = folder.join("separations");
+    if !separations_dir.is_dir() {
+        return Vec::new();
+    }
+    let active = doc.active_separation_id.as_deref();
+    let mut out = Vec::new();
+    let entries = match std::fs::read_dir(&separations_dir) {
+        Ok(e) => e,
+        Err(_) => return Vec::new(),
+    };
+    for entry in entries {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        if !entry.path().is_dir() {
+            continue;
+        }
+        let sep_id = entry.file_name().to_string_lossy().to_string();
+        let manifest = entry.path().join("separation.json");
+        if !manifest.is_file() {
+            continue;
+        }
+        let mix_id = find_mix_id_for_separation(folder, &sep_id).unwrap_or_default();
+        let created_at = std::fs::read_to_string(&manifest)
+            .ok()
+            .and_then(|text| {
+                serde_json::from_str::<serde_json::Value>(&text)
+                    .ok()
+                    .and_then(|v| {
+                        v.get("updatedAt")
+                            .or_else(|| v.get("createdAt"))
+                            .and_then(|x| x.as_str())
+                            .map(|s| s.to_string())
+                    })
+            })
+            .unwrap_or_else(now_iso);
+        let is_active = active == Some(sep_id.as_str());
+        out.push(SeparationVersionSummary {
+            separation_id: sep_id,
+            mix_id,
+            created_at,
+            is_active,
+        });
+    }
+    out.sort_by(|a, b| a.separation_id.cmp(&b.separation_id));
+    out
+}
+
+#[tauri::command]
+pub fn list_separation_versions_cmd(id: String) -> Result<Vec<SeparationVersionSummary>, String> {
+    let folder = project_folder(&id);
+    let doc = load_project(&folder)?;
+    Ok(list_separation_versions(&folder, &doc))
+}
+
+#[tauri::command]
+pub fn activate_separation_version(id: String, separation_id: String) -> Result<MixDoc, String> {
+    let folder = project_folder(&id);
+    let mut doc = load_project(&folder)?;
+    let sep_dir = folder.join("separations").join(&separation_id);
+    if !sep_dir.join("separation.json").is_file() {
+        return Err(format!("Séparation introuvable : {separation_id}"));
+    }
+    let mix_id = find_mix_id_for_separation(&folder, &separation_id)
+        .ok_or_else(|| format!("Mix associé introuvable pour {separation_id}"))?;
+    let mix_path = folder.join("mixes").join(format!("{mix_id}.json"));
+    if !mix_path.is_file() {
+        return Err(format!("Fichier mix manquant : {mix_id}"));
+    }
+    doc.active_separation_id = Some(separation_id);
+    doc.active_mix_id = Some(mix_id);
+    doc.updated_at = now_iso();
+    save_project(&folder, &doc)?;
+    upsert_library_row(&library_row_from_project(&folder, &doc))?;
+    let mix: MixDoc =
+        serde_json::from_str(&std::fs::read_to_string(&mix_path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    Ok(mix)
+}
+
+fn safe_export_stem_name(role: &str, display: &str) -> String {
+    let base = format!("{role}_{display}");
+    let cleaned: String = base
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    if cleaned.is_empty() {
+        role.to_string()
+    } else {
+        cleaned
+    }
+}
+
+#[tauri::command]
+pub async fn export_separation_stems(
+    app: tauri::AppHandle,
+    id: String,
+    req: ExportSeparationStemsRequest,
+) -> Result<Option<String>, String> {
+    let pack = req.pack.to_lowercase();
+    if pack != "folder" && pack != "zip" {
+        return Err("pack : folder ou zip.".into());
+    }
+    let folder = project_folder(&id);
+    let doc = load_project(&folder)?;
+    let mix_id = doc
+        .active_mix_id
+        .as_deref()
+        .ok_or_else(|| "Aucun mix actif.".to_string())?;
+    let mix_path = folder.join("mixes").join(format!("{mix_id}.json"));
+    let mix: MixDoc =
+        serde_json::from_str(&std::fs::read_to_string(&mix_path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    let selected: std::collections::HashSet<&str> =
+        req.track_ids.iter().map(String::as_str).collect();
+    let mut files: Vec<(PathBuf, String)> = Vec::new();
+    for track in &mix.tracks {
+        if !selected.is_empty() && !selected.contains(track.id.as_str()) {
+            continue;
+        }
+        if !track.ai_separated {
+            continue;
+        }
+        let clip = track
+            .clips
+            .first()
+            .ok_or_else(|| format!("Piste sans source : {}", track.name))?;
+        let abs = if Path::new(&clip.source_path).is_absolute() {
+            PathBuf::from(&clip.source_path)
+        } else {
+            folder.join(&clip.source_path)
+        };
+        if !abs.is_file() {
+            return Err(format!("Fichier stem manquant : {}", abs.display()));
+        }
+        let name = format!("{}.wav", safe_export_stem_name(&track.role, &track.name));
+        files.push((abs, name));
+    }
+    if files.is_empty() {
+        return Err("Aucune piste IA sélectionnée à exporter.".into());
+    }
+
+    let destination = if let Some(dest) = req.destination {
+        PathBuf::from(dest)
+    } else {
+        use tauri_plugin_dialog::DialogExt;
+        if pack == "folder" {
+            let Some(picked) = app.dialog().file().blocking_pick_folder() else {
+                return Ok(None);
+            };
+            picked.into_path().map_err(|e| e.to_string())?
+        } else {
+            let stamp = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
+            let default_name = format!("pistes-{id}-{stamp}.zip");
+            let Some(picked) = app
+                .dialog()
+                .file()
+                .set_file_name(&default_name)
+                .add_filter("Archive ZIP", &["zip"])
+                .blocking_save_file()
+            else {
+                return Ok(None);
+            };
+            picked.into_path().map_err(|e| e.to_string())?
+        }
+    };
+
+    tokio::task::spawn_blocking(move || {
+        if pack == "folder" {
+            ensure_dir(&destination).map_err(|e| e.to_string())?;
+            for (src, name) in &files {
+                let dest = destination.join(name);
+                std::fs::copy(src, &dest).map_err(|e| e.to_string())?;
+            }
+            Ok(Some(destination.display().to_string()))
+        } else {
+            let file = std::fs::File::create(&destination).map_err(|e| e.to_string())?;
+            let mut zip = zip::ZipWriter::new(file);
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated);
+            for (src, name) in &files {
+                zip.start_file(name, options).map_err(|e| e.to_string())?;
+                let bytes = std::fs::read(src).map_err(|e| e.to_string())?;
+                zip.write_all(&bytes).map_err(|e| e.to_string())?;
+            }
+            zip.finish().map_err(|e| e.to_string())?;
+            Ok(Some(destination.display().to_string()))
+        }
+    })
+    .await
+    .map_err(|e| format!("Export interrompu : {e}"))?
+}
+
+#[cfg(test)]
+mod separation_version_tests {
+    use super::*;
+    use crate::mix::new_mix_from_separation;
+    use crate::paths::{atomic_write_json, ensure_dir};
+    use crate::pins::{SCHEMA_PROJECT, SCHEMA_VERSION};
+
+    #[test]
+    fn find_mix_id_for_separation_matches_mix_doc() {
+        let root =
+            std::env::temp_dir().join(format!("song-maker-sep-test-{}", uuid::Uuid::new_v4()));
+        let _ = std::fs::remove_dir_all(&root);
+        ensure_dir(&root.join("mixes")).unwrap();
+        let mix = new_mix_from_separation(
+            "mix-v001",
+            "sep-001",
+            &[(
+                "vocals".into(),
+                PathBuf::from("separations/sep-001/vocals-48000.wav"),
+                "abc".into(),
+                1000,
+            )],
+        );
+        atomic_write_json(&root.join("mixes/mix-v001.json"), &mix).unwrap();
+        assert_eq!(
+            find_mix_id_for_separation(&root, "sep-001").as_deref(),
+            Some("mix-v001")
+        );
+    }
+
+    #[test]
+    fn list_separation_versions_marks_active() {
+        let root =
+            std::env::temp_dir().join(format!("song-maker-sep-list-{}", uuid::Uuid::new_v4()));
+        let _ = std::fs::remove_dir_all(&root);
+        let sep_dir = root.join("separations/sep-002");
+        ensure_dir(&sep_dir).unwrap();
+        atomic_write_json(
+            &sep_dir.join("separation.json"),
+            &json!({ "id": "sep-002", "updatedAt": "2026-01-01T00:00:00Z" }),
+        )
+        .unwrap();
+        ensure_dir(&root.join("mixes")).unwrap();
+        let mix = new_mix_from_separation("mix-v002", "sep-002", &[]);
+        atomic_write_json(&root.join("mixes/mix-v002.json"), &mix).unwrap();
+        let doc = ProjectDoc {
+            schema: SCHEMA_PROJECT.into(),
+            schema_version: SCHEMA_VERSION,
+            id: "p1".into(),
+            title: "t".into(),
+            created_at: now_iso(),
+            updated_at: now_iso(),
+            sample_rate: 48_000,
+            channels: 2,
+            bit_depth: 24,
+            style: "pop".into(),
+            lyrics: "".into(),
+            cot: "full".into(),
+            singing_language: None,
+            tempo_bpm: None,
+            key: None,
+            meter: None,
+            target_duration_sec: 180,
+            prefer_full_lyrics: true,
+            instrumental_mode: false,
+            active_generation_id: None,
+            active_separation_id: Some("sep-002".into()),
+            active_mix_id: Some("mix-v002".into()),
+            active_score_id: None,
+        };
+        let list = list_separation_versions(&root, &doc);
+        assert_eq!(list.len(), 1);
+        assert!(list[0].is_active);
+        assert_eq!(list[0].mix_id, "mix-v002");
+    }
 }
