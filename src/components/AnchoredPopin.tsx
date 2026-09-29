@@ -49,7 +49,13 @@ export function AnchoredPopin({
     const margin = 8;
     let top = rect.bottom + margin;
     let left = rect.left;
-    const maxW = Math.min(420, window.innerWidth - margin * 2);
+    const maxW = Math.min(
+      className?.includes("separation-recommend") ||
+        className?.includes("export-dialog")
+        ? 520
+        : 420,
+      window.innerWidth - margin * 2,
+    );
     panel.style.width = `${maxW}px`;
     const panelRect = panel.getBoundingClientRect();
     if (left + panelRect.width > window.innerWidth - margin) {
@@ -62,7 +68,7 @@ export function AnchoredPopin({
     panel.style.top = `${top}px`;
     panel.style.left = `${left}px`;
     focusFirst(panel);
-  }, [open, anchorRef]);
+  }, [open, anchorRef, className]);
 
   useEffect(() => {
     if (!open) return;

@@ -2,12 +2,14 @@ use super::separation::read_separation_info;
 use super::{push_undo, AppState};
 use crate::library::{load_project, project_folder, save_project};
 use crate::mix::{
-    export_flac, export_mp3, render_mix, write_export_json_with_warnings, write_interleaved_f32_wav,
+    downsample_wav_bit_depth, export_flac_with_bit_depth, export_mp3_with_bitrate, render_mix,
+    write_export_json_with_warnings, write_interleaved_f32_wav,
 };
 use crate::models::*;
 use crate::paths::{
     atomic_write_json, default_cache_dir, ensure_dir, file_mtime_iso, next_folder_id, now_iso,
 };
+use crate::pins::BIT_DEPTH;
 use std::path::{Path, PathBuf};
 
 #[tauri::command]
@@ -329,16 +331,19 @@ pub fn export_audio(id: String, req: ExportRequest) -> Result<String, String> {
         return Err("Format : wav, flac ou mp3 (livraison).".into());
     }
 
-    let wav_out = exports.join(format!("export-{stamp}.wav"));
+    let bit_depth = req.bit_depth.unwrap_or(BIT_DEPTH);
+    let bitrate = req.bitrate_kbps.unwrap_or(320);
+
+    let wav_primary = exports.join(format!("export-{stamp}-master.wav"));
     let peak_trim = if let Some(mix_id) = &doc.active_mix_id {
         let path = folder.join("mixes").join(format!("{mix_id}.json"));
         let mix: MixDoc =
             serde_json::from_str(&std::fs::read_to_string(&path).map_err(|e| e.to_string())?)
                 .map_err(|e| e.to_string())?;
-        render_mix(&mix, &folder, &wav_out)?
+        render_mix(&mix, &folder, &wav_primary)?
     } else if let Some(gen_id) = &doc.active_generation_id {
         let src = folder.join("generations").join(gen_id).join("audio.wav");
-        std::fs::copy(&src, &wav_out).map_err(|e| e.to_string())?;
+        std::fs::copy(&src, &wav_primary).map_err(|e| e.to_string())?;
         0.0
     } else {
         return Err("Rien à exporter.".into());
@@ -346,15 +351,27 @@ pub fn export_audio(id: String, req: ExportRequest) -> Result<String, String> {
 
     let final_path = if format == "flac" {
         let flac = exports.join(format!("export-{stamp}.flac"));
-        export_flac(&wav_out, &flac)?;
-        let _ = std::fs::remove_file(&wav_out);
+        export_flac_with_bit_depth(&wav_primary, &flac, bit_depth)?;
+        let _ = std::fs::remove_file(&wav_primary);
         flac
     } else if format == "mp3" {
-        // WAV/FLAC restent primaires ; MP3 = conversion de livraison.
         let mp3 = exports.join(format!("export-{stamp}.mp3"));
-        export_mp3(&wav_out, &mp3)?;
+        export_mp3_with_bitrate(&wav_primary, &mp3, bitrate)?;
+        let _ = std::fs::remove_file(&wav_primary);
         mp3
+    } else if bit_depth == 16 {
+        let wav16 = exports.join(format!("export-{stamp}.wav"));
+        downsample_wav_bit_depth(&wav_primary, &wav16, 16)?;
+        if wav_primary != wav16 {
+            let _ = std::fs::remove_file(&wav_primary);
+        }
+        wav16
     } else {
+        let wav_out = exports.join(format!("export-{stamp}.wav"));
+        if wav_primary != wav_out && std::fs::rename(&wav_primary, &wav_out).is_err() {
+            std::fs::copy(&wav_primary, &wav_out).map_err(|e| e.to_string())?;
+            let _ = std::fs::remove_file(&wav_primary);
+        }
         wav_out
     };
 
@@ -414,20 +431,35 @@ pub fn export_pcm_audio(id: String, req: ExportPcmRequest) -> Result<String, Str
         })
         .unwrap_or_else(|| format!("export-{stamp}"));
 
-    let wav_out = exports.join(format!("{safe_stem}.wav"));
+    let wav_out = exports.join(format!("{safe_stem}-master.wav"));
     write_interleaved_f32_wav(&req.pcm_le, req.sample_rate, req.channels, &wav_out)?;
+    let bit_depth = req.bit_depth.unwrap_or(BIT_DEPTH);
+    let bitrate = req.bitrate_kbps.unwrap_or(320);
 
     let final_path = if format == "flac" {
         let flac = exports.join(format!("{safe_stem}.flac"));
-        export_flac(&wav_out, &flac)?;
+        export_flac_with_bit_depth(&wav_out, &flac, bit_depth)?;
         let _ = std::fs::remove_file(&wav_out);
         flac
     } else if format == "mp3" {
         let mp3 = exports.join(format!("{safe_stem}.mp3"));
-        export_mp3(&wav_out, &mp3)?;
+        export_mp3_with_bitrate(&wav_out, &mp3, bitrate)?;
+        let _ = std::fs::remove_file(&wav_out);
         mp3
+    } else if bit_depth == 16 {
+        let wav16 = exports.join(format!("{safe_stem}.wav"));
+        downsample_wav_bit_depth(&wav_out, &wav16, 16)?;
+        if wav_out != wav16 {
+            let _ = std::fs::remove_file(&wav_out);
+        }
+        wav16
     } else {
-        wav_out
+        let renamed = exports.join(format!("{safe_stem}.wav"));
+        if wav_out != renamed && std::fs::rename(&wav_out, &renamed).is_err() {
+            std::fs::copy(&wav_out, &renamed).map_err(|e| e.to_string())?;
+            let _ = std::fs::remove_file(&wav_out);
+        }
+        renamed
     };
 
     if let Some(dest) = req.destination {

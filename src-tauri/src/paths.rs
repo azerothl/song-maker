@@ -57,6 +57,13 @@ pub fn bs_roformer_path(cache: &Path) -> PathBuf {
         .join(crate::pins::BS_ROFORMER_GGUF)
 }
 
+pub fn mel_band_roformer_path(cache: &Path) -> PathBuf {
+    cache
+        .join("models")
+        .join("mel_band_roformer")
+        .join(crate::pins::MEL_BAND_ROFORMER_GGUF)
+}
+
 /// Opt-in SheetSage2 GGUF (hors installeur) — `sheetsage2-orig.gguf`.
 pub fn sheetsage2_weights_path(cache: &Path) -> PathBuf {
     cache
@@ -118,6 +125,11 @@ pub fn demucs_onnx_model_cache(cache: &Path) -> PathBuf {
 pub fn bs_roformer_weights_present(cache: &Path) -> bool {
     let path = bs_roformer_path(cache);
     matches!(std::fs::metadata(&path), Ok(meta) if meta.is_file() && meta.len() == crate::pins::BS_ROFORMER_BYTES)
+}
+
+pub fn mel_band_roformer_weights_present(cache: &Path) -> bool {
+    let path = mel_band_roformer_path(cache);
+    matches!(std::fs::metadata(&path), Ok(meta) if meta.is_file() && meta.len() == crate::pins::MEL_BAND_ROFORMER_BYTES)
 }
 
 pub fn pinned_archive_name() -> &'static str {

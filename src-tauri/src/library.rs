@@ -340,6 +340,8 @@ pub fn default_settings() -> AppSettings {
         stem_separator: DEFAULT_STEM_SEPARATOR.into(),
         cc_by_nc_accepted: false,
         yue2_license_accepted: false,
+        accepted_separator_licenses: Default::default(),
+        separator_time_stats: Default::default(),
         local_yue2_enabled: true,
         yue2_ar_lora: None,
         yue2_nar_lora: None,

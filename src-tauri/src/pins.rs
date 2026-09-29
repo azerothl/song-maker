@@ -102,6 +102,14 @@ pub const BS_ROFORMER_REMOTE: &str = "BS-RoFormer-ep368-GGUF/bs-roformer-ep368-q
 /// Exact on-disk size of the pinned GGUF (bytes).
 pub const BS_ROFORMER_BYTES: u64 = 172_532_256;
 
+/// Mel-Band RoFormer « Kim Vocal 2 » — opt-in vocal separator (not in first-build installer).
+pub const MEL_BAND_ROFORMER_GGUF: &str = "mel-band-roformer-q8_0.gguf";
+pub const MEL_BAND_ROFORMER_SHA: &str =
+    "2dd898ceb0e3812c18d6125dcd60174d35d3da22c94add76b029fbb21fc238fd";
+pub const MEL_BAND_ROFORMER_PACKAGE: &str = "mel_band_roformer_q8_0";
+pub const MEL_BAND_ROFORMER_REMOTE: &str = "Mel-Band-RoFormer-GGUF/mel-band-roformer-q8_0.gguf";
+pub const MEL_BAND_ROFORMER_BYTES: u64 = 251_748_928;
+
 /// SheetSage2 — opt-in MIDI transcription weights (hors premier build, CC BY-NC 4.0).
 pub const SHEETSAGE2_GGUF: &str = "sheetsage2-orig.gguf";
 pub const SHEETSAGE2_SHA: &str = "52bb5846c452037d39931aa8050885b6c751b9c7afcc8ef6d6d3067d241731a4";

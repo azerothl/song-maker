@@ -215,7 +215,7 @@ pub struct AppSettings {
     /// Soft-synth / MIDI monitoring lookahead in ms (#96). Default 20.
     #[serde(default = "default_audio_latency_ms")]
     pub audio_latency_ms: u32,
-    /// Phase 3: `htdemucs` (default) or `bs_roformer` when GGUF is present.
+    /// Phase 3: `htdemucs` (default) | `mel_band_roformer` | `bs_roformer` | `htdemucs_6s`.
     #[serde(default = "default_stem_separator")]
     pub stem_separator: String,
     /// CC BY-NC acceptance for optional LoRA packs (phase 3).
@@ -224,6 +224,12 @@ pub struct AppSettings {
     /// Consentement distinct pour le modèle YuE2 principal sous CC BY-NC 4.0.
     #[serde(default)]
     pub yue2_license_accepted: bool,
+    /// Per-separator « J'ai lu la licence » (once per model id) before opt-in download (#167).
+    #[serde(default)]
+    pub accepted_separator_licenses: std::collections::BTreeMap<String, bool>,
+    /// Measured separation rates (ms wall / audio sec) keyed by separator id (#166).
+    #[serde(default)]
+    pub separator_time_stats: std::collections::BTreeMap<String, SeparatorTimeStat>,
     /// Génération YuE2 locale (désactivé si l’utilisateur continue sans génération au premier lancement).
     #[serde(default = "default_local_yue2_enabled")]
     pub local_yue2_enabled: bool,
@@ -254,6 +260,13 @@ fn default_stem_separator() -> String {
     crate::pins::DEFAULT_STEM_SEPARATOR.to_string()
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SeparatorTimeStat {
+    pub ms_per_audio_sec: f64,
+    pub samples: u32,
+}
+
 fn default_prefer_full_lyrics() -> bool {
     true
 }
@@ -265,8 +278,12 @@ pub struct Phase3Status {
     pub htdemucs_available: bool,
     pub bs_roformer_available: bool,
     pub bs_roformer_path: String,
+    pub mel_band_roformer_available: bool,
+    pub mel_band_roformer_path: String,
     pub htdemucs_6s_runtime_available: bool,
     pub cc_by_nc_accepted: bool,
+    pub accepted_separator_licenses: std::collections::BTreeMap<String, bool>,
+    pub separator_time_stats: std::collections::BTreeMap<String, SeparatorTimeStat>,
     /// True only while a selected, usable provider emits guitar/piano.
     pub guitar_piano_available: bool,
     pub honesty_fr: String,
@@ -661,6 +678,15 @@ pub struct MixTrackUpdate {
 pub struct ExportRequest {
     pub format: String,
     pub destination: Option<String>,
+    /// Lossless only: 16 or 24. Ignored for mp3.
+    #[serde(default)]
+    pub bit_depth: Option<u16>,
+    /// Compressed only: kbps (128 / 192 / 320). Ignored for wav/flac.
+    #[serde(default)]
+    pub bitrate_kbps: Option<u16>,
+    /// Always offered: copy into a folder or zip the result (#168).
+    #[serde(default)]
+    pub pack: Option<String>,
 }
 
 /// Export from a frontend-baked float32 mix (mix-production TS path).
@@ -681,6 +707,12 @@ pub struct ExportPcmRequest {
     /// Optional file name stem (no extension) under exports/, e.g. `stem-01_vocals`.
     #[serde(default)]
     pub file_stem: Option<String>,
+    #[serde(default)]
+    pub bit_depth: Option<u16>,
+    #[serde(default)]
+    pub bitrate_kbps: Option<u16>,
+    #[serde(default)]
+    pub pack: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

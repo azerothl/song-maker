@@ -49,6 +49,22 @@ export const api = {
       defaultSeparator: string;
       stemLayoutFr: string;
     }>("bs_roformer_install_info"),
+  installMelBandRoFormer: () => invoke<string>("install_mel_band_roformer"),
+  cancelMelBandRoFormerInstall: () =>
+    invoke<string>("cancel_mel_band_roformer_install"),
+  melBandRoFormerInstallInfo: () =>
+    invoke<{
+      gguf: string;
+      sha256: string;
+      bytes: number;
+      remotePath: string;
+      url: string;
+      licenseNoticeFr: string;
+      path: string;
+      available: boolean;
+      defaultSeparator: string;
+      stemLayoutFr: string;
+    }>("mel_band_roformer_install_info"),
   listLoraAdapters: () => invoke<LocalLoraAdapter[]>("list_lora_adapters"),
   importLoraAdapters: () =>
     invoke<LocalLoraAdapter[] | null>("import_lora_adapters"),
@@ -179,10 +195,25 @@ export const api = {
   renderPreview: (id: string) => invoke<string>("render_preview", { id }),
   playbackSources: (id: string) =>
     invoke<PlaybackSources>("playback_sources", { id }),
-  exportAudio: (id: string, format: "wav" | "flac" | "mp3") =>
+  exportAudio: (
+    id: string,
+    format: "wav" | "flac" | "mp3",
+    options?: {
+      bitDepth?: 16 | 24;
+      bitrateKbps?: 128 | 192 | 320;
+      pack?: "folder" | "zip";
+      destination?: string | null;
+    },
+  ) =>
     invoke<string>("export_audio", {
       id,
-      req: { format, destination: null },
+      req: {
+        format,
+        destination: options?.destination ?? null,
+        bitDepth: options?.bitDepth ?? null,
+        bitrateKbps: options?.bitrateKbps ?? null,
+        pack: options?.pack ?? null,
+      },
     }),
   exportPcmAudio: (
     id: string,
@@ -195,6 +226,9 @@ export const api = {
       renderPath: string;
       matchMode: string;
       fileStem?: string;
+      bitDepth?: 16 | 24;
+      bitrateKbps?: 128 | 192 | 320;
+      pack?: "folder" | "zip";
     },
   ) =>
     invoke<string>("export_pcm_audio", {
@@ -209,6 +243,9 @@ export const api = {
         renderPath: req.renderPath,
         matchMode: req.matchMode,
         fileStem: req.fileStem ?? null,
+        bitDepth: req.bitDepth ?? null,
+        bitrateKbps: req.bitrateKbps ?? null,
+        pack: req.pack ?? null,
       },
     }),
   saveProductionOverlay: (id: string, mixId: string, overlay: unknown) =>

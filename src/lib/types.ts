@@ -207,12 +207,16 @@ export type AppSettings = {
    * Documented latency budget for Windows + other platforms (#96).
    */
   audioLatencyMs?: number;
-  /** Phase 3: `htdemucs` (default) | `htdemucs_6s` (optional ONNX) | `bs_roformer` */
+  /** Phase 3: `htdemucs` (default) | `htdemucs_6s` | `bs_roformer` | `mel_band_roformer` */
   stemSeparator?: string;
   /** CC BY-NC gate for optional LoRA packs */
   ccByNcAccepted?: boolean;
   /** Consentement distinct au modèle principal YuE2 CC BY-NC 4.0. */
   yue2LicenseAccepted?: boolean;
+  /** Per-model license checkbox (#167). */
+  acceptedSeparatorLicenses?: Record<string, boolean>;
+  /** Measured separation rates (#166). */
+  separatorTimeStats?: Record<string, { msPerAudioSec: number; samples: number }>;
   /** Génération YuE2 locale (false si « continuer sans génération »). */
   localYue2Enabled?: boolean;
   yue2ArLora?: string | null;
@@ -226,8 +230,12 @@ export type Phase3Status = {
   htdemucsAvailable: boolean;
   bsRoformerAvailable: boolean;
   bsRoformerPath: string;
+  melBandRoformerAvailable: boolean;
+  melBandRoformerPath: string;
   htdemucs6sRuntimeAvailable: boolean;
   ccByNcAccepted: boolean;
+  acceptedSeparatorLicenses: Record<string, boolean>;
+  separatorTimeStats: Record<string, { msPerAudioSec: number; samples: number }>;
   guitarPianoAvailable: boolean;
   honestyFr: string;
 };

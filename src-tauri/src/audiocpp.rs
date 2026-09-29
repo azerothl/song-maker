@@ -91,6 +91,18 @@ impl AudioCppServer {
                 "busy_timeout_ms": HTDEMUCS_BUSY_TIMEOUT_MS
             }));
         }
+        // Mel-Band RoFormer only when the optional GGUF is on disk (hors installeur).
+        let mel_path = crate::paths::mel_band_roformer_path(&cache);
+        if mel_path.is_file() {
+            models.push(json!({
+                "id": "mel_band_roformer",
+                "family": "mel_band_roformer",
+                "path": mel_path.display().to_string(),
+                "task": "sep",
+                "mode": "offline",
+                "busy_timeout_ms": HTDEMUCS_BUSY_TIMEOUT_MS
+            }));
+        }
         // SheetSage2 only when the optional GGUF is on disk (hors installeur, CC BY-NC).
         let sheetsage_path = crate::paths::sheetsage2_weights_path(&cache);
         if sheetsage_path.is_file() {

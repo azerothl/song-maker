@@ -38,6 +38,13 @@ export {
   createHtDemucs6sStemSeparator,
   mapHtDemucs6sStemIds,
 } from "./htdemucs-6s.js";
+export {
+  MEL_BAND_ROFORMER_PACKAGE,
+  MEL_BAND_ROFORMER_CAPABILITIES,
+  MelBandRoFormerStemSeparator,
+  createMelBandRoFormerStemSeparator,
+  mapMelBandRoFormerStemIds,
+} from "./mel-band-roformer.js";
 export type { StemProviderId, StemProviderConfig } from "./registry.js";
 export {
   listStemProviderIds,
@@ -45,3 +52,25 @@ export {
   isStemProviderRunnable,
   describeStemProvidersFr,
 } from "./registry.js";
+export type { SeparatorLicenseInfo } from "./licenses.js";
+export {
+  SEPARATOR_LICENSES,
+  EXCLUDED_SEPARATOR_NOTES_FR,
+  separatorLicense,
+  canDownloadSeparator,
+} from "./licenses.js";
+export type {
+  SeparationTrackFocus,
+  TimeKind,
+  SeparatorTimeStat,
+  QualityTimeOption,
+} from "./recommend.js";
+export {
+  SEPARATOR_TIME_BASELINE_MS_PER_AUDIO_SEC,
+  recommendSeparator,
+  recommendReasonFr,
+  formatDurationFr,
+  timeLabelFr,
+  buildQualityTimeOptions,
+  mergeTimeStat,
+} from "./recommend.js";

@@ -69,6 +69,15 @@ pub fn update_settings(
                 .into(),
         );
     }
+    if s.stem_separator == "mel_band_roformer"
+        && !crate::paths::mel_band_roformer_weights_present(&cache)
+    {
+        return Err(
+            "Impossible d’activer Mel-Band RoFormer : GGUF absent ou invalide. \
+             Installez-le (opt-in) dans Paramètres → Production audio."
+                .into(),
+        );
+    }
     if s.stem_separator == "htdemucs_6s" && !crate::demucs_onnx::is_installed(&cache) {
         return Err("Installez d’abord le runtime ONNX HTDemucs 6 stems dans Paramètres → Production audio.".into());
     }
@@ -119,6 +128,7 @@ pub fn get_phase3_status() -> Result<Phase3Status, String> {
     let settings = load_settings().unwrap_or_else(|_| default_settings());
     let cache = PathBuf::from(&settings.cache_dir);
     let bs_present = crate::paths::bs_roformer_weights_present(&cache);
+    let mel_present = crate::paths::mel_band_roformer_weights_present(&cache);
     let onnx_runtime_present = crate::demucs_onnx::is_installed(&cache);
     let selected = normalize_stem_separator(&settings.stem_separator);
     Ok(Phase3Status {
@@ -126,8 +136,14 @@ pub fn get_phase3_status() -> Result<Phase3Status, String> {
         htdemucs_available: htdemucs_path(&cache).is_file(),
         bs_roformer_available: bs_present,
         bs_roformer_path: crate::paths::bs_roformer_path(&cache).display().to_string(),
+        mel_band_roformer_available: mel_present,
+        mel_band_roformer_path: crate::paths::mel_band_roformer_path(&cache)
+            .display()
+            .to_string(),
         htdemucs_6s_runtime_available: onnx_runtime_present,
         cc_by_nc_accepted: settings.cc_by_nc_accepted,
+        accepted_separator_licenses: settings.accepted_separator_licenses.clone(),
+        separator_time_stats: settings.separator_time_stats.clone(),
         guitar_piano_available: selected == "htdemucs_6s" && onnx_runtime_present,
         honesty_fr: if selected == "htdemucs_6s" && onnx_runtime_present {
             "HTDemucs 6 stems via ONNX : guitare et piano estimés séparément. Modèle expérimental ; fuites possibles, surtout sur le piano. Première séparation : téléchargement du modèle (136 Mo environ).".into()
@@ -135,15 +151,32 @@ pub fn get_phase3_status() -> Result<Phase3Status, String> {
             "HTDemucs 6 stems nécessite le runtime ONNX optionnel. Installez-le ici avant de lancer une séparation.".into()
         } else if selected == "bs_roformer" {
             "BS-RoFormer : voix + instrumental seulement. Batterie, basse, guitare et piano indisponibles.".into()
+        } else if selected == "mel_band_roformer" {
+            "Mel-Band RoFormer « Kim Vocal 2 » : voix + instrumental seulement. Batterie, basse, guitare et piano indisponibles.".into()
         } else {
             "HTDemucs : quatre stems. Guitare et piano non exposés par audio.cpp.".into()
         },
     })
 }
 
+fn require_separator_license(settings: &AppSettings, id: &str) -> Result<(), String> {
+    if settings
+        .accepted_separator_licenses
+        .get(id)
+        .copied()
+        .unwrap_or(false)
+    {
+        return Ok(());
+    }
+    Err(format!(
+        "Téléchargement bloqué : cochez « J’ai lu la licence » pour le modèle « {id} » avant de continuer."
+    ))
+}
+
 #[tauri::command]
 pub async fn install_htdemucs_6s_runtime() -> Result<String, String> {
     let settings = load_settings()?;
+    require_separator_license(&settings, "htdemucs_6s")?;
     crate::demucs_onnx::install(PathBuf::from(settings.cache_dir)).await
 }
 
@@ -165,6 +198,10 @@ pub async fn install_bs_roformer(
             return Err(e);
         }
     };
+    if let Err(e) = require_separator_license(&settings, "bs_roformer") {
+        state.bs_roformer_installing.store(false, Ordering::Release);
+        return Err(e);
+    }
     let cache = PathBuf::from(&settings.cache_dir);
     let cancel = state.bs_roformer_cancel.clone();
     let result = crate::bs_roformer::install(app, cache.clone(), cancel).await;
@@ -204,6 +241,76 @@ pub fn bs_roformer_install_info() -> Result<serde_json::Value, String> {
         "available": present,
         "defaultSeparator": "htdemucs",
         "stemLayoutFr": "Voix + instrumental seulement ; batterie, basse, guitare et piano indisponibles. HTDemucs reste le chemin stable par défaut.",
+    }))
+}
+
+#[tauri::command]
+pub async fn install_mel_band_roformer(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    use std::sync::atomic::Ordering;
+    if state
+        .mel_band_roformer_installing
+        .swap(true, Ordering::AcqRel)
+    {
+        return Err("Un téléchargement Mel-Band RoFormer est déjà en cours.".into());
+    }
+    let settings = match load_settings() {
+        Ok(s) => s,
+        Err(e) => {
+            state
+                .mel_band_roformer_installing
+                .store(false, Ordering::Release);
+            return Err(e);
+        }
+    };
+    if let Err(e) = require_separator_license(&settings, "mel_band_roformer") {
+        state
+            .mel_band_roformer_installing
+            .store(false, Ordering::Release);
+        return Err(e);
+    }
+    let cache = PathBuf::from(&settings.cache_dir);
+    let cancel = state.mel_band_roformer_cancel.clone();
+    let result = crate::mel_band_roformer::install(app, cache.clone(), cancel).await;
+    state
+        .mel_band_roformer_installing
+        .store(false, Ordering::Release);
+    match result {
+        Ok(path) => {
+            let _ = crate::audiocpp::AudioCppServer::write_config(&settings);
+            state.server.shutdown();
+            Ok(path)
+        }
+        Err(e) => Err(e),
+    }
+}
+
+#[tauri::command]
+pub fn cancel_mel_band_roformer_install(state: tauri::State<'_, AppState>) -> String {
+    state
+        .mel_band_roformer_cancel
+        .store(true, std::sync::atomic::Ordering::SeqCst);
+    "Annulation demandée.".into()
+}
+
+#[tauri::command]
+pub fn mel_band_roformer_install_info() -> Result<serde_json::Value, String> {
+    let settings = load_settings()?;
+    let cache = PathBuf::from(&settings.cache_dir);
+    let present = crate::paths::mel_band_roformer_weights_present(&cache);
+    Ok(json!({
+        "gguf": MEL_BAND_ROFORMER_GGUF,
+        "sha256": MEL_BAND_ROFORMER_SHA,
+        "bytes": crate::pins::MEL_BAND_ROFORMER_BYTES,
+        "remotePath": MEL_BAND_ROFORMER_REMOTE,
+        "url": crate::mel_band_roformer::download_url(),
+        "licenseNoticeFr": crate::mel_band_roformer::LICENSE_NOTICE_FR,
+        "path": crate::paths::mel_band_roformer_path(&cache).display().to_string(),
+        "available": present,
+        "defaultSeparator": "htdemucs",
+        "stemLayoutFr": "Voix + instrumental seulement (Kim Vocal 2). HTDemucs reste le chemin stable par défaut.",
     }))
 }
 

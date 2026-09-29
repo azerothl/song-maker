@@ -38,6 +38,9 @@ pub(crate) fn find_stem_file(dir: &Path, role: &str) -> Result<PathBuf, String> 
 pub(crate) fn normalize_stem_separator(raw: &str) -> &'static str {
     match raw.trim().to_ascii_lowercase().as_str() {
         "bs_roformer" | "bs-roformer" | "bsroformer" => "bs_roformer",
+        "mel_band_roformer" | "mel-band-roformer" | "melbandroformer" | "kim_vocal_2" => {
+            "mel_band_roformer"
+        }
         "htdemucs_6s" | "htdemucs-6s" | "htdemucs6s" => "htdemucs_6s",
         _ => "htdemucs",
     }
