@@ -1,0 +1,94 @@
+{
+  "avant": {
+    "1280x720": {
+      "playButtonPx": {
+        "width": 758.921875,
+        "height": 32
+      },
+      "globalWaveformPx": {
+        "width": 64,
+        "height": 32
+      },
+      "bannerPx": {
+        "width": 1048,
+        "height": 42.78125
+      },
+      "waveformWidthShare": 0.061068702290076333,
+      "rowsFullyVisible": 10
+    },
+    "1024x700": {
+      "playButtonPx": {
+        "width": 502.921875,
+        "height": 32
+      },
+      "globalWaveformPx": {
+        "width": 64,
+        "height": 32
+      },
+      "bannerPx": {
+        "width": 792,
+        "height": 42.78125
+      },
+      "waveformWidthShare": 0.08080808080808081,
+      "rowsFullyVisible": 9
+    }
+  },
+  "apres": {
+    "1280x720": {
+      "playButtonPx": {
+        "width": 32,
+        "height": 32
+      },
+      "globalWaveformPx": {
+        "width": 790.921875,
+        "height": 56
+      },
+      "bannerPx": {
+        "width": 1048,
+        "height": 62.78125
+      },
+      "waveformWidthShare": 0.754696445610687,
+      "rowsFullyVisible": 9
+    },
+    "1024x700": {
+      "playButtonPx": {
+        "width": 32,
+        "height": 32
+      },
+      "globalWaveformPx": {
+        "width": 534.921875,
+        "height": 56
+      },
+      "bannerPx": {
+        "width": 792,
+        "height": 62.78125
+      },
+      "waveformWidthShare": 0.6754064078282829,
+      "rowsFullyVisible": 8
+    }
+  },
+  "playheadContrast1280x720": {
+    "playheadStrokeCss": "#ffffff",
+    "playheadHaloCss": "#1a1424",
+    "playedFillSampleRgb": {
+      "r": 85,
+      "g": 255,
+      "b": 255
+    },
+    "playheadEdgePixelRgb": {
+      "r": 26,
+      "g": 20,
+      "b": 36
+    },
+    "playedComputedVar": "#5eecf8",
+    "contrastRatioHaloOnPlayed": 14.65,
+    "contrastRatioWorstScan": 1.17,
+    "contrastRatio": 14.65,
+    "wcag1411Pass": true,
+    "playheadXCssPx": 396,
+    "waveComputedVar": "#c4a8ff",
+    "playedCssVar": "#5eecf8",
+    "playedColorResolved": "#5eecf8",
+    "playheadHaloComputed": "#1a1424"
+  }
+}

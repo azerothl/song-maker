@@ -18,6 +18,8 @@ import {
 } from "../lib/productionTrackLayout";
 import type { MixDoc } from "../lib/types";
 import { measureProductionMix } from "./productionCaptureMetrics";
+import { measureProductionTransport } from "./productionTransportMetrics";
+import { measureMasterWavePlayheadContrast } from "./waveformPlayheadContrast";
 import { parseCaptureHash } from "./productionCaptureHash";
 import "../App.css";
 
@@ -66,6 +68,8 @@ function ProductionCaptureApp() {
   const [productionView, setProductionView] = useState<ProductionView>("mix");
   const [mixState, setMixState] = useState<MixDoc>(mix);
   const [mixSavedAt] = useState(() => new Date());
+  const playbackDuration = 444;
+  const playbackCurrent = capturePrefs.midPlayback ? playbackDuration / 2 : 0;
 
   const playback = useMemo((): PlaybackView => {
     const peaksByTrack: Record<string, Float32Array> = {};
@@ -74,18 +78,18 @@ function ProductionCaptureApp() {
       peaksByTrack[tr.id] = syntheticPeaks(seed++);
     }
     return {
-      current: 0,
-      duration: 444,
+      current: playbackCurrent,
+      duration: playbackDuration,
       mode: "stems",
       peaksByTrack,
       mixPeaks: syntheticPeaks(99, 200),
       seek: () => {},
       toggle: async () => {},
-      playing: false,
+      playing: capturePrefs.midPlayback,
       loading: false,
       ready: true,
     };
-  }, [mix]);
+  }, [mix, playbackCurrent, capturePrefs.midPlayback]);
 
   return (
     <div className="app-shell production-capture-root" data-capture-tracks={capturePrefs.trackCount}>
@@ -179,9 +183,15 @@ if (root) {
 declare global {
   interface Window {
     __productionCaptureMetrics?: () => ReturnType<typeof measureProductionMix>;
+    __productionTransportMetrics?: () => ReturnType<typeof measureProductionTransport>;
+    __productionPlayheadContrast?: () => ReturnType<
+      typeof measureMasterWavePlayheadContrast
+    >;
   }
 }
 
 window.__productionCaptureMetrics = () => measureProductionMix();
+window.__productionTransportMetrics = () => measureProductionTransport();
+window.__productionPlayheadContrast = () => measureMasterWavePlayheadContrast();
 
 void loadCollapsedTrackFamilies();
