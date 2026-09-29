@@ -1,5 +1,9 @@
+
+> song-maker@0.1.1 bench:score-tab /tmp/song-maker-main
+> node --import tsx scripts/bench-score-tab.mts
+
 {
-  "capturedAt": "2026-09-29T10:46:44.137Z",
+  "capturedAt": "2026-09-29T10:55:12.746Z",
   "microbenches": {
     "stats": {
       "noteCount": 1233,
@@ -10,7 +14,7 @@
     "withResize": [
       {
         "phase": "abcjs.renderAbc (legacy responsive: resize)",
-        "durationMs": 281.8999999999942,
+        "durationMs": 331.29999999993015,
         "detail": {
           "chars": 14171,
           "tunes": 1
@@ -18,7 +22,7 @@
       },
       {
         "phase": "reflow SVG (offsetWidth/Height)",
-        "durationMs": 69.5,
+        "durationMs": 83,
         "detail": {
           "nodes": 17932,
           "paperWidth": 1280,
@@ -29,11 +33,11 @@
     "withoutResize": [
       {
         "phase": "abcjs.renderAbc (responsive off)",
-        "durationMs": 198.09999999997672
+        "durationMs": 268.5
       },
       {
         "phase": "reflow SVG (responsive off)",
-        "durationMs": 61.90000000002328,
+        "durationMs": 91,
         "detail": {
           "nodes": 17932
         }
@@ -42,13 +46,13 @@
     "abcStaffViewOnly": [
       {
         "phase": "AbcStaffView seul → SVG",
-        "durationMs": 272.3999999999942
+        "durationMs": 38.79999999993015
       }
     ],
     "pianoRoll": [
       {
         "phase": "PianoRoll mount (hidden tabpanel path)",
-        "durationMs": 31.10000000000582,
+        "durationMs": 0.5,
         "detail": {
           "noteButtons": 1233,
           "gridWidthPx": 199142.4
@@ -58,19 +62,19 @@
     "resizeStorm": [
       {
         "phase": "resize storm (5×, responsive: resize)",
-        "durationMs": 171
+        "durationMs": 213.40000000002328
       }
     ],
     "viewportResizeLegacy": {
       "phase": "layout après resize (viewportHorizontal + responsive: resize)",
-      "durationMs": 51.59999999997672,
+      "durationMs": 68.5,
       "detail": {
         "passes": 8
       }
     },
     "viewportResizeFixed": {
       "phase": "layout après resize (viewportHorizontal, responsive off)",
-      "durationMs": 37.5,
+      "durationMs": 65.59999999997672,
       "detail": {
         "passes": 8
       }
@@ -87,28 +91,28 @@
     "phases": [
       {
         "phase": "ScorePanel mount (1 frame)",
-        "durationMs": 222.70000000001164
+        "durationMs": 22.099999999976717
       },
       {
         "phase": "attente rendu portée (abcjs useEffect)",
-        "durationMs": 0,
+        "durationMs": 26.79999999993015,
         "detail": {
           "hasSvg": true
         }
       },
       {
         "phase": "rafales resize après montage (post-ouverture)",
-        "durationMs": 110.5
+        "durationMs": 117.80000000004657
       },
       {
         "phase": "ouverture → portée visible (total)",
-        "durationMs": 333.20000000001164,
+        "durationMs": 166.69999999995343,
         "detail": {
           "hasSvg": true
         }
       }
     ],
-    "longTasksMs": 203,
-    "longTaskCount": 1
+    "longTasksMs": 0,
+    "longTaskCount": 0
   }
 }
