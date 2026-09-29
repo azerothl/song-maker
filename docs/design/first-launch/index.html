@@ -6,8 +6,8 @@
 <meta name="viewport" content="width=1280">
 <style>
 :root{
-  --bg:#141218; --bg2:#1b1723; --card:#221e2c; --card2:#2a2536; --line:#3d3654; --line2:#544b73;
-  --text:#f3f0fa; --muted:#bdb6cf; --teal:#5ed8c9; --purple:#a58bff; --purple-btn:#6a3fd9; --purple-btn-h:#7b52e6;
+  --bg:#141218; --bg2:#1b1723; --card:#221e2c; --card2:#2a2536; --line:#3d3654; --line2:#7a6ea1;
+  --text:#f3f0fa; --muted:#bdb6cf; --teal:#5ed8c9; --purple:#a58bff; --purple-btn:#805cdf; --purple-btn-h:#6a3fd9;
   --warn:#ffb4a8; --warn-bg:#3a1f26; --warn-line:#ff6b6b; --ok:#7fe0a1; --focus:#ffd76a;
   --serif:"Fraunces","Source Serif Pro","Noto Serif",Georgia,serif;
   --sans:"Inter","Segoe UI",system-ui,-apple-system,"Noto Sans",Arial,sans-serif;
@@ -59,7 +59,7 @@ h1{font-family:var(--serif);font-weight:600;font-size:34px;line-height:1.1;margi
 .foot{margin-top:14px;border-top:1px solid var(--line);padding-top:12px;display:flex;gap:24px;align-items:center;justify-content:space-between}
 .license{flex:1}
 .license p{font-size:13.5px;color:#e4def3;max-width:720px}
-.license .cb{display:flex;gap:10px;align-items:center;margin-top:8px;font-weight:600;font-size:14px}
+.license .cb{display:flex;gap:10px;align-items:center;margin-top:0;min-height:44px;font-weight:600;font-size:14px;cursor:pointer}
 .license input{width:20px;height:20px;accent-color:#8f6bff}
 a{color:#c4b2ff;text-decoration:underline;text-underline-offset:3px}
 .btn{font:inherit;font-weight:700;font-size:15px;border-radius:12px;padding:12px 22px;border:2px solid transparent;cursor:pointer;color:#fff;background:var(--purple-btn);display:inline-flex;gap:8px;align-items:center;justify-content:center;white-space:nowrap}
@@ -115,7 +115,7 @@ a{color:#c4b2ff;text-decoration:underline;text-underline-offset:3px}
 .errbox .ai{flex:none;width:32px;height:32px;border-radius:50%;background:#ff6b6b;color:#2a0d10;display:grid;place-items:center;font-weight:900;font-size:18px}
 .row-actions{display:flex;gap:12px;align-items:center;margin-top:auto;padding-top:12px}
 details{font-size:12.5px;color:var(--muted);margin-left:auto}
-summary{cursor:pointer;padding:4px 6px;border-radius:6px}
+summary{cursor:pointer;padding:4px 6px;border-radius:6px;display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box}
 .rot{margin-left:auto}
 
 /* Sheet D */
@@ -338,8 +338,8 @@ body[data-view]:not([data-view="all"]) .nav{display:none}
    <div class="pt"><div class="k">5</div><div><span class="src">Krug · Langage clair et confiance</span><h3>La licence est expliquée avant la case à cocher, en une phrase</h3>
     <p>Usage personnel et non commercial : le consentement est éclairé, pas un « J’accepte » à l’aveugle. Les erreurs disent quoi faire (« vérifiez votre connexion, puis Reprendre ») et rassurent (« rien n’est perdu »). <em>Écrans A et C.</em></p></div></div>
   </div>
-  <div class="a11y"><b>Accessibilité :</b> contrastes ≥ 4,5:1 (texte) sur fond sombre · anneau de focus jaune de 3 px visible au clavier · alertes signalées par une icône, un titre et du texte, jamais par la couleur seule · barres de progression avec valeurs textuelles et rôle <em>progressbar</em> · cibles ≥ 44 px de hauteur.
-   <div class="sw-row"><span style="background:#221e2c;color:#f3f0fa">Texte #F3F0FA / #221E2C</span><span style="background:#221e2c;color:#5ed8c9">Sur-titre #5ED8C9</span><span style="background:#6a3fd9;color:#fff">Bouton #FFF / #6A3FD9</span><span style="background:#3a1f26;color:#ffd5cf">Alerte #FFD5CF / #3A1F26</span><span style="background:#221e2c;color:#ffd76a">Focus #FFD76A</span></div>
+  <div class="a11y"><b>Accessibilité :</b> contrastes ≥ 4,5:1 (texte) sur fond sombre · anneau de focus jaune de 3 px visible au clavier · alertes signalées par une icône, un titre et du texte, jamais par la couleur seule · barres de progression avec valeurs textuelles et rôle <em>progressbar</em> · boutons ≥ 44 px de hauteur ; zone cliquable de la case de licence et de « Détails techniques » portée à 44 px (marge intérieure).
+   <div class="sw-row"><span style="background:#221e2c;color:#f3f0fa">Texte #F3F0FA / #221E2C</span><span style="background:#221e2c;color:#5ed8c9">Sur-titre #5ED8C9</span><span style="background:#805cdf;color:#fff">Bouton #FFF / #805CDF</span><span style="background:#3a1f26;color:#ffd5cf">Alerte #FFD5CF / #3A1F26</span><span style="background:#221e2c;color:#ffd76a">Focus #FFD76A</span></div>
   </div>
   <p class="hint" style="margin-top:8px">Toutes les valeurs (GPU, tailles, durées) sont des données d’exemple pour la maquette.</p>
  </div>
