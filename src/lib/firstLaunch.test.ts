@@ -12,8 +12,12 @@ import {
   formatBytesFr,
   formatEtaFr,
   formatVramGo,
+  fileStatusShowsWarningIcon,
   gpuDetailLine,
   installErrorCopy,
+  LICENSE_REQUIRED_FR,
+  licenseAllowsDownload,
+  modelPackVramFailureRisk,
   parsePack,
   resolveFirstLaunchView,
   vramBarPercent,
@@ -246,6 +250,26 @@ describe("firstLaunch formatters", () => {
     assert.match(copy.title, /connexion/i);
     assert.match(copy.body, /conservés/);
     assert.equal(copy.steps.length, 2);
+  });
+});
+
+describe("firstLaunch licence et VRAM", () => {
+  it("bloque le téléchargement tant que la licence n’est pas acceptée", () => {
+    assert.equal(LICENSE_REQUIRED_FR, "Acceptez la licence pour continuer.");
+    assert.equal(licenseAllowsDownload(false, false), false);
+    assert.equal(licenseAllowsDownload(true, false), true);
+    assert.equal(licenseAllowsDownload(false, true), true);
+  });
+
+  it("signale le risque Q8 quand le pic dépasse la VRAM détectée", () => {
+    assert.equal(modelPackVramFailureRisk("q4", 8188), false);
+    assert.equal(modelPackVramFailureRisk("q8", 8188), true);
+    assert.equal(modelPackVramFailureRisk("q8", 12288), false);
+  });
+
+  it("n’affiche pas l’icône d’alerte sur l’estimation de reprise (fichier partiel)", () => {
+    assert.equal(fileStatusShowsWarningIcon("partial"), false);
+    assert.equal(fileStatusShowsWarningIcon("error"), true);
   });
 });
 

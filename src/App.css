@@ -2700,6 +2700,21 @@ details[open] > summary {
   margin: 0;
 }
 
+.fl-license-required {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fl-text);
+  margin: 0;
+  text-align: right;
+}
+
+.fl-vram-risk {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fl-warn);
+  margin: 8px 0 0;
+}
+
 .fl-alert,
 .fl-errbox {
   display: flex;

@@ -9,8 +9,13 @@ const outDir = path.resolve(
   "../docs/design/first-launch/captures-react",
 );
 
-const targets = [
+const targets: { hash: string; file: string; selector?: string }[] = [
   { hash: "", file: "etat-a-gpu-nvidia.png" },
+  {
+    hash: "",
+    file: "etat-a-licence-non-acceptee.png",
+    selector: ".first-launch .fl-foot",
+  },
   { hash: "metal", file: "etat-a-variante-apple-metal.png" },
   { hash: "b", file: "etat-b-sans-gpu.png" },
   { hash: "c", file: "etat-c-telechargement-interrompu.png" },
@@ -29,11 +34,15 @@ await new Promise((r) => setTimeout(r, 500));
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 
-for (const { hash, file } of targets) {
+for (const { hash, file, selector } of targets) {
   const url = hash ? `${baseUrl}/#${hash}` : `${baseUrl}/`;
   await page.goto(url, { waitUntil: "networkidle" });
-  await page.locator(".first-launch .fl-card").first().waitFor({ state: "visible" });
-  await page.locator(".first-launch .fl-card").first().screenshot({
+  if (file === "etat-a-gpu-nvidia.png") {
+    await page.locator('input[name="model-pack"][value="q8"]').check();
+  }
+  const target = selector ?? ".first-launch .fl-card";
+  await page.locator(target).first().waitFor({ state: "visible" });
+  await page.locator(target).first().screenshot({
     path: path.join(outDir, file),
   });
 }

@@ -17,6 +17,9 @@ export const YUE2_LICENSE_URL = "https://creativecommons.org/licenses/by-nc/4.0/
 export const YUE2_Q4_PEAK_MIB = 7755;
 export const YUE2_Q8_PEAK_MIB = 8867;
 
+export const LICENSE_REQUIRED_FR = "Acceptez la licence pour continuer.";
+export const Q8_VRAM_FAILURE_RISK_FR = "Risque d'échec sur cette carte";
+
 export type ModelPack = "q4" | "q8";
 export type FirstLaunchView = "loading" | "gpu" | "noGpu" | "download" | "interrupted";
 
@@ -213,6 +216,27 @@ export function yue2PeakMib(pack: ModelPack): number {
 export function vramBarPercent(pack: ModelPack, vramMib: number | null | undefined): number {
   if (vramMib == null || vramMib <= 0) return pack === "q8" ? 90 : 70;
   return Math.min(100, Math.round((yue2PeakMib(pack) / vramMib) * 100));
+}
+
+export function licenseAllowsDownload(
+  accepted: boolean,
+  settingsLicenseAccepted?: boolean,
+): boolean {
+  return accepted || Boolean(settingsLicenseAccepted);
+}
+
+/** Q8 reste choisissable même si le pic YuE2 dépasse la VRAM détectée. */
+export function modelPackVramFailureRisk(
+  pack: ModelPack,
+  vramMib: number | null | undefined,
+): boolean {
+  if (pack !== "q8") return false;
+  if (vramMib == null || vramMib <= 0) return true;
+  return yue2PeakMib("q8") > vramMib;
+}
+
+export function fileStatusShowsWarningIcon(status: FileRowStatus): boolean {
+  return status === "error";
 }
 
 export function resolveFirstLaunchView(input: {
