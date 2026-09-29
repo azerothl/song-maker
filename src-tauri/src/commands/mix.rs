@@ -488,10 +488,7 @@ pub fn export_audio(
         .and_then(|s| s.to_str())
         .unwrap_or("export.json")
         .to_string();
-    let files = vec![
-        (final_path.clone(), audio_name),
-        (json_path, json_name),
-    ];
+    let files = vec![(final_path.clone(), audio_name), (json_path, json_name)];
 
     if let Some(pack) = pack.as_deref() {
         let zip_name = format!("export-{id}-{stamp}.zip");
@@ -616,10 +613,7 @@ pub fn export_pcm_audio(
         .and_then(|s| s.to_str())
         .unwrap_or("export.json")
         .to_string();
-    let files = vec![
-        (final_path.clone(), audio_name),
-        (json_path, json_name),
-    ];
+    let files = vec![(final_path.clone(), audio_name), (json_path, json_name)];
 
     if let Some(pack) = pack.as_deref() {
         let zip_name = format!("{safe_stem}.zip");
