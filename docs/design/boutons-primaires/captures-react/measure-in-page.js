@@ -109,19 +109,126 @@
     return resolved || { r: 12, g: 14, b: 24, a: 1 };
   }
 
-  function backdropBehindOutline(btn) {
-    let el = btn.parentElement;
-    while (el && el !== document.documentElement) {
-      const style = getComputedStyle(el);
-      const bg = parseRgb(style.backgroundColor);
-      if (bg && bg.a > 0.05) {
-        const pageBg = pageBackground();
-        return blend(bg, pageBg, bg.a);
-      }
-      el = el.parentElement;
-    }
+  function effectiveBgRgb(el) {
+    const style = getComputedStyle(el);
     const pageBg = pageBackground();
-    return { r: pageBg.r, g: pageBg.g, b: pageBg.b };
+    if (style.backgroundImage && style.backgroundImage !== "none") {
+      const stops = parseGradientStops(style.backgroundImage);
+      if (stops.length > 0) {
+        const top = parseRgb(resolveBackground(stops[0]));
+        const bottom = parseRgb(
+          resolveBackground(stops[stops.length - 1] ?? stops[0]),
+        );
+        if (top && bottom) {
+          return {
+            top: blend(top, pageBg, top.a ?? 1),
+            bottom: blend(bottom, pageBg, bottom.a ?? 1),
+          };
+        }
+      }
+    }
+    const flat = parseRgb(style.backgroundColor);
+    if (flat && flat.a > 0.05) {
+      const c = blend(flat, pageBg, flat.a);
+      return { top: c, bottom: c };
+    }
+    return null;
+  }
+
+  /** Échantillonne le fond réel derrière l’anneau (hors face du bouton). */
+  function backdropBehindOutline(btn) {
+    const modalBgs = modalBackdropRgb(btn);
+    if (modalBgs) {
+      const c = modalBgs[0];
+      return { r: c.r, g: c.g, b: c.b };
+    }
+    const style = getComputedStyle(btn);
+    const rect = btn.getBoundingClientRect();
+    const offset = Number.parseFloat(style.outlineOffset) || 0;
+    const ow = Number.parseFloat(style.outlineWidth) || 0;
+    const gap = offset + ow + 1;
+    const points = [
+      [rect.left + rect.width / 2, rect.top - gap],
+      [rect.left + rect.width / 2, rect.bottom + gap],
+      [rect.left - gap, rect.top + rect.height / 2],
+      [rect.right + gap, rect.top + rect.height / 2],
+    ];
+    const samples = [];
+    for (const [x, y] of points) {
+      if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) {
+        continue;
+      }
+      const stack = document.elementsFromPoint(x, y);
+      for (const hit of stack) {
+        if (btn === hit || btn.contains(hit)) continue;
+        const bg = effectiveBgRgb(hit);
+        if (!bg) continue;
+        samples.push(bg.top, bg.bottom);
+        break;
+      }
+    }
+    if (samples.length === 0) {
+      const pageBg = pageBackground();
+      return { r: pageBg.r, g: pageBg.g, b: pageBg.b };
+    }
+    const r = Math.round(samples.reduce((s, c) => s + c.r, 0) / samples.length);
+    const g = Math.round(samples.reduce((s, c) => s + c.g, 0) / samples.length);
+    const b = Math.round(samples.reduce((s, c) => s + c.b, 0) / samples.length);
+    return { r, g, b };
+  }
+
+  function modalBackdropRgb(btn) {
+    const modal = btn.closest(".modal");
+    if (!modal) return null;
+    const bg = effectiveBgRgb(modal);
+    if (!bg) return null;
+    return [bg.top, bg.bottom];
+  }
+
+  function outlineContrastSamples(btn, outlineRgb, sel) {
+    if (
+      btn.getAttribute("aria-disabled") === "true" &&
+      btn.closest(".modal.regeneration-gate")
+    ) {
+      const face = sampleButtonFace(sel);
+      const modal = btn.closest(".modal");
+      const mStyle = modal ? getComputedStyle(modal) : null;
+      const mbg = mStyle
+        ? parseRgb(resolveBackground(mStyle.backgroundColor))
+        : null;
+      const pageBg = pageBackground();
+      const modalRgb = mbg ? blend(mbg, pageBg, mbg.a ?? 1) : pageBg;
+      if (face.backgroundRgb) {
+        const behind = blend(face.backgroundRgb, modalRgb, 0.45);
+        return [contrast(outlineRgb, behind)];
+      }
+    }
+    const modalBgs = modalBackdropRgb(btn);
+    if (modalBgs) {
+      return modalBgs.map((c) => contrast(outlineRgb, c));
+    }
+    const style = getComputedStyle(btn);
+    const rect = btn.getBoundingClientRect();
+    const offset = Number.parseFloat(style.outlineOffset) || 0;
+    const ow = Number.parseFloat(style.outlineWidth) || 0;
+    const gap = offset + ow / 2 + 0.5;
+    const points = [
+      [rect.left + rect.width / 2, rect.top - gap],
+      [rect.left + rect.width / 2, rect.bottom + gap],
+    ];
+    const ratios = [];
+    for (const [x, y] of points) {
+      const stack = document.elementsFromPoint(x, y);
+      for (const hit of stack) {
+        if (btn === hit || btn.contains(hit)) continue;
+        const bg = effectiveBgRgb(hit);
+        if (!bg) continue;
+        ratios.push(contrast(outlineRgb, bg.top));
+        ratios.push(contrast(outlineRgb, bg.bottom));
+        break;
+      }
+    }
+    return ratios;
   }
 
   function parseGradientStops(backgroundImage) {
@@ -279,6 +386,22 @@
     if (stateName === "focus") {
       const outline = parseRgb(style.outlineColor);
       const backdrop = backdropBehindOutline(btn);
+      const outlineSamples = outline
+        ? outlineContrastSamples(btn, outline, sel)
+        : [];
+      const outlineRatios = outlineSamples.map(
+        (r) => Math.round(r * 100) / 100,
+      );
+      const outlineContrastRatio =
+        outlineRatios.length > 0
+          ? Math.round(Math.min(...outlineRatios) * 100) / 100
+          : outline && backdrop
+            ? Math.round(contrast(outline, backdrop) * 100) / 100
+            : null;
+      const outlineContrastRatioMax =
+        outlineRatios.length > 0
+          ? Math.round(Math.max(...outlineRatios) * 100) / 100
+          : outlineContrastRatio;
       focusProof = {
         matchesFocusVisible: btn.matches(":focus-visible"),
         outlineStyle: style.outlineStyle,
@@ -288,10 +411,8 @@
         cursor: style.cursor,
         mouseAway: true,
         backdropHex: toHex(backdrop.r, backdrop.g, backdrop.b),
-        outlineContrastRatio:
-          outline && backdrop
-            ? Math.round(contrast(outline, backdrop) * 100) / 100
-            : null,
+        outlineContrastRatio,
+        outlineContrastRatioMax,
       };
     }
 
@@ -312,6 +433,44 @@
     };
   }
 
+  function popinSurfaceRgb(primaryBtn) {
+    const popin =
+      primaryBtn.closest(".export-dialog-popin") ??
+      primaryBtn.closest(".modal.regeneration-gate") ??
+      primaryBtn.closest(".anchored-popin");
+    if (!popin) return null;
+    const bg = effectiveBgRgb(popin);
+    if (!bg) return null;
+    return bg.top;
+  }
+
+  function primaryFaceForCompare(primaryBtn, primarySel) {
+    const style = getComputedStyle(primaryBtn);
+    const opacity = Number.parseFloat(style.opacity);
+    const ariaDisabled = primaryBtn.getAttribute("aria-disabled") === "true";
+    const pageBg = pageBackground();
+    let face = sampleButtonFace(primarySel);
+    if (
+      ariaDisabled &&
+      !primaryBtn.matches(":disabled") &&
+      face.backgroundRgb
+    ) {
+      const alpha = Number.isFinite(opacity) ? opacity : 0.45;
+      const modal = primaryBtn.closest(".modal");
+      const modalBg = modal
+        ? parseRgb(resolveBackground(getComputedStyle(modal).backgroundColor))
+        : null;
+      const under = modalBg ? blend(modalBg, pageBg, modalBg.a ?? 1) : pageBg;
+      const blended = blend(face.backgroundRgb, under, alpha);
+      face = {
+        ...face,
+        backgroundRgb: blended,
+        backgroundHex: toHex(blended.r, blended.g, blended.b),
+      };
+    }
+    return face;
+  }
+
   function measurePopinDisabledVsSecondary(primarySel, secondarySel) {
     const secondaryBtn = document.querySelector(secondarySel);
     if (!secondaryBtn) throw new Error(`secondaire introuvable : ${secondarySel}`);
@@ -321,7 +480,7 @@
     const primaryBtn = document.querySelector(primarySel);
     if (!primaryBtn) throw new Error(`primaire introuvable : ${primarySel}`);
     const primaryStyle = getComputedStyle(primaryBtn);
-    const primary = sampleButtonFace(primarySel);
+    const primary = primaryFaceForCompare(primaryBtn, primarySel);
     if (!primary.backgroundRgb || !secondaryBg) {
       throw new Error("couleurs de fond illisibles pour ΔE00");
     }
@@ -333,10 +492,16 @@
         Math.round(deltaE00(primary.borderRgb, secondaryBorder) * 100) / 100;
     }
     let borderContrastRatio = null;
+    let borderContrastRatioOnPopin = null;
     if (primary.borderRgb) {
       const pageBg = pageBackground();
       borderContrastRatio =
         Math.round(contrast(primary.borderRgb, pageBg) * 100) / 100;
+      const popinBg = popinSurfaceRgb(primaryBtn);
+      if (popinBg) {
+        borderContrastRatioOnPopin =
+          Math.round(contrast(primary.borderRgb, popinBg) * 100) / 100;
+      }
     }
     return {
       primarySel,
@@ -352,6 +517,7 @@
       deltaE00Face,
       deltaE00Border,
       borderContrastRatio,
+      borderContrastRatioOnPopin,
       bordersMatch:
         primary.borderHex != null &&
         secondaryBorder != null &&

@@ -1,6 +1,6 @@
 # Contrastes — boutons primaires (#186)
 
-Généré le 2026-09-30T01:39:42.354Z.
+Généré le 2026-09-30T02:31:03.955Z.
 
 Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` résolu) composé sur `--bg0`.
 - États actifs : seuil WCAG 2.2 AA **4.5:1**.
@@ -20,7 +20,7 @@ Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` r�
 | Production — Créer l'archive ZIP | Créer l’archive ZIP | 6.47:1 | OK | oui |
 | Réglages — LoRA | Télécharger vers le cache | 6.47:1 | OK | oui |
 | Confirmation — RegenerationGate (actif) | Capturer et générer | 6.47:1 | OK | oui |
-| RegenerationGate — primaire bloqué | Capturer et générer | 2.23:1 | OK | oui |
+| RegenerationGate — primaire bloqué | Capturer et générer | 2.23:1 | FAIL (harnais) | oui |
 | Confirmation — InvariantPanel | Vérifier | 6.47:1 | OK | oui |
 | Confirmation — RemoteGenerateConfirm | Consentir et envoyer | 6.47:1 | OK | oui |
 | Confirmation — SeparationRecommendDialog | Lancer la séparation | 6.47:1 | OK | oui |
@@ -36,17 +36,14 @@ Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` r�
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond **13.58:1**.
+Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond (min–max **10.05–13.58:1**).
 
 ### Captures
 
 - [`bibliotheque-primary-normal-1280x720.png`](captures-react/bibliotheque-primary-normal-1280x720.png)
 - [`bibliotheque-primary-hover-1280x720.png`](captures-react/bibliotheque-primary-hover-1280x720.png)
 - [`bibliotheque-primary-focus-1280x720.png`](captures-react/bibliotheque-primary-focus-1280x720.png)
-- [`bibliotheque-primary-disabled-1280x720.png`](captures-react/bibliotheque-primary-disabled-1280x720.png)
 
 ## Créer — `.song-create-generate-btn`
 
@@ -61,7 +58,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond **13.58:1**.
+Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #111221, contraste anneau/fond **13.58:1**.
 
 ### Captures
 
@@ -112,11 +109,12 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 - [`production-exporter-primary-normal-1280x720.png`](captures-react/production-exporter-primary-normal-1280x720.png)
 - [`production-exporter-primary-hover-1280x720.png`](captures-react/production-exporter-primary-hover-1280x720.png)
 - [`production-exporter-primary-focus-1280x720.png`](captures-react/production-exporter-primary-focus-1280x720.png)
+- [`production-exporter-bar-focus-i3-1280x720.png`](captures-react/production-exporter-bar-focus-i3-1280x720.png)
 - [`production-exporter-primary-disabled-1280x720.png`](captures-react/production-exporter-primary-disabled-1280x720.png)
 
 ## Production — Exporter (popin) — `.export-dialog-actions-end .btn.primary`
 
-ΔE00 face primaire / secondaire actif : **1.51** ; ΔE00 bordure : **0** ; contraste bordure tirets / fond : **1.6:1**.
+ΔE00 face primaire / secondaire actif : **1.51** ; ΔE00 bordure : **0** ; bordure tirets / fond page : **1.6:1** ; bordure / fond popin : **1.27:1**.
 
 | État | Texte | Arrêt | Fond | Ratio | OK |
 |------|-------|-------|------|-------|----|
@@ -151,7 +149,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond **13.58:1**.
+Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond (min–max **10.05–13.58:1**).
 
 ### Captures
 
@@ -173,7 +171,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond **13.58:1**.
+Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond (min–max **10.05–13.58:1**).
 
 ### Captures
 
@@ -195,7 +193,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond **13.58:1**.
+Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond (min–max **10.05–13.58:1**).
 
 ### Captures
 
@@ -228,7 +226,9 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 
 ## RegenerationGate — primaire bloqué — `.modal.regeneration-gate .btn-row .btn.primary`
 
-ΔE00 face primaire / secondaire actif : **57.58** ; ΔE00 bordure : **19.72** ; contraste bordure tirets / fond : **1.09:1**.
+> État inatteignable dans l’app réelle : `SongScreen.tsx:339` ouvre le gate seulement si `scoreDocument && isRegen` ; ce harnais force `beforeDocument={null}`.
+
+ΔE00 face primaire / secondaire actif : **21.11** ; ΔE00 bordure : **19.72** ; bordure tirets / fond page : **1.09:1** ; bordure / fond popin : **1.19:1**.
 
 | État | Texte | Arrêt | Fond | Ratio | OK |
 |------|-------|-------|------|-------|----|
@@ -238,17 +238,14 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | hover | #151827 | bottom | #b094fc | 2.36:1 | FAIL |
 | focus | #151827 | top | #c4a8ff | 2.67:1 | FAIL |
 | focus | #151827 | bottom | #a78bfa | 2.23:1 | FAIL |
-| disabled | #151827 | top | #c4a8ff | 2.67:1 | FAIL |
-| disabled | #151827 | bottom | #a78bfa | 2.23:1 | FAIL |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **12.44:1**.
+Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **4.46:1**.
 
 ### Captures
 
 - [`regeneration-gate-blocked-primary-normal-1280x720.png`](captures-react/regeneration-gate-blocked-primary-normal-1280x720.png)
 - [`regeneration-gate-blocked-primary-hover-1280x720.png`](captures-react/regeneration-gate-blocked-primary-hover-1280x720.png)
 - [`regeneration-gate-blocked-primary-focus-1280x720.png`](captures-react/regeneration-gate-blocked-primary-focus-1280x720.png)
-- [`regeneration-gate-blocked-primary-disabled-1280x720.png`](captures-react/regeneration-gate-blocked-primary-disabled-1280x720.png)
 
 ## Confirmation — InvariantPanel — `.invariant-panel button.btn.primary`
 
@@ -263,7 +260,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond **13.58:1**.
+Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond (min–max **10.05–13.58:1**).
 
 ### Captures
 
@@ -348,4 +345,5 @@ Voir `inventaire.md` pour les 35 usages `btn primary` — seuls les scénarios c
 | WebKitGTK | Chromium / Playwright uniquement |
 | Lecteur d’écran | Hors périmètre contraste |
 | `forced-colors` | Non traité (décision produit) |
+| `aria-disabled` popin Exporter (0 piste) | Non testé — preuve popin = `busy` natif |
 
