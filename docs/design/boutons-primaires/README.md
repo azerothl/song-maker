@@ -2,24 +2,22 @@
 
 Correctif d’accessibilité pour `.btn.primary` (issues #186 / #193).
 
-## Problème
+## Inventaire
 
-1. Texte blanc sur le dégradé `--accent` → `--accent-2` (~2,0–2,7:1) — corrigé dans #189 (`#151827`).
-2. État **désactivé trop clair** et **pas de survol net** — #192.
-3. Suite Alphonse (#193) : désactivé confondu avec le secondaire actif (ΔE ~1,5) ; preuves focus sans vrai `:focus-visible`.
+[`inventaire.md`](inventaire.md) — **34 usages** produit + **1 harnais** = **35 lignes** : **13 vérifiés**, **1 partiel**, **21 non vérifiés**.  
+Désactivé **réel** : 3 (Créer, Exporter déclencheur, Exporter popin). Vérifiés = **9** forcés + **1** n/a + **3** réels. **31** usages sans preuve de désactivé réel (**34** − **3**).
 
-## Correction (#193)
+## Preuves
 
-- Texte sombre `#151827` sur le dégradé actif (inchangé).
-- **Survol** : dégradé légèrement plus lumineux.
-- **Focus** : anneau cyan via la règle globale `button:focus-visible` (pas de doublon `.btn.primary:focus-visible`).
-- **Désactivé** : texte `#848ba0` (~4,7:1), fond éteint, **bordure en tirets** (signe non chromatique) — distinct du `.btn` secondaire.
-- Transitions courtes sous `prefers-reduced-motion: reduce`.
-- `forced-colors` : **non traité**.
+- [`captures-react/`](captures-react/) — PNG + `metrics.json` + `capture.mts`
+- [`contrastes.md`](contrastes.md) — synthèse régénérée
 
-Aucun changement de mise en page.
+Texte désactivé mesuré : **`#848ba0`** sur **`#1c2034`** → **4,73:1**.
 
-## Contenu
+## Non testé
 
-- `contrastes.md` : mesures DOM (normal / survol / focus / désactivé) + preuves focus clavier.
-- `captures-react/` : PNG 1280×720 React réels (état courant + `*-focus-*` avec anneau) + script de régénération + liste des **non vérifiés**.
+WebKitGTK, lecteur d’écran, `forced-colors`, `aria-disabled` popin Exporter (0 piste), test négatif garde cyan.
+
+## Signalé (I2 / I3)
+
+Voir `inventaire.md` — bordure popin 1,60:1 (page) / 1,27:1 (fond popin) ; anneau Exporter parfois coupé.

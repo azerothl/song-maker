@@ -1,11 +1,9 @@
 /**
- * Captures + mesures de contraste pour `.btn.primary` (#186 / #193).
+ * Captures + mesures de contraste pour `.btn.primary` (#186).
  *
  * Usage : pnpm exec tsx docs/design/boutons-primaires/captures-react/capture.mts
- *
- * Pages React réelles (Vite + mock Tauri) — pas de maquette HTML statique.
- * Focus : Tab clavier + souris hors bouton → `:focus-visible` réel (pas page.focus seul).
  */
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -16,9 +14,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../../../..");
 const OUT = __dirname;
 const PORT = 5191;
-/** Seuil AA texte actif (normal / survol / focus). */
 const AA_MIN = 4.5;
-/** Seuil lisibilité désactivé (#193) — cible ~4,7:1, plancher 3:1. */
 const DISABLED_MIN = 3;
 const VIEWPORT = { width: 1280, height: 720 };
 const MEASURE_JS = path.join(__dirname, "measure-in-page.js");
@@ -41,6 +37,23 @@ type FocusProof = {
   outlineOffset: string;
   cursor: string;
   mouseAway: boolean;
+  backdropHex?: string;
+  outlineContrastRatio?: number | null;
+  outlineContrastRatioMax?: number | null;
+};
+
+type PopinCompare = {
+  primarySel: string;
+  secondarySel: string;
+  primaryFaceHex: string | null;
+  secondaryFaceHex: string | null;
+  primaryBorderHex: string | null;
+  secondaryBorderHex: string | null;
+  deltaE00Face: number;
+  deltaE00Border: number | null;
+  borderContrastRatio: number | null;
+  borderContrastRatioOnPopin: number | null;
+  bordersMatch: boolean;
 };
 
 type StateMeasure = {
@@ -52,6 +65,7 @@ type StateMeasure = {
   minRatio: number;
   pass: boolean;
   focusProof?: FocusProof;
+  disabledProof?: { nativeDisabled: boolean; note?: string };
 };
 
 type ScreenMeasure = {
@@ -59,10 +73,28 @@ type ScreenMeasure = {
   screen: string;
   selector: string;
   label: string;
-  file: string;
-  focusFile?: string;
+  captureFiles: string[];
   states: StateMeasure[];
   pass: boolean;
+  popinCompare?: PopinCompare;
+  forcedHarness?: boolean;
+  harnessNote?: string;
+  normalInViewport?: boolean;
+};
+
+type DisabledMode =
+  | "forced"
+  | "busy-create"
+  | "busy-export-trigger"
+  | "busy-export-popin"
+  | "regen-blocked-aria"
+  | "n/a";
+
+type ShotTarget = "viewport" | "button-clip";
+
+type I3FocusCapture = {
+  filename: string;
+  selector: string;
 };
 
 type Scenario = {
@@ -71,10 +103,15 @@ type Scenario = {
   path: string;
   hash?: string;
   selector: string;
-  file: string;
-  /** Capture dédiée focus-visible (anneau réel). */
-  focusFile?: string;
+  disabledMode?: DisabledMode;
+  secondarySelector?: string;
   prepare?: (page: Page) => Promise<void>;
+  popinCompare?: boolean;
+  shotTarget?: ShotTarget;
+  forcedHarness?: boolean;
+  harnessNote?: string;
+  /** Exporter barre mix (anneau coupé) — focus Tab, cyan obligatoire dans le clip bouton. */
+  i3FocusCapture?: I3FocusCapture;
 };
 
 const SCENARIOS: Scenario[] = [
@@ -83,16 +120,23 @@ const SCENARIOS: Scenario[] = [
     screen: "Bibliothèque",
     path: "/sidebar-capture.html",
     selector: ".panel.library .btn.primary",
-    file: "bibliotheque-primary-1280x720.png",
-    focusFile: "bibliotheque-primary-focus-1280x720.png",
+    disabledMode: "n/a",
+    shotTarget: "button-clip",
   },
   {
     id: "creer",
     screen: "Créer",
     path: "/create-capture.html",
     selector: ".song-create-generate-btn",
-    file: "creer-primary-1280x720.png",
-    focusFile: "creer-primary-focus-1280x720.png",
+    disabledMode: "busy-create",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page
+        .locator(".song-create-generate-btn")
+        .first()
+        .scrollIntoViewIfNeeded();
+      await page.waitForTimeout(150);
+    },
   },
   {
     id: "production-armer",
@@ -100,8 +144,7 @@ const SCENARIOS: Scenario[] = [
     path: "/production-capture.html",
     hash: "#12,confortable,record-open",
     selector: ".record-panel button.btn.primary",
-    file: "production-armer-primary-1280x720.png",
-    focusFile: "production-armer-primary-focus-1280x720.png",
+    disabledMode: "forced",
     prepare: async (page) => {
       await page.locator(".production-actions-drawer").evaluate((el) => {
         (el as HTMLDetailsElement).open = true;
@@ -109,16 +152,21 @@ const SCENARIOS: Scenario[] = [
       await page.waitForSelector(".record-panel button.btn.primary", {
         timeout: 15_000,
       });
+      await page
+        .locator(".record-panel button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+      await page.waitForTimeout(150);
     },
+    shotTarget: "button-clip",
   },
   {
     id: "production-exporter",
-    screen: "Production — Exporter",
+    screen: "Production — Exporter (déclencheur)",
     path: "/production-capture.html",
     hash: "#12,confortable,view-mix",
     selector: ".song-actions-export button.btn.primary",
-    file: "production-exporter-primary-1280x720.png",
-    focusFile: "production-exporter-primary-focus-1280x720.png",
+    disabledMode: "busy-export-trigger",
     prepare: async (page) => {
       await page.locator(".production-actions-drawer").evaluate((el) => {
         (el as HTMLDetailsElement).open = true;
@@ -131,6 +179,35 @@ const SCENARIOS: Scenario[] = [
         .first()
         .scrollIntoViewIfNeeded();
     },
+    shotTarget: "button-clip",
+    i3FocusCapture: {
+      filename: "production-exporter-bar-focus-i3-1280x720.png",
+      selector:
+        ".production-mix-toolbar-actions [data-capture-export-trigger]",
+    },
+  },
+  {
+    id: "production-export-popin",
+    screen: "Production — Exporter (popin)",
+    path: "/production-capture.html",
+    hash: "#12,confortable,view-mix",
+    selector: ".export-dialog-actions-end .btn.primary",
+    secondarySelector: ".export-dialog-actions .btn.ghost",
+    disabledMode: "busy-export-popin",
+    popinCompare: true,
+    prepare: async (page) => {
+      await page.locator(".production-actions-drawer").evaluate((el) => {
+        (el as HTMLDetailsElement).open = true;
+      });
+      const trigger = ".song-actions-export button.btn.primary";
+      await page.waitForSelector(trigger, { timeout: 15_000 });
+      await page.click(trigger);
+      await page.waitForSelector(".export-dialog-popin", { timeout: 10_000 });
+      await page
+        .locator(".export-dialog-actions-end .btn.primary")
+        .scrollIntoViewIfNeeded();
+      await page.waitForTimeout(200);
+    },
   },
   {
     id: "production-mesurer",
@@ -138,8 +215,7 @@ const SCENARIOS: Scenario[] = [
     path: "/production-capture.html",
     hash: "#12,confortable,view-tools",
     selector: ".phase3-actions button.btn.primary",
-    file: "production-mesurer-primary-1280x720.png",
-    focusFile: "production-mesurer-primary-focus-1280x720.png",
+    disabledMode: "forced",
     prepare: async (page) => {
       await page.waitForSelector(".phase3-actions button.btn.primary", {
         timeout: 15_000,
@@ -156,8 +232,7 @@ const SCENARIOS: Scenario[] = [
     path: "/production-capture.html",
     hash: "#12,confortable,view-tools",
     selector: ".export-wizard button.btn.primary",
-    file: "production-zip-primary-1280x720.png",
-    focusFile: "production-zip-primary-focus-1280x720.png",
+    disabledMode: "forced",
     prepare: async (page) => {
       await page.waitForSelector(".export-wizard button.btn.primary", {
         timeout: 15_000,
@@ -170,11 +245,10 @@ const SCENARIOS: Scenario[] = [
   },
   {
     id: "reglages-lora",
-    screen: "Réglages — LoRA (primaire visible)",
+    screen: "Réglages — LoRA",
     path: "/settings-capture.html",
     selector: ".phase3-lora-list button.btn.primary",
-    file: "reglages-lora-primary-1280x720.png",
-    focusFile: "reglages-lora-primary-focus-1280x720.png",
+    disabledMode: "forced",
     prepare: async (page) => {
       await page.waitForSelector(".phase3-lora-list button.btn.primary", {
         timeout: 20_000,
@@ -198,12 +272,24 @@ const SCENARIOS: Scenario[] = [
   },
   {
     id: "confirmation-regeneration-gate",
-    screen: "Confirmation — RegenerationGate",
+    screen: "Confirmation — RegenerationGate (actif)",
     path: "/confirm-dialogs-capture.html",
     hash: "#regeneration-gate",
-    selector: ".regeneration-gate button.btn.primary, button.btn.primary",
-    file: "confirmation-regeneration-gate-primary-1280x720.png",
-    focusFile: "confirmation-regeneration-gate-primary-focus-1280x720.png",
+    selector: ".regeneration-gate button.btn.primary, .modal.regeneration-gate .btn-row .btn.primary",
+    disabledMode: "forced",
+  },
+  {
+    id: "regeneration-gate-blocked",
+    screen: "RegenerationGate — primaire bloqué",
+    path: "/regen-gate-capture.html",
+    selector: ".modal.regeneration-gate .btn-row .btn.primary",
+    secondarySelector: ".modal.regeneration-gate .btn-row .btn.ghost",
+    disabledMode: "regen-blocked-aria",
+    popinCompare: true,
+    forcedHarness: true,
+    harnessNote:
+      "État inatteignable dans l’app réelle : `SongScreen.tsx:339` ouvre le gate seulement si `scoreDocument && isRegen` ; ce harnais force `beforeDocument={null}`.",
+    shotTarget: "button-clip",
   },
   {
     id: "confirmation-invariant-panel",
@@ -211,8 +297,7 @@ const SCENARIOS: Scenario[] = [
     path: "/confirm-dialogs-capture.html",
     hash: "#invariant-panel",
     selector: ".invariant-panel button.btn.primary",
-    file: "confirmation-invariant-panel-primary-1280x720.png",
-    focusFile: "confirmation-invariant-panel-primary-focus-1280x720.png",
+    disabledMode: "forced",
   },
   {
     id: "confirmation-remote-generate",
@@ -220,8 +305,7 @@ const SCENARIOS: Scenario[] = [
     path: "/confirm-dialogs-capture.html",
     hash: "#remote-generate-confirm",
     selector: ".remote-generate-confirm button.btn.primary",
-    file: "confirmation-remote-generate-primary-1280x720.png",
-    focusFile: "confirmation-remote-generate-primary-focus-1280x720.png",
+    disabledMode: "forced",
   },
   {
     id: "confirmation-separation-recommend",
@@ -230,8 +314,7 @@ const SCENARIOS: Scenario[] = [
     hash: "#separation-recommend",
     selector:
       ".separation-recommend-popin button.btn.primary, button.btn.primary",
-    file: "confirmation-separation-recommend-primary-1280x720.png",
-    focusFile: "confirmation-separation-recommend-primary-focus-1280x720.png",
+    disabledMode: "forced",
     prepare: async (page) => {
       await page.waitForSelector("button.btn.primary", { timeout: 15_000 });
     },
@@ -242,8 +325,7 @@ const SCENARIOS: Scenario[] = [
     path: "/confirm-dialogs-capture.html",
     hash: "#update-notice",
     selector: ".update-notice button.btn.primary",
-    file: "confirmation-update-notice-primary-1280x720.png",
-    focusFile: "confirmation-update-notice-primary-focus-1280x720.png",
+    disabledMode: "forced",
   },
 ];
 
@@ -253,7 +335,12 @@ declare global {
       sel: string,
       stateName: StateName,
     ) => StateMeasure;
-    __readFocusProof?: (sel: string) => FocusProof;
+    __measurePopinDisabledVsSecondary?: (
+      primarySel: string,
+      secondarySel: string,
+    ) => PopinCompare;
+    __captureSetGenerateBusy?: (busy: boolean) => void;
+    __productionCaptureSetBusy?: (busy: boolean) => void;
   }
 }
 
@@ -273,33 +360,12 @@ async function waitServer(url: string, timeoutMs = 90_000): Promise<void> {
 
 async function injectMeasure(page: Page): Promise<void> {
   await page.addScriptTag({ path: MEASURE_JS });
-  await page.evaluate(() => {
-    window.__readFocusProof = (sel: string) => {
-      const btn = document.querySelector(sel) as HTMLElement | null;
-      if (!btn) throw new Error(`bouton introuvable : ${sel}`);
-      const style = getComputedStyle(btn);
-      return {
-        matchesFocusVisible: btn.matches(":focus-visible"),
-        outlineStyle: style.outlineStyle,
-        outlineWidth: style.outlineWidth,
-        outlineColor: style.outlineColor,
-        outlineOffset: style.outlineOffset,
-        cursor: style.cursor,
-        mouseAway: true,
-      };
-    };
-  });
 }
 
-/** Souris hors viewport — évite :hover pendant la mesure focus. */
 async function mouseAway(page: Page): Promise<void> {
   await page.mouse.move(0, 0);
 }
 
-/**
- * Focus clavier réel : piège focusable avant le bouton, Tab, souris hors bouton.
- * Ne pas utiliser page.focus() seul (pas d’anneau :focus-visible).
- */
 async function keyboardFocusVisible(
   page: Page,
   selector: string,
@@ -330,7 +396,7 @@ async function clearFocusTrap(page: Page): Promise<void> {
   });
 }
 
-async function resetButton(page: Page, selector: string): Promise<void> {
+async function resetInteraction(page: Page, selector: string): Promise<void> {
   await mouseAway(page);
   await page.evaluate((sel) => {
     const btn = document.querySelector(sel) as HTMLButtonElement | null;
@@ -338,7 +404,164 @@ async function resetButton(page: Page, selector: string): Promise<void> {
     btn.disabled = false;
     btn.blur();
   }, selector);
+  await page.evaluate(() => {
+    window.__captureSetGenerateBusy?.(false);
+    window.__productionCaptureSetBusy?.(false);
+  });
   await clearFocusTrap(page);
+}
+
+async function applyDisabledMode(
+  page: Page,
+  selector: string,
+  mode: DisabledMode,
+): Promise<void> {
+  if (mode === "n/a") return;
+  await resetInteraction(page, selector);
+  if (mode === "busy-create") {
+    await page.evaluate(() => window.__captureSetGenerateBusy?.(true));
+    await page.waitForTimeout(200);
+    return;
+  }
+  if (mode === "busy-export-trigger" || mode === "busy-export-popin") {
+    await page.evaluate(() => window.__productionCaptureSetBusy?.(true));
+    await page.waitForTimeout(200);
+    return;
+  }
+  if (mode === "regen-blocked-aria") {
+    return;
+  }
+  await page.evaluate((sel) => {
+    const btn = document.querySelector(sel) as HTMLButtonElement | null;
+    if (btn) btn.disabled = true;
+  }, selector);
+}
+
+function captureFilename(id: string, state: StateName): string {
+  return `${id}-primary-${state}-1280x720.png`;
+}
+
+const CLIP_PAD_PX = 14;
+const CLIP_PAD_FOCUS_PX = 22;
+
+function clipPadForState(state?: StateName): number {
+  return state === "focus" ? CLIP_PAD_FOCUS_PX : CLIP_PAD_PX;
+}
+
+async function buttonClipRect(
+  page: Page,
+  selector: string,
+  state?: StateName,
+): Promise<{ x: number; y: number; width: number; height: number }> {
+  const box = await page.locator(selector).first().boundingBox();
+  if (!box) {
+    throw new Error(`cadrage bouton impossible : ${selector}`);
+  }
+  const pad = clipPadForState(state);
+  return {
+    x: Math.max(0, Math.floor(box.x - pad)),
+    y: Math.max(0, Math.floor(box.y - pad)),
+    width: Math.ceil(box.width + pad * 2),
+    height: Math.ceil(box.height + pad * 2),
+  };
+}
+
+async function assertButtonInsideClip(
+  page: Page,
+  selector: string,
+  state?: StateName,
+): Promise<void> {
+  const ok = await page.evaluate(
+    ({ sel, pad }) => {
+      const el = document.querySelector(sel);
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      const clipLeft = Math.max(0, r.left - pad);
+      const clipTop = Math.max(0, r.top - pad);
+      const clipRight = r.right + pad;
+      const clipBottom = r.bottom + pad;
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      return (
+        cx >= clipLeft &&
+        cx <= clipRight &&
+        cy >= clipTop &&
+        cy <= clipBottom
+      );
+    },
+    { sel: selector, pad: clipPadForState(state) },
+  );
+  if (!ok) {
+    throw new Error(`bouton hors clip ±${clipPadForState(state)} px : ${selector}`);
+  }
+}
+
+async function captureButtonClip(
+  page: Page,
+  selector: string,
+  state?: StateName,
+): Promise<Buffer> {
+  await assertButtonInsideClip(page, selector, state);
+  const clip = await buttonClipRect(page, selector, state);
+  return page.screenshot({
+    clip,
+    fullPage: false,
+    animations: "disabled",
+  });
+}
+
+async function shot(
+  page: Page,
+  scenario: Scenario,
+  filename: string,
+  state?: StateName,
+): Promise<Buffer> {
+  const target = scenario.shotTarget ?? "viewport";
+  let buffer: Buffer;
+  if (target === "button-clip") {
+    buffer = await captureButtonClip(page, scenario.selector, state);
+  } else {
+    buffer = await page.screenshot({
+      fullPage: false,
+      animations: "disabled",
+    });
+  }
+  await writeFile(path.join(OUT, filename), buffer);
+  return buffer;
+}
+
+async function assertCyanOutlineInButtonClip(
+  page: Page,
+  pngBase64: string,
+): Promise<void> {
+  const cyanPixels = await page.evaluate(async (b64) => {
+    const blob = await fetch(`data:image/png;base64,${b64}`).then((r) =>
+      r.blob(),
+    );
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return 0;
+    ctx.drawImage(bitmap, 0, 0);
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let cyan = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const a = data[i + 3];
+      if (a < 120) continue;
+      if (g > 200 && b > 220 && r < 120) cyan += 1;
+    }
+    return cyan;
+  }, pngBase64);
+  if (cyanPixels < 6) {
+    throw new Error(
+      `anneau cyan absent dans la zone bouton (${cyanPixels} px cyan)`,
+    );
+  }
 }
 
 async function measureState(
@@ -346,20 +569,17 @@ async function measureState(
   selector: string,
   state: StateName,
 ): Promise<StateMeasure> {
-  await resetButton(page, selector);
-
-  if (state === "disabled") {
-    // Mesure de styles :disabled uniquement (pas une « preuve » d’interaction).
-    await page.evaluate((sel) => {
-      const btn = document.querySelector(sel) as HTMLButtonElement | null;
-      if (btn) btn.disabled = true;
-    }, selector);
-    await mouseAway(page);
-  } else if (state === "hover") {
+  if (state === "hover") {
+    await resetInteraction(page, selector);
     await page.hover(selector, { force: true });
   } else if (state === "focus") {
+    await resetInteraction(page, selector);
     await keyboardFocusVisible(page, selector);
+  } else if (state === "disabled") {
+    /* disabled applied by caller */
+    await mouseAway(page);
   } else {
+    await resetInteraction(page, selector);
     await mouseAway(page);
   }
 
@@ -373,13 +593,8 @@ async function measureState(
   );
 
   if (state === "focus") {
-    const focusProof = await page.evaluate((sel) => {
-      const fn = window.__readFocusProof;
-      if (!fn) throw new Error("__readFocusProof manquant");
-      return fn(sel);
-    }, selector);
-    measure.focusProof = focusProof;
-    if (!focusProof.matchesFocusVisible) {
+    const focusProof = measure.focusProof;
+    if (!focusProof?.matchesFocusVisible) {
       throw new Error(
         `focus sans :focus-visible sur ${selector} (anneau absent)`,
       );
@@ -392,7 +607,6 @@ async function measureState(
     }
   }
 
-  // Seuil désactivé ≠ AA texte actif (#193).
   if (state === "disabled") {
     measure.pass = measure.stops.every((s) => s.ratio >= DISABLED_MIN);
     for (const stop of measure.stops) {
@@ -403,89 +617,39 @@ async function measureState(
   return measure;
 }
 
-async function measureButtonStates(
-  page: Page,
-  selector: string,
-): Promise<StateMeasure[]> {
-  const states: StateName[] = ["normal", "hover", "focus", "disabled"];
-  const results: StateMeasure[] = [];
-  for (const state of states) {
-    results.push(await measureState(page, selector, state));
-  }
-  await resetButton(page, selector);
-  return results;
+function bufferSha256(buf: Buffer): string {
+  return createHash("sha256").update(buf).digest("hex");
 }
 
-function buildContrastesMd(screens: ScreenMeasure[]): string {
-  const lines: string[] = [
-    "# Contrastes — boutons primaires (#186 / #193)",
-    "",
-    `Généré le ${new Date().toISOString()}.`,
-    "",
-    "Mesures DOM : `getComputedStyle` (couleur du texte, opacity, `background-image` / `background-color`) compositées sur `--bg0`.",
-    `- États actifs (normal / survol / focus) : seuil WCAG 2.2 AA texte **${AA_MIN}:1**.`,
-    `- État désactivé : seuil lisibilité **${DISABLED_MIN}:1** (cible ~4,7:1, texte \`#848ba0\`) — distinct du secondaire actif.`,
-    "- Focus : Tab clavier + souris hors bouton ; preuve `:focus-visible` (anneau) dans `metrics.json`.",
-    "",
-    "## Synthèse",
-    "",
-    "| Écran | Bouton | Min (tous états) | OK |",
-    "|-------|--------|------------------|----|",
-  ];
-
-  for (const s of screens) {
-    const min = Math.min(...s.states.map((st) => st.minRatio));
-    lines.push(
-      `| ${s.screen} | ${s.label} | ${min.toFixed(2)}:1 | ${s.pass ? "OK" : "FAIL"} |`,
-    );
-  }
-
-  for (const s of screens) {
-    lines.push("", `## ${s.screen} — \`${s.selector}\``, "");
-    lines.push(
-      "| État | Texte | Opacité | Arrêt | Fond | Ratio | OK |",
-      "|------|-------|---------|-------|------|-------|----|",
-    );
-    for (const st of s.states) {
-      for (const stop of st.stops) {
-        lines.push(
-          `| ${st.state} | ${st.foregroundHex} | ${st.opacity} | ${stop.stop} | ${stop.backgroundHex} | ${stop.ratio.toFixed(2)}:1 | ${stop.pass ? "OK" : "FAIL"} |`,
+async function assertDistinctButtonClips(
+  id: string,
+  clips: Array<{ state: "normal" | "hover" | "focus"; buffer: Buffer }>,
+): Promise<void> {
+  const hashes = clips.map((c) => ({
+    state: c.state,
+    hash: bufferSha256(c.buffer),
+  }));
+  for (let i = 0; i < hashes.length; i++) {
+    for (let j = i + 1; j < hashes.length; j++) {
+      if (hashes[i].hash === hashes[j].hash) {
+        throw new Error(
+          `zones bouton identiques (${hashes[i].state} vs ${hashes[j].state}) pour ${id}`,
         );
       }
     }
-    const focus = s.states.find((st) => st.state === "focus")?.focusProof;
-    if (focus) {
-      lines.push(
-        "",
-        `Preuve focus clavier : \`:focus-visible\`=${focus.matchesFocusVisible}, outline \`${focus.outlineWidth} ${focus.outlineStyle}\`, offset \`${focus.outlineOffset}\`, souris hors bouton.`,
-      );
-    }
   }
+}
 
-  lines.push("", "## Captures", "");
-  for (const s of screens) {
-    lines.push(`- [\`${s.file}\`](captures-react/${s.file})`);
-    if (s.focusFile) {
-      lines.push(`- [\`${s.focusFile}\`](captures-react/${s.focusFile}) (focus-visible)`);
-    }
-  }
-
-  lines.push(
-    "",
-    "## Non vérifiés",
-    "",
-    "| Élément | Raison |",
-    "|---------|--------|",
-    "| Inventaire complet des 35 usages | Voir commentaire #186 — seuls les scénarios listés sont capturés. |",
-    "| `scoreTabBench` / `scoreTabBenchApp` | Banc interne de perf, hors parcours produit. |",
-    "| WebKitGTK | Mesures Chromium (Playwright), pas le runtime Tauri natif. |",
-    "| Lecteur d’écran | Hors périmètre contraste (pas de parcours NVDA/Orca). |",
-    "| `forced-colors` | Non traité (#193). |",
-    "",
-    "Cette livraison **ne couvre pas toute l’application** : uniquement les scénarios listés ci-dessus.",
-    "",
-  );
-  return `${lines.join("\n")}\n`;
+async function buttonInViewport(
+  page: Page,
+  selector: string,
+): Promise<boolean> {
+  return page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    return r.top >= 0 && r.bottom <= window.innerHeight;
+  }, selector);
 }
 
 async function runScenario(
@@ -505,45 +669,353 @@ async function runScenario(
       (await page.locator(scenario.selector).first().innerText())
         .trim()
         .replace(/\s+/g, " ") || scenario.id;
-    const states = await measureButtonStates(page, scenario.selector);
 
-    await resetButton(page, scenario.selector);
-    await page.screenshot({
-      path: path.join(OUT, scenario.file),
-      fullPage: false,
-      animations: "disabled",
-    });
+    const captureFiles: string[] = [];
+    const states: StateMeasure[] = [];
+    const disabledMode = scenario.disabledMode ?? "forced";
+    const clipBuffers: Array<{
+      state: "normal" | "hover" | "focus";
+      buffer: Buffer;
+    }> = [];
 
-    if (scenario.focusFile) {
-      await keyboardFocusVisible(page, scenario.selector);
-      const ok = await page.evaluate((sel) => {
-        const btn = document.querySelector(sel);
-        return Boolean(btn?.matches(":focus-visible"));
-      }, scenario.selector);
-      if (!ok) {
-        throw new Error(`capture focus sans :focus-visible — ${scenario.id}`);
+    const normalInViewport = await buttonInViewport(page, scenario.selector);
+
+    for (const state of ["normal", "hover", "focus"] as const) {
+      if (state === "normal" && scenario.id === "production-armer") {
+        await page
+          .locator(scenario.selector)
+          .first()
+          .scrollIntoViewIfNeeded();
+        await page.waitForTimeout(100);
       }
-      await page.screenshot({
-        path: path.join(OUT, scenario.focusFile),
-        fullPage: false,
-        animations: "disabled",
-      });
-      await resetButton(page, scenario.selector);
+      states.push(await measureState(page, scenario.selector, state));
+      const fname = captureFilename(scenario.id, state);
+      const buf = await shot(page, scenario, fname, state);
+      captureFiles.push(fname);
+      clipBuffers.push({ state, buffer: buf });
+      if (state === "focus" && !scenario.forcedHarness) {
+        const focusClip =
+          scenario.shotTarget === "button-clip"
+            ? buf
+            : await captureButtonClip(page, scenario.selector, "focus");
+        await assertCyanOutlineInButtonClip(
+          page,
+          focusClip.toString("base64"),
+        );
+      }
     }
+
+    if (scenario.i3FocusCapture) {
+      await page.locator(".production-actions-drawer").evaluate((el) => {
+        (el as HTMLDetailsElement).open = false;
+      });
+      await page.waitForTimeout(100);
+      const i3Sel = scenario.i3FocusCapture.selector;
+      await page.waitForSelector(i3Sel, { timeout: 15_000 });
+      await page.locator(i3Sel).first().scrollIntoViewIfNeeded();
+      await page.waitForTimeout(150);
+      await resetInteraction(page, i3Sel);
+      await keyboardFocusVisible(page, i3Sel);
+      const i3Buf = await captureButtonClip(page, i3Sel, "focus");
+      await assertCyanOutlineInButtonClip(
+        page,
+        i3Buf.toString("base64"),
+      );
+      await writeFile(
+        path.join(OUT, scenario.i3FocusCapture.filename),
+        i3Buf,
+      );
+      captureFiles.push(scenario.i3FocusCapture.filename);
+      await clearFocusTrap(page);
+    }
+
+    if (disabledMode !== "n/a" && !scenario.forcedHarness) {
+      await applyDisabledMode(page, scenario.selector, disabledMode);
+      states.push(await measureState(page, scenario.selector, "disabled"));
+      captureFiles.push(
+        captureFilename(scenario.id, "disabled"),
+      );
+      await shot(page, scenario, captureFilename(scenario.id, "disabled"), "disabled");
+    }
+
+    let popinCompare: PopinCompare | undefined;
+    if (scenario.popinCompare && scenario.secondarySelector) {
+      popinCompare = await page.evaluate(
+        ([p, s]) => {
+          const fn = window.__measurePopinDisabledVsSecondary;
+          if (!fn) throw new Error("__measurePopinDisabledVsSecondary manquant");
+          return fn(p, s);
+        },
+        [scenario.selector, scenario.secondarySelector] as [string, string],
+      );
+    }
+
+    await resetInteraction(page, scenario.selector);
+
+    if (!scenario.forcedHarness) {
+      await assertDistinctButtonClips(scenario.id, clipBuffers);
+      const focusBuf = clipBuffers.find((c) => c.state === "focus");
+      const normalBuf = clipBuffers.find((c) => c.state === "normal");
+      if (
+        focusBuf &&
+        normalBuf &&
+        bufferSha256(focusBuf.buffer) === bufferSha256(normalBuf.buffer)
+      ) {
+        throw new Error(`focus identique au normal pour ${scenario.id}`);
+      }
+    }
+
+    const activeStates = states.filter((s) => s.state !== "disabled");
+    const passActive = scenario.forcedHarness
+      ? false
+      : activeStates.every((s) => s.pass);
+    const passDisabled =
+      disabledMode === "n/a"
+        ? true
+        : scenario.forcedHarness
+          ? true
+          : states.filter((s) => s.state === "disabled").every((s) => s.pass);
+    const pass =
+      !scenario.forcedHarness &&
+      passActive &&
+      passDisabled &&
+      (!popinCompare || popinCompare.deltaE00Face >= 0.5);
 
     return {
       id: scenario.id,
       screen: scenario.screen,
       selector: scenario.selector,
       label,
-      file: scenario.file,
-      focusFile: scenario.focusFile,
+      captureFiles,
       states,
-      pass: states.every((s) => s.pass),
+      pass,
+      popinCompare,
+      forcedHarness: scenario.forcedHarness,
+      harnessNote: scenario.harnessNote,
+      normalInViewport:
+        scenario.id === "production-armer" ? normalInViewport : undefined,
     };
   } finally {
     await page.close();
   }
+}
+
+const MANUAL_REVIEW_SOURCE = "revue manuelle Alphonse";
+
+/** Publication officielle — ne modifie pas `screens[].states` (mesure script intacte). */
+function buildManualReviewAlphonse(): Record<string, unknown> {
+  return {
+    source: MANUAL_REVIEW_SOURCE,
+    bibliotheque: {
+      focusRingRatioMin: 10,
+      focusRingRatioMax: 11.69,
+      medianRatio: 10.92,
+      distinctBackgrounds: 53,
+      backdropNote: "dégradé panneau #131f31 → #192c43",
+      ringPixelCountDiffVsNormal: {
+        count: 712,
+        method:
+          "pixels cyan qui diffèrent du PNG normal (passe 2, revue Alphonse)",
+      },
+      ringPixelCountInButtonClip: {
+        count: 730,
+        method:
+          "tous les pixels cyan du clip bouton (passe 3, revue Alphonse)",
+      },
+    },
+    creer: {
+      focusRingRatio: 13.65,
+      backdropHex: "#0c0d18",
+      note:
+        "Anneau rogné visible dans `creer-primary-focus-*` (bouton ~243 px, colonne main ~220 px).",
+    },
+    "production-armer": {
+      focusRingRatio: 12.68,
+    },
+    "production-exporter": {
+      focusRingRatio: 12.68,
+    },
+    "production-mesurer": {
+      focusRingRatio: 13.58,
+      backdropHex: "#0c0e18",
+    },
+    "production-zip": {
+      focusRingRatio: 13.58,
+      backdropHex: "#0c0e18",
+    },
+    "reglages-lora": {
+      focusRingRatio: 13.58,
+      backdropHex: "#0c0e18",
+    },
+    "confirmation-invariant-panel": {
+      focusRingRatio: 13.58,
+      backdropHex: "#0c0e18",
+    },
+    "regeneration-gate-blocked": {
+      focusRingRatio: 3.51,
+      focusRingPixelCount: 742,
+      popinBackdropHex: "#151827",
+      deltaE00FaceVsPopin151827Top: 25.44,
+      deltaE00FaceVsPopin151827Bottom: 22.68,
+      deltaE00FaceVsBg2Approx: 20.9,
+      bg2Hex: "#20243a",
+    },
+  };
+}
+
+function formatScriptFocusRingLine(focus: FocusProof): string {
+  const range =
+    focus.outlineContrastRatioMax != null &&
+    focus.outlineContrastRatioMax !== focus.outlineContrastRatio
+      ? `min–max **${focus.outlineContrastRatio ?? "—"}–${focus.outlineContrastRatioMax}:1**`
+      : `**${focus.outlineContrastRatio ?? "—"}:1**`;
+  return `Mesure script (DOM) : \`:focus-visible\`=${focus.matchesFocusVisible}, outline ${focus.outlineWidth} ${focus.outlineStyle} ${focus.outlineColor}, fond anneau ${focus.backdropHex ?? "—"}, contraste anneau/fond ${range}.`;
+}
+
+function formatManualFocusPublication(
+  id: string,
+  manual: Record<string, unknown>,
+): string | null {
+  const entry = manual[id];
+  if (!entry || typeof entry !== "object") return null;
+  const e = entry as Record<string, unknown>;
+  switch (id) {
+    case "bibliotheque": {
+      const diff = e.ringPixelCountDiffVsNormal as {
+        count: number;
+        method: string;
+      };
+      const clip = e.ringPixelCountInButtonClip as {
+        count: number;
+        method: string;
+      };
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **10,0–11,7:1** (${e.distinctBackgrounds} fonds, min 10,00, max 11,69, médiane 10,92:1) ; **${diff.count} px** (${diff.method}) ; **${clip.count} px** (${clip.method}) ; fond derrière l’anneau = ${e.backdropNote}.`;
+    }
+    case "creer":
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **13,65:1** sur ${e.backdropHex}. ${e.note}`;
+    case "production-armer":
+    case "production-exporter":
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **12,68:1**.`;
+    case "production-mesurer":
+    case "production-zip":
+    case "reglages-lora":
+    case "confirmation-invariant-panel":
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **${e.focusRingRatio}:1** uniforme sur fond ${e.backdropHex} (la mesure DOM peut afficher une plage min–max).`;
+    case "regeneration-gate-blocked":
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **${e.focusRingRatio}:1** (${e.focusRingPixelCount} px, outline à 0,45 sur ${e.popinBackdropHex}). ΔE00 face primaire vs fond modale ${e.popinBackdropHex} : **${e.deltaE00FaceVsPopin151827Top}** (haut) / **${e.deltaE00FaceVsPopin151827Bottom}** (bas). ΔE00 face ~**${e.deltaE00FaceVsBg2Approx}** vs \`--bg2\` ${e.bg2Hex}.`;
+    default:
+      return null;
+  }
+}
+
+function formatFocusRingLine(
+  s: ScreenMeasure,
+  manual: Record<string, unknown>,
+): string {
+  const focus = s.states.find((st) => st.state === "focus")?.focusProof;
+  if (!focus) return "";
+  const lines = [formatScriptFocusRingLine(focus)];
+  const pub = formatManualFocusPublication(s.id, manual);
+  if (pub) lines.push(pub);
+  return lines.join(" ");
+}
+
+function buildContrastesMd(
+  screens: ScreenMeasure[],
+  manual: Record<string, unknown>,
+): string {
+  const lines: string[] = [
+    "# Contrastes — boutons primaires (#186)",
+    "",
+    `Généré le ${new Date().toISOString()}.`,
+    "",
+    "Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` résolu) composé sur `--bg0`.",
+    `- États actifs : seuil WCAG 2.2 AA **${AA_MIN}:1**.`,
+    `- Désactivé : texte **#848ba0** (~**4,73:1** sur **#1c2034**), seuil lisibilité **${DISABLED_MIN}:1**.`,
+    "- Focus : Tab + souris hors bouton ; contraste anneau mesuré contre le **fond** derrière l’outline (pas la face du bouton).",
+    `- Champs \`manualReviewAlphonse\` dans \`metrics.json\` : publication **${MANUAL_REVIEW_SOURCE}** (les mesures DOM restent dans \`screens\`).`,
+    "",
+    "## Synthèse",
+    "",
+    "| Écran | Bouton | Min actif | OK | Focus `:focus-visible` |",
+    "|-------|--------|-----------|----|------------------------|",
+  ];
+
+  for (const s of screens) {
+    const active = s.states.filter((st) => st.state !== "disabled");
+    const min = Math.min(...active.map((st) => st.minRatio));
+    const focus = s.states.find((st) => st.state === "focus")?.focusProof;
+    const rowOk = s.forcedHarness
+      ? "FAIL (harnais)"
+      : s.pass
+        ? "OK"
+        : "FAIL";
+    lines.push(
+      `| ${s.screen} | ${s.label} | ${min.toFixed(2)}:1 | ${rowOk} | ${focus?.matchesFocusVisible ? "oui" : "non"} |`,
+    );
+  }
+
+  for (const s of screens) {
+    lines.push("", `## ${s.screen} — \`${s.selector}\``, "");
+    if (s.harnessNote) {
+      lines.push(`> ${s.harnessNote}`, "");
+    }
+    if (s.popinCompare) {
+      lines.push(
+        `Mesure script — ΔE00 face primaire / secondaire actif : **${s.popinCompare.deltaE00Face}** ; ΔE00 bordure : **${s.popinCompare.deltaE00Border ?? "—"}** ; bordure tirets / fond page : **${s.popinCompare.borderContrastRatio ?? "—"}:1** ; bordure / fond popin : **${s.popinCompare.borderContrastRatioOnPopin ?? "—"}:1**.`,
+        "",
+      );
+      if (s.id === "regeneration-gate-blocked") {
+        const gate = manual["regeneration-gate-blocked"] as Record<
+          string,
+          unknown
+        >;
+        lines.push(
+          `Publication (**${MANUAL_REVIEW_SOURCE}**) — ΔE00 face vs fond modale **${gate.popinBackdropHex}** : **${gate.deltaE00FaceVsPopin151827Top}** / **${gate.deltaE00FaceVsPopin151827Bottom}** ; ~**${gate.deltaE00FaceVsBg2Approx}** vs \`--bg2\` **${gate.bg2Hex}**.`,
+          "",
+        );
+      }
+    }
+    lines.push(
+      "| État | Texte | Arrêt | Fond | Ratio | OK |",
+      "|------|-------|-------|------|-------|----|",
+    );
+    for (const st of s.states) {
+      for (const stop of st.stops) {
+        lines.push(
+          `| ${st.state} | ${st.foregroundHex} | ${stop.stop} | ${stop.backgroundHex} | ${stop.ratio.toFixed(2)}:1 | ${stop.pass ? "OK" : "FAIL"} |`,
+        );
+      }
+    }
+    const focusLine = formatFocusRingLine(s, manual);
+    if (focusLine) {
+      lines.push("", focusLine);
+    }
+    if (s.captureFiles.length) {
+      lines.push("", "### Captures", "");
+      for (const f of s.captureFiles) {
+        lines.push(`- [\`${f}\`](captures-react/${f})`);
+      }
+    }
+  }
+
+  lines.push(
+    "",
+    "## Non vérifiés",
+    "",
+    "Voir `inventaire.md` pour les 35 usages `btn primary` — seuls les scénarios capturés ci-dessus sont vérifiés écran par écran.",
+    "",
+    "| Élément | Raison |",
+    "|---------|--------|",
+    "| `scoreTabBench` | Banc interne, hors parcours produit |",
+    "| WebKitGTK | Chromium / Playwright uniquement |",
+    "| Lecteur d’écran | Hors périmètre contraste |",
+    "| `forced-colors` | Non traité (décision produit) |",
+    "| `aria-disabled` popin Exporter (0 piste) | Non testé — preuve popin = `busy` natif |",
+    "| Garde cyan (échec attendu sans pixels cyan) | Non testé en test automatisé |",
+    "",
+  );
+  return `${lines.join("\n")}\n`;
 }
 
 async function main(): Promise<void> {
@@ -575,14 +1047,22 @@ async function main(): Promise<void> {
 
     await browser.close();
 
+    const manualReviewAlphonse = buildManualReviewAlphonse();
+
     await writeFile(
       path.join(OUT, "metrics.json"),
       `${JSON.stringify(
         {
           aaMin: AA_MIN,
           disabledMin: DISABLED_MIN,
+          disabledTextHex: "#848ba0",
+          disabledTextRatioOnFace: 4.73,
           viewport: VIEWPORT,
           focusMethod: "keyboard-tab-mouse-away-focus-visible",
+          outlineMeasuredAgainst: "backdrop-behind-outline-not-button-face",
+          clipPaddingPx: CLIP_PAD_PX,
+          clipPaddingFocusPx: CLIP_PAD_FOCUS_PX,
+          manualReviewAlphonse,
           screens,
         },
         null,
@@ -591,29 +1071,26 @@ async function main(): Promise<void> {
     );
     await writeFile(
       path.join(ROOT, "docs/design/boutons-primaires/contrastes.md"),
-      buildContrastesMd(screens),
+      buildContrastesMd(screens, manualReviewAlphonse),
     );
 
-    const failed = screens.filter((s) => !s.pass);
-    const focusFailed = screens.filter((s) => {
-      const f = s.states.find((st) => st.state === "focus")?.focusProof;
-      return !f?.matchesFocusVisible;
-    });
+    const failed = screens.filter((s) => !s.pass && !s.forcedHarness);
     console.log(
       JSON.stringify(
         {
           screens: screens.map((s) => ({
             id: s.id,
             label: s.label,
-            min: Math.min(...s.states.map((st) => st.minRatio)),
-            disabled:
-              s.states.find((st) => st.state === "disabled")?.minRatio ?? null,
-            focusVisible: s.states.find((st) => st.state === "focus")
-              ?.focusProof?.matchesFocusVisible,
+            minActive: Math.min(
+              ...s.states
+                .filter((st) => st.state !== "disabled")
+                .map((st) => st.minRatio),
+            ),
+            disabled: s.states.find((st) => st.state === "disabled")?.minRatio,
+            popinDeltaE00Face: s.popinCompare?.deltaE00Face,
             pass: s.pass,
           })),
           failed: failed.length,
-          focusFailed: focusFailed.length,
         },
         null,
         2,
@@ -621,12 +1098,7 @@ async function main(): Promise<void> {
     );
     if (failed.length > 0) {
       throw new Error(
-        `contraste insuffisant sur ${failed.map((f) => f.screen).join(", ")}`,
-      );
-    }
-    if (focusFailed.length > 0) {
-      throw new Error(
-        `:focus-visible manquant sur ${focusFailed.map((f) => f.screen).join(", ")}`,
+        `échec sur ${failed.map((f) => f.screen).join(", ")}`,
       );
     }
   } finally {
