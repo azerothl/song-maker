@@ -1,0 +1,194 @@
+{
+  "popover": {
+    "640": {
+      "popover": {
+        "left": 58,
+        "top": 69.1875,
+        "right": 346,
+        "bottom": 350.90625,
+        "width": 288,
+        "height": 281.71875
+      },
+      "trigger": {
+        "left": 5,
+        "top": 69.1875,
+        "right": 50,
+        "bottom": 113.1875,
+        "width": 45,
+        "height": 44
+      },
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "right": 56,
+        "bottom": 720,
+        "width": 56,
+        "height": 720
+      },
+      "overlap": {
+        "overlapsTrigger": false,
+        "overlapsSidebar": false,
+        "withinViewport": true
+      },
+      "labels": [
+        {
+          "nameTruncated": true,
+          "metaTruncated": false,
+          "nameTitle": "Profil Hobby (vos projets existants)",
+          "metaTitle": "Hobby · 12 morceaux"
+        },
+        {
+          "nameTruncated": false,
+          "metaTruncated": false,
+          "nameTitle": "Reprises",
+          "metaTitle": "Hobby · 4 morceaux"
+        },
+        {
+          "nameTruncated": false,
+          "metaTruncated": false,
+          "nameTitle": "Jams",
+          "metaTitle": "Hobby · 7 morceaux"
+        }
+      ],
+      "menuZIndex": "40",
+      "sidebarZIndex": "30",
+      "mainZIndex": "auto",
+      "menuMaxWidth": "568px",
+      "menuMaxHeight": "704px",
+      "menuOverflowY": "auto",
+      "gapTriggerToPopoverPx": 8,
+      "dialogBackdropZIndex": null
+    },
+    "1024": {
+      "popover": {
+        "left": 58,
+        "top": 69.1875,
+        "right": 346,
+        "bottom": 350.90625,
+        "width": 288,
+        "height": 281.71875
+      },
+      "trigger": {
+        "left": 5,
+        "top": 69.1875,
+        "right": 50,
+        "bottom": 113.1875,
+        "width": 45,
+        "height": 44
+      },
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "right": 56,
+        "bottom": 720,
+        "width": 56,
+        "height": 720
+      },
+      "overlap": {
+        "overlapsTrigger": false,
+        "overlapsSidebar": false,
+        "withinViewport": true
+      },
+      "labels": [
+        {
+          "nameTruncated": true,
+          "metaTruncated": false,
+          "nameTitle": "Profil Hobby (vos projets existants)",
+          "metaTitle": "Hobby · 12 morceaux"
+        },
+        {
+          "nameTruncated": false,
+          "metaTruncated": false,
+          "nameTitle": "Reprises",
+          "metaTitle": "Hobby · 4 morceaux"
+        },
+        {
+          "nameTruncated": false,
+          "metaTruncated": false,
+          "nameTitle": "Jams",
+          "metaTitle": "Hobby · 7 morceaux"
+        }
+      ],
+      "menuZIndex": "40",
+      "sidebarZIndex": "30",
+      "mainZIndex": "auto",
+      "menuMaxWidth": "952px",
+      "menuMaxHeight": "704px",
+      "menuOverflowY": "auto",
+      "gapTriggerToPopoverPx": 8,
+      "dialogBackdropZIndex": null
+    },
+    "1280": {
+      "popover": {
+        "left": 58,
+        "top": 69.1875,
+        "right": 346,
+        "bottom": 350.90625,
+        "width": 288,
+        "height": 281.71875
+      },
+      "trigger": {
+        "left": 5,
+        "top": 69.1875,
+        "right": 50,
+        "bottom": 113.1875,
+        "width": 45,
+        "height": 44
+      },
+      "sidebar": {
+        "left": 0,
+        "top": 0,
+        "right": 56,
+        "bottom": 720,
+        "width": 56,
+        "height": 720
+      },
+      "overlap": {
+        "overlapsTrigger": false,
+        "overlapsSidebar": false,
+        "withinViewport": true
+      },
+      "labels": [
+        {
+          "nameTruncated": true,
+          "metaTruncated": false,
+          "nameTitle": "Profil Hobby (vos projets existants)",
+          "metaTitle": "Hobby · 12 morceaux"
+        },
+        {
+          "nameTruncated": false,
+          "metaTruncated": false,
+          "nameTitle": "Reprises",
+          "metaTitle": "Hobby · 4 morceaux"
+        },
+        {
+          "nameTruncated": false,
+          "metaTruncated": false,
+          "nameTitle": "Jams",
+          "metaTitle": "Hobby · 7 morceaux"
+        }
+      ],
+      "menuZIndex": "40",
+      "sidebarZIndex": "30",
+      "mainZIndex": "auto",
+      "menuMaxWidth": "1208px",
+      "menuMaxHeight": "704px",
+      "menuOverflowY": "auto",
+      "gapTriggerToPopoverPx": 8,
+      "dialogBackdropZIndex": null
+    }
+  },
+  "expandedMenu": {
+    "menuHeight": 401.71875,
+    "menuWidth": 199,
+    "firstItemNameScrollWidth": 77,
+    "firstItemNameClientWidth": 77,
+    "nameTruncated": false
+  },
+  "sixProfilesViewport": {
+    "viewportHeight": 640,
+    "popoverBottom": 514.03125,
+    "popoverWithinViewport": true,
+    "htmlScrollTop": 0
+  }
+}

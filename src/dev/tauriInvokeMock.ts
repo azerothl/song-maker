@@ -11,9 +11,16 @@ import { SIDEBAR_CAPTURE_PROJECT_ID } from "./seedSidebarCaptureStore";
 
 let project: ProjectDoc | null = null;
 let captureProfilesState: ProfilesState | null = null;
+let captureLibraryProjects: Array<Record<string, unknown>> | null = null;
 
 export function registerCaptureProfilesState(state: ProfilesState | null): void {
   captureProfilesState = state;
+}
+
+export function registerCaptureLibraryProjects(
+  rows: Array<Record<string, unknown>> | null,
+): void {
+  captureLibraryProjects = rows;
 }
 
 function ensureProject(): ProjectDoc {
@@ -98,6 +105,9 @@ export async function invoke<T>(
 ): Promise<T> {
   switch (cmd) {
     case "list_projects":
+      if (captureLibraryProjects) {
+        return captureLibraryProjects as T;
+      }
       return [
         {
           id: SIDEBAR_CAPTURE_PROJECT_ID,
