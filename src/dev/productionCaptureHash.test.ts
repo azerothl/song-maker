@@ -12,6 +12,8 @@ describe("parseCaptureHash", () => {
       progressRatio: 0,
       productionView: "mix",
       recordOpen: false,
+      actionsDrawerOpen: false,
+      mixToolbar44Variant: false,
     });
     assert.deepEqual(parseCaptureHash("16,compact,collapsed"), {
       trackCount: 16,
@@ -21,6 +23,8 @@ describe("parseCaptureHash", () => {
       progressRatio: 0,
       productionView: "mix",
       recordOpen: false,
+      actionsDrawerOpen: false,
+      mixToolbar44Variant: false,
     });
     assert.deepEqual(parseCaptureHash("confortable"), {
       trackCount: 12,
@@ -30,6 +34,8 @@ describe("parseCaptureHash", () => {
       progressRatio: 0,
       productionView: "mix",
       recordOpen: false,
+      actionsDrawerOpen: false,
+      mixToolbar44Variant: false,
     });
     assert.equal(parseCaptureHash("16,auto,midplay").midPlayback, true);
     assert.equal(parseCaptureHash("16,auto,midplay").progressRatio, 0.5);
@@ -44,5 +50,17 @@ describe("parseCaptureHash", () => {
     assert.equal(parseCaptureHash("12,confortable,view-clips").productionView, "clips");
     assert.equal(parseCaptureHash("12,confortable,view-tools").productionView, "tools");
     assert.equal(parseCaptureHash("12,confortable,record-open").recordOpen, true);
+  });
+
+  it("résout le tiroir actions et la variante doc barre mix 44 px", () => {
+    assert.equal(
+      parseCaptureHash("6,auto,actions-open").actionsDrawerOpen,
+      true,
+    );
+    assert.equal(parseCaptureHash("6,auto,i6-drawer").actionsDrawerOpen, true);
+    assert.equal(
+      parseCaptureHash("6,auto,actions-open,mix-toolbar-44").mixToolbar44Variant,
+      true,
+    );
   });
 });

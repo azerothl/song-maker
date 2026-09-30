@@ -32,6 +32,10 @@ const SCENE_HASHES = [
   "export-drawer-top-12",
   "export-drawer-top-16",
   "export-drawer-top-12-after",
+  "export-drawer-b1-12",
+  "sep-recommended-visible",
+  "sep-selection-cachee",
+  "sep-focus-vocals",
   "export-mix",
   "export-mix-tight",
   "export-stems-none-selected",
@@ -49,6 +53,16 @@ function sceneSpecs(): SceneSpec[] {
     ) {
       specs.push({ hash, viewport: DEFAULT_VP });
       specs.push({ hash, viewport: { width: 1280, height: 600 } });
+    } else if (hash === "export-drawer-b1-12") {
+      specs.push({ hash, viewport: { width: 1280, height: 768 } });
+      specs.push({ hash, viewport: { width: 1280, height: 900 } });
+    } else if (hash === "sep-focus-vocals") {
+      specs.push({ hash, viewport: DEFAULT_VP });
+      specs.push({ hash, viewport: { width: 1280, height: 768 } });
+    } else if (hash === "sep-header") {
+      specs.push({ hash, viewport: DEFAULT_VP });
+      specs.push({ hash, viewport: { width: 1280, height: 768 } });
+      specs.push({ hash, viewport: { width: 1280, height: 640 } });
     } else {
       specs.push({ hash, viewport: DEFAULT_VP });
     }
@@ -84,12 +98,110 @@ async function measureScene(
   await page.goto(`${BASE}?v=${encodeURIComponent(hash)}#${hash}`);
   const waitMs = hash.includes("after")
     ? 1400
-    : hash === "export-stems-none-selected"
-      ? 1200
-      : hash === "sep-download" || hash === "sep-unmeasured-badge"
-        ? 1100
-        : 950;
+    : hash === "export-drawer-b1-12"
+      ? 1500
+      : hash === "export-stems-none-selected"
+        ? 1200
+        : hash === "sep-download"
+          ? 1400
+          : hash === "sep-unmeasured-badge"
+            ? 1100
+            : hash === "sep-selection-cachee"
+              ? 1900
+              : hash === "sep-focus-vocals"
+              ? 1100
+              : hash === "sep-revert"
+                ? 1400
+                : 950;
   await page.waitForTimeout(waitMs);
+  await page.evaluate(async () => {
+    await document.fonts?.ready;
+  });
+  if (
+    hash.startsWith("sep-") &&
+    hash !== "sep-footer" &&
+    hash !== "sep-download" &&
+    hash !== "sep-exclusions" &&
+    hash !== "sep-revert"
+  ) {
+    await page.evaluate(() => {
+      document
+        .querySelector(".separation-recommend-popin .anchored-popin-scroll")
+        ?.scrollTo(0, 0);
+    });
+    await page.waitForTimeout(80);
+  }
+  if (hash === "sep-header") {
+    await page.waitForTimeout(40);
+    await page.waitForSelector('[data-testid="sep-recommend-trigger"]');
+    await page.waitForSelector('[data-testid="sep-recommend-footer"]');
+    await page.waitForFunction(
+      () => {
+        const popin = document.querySelector(".separation-recommend-popin");
+        const anchor = document.querySelector(
+          '[data-testid="sep-recommend-trigger"]',
+        );
+        if (!popin || !anchor) return false;
+        const pr = popin.getBoundingClientRect();
+        const ar = anchor.getBoundingClientRect();
+        return pr.top >= ar.bottom - 0.5;
+      },
+      { timeout: 8000 },
+    );
+    await page.evaluate(() => {
+      const scroll = document.querySelector(
+        ".separation-recommend-popin .anchored-popin-scroll",
+      ) as HTMLElement | null;
+      const spotlight = document.querySelector(".sep-recommended-spotlight");
+      const footer = document.querySelector(
+        '[data-testid="sep-recommend-footer"]',
+      );
+      if (!scroll || !spotlight || !footer) return;
+      const gap =
+        spotlight.getBoundingClientRect().bottom -
+        (footer.getBoundingClientRect().top - 8);
+      if (gap > 0.5) scroll.scrollTop += gap;
+    });
+    await page.waitForTimeout(80);
+  }
+  if (hash === "sep-focus-vocals" || hash === "sep-recommended-visible") {
+    await page.evaluate(() => {
+      document
+        .querySelector(".separation-recommend-popin .anchored-popin-scroll")
+        ?.scrollTo(0, 0);
+    });
+    await page.waitForTimeout(120);
+    await page.evaluate(() => {
+      const scroll = document.querySelector(
+        ".separation-recommend-popin .anchored-popin-scroll",
+      ) as HTMLElement | null;
+      const spotlight = document.querySelector(".sep-recommended-spotlight");
+      const footer = document.querySelector(
+        '[data-testid="sep-recommend-footer"]',
+      );
+      if (!scroll || !spotlight || !footer) return;
+      const gap =
+        spotlight.getBoundingClientRect().bottom -
+        (footer.getBoundingClientRect().top - 8);
+      if (gap > 0.5) scroll.scrollTop += gap;
+    });
+    await page.waitForTimeout(80);
+  }
+  if (hash.includes("after")) {
+    await page.waitForSelector('[data-testid="export-result"]', {
+      timeout: 12_000,
+    });
+  }
+  if (hash === "sep-revert") {
+    await page.waitForSelector('[data-testid="sep-revert-recommend"]', {
+      timeout: 8000,
+    });
+  }
+  if (hash === "sep-selection-cachee") {
+    await page.waitForSelector('[data-testid="sep-manual-pick-visible"]', {
+      timeout: 8000,
+    });
+  }
 
   const metrics = await page.evaluate(
     ({ sceneName, script }) => {
@@ -160,10 +272,60 @@ async function measureScene(
       ) as HTMLElement | null;
       const xContrast = __contrastOnElement(xIcon);
 
+      const licenseIcon = document.querySelector(
+        ".sep-unmeasured-icon",
+      ) as HTMLElement | null;
+      const licenseIconContrast = __contrastOnElement(licenseIcon);
+
       const unmeasuredBadge = document.querySelector(
         '[data-testid="sep-unmeasured-rec-badge"]',
       ) as HTMLElement | null;
       const unmeasuredContrast = __contrastOnElement(unmeasuredBadge);
+
+      const spotlight = document.querySelector(
+        ".sep-recommended-spotlight [data-testid^='sep-quality-card-']",
+      ) as HTMLElement | null;
+      const spotlightReach = __measureReachability(spotlight);
+      let spotlightFooterClearancePx: number | null = null;
+      if (spotlight && footer) {
+        const sr = spotlight.getBoundingClientRect();
+        const ft = footer.getBoundingClientRect().top;
+        spotlightFooterClearancePx =
+          Math.round((ft - sr.bottom) * 100) / 100;
+      }
+      const unmeasuredBadgeEl = document.querySelector(
+        '[data-testid="sep-unmeasured-rec-badge"]',
+      ) as HTMLElement | null;
+      const unmeasuredBadgeReach = __measureReachability(unmeasuredBadgeEl);
+      const exclusionXReach = __measureReachability(xIcon);
+
+      let scrollBodyPx: { scrollHeight?: number; clientHeight?: number; scrollTop?: number } | undefined;
+      if (sceneName === "sep-recommended-visible" && scroll) {
+        scrollBodyPx = {
+          scrollHeight: scroll.scrollHeight,
+          clientHeight: scroll.clientHeight,
+          scrollTop: scroll.scrollTop,
+        };
+      }
+
+      let manualPickReach: ReturnType<typeof __measureReachability> | null =
+        null;
+      if (sceneName === "sep-selection-cachee") {
+        manualPickReach = __measureReachability(
+          document.querySelector(
+            '[data-testid="sep-manual-pick-visible"]',
+          ) as HTMLElement | null,
+        );
+      }
+
+      let sourceLinkHeights: number[] | undefined;
+      if (sceneName.startsWith("sep-")) {
+        sourceLinkHeights = Array.from(
+          document.querySelectorAll(".separation-recommend-popin a.sep-source-link"),
+        )
+          .filter((a) => (a as HTMLElement).getClientRects().length > 0)
+          .map((a) => (a as HTMLElement).getBoundingClientRect().height);
+      }
 
       let exportPopinBtnHeights: number[] | undefined;
       if (sceneName === "export-mix-tight") {
@@ -173,7 +335,10 @@ async function measureScene(
       }
 
       let exportFieldsetBorder: { style: string; width: string } | undefined;
-      if (sceneName.startsWith("export-drawer-top")) {
+      if (
+        sceneName.startsWith("export-drawer-top") ||
+        sceneName === "export-drawer-b1-12"
+      ) {
         const fs = document.querySelector(
           ".export-dialog-popin fieldset",
         ) as HTMLFieldSetElement | null;
@@ -187,10 +352,14 @@ async function measureScene(
       }
 
       const download = document.querySelector(
-        '[data-testid^="sep-download-"]',
+        sceneName === "sep-download"
+          ? '[data-testid="sep-download-bs_roformer"]'
+          : '[data-testid^="sep-download-"]',
       ) as HTMLButtonElement | null;
       const downloadReason = document.querySelector(
-        '[data-testid^="sep-download-reason-"]',
+        sceneName === "sep-download"
+          ? '[data-testid="sep-download-reason-bs_roformer"]'
+          : '[data-testid^="sep-download-reason-"]',
       ) as HTMLElement | null;
       const runBlockedReason = document.querySelector(
         '[data-testid="sep-run-blocked-reason"]',
@@ -212,6 +381,41 @@ async function measureScene(
           ? ".export-dialog-popin h3"
           : ".separation-recommend-popin h3",
       ) as HTMLElement | null;
+
+      let sepRecommendAnchorOverlapPx: number | null = null;
+      let noticeFontPx: number | null = null;
+      let demucs327LinkCount: number | null = null;
+      if (sceneName === "sep-header") {
+        const anchor = document.querySelector(
+          '[data-testid="sep-recommend-trigger"]',
+        ) as HTMLElement | null;
+        const pr = popin?.getBoundingClientRect();
+        const ar = anchor?.getBoundingClientRect();
+        if (pr && ar) {
+          sepRecommendAnchorOverlapPx =
+            Math.round(
+              Math.max(
+                0,
+                Math.min(pr.bottom, ar.bottom) - Math.max(pr.top, ar.top),
+              ) * 100,
+            ) / 100;
+        }
+        const notice = document.querySelector(
+          '[data-testid="sep-rec-notice-htdemucs"]',
+        ) as HTMLElement | null;
+        if (notice) {
+          noticeFontPx = parseFloat(getComputedStyle(notice).fontSize);
+        }
+        demucs327LinkCount = Array.from(
+          document.querySelectorAll(
+            ".sep-recommended-spotlight a.sep-source-link",
+          ),
+        ).filter(
+          (a) =>
+            (a as HTMLElement).getClientRects().length > 0 &&
+            /Demucs #327/.test((a as HTMLAnchorElement).textContent ?? ""),
+        ).length;
+      }
 
       return {
         scene: sceneName,
@@ -245,10 +449,21 @@ async function measureScene(
           badge: badgeContrast,
           readDate: dateContrast,
           exclusionX: xContrast,
+          licenseIcon: licenseIconContrast,
           unmeasuredBadge: unmeasuredContrast,
         },
+        spotlightReach,
+        spotlightFooterClearancePx,
+        unmeasuredBadgeReach,
+        exclusionXReach,
+        scrollBodyPx,
+        manualPickReach,
+        sourceLinkHeights,
         exportPopinBtnHeights,
         exportFieldsetBorder,
+        sepRecommendAnchorOverlapPx,
+        noticeFontPx,
+        demucs327LinkCount,
         mockupNoteAbsent: !document.body.innerText.includes("Maquette Alphonse"),
       };
     },
@@ -302,10 +517,14 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
     }
   }
   const footer = m.footerReach as { reachable?: boolean } | null;
-  if (hash !== "regen-gate-blocked" && !footer?.reachable) {
+  if (
+    hash !== "regen-gate-blocked" &&
+    hash !== "sep-selection-cachee" &&
+    !footer?.reachable
+  ) {
     throw new Error(`B1/I2 pied non atteignable (${label})`);
   }
-  if (hash.startsWith("export-drawer-top")) {
+  if (hash === "export-drawer-b1-12" || hash.startsWith("export-drawer-top")) {
     const run = m.exportRunReach as { reachable?: boolean } | null;
     if (!run?.reachable) {
       throw new Error(`B1 Exporter non atteignable (${label})`);
@@ -324,10 +543,90 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
       throw new Error(`popin dépasse viewport (${popinRect.bottom} > ${vh})`);
     }
   }
+  if (hash === "sep-recommended-visible" || hash === "sep-focus-vocals") {
+    const spot = m.spotlightReach as { reachable?: boolean } | null;
+    if (!spot?.reachable) {
+      throw new Error(`fiche recommandée hors vue initiale (${label})`);
+    }
+    const clearance = m.spotlightFooterClearancePx as number | null;
+    if (clearance != null && clearance < -0.51) {
+      throw new Error(
+        `fiche spotlight dépasse le pied (${clearance}px, ${label})`,
+      );
+    }
+    const badge = m.unmeasuredBadgeReach as { reachable?: boolean } | null;
+    if (!badge?.reachable) {
+      throw new Error(`pastille non mesurée hors vue (${label})`);
+    }
+    const scroll = m.scrollBodyPx as { scrollTop?: number } | undefined;
+    if (
+      hash === "sep-recommended-visible" &&
+      scroll?.scrollTop != null &&
+      scroll.scrollTop > 2 &&
+      clearance != null &&
+      clearance < -0.51
+    ) {
+      throw new Error(
+        `scroll ${scroll.scrollTop}px mais fiche sous le pied (${clearance}px)`,
+      );
+    }
+  }
   if (hash === "sep-header") {
-    const title = m.titleReach as { reachable?: boolean } | null;
-    if (!title?.reachable) {
-      throw new Error(`titre non visible (${label})`);
+    const overlap = m.sepRecommendAnchorOverlapPx as number | null;
+    if (overlap == null || overlap > 0.51) {
+      throw new Error(
+        `recouvrement popin/déclencheur ${overlap}px (${label})`,
+      );
+    }
+    const noticePx = m.noticeFontPx as number | null;
+    if (noticePx == null || noticePx < 14) {
+      throw new Error(`notice HTDemucs ${noticePx}px < 14 (${label})`);
+    }
+    const demucsLinks = m.demucs327LinkCount as number | null;
+    if (demucsLinks != null && demucsLinks > 1) {
+      throw new Error(`lien Demucs #327 en double (${demucsLinks}, ${label})`);
+    }
+    const spotClear = m.spotlightFooterClearancePx as number | null;
+    if (spotClear != null && spotClear < -0.51) {
+      throw new Error(
+        `fiche spotlight dépasse le pied (${spotClear}px, ${label})`,
+      );
+    }
+    const badge = m.unmeasuredBadgeReach as { reachable?: boolean } | null;
+    if (!badge?.reachable) {
+      throw new Error(`pastille non mesurée hors vue (${label})`);
+    }
+  }
+  if (hash === "sep-exclusions") {
+    const xR = m.exclusionXReach as { reachable?: boolean } | null;
+    if (!xR?.reachable) throw new Error("✕ exclusion non visible");
+  }
+  if (hash === "sep-selection-cachee") {
+    const mp = m.manualPickReach as { reachable?: boolean } | null;
+    if (!mp?.reachable) {
+      throw new Error("choix manuel non visible après fermeture Autres modèles");
+    }
+    const spot = m.spotlightReach as { reachable?: boolean } | null;
+    if (spot?.reachable) {
+      throw new Error("fiche reco spotlight encore visible (sep-selection-cachee)");
+    }
+    const rev = m.revertReach as { reachable?: boolean } | null;
+    if (!rev?.reachable) {
+      throw new Error("Revenir à la recommandation non visible (bandeau)");
+    }
+  }
+  if (hash.startsWith("sep-") && hash !== "sep-selection-cachee") {
+    const links = m.sourceLinkHeights as number[] | undefined;
+    if (links?.length) {
+      for (const h of links) {
+        if (h < 44) throw new Error(`lien source ${h}px < 44 (${label})`);
+      }
+    }
+  }
+  if (hash === "sep-header") {
+    const contrast = m.contrast as Record<string, number | null> | undefined;
+    if (contrast?.licenseIcon != null && contrast.licenseIcon < 4.5) {
+      throw new Error(`contraste pastille ${contrast.licenseIcon} < 4.5`);
     }
   }
   if (hash === "sep-footer") {
@@ -369,6 +668,21 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
         throw new Error(`contraste ${k} ${v} < 4.5 (fond effectif)`);
       }
     }
+    const expected: Record<string, number> = {
+      badge: 10.4737,
+      readDate: 5.8974,
+      licenseIcon: 9.5548,
+      exclusionX: 8.7437,
+    };
+    for (const [k, exp] of Object.entries(expected)) {
+      const v = contrast[k];
+      if (v == null) continue;
+      if (Math.abs(v - exp) > 0.15) {
+        console.warn(
+          `contraste ${k} mesuré ${v.toFixed(2)} ≠ attendu ~${exp} (tolérance 0,15)`,
+        );
+      }
+    }
   }
   if (hash === "sep-unmeasured-badge" && contrast) {
     const ub = contrast.unmeasuredBadge;
@@ -380,6 +694,7 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
 
 mkdirSync(OUT, { recursive: true });
 
+process.env.VITE_CAPTURE = "1";
 const vite = spawn(
   "pnpm",
   ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],
@@ -390,28 +705,48 @@ const vite = spawn(
   },
 );
 
+function roundMetricFloats(value: unknown): unknown {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.round(value * 100) / 100;
+  }
+  if (Array.isArray(value)) {
+    return value.map(roundMetricFloats);
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = roundMetricFloats(v);
+    }
+    return out;
+  }
+  return value;
+}
+
 const all: Record<string, SceneMetrics> = {};
 
 try {
   await waitServer(BASE);
   const browser = await chromium.launch();
-  const page = await browser.newPage();
-  await page.addInitScript((script: string) => {
-    // eslint-disable-next-line no-eval
-    eval(script);
-  }, VISIBILITY_BROWSER_BUNDLE);
+  try {
+    const page = await browser.newPage();
+    await page.addInitScript((script: string) => {
+      // eslint-disable-next-line no-eval
+      eval(script);
+    }, VISIBILITY_BROWSER_BUNDLE);
 
-  for (const { hash, viewport } of sceneSpecs()) {
-    const key = metricsKey(hash, viewport);
-    const m = await measureScene(page, hash, viewport);
-    all[key] = m;
-    console.log(key, JSON.stringify(m, null, 0));
-    assertScene(hash, m);
-    if (m.mockupNoteAbsent === false) throw new Error("note Alphonse visible");
+    for (const { hash, viewport } of sceneSpecs()) {
+      const key = metricsKey(hash, viewport);
+      const m = await measureScene(page, hash, viewport);
+      all[key] = roundMetricFloats(m) as SceneMetrics;
+      console.log(key, JSON.stringify(m, null, 0));
+      assertScene(hash, m);
+      if (m.mockupNoteAbsent === false) throw new Error("note Alphonse visible");
+    }
+
+    writeFileSync(path.join(OUT, "metrics.json"), JSON.stringify(all, null, 2));
+  } finally {
+    await browser.close();
   }
-
-  await browser.close();
-  writeFileSync(path.join(OUT, "metrics.json"), JSON.stringify(all, null, 2));
 } finally {
   vite.kill("SIGTERM");
 }

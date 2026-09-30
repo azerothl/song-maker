@@ -5,6 +5,46 @@ function __parseRgb(color) {
   if (!m) return null;
   return [Number(m[1]), Number(m[2]), Number(m[3])];
 }
+function __parseColor(color) {
+  if (!color || color === "transparent") return null;
+  const rgba = color.match(
+    /^rgba?\\(\\s*(\\d+(?:\\.\\d+)?)\\s*,\\s*(\\d+(?:\\.\\d+)?)\\s*,\\s*(\\d+(?:\\.\\d+)?)(?:\\s*,\\s*([\\d.]+))?\\s*\\)$/i,
+  );
+  if (rgba) {
+    return {
+      r: Number(rgba[1]),
+      g: Number(rgba[2]),
+      b: Number(rgba[3]),
+      a: rgba[4] === undefined ? 1 : Number(rgba[4]),
+    };
+  }
+  const srgb = color.match(
+    /^color\\(\\s*srgb\\s+([\\d.]+)\\s+([\\d.]+)\\s+([\\d.]+)(?:\\s*\\/\\s*([\\d.]+))?\\s*\\)$/i,
+  );
+  if (srgb) {
+    return {
+      r: Number(srgb[1]) * 255,
+      g: Number(srgb[2]) * 255,
+      b: Number(srgb[3]) * 255,
+      a: srgb[4] === undefined ? 1 : Number(srgb[4]),
+    };
+  }
+  const legacy = __parseRgb(color);
+  if (legacy) return { r: legacy[0], g: legacy[1], b: legacy[2], a: 1 };
+  return null;
+}
+function __compositeOver(top, bottom) {
+  const ta = top.a;
+  const ba = bottom.a;
+  const outA = ta + ba * (1 - ta);
+  if (outA <= 0) return { r: 0, g: 0, b: 0, a: 0 };
+  return {
+    r: (top.r * ta + bottom.r * ba * (1 - ta)) / outA,
+    g: (top.g * ta + bottom.g * ba * (1 - ta)) / outA,
+    b: (top.b * ta + bottom.b * ba * (1 - ta)) / outA,
+    a: outA,
+  };
+}
 function __channelLinear(c) {
   const s = c / 255;
   return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
@@ -15,36 +55,45 @@ function __relativeLuminance(rgb) {
   const b = __channelLinear(rgb[2]);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
-function __contrastRatio(fg, bg) {
-  const f = __parseRgb(fg);
-  const b = __parseRgb(bg);
-  if (!f || !b) return null;
-  const l1 = __relativeLuminance(f);
-  const l2 = __relativeLuminance(b);
+function __contrastRatioRgb(fgRgb, bgRgb) {
+  const l1 = __relativeLuminance(fgRgb);
+  const l2 = __relativeLuminance(bgRgb);
   const lighter = Math.max(l1, l2);
   const darker = Math.min(l1, l2);
   return (lighter + 0.05) / (darker + 0.05);
 }
-function __effectiveBg(el) {
+function __contrastRatio(fg, bg) {
+  const f = __parseRgb(fg);
+  const b = __parseRgb(bg);
+  if (!f || !b) return null;
+  return __contrastRatioRgb(f, b);
+}
+function __effectiveBgRgb(el) {
+  const canvas = { r: 32, g: 36, b: 58, a: 1 };
+  const layers = [];
   let node = el;
   while (node) {
-    const bg = window.getComputedStyle(node).backgroundColor;
-    if (
-      bg &&
-      bg !== "rgba(0, 0, 0, 0)" &&
-      bg !== "transparent" &&
-      __parseRgb(bg)
-    ) {
-      return bg;
-    }
+    const parsed = __parseColor(window.getComputedStyle(node).backgroundColor);
+    if (parsed && parsed.a > 0) layers.push(parsed);
     node = node.parentElement;
   }
-  return "rgb(32, 36, 58)";
+  let composed = canvas;
+  for (let i = layers.length - 1; i >= 0; i--) {
+    composed = __compositeOver(layers[i], composed);
+  }
+  return [composed.r, composed.g, composed.b];
+}
+function __effectiveBg(el) {
+  const rgb = __effectiveBgRgb(el);
+  return "rgb(" + Math.round(rgb[0]) + ", " + Math.round(rgb[1]) + ", " + Math.round(rgb[2]) + ")";
 }
 function __contrastOnElement(el) {
   if (!el) return null;
   const fg = window.getComputedStyle(el).color;
-  return __contrastRatio(fg, __effectiveBg(el));
+  const f = __parseRgb(fg);
+  const b = __effectiveBgRgb(el);
+  if (!f || !b) return null;
+  return __contrastRatioRgb(f, b);
 }
 function __isClippedByOverflow(el) {
   let node = el;

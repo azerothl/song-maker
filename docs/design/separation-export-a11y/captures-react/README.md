@@ -1,33 +1,78 @@
-# Captures React — dialogues séparation / export (#187 / #191)
+# Captures React — dialogues séparation / export (#187 / #191 / #196)
 
-Captures **réelles** (Vite + mock Tauri). Viewport par défaut **1280×720** ; scènes B1 drawer aussi **1280×600**.
+Captures **réelles** (Vite + mock Tauri). Viewport par défaut **1280×720** ; B1 Alphonse aussi **1280×768** et **1280×900**.
 
 ## Génération
 
 ```bash
 pnpm exec tsx docs/design/separation-export-a11y/captures-react/capture.mts
+pnpm exec tsx docs/design/separation-export-a11y/captures-react/measure-i6-production.mts
+pnpm exec tsx docs/design/separation-export-a11y/captures-react/b1-regression-old-popin.mts
 ```
 
-## Scènes (`#hash`)
+## Scènes séparation/export (`#hash`)
 
-Les PNG et clés `metrics.json` sont nommés `{hash}-{largeur}x{hauteur}.png` (ex. `export-drawer-top-12-1280x600.png`).
+Les PNG et clés `metrics.json` sont nommés `{hash}-{largeur}x{hauteur}.png`.
 
-| Fichier (exemple) | Critère |
+| Fichier (exemple) | Critère | Preuve |
+| --- | --- | --- |
+| `sep-header-1280x720.png` | Contraste I1 sur fond effectif (`__effectiveBgRgb` + composition alpha) | **mesuré** (calcul exact) |
+| `sep-header-1280x768.png` / `sep-header-1280x640.png` | Recouvrement popin « Séparer » / déclencheur `sepRecommendAnchorOverlapPx` **0** ; notice HTDemucs ≥ **14 px** | **mesuré** |
+| `sep-recommended-visible-1280x720.png` | Fiche reco complète sans défilement (`spotlightReach`, `scrollTop≈0`) | **mesuré** |
+| `sep-focus-vocals-1280x768.png` | Cas **Voix** — fiche compacte entière (`spotlightReach`, `spotlightFooterClearancePx ≥ 0`) | **mesuré** |
+| `sep-focus-vocals-1280x720.png` | Cas **Voix** @720 — compacte, pied visible (`spotlightFooterClearancePx ≥ 0`) | **mesuré** |
+| `sep-selection-cachee-1280x720.png` | « Autres modèles » fermé — bandeau nomme le modèle + **Revenir à la recommandation**, pas de fiche spotlight | **mesuré** |
+| `export-drawer-b1-12-1280x768.png` | **B1** — « Pistes séparées » + 12 cases avant le pied | **mesuré** |
+
+### I6 — ProductionWorkspace réel (`production-capture.html`)
+
+**Barre mix** : **~32 px** en prod (décision Pascal pour 44 px). **Tiroir** : Séparer / Exporter / Importer / Enregistrer **44 px** (`i6-production-metrics.json`). Une **nouvelle page** Playwright par scène (évite le hash 6/16 stale).
+
+| Scène | scrollHeight zone pistes (mesuré) |
 | --- | --- |
-| `sep-header-1280x720.png` | Titre visible ; contraste I1 (**mesuré** sur fond peint derrière l’élément) |
-| `sep-unmeasured-badge-1280x720.png` | Badge « Recommandation non mesurée » au-dessus de la reco (≥ 4,5:1) |
-| `sep-footer-1280x720.png` | Pied + « Lancer la séparation » atteignables |
-| `sep-download-1280x720.png` | Télécharger + raison `aria-describedby` visibles |
-| `sep-exclusions-1280x720.png` | Résumé exclusions en tête |
-| `sep-revert-1280x720.png` | « Revenir à la recommandation » |
-| `sep-run-blocked-1280x720.png` | I7 — run `aria-disabled` + raison |
-| `export-drawer-top-{4,12,16}-1280x720.png` | **B1** — ancre **en haut**, pied + Exporter atteignables |
-| `export-drawer-top-12-1280x600.png` | **B1** — même scène, viewport bas |
-| `export-drawer-top-12-after-*` | **B1** — après export réussi (720 et 600) |
-| `export-mix-tight-1280x720.png` | Barre mix dense : boutons **du popin** ≥ 44 px |
-| `export-stems-none-selected-1280x720.png` | Exporter bloqué (0 piste) + raison + `aria-describedby` |
-| `regen-gate-blocked-1280x720.png` | **État forcé** — non atteignable dans l’app (`SongScreen.tsx` ~339) ; mock capture pour pied + raison RegenerationGate |
+| 6 pistes, tiroir ouvert | ~478 |
+| 16 pistes, tiroir ouvert | ~774 |
 
-Métriques : `metrics.json` — champs `*Reach.reachable` (DOM : `getBoundingClientRect`, non recouvert, `elementFromPoint` au centre). Contraste : `__contrastOnElement` (fond effectif remonté dans l’arbre).
+Recouvrement popin export / bouton Exporter (6 pistes, tiroir ouvert, Exporter 44 px) : `exportPopinOverlapPx` **0** dans `i6-production-metrics.json` (popin `max-height` ~473 px).
 
-Tests comportement : `src/dev/anchoredPopinFooter.behavior.test.ts` (Playwright). Régression B1 vs ancien `AnchoredPopin` : `B1-regression-old-anchored-popin.txt`.
+À l’ouverture du dialogue séparation, `setFocus("mix")` réinitialise le focus reco (comportement #196).
+
+### Contraste I1 (`sep-header-1280x720`)
+
+Chaque ratio est lié à **une** méthode. L’écart entre « calcul exact » et « pixel » vient de l’**arrondi des canaux RGB** dans `__effectiveBgRgb` avant le ratio WCAG (fond composé `color(srgb … / α)`).
+
+| Élément | Calcul exact (`capture.mts`) | Arrondi affiché | Pixel (échantillon DOM) |
+| --- | --- | --- | --- |
+| badge licence | 10,4737 | 10,47 | 10,52 |
+| date | 5,8974 | 5,90 | 5,92 |
+| pastille `.sep-unmeasured-icon` | 9,5548 | 9,55 | 9,58 |
+| ✕ exclusion | 8,7437 | 8,74 | 8,79 |
+
+| Méthode | Rôle |
+| --- | --- |
+| **Calcul exact** | `visibility.browser.ts` — `__effectiveBgRgb` + `__contrastRatioRgb` |
+| **Pixel** | même pipeline sur couleurs arrondies à l’entier (rejeu local, non commité comme vérité unique) |
+| **PR / revue** | PNG + `metrics.json` (`contrast.*`) |
+
+Tolérance script : ±0,15 sur les valeurs « calcul exact » ci-dessus.
+
+`metrics.json` : les `rect.*` des mesures de visibilité sont arrondis à **2 décimales** à l’écriture (reproductibilité CI / polices). Les contrastes restent en pleine précision.
+
+### PNG identiques (27 fichiers, 24 empreintes)
+
+Certaines scènes partagent le même rendu pixel (hash SHA-256 identique) : c’est **voulu** — une clé par scène/viewport pour les assertions `metrics.json`, sans dupliquer le contenu visuel.
+
+| Groupe (même hash) | Scènes |
+| --- | --- |
+| En-tête reco | `sep-header`, `sep-recommended-visible`, `sep-unmeasured-badge` |
+| Pied / exclusions | `sep-exclusions`, `sep-footer` |
+
+### Tolérance `metrics.json` (regen-gate et badges)
+
+- `capture.mts` attend `document.fonts.ready` et, pour `sep-header`, que `popin.top ≥ anchor.bottom` avant mesure.
+- Écarts acceptables entre régénérations sur **positions** (`unmeasuredBadgeReach.rect.right`, `regen-gate-blocked`, etc.) : **±1 px** sur `rect.*` et **±0,01** sur les flottants arrondis, tant que les contrastes `contrast.*` restent identiques au centième.
+- Les tests commités comparent les invariants (overlap ≤ 0,51 px, `footerReach.reachable`, contrastes ≥ 4,5) plutôt qu’une égalité bit-à-bit du JSON.
+
+## Non testé
+
+Tauri natif, WebKitGTK, lecteur d’écran, téléchargement réel des modèles, onglets Créer / Partition / Versions.

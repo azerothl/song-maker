@@ -1,4 +1,12 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   buildQualityTimeOptions,
   canDownloadSeparator,
@@ -19,6 +27,7 @@ import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 import { AnchoredPopin } from "./AnchoredPopin";
 import { SeparatorLicenseBadge } from "./SeparatorLicenseBadge";
+import { SeparatorLicenseNotice } from "./SeparatorLicenseNotice";
 
 type Props = {
   open: boolean;
@@ -48,9 +57,28 @@ export function SeparationRecommendDialog({
   const [phase3, setPhase3] = useState<Phase3Status | null>(null);
   const [focus, setFocus] = useState<SeparationTrackFocus>("mix");
   const [selected, setSelected] = useState<StemProviderId>("htdemucs");
+  const [userPickedModel, setUserPickedModel] = useState(false);
+  const [otherModelsOpen, setOtherModelsOpen] = useState(false);
   const [installing, setInstalling] = useState<StemProviderId | null>(null);
   const [licenseLocal, setLicenseLocal] = useState<Record<string, boolean>>({});
   const licenseDraft = useRef<Record<string, boolean>>({});
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const syncSpotlightAboveFooter = useCallback(() => {
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    const spotlight = scroll.querySelector(".sep-recommended-spotlight");
+    const footer = document.querySelector(
+      '[data-testid="sep-recommend-footer"]',
+    );
+    if (!spotlight || !footer) return;
+    const footTop = footer.getBoundingClientRect().top;
+    const spotBottom = spotlight.getBoundingClientRect().bottom;
+    const gap = spotBottom - (footTop - 8);
+    if (gap > 0.5) {
+      scroll.scrollTop += gap;
+    }
+  }, []);
 
   const refresh = async () => {
     try {
@@ -61,15 +89,47 @@ export function SeparationRecommendDialog({
   };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setUserPickedModel(false);
+      setOtherModelsOpen(false);
+      return;
+    }
+    scrollRef.current?.scrollTo(0, 0);
     void refresh();
-    const recommended = recommendSeparator(focus);
-    setSelected(recommended);
+    setFocus("mix");
+    setSelected(recommendSeparator("mix"));
   }, [open]);
 
   useEffect(() => {
+    if (!open || userPickedModel) return;
     setSelected(recommendSeparator(focus));
-  }, [focus]);
+  }, [focus, open, userPickedModel]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    syncSpotlightAboveFooter();
+    const t1 = window.setTimeout(syncSpotlightAboveFooter, 0);
+    const t2 = window.setTimeout(syncSpotlightAboveFooter, 150);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [
+    open,
+    focus,
+    selected,
+    userPickedModel,
+    otherModelsOpen,
+    phase3,
+    syncSpotlightAboveFooter,
+  ]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onResize = () => syncSpotlightAboveFooter();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [open, syncSpotlightAboveFooter]);
 
   const accepted = {
     ...(settings?.acceptedSeparatorLicenses ?? {}),
@@ -159,6 +219,14 @@ export function SeparationRecommendDialog({
   };
 
   const recommendedId = recommendSeparator(focus);
+  const spotlightOption = useMemo(
+    () => options.find((o) => o.id === recommendedId) ?? options.find((o) => o.recommended),
+    [options, recommendedId],
+  );
+  const otherOptions = useMemo(
+    () => options.filter((o) => o.id !== spotlightOption?.id),
+    [options, spotlightOption?.id],
+  );
   const recommendedLicense = separatorLicense(recommendedId);
   const recommendedUnverified =
     recommendedLicense != null && recommendedLicense.status !== "verified";
@@ -209,6 +277,207 @@ export function SeparationRecommendDialog({
     }
   };
 
+  const pickModel = (id: StemProviderId) => {
+    setUserPickedModel(true);
+    setSelected(id);
+  };
+
+  const selectedInOther = otherOptions.some((o) => o.id === selected);
+  const showManualPickOutside =
+    userPickedModel && selectedInOther && !otherModelsOpen;
+
+  const renderQualityOption = (
+    opt: (typeof options)[number],
+    showRecommendedBadge: boolean,
+    layout: "default" | "spotlight" = "default",
+  ) => {
+    const spotlightLayout = layout === "spotlight";
+    const provider = providers.find((p) => p.id === opt.id);
+    const license = separatorLicense(opt.id);
+    const weightsPresent =
+      opt.id === "htdemucs"
+        ? Boolean(phase3?.htdemucsAvailable)
+        : Boolean(provider?.runnable);
+    const runnable =
+      opt.id === "htdemucs"
+        ? Boolean(phase3?.htdemucsAvailable)
+        : Boolean(provider?.runnable);
+    const acceptedHere = Boolean(accepted[opt.id]);
+    const showAccept =
+      Boolean(license?.requiresAcceptBeforeDownload) &&
+      (!weightsPresent || !acceptedHere);
+    const licenseCbId = `sep-rec-license-${opt.id}`;
+    const downloadBlocked = !canDownloadSeparator(opt.id, accepted);
+    const downloadReasonId = `sep-dl-reason-${opt.id}`;
+    const installBusy = installing === opt.id;
+    const blockInput = busy || installBusy;
+    const suppressLicenseNotice =
+      !spotlightLayout &&
+      runnable &&
+      opt.id === recommendedId &&
+      license != null &&
+      license.status !== "verified";
+
+    const showLicenseNotice =
+      license != null &&
+      (spotlightLayout ||
+        (!suppressLicenseNotice &&
+          (!runnable || license.status !== "verified")));
+
+    return (
+      <li
+        key={opt.id}
+        className={
+          opt.id === recommendedId ? "sep-quality recommended" : "sep-quality"
+        }
+        data-testid={`sep-quality-card-${opt.id}`}
+      >
+        <label className="sep-quality-main">
+          <input
+            type="radio"
+            name="sep-model"
+            id={`sep-model-${opt.id}`}
+            checked={selected === opt.id}
+            aria-busy={installBusy || undefined}
+            aria-disabled={blockInput || undefined}
+            onChange={() => {
+              if (blockInput) return;
+              pickModel(opt.id);
+            }}
+          />
+          <span>
+            <strong>{provider?.displayNameFr ?? opt.id}</strong>
+            {showRecommendedBadge && opt.id === recommendedId && (
+              <span className="sep-badge recommended">
+                {t("separate.recommend.badge")}
+              </span>
+            )}
+            {!spotlightLayout && (
+              <>
+                <br />
+                <span className="hint">{provider?.stemLayoutNoteFr}</span>
+                <br />
+              </>
+            )}
+            <span
+              className="sep-time"
+              data-testid={`sep-time-${opt.id}`}
+              data-time-kind={opt.kind}
+            >
+              {formatDurationFr(opt.estimatedMs)} · {timeLabelFr(opt.kind)}
+            </span>
+            {license && (
+              <>
+                {!spotlightLayout && <br />}
+                {spotlightLayout ? (
+                  <SeparatorLicenseBadge license={license} />
+                ) : (
+                  <>
+                    <SeparatorLicenseBadge license={license} />{" "}
+                    {opt.id !== "htdemucs" && opt.id !== "htdemucs_6s" ? (
+                      <a
+                        className="sep-source-link"
+                        href={license.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {license.sourceLabelFr}
+                      </a>
+                    ) : null}
+                  </>
+                )}
+              </>
+            )}
+          </span>
+        </label>
+        {license && (showLicenseNotice || showAccept || !runnable) && (
+          <div className="sep-install">
+            {showLicenseNotice && (
+              <SeparatorLicenseNotice
+                licenseId={opt.id}
+                className={`hint warn sep-rec-notice${spotlightLayout ? "" : ""}`}
+                data-testid={`sep-rec-notice-${opt.id}`}
+              />
+            )}
+            <div
+              className={
+                spotlightLayout && (showAccept || !runnable)
+                  ? "sep-install-actions"
+                  : undefined
+              }
+            >
+              {showAccept && (
+                <label className="sep-license-cb" htmlFor={licenseCbId}>
+                  <input
+                    id={licenseCbId}
+                    type="checkbox"
+                    checked={acceptedHere}
+                    aria-busy={installBusy || undefined}
+                    aria-disabled={blockInput || undefined}
+                    aria-label={t("separate.license.acceptNamed", {
+                      name: provider?.displayNameFr ?? opt.id,
+                    })}
+                    onChange={(e) => {
+                      if (blockInput) return;
+                      void persistLicense(opt.id, e.target.checked);
+                    }}
+                  />
+                  {t("separate.license.acceptNamed", {
+                    name: provider?.displayNameFr ?? opt.id,
+                  })}
+                </label>
+              )}
+              {!runnable && (
+                <>
+                  <button
+                    type="button"
+                    className="btn"
+                    data-testid={`sep-download-${opt.id}`}
+                    aria-busy={installBusy || undefined}
+                    aria-disabled={
+                      downloadBlocked || installBusy || busy || undefined
+                    }
+                    aria-describedby={
+                      downloadBlocked ? downloadReasonId : undefined
+                    }
+                    onClick={() => {
+                      if (downloadBlocked || installBusy || busy) return;
+                      void install(opt.id);
+                    }}
+                  >
+                    {installBusy
+                      ? t("separate.install.busy")
+                      : opt.id === "htdemucs"
+                        ? t("separate.license.htdemucs.install")
+                        : t("separate.install")}
+                  </button>
+                  {downloadBlocked && !spotlightLayout && (
+                    <p
+                      id={downloadReasonId}
+                      className="hint sep-download-reason"
+                      data-testid={`sep-download-reason-${opt.id}`}
+                    >
+                      {t("separate.license.blocked")}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+            {downloadBlocked && spotlightLayout && !runnable && (
+              <p
+                id={downloadReasonId}
+                className="hint sep-download-reason"
+                data-testid={`sep-download-reason-${opt.id}`}
+              >
+                {t("separate.license.blocked")}
+              </p>
+            )}
+          </div>
+        )}
+      </li>
+    );
+  };
+
   return (
     <AnchoredPopin
       open={open}
@@ -217,13 +486,16 @@ export function SeparationRecommendDialog({
       labelId={titleId}
       className="separation-recommend-popin"
     >
-      <div className="anchored-popin-scroll">
+      <div className="anchored-popin-scroll" ref={scrollRef}>
         <header className="anchored-popin-header">
           <h3 id={titleId}>{t("separate.recommend.title")}</h3>
           <p className="hint">{t("separate.recommend.intro")}</p>
         </header>
 
-        <fieldset className="sep-focus" disabled={busy}>
+        <fieldset
+          className="sep-focus"
+          aria-busy={installing !== null ? true : undefined}
+        >
           <legend>{t("separate.recommend.focus")}</legend>
           {(
             [
@@ -236,45 +508,91 @@ export function SeparationRecommendDialog({
               <input
                 type="radio"
                 name="sep-focus"
+                value={value}
                 checked={focus === value}
-                onChange={() => setFocus(value)}
+                aria-disabled={busy || installing !== null || undefined}
+                onChange={() => {
+                  if (busy || installing !== null) return;
+                  setFocus(value);
+                }}
               />
               {t(key)}
             </label>
           ))}
         </fieldset>
 
-        <p
-          className="sep-unmeasured-rec-badge"
-          role="status"
-          data-testid="sep-unmeasured-rec-badge"
-        >
-          <span className="sep-unmeasured-icon" aria-hidden="true">
-            !
-          </span>
-          {t("separate.recommend.unmeasuredBadge")}
-        </p>
-
-        <p className="hint" role="status" data-testid="sep-recommend-reason">
-          {recommendFocusReasonFr(focus)}
-        </p>
-
-        {recommendedUnverified && recommendedLicense && (
+        {showManualPickOutside && (
           <p
-            className="hint warn"
-            role="status"
-            data-testid="sep-recommend-unverified-warn"
+            className="hint sep-manual-pick-banner"
+            data-testid="sep-manual-pick-visible"
           >
-            {t("separate.recommend.unverifiedBanner", {
+            {t("separate.recommend.manualPickBanner", {
               model:
-                providers.find((p) => p.id === recommendedId)?.displayNameFr ??
-                recommendedId,
-              status: licenseStatusLabelFr(recommendedLicense.status),
+                providers.find((p) => p.id === selected)?.displayNameFr ??
+                selected,
             })}
+            <button
+              type="button"
+              className="btn ghost sep-manual-pick-revert"
+              data-testid="sep-revert-recommend"
+              disabled={busy}
+              onClick={() => {
+                setUserPickedModel(false);
+                setSelected(recommendedId);
+                requestAnimationFrame(() => {
+                  document
+                    .getElementById(`sep-model-${recommendedId}`)
+                    ?.focus();
+                });
+              }}
+            >
+              {t("separate.recommend.revert")}
+            </button>
           </p>
         )}
 
-        {modelChangedManually && (
+        {spotlightOption && !showManualPickOutside && (
+          <section
+            className="sep-recommended-spotlight"
+            aria-label={t("separate.recommend.spotlight")}
+            data-testid="sep-recommended-spotlight"
+          >
+            <p
+              className="sep-unmeasured-rec-badge"
+              data-testid="sep-unmeasured-rec-badge"
+            >
+              <span className="sep-unmeasured-icon" aria-hidden="true">
+                !
+              </span>
+              {t("separate.recommend.unmeasuredBadge")}
+            </p>
+            <ul className="sep-quality-list">
+              {renderQualityOption(spotlightOption, true, "spotlight")}
+            </ul>
+          </section>
+        )}
+
+        <div className="sep-status-cluster" role="status" aria-live="polite">
+          <p className="hint" data-testid="sep-recommend-reason">
+            {recommendFocusReasonFr(focus)}
+          </p>
+
+          {recommendedUnverified && recommendedLicense && (
+            <p
+              className="hint warn"
+              data-testid="sep-recommend-unverified-warn"
+            >
+              {t("separate.recommend.unverifiedBanner", {
+                model:
+                  providers.find((p) => p.id === recommendedId)?.displayNameFr ??
+                  recommendedId,
+                status: licenseStatusLabelFr(recommendedLicense.status),
+              })}
+            </p>
+          )}
+        </div>
+
+        {modelChangedManually && !showManualPickOutside && (
           <p className="btn-row">
             <button
               type="button"
@@ -282,6 +600,7 @@ export function SeparationRecommendDialog({
               data-testid="sep-revert-recommend"
               disabled={busy}
               onClick={() => {
+                setUserPickedModel(false);
                 setSelected(recommendedId);
                 requestAnimationFrame(() => {
                   document
@@ -322,156 +641,26 @@ export function SeparationRecommendDialog({
               </li>
             ))}
           </ul>
-          <details className="sep-exclusions-details">
-            <summary>{t("separate.license.exclusionsDetail")}</summary>
-            <ul
-              className="sep-license-exclusions"
-              data-testid="sep-rec-exclusions"
-            >
-              {EXCLUDED_SEPARATOR_NOTES_FR.map((note) => (
-                <li key={`detail-${note}`}>{note}</li>
-              ))}
-            </ul>
-          </details>
         </section>
 
-        <ul
-          className="sep-quality-list"
-          aria-label={t("separate.recommend.options")}
-        >
-          {options.map((opt) => {
-            const provider = providers.find((p) => p.id === opt.id);
-            const license = separatorLicense(opt.id);
-            const weightsPresent =
-              opt.id === "htdemucs"
-                ? Boolean(phase3?.htdemucsAvailable)
-                : Boolean(provider?.runnable);
-            const runnable =
-              opt.id === "htdemucs"
-                ? Boolean(phase3?.htdemucsAvailable)
-                : Boolean(provider?.runnable);
-            const acceptedHere = Boolean(accepted[opt.id]);
-            const showAccept =
-              Boolean(license?.requiresAcceptBeforeDownload) &&
-              (!weightsPresent || !acceptedHere);
-            const licenseCbId = `sep-rec-license-${opt.id}`;
-            const downloadBlocked = !canDownloadSeparator(opt.id, accepted);
-            const downloadReasonId = `sep-dl-reason-${opt.id}`;
-            const downloadBusy = busy || installing === opt.id;
-            return (
-              <li
-                key={opt.id}
-                className={
-                  opt.recommended ? "sep-quality recommended" : "sep-quality"
-                }
-              >
-                <label className="sep-quality-main">
-                  <input
-                    type="radio"
-                    name="sep-model"
-                    id={`sep-model-${opt.id}`}
-                    checked={selected === opt.id}
-                    disabled={busy}
-                    onChange={() => setSelected(opt.id)}
-                  />
-                  <span>
-                    <strong>{provider?.displayNameFr ?? opt.id}</strong>
-                    {opt.recommended && (
-                      <span className="sep-badge recommended">
-                        {t("separate.recommend.badge")}
-                      </span>
-                    )}
-                    <br />
-                    <span className="hint">{provider?.stemLayoutNoteFr}</span>
-                    <br />
-                    <span
-                      className="sep-time"
-                      data-testid={`sep-time-${opt.id}`}
-                      data-time-kind={opt.kind}
-                    >
-                      {formatDurationFr(opt.estimatedMs)} ·{" "}
-                      {timeLabelFr(opt.kind)}
-                    </span>
-                    {license && (
-                      <>
-                        <br />
-                        <SeparatorLicenseBadge license={license} />{" "}
-                        <a
-                          href={license.sourceUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {license.sourceLabelFr}
-                        </a>
-                      </>
-                    )}
-                  </span>
-                </label>
-                {license && (
-                  <div className="sep-install">
-                    <p
-                      className="hint warn"
-                      data-testid={`sep-rec-notice-${opt.id}`}
-                    >
-                      {license.noticeFr}
-                    </p>
-                    {showAccept && (
-                      <label className="sep-license-cb" htmlFor={licenseCbId}>
-                        <input
-                          id={licenseCbId}
-                          type="checkbox"
-                          checked={acceptedHere}
-                          aria-label={t("separate.license.acceptNamed", {
-                            name: provider?.displayNameFr ?? opt.id,
-                          })}
-                          onChange={(e) =>
-                            void persistLicense(opt.id, e.target.checked)
-                          }
-                        />
-                        {t("separate.license.acceptNamed", {
-                          name: provider?.displayNameFr ?? opt.id,
-                        })}
-                      </label>
-                    )}
-                    {!runnable && (
-                      <>
-                        <button
-                          type="button"
-                          className="btn"
-                          data-testid={`sep-download-${opt.id}`}
-                          disabled={downloadBusy}
-                          aria-disabled={downloadBlocked || undefined}
-                          aria-describedby={
-                            downloadBlocked ? downloadReasonId : undefined
-                          }
-                          onClick={() => {
-                            if (downloadBlocked || downloadBusy) return;
-                            void install(opt.id);
-                          }}
-                        >
-                          {installing === opt.id
-                            ? t("separate.install.busy")
-                            : opt.id === "htdemucs"
-                              ? t("separate.license.htdemucs.install")
-                              : t("separate.install")}
-                        </button>
-                        {downloadBlocked && (
-                          <p
-                            id={downloadReasonId}
-                            className="hint sep-download-reason"
-                            data-testid={`sep-download-reason-${opt.id}`}
-                          >
-                            {t("separate.license.blocked")}
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        {otherOptions.length > 0 && (
+          <details
+            className="sep-other-models"
+            data-testid="sep-other-models"
+            open={otherModelsOpen}
+            onToggle={(e) =>
+              setOtherModelsOpen((e.currentTarget as HTMLDetailsElement).open)
+            }
+          >
+            <summary>{t("separate.recommend.otherModels")}</summary>
+            <ul
+              className="sep-quality-list"
+              aria-label={t("separate.recommend.options")}
+            >
+              {otherOptions.map((opt) => renderQualityOption(opt, false))}
+            </ul>
+          </details>
+        )}
       </div>
 
       <div className="anchored-popin-footer" data-testid="sep-recommend-footer">

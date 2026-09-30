@@ -41,7 +41,14 @@ describe("separator licenses UI contract (#167)", () => {
     assert.match(ht.noticeFr, /only for scientific purposes/);
     assert.match(HTDEMUCS_NOTICE_FR, /Demucs #327/);
     assert.match(ht.noticeFr, /23 mai 2022|2022/);
-    assert.match(ht.sourceUrl, /demucs\/issues\/327/);
+    assert.match(ht.sourceUrl, /demucs\/issues\/327$/);
+    assert.doesNotMatch(ht.sourceUrl, /issuecomment/);
+    assert.match(ht.noticeFr, /MIT, usage commercial : oui/);
+    const ht6 = separatorLicense("htdemucs_6s");
+    assert.ok(ht6);
+    assert.match(ht6.noticeFr, /6 stems non vérifiée/);
+    assert.doesNotMatch(ht6.noticeFr, /jarredou/i);
+    assert.doesNotMatch(ht6.noticeFr, /ONNX/i);
     assert.equal(ht.readDate, "2026-09-29");
     assert.match(ht.badgeFr, /scientific purposes/i);
   });

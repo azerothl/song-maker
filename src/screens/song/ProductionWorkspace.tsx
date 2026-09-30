@@ -314,6 +314,7 @@ export function ProductionWorkspace({
                 ref={separateBtnRef}
                 type="button"
                 className={hasAiStems ? "btn" : "btn primary"}
+                data-testid="sep-recommend-trigger"
                 disabled={!project.activeGenerationId || busy}
                 onClick={() => setSeparateOpen(true)}
               >

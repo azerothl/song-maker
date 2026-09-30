@@ -25,6 +25,8 @@ function focusFirst(container: HTMLElement) {
   el?.focus();
 }
 
+const DIALOG_POPIN_MAX_PX = 473;
+
 function panelMaxWidth(className?: string): number {
   if (
     className?.includes("separation-recommend") ||
@@ -33,6 +35,13 @@ function panelMaxWidth(className?: string): number {
     return 520;
   }
   return 420;
+}
+
+function isDialogPopin(className?: string): boolean {
+  return Boolean(
+    className?.includes("separation-recommend") ||
+      className?.includes("export-dialog"),
+  );
 }
 
 /**
@@ -62,11 +71,10 @@ export function AnchoredPopin({
     const maxW = Math.min(panelMaxWidth(className), window.innerWidth - margin * 2);
     panel.style.width = `${maxW}px`;
 
-    const maxPanelH = Math.min(
-      window.innerHeight * 0.8,
-      window.innerHeight - margin * 2,
-    );
-    panel.style.maxHeight = `${maxPanelH}px`;
+    const dialogPopin = isDialogPopin(className);
+    const capH = dialogPopin
+      ? DIALOG_POPIN_MAX_PX
+      : window.innerHeight * 0.8;
 
     let left = rect.left;
     const panelRect = panel.getBoundingClientRect();
@@ -75,17 +83,21 @@ export function AnchoredPopin({
     }
     if (left < margin) left = margin;
 
-    const height = Math.min(panel.getBoundingClientRect().height, maxPanelH);
-    let top = rect.bottom + margin;
-    if (top + height > window.innerHeight - margin) {
-      const above = rect.top - margin - height;
-      if (above >= margin) {
-        top = above;
-      } else {
-        top = Math.max(margin, window.innerHeight - height - margin);
-      }
+    const belowTop = rect.bottom + margin;
+    const maxBelow = window.innerHeight - belowTop - margin;
+    const maxAbove = rect.top - margin * 2;
+
+    let top = belowTop;
+    let maxPanelH = Math.min(capH, maxBelow, window.innerHeight * 0.8);
+
+    if (maxPanelH < 96 && maxAbove > maxBelow) {
+      maxPanelH = Math.min(capH, maxAbove, window.innerHeight * 0.8);
+      panel.style.maxHeight = `${maxPanelH}px`;
+      const height = Math.min(panel.getBoundingClientRect().height, maxPanelH);
+      top = Math.max(margin, rect.top - margin - height);
+    } else {
+      panel.style.maxHeight = `${Math.max(96, maxPanelH)}px`;
     }
-    if (top < margin) top = margin;
 
     panel.style.top = `${top}px`;
     panel.style.left = `${left}px`;

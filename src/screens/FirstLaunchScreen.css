@@ -1,0 +1,5 @@
+/* HTDemucs — même plancher typographique que .sep-rec-notice (#196) */
+.first-launch .fl-license .fl-htdemucs-notice {
+  font-size: max(14px, 0.875rem);
+  line-height: 1.35;
+}

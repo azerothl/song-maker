@@ -8,20 +8,26 @@ import type {
   InstallProgress,
   SetupGpuInfo,
 } from "./types";
+import {
+  DEMUCS_327_ISSUE_URL,
+  HTDEMUCS_MAINTAINER_QUOTE_EN,
+  HTDEMUCS_NOTICE_FR,
+} from "@song-maker/stem-providers";
 
 export const MIX_ONLY_STORAGE_KEY = "song-maker.first-launch.mix-only";
 export const NVIDIA_DRIVERS_URL = "https://www.nvidia.com/Download/index.aspx";
 export const YUE2_LICENSE_URL = "https://creativecommons.org/licenses/by-nc/4.0/";
-export const HTDEMUCS_LICENSE_URL =
-  "https://github.com/facebookresearch/demucs/issues/327#issuecomment-1134828611";
 
-/** Maintainer quote (adefossez, 2022-05-23) — shown on first-launch HTDemucs notice. */
-export const HTDEMUCS_SCIENTIFIC_QUOTE_EN = "only for scientific purposes";
+/** @deprecated Utiliser `DEMUCS_327_ISSUE_URL` — conservé pour imports existants. */
+export const HTDEMUCS_LICENSE_URL = DEMUCS_327_ISSUE_URL;
+
+export const HTDEMUCS_SCIENTIFIC_QUOTE_EN = HTDEMUCS_MAINTAINER_QUOTE_EN;
 
 export const HTDEMUCS_LICENSE_REQUIRED_FR =
   "Cochez « J’ai lu la licence » pour HTDemucs avant le téléchargement.";
 
-export const HTDEMUCS_FIRST_LAUNCH_NOTICE_FR = `HTDemucs (séparation) : le mainteneur adefossez a écrit le 23 mai 2022 (Demucs #327) que les poids « are not covered by the MIT license, and are provided ${HTDEMUCS_SCIENTIFIC_QUOTE_EN} ». Lu le 2026-09-29.`;
+/** Même texte que `HTDEMUCS_NOTICE_FR` (stem-providers). */
+export const HTDEMUCS_FIRST_LAUNCH_NOTICE_FR = HTDEMUCS_NOTICE_FR;
 
 /** Pics publiés YuE2 (spec §2.2), pas une mesure live. */
 export const YUE2_Q4_PEAK_MIB = 7755;
