@@ -302,4 +302,76 @@ describe("production subtab scroll (#203)", () => {
     await page.close();
     assert.ok(after > before, "PageDown doit faire défiler la bande haute");
   });
+
+  it("Clips : PageDown depuis un bouton de la bande haute fait défiler", async () => {
+    const page = await browser.newPage();
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto(`${BASE}#view-clips-16`, { waitUntil: "networkidle" });
+    await page.waitForSelector('[data-testid="production-clips-scroll"]');
+    const tempoAdd = page
+      .locator('[data-testid="production-clips-scroll"] button.btn')
+      .first();
+    await tempoAdd.waitFor({ state: "visible" });
+    const before = await page.$eval(
+      '[data-testid="production-clips-scroll"]',
+      (el) => (el as HTMLElement).scrollTop,
+    );
+    await tempoAdd.focus();
+    await page.keyboard.press("PageDown");
+    const after = await page.$eval(
+      '[data-testid="production-clips-scroll"]',
+      (el) => (el as HTMLElement).scrollTop,
+    );
+    await page.close();
+    assert.ok(
+      after > before,
+      "PageDown depuis un bouton de la bande haute doit faire défiler",
+    );
+  });
+
+  it("Clips : pas de piège Tab (le focus quitte la zone clips)", async () => {
+    const page = await browser.newPage();
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto(`${BASE}#view-clips-16`, { waitUntil: "networkidle" });
+    await page.waitForSelector('[data-testid="production-clips-scroll"]');
+    await page
+      .locator('[data-testid="production-clips-scroll"] button.btn')
+      .first()
+      .focus();
+
+    let leftClips = false;
+    for (let i = 0; i < 48; i++) {
+      await page.keyboard.press("Tab");
+      const inside = await page.evaluate(() => {
+        const active = document.activeElement;
+        if (!active) return false;
+        return Boolean(
+          active.closest(".clip-timeline") ||
+            active.closest('[data-testid="production-clips-panel"]'),
+        );
+      });
+      if (!inside) {
+        leftClips = true;
+        break;
+      }
+    }
+    await page.close();
+    assert.ok(
+      leftClips,
+      "Tab doit pouvoir sortir de la zone Clips (pas de piège de focus)",
+    );
+  });
+
+  it("Mix capture : heure d’enregistrement figée à 08:02", async () => {
+    const page = await browser.newPage();
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto(`${BASE}#confortable-12`, { waitUntil: "networkidle" });
+    await page.waitForSelector(".production-mix-saved", { state: "visible" });
+    const text = await page.$eval(
+      ".production-mix-saved",
+      (el) => el.textContent ?? "",
+    );
+    await page.close();
+    assert.match(text, /08:02/, `attendu « 08:02 » dans « ${text} »`);
+  });
 });
