@@ -588,6 +588,16 @@ mod tests {
     }
 
     #[test]
+    fn wired_commercial_license_ids_non_empty() {
+        let ids = wired_commercial_license_ids();
+        assert!(
+            !ids.is_empty(),
+            "wired-commercial-license-ids.json must list at least one id"
+        );
+        assert!(ids.iter().all(|id| !id.trim().is_empty()));
+    }
+
+    #[test]
     fn commercial_creation_disallowed_on_production_license_rows() {
         assert!(!commercial_creation_allowed());
     }

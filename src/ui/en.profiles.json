@@ -58,5 +58,8 @@
   "profiles.contracts.count": "{count} accepted agreements",
   "profiles.contracts.none": "no accepted agreements",
   "profiles.rename.save": "Save",
-  "profiles.rename.cancel": "Cancel"
+  "profiles.rename.cancel": "Cancel",
+  "profiles.rename.error.empty": "Enter a profile name.",
+  "profiles.rename.error.duplicate": "Another profile already uses this name.",
+  "profiles.rename.error.tooLong": "Name too long ({max} characters max)."
 }

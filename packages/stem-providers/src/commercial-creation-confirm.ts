@@ -22,7 +22,7 @@ export function formatCommercialCreationEngineLineFr(
   engineLabel: string,
   statut: string,
 ): string {
-  const badge = formatCommercialReservedBadge(statut);
+  const badge = formatCommercialReservedBadge(statut, "fr");
   return `Moteur proposé aujourd'hui : ${engineLabel} — ${badge}.`;
 }
 
@@ -30,7 +30,7 @@ export function formatCommercialCreationEngineLineEn(
   engineLabel: string,
   statut: string,
 ): string {
-  const badge = formatCommercialReservedBadge(statut);
+  const badge = formatCommercialReservedBadge(statut, "en");
   return `Engine offered today: ${engineLabel} — ${badge}.`;
 }
 

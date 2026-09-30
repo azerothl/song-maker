@@ -265,17 +265,23 @@ export function fileStatusShowsWarningIcon(status: FileRowStatus): boolean {
 /**
  * Libellés file vs bloqué : « En attente » seul est ambigu (#202).
  * - waiting + fichier actif → file d’attente séquentielle
+ * - waiting pendant downloading/preparing sans titre actif → file (ex. preparing)
  * - waiting sans actif (ex. après erreur) / missing → à télécharger (pas bloqué)
  */
 export function queuedFileStatusFr(input: {
   status: "waiting" | "missing";
   activeTitle?: string | null;
+  /** True while install progress is `downloading` or `preparing`. */
+  installInFlight?: boolean;
 }): { primary: string; secondary?: string } {
   if (input.status === "waiting" && input.activeTitle) {
     return {
       primary: "En file d’attente",
       secondary: `Démarre après ${input.activeTitle}`,
     };
+  }
+  if (input.status === "waiting" && input.installInFlight) {
+    return { primary: "En file d’attente" };
   }
   return { primary: "À télécharger" };
 }
@@ -586,6 +592,7 @@ export function demoInstallPlan(
       ? Math.round(modelTotal * 0.99)
       : 0;
   const done = interrupted || downloading;
+  // Real installer artifact names (`installer::artifacts` / pins).
   const files: InstallFilePlan[] = [
     {
       name: "audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz",
@@ -595,11 +602,11 @@ export function demoInstallPlan(
       remainingBytes: done ? 0 : 65_293_844,
     },
     {
-      name: "cudart-sidecar.json",
+      name: "yue2-model-config.json",
       status: downloading ? "complete" : "missing",
-      totalBytes: 4_096,
-      receivedBytes: downloading ? 4_096 : 0,
-      remainingBytes: downloading ? 0 : 4_096,
+      totalBytes: 959,
+      receivedBytes: downloading ? 959 : 0,
+      remainingBytes: downloading ? 0 : 959,
     },
     {
       name: model,
@@ -616,24 +623,26 @@ export function demoInstallPlan(
       remainingBytes: 265_218_656,
     },
     {
-      name: "tokenizer.json",
+      name: "yue2-qwen.tiktoken",
       status: "missing",
-      totalBytes: 1_048_576,
+      totalBytes: 2_561_218,
       receivedBytes: 0,
-      remainingBytes: 1_048_576,
+      remainingBytes: 2_561_218,
     },
     {
       name: "htdemucs-q8_0.gguf",
       status: "missing",
-      totalBytes: 300_000_000,
+      totalBytes: 61_940_768,
       receivedBytes: 0,
-      remainingBytes: 300_000_000,
+      remainingBytes: 61_940_768,
     },
   ];
   // Classic 4-file plan for GPU / interrupted; expanded list for `#download` (#202).
   const useFiles = downloading
     ? files
-    : files.filter((f) => f.name !== "cudart-sidecar.json" && f.name !== "tokenizer.json");
+    : files.filter(
+        (f) => f.name !== "yue2-model-config.json" && f.name !== "yue2-qwen.tiktoken",
+      );
   return {
     pack,
     fileCount: useFiles.length,
@@ -657,7 +666,7 @@ export function demoProgressError(): InstallProgress {
     etaSeconds: 85,
     etaIsEstimate: true,
     overallReceivedBytes: Math.round(YUE2_Q4_BYTES * 0.43) + 65_293_844,
-    overallTotalBytes: YUE2_Q4_BYTES + 65_293_844 + 265_218_656 + 300_000_000,
+    overallTotalBytes: YUE2_Q4_BYTES + 65_293_844 + 265_218_656 + 61_940_768,
     overallEtaIsEstimate: true,
     error: {
       message: "La connexion a été interrompue.",
@@ -672,8 +681,8 @@ export function demoProgressDownloading(pack: ModelPack = "q8"): InstallProgress
   const model = pack === "q8" ? "yue2-3b-q8_0.gguf" : "yue2-3b-q4_0.gguf";
   const modelTotal = packModelBytes(pack);
   const received = Math.round(modelTotal * 0.99);
-  const engine = 65_293_844 + 4_096;
-  const rest = 265_218_656 + 1_048_576 + 300_000_000;
+  const engine = 65_293_844 + 959;
+  const rest = 265_218_656 + 2_561_218 + 61_940_768;
   return {
     state: "downloading",
     label: model,

@@ -2744,6 +2744,21 @@ details[open] > summary {
   overflow: hidden;
 }
 
+/* Téléchargement / interrompu : même piège de pli — actions dans le viewport. */
+.fl-download-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.fl-card-download > .fl-foot.fl-row-actions {
+  margin-top: 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .fl-eyebrow {
   margin: 0;
   color: var(--fl-teal);
@@ -6569,6 +6584,27 @@ details[open] > summary {
   gap: 0.75rem;
   justify-content: flex-end;
   margin-top: 1rem;
+}
+
+.profile-modal-actions .btn {
+  min-height: 44px;
+}
+
+.profile-modal .profile-field input {
+  min-height: 44px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg2);
+  color: var(--text);
+}
+
+.profile-rename-error {
+  margin: -0.5rem 0 0.75rem;
+  color: #ffb4a8;
+  font-size: 0.9rem;
 }
 
 .profile-commercial-create-engines {

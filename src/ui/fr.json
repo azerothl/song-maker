@@ -1136,5 +1136,8 @@
   "profiles.contracts.count": "{count} contrats acceptés",
   "profiles.contracts.none": "aucun contrat accepté",
   "profiles.rename.save": "Enregistrer",
-  "profiles.rename.cancel": "Annuler"
+  "profiles.rename.cancel": "Annuler",
+  "profiles.rename.error.empty": "Indiquez un nom de profil.",
+  "profiles.rename.error.duplicate": "Ce nom est déjà utilisé par un autre profil.",
+  "profiles.rename.error.tooLong": "Nom trop long ({max} caractères max)."
 }

@@ -58,11 +58,13 @@ function FileStatusLabel({
   etaSeconds,
   etaIsEstimate,
   activeTitle,
+  installInFlight,
 }: {
   status: FileRowStatus;
   etaSeconds: number | null | undefined;
   etaIsEstimate: boolean;
   activeTitle?: string | null;
+  installInFlight?: boolean;
 }) {
   switch (status) {
     case "complete":
@@ -99,7 +101,7 @@ function FileStatusLabel({
       );
     case "waiting":
     case "missing": {
-      const copy = queuedFileStatusFr({ status, activeTitle });
+      const copy = queuedFileStatusFr({ status, activeTitle, installInFlight });
       return (
         <>
           <span aria-hidden="true">◷</span>
@@ -251,6 +253,10 @@ export function FirstLaunchScreen() {
     () => rows.find((row) => row.status === "active")?.title ?? null,
     [rows],
   );
+  const installInFlight =
+    busy ||
+    progress?.state === "downloading" ||
+    progress?.state === "preparing";
   const headline = detectHeadline(gpu?.accelerationKind);
   const suggested = parsePack(gpu?.suggestedPack);
   const etaIsEstimate = Boolean(
@@ -634,7 +640,8 @@ export function FirstLaunchScreen() {
       )}
 
       {(view === "interrupted" || view === "download") && (
-        <div className="fl-card">
+        <div className="fl-card fl-card-download">
+          <div className="fl-download-body">
           <header className="fl-head">
             <div>
               <p className="fl-eyebrow">Première installation · Téléchargement</p>
@@ -699,6 +706,7 @@ export function FirstLaunchScreen() {
                     status={row.status}
                     etaSeconds={progress?.etaSeconds}
                     etaIsEstimate={Boolean(progress?.etaIsEstimate)}
+                    installInFlight={installInFlight}
                     activeTitle={
                       row.status === "waiting" || row.status === "missing"
                         ? activeQueueTitle
@@ -735,8 +743,9 @@ export function FirstLaunchScreen() {
               </div>
             </div>
           )}
+          </div>
 
-          <div className="fl-row-actions">
+          <div className="fl-foot fl-row-actions">
             <button
               className="fl-btn fl-btn-lg"
               type="button"

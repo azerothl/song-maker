@@ -8,8 +8,9 @@
     "lecteur d'écran"
   ],
   "notes": [
-    "Référence Alphonse (#204) : Outils clientHeight 419/467/339 (720/768/640) ; Clips lanesClientHeightPx 210/258/130 ; lanesFullTracksVisible=4 à 768 — confirmé au re-run capture.mts (suivi #207).",
-    "Variance machine/police : 2,3 %–9,4 % de pixels différents observés ; pas de promesse pixel-exact (voir README).",
+    "Référence Alphonse (#204 / suivi #208) : Outils clientHeight 417/465/337 (720/768/640) ; Clips lanesClientHeightPx 210/258/130 ; lanesFullTracksVisible=3 à 768 (pas 4).",
+    "Variance machine/police : 2,24 %–9,36 % de pixels différents observés sous Chrome stable seulement ; pas de promesse pixel-exact (voir README).",
+    "Les clientHeight mesurés dans scenes.*.metrics (ex. 419/467/339) peuvent différer de ±2 px de la référence Alphonse selon le run.",
     "tools-1280x720-after.png et tools-1280x768-after.png régénérés via capture.mts (empreintes inchangées sur cette machine — rendu identique).",
     "Heure Mix figée « 08:02 » dans productionCaptureMain.tsx."
   ],

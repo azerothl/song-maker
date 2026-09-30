@@ -33,14 +33,18 @@ describe("profiles a11y/data debt (#212)", () => {
     );
   });
 
-  it("R11: reserved badge absent from prod i18n; derived from statut", () => {
+  it("R11: reserved badge absent from prod i18n; derived from statut (localized)", () => {
     const fr = readFileSync(path.join(root, "src/ui/fr.json"), "utf8");
     const en = readFileSync(path.join(root, "src/ui/en.profiles.json"), "utf8");
     assert.doesNotMatch(fr, /profiles\.engines\.reservedBadge/);
     assert.doesNotMatch(en, /profiles\.engines\.reservedBadge/);
     assert.equal(
-      formatCommercialReservedBadge("disponible avec réserve"),
+      formatCommercialReservedBadge("disponible avec réserve", "fr"),
       "Disponible avec réserve",
+    );
+    assert.equal(
+      formatCommercialReservedBadge("disponible avec réserve", "en"),
+      "Available with reservation",
     );
     const ui = readFileSync(path.join(root, "src/lib/commercialEnginesUi.ts"), "utf8");
     assert.match(ui, /formatCommercialReservedBadge/);
@@ -62,11 +66,19 @@ describe("profiles a11y/data debt (#212)", () => {
     }
   });
 
-  it("polish: catalog has 9 engines; why-links ≥44px; no window.prompt rename", () => {
+  it("polish: catalog has 9 engines; Mel-Band ≠ Kim Vocal 2 label; why-links ≥44px; no window.prompt rename", () => {
     assert.equal(APP_ENGINE_CATALOG.length, 9);
     assert.ok(APP_ENGINE_CATALOG.some((e) => e.id === "kim_vocal_2"));
+    const mel = APP_ENGINE_CATALOG.find((e) => e.id === "mel_band_roformer");
+    assert.ok(mel);
+    assert.match(mel!.displayNameFr, /Mel-Band RoFormer/);
+    assert.doesNotMatch(mel!.displayNameFr, /Kim Vocal 2/);
+    const kim = APP_ENGINE_CATALOG.find((e) => e.id === "kim_vocal_2");
+    assert.match(kim!.displayNameFr, /Kim Vocal 2 \(MDX-Net\)/);
     const css = readFileSync(path.join(root, "src/App.css"), "utf8");
     assert.match(css, /\.engine-why-link\s*\{[^}]*min-height:\s*44px/s);
+    assert.match(css, /\.profile-modal-actions \.btn\s*\{[^}]*min-height:\s*44px/s);
+    assert.match(css, /\.profile-modal \.profile-field input\s*\{[^}]*min-height:\s*44px/s);
     const onboarding = readFileSync(
       path.join(root, "src/screens/ProfileOnboardingScreen.tsx"),
       "utf8",

@@ -92,7 +92,10 @@ export function buildCommercialEngineRowsUi(
       availability: entry.availability,
       reservedBadge:
         entry.availability === "reserved" && entry.licenseRow?.statut
-          ? formatCommercialReservedBadge(entry.licenseRow.statut)
+          ? formatCommercialReservedBadge(
+              entry.licenseRow.statut,
+              locale === "en" ? "en" : "fr",
+            )
           : null,
       reservedStatusLine: null,
     };

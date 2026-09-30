@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import {
   focusProfileElement,
   handleProfileOverlayKeydown,
@@ -12,6 +12,8 @@ type Props = {
   target: ProfileSummary;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Element to restore focus to when the dialog closes. */
+  returnFocusRef?: RefObject<HTMLElement | null>;
 };
 
 export function ProfileSwitchConfirmDialog({
@@ -20,22 +22,42 @@ export function ProfileSwitchConfirmDialog({
   target,
   onConfirm,
   onCancel,
+  returnFocusRef,
 }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const onCancelRef = useRef(onCancel);
+  const wasOpenRef = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
-    focusProfileElement(cancelRef.current);
+    onCancelRef.current = onCancel;
+  }, [onCancel]);
+
+  useEffect(() => {
+    if (!open) {
+      if (wasOpenRef.current) {
+        wasOpenRef.current = false;
+        const restore = returnFocusRef?.current;
+        if (restore) {
+          queueMicrotask(() => focusProfileElement(restore));
+        }
+      }
+      return;
+    }
+    const justOpened = !wasOpenRef.current;
+    wasOpenRef.current = true;
+    if (justOpened) {
+      focusProfileElement(cancelRef.current);
+    }
     const dialog = dialogRef.current;
     if (!dialog) return;
 
     const onKey = (e: KeyboardEvent) => {
-      handleProfileOverlayKeydown(e, dialog, onCancel);
+      handleProfileOverlayKeydown(e, dialog, () => onCancelRef.current());
     };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [open, onCancel]);
+  }, [open, returnFocusRef]);
 
   if (!open) return null;
 
