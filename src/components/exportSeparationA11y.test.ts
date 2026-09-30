@@ -70,7 +70,17 @@ describe("Dialogues séparation / export a11y (#187 / #191)", () => {
   it("comportement pied export : voir anchoredPopinFooter.behavior.test.ts", () => {
     assert.match(
       readSrc("src/dev/anchoredPopinFooter.behavior.test.ts"),
-      /export-drawer-top-12-after/,
+      /export-drawer-b1-12/,
+    );
+  });
+
+  it("ne réapplique pas la reco si le modèle a été choisi à la main (#196)", () => {
+    const sep = readSrc("src/components/SeparationRecommendDialog.tsx");
+    assert.match(sep, /userPickedModel/);
+    assert.match(sep, /sep-revert-recommend/);
+    assert.doesNotMatch(
+      sep,
+      /useEffect\(\(\) => \{\s*setSelected\(recommendSeparator\(focus\)\);\s*\}, \[focus\]\)/,
     );
   });
 

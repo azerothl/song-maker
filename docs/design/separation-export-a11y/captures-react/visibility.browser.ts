@@ -5,6 +5,46 @@ function __parseRgb(color) {
   if (!m) return null;
   return [Number(m[1]), Number(m[2]), Number(m[3])];
 }
+function __parseColor(color) {
+  if (!color || color === "transparent") return null;
+  const rgba = color.match(
+    /^rgba?\\(\\s*(\\d+(?:\\.\\d+)?)\\s*,\\s*(\\d+(?:\\.\\d+)?)\\s*,\\s*(\\d+(?:\\.\\d+)?)(?:\\s*,\\s*([\\d.]+))?\\s*\\)$/i,
+  );
+  if (rgba) {
+    return {
+      r: Number(rgba[1]),
+      g: Number(rgba[2]),
+      b: Number(rgba[3]),
+      a: rgba[4] === undefined ? 1 : Number(rgba[4]),
+    };
+  }
+  const srgb = color.match(
+    /^color\\(\\s*srgb\\s+([\\d.]+)\\s+([\\d.]+)\\s+([\\d.]+)(?:\\s*\\/\\s*([\\d.]+))?\\s*\\)$/i,
+  );
+  if (srgb) {
+    return {
+      r: Number(srgb[1]) * 255,
+      g: Number(srgb[2]) * 255,
+      b: Number(srgb[3]) * 255,
+      a: srgb[4] === undefined ? 1 : Number(srgb[4]),
+    };
+  }
+  const legacy = __parseRgb(color);
+  if (legacy) return { r: legacy[0], g: legacy[1], b: legacy[2], a: 1 };
+  return null;
+}
+function __compositeOver(top, bottom) {
+  const ta = top.a;
+  const ba = bottom.a;
+  const outA = ta + ba * (1 - ta);
+  if (outA <= 0) return { r: 0, g: 0, b: 0, a: 0 };
+  return {
+    r: (top.r * ta + bottom.r * ba * (1 - ta)) / outA,
+    g: (top.g * ta + bottom.g * ba * (1 - ta)) / outA,
+    b: (top.b * ta + bottom.b * ba * (1 - ta)) / outA,
+    a: outA,
+  };
+}
 function __channelLinear(c) {
   const s = c / 255;
   return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
@@ -26,20 +66,19 @@ function __contrastRatio(fg, bg) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 function __effectiveBg(el) {
+  const canvas = { r: 32, g: 36, b: 58, a: 1 };
+  const layers = [];
   let node = el;
   while (node) {
-    const bg = window.getComputedStyle(node).backgroundColor;
-    if (
-      bg &&
-      bg !== "rgba(0, 0, 0, 0)" &&
-      bg !== "transparent" &&
-      __parseRgb(bg)
-    ) {
-      return bg;
-    }
+    const parsed = __parseColor(window.getComputedStyle(node).backgroundColor);
+    if (parsed && parsed.a > 0) layers.push(parsed);
     node = node.parentElement;
   }
-  return "rgb(32, 36, 58)";
+  let composed = canvas;
+  for (let i = layers.length - 1; i >= 0; i--) {
+    composed = __compositeOver(layers[i], composed);
+  }
+  return "rgb(" + Math.round(composed.r) + ", " + Math.round(composed.g) + ", " + Math.round(composed.b) + ")";
 }
 function __contrastOnElement(el) {
   if (!el) return null;

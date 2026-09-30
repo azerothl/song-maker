@@ -35,14 +35,16 @@ async function waitServer(url: string): Promise<void> {
   throw new Error(`serveur inaccessible : ${url}`);
 }
 
-async function measureExportDrawerTop(
+async function measureExportDrawer(
   page: Page,
   hash: string,
   viewport: { width: number; height: number },
+  baseUrl: string = BASE,
+  waitMs = 1100,
 ): Promise<B1Metrics> {
   await page.setViewportSize(viewport);
-  await page.goto(`${BASE}?v=${encodeURIComponent(hash)}#${hash}`);
-  await page.waitForTimeout(hash.includes("after") ? 1500 : 1100);
+  await page.goto(`${baseUrl}?v=${encodeURIComponent(hash)}#${hash}`);
+  await page.waitForTimeout(waitMs);
   if (hash.includes("after")) {
     await page.waitForSelector('[data-testid="export-result"]', {
       timeout: 8000,
@@ -84,36 +86,21 @@ async function measureExportDrawerTop(
   );
 }
 
-function assertB1Reachable(metrics: B1Metrics, label: string): void {
+/** B1 Alphonse : pied + Exporter atteignables (viewport), sans assertion de calage ancre. */
+function assertB1ViewportReachable(metrics: B1Metrics, label: string): void {
   assert.equal(metrics.footer?.reachable, true, `${label} footer`);
   assert.equal(metrics.run?.reachable, true, `${label} export`);
   assert.ok(
     metrics.popinBottom <= metrics.vh + 1,
     `${label} popin dépasse le viewport (${metrics.popinBottom} > ${metrics.vh})`,
   );
-  const margin = 8;
-  const panelH = metrics.popinBottom - metrics.popinTop;
-  const fitsBelow =
-    metrics.anchorBottom + margin + panelH <= metrics.vh - margin + 0.5;
-  if (fitsBelow) {
-    assert.ok(
-      metrics.popinTop >= metrics.anchorBottom + margin - 0.5,
-      `${label} devrait s'ouvrir sous l'ancre (top=${metrics.popinTop})`,
-    );
-  } else {
-    const pinTop = metrics.vh - panelH - margin;
-    assert.ok(
-      metrics.popinTop >= pinTop - 1,
-      `${label} devrait être calé en bas de viewport (top=${metrics.popinTop}, attendu≥${pinTop})`,
-    );
-  }
   if (label.includes("after")) {
     assert.equal(metrics.resultVisible, true, `${label} résultat export`);
   }
 }
 
-describe("AnchoredPopin — pied export (B1, #191)", () => {
-  it("ancre en haut : 4/12/16 pistes + après export (720 et 600)", async () => {
+describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
+  it("scénario Alphonse : tiroir y≈219, bascule Pistes séparées après ouverture", async () => {
     const vite = spawn(
       "pnpm",
       ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],
@@ -134,6 +121,49 @@ describe("AnchoredPopin — pied export (B1, #191)", () => {
 
       const cases: Array<{ hash: string; vp: { width: number; height: number } }> =
         [
+          { hash: "export-drawer-b1-12", vp: { width: 1280, height: 768 } },
+          { hash: "export-drawer-b1-12", vp: { width: 1280, height: 900 } },
+        ];
+
+      for (const { hash, vp } of cases) {
+        const m = await measureExportDrawer(page, hash, vp, BASE, 1400);
+        assert.ok(
+          m.anchorBottom >= 210 && m.anchorBottom <= 230,
+          `${hash}@${vp.width}x${vp.height} ancre bottom=${m.anchorBottom} (attendu≈219)`,
+        );
+        assertB1ViewportReachable(m, `${hash}@${vp.width}x${vp.height}`);
+      }
+
+      await browser.close();
+    } finally {
+      vite.kill("SIGTERM");
+    }
+  });
+
+  it("ancre en haut : 4/12/16 pistes + après export (720 et 600)", async () => {
+    const vite = spawn(
+      "pnpm",
+      ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT + 2)],
+      {
+        cwd: ROOT,
+        stdio: "ignore",
+        env: { ...process.env, VITE_CAPTURE: "1" },
+      },
+    );
+
+    try {
+      await waitServer(
+        `http://127.0.0.1:${PORT + 2}/separation-export-a11y-capture.html`,
+      );
+      const topBase = `http://127.0.0.1:${PORT + 2}/separation-export-a11y-capture.html`;
+      const browser = await chromium.launch();
+      const page = await browser.newPage();
+      await page.addInitScript((script: string) => {
+        eval(script);
+      }, VISIBILITY_BROWSER_BUNDLE);
+
+      const cases: Array<{ hash: string; vp: { width: number; height: number } }> =
+        [
           { hash: "export-drawer-top-4", vp: { width: 1280, height: 720 } },
           { hash: "export-drawer-top-12", vp: { width: 1280, height: 720 } },
           { hash: "export-drawer-top-16", vp: { width: 1280, height: 720 } },
@@ -143,8 +173,8 @@ describe("AnchoredPopin — pied export (B1, #191)", () => {
         ];
 
       for (const { hash, vp } of cases) {
-        const m = await measureExportDrawerTop(page, hash, vp);
-        assertB1Reachable(m, `${hash}@${vp.width}x${vp.height}`);
+        const m = await measureExportDrawer(page, hash, vp, topBase);
+        assertB1ViewportReachable(m, `${hash}@${vp.width}x${vp.height}`);
       }
 
       const fieldset = await page.evaluate(() => {

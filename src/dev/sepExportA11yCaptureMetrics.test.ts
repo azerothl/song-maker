@@ -20,6 +20,7 @@ type SceneMetrics = {
   regenDescribedByLinked?: boolean;
   exportFieldsetBorder?: { style?: string; width?: string };
   exportPopinBtnHeights?: number[];
+  i6OutsideBtnHeights?: number[];
   contrast?: Record<string, number | null>;
 };
 
@@ -35,8 +36,16 @@ describe("captures-react séparation / export (#187 / #191)", () => {
         assert.equal(m.regenDescribedByLinked, true);
         continue;
       }
+      if (scene.startsWith("sep-i6-commands")) {
+        const heights = m.i6OutsideBtnHeights as number[] | undefined;
+        assert.ok(heights?.length);
+        for (const h of heights ?? []) {
+          assert.ok(h >= 44, `${scene} bouton I6 ${h}px`);
+        }
+        continue;
+      }
       assert.equal(m.footerReach?.reachable, true, `${scene} footer`);
-      if (scene.startsWith("export-drawer-top")) {
+      if (scene.startsWith("export-drawer-b1-12") || scene.startsWith("export-drawer-top")) {
         assert.equal(m.exportRunReach?.reachable, true, `${scene} export`);
         assert.equal(m.exportFieldsetBorder?.style, "none", `${scene} fieldset`);
         assert.equal(m.exportFieldsetBorder?.width, "0px", `${scene} fieldset`);

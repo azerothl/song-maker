@@ -24,6 +24,9 @@ export type CaptureScene =
   | "export-drawer-top-12"
   | "export-drawer-top-16"
   | "export-drawer-top-12-after"
+  | "export-drawer-b1-12"
+  | "sep-recommended-visible"
+  | "sep-i6-commands"
   | "export-mix"
   | "export-mix-tight"
   | "export-stems-none-selected"
@@ -43,6 +46,9 @@ function parseScene(hash: string): CaptureScene {
     "export-drawer-top-12",
     "export-drawer-top-16",
     "export-drawer-top-12-after",
+    "export-drawer-b1-12",
+    "sep-recommended-visible",
+    "sep-i6-commands",
     "export-mix",
     "export-mix-tight",
     "export-stems-none-selected",
@@ -54,6 +60,7 @@ function parseScene(hash: string): CaptureScene {
 function drawerTrackCount(scene: CaptureScene): number {
   if (scene === "export-drawer-top-4") return 4;
   if (scene === "export-drawer-top-16") return 16;
+  if (scene === "export-drawer-b1-12") return 12;
   return 12;
 }
 
@@ -81,6 +88,8 @@ function SepExportA11yCaptureApp() {
   );
   const refreshSettings = useAppStore((s) => s.refreshSettings);
   const drawerTopAnchor = scene.startsWith("export-drawer-top");
+  const drawerB1Anchor = scene === "export-drawer-b1-12";
+  const sepI6 = scene === "sep-i6-commands";
   const mixTight = scene === "export-mix-tight";
   const regenOnly = scene === "regen-gate-blocked";
 
@@ -100,6 +109,10 @@ function SepExportA11yCaptureApp() {
       setSeparateOpen(false);
       return;
     }
+    if (scene === "sep-i6-commands") {
+      setSeparateOpen(false);
+      return;
+    }
     if (scene.startsWith("sep-")) {
       setSeparateOpen(true);
       return;
@@ -108,7 +121,7 @@ function SepExportA11yCaptureApp() {
   }, [scene, regenOnly]);
 
   useEffect(() => {
-    if (regenOnly || scene.startsWith("sep-")) return;
+    if (regenOnly || scene.startsWith("sep-") || drawerB1Anchor) return;
     const timer = window.setTimeout(() => {
       document
         .querySelector<HTMLButtonElement>("[data-capture-export-trigger]")
@@ -116,6 +129,25 @@ function SepExportA11yCaptureApp() {
     }, 300);
     return () => window.clearTimeout(timer);
   }, [scene, regenOnly]);
+
+  useEffect(() => {
+    if (scene !== "export-drawer-b1-12") return;
+    const openTimer = window.setTimeout(() => {
+      document
+        .querySelector<HTMLButtonElement>("[data-capture-export-trigger]")
+        ?.click();
+    }, 280);
+    const stemsTimer = window.setTimeout(() => {
+      const radios = document.querySelectorAll<HTMLInputElement>(
+        '.export-dialog-popin input[name="export-mode"]',
+      );
+      if (radios.length >= 2) radios[1].click();
+    }, 750);
+    return () => {
+      window.clearTimeout(openTimer);
+      window.clearTimeout(stemsTimer);
+    };
+  }, [scene]);
 
   useEffect(() => {
     if (scene !== "export-drawer-top-12-after") return;
@@ -147,28 +179,30 @@ function SepExportA11yCaptureApp() {
     if (!scroll) return;
     if (
       scene === "sep-header" ||
+      scene === "sep-recommended-visible" ||
       scene === "sep-unmeasured-badge" ||
-      scene === "sep-exclusions" ||
       scene === "sep-revert" ||
       scene === "sep-run-blocked"
     ) {
       scroll.scrollTop = 0;
     } else if (scene === "sep-download") {
-      const scroll = document.querySelector<HTMLElement>(
-        ".separation-recommend-popin .anchored-popin-scroll",
-      );
-      const download = document.querySelector<HTMLElement>(
-        '[data-testid^="sep-download-"]',
-      );
-      const reason = document.querySelector<HTMLElement>(
-        '[data-testid^="sep-download-reason-"]',
-      );
-      download?.scrollIntoView({ block: "start" });
-      if (scroll && reason) {
-        const sr = scroll.getBoundingClientRect();
-        const rr = reason.getBoundingClientRect();
-        scroll.scrollTop += rr.top - sr.top - 72;
-      }
+      const timer = window.setTimeout(() => {
+        document
+          .querySelector<HTMLDetailsElement>(".sep-other-models")
+          ?.setAttribute("open", "");
+        const scroll = document.querySelector<HTMLElement>(
+          ".separation-recommend-popin .anchored-popin-scroll",
+        );
+        const reason = document.querySelector<HTMLElement>(
+          '[data-testid="sep-download-reason-bs_roformer"]',
+        );
+        reason?.scrollIntoView({ block: "center" });
+      }, 220);
+      return () => window.clearTimeout(timer);
+    } else if (scene === "sep-exclusions") {
+      document
+        .querySelector<HTMLElement>('[data-testid="sep-exclusions-summary"]')
+        ?.scrollIntoView({ block: "start" });
     } else if (scene === "sep-footer") {
       scroll.scrollTop = scroll.scrollHeight;
     }
@@ -178,10 +212,16 @@ function SepExportA11yCaptureApp() {
     if (!separateOpen) return;
     const timer = window.setTimeout(() => {
       if (scene === "sep-revert") {
+        document
+          .querySelector<HTMLDetailsElement>(".sep-other-models")
+          ?.setAttribute("open", "");
         const radios = document.querySelectorAll<HTMLInputElement>(
           'input[name="sep-model"]',
         );
         if (radios.length > 1) radios[1]?.click();
+        document
+          .querySelector<HTMLElement>('[data-testid="sep-revert-recommend"]')
+          ?.scrollIntoView({ block: "center" });
       }
       if (scene === "sep-run-blocked") {
         document.querySelector<HTMLInputElement>("#sep-model-bs_roformer")?.click();
@@ -224,6 +264,7 @@ function SepExportA11yCaptureApp() {
       className={shellClass}
       data-capture-scene={scene}
       data-capture-anchor-top={drawerTopAnchor ? "1" : undefined}
+      data-capture-drawer={drawerB1Anchor ? "1" : undefined}
     >
       <aside className="sidebar">
         <div className="brand">Song Maker</div>
@@ -246,9 +287,30 @@ function SepExportA11yCaptureApp() {
             />
           </div>
         )}
-        {!drawerTopAnchor && scene.startsWith("sep-") && (
+        {drawerB1Anchor && (
+          <div className="capture-drawer-anchor">
+            <ExportDialog
+              key={scene}
+              project={project}
+              mix={mixForDrawer}
+              sources={sourcesDrawer}
+              busy={false}
+              onBusy={() => {}}
+              onError={() => {}}
+              initialMode="mix"
+              triggerRef={exportAnchorRef}
+            />
+          </div>
+        )}
+        {!drawerTopAnchor && !drawerB1Anchor && scene.startsWith("sep-") && (
           <>
-            <div className="btn-row">
+            <div
+              className={
+                sepI6
+                  ? "btn-row capture-i6-commands production-global-actions"
+                  : "btn-row"
+              }
+            >
               <button
                 ref={separateBtnRef}
                 type="button"
@@ -257,6 +319,18 @@ function SepExportA11yCaptureApp() {
               >
                 Séparer les pistes
               </button>
+              {sepI6 && (
+                <div className="song-actions-export" role="group">
+                  <ExportDialog
+                    project={project}
+                    mix={mix12}
+                    sources={sourcesMix}
+                    busy={false}
+                    onBusy={() => {}}
+                    onError={() => {}}
+                  />
+                </div>
+              )}
             </div>
             <SeparationRecommendDialog
               open={separateOpen}
@@ -268,7 +342,7 @@ function SepExportA11yCaptureApp() {
             />
           </>
         )}
-        {!drawerTopAnchor && !scene.startsWith("sep-") && (
+        {!drawerTopAnchor && !drawerB1Anchor && !scene.startsWith("sep-") && (
           <div
             className={
               mixTight

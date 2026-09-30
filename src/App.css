@@ -6363,9 +6363,48 @@ details[open] > summary {
   word-break: break-word;
 }
 .sep-install a,
-.sep-quality-main a {
+.sep-quality-main a,
+.separation-recommend-popin a.sep-source-link {
   overflow-wrap: anywhere;
   word-break: break-word;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.sep-status-cluster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.25rem 0 0.5rem;
+}
+.sep-recommended-spotlight {
+  margin: 0.35rem 0 0.5rem;
+}
+.sep-other-models summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--accent-cyan);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.sep-exclusions-detail-body {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+}
+.production-capture-root[data-capture-drawer="1"] .capture-drawer-anchor {
+  position: fixed;
+  left: calc(var(--sidebar-width) + 12px);
+  top: 175px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  z-index: 4;
+}
+.production-global-actions .song-actions .btn,
+.production-global-actions .song-actions-export .btn {
+  min-height: 44px;
 }
 .sep-install .hint {
   overflow-wrap: anywhere;

@@ -1,18 +1,47 @@
-Preuve B1 — AnchoredPopin legacy (git 2db918a) vs calage viewport (#191)
+Preuve B1 — AnchoredPopin legacy (git 92f4f8a, parent de 0fece00) vs viewport (#196)
 
-Étapes : remplacement temporaire de src/components/AnchoredPopin.tsx, mesure Playwright
-export-drawer-top-12 @ 1280×600 (ancre haut, scène capture réelle).
+Scénario Alphonse : ancre tiroir y≈219, 12 pistes, ouverture export puis bascule « Pistes séparées ».
+Viewport 1280×768 — mesure Playwright export-drawer-b1-12.
 
 Mesure (legacy) :
 {
-  "popinTop": 8,
-  "popinBottom": 488,
-  "anchorBottom": 110.375,
-  "vh": 600,
-  "footerBottom": 487
+  "popinTop": 221.375,
+  "popinBottom": 835.765625,
+  "anchorBottom": 213.375,
+  "vh": 768,
+  "footerBottom": 834.765625,
+  "footerReach": {
+    "inViewport": false,
+    "notClippedByOverflow": false,
+    "hitTargetMatches": false,
+    "reachable": false,
+    "rect": {
+      "top": 772.171875,
+      "left": 197,
+      "bottom": 834.765625,
+      "right": 715
+    }
+  },
+  "runReach": {
+    "inViewport": false,
+    "notClippedByOverflow": false,
+    "hitTargetMatches": false,
+    "reachable": false,
+    "rect": {
+      "top": 781.96875,
+      "left": 616.953125,
+      "bottom": 825.96875,
+      "right": 703
+    }
+  }
 }
 
-Assertion B1 (behavior test) : popinTop ≥ 112.0 (calage bas viewport)
-Résultat : FAIL attendu — legacy popinTop=8 < 112
+Assertion B1 (#196) : footer.reachable === true ET run.reachable === true (pied/boutons dans le viewport, elementFromPoint).
+Attendu legacy : popin 221.4→835.8 sur vh=768 ; footerBottom=834.8.
+Résultat : FAIL attendu — legacy footer devrait être hors viewport
 
-→ anchoredPopinFooter.behavior.test.ts (assertB1Reachable) échoue avec le même fichier.
+false !== true
+
+
+→ Échec pour débordement viewport / pied non atteignable, pas pour une assertion de calage (top ≥ 112).
+→ anchoredPopinFooter.behavior.test.ts (assertB1ViewportReachable) passe avec le AnchoredPopin actuel.

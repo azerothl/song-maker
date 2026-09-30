@@ -32,6 +32,9 @@ const SCENE_HASHES = [
   "export-drawer-top-12",
   "export-drawer-top-16",
   "export-drawer-top-12-after",
+  "export-drawer-b1-12",
+  "sep-recommended-visible",
+  "sep-i6-commands",
   "export-mix",
   "export-mix-tight",
   "export-stems-none-selected",
@@ -49,6 +52,9 @@ function sceneSpecs(): SceneSpec[] {
     ) {
       specs.push({ hash, viewport: DEFAULT_VP });
       specs.push({ hash, viewport: { width: 1280, height: 600 } });
+    } else if (hash === "export-drawer-b1-12") {
+      specs.push({ hash, viewport: { width: 1280, height: 768 } });
+      specs.push({ hash, viewport: { width: 1280, height: 900 } });
     } else {
       specs.push({ hash, viewport: DEFAULT_VP });
     }
@@ -84,11 +90,15 @@ async function measureScene(
   await page.goto(`${BASE}?v=${encodeURIComponent(hash)}#${hash}`);
   const waitMs = hash.includes("after")
     ? 1400
-    : hash === "export-stems-none-selected"
-      ? 1200
-      : hash === "sep-download" || hash === "sep-unmeasured-badge"
-        ? 1100
-        : 950;
+    : hash === "export-drawer-b1-12"
+      ? 1500
+      : hash === "export-stems-none-selected"
+        ? 1200
+        : hash === "sep-download"
+          ? 1400
+          : hash === "sep-unmeasured-badge"
+            ? 1100
+            : 950;
   await page.waitForTimeout(waitMs);
 
   const metrics = await page.evaluate(
@@ -160,10 +170,43 @@ async function measureScene(
       ) as HTMLElement | null;
       const xContrast = __contrastOnElement(xIcon);
 
+      const licenseIcon = document.querySelector(
+        ".sep-unmeasured-icon",
+      ) as HTMLElement | null;
+      const licenseIconContrast = __contrastOnElement(licenseIcon);
+
       const unmeasuredBadge = document.querySelector(
         '[data-testid="sep-unmeasured-rec-badge"]',
       ) as HTMLElement | null;
       const unmeasuredContrast = __contrastOnElement(unmeasuredBadge);
+
+      const spotlight = document.querySelector(
+        ".sep-recommended-spotlight .sep-quality-main",
+      ) as HTMLElement | null;
+      const spotlightReach = __measureReachability(spotlight);
+
+      let scrollBodyPx: { scrollHeight?: number; clientHeight?: number; scrollTop?: number } | undefined;
+      if (sceneName === "sep-recommended-visible" && scroll) {
+        scrollBodyPx = {
+          scrollHeight: scroll.scrollHeight,
+          clientHeight: scroll.clientHeight,
+          scrollTop: scroll.scrollTop,
+        };
+      }
+
+      let i6OutsideBtnHeights: number[] | undefined;
+      if (sceneName === "sep-i6-commands") {
+        i6OutsideBtnHeights = Array.from(
+          document.querySelectorAll(".capture-i6-commands .btn"),
+        ).map((b) => (b as HTMLElement).getBoundingClientRect().height);
+      }
+
+      let sourceLinkHeights: number[] | undefined;
+      if (sceneName.startsWith("sep-")) {
+        sourceLinkHeights = Array.from(
+          document.querySelectorAll(".separation-recommend-popin a.sep-source-link"),
+        ).map((a) => (a as HTMLElement).getBoundingClientRect().height);
+      }
 
       let exportPopinBtnHeights: number[] | undefined;
       if (sceneName === "export-mix-tight") {
@@ -173,7 +216,10 @@ async function measureScene(
       }
 
       let exportFieldsetBorder: { style: string; width: string } | undefined;
-      if (sceneName.startsWith("export-drawer-top")) {
+      if (
+        sceneName.startsWith("export-drawer-top") ||
+        sceneName === "export-drawer-b1-12"
+      ) {
         const fs = document.querySelector(
           ".export-dialog-popin fieldset",
         ) as HTMLFieldSetElement | null;
@@ -187,10 +233,14 @@ async function measureScene(
       }
 
       const download = document.querySelector(
-        '[data-testid^="sep-download-"]',
+        sceneName === "sep-download"
+          ? '[data-testid="sep-download-bs_roformer"]'
+          : '[data-testid^="sep-download-"]',
       ) as HTMLButtonElement | null;
       const downloadReason = document.querySelector(
-        '[data-testid^="sep-download-reason-"]',
+        sceneName === "sep-download"
+          ? '[data-testid="sep-download-reason-bs_roformer"]'
+          : '[data-testid^="sep-download-reason-"]',
       ) as HTMLElement | null;
       const runBlockedReason = document.querySelector(
         '[data-testid="sep-run-blocked-reason"]',
@@ -245,8 +295,13 @@ async function measureScene(
           badge: badgeContrast,
           readDate: dateContrast,
           exclusionX: xContrast,
+          licenseIcon: licenseIconContrast,
           unmeasuredBadge: unmeasuredContrast,
         },
+        spotlightReach,
+        scrollBodyPx,
+        i6OutsideBtnHeights,
+        sourceLinkHeights,
         exportPopinBtnHeights,
         exportFieldsetBorder,
         mockupNoteAbsent: !document.body.innerText.includes("Maquette Alphonse"),
@@ -302,10 +357,14 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
     }
   }
   const footer = m.footerReach as { reachable?: boolean } | null;
-  if (hash !== "regen-gate-blocked" && !footer?.reachable) {
+  if (
+    hash !== "regen-gate-blocked" &&
+    hash !== "sep-i6-commands" &&
+    !footer?.reachable
+  ) {
     throw new Error(`B1/I2 pied non atteignable (${label})`);
   }
-  if (hash.startsWith("export-drawer-top")) {
+  if (hash === "export-drawer-b1-12" || hash.startsWith("export-drawer-top")) {
     const run = m.exportRunReach as { reachable?: boolean } | null;
     if (!run?.reachable) {
       throw new Error(`B1 Exporter non atteignable (${label})`);
@@ -324,10 +383,39 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
       throw new Error(`popin dépasse viewport (${popinRect.bottom} > ${vh})`);
     }
   }
+  if (hash === "sep-recommended-visible") {
+    const spot = m.spotlightReach as { reachable?: boolean } | null;
+    if (!spot?.reachable) {
+      throw new Error(`modèle recommandé hors vue initiale (${label})`);
+    }
+    const scroll = m.scrollBodyPx as { scrollTop?: number } | undefined;
+    if (scroll?.scrollTop != null && scroll.scrollTop > 2) {
+      throw new Error(`scroll initial ${scroll.scrollTop}px (reco devrait être sans défilement)`);
+    }
+  }
+  if (hash === "sep-i6-commands") {
+    const heights = m.i6OutsideBtnHeights as number[] | undefined;
+    if (!heights?.length) throw new Error("boutons I6 hors dialogue absents");
+    for (const h of heights) {
+      if (h < 44) throw new Error(`bouton I6 ${h}px < 44`);
+    }
+  }
+  if (hash.startsWith("sep-") && hash !== "sep-i6-commands") {
+    const links = m.sourceLinkHeights as number[] | undefined;
+    if (links?.length) {
+      for (const h of links) {
+        if (h < 44) throw new Error(`lien source ${h}px < 44 (${label})`);
+      }
+    }
+  }
   if (hash === "sep-header") {
     const title = m.titleReach as { reachable?: boolean } | null;
     if (!title?.reachable) {
       throw new Error(`titre non visible (${label})`);
+    }
+    const contrast = m.contrast as Record<string, number | null> | undefined;
+    if (contrast?.licenseIcon != null && contrast.licenseIcon < 4.5) {
+      throw new Error(`contraste pastille ${contrast.licenseIcon} < 4.5`);
     }
   }
   if (hash === "sep-footer") {
@@ -367,6 +455,21 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
       if (k === "unmeasuredBadge") continue;
       if (v != null && v < 4.5) {
         throw new Error(`contraste ${k} ${v} < 4.5 (fond effectif)`);
+      }
+    }
+    const expected: Record<string, number> = {
+      badge: 10.47,
+      readDate: 5.9,
+      licenseIcon: 9.55,
+      exclusionX: 8.74,
+    };
+    for (const [k, exp] of Object.entries(expected)) {
+      const v = contrast[k];
+      if (v == null) continue;
+      if (Math.abs(v - exp) > 0.15) {
+        console.warn(
+          `contraste ${k} mesuré ${v.toFixed(2)} ≠ attendu ~${exp} (tolérance 0,15)`,
+        );
       }
     }
   }
