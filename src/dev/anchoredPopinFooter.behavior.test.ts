@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, describe, it } from "node:test";
 import { chromium, type Page } from "playwright";
 import { VISIBILITY_BROWSER_BUNDLE } from "../../docs/design/separation-export-a11y/captures-react/visibility.browser.ts";
@@ -11,10 +9,6 @@ import {
 } from "./captureViteServer.ts";
 import type { ViteDevServer } from "vite";
 
-const ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../..",
-);
 const PORT = 5188;
 const BASE = captureBaseUrl(PORT);
 const IT_TIMEOUT_MS = 60_000;
