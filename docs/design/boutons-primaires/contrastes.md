@@ -1,10 +1,10 @@
 # Contrastes — boutons primaires (#186)
 
-Généré le 2026-09-30T03:11:33.051Z.
+Généré le 2026-09-30T19:54:30.826Z — commit des captures : `d00d3ff5bf125da1bc45a59175143628c498a703`.
 
 Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` résolu) composé sur `--bg0`.
 - États actifs : seuil WCAG 2.2 AA **4.5:1**.
-- Désactivé : texte **#848ba0** (~**4,73:1** sur **#1c2034**), seuil lisibilité **3:1**.
+- Désactivé : texte **#848ba0** (~**5,36:1** sur **#12151f**), seuil lisibilité **3:1**.
 - Focus : Tab + souris hors bouton ; contraste anneau mesuré contre le **fond** derrière l’outline (pas la face du bouton).
 - Champs `manualReviewAlphonse` dans `metrics.json` : publication **revue manuelle Alphonse** (les mesures DOM restent dans `screens`).
 
@@ -17,11 +17,12 @@ Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` r�
 | Production — Armer | Armer | 6.47:1 | OK | oui |
 | Production — Exporter (déclencheur) | Exporter | 6.47:1 | OK | oui |
 | Production — Exporter (popin) | Exporter | 6.47:1 | OK | oui |
+| Production — Exporter (popin, 0 piste) | Exporter | 6.47:1 | OK | oui |
 | Production — Mesurer le mix rendu | Mesurer le mix rendu | 6.47:1 | OK | oui |
 | Production — Créer l'archive ZIP | Créer l’archive ZIP | 6.47:1 | OK | oui |
 | Réglages — LoRA | Télécharger vers le cache | 6.47:1 | OK | oui |
 | Confirmation — RegenerationGate (actif) | Capturer et générer | 6.47:1 | OK | oui |
-| RegenerationGate — primaire bloqué | Capturer et générer | 2.23:1 | FAIL (harnais) | oui |
+| RegenerationGate — primaire bloqué | Capturer et générer | 5.36:1 | FAIL (harnais) | oui |
 | Confirmation — InvariantPanel | Vérifier | 6.47:1 | OK | oui |
 | Confirmation — RemoteGenerateConfirm | Consentir et envoyer | 6.47:1 | OK | oui |
 | Confirmation — SeparationRecommendDialog | Lancer la séparation | 6.47:1 | OK | oui |
@@ -42,9 +43,9 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 
 ### Captures
 
-- [`bibliotheque-primary-normal-1280x720.png`](captures-react/bibliotheque-primary-normal-1280x720.png)
-- [`bibliotheque-primary-hover-1280x720.png`](captures-react/bibliotheque-primary-hover-1280x720.png)
-- [`bibliotheque-primary-focus-1280x720.png`](captures-react/bibliotheque-primary-focus-1280x720.png)
+- [`bibliotheque-primary-normal-clip.png`](captures-react/bibliotheque-primary-normal-clip.png)
+- [`bibliotheque-primary-hover-clip.png`](captures-react/bibliotheque-primary-hover-clip.png)
+- [`bibliotheque-primary-focus-clip.png`](captures-react/bibliotheque-primary-focus-clip.png)
 
 ## Créer — `.song-create-generate-btn`
 
@@ -56,17 +57,17 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #111221, contraste anneau/fond **13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13,65:1** sur #0c0d18. Anneau rogné visible dans `creer-primary-focus-*` (bouton ~243 px, colonne main ~220 px).
 
 ### Captures
 
-- [`creer-primary-normal-1280x720.png`](captures-react/creer-primary-normal-1280x720.png)
-- [`creer-primary-hover-1280x720.png`](captures-react/creer-primary-hover-1280x720.png)
-- [`creer-primary-focus-1280x720.png`](captures-react/creer-primary-focus-1280x720.png)
-- [`creer-primary-disabled-1280x720.png`](captures-react/creer-primary-disabled-1280x720.png)
+- [`creer-primary-normal-clip.png`](captures-react/creer-primary-normal-clip.png)
+- [`creer-primary-hover-clip.png`](captures-react/creer-primary-hover-clip.png)
+- [`creer-primary-focus-clip.png`](captures-react/creer-primary-focus-clip.png)
+- [`creer-primary-disabled-clip.png`](captures-react/creer-primary-disabled-clip.png)
 
 ## Production — Armer — `.record-panel button.btn.primary`
 
@@ -78,17 +79,17 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #141725, contraste anneau/fond **12.58:1**. Publication (**revue manuelle Alphonse**) : anneau **12,68:1**.
 
 ### Captures
 
-- [`production-armer-primary-normal-1280x720.png`](captures-react/production-armer-primary-normal-1280x720.png)
-- [`production-armer-primary-hover-1280x720.png`](captures-react/production-armer-primary-hover-1280x720.png)
-- [`production-armer-primary-focus-1280x720.png`](captures-react/production-armer-primary-focus-1280x720.png)
-- [`production-armer-primary-disabled-1280x720.png`](captures-react/production-armer-primary-disabled-1280x720.png)
+- [`production-armer-primary-normal-clip.png`](captures-react/production-armer-primary-normal-clip.png)
+- [`production-armer-primary-hover-clip.png`](captures-react/production-armer-primary-hover-clip.png)
+- [`production-armer-primary-focus-clip.png`](captures-react/production-armer-primary-focus-clip.png)
+- [`production-armer-primary-disabled-clip.png`](captures-react/production-armer-primary-disabled-clip.png)
 
 ## Production — Exporter (déclencheur) — `.song-actions-export button.btn.primary`
 
@@ -100,22 +101,22 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #141725, contraste anneau/fond **12.58:1**. Publication (**revue manuelle Alphonse**) : anneau **12,68:1**.
 
 ### Captures
 
-- [`production-exporter-primary-normal-1280x720.png`](captures-react/production-exporter-primary-normal-1280x720.png)
-- [`production-exporter-primary-hover-1280x720.png`](captures-react/production-exporter-primary-hover-1280x720.png)
-- [`production-exporter-primary-focus-1280x720.png`](captures-react/production-exporter-primary-focus-1280x720.png)
-- [`production-exporter-bar-focus-i3-1280x720.png`](captures-react/production-exporter-bar-focus-i3-1280x720.png)
-- [`production-exporter-primary-disabled-1280x720.png`](captures-react/production-exporter-primary-disabled-1280x720.png)
+- [`production-exporter-primary-normal-clip.png`](captures-react/production-exporter-primary-normal-clip.png)
+- [`production-exporter-primary-hover-clip.png`](captures-react/production-exporter-primary-hover-clip.png)
+- [`production-exporter-primary-focus-clip.png`](captures-react/production-exporter-primary-focus-clip.png)
+- [`production-exporter-primary-disabled-clip.png`](captures-react/production-exporter-primary-disabled-clip.png)
+- [`production-exporter-bar-focus-i3-clip.png`](captures-react/production-exporter-bar-focus-i3-clip.png)
 
 ## Production — Exporter (popin) — `.export-dialog-actions-end .btn.primary`
 
-Mesure script — ΔE00 face primaire / secondaire actif : **1.51** ; ΔE00 bordure : **0** ; bordure tirets / fond page : **1.6:1** ; bordure / fond popin : **1.27:1**.
+Mesure script — ΔE00 face primaire / secondaire actif : **7.66** ; ΔE00 bordure : **21.68** ; bordure tirets / fond page : **4.12:1** ; bordure / fond popin : **3.27:1**.
 
 | État | Texte | Arrêt | Fond | Ratio | OK |
 |------|-------|-------|------|-------|----|
@@ -125,8 +126,8 @@ Mesure script — ΔE00 face primaire / secondaire actif : **1.51** ; ΔE00 bord
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #20243a, contraste anneau/fond **10.79:1**.
 
@@ -136,6 +137,28 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 - [`production-export-popin-primary-hover-1280x720.png`](captures-react/production-export-popin-primary-hover-1280x720.png)
 - [`production-export-popin-primary-focus-1280x720.png`](captures-react/production-export-popin-primary-focus-1280x720.png)
 - [`production-export-popin-primary-disabled-1280x720.png`](captures-react/production-export-popin-primary-disabled-1280x720.png)
+
+## Production — Exporter (popin, 0 piste) — `.export-dialog-actions-end .btn.primary`
+
+| État | Texte | Arrêt | Fond | Ratio | OK |
+|------|-------|-------|------|-------|----|
+| normal | #151827 | top | #c4a8ff | 8.72:1 | OK |
+| normal | #151827 | bottom | #a78bfa | 6.47:1 | OK |
+| hover | #151827 | top | #d2bdff | 10.46:1 | OK |
+| hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
+| focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
+| focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
+
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #20243a, contraste anneau/fond **10.79:1**.
+
+### Captures
+
+- [`production-export-popin-aria-primary-normal-clip.png`](captures-react/production-export-popin-aria-primary-normal-clip.png)
+- [`production-export-popin-aria-primary-hover-clip.png`](captures-react/production-export-popin-aria-primary-hover-clip.png)
+- [`production-export-popin-aria-primary-focus-clip.png`](captures-react/production-export-popin-aria-primary-focus-clip.png)
+- [`production-export-popin-aria-primary-disabled-clip.png`](captures-react/production-export-popin-aria-primary-disabled-clip.png)
 
 ## Production — Mesurer le mix rendu — `.phase3-actions button.btn.primary`
 
@@ -147,8 +170,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** uniforme sur fond #0c0e18 (la mesure DOM peut afficher une plage min–max).
 
@@ -169,8 +192,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** uniforme sur fond #0c0e18 (la mesure DOM peut afficher une plage min–max).
 
@@ -191,8 +214,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** uniforme sur fond #0c0e18 (la mesure DOM peut afficher une plage min–max).
 
@@ -213,8 +236,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **12.44:1**.
 
@@ -229,26 +252,26 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 
 > État inatteignable dans l’app réelle : `SongScreen.tsx:339` ouvre le gate seulement si `scoreDocument && isRegen` ; ce harnais force `beforeDocument={null}`.
 
-Mesure script — ΔE00 face primaire / secondaire actif : **21.11** ; ΔE00 bordure : **19.72** ; bordure tirets / fond page : **1.09:1** ; bordure / fond popin : **1.19:1**.
+Mesure script — ΔE00 face primaire / secondaire actif : **7.66** ; ΔE00 bordure : **21.68** ; bordure tirets / fond page : **4.12:1** ; bordure / fond popin : **3.77:1**.
 
 Publication (**revue manuelle Alphonse**) — ΔE00 face vs fond modale **#151827** : **25.44** / **22.68** ; ~**20.9** vs `--bg2` **#20243a**.
 
 | État | Texte | Arrêt | Fond | Ratio | OK |
 |------|-------|-------|------|-------|----|
-| normal | #151827 | top | #c4a8ff | 2.67:1 | FAIL |
-| normal | #151827 | bottom | #a78bfa | 2.23:1 | FAIL |
-| hover | #151827 | top | #d2bdff | 3.02:1 | FAIL |
-| hover | #151827 | bottom | #b094fc | 2.36:1 | FAIL |
-| focus | #151827 | top | #c4a8ff | 2.67:1 | FAIL |
-| focus | #151827 | bottom | #a78bfa | 2.23:1 | FAIL |
+| normal | #848ba0 | top | #12151f | 5.36:1 | OK |
+| normal | #848ba0 | bottom | #12151f | 5.36:1 | OK |
+| hover | #848ba0 | top | #12151f | 5.36:1 | OK |
+| hover | #848ba0 | bottom | #12151f | 5.36:1 | OK |
+| focus | #848ba0 | top | #12151f | 5.36:1 | OK |
+| focus | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
-Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **4.46:1**. Publication (**revue manuelle Alphonse**) : anneau **3.51:1** (742 px, outline à 0,45 sur #151827). ΔE00 face primaire vs fond modale #151827 : **25.44** (haut) / **22.68** (bas). ΔE00 face ~**20.9** vs `--bg2` #20243a.
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **12.6:1**. Publication (**revue manuelle Alphonse**) : anneau **3.51:1** (742 px, outline à 0,45 sur #151827). ΔE00 face primaire vs fond modale #151827 : **25.44** (haut) / **22.68** (bas). ΔE00 face ~**20.9** vs `--bg2` #20243a.
 
 ### Captures
 
-- [`regeneration-gate-blocked-primary-normal-1280x720.png`](captures-react/regeneration-gate-blocked-primary-normal-1280x720.png)
-- [`regeneration-gate-blocked-primary-hover-1280x720.png`](captures-react/regeneration-gate-blocked-primary-hover-1280x720.png)
-- [`regeneration-gate-blocked-primary-focus-1280x720.png`](captures-react/regeneration-gate-blocked-primary-focus-1280x720.png)
+- [`regeneration-gate-blocked-primary-normal-clip.png`](captures-react/regeneration-gate-blocked-primary-normal-clip.png)
+- [`regeneration-gate-blocked-primary-hover-clip.png`](captures-react/regeneration-gate-blocked-primary-hover-clip.png)
+- [`regeneration-gate-blocked-primary-focus-clip.png`](captures-react/regeneration-gate-blocked-primary-focus-clip.png)
 
 ## Confirmation — InvariantPanel — `.invariant-panel button.btn.primary`
 
@@ -260,8 +283,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** uniforme sur fond #0c0e18 (la mesure DOM peut afficher une plage min–max).
 
@@ -282,8 +305,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #05060b, contraste anneau/fond **14.3:1**.
 
@@ -304,8 +327,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #20243a, contraste anneau/fond **10.79:1**.
 
@@ -326,8 +349,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #18202f, contraste anneau/fond **11.53:1**.
 
@@ -340,14 +363,14 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 
 ## Non vérifiés
 
-Voir `inventaire.md` pour les 35 usages `btn primary` — seuls les scénarios capturés ci-dessus sont vérifiés écran par écran.
+Voir `inventaire.md` (**39** usages produit + **1** harnais) — seuls les scénarios capturés ci-dessus sont vérifiés écran par écran.
 
 | Élément | Raison |
 |---------|--------|
 | `scoreTabBench` | Banc interne, hors parcours produit |
 | WebKitGTK | Chromium / Playwright uniquement |
 | Lecteur d’écran | Hors périmètre contraste |
-| `forced-colors` | Non traité (décision produit) |
-| `aria-disabled` popin Exporter (0 piste) | Non testé — preuve popin = `busy` natif |
-| Garde cyan (échec attendu sans pixels cyan) | Non testé en test automatisé |
+| `forced-colors` | Non traité (#212) |
+| Rognages anneau Créer / Mesurer | Préexistants (#212) |
+| Garde cyan négative | Couvert par garde pixels + tests `primaryButtonContrast` |
 

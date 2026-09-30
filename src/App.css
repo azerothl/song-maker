@@ -560,7 +560,7 @@ option {
   transition: background-image 120ms ease, background-color 120ms ease;
 }
 
-.btn.primary:hover:not(:disabled) {
+.btn.primary:hover:not(:disabled):not([aria-disabled="true"]) {
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--accent) 76%, white),
@@ -571,18 +571,20 @@ option {
 
 /* :focus-visible anneau = règle globale `button:focus-visible` (App.css ~82) — pas de doublon. */
 
-.btn.primary:disabled {
+.btn.primary:disabled,
+.btn.primary[aria-disabled="true"] {
   /*
-   * Distinct du `.btn` secondaire actif dans les popins (#193) :
-   * texte ~4,7:1 (#848ba0), fond #1c2034 via dégradé plat (Chromium annule
-   * `background-color` sur button:disabled), bordure en tirets.
-   * Seuil lisibilité désactivé : ≥ 3:1 (cible ~4,7:1).
+   * Distinct du `.btn` secondaire actif dans les popins (#186 I2 / #193) :
+   * texte ≥ 4,5:1 (#848ba0 sur #12151f), fond via dégradé plat (Chromium
+   * annule `background-color` sur button:disabled), bordure tirets plus
+   * claire (#6a7394 ≥ 3:1 sur page et fond popin — était ~1,6 / 1,27).
+   * `aria-disabled` : état durable (0 piste, gate, séparation) — pas l’opacité .45.
    */
   opacity: 1 !important;
   cursor: not-allowed;
   color: #848ba0 !important;
-  background-image: linear-gradient(#1c2034, #1c2034) !important;
-  border-color: var(--line) !important;
+  background-image: linear-gradient(#12151f, #12151f) !important;
+  border-color: #6a7394 !important;
   border-style: dashed;
 }
 
@@ -1265,6 +1267,12 @@ option {
   align-items: center;
   gap: 0.4rem;
   flex: 1 1 auto;
+}
+
+/* #186 I3 — anneau inset + liseré sombre (≥ 3:1 vs face lavande, WCAG 1.4.11). */
+.production-mix-toolbar-actions > .btn.primary:focus-visible {
+  outline-offset: -2px;
+  box-shadow: inset 0 0 0 2px #151827;
 }
 
 .production-mix-saved {

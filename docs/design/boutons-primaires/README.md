@@ -1,23 +1,31 @@
 # Contraste des boutons primaires
 
-Correctif d’accessibilité pour `.btn.primary` (issues #186 / #193).
+Correctif d’accessibilité pour `.btn.primary` (Refs **#186** — ne ferme pas le ticket ; **#193** tokens).
+
+## SHA
+
+- **HEAD PR** : voir le commit de tête de la branche `cursor/primary-btn-i2-i3-ca11` (dernier commit de cette PR).
+- **Captures** : `captures-react/metrics.json` → `captureGitSha` = commit enregistré au lancement de `capture.mts` (méthode anti-circularité).
 
 ## Inventaire
 
-[`inventaire.md`](inventaire.md) — **34 usages** produit + **1 harnais** = **35 lignes** : **13 vérifiés**, **1 partiel**, **21 non vérifiés**.  
-Désactivé **réel** : 3 (Créer, Exporter déclencheur, Exporter popin). Vérifiés = **9** forcés + **1** n/a + **3** réels. **31** usages sans preuve de désactivé réel (**34** − **3**).
+[`inventaire.md`](inventaire.md) — **39** usages produit + **1** harnais. Tableau **écran × bouton × état** avec **[M]** mesuré / **[C]** calculé / **[—]** non testé.
+
+**15** scénarios Playwright (dont popin Exporter `aria-disabled` 0 piste et gate bloqué). **17** usages restent sans capture dédiée (Créer avancé, enregistrement, Confirmer mix/copilote, MIDI, partition, clips, dialogues profils, etc.).
 
 ## Preuves
 
-- [`captures-react/`](captures-react/) — PNG + `metrics.json` + `capture.mts`
+- [`captures-react/`](captures-react/) — PNG (`-clip.png` ou `-1280x720.png`) + `metrics.json` + `capture.mts`
 - [`contrastes.md`](contrastes.md) — synthèse régénérée
+- Tests : `src/lib/primaryButtonContrast.test.ts` (désactivé **5,36:1**, I3 deux tons, règles CSS)
 
-Texte désactivé mesuré : **`#848ba0`** sur **`#1c2034`** → **4,73:1**.
+Texte désactivé : **`#848ba0`** sur **`#12151f`** → **`disabledTextRatioOnFace`** dans `metrics.json` (actuellement **5,36**).
 
-## Non testé
+## I2 / I3
 
-WebKitGTK, lecteur d’écran, `forced-colors`, `aria-disabled` popin Exporter (0 piste), test négatif garde cyan.
+- **I2** — `:disabled` + `aria-disabled="true"` : même rendu sombre à tirets (≥ 4,5:1).
+- **I3** — Anneau inset barre mix avec liseré **#151827** ; popins Assistant/Copilote **non** ciblés (sélecteur `>`).
 
-## Signalé (I2 / I3)
+## Non testé / #212
 
-Voir `inventaire.md` — bordure popin 1,60:1 (page) / 1,27:1 (fond popin) ; anneau Exporter parfois coupé.
+WebKitGTK, lecteur d’écran, `forced-colors`, rognages d’anneau hors barre mix.

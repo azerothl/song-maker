@@ -9,9 +9,18 @@ import {
 export const PRIMARY_BUTTON_TEXT = "#151827";
 export const PRIMARY_BUTTON_GRADIENT_TOP = "#c4a8ff";
 export const PRIMARY_BUTTON_GRADIENT_BOTTOM = "#a78bfa";
-/** Texte désactivé — ~4,7:1 sur fond `#1c2034`, distinct du secondaire (#193). */
+/** Texte désactivé — 5,36:1 sur fond `#12151f` (I2 #186), distinct du secondaire (#193). */
 export const PRIMARY_BUTTON_DISABLED_TEXT = "#848ba0";
-export const PRIMARY_BUTTON_DISABLED_BG = "#1c2034";
+export const PRIMARY_BUTTON_DISABLED_BG = "#12151f";
+export const PRIMARY_BUTTON_DISABLED_TEXT_RATIO_ON_FACE = contrastRatio(
+  PRIMARY_BUTTON_DISABLED_TEXT,
+  PRIMARY_BUTTON_DISABLED_BG,
+);
+
+/** Anneau focus I3 — séparation cyan / face (liseré inset). */
+export const PRIMARY_BUTTON_FOCUS_RING = "#5eecf8";
+export const PRIMARY_BUTTON_FOCUS_INSET_SEP = "#151827";
+export const PRIMARY_BUTTON_FOCUS_INSET_MIN_CONTRAST_ON_FACE = 3;
 
 export const WCAG_AA_TEXT_MIN = 4.5;
 /** Plancher lisibilité état désactivé (#193). */
