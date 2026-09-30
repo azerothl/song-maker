@@ -6071,7 +6071,8 @@ details[open] > summary {
   display: flex;
   flex-direction: column;
   max-width: min(520px, calc(100vw - 16px));
-  max-height: min(80vh, calc(100vh - 16px));
+  /* #196 : évite recouvrement du déclencheur + pied visible (défilement interne). */
+  max-height: min(473px, calc(100vh - 16px));
   overflow: hidden;
   padding: 0;
 }
@@ -6386,9 +6387,10 @@ details[open] > summary {
 .sep-recommended-spotlight {
   margin: 0.35rem 0 0.5rem;
 }
+.sep-rec-notice,
 .sep-recommended-spotlight .sep-rec-notice {
-  font-size: 0.78rem;
-  line-height: 1.28;
+  font-size: max(14px, 0.875rem);
+  line-height: 1.35;
   margin: 0.15rem 0 0.3rem;
 }
 .sep-recommended-spotlight .sep-install-actions {

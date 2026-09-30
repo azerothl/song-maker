@@ -1,4 +1,12 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   buildQualityTimeOptions,
   canDownloadSeparator,
@@ -54,6 +62,23 @@ export function SeparationRecommendDialog({
   const [installing, setInstalling] = useState<StemProviderId | null>(null);
   const [licenseLocal, setLicenseLocal] = useState<Record<string, boolean>>({});
   const licenseDraft = useRef<Record<string, boolean>>({});
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const syncSpotlightAboveFooter = useCallback(() => {
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    const spotlight = scroll.querySelector(".sep-recommended-spotlight");
+    const footer = document.querySelector(
+      '[data-testid="sep-recommend-footer"]',
+    );
+    if (!spotlight || !footer) return;
+    const footTop = footer.getBoundingClientRect().top;
+    const spotBottom = spotlight.getBoundingClientRect().bottom;
+    const gap = spotBottom - (footTop - 8);
+    if (gap > 0.5) {
+      scroll.scrollTop += gap;
+    }
+  }, []);
 
   const refresh = async () => {
     try {
@@ -69,6 +94,7 @@ export function SeparationRecommendDialog({
       setOtherModelsOpen(false);
       return;
     }
+    scrollRef.current?.scrollTo(0, 0);
     void refresh();
     setFocus("mix");
     setSelected(recommendSeparator("mix"));
@@ -78,6 +104,32 @@ export function SeparationRecommendDialog({
     if (!open || userPickedModel) return;
     setSelected(recommendSeparator(focus));
   }, [focus, open, userPickedModel]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    syncSpotlightAboveFooter();
+    const t1 = window.setTimeout(syncSpotlightAboveFooter, 0);
+    const t2 = window.setTimeout(syncSpotlightAboveFooter, 150);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [
+    open,
+    focus,
+    selected,
+    userPickedModel,
+    otherModelsOpen,
+    phase3,
+    syncSpotlightAboveFooter,
+  ]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onResize = () => syncSpotlightAboveFooter();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [open, syncSpotlightAboveFooter]);
 
   const accepted = {
     ...(settings?.acceptedSeparatorLicenses ?? {}),
@@ -322,14 +374,16 @@ export function SeparationRecommendDialog({
                 ) : (
                   <>
                     <SeparatorLicenseBadge license={license} />{" "}
-                    <a
-                      className="sep-source-link"
-                      href={license.sourceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {license.sourceLabelFr}
-                    </a>
+                    {opt.id !== "htdemucs" && opt.id !== "htdemucs_6s" ? (
+                      <a
+                        className="sep-source-link"
+                        href={license.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {license.sourceLabelFr}
+                      </a>
+                    ) : null}
                   </>
                 )}
               </>
@@ -432,7 +486,7 @@ export function SeparationRecommendDialog({
       labelId={titleId}
       className="separation-recommend-popin"
     >
-      <div className="anchored-popin-scroll">
+      <div className="anchored-popin-scroll" ref={scrollRef}>
         <header className="anchored-popin-header">
           <h3 id={titleId}>{t("separate.recommend.title")}</h3>
           <p className="hint">{t("separate.recommend.intro")}</p>

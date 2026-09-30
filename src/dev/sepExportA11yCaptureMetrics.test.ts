@@ -24,6 +24,9 @@ type SceneMetrics = {
   exportPopinBtnHeights?: number[];
   i6OutsideBtnHeights?: number[];
   contrast?: Record<string, number | null>;
+  sepRecommendAnchorOverlapPx?: number | null;
+  noticeFontPx?: number | null;
+  demucs327LinkCount?: number | null;
 };
 
 describe("captures-react séparation / export (#187 / #191)", () => {
@@ -89,6 +92,23 @@ describe("captures-react séparation / export (#187 / #191)", () => {
       if (typeof v === "number") {
         assert.ok(v >= 4.5, `contraste ${k}: ${v} (fond effectif)`);
       }
+    }
+    for (const suffix of ["1280x720", "1280x768", "1280x640"]) {
+      const key = `sep-header-${suffix}`;
+      const m = metrics[key];
+      assert.ok(m, key);
+      assert.ok(
+        (m.sepRecommendAnchorOverlapPx ?? 99) <= 0.51,
+        `${key} overlap ${m.sepRecommendAnchorOverlapPx}`,
+      );
+      assert.ok(
+        (m.noticeFontPx ?? 0) >= 14,
+        `${key} notice ${m.noticeFontPx}px`,
+      );
+      assert.ok(
+        (m.demucs327LinkCount ?? 0) <= 1,
+        `${key} liens Demucs ${m.demucs327LinkCount}`,
+      );
     }
   });
 });

@@ -238,7 +238,7 @@ const all: Record<string, I6Metrics> = {};
 try {
   await waitServer(BASE);
   const browser = await chromium.launch();
-
+  try {
   for (const scene of SCENES) {
     const page = await browser.newPage();
     await page.setViewportSize(VP);
@@ -260,11 +260,13 @@ try {
     await page.close();
   }
 
-  await browser.close();
   writeFileSync(
     path.join(OUT, "i6-production-metrics.json"),
     JSON.stringify(all, null, 2),
   );
+  } finally {
+    await browser.close();
+  }
 } finally {
   vite.kill("SIGTERM");
 }

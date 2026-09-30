@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { DEMUCS_327_ISSUE_URL, HTDEMUCS_NOTICE_FR } from "@song-maker/stem-providers";
 import type { InstallPlan, InstallProgress, SetupGpuInfo } from "./types.ts";
 import {
   FIRST_LAUNCH_TOKENS,
@@ -15,6 +16,8 @@ import {
   fileStatusShowsWarningIcon,
   gpuDetailLine,
   installErrorCopy,
+  HTDEMUCS_FIRST_LAUNCH_NOTICE_FR,
+  HTDEMUCS_LICENSE_URL,
   LICENSE_REQUIRED_FR,
   licenseAllowsDownload,
   modelPackVramFailureRisk,
@@ -254,6 +257,13 @@ describe("firstLaunch formatters", () => {
 });
 
 describe("firstLaunch licence et VRAM", () => {
+  it("réutilise la notice HTDemucs canonique (sans #issuecomment)", () => {
+    assert.equal(HTDEMUCS_LICENSE_URL, DEMUCS_327_ISSUE_URL);
+    assert.doesNotMatch(HTDEMUCS_LICENSE_URL, /issuecomment/);
+    assert.equal(HTDEMUCS_FIRST_LAUNCH_NOTICE_FR, HTDEMUCS_NOTICE_FR);
+    assert.match(HTDEMUCS_FIRST_LAUNCH_NOTICE_FR, /Demucs #327/);
+  });
+
   it("bloque le téléchargement tant que la licence n’est pas acceptée", () => {
     assert.equal(LICENSE_REQUIRED_FR, "Acceptez la licence pour continuer.");
     assert.equal(licenseAllowsDownload(false, false), false);

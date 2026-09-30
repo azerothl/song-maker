@@ -179,6 +179,15 @@ function SepExportA11yCaptureApp() {
   }, [scene]);
 
   useEffect(() => {
+    if (!separateOpen || !scene.startsWith("sep-")) return;
+    document
+      .querySelector<HTMLElement>(
+        ".separation-recommend-popin .anchored-popin-scroll",
+      )
+      ?.scrollTo(0, 0);
+  }, [scene, separateOpen]);
+
+  useEffect(() => {
     if (!separateOpen) return;
     const scroll = document.querySelector<HTMLElement>(
       ".separation-recommend-popin .anchored-popin-scroll",
@@ -343,6 +352,7 @@ function SepExportA11yCaptureApp() {
                 ref={separateBtnRef}
                 type="button"
                 className="btn primary"
+                data-testid="sep-recommend-trigger"
                 onClick={() => setSeparateOpen(true)}
               >
                 Séparer les pistes

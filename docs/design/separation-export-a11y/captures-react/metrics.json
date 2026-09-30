@@ -7,12 +7,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 8,
+      "y": 193.25,
       "width": 520,
-      "height": 576,
-      "top": 8,
+      "height": 473,
+      "top": 193.25,
       "right": 724,
-      "bottom": 584,
+      "bottom": 666.25,
       "left": 204
     },
     "footerReach": {
@@ -21,9 +21,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 520.41,
+        "top": 602.66,
         "left": 205,
-        "bottom": 583,
+        "bottom": 665.25,
         "right": 723
       }
     },
@@ -34,21 +34,21 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 530.2,
+        "top": 612.45,
         "left": 301.3,
-        "bottom": 574.2,
+        "bottom": 656.45,
         "right": 465.22
       }
     },
     "titleReach": {
       "inViewport": true,
-      "notClippedByOverflow": true,
-      "hitTargetMatches": true,
-      "reachable": true,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
       "rect": {
-        "top": 19.39,
+        "top": 123.64,
         "left": 217,
-        "bottom": 41.39,
+        "bottom": 145.64,
         "right": 711
       }
     },
@@ -58,9 +58,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1188.05,
+        "top": 1289.44,
         "left": 255.19,
-        "bottom": 1207.05,
+        "bottom": 1308.44,
         "right": 701.41
       }
     },
@@ -70,21 +70,21 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1140.05,
+        "top": 1241.44,
         "left": 255.19,
-        "bottom": 1184.05,
+        "bottom": 1285.44,
         "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 640.09,
+        "top": 777.84,
         "left": 226.8,
-        "bottom": 660.09,
+        "bottom": 797.84,
         "right": 701.2
       }
     },
@@ -112,34 +112,34 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 239.08,
+        "top": 343.33,
         "left": 217,
-        "bottom": 457.5,
+        "bottom": 595.25,
         "right": 711
       }
     },
-    "spotlightFooterClearancePx": 62.91,
+    "spotlightFooterClearancePx": 7.41,
     "unmeasuredBadgeReach": {
       "inViewport": true,
       "notClippedByOverflow": true,
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 196.98,
+        "top": 301.23,
         "left": 217,
-        "bottom": 223.08,
+        "bottom": 327.33,
         "right": 431.67
       }
     },
     "exclusionXReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 665.69,
+        "top": 803.44,
         "left": 244.39,
-        "bottom": 683.69,
+        "bottom": 821.44,
         "right": 255.39
       }
     },
@@ -148,9 +148,323 @@
       44,
       44,
       44,
+      44
+    ],
+    "sepRecommendAnchorOverlapPx": 0,
+    "noticeFontPx": 14,
+    "demucs327LinkCount": 1,
+    "mockupNoteAbsent": true
+  },
+  "sep-header-1280x768": {
+    "scene": "sep-header",
+    "viewport": {
+      "width": 1280,
+      "height": 768
+    },
+    "popinRect": {
+      "x": 204,
+      "y": 193.25,
+      "width": 520,
+      "height": 473,
+      "top": 193.25,
+      "right": 724,
+      "bottom": 666.25,
+      "left": 204
+    },
+    "footerReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 602.66,
+        "left": 205,
+        "bottom": 665.25,
+        "right": 723
+      }
+    },
+    "exportRunReach": null,
+    "sepRunReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 612.45,
+        "left": 301.3,
+        "bottom": 656.45,
+        "right": 465.22
+      }
+    },
+    "titleReach": {
+      "inViewport": true,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 123.64,
+        "left": 217,
+        "bottom": 145.64,
+        "right": 711
+      }
+    },
+    "downloadReasonReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 1289.44,
+        "left": 255.19,
+        "bottom": 1308.44,
+        "right": 701.41
+      }
+    },
+    "downloadReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 1241.44,
+        "left": 255.19,
+        "bottom": 1285.44,
+        "right": 431.83
+      }
+    },
+    "exclusionsSummaryReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 777.84,
+        "left": 226.8,
+        "bottom": 797.84,
+        "right": 701.2
+      }
+    },
+    "revertReach": null,
+    "runBlockedReasonReach": null,
+    "formatLivePresent": false,
+    "exportDisabledReasonReach": null,
+    "exportDescribedByLinked": false,
+    "horizontalOverflow": {
+      "scrollWidth": 518,
+      "clientWidth": 518,
+      "ok": true
+    },
+    "downloadAriaDisabled": true,
+    "contrast": {
+      "badge": 10.47,
+      "readDate": 5.9,
+      "exclusionX": 8.74,
+      "licenseIcon": 9.55,
+      "unmeasuredBadge": 9.55
+    },
+    "spotlightReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 343.33,
+        "left": 217,
+        "bottom": 595.25,
+        "right": 711
+      }
+    },
+    "spotlightFooterClearancePx": 7.41,
+    "unmeasuredBadgeReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 301.23,
+        "left": 217,
+        "bottom": 327.33,
+        "right": 431.67
+      }
+    },
+    "exclusionXReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 803.44,
+        "left": 244.39,
+        "bottom": 821.44,
+        "right": 255.39
+      }
+    },
+    "manualPickReach": null,
+    "sourceLinkHeights": [
+      44,
+      44,
       44,
       44
     ],
+    "sepRecommendAnchorOverlapPx": 0,
+    "noticeFontPx": 14,
+    "demucs327LinkCount": 1,
+    "mockupNoteAbsent": true
+  },
+  "sep-header-1280x640": {
+    "scene": "sep-header",
+    "viewport": {
+      "width": 1280,
+      "height": 640
+    },
+    "popinRect": {
+      "x": 204,
+      "y": 193.25,
+      "width": 520,
+      "height": 438.75,
+      "top": 193.25,
+      "right": 724,
+      "bottom": 632,
+      "left": 204
+    },
+    "footerReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 568.41,
+        "left": 205,
+        "bottom": 631,
+        "right": 723
+      }
+    },
+    "exportRunReach": null,
+    "sepRunReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 578.2,
+        "left": 301.3,
+        "bottom": 622.2,
+        "right": 465.22
+      }
+    },
+    "titleReach": {
+      "inViewport": true,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 89.64,
+        "left": 217,
+        "bottom": 111.64,
+        "right": 711
+      }
+    },
+    "downloadReasonReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 1255.44,
+        "left": 255.19,
+        "bottom": 1274.44,
+        "right": 701.41
+      }
+    },
+    "downloadReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 1207.44,
+        "left": 255.19,
+        "bottom": 1251.44,
+        "right": 431.83
+      }
+    },
+    "exclusionsSummaryReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 743.84,
+        "left": 226.8,
+        "bottom": 763.84,
+        "right": 701.2
+      }
+    },
+    "revertReach": null,
+    "runBlockedReasonReach": null,
+    "formatLivePresent": false,
+    "exportDisabledReasonReach": null,
+    "exportDescribedByLinked": false,
+    "horizontalOverflow": {
+      "scrollWidth": 518,
+      "clientWidth": 518,
+      "ok": true
+    },
+    "downloadAriaDisabled": true,
+    "contrast": {
+      "badge": 10.47,
+      "readDate": 5.9,
+      "exclusionX": 8.74,
+      "licenseIcon": 9.55,
+      "unmeasuredBadge": 9.55
+    },
+    "spotlightReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 309.33,
+        "left": 217,
+        "bottom": 561.25,
+        "right": 711
+      }
+    },
+    "spotlightFooterClearancePx": 7.16,
+    "unmeasuredBadgeReach": {
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
+      "rect": {
+        "top": 267.23,
+        "left": 217,
+        "bottom": 293.33,
+        "right": 431.67
+      }
+    },
+    "exclusionXReach": {
+      "inViewport": false,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
+      "rect": {
+        "top": 769.44,
+        "left": 244.39,
+        "bottom": 787.44,
+        "right": 255.39
+      }
+    },
+    "manualPickReach": null,
+    "sourceLinkHeights": [
+      44,
+      44,
+      44,
+      44
+    ],
+    "sepRecommendAnchorOverlapPx": 0,
+    "noticeFontPx": 14,
+    "demucs327LinkCount": 1,
     "mockupNoteAbsent": true
   },
   "sep-footer-1280x720": {
@@ -161,12 +475,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 8,
+      "y": 193.25,
       "width": 520,
-      "height": 576,
-      "top": 8,
+      "height": 473,
+      "top": 193.25,
       "right": 724,
-      "bottom": 584,
+      "bottom": 666.25,
       "left": 204
     },
     "footerReach": {
@@ -175,9 +489,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 520.41,
+        "top": 602.66,
         "left": 205,
-        "bottom": 583,
+        "bottom": 665.25,
         "right": 723
       }
     },
@@ -188,9 +502,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 530.2,
+        "top": 612.45,
         "left": 301.3,
-        "bottom": 574.2,
+        "bottom": 656.45,
         "right": 465.22
       }
     },
@@ -200,9 +514,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -247.61,
+        "top": -198.36,
         "left": 217,
-        "bottom": -225.61,
+        "bottom": -176.36,
         "right": 711
       }
     },
@@ -212,9 +526,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 921.05,
+        "top": 967.44,
         "left": 255.19,
-        "bottom": 940.05,
+        "bottom": 986.44,
         "right": 701.41
       }
     },
@@ -224,9 +538,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 873.05,
+        "top": 919.44,
         "left": 255.19,
-        "bottom": 917.05,
+        "bottom": 963.44,
         "right": 431.83
       }
     },
@@ -236,9 +550,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 373.09,
+        "top": 455.84,
         "left": 226.8,
-        "bottom": 393.09,
+        "bottom": 475.84,
         "right": 701.2
       }
     },
@@ -261,27 +575,27 @@
       "unmeasuredBadge": 9.55
     },
     "spotlightReach": {
-      "inViewport": false,
+      "inViewport": true,
       "notClippedByOverflow": false,
-      "hitTargetMatches": true,
+      "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -27.92,
+        "top": 21.33,
         "left": 217,
-        "bottom": 190.5,
+        "bottom": 273.25,
         "right": 711
       }
     },
-    "spotlightFooterClearancePx": 329.91,
+    "spotlightFooterClearancePx": 329.41,
     "unmeasuredBadgeReach": {
       "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -70.02,
+        "top": -20.77,
         "left": 217,
-        "bottom": -43.92,
+        "bottom": 5.33,
         "right": 431.67
       }
     },
@@ -291,9 +605,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 398.69,
+        "top": 481.44,
         "left": 244.39,
-        "bottom": 416.69,
+        "bottom": 499.44,
         "right": 255.39
       }
     },
@@ -302,9 +616,11 @@
       44,
       44,
       44,
-      44,
       44
     ],
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "sep-download-1280x720": {
@@ -315,12 +631,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 8,
+      "y": 193.25,
       "width": 520,
-      "height": 576,
-      "top": 8,
+      "height": 473,
+      "top": 193.25,
       "right": 724,
-      "bottom": 584,
+      "bottom": 666.25,
       "left": 204
     },
     "footerReach": {
@@ -329,9 +645,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 520.41,
+        "top": 602.66,
         "left": 205,
-        "bottom": 583,
+        "bottom": 665.25,
         "right": 723
       }
     },
@@ -342,9 +658,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 530.2,
+        "top": 612.45,
         "left": 301.3,
-        "bottom": 574.2,
+        "bottom": 656.45,
         "right": 465.22
       }
     },
@@ -354,9 +670,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -1360.61,
+        "top": -1171.36,
         "left": 217,
-        "bottom": -1338.61,
+        "bottom": -1149.36,
         "right": 711
       }
     },
@@ -366,9 +682,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 254.8,
+        "top": 389.05,
         "left": 255.19,
-        "bottom": 273.8,
+        "bottom": 408.05,
         "right": 701.41
       }
     },
@@ -378,9 +694,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 206.8,
+        "top": 341.05,
         "left": 255.19,
-        "bottom": 250.8,
+        "bottom": 385.05,
         "right": 431.83
       }
     },
@@ -390,9 +706,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -739.91,
+        "top": -517.16,
         "left": 226.8,
-        "bottom": -719.91,
+        "bottom": -497.16,
         "right": 701.2
       }
     },
@@ -420,22 +736,22 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -1140.92,
+        "top": -951.67,
         "left": 217,
-        "bottom": -922.5,
+        "bottom": -699.75,
         "right": 711
       }
     },
-    "spotlightFooterClearancePx": 1442.91,
+    "spotlightFooterClearancePx": 1302.41,
     "unmeasuredBadgeReach": {
       "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -1183.02,
+        "top": -993.77,
         "left": 217,
-        "bottom": -1156.92,
+        "bottom": -967.67,
         "right": 431.67
       }
     },
@@ -445,9 +761,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -714.31,
+        "top": -491.56,
         "left": 244.39,
-        "bottom": -696.31,
+        "bottom": -473.56,
         "right": 255.39
       }
     },
@@ -456,9 +772,11 @@
       44,
       44,
       44,
-      44,
       44
     ],
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "sep-exclusions-1280x720": {
@@ -469,12 +787,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 8,
+      "y": 193.25,
       "width": 520,
-      "height": 576,
-      "top": 8,
+      "height": 473,
+      "top": 193.25,
       "right": 724,
-      "bottom": 584,
+      "bottom": 666.25,
       "left": 204
     },
     "footerReach": {
@@ -483,9 +801,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 520.41,
+        "top": 602.66,
         "left": 205,
-        "bottom": 583,
+        "bottom": 665.25,
         "right": 723
       }
     },
@@ -496,9 +814,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 530.2,
+        "top": 612.45,
         "left": 301.3,
-        "bottom": 574.2,
+        "bottom": 656.45,
         "right": 465.22
       }
     },
@@ -508,9 +826,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -247.61,
+        "top": -198.36,
         "left": 217,
-        "bottom": -225.61,
+        "bottom": -176.36,
         "right": 711
       }
     },
@@ -520,9 +838,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 921.05,
+        "top": 967.44,
         "left": 255.19,
-        "bottom": 940.05,
+        "bottom": 986.44,
         "right": 701.41
       }
     },
@@ -532,9 +850,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 873.05,
+        "top": 919.44,
         "left": 255.19,
-        "bottom": 917.05,
+        "bottom": 963.44,
         "right": 431.83
       }
     },
@@ -544,9 +862,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 373.09,
+        "top": 455.84,
         "left": 226.8,
-        "bottom": 393.09,
+        "bottom": 475.84,
         "right": 701.2
       }
     },
@@ -569,27 +887,27 @@
       "unmeasuredBadge": 9.55
     },
     "spotlightReach": {
-      "inViewport": false,
+      "inViewport": true,
       "notClippedByOverflow": false,
-      "hitTargetMatches": true,
+      "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -27.92,
+        "top": 21.33,
         "left": 217,
-        "bottom": 190.5,
+        "bottom": 273.25,
         "right": 711
       }
     },
-    "spotlightFooterClearancePx": 329.91,
+    "spotlightFooterClearancePx": 329.41,
     "unmeasuredBadgeReach": {
       "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -70.02,
+        "top": -20.77,
         "left": 217,
-        "bottom": -43.92,
+        "bottom": 5.33,
         "right": 431.67
       }
     },
@@ -599,9 +917,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 398.69,
+        "top": 481.44,
         "left": 244.39,
-        "bottom": 416.69,
+        "bottom": 499.44,
         "right": 255.39
       }
     },
@@ -610,9 +928,11 @@
       44,
       44,
       44,
-      44,
       44
     ],
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "sep-revert-1280x720": {
@@ -623,12 +943,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 8,
+      "y": 193.25,
       "width": 520,
-      "height": 576,
-      "top": 8,
+      "height": 473,
+      "top": 193.25,
       "right": 724,
-      "bottom": 584,
+      "bottom": 666.25,
       "left": 204
     },
     "footerReach": {
@@ -637,9 +957,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 494.22,
+        "top": 576.47,
         "left": 205,
-        "bottom": 583,
+        "bottom": 665.25,
         "right": 723
       }
     },
@@ -650,9 +970,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 530.2,
+        "top": 612.45,
         "left": 301.3,
-        "bottom": 574.2,
+        "bottom": 656.45,
         "right": 465.22
       }
     },
@@ -662,9 +982,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -389.61,
+        "top": -289.36,
         "left": 217,
-        "bottom": -367.61,
+        "bottom": -267.36,
         "right": 711
       }
     },
@@ -674,9 +994,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 849.44,
+        "top": 946.83,
         "left": 255.19,
-        "bottom": 868.44,
+        "bottom": 965.83,
         "right": 701.41
       }
     },
@@ -686,9 +1006,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 801.44,
+        "top": 898.83,
         "left": 255.19,
-        "bottom": 845.44,
+        "bottom": 942.83,
         "right": 431.83
       }
     },
@@ -698,9 +1018,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 299.09,
+        "top": 432.84,
         "left": 226.8,
-        "bottom": 319.09,
+        "bottom": 452.84,
         "right": 701.2
       }
     },
@@ -710,9 +1030,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 230.09,
+        "top": 363.84,
         "left": 217,
-        "bottom": 274.09,
+        "bottom": 407.84,
         "right": 442.34
       }
     },
@@ -722,9 +1042,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 504.02,
+        "top": 586.27,
         "left": 217,
-        "bottom": 523.02,
+        "bottom": 605.27,
         "right": 711
       }
     },
@@ -751,22 +1071,22 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -169.92,
+        "top": -69.67,
         "left": 217,
-        "bottom": 48.5,
+        "bottom": 182.25,
         "right": 711
       }
     },
-    "spotlightFooterClearancePx": 445.72,
+    "spotlightFooterClearancePx": 394.22,
     "unmeasuredBadgeReach": {
       "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -212.02,
+        "top": -111.77,
         "left": 217,
-        "bottom": -185.92,
+        "bottom": -85.67,
         "right": 431.67
       }
     },
@@ -776,9 +1096,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 324.69,
+        "top": 458.44,
         "left": 244.39,
-        "bottom": 342.69,
+        "bottom": 476.44,
         "right": 255.39
       }
     },
@@ -787,9 +1107,11 @@
       44,
       44,
       44,
-      44,
       44
     ],
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "sep-run-blocked-1280x720": {
@@ -800,12 +1122,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 8,
+      "y": 193.25,
       "width": 520,
-      "height": 576,
-      "top": 8,
+      "height": 473,
+      "top": 193.25,
       "right": 724,
-      "bottom": 584,
+      "bottom": 666.25,
       "left": 204
     },
     "footerReach": {
@@ -814,9 +1136,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 494.22,
+        "top": 576.47,
         "left": 205,
-        "bottom": 583,
+        "bottom": 665.25,
         "right": 723
       }
     },
@@ -827,9 +1149,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 530.2,
+        "top": 612.45,
         "left": 301.3,
-        "bottom": 574.2,
+        "bottom": 656.45,
         "right": 465.22
       }
     },
@@ -839,9 +1161,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 19.39,
+        "top": 204.64,
         "left": 217,
-        "bottom": 41.39,
+        "bottom": 226.64,
         "right": 711
       }
     },
@@ -851,9 +1173,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 995.94,
+        "top": 1144.83,
         "left": 255.19,
-        "bottom": 1014.94,
+        "bottom": 1163.83,
         "right": 701.41
       }
     },
@@ -863,21 +1185,21 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 947.94,
+        "top": 1096.83,
         "left": 255.19,
-        "bottom": 991.94,
+        "bottom": 1140.83,
         "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
       "inViewport": true,
       "notClippedByOverflow": true,
-      "hitTargetMatches": true,
-      "reachable": true,
+      "hitTargetMatches": false,
+      "reachable": false,
       "rect": {
-        "top": 447.98,
+        "top": 633.23,
         "left": 226.8,
-        "bottom": 467.98,
+        "bottom": 653.23,
         "right": 701.2
       }
     },
@@ -887,9 +1209,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 221.39,
+        "top": 406.64,
         "left": 217,
-        "bottom": 265.39,
+        "bottom": 450.64,
         "right": 442.34
       }
     },
@@ -899,9 +1221,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 504.02,
+        "top": 586.27,
         "left": 217,
-        "bottom": 523.02,
+        "bottom": 605.27,
         "right": 711
       }
     },
@@ -927,13 +1249,13 @@
     "unmeasuredBadgeReach": null,
     "exclusionXReach": {
       "inViewport": true,
-      "notClippedByOverflow": true,
-      "hitTargetMatches": true,
-      "reachable": true,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
       "rect": {
-        "top": 473.58,
+        "top": 658.83,
         "left": 244.39,
-        "bottom": 491.58,
+        "bottom": 676.83,
         "right": 255.39
       }
     },
@@ -941,9 +1263,11 @@
     "sourceLinkHeights": [
       44,
       44,
-      44,
       44
     ],
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "sep-unmeasured-badge-1280x720": {
@@ -954,12 +1278,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 8,
+      "y": 193.25,
       "width": 520,
-      "height": 576,
-      "top": 8,
+      "height": 473,
+      "top": 193.25,
       "right": 724,
-      "bottom": 584,
+      "bottom": 666.25,
       "left": 204
     },
     "footerReach": {
@@ -968,9 +1292,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 520.41,
+        "top": 602.66,
         "left": 205,
-        "bottom": 583,
+        "bottom": 665.25,
         "right": 723
       }
     },
@@ -981,9 +1305,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 530.2,
+        "top": 612.45,
         "left": 301.3,
-        "bottom": 574.2,
+        "bottom": 656.45,
         "right": 465.22
       }
     },
@@ -993,9 +1317,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 19.39,
+        "top": 204.64,
         "left": 217,
-        "bottom": 41.39,
+        "bottom": 226.64,
         "right": 711
       }
     },
@@ -1005,9 +1329,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1188.05,
+        "top": 1370.44,
         "left": 255.19,
-        "bottom": 1207.05,
+        "bottom": 1389.44,
         "right": 701.41
       }
     },
@@ -1017,21 +1341,21 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1140.05,
+        "top": 1322.44,
         "left": 255.19,
-        "bottom": 1184.05,
+        "bottom": 1366.44,
         "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 640.09,
+        "top": 858.84,
         "left": 226.8,
-        "bottom": 660.09,
+        "bottom": 878.84,
         "right": 701.2
       }
     },
@@ -1055,38 +1379,38 @@
     },
     "spotlightReach": {
       "inViewport": true,
-      "notClippedByOverflow": true,
+      "notClippedByOverflow": false,
       "hitTargetMatches": true,
-      "reachable": true,
+      "reachable": false,
       "rect": {
-        "top": 239.08,
+        "top": 424.33,
         "left": 217,
-        "bottom": 457.5,
+        "bottom": 676.25,
         "right": 711
       }
     },
-    "spotlightFooterClearancePx": 62.91,
+    "spotlightFooterClearancePx": -73.59,
     "unmeasuredBadgeReach": {
       "inViewport": true,
       "notClippedByOverflow": true,
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 196.98,
+        "top": 382.23,
         "left": 217,
-        "bottom": 223.08,
+        "bottom": 408.33,
         "right": 431.67
       }
     },
     "exclusionXReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 665.69,
+        "top": 884.44,
         "left": 244.39,
-        "bottom": 683.69,
+        "bottom": 902.44,
         "right": 255.39
       }
     },
@@ -1095,9 +1419,11 @@
       44,
       44,
       44,
-      44,
       44
     ],
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "export-drawer-top-4-1280x720": {
@@ -1183,6 +1509,9 @@
       "style": "none",
       "width": "0px"
     },
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "export-drawer-top-12-1280x720": {
@@ -1268,6 +1597,9 @@
       "style": "none",
       "width": "0px"
     },
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "export-drawer-top-12-1280x600": {
@@ -1353,6 +1685,9 @@
       "style": "none",
       "width": "0px"
     },
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "export-drawer-top-16-1280x720": {
@@ -1438,6 +1773,9 @@
       "style": "none",
       "width": "0px"
     },
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "export-drawer-top-12-after-1280x720": {
@@ -1523,6 +1861,9 @@
       "style": "none",
       "width": "0px"
     },
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "export-drawer-top-12-after-1280x600": {
@@ -1608,6 +1949,9 @@
       "style": "none",
       "width": "0px"
     },
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "export-drawer-b1-12-1280x768": {
@@ -1693,6 +2037,9 @@
       "style": "none",
       "width": "0px"
     },
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "export-drawer-b1-12-1280x900": {
@@ -1778,6 +2125,9 @@
       "style": "none",
       "width": "0px"
     },
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "sep-recommended-visible-1280x720": {
@@ -1788,12 +2138,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 8,
+      "y": 193.25,
       "width": 520,
-      "height": 576,
-      "top": 8,
+      "height": 473,
+      "top": 193.25,
       "right": 724,
-      "bottom": 584,
+      "bottom": 666.25,
       "left": 204
     },
     "footerReach": {
@@ -1802,9 +2152,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 520.41,
+        "top": 602.66,
         "left": 205,
-        "bottom": 583,
+        "bottom": 665.25,
         "right": 723
       }
     },
@@ -1815,21 +2165,21 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 530.2,
+        "top": 612.45,
         "left": 301.3,
-        "bottom": 574.2,
+        "bottom": 656.45,
         "right": 465.22
       }
     },
     "titleReach": {
       "inViewport": true,
-      "notClippedByOverflow": true,
-      "hitTargetMatches": true,
-      "reachable": true,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
       "rect": {
-        "top": 19.39,
+        "top": 123.64,
         "left": 217,
-        "bottom": 41.39,
+        "bottom": 145.64,
         "right": 711
       }
     },
@@ -1839,9 +2189,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1188.05,
+        "top": 1289.44,
         "left": 255.19,
-        "bottom": 1207.05,
+        "bottom": 1308.44,
         "right": 701.41
       }
     },
@@ -1851,21 +2201,21 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1140.05,
+        "top": 1241.44,
         "left": 255.19,
-        "bottom": 1184.05,
+        "bottom": 1285.44,
         "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 640.09,
+        "top": 777.84,
         "left": 226.8,
-        "bottom": 660.09,
+        "bottom": 797.84,
         "right": 701.2
       }
     },
@@ -1893,50 +2243,52 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 239.08,
+        "top": 343.33,
         "left": 217,
-        "bottom": 457.5,
+        "bottom": 595.25,
         "right": 711
       }
     },
-    "spotlightFooterClearancePx": 62.91,
+    "spotlightFooterClearancePx": 7.41,
     "unmeasuredBadgeReach": {
       "inViewport": true,
       "notClippedByOverflow": true,
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 196.98,
+        "top": 301.23,
         "left": 217,
-        "bottom": 223.08,
+        "bottom": 327.33,
         "right": 431.67
       }
     },
     "exclusionXReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 665.69,
+        "top": 803.44,
         "left": 244.39,
-        "bottom": 683.69,
+        "bottom": 821.44,
         "right": 255.39
       }
     },
     "scrollBodyPx": {
-      "scrollHeight": 778,
-      "clientHeight": 511,
-      "scrollTop": 0
+      "scrollHeight": 811,
+      "clientHeight": 408,
+      "scrollTop": 81
     },
     "manualPickReach": null,
     "sourceLinkHeights": [
       44,
       44,
       44,
-      44,
       44
     ],
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "sep-selection-cachee-1280x720": {
@@ -1947,12 +2299,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 8,
+      "y": 193.25,
       "width": 520,
-      "height": 576,
-      "top": 8,
+      "height": 473,
+      "top": 193.25,
       "right": 724,
-      "bottom": 584,
+      "bottom": 666.25,
       "left": 204
     },
     "footerReach": {
@@ -1961,9 +2313,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 494.22,
+        "top": 576.47,
         "left": 205,
-        "bottom": 583,
+        "bottom": 665.25,
         "right": 723
       }
     },
@@ -1974,9 +2326,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 530.2,
+        "top": 612.45,
         "left": 301.3,
-        "bottom": 574.2,
+        "bottom": 656.45,
         "right": 465.22
       }
     },
@@ -1986,9 +2338,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 19.39,
+        "top": 204.64,
         "left": 217,
-        "bottom": 41.39,
+        "bottom": 226.64,
         "right": 711
       }
     },
@@ -1998,9 +2350,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 995.94,
+        "top": 1144.83,
         "left": 255.19,
-        "bottom": 1014.94,
+        "bottom": 1163.83,
         "right": 701.41
       }
     },
@@ -2010,21 +2362,21 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 947.94,
+        "top": 1096.83,
         "left": 255.19,
-        "bottom": 991.94,
+        "bottom": 1140.83,
         "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
       "inViewport": true,
       "notClippedByOverflow": true,
-      "hitTargetMatches": true,
-      "reachable": true,
+      "hitTargetMatches": false,
+      "reachable": false,
       "rect": {
-        "top": 447.98,
+        "top": 633.23,
         "left": 226.8,
-        "bottom": 467.98,
+        "bottom": 653.23,
         "right": 701.2
       }
     },
@@ -2034,9 +2386,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 221.39,
+        "top": 406.64,
         "left": 217,
-        "bottom": 265.39,
+        "bottom": 450.64,
         "right": 442.34
       }
     },
@@ -2046,9 +2398,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 504.02,
+        "top": 586.27,
         "left": 217,
-        "bottom": 523.02,
+        "bottom": 605.27,
         "right": 711
       }
     },
@@ -2074,13 +2426,13 @@
     "unmeasuredBadgeReach": null,
     "exclusionXReach": {
       "inViewport": true,
-      "notClippedByOverflow": true,
-      "hitTargetMatches": true,
-      "reachable": true,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
       "rect": {
-        "top": 473.58,
+        "top": 658.83,
         "left": 244.39,
-        "bottom": 491.58,
+        "bottom": 676.83,
         "right": 255.39
       }
     },
@@ -2090,18 +2442,20 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 191.39,
+        "top": 376.64,
         "left": 217,
-        "bottom": 265.39,
+        "bottom": 450.64,
         "right": 711
       }
     },
     "sourceLinkHeights": [
       44,
       44,
-      44,
       44
     ],
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "sep-focus-vocals-1280x720": {
@@ -2112,12 +2466,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 8,
+      "y": 193.25,
       "width": 520,
-      "height": 576,
-      "top": 8,
+      "height": 473,
+      "top": 193.25,
       "right": 724,
-      "bottom": 584,
+      "bottom": 666.25,
       "left": 204
     },
     "footerReach": {
@@ -2126,9 +2480,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 494.22,
+        "top": 576.47,
         "left": 205,
-        "bottom": 583,
+        "bottom": 665.25,
         "right": 723
       }
     },
@@ -2139,21 +2493,21 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 530.2,
+        "top": 612.45,
         "left": 301.3,
-        "bottom": 574.2,
+        "bottom": 656.45,
         "right": 465.22
       }
     },
     "titleReach": {
       "inViewport": true,
-      "notClippedByOverflow": true,
-      "hitTargetMatches": true,
-      "reachable": true,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
       "rect": {
-        "top": 19.39,
+        "top": 111.64,
         "left": 217,
-        "bottom": 41.39,
+        "bottom": 133.64,
         "right": 711
       }
     },
@@ -2163,9 +2517,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 415.53,
+        "top": 538.36,
         "left": 255.19,
-        "bottom": 434.53,
+        "bottom": 557.36,
         "right": 701.41
       }
     },
@@ -2175,21 +2529,21 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 367.53,
+        "top": 490.36,
         "left": 524.77,
-        "bottom": 411.53,
+        "bottom": 534.36,
         "right": 701.41
       }
     },
     "exclusionsSummaryReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 628.31,
+        "top": 751.14,
         "left": 226.8,
-        "bottom": 648.31,
+        "bottom": 771.14,
         "right": 701.2
       }
     },
@@ -2200,9 +2554,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 504.02,
+        "top": 586.27,
         "left": 217,
-        "bottom": 523.02,
+        "bottom": 605.27,
         "right": 711
       }
     },
@@ -2229,34 +2583,34 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 239.08,
+        "top": 331.33,
         "left": 217,
-        "bottom": 445.72,
+        "bottom": 568.55,
         "right": 711
       }
     },
-    "spotlightFooterClearancePx": 48.5,
+    "spotlightFooterClearancePx": 7.92,
     "unmeasuredBadgeReach": {
       "inViewport": true,
       "notClippedByOverflow": true,
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 196.98,
+        "top": 289.23,
         "left": 217,
-        "bottom": 223.08,
+        "bottom": 315.33,
         "right": 431.67
       }
     },
     "exclusionXReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 653.91,
+        "top": 776.73,
         "left": 244.39,
-        "bottom": 671.91,
+        "bottom": 794.73,
         "right": 255.39
       }
     },
@@ -2264,10 +2618,11 @@
     "sourceLinkHeights": [
       44,
       44,
-      44,
-      44,
       44
     ],
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "sep-focus-vocals-1280x768": {
@@ -2278,12 +2633,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 8,
+      "y": 193.25,
       "width": 520,
-      "height": 614.39,
-      "top": 8,
+      "height": 473,
+      "top": 193.25,
       "right": 724,
-      "bottom": 622.39,
+      "bottom": 666.25,
       "left": 204
     },
     "footerReach": {
@@ -2292,9 +2647,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 532.61,
+        "top": 576.47,
         "left": 205,
-        "bottom": 621.39,
+        "bottom": 665.25,
         "right": 723
       }
     },
@@ -2305,21 +2660,21 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 568.59,
+        "top": 612.45,
         "left": 301.3,
-        "bottom": 612.59,
+        "bottom": 656.45,
         "right": 465.22
       }
     },
     "titleReach": {
       "inViewport": true,
-      "notClippedByOverflow": true,
-      "hitTargetMatches": true,
-      "reachable": true,
+      "notClippedByOverflow": false,
+      "hitTargetMatches": false,
+      "reachable": false,
       "rect": {
-        "top": 19.39,
+        "top": 111.64,
         "left": 217,
-        "bottom": 41.39,
+        "bottom": 133.64,
         "right": 711
       }
     },
@@ -2329,9 +2684,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 415.53,
+        "top": 538.36,
         "left": 255.19,
-        "bottom": 434.53,
+        "bottom": 557.36,
         "right": 701.41
       }
     },
@@ -2341,21 +2696,21 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 367.53,
+        "top": 490.36,
         "left": 524.77,
-        "bottom": 411.53,
+        "bottom": 534.36,
         "right": 701.41
       }
     },
     "exclusionsSummaryReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 628.31,
+        "top": 751.14,
         "left": 226.8,
-        "bottom": 648.31,
+        "bottom": 771.14,
         "right": 701.2
       }
     },
@@ -2366,9 +2721,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 542.41,
+        "top": 586.27,
         "left": 217,
-        "bottom": 561.41,
+        "bottom": 605.27,
         "right": 711
       }
     },
@@ -2395,34 +2750,34 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 239.08,
+        "top": 331.33,
         "left": 217,
-        "bottom": 445.72,
+        "bottom": 568.55,
         "right": 711
       }
     },
-    "spotlightFooterClearancePx": 86.89,
+    "spotlightFooterClearancePx": 7.92,
     "unmeasuredBadgeReach": {
       "inViewport": true,
       "notClippedByOverflow": true,
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 196.98,
+        "top": 289.23,
         "left": 217,
-        "bottom": 223.08,
+        "bottom": 315.33,
         "right": 431.67
       }
     },
     "exclusionXReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 653.91,
+        "top": 776.73,
         "left": 244.39,
-        "bottom": 671.91,
+        "bottom": 794.73,
         "right": 255.39
       }
     },
@@ -2430,10 +2785,11 @@
     "sourceLinkHeights": [
       44,
       44,
-      44,
-      44,
       44
     ],
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "export-mix-1280x720": {
@@ -2515,6 +2871,9 @@
     "unmeasuredBadgeReach": null,
     "exclusionXReach": null,
     "manualPickReach": null,
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "export-mix-tight-1280x720": {
@@ -2601,6 +2960,9 @@
       44,
       44
     ],
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "export-stems-none-selected-1280x720": {
@@ -2694,6 +3056,9 @@
     "unmeasuredBadgeReach": null,
     "exclusionXReach": null,
     "manualPickReach": null,
+    "sepRecommendAnchorOverlapPx": null,
+    "noticeFontPx": null,
+    "demucs327LinkCount": null,
     "mockupNoteAbsent": true
   },
   "regen-gate-blocked-1280x720": {

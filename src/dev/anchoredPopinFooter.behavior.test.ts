@@ -38,6 +38,21 @@ async function waitServer(url: string): Promise<void> {
   throw new Error(`serveur inaccessible : ${url}`);
 }
 
+async function withBrowser(
+  fn: (page: Page) => Promise<void>,
+): Promise<void> {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.addInitScript((script: string) => {
+      eval(script);
+    }, VISIBILITY_BROWSER_BUNDLE);
+    await fn(page);
+  } finally {
+    await browser.close();
+  }
+}
+
 async function waitExportAnchorStable(page: Page): Promise<void> {
   await page.evaluate(async () => {
     await document.fonts?.ready;
@@ -70,6 +85,76 @@ async function waitExportAnchorStable(page: Page): Promise<void> {
     },
     { timeout: 12_000 },
   );
+}
+
+function measurePopinAnchorOverlapPx(
+  popin: DOMRect,
+  anchor: DOMRect,
+): number {
+  return Math.max(
+    0,
+    Math.min(popin.bottom, anchor.bottom) - Math.max(popin.top, anchor.top),
+  );
+}
+
+async function measureSepRecommendOverlap(
+  page: Page,
+  viewport: { width: number; height: number },
+  baseUrl: string = BASE,
+): Promise<{
+  overlapPx: number;
+  footerReachable: boolean;
+  spotlightFooterClearancePx: number | null;
+  noticeFontPx: number;
+}> {
+  await page.setViewportSize(viewport);
+  await page.goto(`${baseUrl}#sep-header`);
+  await page.waitForSelector('[data-testid="sep-recommend-footer"]');
+  await page.evaluate(async () => {
+    await document.fonts?.ready;
+  });
+  await page.waitForTimeout(400);
+  return page.evaluate((script) => {
+    eval(script);
+    const popin = document.querySelector(
+      ".separation-recommend-popin",
+    ) as HTMLElement | null;
+    const anchor = document.querySelector(
+      '[data-testid="sep-recommend-trigger"]',
+    ) as HTMLElement | null;
+    const footer = document.querySelector(
+      '[data-testid="sep-recommend-footer"]',
+    ) as HTMLElement | null;
+    const spotlight = document.querySelector(
+      ".sep-recommended-spotlight [data-testid^='sep-quality-card-']",
+    ) as HTMLElement | null;
+    const notice = document.querySelector(
+      '[data-testid="sep-rec-notice-htdemucs"]',
+    ) as HTMLElement | null;
+    const pr = popin?.getBoundingClientRect();
+    const ar = anchor?.getBoundingClientRect();
+    const overlap =
+      pr && ar
+        ? Math.max(
+            0,
+            Math.min(pr.bottom, ar.bottom) - Math.max(pr.top, ar.top),
+          )
+        : 999;
+    const ft = footer?.getBoundingClientRect().top;
+    const sb = spotlight?.getBoundingClientRect().bottom;
+    const noticeFontPx = notice
+      ? parseFloat(getComputedStyle(notice).fontSize)
+      : 0;
+    return {
+      overlapPx: Math.round(overlap * 100) / 100,
+      footerReachable: Boolean(
+        footer && __measureReachability(footer)?.reachable,
+      ),
+      spotlightFooterClearancePx:
+        ft != null && sb != null ? Math.round((ft - sb) * 100) / 100 : null,
+      noticeFontPx,
+    };
+  }, VISIBILITY_BROWSER_BUNDLE);
 }
 
 async function measureExportDrawer(
@@ -157,7 +242,6 @@ async function measureExportDrawer(
   );
 }
 
-/** B1 Alphonse : pied + Exporter atteignables (viewport), sans assertion de calage ancre. */
 function assertB1ViewportReachable(metrics: B1Metrics, label: string): void {
   assert.equal(metrics.footer?.reachable, true, `${label} footer`);
   assert.equal(metrics.run?.reachable, true, `${label} export`);
@@ -219,28 +303,22 @@ describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
     async () => {
       activeServer = await startCaptureViteServer(PORT);
       await waitServer(BASE);
-      const browser = await chromium.launch();
-      const page = await browser.newPage();
-      await page.addInitScript((script: string) => {
-        eval(script);
-      }, VISIBILITY_BROWSER_BUNDLE);
+      await withBrowser(async (page) => {
+        const cases: Array<{ hash: string; vp: { width: number; height: number } }> =
+          [
+            { hash: "export-drawer-b1-12", vp: { width: 1280, height: 768 } },
+            { hash: "export-drawer-b1-12", vp: { width: 1280, height: 900 } },
+          ];
 
-      const cases: Array<{ hash: string; vp: { width: number; height: number } }> =
-        [
-          { hash: "export-drawer-b1-12", vp: { width: 1280, height: 768 } },
-          { hash: "export-drawer-b1-12", vp: { width: 1280, height: 900 } },
-        ];
-
-      for (const { hash, vp } of cases) {
-        const m = await measureExportDrawer(page, hash, vp, BASE, 1400);
-        if (hash === "export-drawer-b1-12" && vp.height === 768) {
-          await assertB1ExportMinHeightMatchesProdRule(page);
-          assertB1AnchorStrict(m, `${hash}@${vp.width}x${vp.height}`);
+        for (const { hash, vp } of cases) {
+          const m = await measureExportDrawer(page, hash, vp, BASE, 1400);
+          if (hash === "export-drawer-b1-12" && vp.height === 768) {
+            await assertB1ExportMinHeightMatchesProdRule(page);
+            assertB1AnchorStrict(m, `${hash}@${vp.width}x${vp.height}`);
+          }
+          assertB1ViewportReachable(m, `${hash}@${vp.width}x${vp.height}`);
         }
-        assertB1ViewportReachable(m, `${hash}@${vp.width}x${vp.height}`);
-      }
-
-      await browser.close();
+      });
     },
   );
 
@@ -252,43 +330,37 @@ describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
       activeServer = await startCaptureViteServer(port);
       const topBase = captureBaseUrl(port);
       await waitServer(topBase);
-      const browser = await chromium.launch();
-      const page = await browser.newPage();
-      await page.addInitScript((script: string) => {
-        eval(script);
-      }, VISIBILITY_BROWSER_BUNDLE);
+      await withBrowser(async (page) => {
+        const cases: Array<{ hash: string; vp: { width: number; height: number } }> =
+          [
+            { hash: "export-drawer-top-4", vp: { width: 1280, height: 720 } },
+            { hash: "export-drawer-top-12", vp: { width: 1280, height: 720 } },
+            { hash: "export-drawer-top-16", vp: { width: 1280, height: 720 } },
+            { hash: "export-drawer-top-12-after", vp: { width: 1280, height: 720 } },
+            { hash: "export-drawer-top-12", vp: { width: 1280, height: 600 } },
+            { hash: "export-drawer-top-12-after", vp: { width: 1280, height: 600 } },
+          ];
 
-      const cases: Array<{ hash: string; vp: { width: number; height: number } }> =
-        [
-          { hash: "export-drawer-top-4", vp: { width: 1280, height: 720 } },
-          { hash: "export-drawer-top-12", vp: { width: 1280, height: 720 } },
-          { hash: "export-drawer-top-16", vp: { width: 1280, height: 720 } },
-          { hash: "export-drawer-top-12-after", vp: { width: 1280, height: 720 } },
-          { hash: "export-drawer-top-12", vp: { width: 1280, height: 600 } },
-          { hash: "export-drawer-top-12-after", vp: { width: 1280, height: 600 } },
-        ];
+        for (const { hash, vp } of cases) {
+          const m = await measureExportDrawer(page, hash, vp, topBase);
+          assertB1ViewportReachable(m, `${hash}@${vp.width}x${vp.height}`);
+        }
 
-      for (const { hash, vp } of cases) {
-        const m = await measureExportDrawer(page, hash, vp, topBase);
-        assertB1ViewportReachable(m, `${hash}@${vp.width}x${vp.height}`);
-      }
-
-      const fieldset = await page.evaluate(() => {
-        const fs = document.querySelector(
-          ".export-dialog-popin fieldset",
-        ) as HTMLFieldSetElement | null;
-        if (!fs) return null;
-        const s = getComputedStyle(fs);
-        return {
-          borderTopWidth: s.borderTopWidth,
-          borderTopStyle: s.borderTopStyle,
-        };
+        const fieldset = await page.evaluate(() => {
+          const fs = document.querySelector(
+            ".export-dialog-popin fieldset",
+          ) as HTMLFieldSetElement | null;
+          if (!fs) return null;
+          const s = getComputedStyle(fs);
+          return {
+            borderTopWidth: s.borderTopWidth,
+            borderTopStyle: s.borderTopStyle,
+          };
+        });
+        assert.ok(fieldset);
+        assert.equal(fieldset!.borderTopStyle, "none");
+        assert.equal(fieldset!.borderTopWidth, "0px");
       });
-      assert.ok(fieldset);
-      assert.equal(fieldset!.borderTopStyle, "none");
-      assert.equal(fieldset!.borderTopWidth, "0px");
-
-      await browser.close();
     },
   );
 
@@ -300,22 +372,82 @@ describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
       activeServer = await startCaptureViteServer(port);
       const url = captureBaseUrl(port);
       await waitServer(url);
-      const browser = await chromium.launch();
-      const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-      await page.goto(`${url}#export-mix-tight`);
-      await page.waitForTimeout(900);
-      await page.waitForSelector('[data-testid="export-dialog-footer"]');
-      const heights = await page.evaluate(() => {
-        const btns = Array.from(
-          document.querySelectorAll(".export-dialog-popin .btn"),
-        ) as HTMLElement[];
-        return btns.map((b) => b.getBoundingClientRect().height);
+      await withBrowser(async (page) => {
+        await page.setViewportSize({ width: 1280, height: 720 });
+        await page.goto(`${url}#export-mix-tight`);
+        await page.waitForTimeout(900);
+        await page.waitForSelector('[data-testid="export-dialog-footer"]');
+        const heights = await page.evaluate(() => {
+          const btns = Array.from(
+            document.querySelectorAll(".export-dialog-popin .btn"),
+          ) as HTMLElement[];
+          return btns.map((b) => b.getBoundingClientRect().height);
+        });
+        assert.ok(heights.length >= 2);
+        for (const h of heights) {
+          assert.ok(h >= 44, `hauteur bouton ${h}`);
+        }
       });
-      assert.ok(heights.length >= 2);
-      for (const h of heights) {
-        assert.ok(h >= 44, `hauteur bouton ${h}`);
-      }
-      await browser.close();
+    },
+  );
+});
+
+describe("AnchoredPopin — séparation reco (overlap déclencheur, #196)", () => {
+  it(
+    "recouvrement 0 avec le bouton Séparer (720, 768, 640)",
+    { timeout: IT_TIMEOUT_MS },
+    async () => {
+      activeServer = await startCaptureViteServer(PORT + 3);
+      const sepUrl = captureBaseUrl(PORT + 3);
+      await waitServer(sepUrl);
+      await withBrowser(async (page) => {
+        for (const height of [720, 768, 640]) {
+          const m = await measureSepRecommendOverlap(
+            page,
+            {
+              width: 1280,
+              height,
+            },
+            sepUrl,
+          );
+          assert.ok(
+            m.overlapPx <= 0.51,
+            `sep-header@${1280}x${height} overlap=${m.overlapPx}px`,
+          );
+          assert.equal(m.footerReachable, true, `pied inaccessible @${height}`);
+          assert.ok(
+            m.noticeFontPx >= 14,
+            `notice ${m.noticeFontPx}px < 14 @${height}`,
+          );
+        }
+        await page.setViewportSize({ width: 1280, height: 720 });
+        await page.goto(`${sepUrl}#sep-focus-vocals`);
+        await page.waitForSelector('[data-testid="sep-recommend-footer"]');
+        await page.waitForFunction(
+          () =>
+            document.querySelector<HTMLInputElement>(
+              'input[name="sep-focus"][value="vocals"]',
+            )?.checked === true,
+          { timeout: 10_000 },
+        );
+        await page.evaluate(async () => {
+          await document.fonts?.ready;
+        });
+        await page.waitForTimeout(350);
+        const voix = await page.evaluate((script) => {
+          eval(script);
+          const spotlight = document.querySelector(
+            ".sep-recommended-spotlight [data-testid^='sep-quality-card-']",
+          ) as HTMLElement | null;
+          const footer = document.querySelector(
+            '[data-testid="sep-recommend-footer"]',
+          ) as HTMLElement | null;
+          const ft = footer?.getBoundingClientRect().top;
+          const sb = spotlight?.getBoundingClientRect().bottom;
+          return ft != null && sb != null ? ft - sb : -1;
+        }, VISIBILITY_BROWSER_BUNDLE);
+        assert.ok(voix >= 0, `Voix spotlight dépasse le pied (${voix}px)`);
+      });
     },
   );
 });

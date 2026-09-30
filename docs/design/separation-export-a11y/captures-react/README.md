@@ -17,6 +17,7 @@ Les PNG et clés `metrics.json` sont nommés `{hash}-{largeur}x{hauteur}.png`.
 | Fichier (exemple) | Critère | Preuve |
 | --- | --- | --- |
 | `sep-header-1280x720.png` | Contraste I1 sur fond effectif (`__effectiveBgRgb` + composition alpha) | **mesuré** (calcul exact) |
+| `sep-header-1280x768.png` / `sep-header-1280x640.png` | Recouvrement popin « Séparer » / déclencheur `sepRecommendAnchorOverlapPx` **0** ; notice HTDemucs ≥ **14 px** | **mesuré** |
 | `sep-recommended-visible-1280x720.png` | Fiche reco complète sans défilement (`spotlightReach`, `scrollTop≈0`) | **mesuré** |
 | `sep-focus-vocals-1280x768.png` | Cas **Voix** — fiche compacte entière (`spotlightReach`, `spotlightFooterClearancePx ≥ 0`) | **mesuré** |
 | `sep-focus-vocals-1280x720.png` | Cas **Voix** @720 — compacte, pied visible (`spotlightFooterClearancePx ≥ 0`) | **mesuré** |
@@ -56,6 +57,21 @@ Chaque ratio est lié à **une** méthode. L’écart entre « calcul exact » e
 Tolérance script : ±0,15 sur les valeurs « calcul exact » ci-dessus.
 
 `metrics.json` : les `rect.*` des mesures de visibilité sont arrondis à **2 décimales** à l’écriture (reproductibilité CI / polices). Les contrastes restent en pleine précision.
+
+### PNG identiques (27 fichiers, 24 empreintes)
+
+Certaines scènes partagent le même rendu pixel (hash SHA-256 identique) : c’est **voulu** — une clé par scène/viewport pour les assertions `metrics.json`, sans dupliquer le contenu visuel.
+
+| Groupe (même hash) | Scènes |
+| --- | --- |
+| En-tête reco | `sep-header`, `sep-recommended-visible`, `sep-unmeasured-badge` |
+| Pied / exclusions | `sep-exclusions`, `sep-footer` |
+
+### Tolérance `metrics.json` (regen-gate et badges)
+
+- `capture.mts` attend `document.fonts.ready` et, pour `sep-header`, que `popin.top ≥ anchor.bottom` avant mesure.
+- Écarts acceptables entre régénérations sur **positions** (`unmeasuredBadgeReach.rect.right`, `regen-gate-blocked`, etc.) : **±1 px** sur `rect.*` et **±0,01** sur les flottants arrondis, tant que les contrastes `contrast.*` restent identiques au centième.
+- Les tests commités comparent les invariants (overlap ≤ 0,51 px, `footerReach.reachable`, contrastes ≥ 4,5) plutôt qu’une égalité bit-à-bit du JSON.
 
 ## Non testé
 

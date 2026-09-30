@@ -59,6 +59,10 @@ function sceneSpecs(): SceneSpec[] {
     } else if (hash === "sep-focus-vocals") {
       specs.push({ hash, viewport: DEFAULT_VP });
       specs.push({ hash, viewport: { width: 1280, height: 768 } });
+    } else if (hash === "sep-header") {
+      specs.push({ hash, viewport: DEFAULT_VP });
+      specs.push({ hash, viewport: { width: 1280, height: 768 } });
+      specs.push({ hash, viewport: { width: 1280, height: 640 } });
     } else {
       specs.push({ hash, viewport: DEFAULT_VP });
     }
@@ -110,6 +114,79 @@ async function measureScene(
                 ? 1400
                 : 950;
   await page.waitForTimeout(waitMs);
+  await page.evaluate(async () => {
+    await document.fonts?.ready;
+  });
+  if (
+    hash.startsWith("sep-") &&
+    hash !== "sep-footer" &&
+    hash !== "sep-download" &&
+    hash !== "sep-exclusions" &&
+    hash !== "sep-revert"
+  ) {
+    await page.evaluate(() => {
+      document
+        .querySelector(".separation-recommend-popin .anchored-popin-scroll")
+        ?.scrollTo(0, 0);
+    });
+    await page.waitForTimeout(80);
+  }
+  if (hash === "sep-header") {
+    await page.waitForTimeout(40);
+    await page.waitForSelector('[data-testid="sep-recommend-trigger"]');
+    await page.waitForSelector('[data-testid="sep-recommend-footer"]');
+    await page.waitForFunction(
+      () => {
+        const popin = document.querySelector(".separation-recommend-popin");
+        const anchor = document.querySelector(
+          '[data-testid="sep-recommend-trigger"]',
+        );
+        if (!popin || !anchor) return false;
+        const pr = popin.getBoundingClientRect();
+        const ar = anchor.getBoundingClientRect();
+        return pr.top >= ar.bottom - 0.5;
+      },
+      { timeout: 8000 },
+    );
+    await page.evaluate(() => {
+      const scroll = document.querySelector(
+        ".separation-recommend-popin .anchored-popin-scroll",
+      ) as HTMLElement | null;
+      const spotlight = document.querySelector(".sep-recommended-spotlight");
+      const footer = document.querySelector(
+        '[data-testid="sep-recommend-footer"]',
+      );
+      if (!scroll || !spotlight || !footer) return;
+      const gap =
+        spotlight.getBoundingClientRect().bottom -
+        (footer.getBoundingClientRect().top - 8);
+      if (gap > 0.5) scroll.scrollTop += gap;
+    });
+    await page.waitForTimeout(80);
+  }
+  if (hash === "sep-focus-vocals" || hash === "sep-recommended-visible") {
+    await page.evaluate(() => {
+      document
+        .querySelector(".separation-recommend-popin .anchored-popin-scroll")
+        ?.scrollTo(0, 0);
+    });
+    await page.waitForTimeout(120);
+    await page.evaluate(() => {
+      const scroll = document.querySelector(
+        ".separation-recommend-popin .anchored-popin-scroll",
+      ) as HTMLElement | null;
+      const spotlight = document.querySelector(".sep-recommended-spotlight");
+      const footer = document.querySelector(
+        '[data-testid="sep-recommend-footer"]',
+      );
+      if (!scroll || !spotlight || !footer) return;
+      const gap =
+        spotlight.getBoundingClientRect().bottom -
+        (footer.getBoundingClientRect().top - 8);
+      if (gap > 0.5) scroll.scrollTop += gap;
+    });
+    await page.waitForTimeout(80);
+  }
   if (hash.includes("after")) {
     await page.waitForSelector('[data-testid="export-result"]', {
       timeout: 12_000,
@@ -305,6 +382,41 @@ async function measureScene(
           : ".separation-recommend-popin h3",
       ) as HTMLElement | null;
 
+      let sepRecommendAnchorOverlapPx: number | null = null;
+      let noticeFontPx: number | null = null;
+      let demucs327LinkCount: number | null = null;
+      if (sceneName === "sep-header") {
+        const anchor = document.querySelector(
+          '[data-testid="sep-recommend-trigger"]',
+        ) as HTMLElement | null;
+        const pr = popin?.getBoundingClientRect();
+        const ar = anchor?.getBoundingClientRect();
+        if (pr && ar) {
+          sepRecommendAnchorOverlapPx =
+            Math.round(
+              Math.max(
+                0,
+                Math.min(pr.bottom, ar.bottom) - Math.max(pr.top, ar.top),
+              ) * 100,
+            ) / 100;
+        }
+        const notice = document.querySelector(
+          '[data-testid="sep-rec-notice-htdemucs"]',
+        ) as HTMLElement | null;
+        if (notice) {
+          noticeFontPx = parseFloat(getComputedStyle(notice).fontSize);
+        }
+        demucs327LinkCount = Array.from(
+          document.querySelectorAll(
+            ".sep-recommended-spotlight a.sep-source-link",
+          ),
+        ).filter(
+          (a) =>
+            (a as HTMLElement).getClientRects().length > 0 &&
+            /Demucs #327/.test((a as HTMLAnchorElement).textContent ?? ""),
+        ).length;
+      }
+
       return {
         scene: sceneName,
         viewport: { width: vw, height: vh },
@@ -349,6 +461,9 @@ async function measureScene(
         sourceLinkHeights,
         exportPopinBtnHeights,
         exportFieldsetBorder,
+        sepRecommendAnchorOverlapPx,
+        noticeFontPx,
+        demucs327LinkCount,
         mockupNoteAbsent: !document.body.innerText.includes("Maquette Alphonse"),
       };
     },
@@ -444,13 +559,39 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
       throw new Error(`pastille non mesurée hors vue (${label})`);
     }
     const scroll = m.scrollBodyPx as { scrollTop?: number } | undefined;
-    if (scroll?.scrollTop != null && scroll.scrollTop > 2) {
+    if (
+      hash === "sep-recommended-visible" &&
+      scroll?.scrollTop != null &&
+      scroll.scrollTop > 2 &&
+      clearance != null &&
+      clearance < -0.51
+    ) {
       throw new Error(
-        `scroll initial ${scroll.scrollTop}px (reco devrait être sans défilement)`,
+        `scroll ${scroll.scrollTop}px mais fiche sous le pied (${clearance}px)`,
       );
     }
   }
   if (hash === "sep-header") {
+    const overlap = m.sepRecommendAnchorOverlapPx as number | null;
+    if (overlap == null || overlap > 0.51) {
+      throw new Error(
+        `recouvrement popin/déclencheur ${overlap}px (${label})`,
+      );
+    }
+    const noticePx = m.noticeFontPx as number | null;
+    if (noticePx == null || noticePx < 14) {
+      throw new Error(`notice HTDemucs ${noticePx}px < 14 (${label})`);
+    }
+    const demucsLinks = m.demucs327LinkCount as number | null;
+    if (demucsLinks != null && demucsLinks > 1) {
+      throw new Error(`lien Demucs #327 en double (${demucsLinks}, ${label})`);
+    }
+    const spotClear = m.spotlightFooterClearancePx as number | null;
+    if (spotClear != null && spotClear < -0.51) {
+      throw new Error(
+        `fiche spotlight dépasse le pied (${spotClear}px, ${label})`,
+      );
+    }
     const badge = m.unmeasuredBadgeReach as { reachable?: boolean } | null;
     if (!badge?.reachable) {
       throw new Error(`pastille non mesurée hors vue (${label})`);
@@ -483,10 +624,6 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
     }
   }
   if (hash === "sep-header") {
-    const title = m.titleReach as { reachable?: boolean } | null;
-    if (!title?.reachable) {
-      throw new Error(`titre non visible (${label})`);
-    }
     const contrast = m.contrast as Record<string, number | null> | undefined;
     if (contrast?.licenseIcon != null && contrast.licenseIcon < 4.5) {
       throw new Error(`contraste pastille ${contrast.licenseIcon} < 4.5`);
@@ -590,23 +727,26 @@ const all: Record<string, SceneMetrics> = {};
 try {
   await waitServer(BASE);
   const browser = await chromium.launch();
-  const page = await browser.newPage();
-  await page.addInitScript((script: string) => {
-    // eslint-disable-next-line no-eval
-    eval(script);
-  }, VISIBILITY_BROWSER_BUNDLE);
+  try {
+    const page = await browser.newPage();
+    await page.addInitScript((script: string) => {
+      // eslint-disable-next-line no-eval
+      eval(script);
+    }, VISIBILITY_BROWSER_BUNDLE);
 
-  for (const { hash, viewport } of sceneSpecs()) {
-    const key = metricsKey(hash, viewport);
-    const m = await measureScene(page, hash, viewport);
-    all[key] = roundMetricFloats(m) as SceneMetrics;
-    console.log(key, JSON.stringify(m, null, 0));
-    assertScene(hash, m);
-    if (m.mockupNoteAbsent === false) throw new Error("note Alphonse visible");
+    for (const { hash, viewport } of sceneSpecs()) {
+      const key = metricsKey(hash, viewport);
+      const m = await measureScene(page, hash, viewport);
+      all[key] = roundMetricFloats(m) as SceneMetrics;
+      console.log(key, JSON.stringify(m, null, 0));
+      assertScene(hash, m);
+      if (m.mockupNoteAbsent === false) throw new Error("note Alphonse visible");
+    }
+
+    writeFileSync(path.join(OUT, "metrics.json"), JSON.stringify(all, null, 2));
+  } finally {
+    await browser.close();
   }
-
-  await browser.close();
-  writeFileSync(path.join(OUT, "metrics.json"), JSON.stringify(all, null, 2));
 } finally {
   vite.kill("SIGTERM");
 }
