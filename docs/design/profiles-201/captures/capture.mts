@@ -78,7 +78,12 @@ const LUMINANCE_STDDEV_MIN = 18;
 const NON_BACKGROUND_MIN = 0.02;
 const PIXEL_DIFF_FROM_BG = 15;
 
-async function assertPngNotBlank(page: Page, filePath: string): Promise<void> {
+type PngBlankStats = { stdDev: number; nonBackgroundFraction: number };
+
+async function assertPngNotBlank(
+  page: Page,
+  filePath: string,
+): Promise<PngBlankStats> {
   const buf = readFileSync(filePath);
   if (buf.length < 64) {
     throw new Error(`capture trop petite : ${filePath}`);
@@ -132,6 +137,7 @@ async function assertPngNotBlank(page: Page, filePath: string): Promise<void> {
       `capture sans contenu (${(stats.nonBackgroundFraction * 100).toFixed(2)} % hors fond < ${NON_BACKGROUND_MIN * 100} %) : ${filePath}`,
     );
   }
+  return stats;
 }
 
 const vite = spawn("pnpm", ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)], {
@@ -192,14 +198,39 @@ try {
       const file = `${scene.baseName}-1280x${height}.png`;
       const outPath = path.join(OUT, file);
       await page.screenshot({ path: outPath, fullPage: false });
-      await assertPngNotBlank(page, outPath);
+      const blankStats = await assertPngNotBlank(page, outPath);
       const md5 = createHash("md5").update(readFileSync(outPath)).digest("hex");
       const prior = hashes.get(md5);
       if (prior && prior !== file) {
         throw new Error(`capture dupliquée (md5) ${file} == ${prior}`);
       }
       hashes.set(md5, file);
-      console.log(file, md5);
+      let sceneNote = "";
+      if (scene.hash === "blocked-generation" && height === 720) {
+        const lock = await page.evaluate(() => {
+          const alert = document.querySelector(
+            '[data-testid="profile-switch-block-alert"]',
+          );
+          const menu = document.querySelector(
+            '[data-testid="profile-selector-menu"]',
+          );
+          const ar = alert?.getBoundingClientRect();
+          const mr = menu?.getBoundingClientRect();
+          return {
+            alertHeight: ar ? Math.round(ar.height * 10) / 10 : null,
+            menuWidth: mr ? Math.round(mr.width * 10) / 10 : null,
+            alertVisible: alert ? getComputedStyle(alert).display !== "none" : false,
+          };
+        });
+        sceneNote = ` lock720 alertH=${lock.alertHeight}px menuW=${lock.menuWidth}px`;
+      }
+      console.log(
+        file,
+        md5,
+        `lumStd=${blankStats.stdDev.toFixed(1)}`,
+        `nonBg=${(blankStats.nonBackgroundFraction * 100).toFixed(2)}%`,
+        sceneNote.trim(),
+      );
       await page.close();
     }
   }

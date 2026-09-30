@@ -19,6 +19,21 @@ export function focusProfileElement(el: HTMLElement | null | undefined): void {
   el?.focus();
 }
 
+/** True when the user is editing text — arrow/Home/End must move the caret, not focus. */
+export function isProfileTextEditingElement(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+  const tag = el.tagName;
+  if (tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (tag === "INPUT") {
+    const type = (el as HTMLInputElement).type.toLowerCase();
+    if (type === "checkbox" || type === "radio" || type === "range" || type === "button") {
+      return false;
+    }
+    return true;
+  }
+  return el.isContentEditable;
+}
+
 /** Trap Tab within container; ArrowUp/Down (and Left/Right) move focus. Escape → onEscape. */
 export function handleProfileOverlayKeydown(
   event: KeyboardEvent,
@@ -38,6 +53,10 @@ export function handleProfileOverlayKeydown(
   const currentIndex = items.indexOf(document.activeElement as HTMLElement);
   const at = currentIndex >= 0 ? currentIndex : 0;
 
+  const editing =
+    isProfileTextEditingElement(event.target) ||
+    isProfileTextEditingElement(document.activeElement);
+
   if (event.key === "Tab") {
     event.preventDefault();
     event.stopPropagation();
@@ -47,6 +66,8 @@ export function handleProfileOverlayKeydown(
     focusProfileElement(items[next]);
     return;
   }
+
+  if (editing) return;
 
   if (
     event.key === "ArrowDown" ||
