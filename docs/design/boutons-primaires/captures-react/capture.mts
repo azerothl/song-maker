@@ -808,35 +808,48 @@ function buildManualReviewAlphonse(): Record<string, unknown> {
     source: MANUAL_REVIEW_SOURCE,
     bibliotheque: {
       focusRingRatioMin: 10,
-      focusRingRatioMax: 11.7,
+      focusRingRatioMax: 11.69,
       medianRatio: 10.92,
-      pixelCount: 712,
       distinctBackgrounds: 53,
       backdropNote: "dégradé panneau #131f31 → #192c43",
+      ringPixelCountDiffVsNormal: {
+        count: 712,
+        method:
+          "pixels cyan qui diffèrent du PNG normal (passe 2, revue Alphonse)",
+      },
+      ringPixelCountInButtonClip: {
+        count: 730,
+        method:
+          "tous les pixels cyan du clip bouton (passe 3, revue Alphonse)",
+      },
     },
     creer: {
-      focusRingRatio: 13.58,
-      backdropHex: "#111221",
+      focusRingRatio: 13.65,
+      backdropHex: "#0c0d18",
       note:
         "Anneau rogné visible dans `creer-primary-focus-*` (bouton ~243 px, colonne main ~220 px).",
     },
     "production-armer": {
-      focusRingRatio: 12.58,
+      focusRingRatio: 12.68,
     },
     "production-exporter": {
-      focusRingRatio: 12.58,
+      focusRingRatio: 12.68,
     },
     "production-mesurer": {
       focusRingRatio: 13.58,
+      backdropHex: "#0c0e18",
     },
     "production-zip": {
       focusRingRatio: 13.58,
+      backdropHex: "#0c0e18",
     },
     "reglages-lora": {
       focusRingRatio: 13.58,
+      backdropHex: "#0c0e18",
     },
     "confirmation-invariant-panel": {
       focusRingRatio: 13.58,
+      backdropHex: "#0c0e18",
     },
     "regeneration-gate-blocked": {
       focusRingRatio: 3.51,
@@ -867,18 +880,27 @@ function formatManualFocusPublication(
   if (!entry || typeof entry !== "object") return null;
   const e = entry as Record<string, unknown>;
   switch (id) {
-    case "bibliotheque":
-      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **${e.focusRingRatioMin}–${e.focusRingRatioMax}:1** (${e.pixelCount} px, ${e.distinctBackgrounds} fonds, médiane ${e.medianRatio}:1) ; fond derrière l’anneau = ${e.backdropNote}.`;
+    case "bibliotheque": {
+      const diff = e.ringPixelCountDiffVsNormal as {
+        count: number;
+        method: string;
+      };
+      const clip = e.ringPixelCountInButtonClip as {
+        count: number;
+        method: string;
+      };
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **10,0–11,7:1** (${e.distinctBackgrounds} fonds, min 10,00, max 11,69, médiane 10,92:1) ; **${diff.count} px** (${diff.method}) ; **${clip.count} px** (${clip.method}) ; fond derrière l’anneau = ${e.backdropNote}.`;
+    }
     case "creer":
-      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **${e.focusRingRatio}:1** sur ${e.backdropHex}. ${e.note}`;
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **13,65:1** sur ${e.backdropHex}. ${e.note}`;
     case "production-armer":
     case "production-exporter":
-      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **${e.focusRingRatio}:1**.`;
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **12,68:1**.`;
     case "production-mesurer":
     case "production-zip":
     case "reglages-lora":
     case "confirmation-invariant-panel":
-      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **${e.focusRingRatio}:1** (uniforme sur les pixels d’anneau ; la mesure DOM peut afficher une plage min–max).`;
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **${e.focusRingRatio}:1** uniforme sur fond ${e.backdropHex} (la mesure DOM peut afficher une plage min–max).`;
     case "regeneration-gate-blocked":
       return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **${e.focusRingRatio}:1** (${e.focusRingPixelCount} px, outline à 0,45 sur ${e.popinBackdropHex}). ΔE00 face primaire vs fond modale ${e.popinBackdropHex} : **${e.deltaE00FaceVsPopin151827Top}** (haut) / **${e.deltaE00FaceVsPopin151827Bottom}** (bas). ΔE00 face ~**${e.deltaE00FaceVsBg2Approx}** vs \`--bg2\` ${e.bg2Hex}.`;
     default:

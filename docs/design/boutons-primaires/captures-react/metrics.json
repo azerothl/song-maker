@@ -15,34 +15,45 @@
     "source": "revue manuelle Alphonse",
     "bibliotheque": {
       "focusRingRatioMin": 10,
-      "focusRingRatioMax": 11.7,
+      "focusRingRatioMax": 11.69,
       "medianRatio": 10.92,
-      "pixelCount": 712,
       "distinctBackgrounds": 53,
-      "backdropNote": "dégradé panneau #131f31 → #192c43"
+      "backdropNote": "dégradé panneau #131f31 → #192c43",
+      "ringPixelCountDiffVsNormal": {
+        "count": 712,
+        "method": "pixels cyan qui diffèrent du PNG normal (passe 2, revue Alphonse)"
+      },
+      "ringPixelCountInButtonClip": {
+        "count": 730,
+        "method": "tous les pixels cyan du clip bouton (passe 3, revue Alphonse)"
+      }
     },
     "creer": {
-      "focusRingRatio": 13.58,
-      "backdropHex": "#111221",
+      "focusRingRatio": 13.65,
+      "backdropHex": "#0c0d18",
       "note": "Anneau rogné visible dans `creer-primary-focus-*` (bouton ~243 px, colonne main ~220 px)."
     },
     "production-armer": {
-      "focusRingRatio": 12.58
+      "focusRingRatio": 12.68
     },
     "production-exporter": {
-      "focusRingRatio": 12.58
+      "focusRingRatio": 12.68
     },
     "production-mesurer": {
-      "focusRingRatio": 13.58
+      "focusRingRatio": 13.58,
+      "backdropHex": "#0c0e18"
     },
     "production-zip": {
-      "focusRingRatio": 13.58
+      "focusRingRatio": 13.58,
+      "backdropHex": "#0c0e18"
     },
     "reglages-lora": {
-      "focusRingRatio": 13.58
+      "focusRingRatio": 13.58,
+      "backdropHex": "#0c0e18"
     },
     "confirmation-invariant-panel": {
-      "focusRingRatio": 13.58
+      "focusRingRatio": 13.58,
+      "backdropHex": "#0c0e18"
     },
     "regeneration-gate-blocked": {
       "focusRingRatio": 3.51,
