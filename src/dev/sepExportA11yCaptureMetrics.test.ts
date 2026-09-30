@@ -18,7 +18,9 @@ type SceneMetrics = {
   exportDescribedByLinked?: boolean;
   regenProceedReasonReach?: Reach;
   regenDescribedByLinked?: boolean;
-  contrast?: Record<string, number>;
+  exportFieldsetBorder?: { style?: string; width?: string };
+  exportPopinBtnHeights?: number[];
+  contrast?: Record<string, number | null>;
 };
 
 describe("captures-react séparation / export (#187 / #191)", () => {
@@ -28,30 +30,37 @@ describe("captures-react séparation / export (#187 / #191)", () => {
       SceneMetrics
     >;
     for (const [scene, m] of Object.entries(metrics)) {
-      if (scene !== "regen-gate-blocked") {
-        assert.equal(
-          m.footerReach?.reachable,
-          true,
-          `${scene} footer`,
-        );
+      if (scene.startsWith("regen-gate-blocked")) {
+        assert.equal(m.regenProceedReasonReach?.reachable, true);
+        assert.equal(m.regenDescribedByLinked, true);
+        continue;
       }
-      if (scene.startsWith("export-drawer")) {
+      assert.equal(m.footerReach?.reachable, true, `${scene} footer`);
+      if (scene.startsWith("export-drawer-top")) {
         assert.equal(m.exportRunReach?.reachable, true, `${scene} export`);
+        assert.equal(m.exportFieldsetBorder?.style, "none", `${scene} fieldset`);
+        assert.equal(m.exportFieldsetBorder?.width, "0px", `${scene} fieldset`);
       }
-      if (scene === "export-stems-none-selected") {
+      if (scene.startsWith("export-stems-none-selected")) {
         assert.equal(m.exportDisabledReasonReach?.reachable, true);
         assert.equal(m.exportDescribedByLinked, true);
       }
-      if (scene === "regen-gate-blocked") {
-        assert.equal(m.regenProceedReasonReach?.reachable, true);
-        assert.equal(m.regenDescribedByLinked, true);
+      if (scene.startsWith("export-mix-tight")) {
+        for (const h of m.exportPopinBtnHeights ?? []) {
+          assert.ok(h >= 44, `${scene} bouton ${h}px`);
+        }
+      }
+      if (scene.startsWith("sep-unmeasured-badge")) {
+        const c = m.contrast?.unmeasuredBadge;
+        assert.ok(c != null && c >= 4.5, `badge contraste ${c}`);
       }
     }
-    const contrast = metrics["sep-header"]?.contrast;
+    const contrast = metrics["sep-header-1280x720"]?.contrast;
     assert.ok(contrast);
     for (const [k, v] of Object.entries(contrast!)) {
+      if (k === "unmeasuredBadge") continue;
       if (typeof v === "number") {
-        assert.ok(v >= 4.5, `contraste ${k}: ${v}`);
+        assert.ok(v >= 4.5, `contraste ${k}: ${v} (fond effectif)`);
       }
     }
   });

@@ -59,10 +59,18 @@ describe("Dialogues séparation / export a11y (#187 / #191)", () => {
     );
   });
 
+  it("neutralise la bordure native des fieldsets export (#191)", () => {
+    const css = readSrc("src/App.css");
+    assert.match(
+      css,
+      /\.export-dialog-popin fieldset\s*\{[\s\S]*?border:\s*none/,
+    );
+  });
+
   it("comportement pied export : voir anchoredPopinFooter.behavior.test.ts", () => {
     assert.match(
       readSrc("src/dev/anchoredPopinFooter.behavior.test.ts"),
-      /export-drawer-12-after-export/,
+      /export-drawer-top-12-after/,
     );
   });
 

@@ -156,7 +156,7 @@
   "separate.recommend.focus.vocals": "Voix",
   "separate.recommend.focus.drums": "Batterie",
   "separate.recommend.options": "Options de qualité",
-  "separate.recommend.badge": "Recommandé",
+  "separate.recommend.unmeasuredBadge": "Recommandation non mesurée",
   "separate.recommend.cancel": "Fermer",
   "separate.recommend.run": "Lancer la séparation",
   "separate.recommend.revert": "Revenir à la recommandation",

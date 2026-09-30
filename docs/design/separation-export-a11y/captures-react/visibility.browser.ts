@@ -25,6 +25,27 @@ function __contrastRatio(fg, bg) {
   const darker = Math.min(l1, l2);
   return (lighter + 0.05) / (darker + 0.05);
 }
+function __effectiveBg(el) {
+  let node = el;
+  while (node) {
+    const bg = window.getComputedStyle(node).backgroundColor;
+    if (
+      bg &&
+      bg !== "rgba(0, 0, 0, 0)" &&
+      bg !== "transparent" &&
+      __parseRgb(bg)
+    ) {
+      return bg;
+    }
+    node = node.parentElement;
+  }
+  return "rgb(32, 36, 58)";
+}
+function __contrastOnElement(el) {
+  if (!el) return null;
+  const fg = window.getComputedStyle(el).color;
+  return __contrastRatio(fg, __effectiveBg(el));
+}
 function __isClippedByOverflow(el) {
   let node = el;
   while (node && node !== document.body) {

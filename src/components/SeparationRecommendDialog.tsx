@@ -7,6 +7,7 @@ import {
   formatDurationFr,
   licenseStatusLabelFr,
   recommendReasonFr,
+  recommendFocusReasonFr,
   recommendSeparator,
   separatorLicense,
   timeLabelFr,
@@ -244,8 +245,19 @@ export function SeparationRecommendDialog({
           ))}
         </fieldset>
 
+        <p
+          className="sep-unmeasured-rec-badge"
+          role="status"
+          data-testid="sep-unmeasured-rec-badge"
+        >
+          <span className="sep-unmeasured-icon" aria-hidden="true">
+            !
+          </span>
+          {t("separate.recommend.unmeasuredBadge")}
+        </p>
+
         <p className="hint" role="status" data-testid="sep-recommend-reason">
-          {recommendReasonFr(focus)}
+          {recommendFocusReasonFr(focus)}
         </p>
 
         {recommendedUnverified && recommendedLicense && (

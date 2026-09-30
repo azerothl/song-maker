@@ -1035,6 +1035,14 @@ option {
   font-size: 0.75rem;
 }
 
+/* #187 — cibles du popin export (pas la barre mix hors popin) */
+.production-workspace-tight .export-dialog-popin .btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 0.65rem;
+  font-size: 0.875rem;
+}
+
 .production-workspace-tight .production-mix-saved {
   font-size: 0.72rem;
   white-space: nowrap;
@@ -6210,6 +6218,32 @@ details[open] > summary {
   margin: 0;
   font-size: 0.85rem;
 }
+.sep-unmeasured-rec-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0.5rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid #fbbf24;
+  background: color-mix(in srgb, #fbbf24 18%, var(--bg1));
+  color: #fde68a;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.sep-unmeasured-rec-badge .sep-unmeasured-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
 .nc-model-badge {
   display: inline-flex;
   align-items: center;
@@ -6242,6 +6276,19 @@ details[open] > summary {
   font-style: italic;
   opacity: 0.85;
 }
+.production-capture-root[data-capture-anchor-top="1"] .capture-drawer-top {
+  position: fixed;
+  top: 72px;
+  left: calc(var(--sidebar-width) + 12px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  z-index: 4;
+}
+.production-capture-root .capture-mix-tight-bar {
+  margin-top: 1rem;
+}
 .production-capture-root[data-capture-drawer="1"] .capture-drawer-bottom {
   position: fixed;
   left: calc(var(--sidebar-width) + 12px);
@@ -6257,6 +6304,7 @@ details[open] > summary {
   padding: 1.25rem;
   min-height: 100%;
 }
+.export-dialog-popin fieldset {
   border: none;
   padding: 0.35rem 0;
   margin: 0.35rem 0;

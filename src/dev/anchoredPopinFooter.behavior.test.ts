@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
-import { chromium } from "playwright";
+import { chromium, type Page } from "playwright";
 import { VISIBILITY_BROWSER_BUNDLE } from "../../docs/design/separation-export-a11y/captures-react/visibility.browser.ts";
 
 const ROOT = path.resolve(
@@ -12,6 +12,16 @@ const ROOT = path.resolve(
 );
 const PORT = 5188;
 const BASE = `http://127.0.0.1:${PORT}/separation-export-a11y-capture.html`;
+
+type B1Metrics = {
+  footer?: { reachable?: boolean };
+  run?: { reachable?: boolean };
+  popinBottom: number;
+  popinTop: number;
+  anchorBottom: number;
+  vh: number;
+  resultVisible?: boolean;
+};
 
 async function waitServer(url: string): Promise<void> {
   for (let i = 0; i < 120; i++) {
@@ -25,8 +35,85 @@ async function waitServer(url: string): Promise<void> {
   throw new Error(`serveur inaccessible : ${url}`);
 }
 
+async function measureExportDrawerTop(
+  page: Page,
+  hash: string,
+  viewport: { width: number; height: number },
+): Promise<B1Metrics> {
+  await page.setViewportSize(viewport);
+  await page.goto(`${BASE}?v=${encodeURIComponent(hash)}#${hash}`);
+  await page.waitForTimeout(hash.includes("after") ? 1500 : 1100);
+  if (hash.includes("after")) {
+    await page.waitForSelector('[data-testid="export-result"]', {
+      timeout: 8000,
+    });
+  }
+  await page.waitForSelector('[data-testid="export-dialog-footer"]');
+  return page.evaluate(
+    ({ script }) => {
+      eval(script);
+      const footer = document.querySelector(
+        '[data-testid="export-dialog-footer"]',
+      ) as HTMLElement | null;
+      const run = document.querySelector(
+        '[data-testid="export-run"]',
+      ) as HTMLElement | null;
+      const popin = document.querySelector(
+        ".export-dialog-popin",
+      ) as HTMLElement | null;
+      const anchor = document.querySelector(
+        "[data-capture-export-trigger]",
+      ) as HTMLElement | null;
+      const result = document.querySelector(
+        '[data-testid="export-result"]',
+      ) as HTMLElement | null;
+      const anchorBottom = anchor?.getBoundingClientRect().bottom ?? 0;
+      const popinTop = popin?.getBoundingClientRect().top ?? 0;
+      const popinBottom = popin?.getBoundingClientRect().bottom ?? 0;
+      return {
+        footer: __measureReachability(footer),
+        run: __measureReachability(run),
+        popinBottom,
+        popinTop,
+        anchorBottom,
+        vh: window.innerHeight,
+        resultVisible: Boolean(result && result.textContent?.trim()),
+      };
+    },
+    { script: VISIBILITY_BROWSER_BUNDLE },
+  );
+}
+
+function assertB1Reachable(metrics: B1Metrics, label: string): void {
+  assert.equal(metrics.footer?.reachable, true, `${label} footer`);
+  assert.equal(metrics.run?.reachable, true, `${label} export`);
+  assert.ok(
+    metrics.popinBottom <= metrics.vh + 1,
+    `${label} popin dépasse le viewport (${metrics.popinBottom} > ${metrics.vh})`,
+  );
+  const margin = 8;
+  const panelH = metrics.popinBottom - metrics.popinTop;
+  const fitsBelow =
+    metrics.anchorBottom + margin + panelH <= metrics.vh - margin + 0.5;
+  if (fitsBelow) {
+    assert.ok(
+      metrics.popinTop >= metrics.anchorBottom + margin - 0.5,
+      `${label} devrait s'ouvrir sous l'ancre (top=${metrics.popinTop})`,
+    );
+  } else {
+    const pinTop = metrics.vh - panelH - margin;
+    assert.ok(
+      metrics.popinTop >= pinTop - 1,
+      `${label} devrait être calé en bas de viewport (top=${metrics.popinTop}, attendu≥${pinTop})`,
+    );
+  }
+  if (label.includes("after")) {
+    assert.equal(metrics.resultVisible, true, `${label} résultat export`);
+  }
+}
+
 describe("AnchoredPopin — pied export (B1, #191)", () => {
-  it("garde Exporter atteignable depuis le tiroir (12 pistes) après export", async () => {
+  it("ancre en haut : 4/12/16 pistes + après export (720 et 600)", async () => {
     const vite = spawn(
       "pnpm",
       ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],
@@ -40,45 +127,40 @@ describe("AnchoredPopin — pied export (B1, #191)", () => {
     try {
       await waitServer(BASE);
       const browser = await chromium.launch();
-      const page = await browser.newPage({
-        viewport: { width: 1280, height: 720 },
-      });
+      const page = await browser.newPage();
       await page.addInitScript((script: string) => {
         eval(script);
       }, VISIBILITY_BROWSER_BUNDLE);
 
-      for (const hash of ["export-drawer-12", "export-drawer-12-after-export"]) {
-        await page.goto(`${BASE}#${hash}`);
-        await page.waitForTimeout(hash.includes("after") ? 1500 : 1000);
-        await page.waitForSelector('[data-testid="export-dialog-footer"]');
-        const metrics = await page.evaluate(
-          ({ script }) => {
-            eval(script);
-            const footer = document.querySelector(
-              '[data-testid="export-dialog-footer"]',
-            ) as HTMLElement | null;
-            const run = document.querySelector(
-              '[data-testid="export-run"]',
-            ) as HTMLElement | null;
-            const popin = document.querySelector(
-              ".export-dialog-popin",
-            ) as HTMLElement | null;
-            return {
-              footer: __measureReachability(footer),
-              run: __measureReachability(run),
-              popinBottom: popin?.getBoundingClientRect().bottom ?? 0,
-              vh: window.innerHeight,
-            };
-          },
-          { script: VISIBILITY_BROWSER_BUNDLE },
-        );
-        assert.equal(metrics.footer?.reachable, true, `${hash} footer`);
-        assert.equal(metrics.run?.reachable, true, `${hash} export`);
-        assert.ok(
-          metrics.popinBottom <= metrics.vh + 1,
-          `popin dépasse viewport (${hash})`,
-        );
+      const cases: Array<{ hash: string; vp: { width: number; height: number } }> =
+        [
+          { hash: "export-drawer-top-4", vp: { width: 1280, height: 720 } },
+          { hash: "export-drawer-top-12", vp: { width: 1280, height: 720 } },
+          { hash: "export-drawer-top-16", vp: { width: 1280, height: 720 } },
+          { hash: "export-drawer-top-12-after", vp: { width: 1280, height: 720 } },
+          { hash: "export-drawer-top-12", vp: { width: 1280, height: 600 } },
+          { hash: "export-drawer-top-12-after", vp: { width: 1280, height: 600 } },
+        ];
+
+      for (const { hash, vp } of cases) {
+        const m = await measureExportDrawerTop(page, hash, vp);
+        assertB1Reachable(m, `${hash}@${vp.width}x${vp.height}`);
       }
+
+      const fieldset = await page.evaluate(() => {
+        const fs = document.querySelector(
+          ".export-dialog-popin fieldset",
+        ) as HTMLFieldSetElement | null;
+        if (!fs) return null;
+        const s = getComputedStyle(fs);
+        return {
+          borderTopWidth: s.borderTopWidth,
+          borderTopStyle: s.borderTopStyle,
+        };
+      });
+      assert.ok(fieldset);
+      assert.equal(fieldset!.borderTopStyle, "none");
+      assert.equal(fieldset!.borderTopWidth, "0px");
 
       await browser.close();
     } finally {
@@ -86,7 +168,7 @@ describe("AnchoredPopin — pied export (B1, #191)", () => {
     }
   });
 
-  it("repositionne le popin quand le contenu grossit (ResizeObserver)", async () => {
+  it("export mix tight : boutons du popin ≥ 44 px", async () => {
     const vite = spawn(
       "pnpm",
       ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT + 1)],
@@ -102,49 +184,22 @@ describe("AnchoredPopin — pied export (B1, #191)", () => {
         `http://127.0.0.1:${PORT + 1}/separation-export-a11y-capture.html`,
       );
       const browser = await chromium.launch();
-      const page = await browser.newPage({
-        viewport: { width: 1280, height: 720 },
-      });
-      await page.addInitScript((script: string) => {
-        eval(script);
-      }, VISIBILITY_BROWSER_BUNDLE);
+      const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
       await page.goto(
-        `http://127.0.0.1:${PORT + 1}/separation-export-a11y-capture.html#export-drawer-12`,
+        `http://127.0.0.1:${PORT + 1}/separation-export-a11y-capture.html#export-mix-tight`,
       );
       await page.waitForTimeout(900);
-      const before = await page.evaluate(() => {
-        const popin = document.querySelector(".export-dialog-popin");
-        return popin?.getBoundingClientRect().bottom ?? 0;
+      await page.waitForSelector('[data-testid="export-dialog-footer"]');
+      const heights = await page.evaluate(() => {
+        const btns = Array.from(
+          document.querySelectorAll(".export-dialog-popin .btn"),
+        ) as HTMLElement[];
+        return btns.map((b) => b.getBoundingClientRect().height);
       });
-      await page.evaluate(() => {
-        const footer = document.querySelector(
-          '[data-testid="export-dialog-footer"]',
-        );
-        const extra = document.createElement("p");
-        extra.textContent = "Ligne de résultat simulée pour forcer un repositionnement.";
-        extra.setAttribute("data-testid", "export-result");
-        extra.className = "export-dialog-result";
-        footer?.prepend(extra);
-      });
-      await page.waitForTimeout(200);
-      const after = await page.evaluate(
-        ({ script }) => {
-          eval(script);
-          const popin = document.querySelector(".export-dialog-popin");
-          const footer = document.querySelector(
-            '[data-testid="export-dialog-footer"]',
-          ) as HTMLElement | null;
-          return {
-            bottom: popin?.getBoundingClientRect().bottom ?? 0,
-            footerReach: __measureReachability(footer),
-            vh: window.innerHeight,
-          };
-        },
-        { script: VISIBILITY_BROWSER_BUNDLE },
-      );
-      assert.ok(after.bottom <= after.vh + 1);
-      assert.equal(after.footerReach?.reachable, true);
-      assert.ok(after.bottom <= before + 1 || after.bottom <= after.vh + 1);
+      assert.ok(heights.length >= 2);
+      for (const h of heights) {
+        assert.ok(h >= 44, `hauteur bouton ${h}`);
+      }
       await browser.close();
     } finally {
       vite.kill("SIGTERM");
@@ -154,6 +209,4 @@ describe("AnchoredPopin — pied export (B1, #191)", () => {
 
 declare function __measureReachability(
   el: HTMLElement | null,
-): {
-  reachable?: boolean;
-} | null;
+): { reachable?: boolean } | null;
