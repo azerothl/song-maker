@@ -22,6 +22,7 @@ type Viewport = { width: number; height: number };
 const VIEWPORTS: Viewport[] = [
   { width: 1280, height: 720 },
   { width: 1280, height: 768 },
+  { width: 1280, height: 640 },
 ];
 
 const SCENES = [
@@ -45,9 +46,14 @@ async function waitServer(url: string, timeoutMs = 90_000): Promise<void> {
 
 async function launchBrowser(): Promise<Browser> {
   try {
-    return await chromium.launch({ channel: "chrome" });
+    return await chromium.launch({
+      channel: "chrome",
+      args: ["--no-sandbox", "--disable-dev-shm-usage"],
+    });
   } catch {
-    return await chromium.launch();
+    return await chromium.launch({
+      args: ["--no-sandbox", "--disable-dev-shm-usage"],
+    });
   }
 }
 

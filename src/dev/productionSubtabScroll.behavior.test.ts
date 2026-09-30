@@ -229,6 +229,61 @@ describe("production subtab scroll (#203)", () => {
     );
   });
 
+  it("Clips : champs bande haute — grille, BPM et Home natifs (inField)", async () => {
+    const page = await browser.newPage();
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto(`${BASE}#view-clips-16`, { waitUntil: "networkidle" });
+    await page.waitForSelector(".clip-timeline-tools select");
+
+    const gridSelect = page
+      .locator(".clip-timeline-tools .clip-tool-select")
+      .first()
+      .locator("select");
+    assert.equal(await gridSelect.inputValue(), "musical");
+    await gridSelect.focus();
+    await page.keyboard.press("ArrowDown");
+    assert.equal(
+      await gridSelect.inputValue(),
+      "time",
+      "ArrowDown dans la liste grille doit changer l'option (musical→time)",
+    );
+
+    const bpmInput = page
+      .locator(".clip-tempo-editor input[type='number']")
+      .first();
+    assert.equal(await bpmInput.inputValue(), "120");
+    await bpmInput.focus();
+    await page.keyboard.press("ArrowUp");
+    assert.equal(
+      await bpmInput.inputValue(),
+      "121",
+      "ArrowUp dans le BPM doit incrémenter (120→121)",
+    );
+
+    const markerName = page.locator(
+      '.clip-marker-editor input[type="text"]',
+    );
+    await markerName.focus();
+    await markerName.fill("abcdefX");
+    await page.evaluate(() => {
+      const el = document.querySelector(
+        '.clip-marker-editor input[type="text"]',
+      ) as HTMLInputElement | null;
+      if (!el) throw new Error("champ nom de repère introuvable");
+      el.setSelectionRange(7, 7);
+    });
+    await page.keyboard.press("Home");
+    const selStart = await markerName.evaluate(
+      (el) => (el as HTMLInputElement).selectionStart,
+    );
+    await page.close();
+    assert.equal(
+      selStart,
+      0,
+      "Home doit placer le curseur au début du champ texte",
+    );
+  });
+
   it("Clips : défilement bande haute au clavier (PageDown)", async () => {
     const page = await browser.newPage();
     await page.setViewportSize({ width: 1280, height: 720 });

@@ -709,6 +709,8 @@ export function ClipTimeline({
       target.tagName === "SELECT" ||
       target.isContentEditable;
 
+    if (inField) return;
+
     const scrollKeys = new Set([
       "ArrowUp",
       "ArrowDown",
@@ -736,7 +738,6 @@ export function ClipTimeline({
       }
     }
 
-    if (inField) return;
     if (!selected || !selectedClip) return;
     const track = mix.tracks.find((tr) => tr.id === selected.trackId);
     if (!track) return;
