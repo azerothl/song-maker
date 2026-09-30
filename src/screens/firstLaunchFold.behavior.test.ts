@@ -1,8 +1,13 @@
 /**
- * #199 — premier lancement : case HTDemucs / Télécharger au-dessus du pli ;
- * anneau focus Demucs 2 px cyan.
+ * #199 / #196 — premier lancement :
+ * - case HTDemucs / Télécharger au-dessus du pli
+ * - « Reprendre » au-dessus du pli (état interrompu @640)
+ * - indicateur de défilement si récapitulatif masqué
+ * - notice HTDemucs ≥ 14 px (balisage distinct de SeparatorLicenseNotice)
+ * - anneau focus Demucs 2 px cyan
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,6 +46,7 @@ type FoldProbe = {
   downloadInView: boolean;
   checkboxBottom: number;
   downloadBottom: number;
+  noticeFontPx: number;
   vh: number;
 };
 
@@ -60,6 +66,7 @@ async function measureFold(
     };
     const cb = pick('label[for="fl-htdemucs-license-accept"]');
     const btn = pick(".fl-actions .fl-btn");
+    const notice = document.querySelector("[data-testid='fl-htdemucs-notice']");
     const inView = (r) =>
       Boolean(
         r &&
@@ -72,12 +79,85 @@ async function measureFold(
       downloadInView: inView(btn),
       checkboxBottom: cb ? Math.round(cb.bottom) : -1,
       downloadBottom: btn ? Math.round(btn.bottom) : -1,
+      noticeFontPx: notice
+        ? parseFloat(getComputedStyle(notice).fontSize)
+        : 0,
       vh,
     };
   })()`) as Promise<FoldProbe>;
 }
 
-describe("first-launch fold + Demucs focus (#199)", () => {
+type InterruptedProbe = {
+  resumeInView: boolean;
+  resumeBottom: number;
+  vh: number;
+};
+
+async function measureInterrupted(
+  page: Page,
+  viewport: { width: number; height: number },
+): Promise<InterruptedProbe> {
+  await page.setViewportSize(viewport);
+  await page.goto(`${BASE}#c`, { waitUntil: "networkidle" });
+  await page.waitForSelector("[data-testid='fl-resume-download']", {
+    timeout: 15_000,
+  });
+  await page.waitForTimeout(200);
+  return page.evaluate(`(() => {
+    const vh = window.innerHeight;
+    const btn = document.querySelector("[data-testid='fl-resume-download']");
+    const r = btn?.getBoundingClientRect();
+    const inView = Boolean(
+      r &&
+        r.height > 0 &&
+        r.top >= -0.5 &&
+        r.bottom <= vh + 0.5,
+    );
+    return {
+      resumeInView: inView,
+      resumeBottom: r ? Math.round(r.bottom) : -1,
+      vh,
+    };
+  })()`) as Promise<InterruptedProbe>;
+}
+
+type SummaryScrollProbe = {
+  gridHiddenPx: number;
+  scrollHintVisible: boolean;
+  dataScrollMore: string | null;
+  vh: number;
+};
+
+async function measureSummaryScroll(
+  page: Page,
+  viewport: { width: number; height: number },
+): Promise<SummaryScrollProbe> {
+  await page.setViewportSize(viewport);
+  await page.goto(BASE, { waitUntil: "networkidle" });
+  await page.waitForSelector("[data-testid='fl-download-summary']", {
+    timeout: 15_000,
+  });
+  await page.waitForTimeout(250);
+  return page.evaluate(`(() => {
+    const vh = window.innerHeight;
+    const grid = document.querySelector(".fl-grid");
+    const shell = document.querySelector(".fl-scroll-shell");
+    const hint = document.querySelector(".fl-scroll-hint");
+    const hiddenPx = grid
+      ? Math.max(0, grid.scrollHeight - grid.clientHeight)
+      : 0;
+    return {
+      gridHiddenPx: hiddenPx,
+      scrollHintVisible: Boolean(
+        hint && getComputedStyle(hint).display !== "none",
+      ),
+      dataScrollMore: shell?.getAttribute("data-scroll-more") ?? null,
+      vh,
+    };
+  })()`) as Promise<SummaryScrollProbe>;
+}
+
+describe("first-launch fold + Demucs focus (#199 / #196)", () => {
   let proc: ReturnType<typeof spawn> | undefined;
   let browser: Browser | undefined;
 
@@ -140,6 +220,61 @@ describe("first-launch fold + Demucs focus (#199)", () => {
     }
   });
 
+  it("notice HTDemucs : police ≥ 14 px (état GPU)", async () => {
+    const page = await browser!.newPage();
+    try {
+      const m = await measureFold(page, { width: 1280, height: 720 });
+      assert.ok(
+        m.noticeFontPx >= 14,
+        `notice ${m.noticeFontPx}px < 14`,
+      );
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("Reprendre visible sans scroll à 1280×640 (téléchargement interrompu)", async () => {
+    const page = await browser!.newPage();
+    try {
+      const m = await measureInterrupted(page, { width: 1280, height: 640 });
+      assert.equal(m.vh, 640);
+      assert.equal(
+        m.resumeInView,
+        true,
+        `Reprendre hors pli (bottom=${m.resumeBottom})`,
+      );
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("indicateur de défilement si récapitulatif masqué (640 et 720)", async () => {
+    const page = await browser!.newPage();
+    try {
+      for (const height of [640, 720] as const) {
+        const m = await measureSummaryScroll(page, {
+          width: 1280,
+          height,
+        });
+        assert.equal(m.vh, height);
+        if (m.gridHiddenPx > 0) {
+          assert.equal(
+            m.dataScrollMore,
+            "true",
+            `data-scroll-more attendu @${height} (hidden=${m.gridHiddenPx}px)`,
+          );
+          assert.equal(
+            m.scrollHintVisible,
+            true,
+            `indice de défilement absent @${height}`,
+          );
+        }
+      }
+    } finally {
+      await page.close();
+    }
+  });
+
   it("lien Demucs #327 : anneau focus 2 px cyan", async () => {
     const page = await browser!.newPage({
       viewport: { width: 1280, height: 720 },
@@ -173,5 +308,22 @@ describe("first-launch fold + Demucs focus (#199)", () => {
     } finally {
       await page.close();
     }
+  });
+});
+
+describe("first-launch notice markup (#196)", () => {
+  it("n’importe pas SeparatorLicenseNotice ; texte partagé seulement", () => {
+    const src = readFileSync(
+      path.join(ROOT, "src/screens/FirstLaunchScreen.tsx"),
+      "utf8",
+    );
+    const css = readFileSync(
+      path.join(ROOT, "src/screens/FirstLaunchScreen.css"),
+      "utf8",
+    );
+    assert.doesNotMatch(src, /SeparatorLicenseNotice/);
+    assert.match(src, /HTDEMUCS_FIRST_LAUNCH_NOTICE_FR/);
+    assert.match(src, /fl-htdemucs-notice/);
+    assert.match(css, /font-size:\s*max\(14px/);
   });
 });

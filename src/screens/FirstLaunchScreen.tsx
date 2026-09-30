@@ -1,5 +1,12 @@
 import { listen } from "@tauri-apps/api/event";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { api } from "../lib/api";
 import { isTauriRuntime } from "../lib/runtimeHost";
 import {
@@ -44,6 +51,40 @@ import {
 import type { InstallPlan, InstallProgress, SetupGpuInfo } from "../lib/types";
 import { useAppStore } from "../store/appStore";
 import "./FirstLaunchScreen.css";
+
+/** Indique s’il reste du contenu sous le bord bas d’une zone défilante (#196). */
+function useCanScrollMore(
+  ref: RefObject<HTMLElement | null>,
+  active: boolean,
+): boolean {
+  const [canScrollMore, setCanScrollMore] = useState(false);
+
+  useEffect(() => {
+    if (!active) {
+      setCanScrollMore(false);
+      return undefined;
+    }
+    const el = ref.current;
+    if (!el) return undefined;
+
+    const update = () => {
+      setCanScrollMore(el.scrollTop + el.clientHeight < el.scrollHeight - 1);
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    for (const child of el.children) {
+      ro.observe(child);
+    }
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+  }, [ref, active]);
+
+  return canScrollMore;
+}
 
 function invokeError(reason: unknown): string {
   if (typeof reason === "string") return reason;
@@ -142,6 +183,8 @@ export function FirstLaunchScreen() {
   const [error, setError] = useState<string | null>(null);
   const [interruptDismissed, setInterruptDismissed] = useState(false);
   const [techOpen, setTechOpen] = useState(false);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const downloadScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (settings?.acceptedSeparatorLicenses?.htdemucs) {
@@ -244,6 +287,11 @@ export function FirstLaunchScreen() {
     busy,
     interruptDismissed,
   });
+  const gridCanScrollMore = useCanScrollMore(gridRef, view === "gpu");
+  const downloadCanScrollMore = useCanScrollMore(
+    downloadScrollRef,
+    view === "interrupted" || view === "download",
+  );
 
   const buckets = useMemo(() => bucketPlanBytes(plan), [plan]);
   const rows = useMemo(() => buildFileRows(plan, progress), [plan, progress]);
@@ -360,7 +408,21 @@ export function FirstLaunchScreen() {
             </div>
           </header>
 
-          <div className="fl-grid">
+          <div
+            className={`fl-scroll-shell${gridCanScrollMore ? " has-more" : ""}`}
+            data-scroll-more={gridCanScrollMore ? "true" : "false"}
+          >
+            <div
+              className="fl-grid"
+              ref={gridRef}
+              tabIndex={gridCanScrollMore ? 0 : undefined}
+              role="region"
+              aria-label={
+                gridCanScrollMore
+                  ? "Récapitulatif et choix du modèle — défiler pour voir la suite"
+                  : "Récapitulatif et choix du modèle"
+              }
+            >
             <div className="fl-stack">
               <div className="fl-panel fl-detect" role="status">
                 <div className="fl-ico" aria-hidden="true">▣</div>
@@ -382,7 +444,7 @@ export function FirstLaunchScreen() {
                 <p>{gpu.suggestedPackReasonFr}</p>
               </div>
 
-              <div className="fl-panel">
+              <div className="fl-panel" data-testid="fl-download-summary">
                 <h2>Ce qui sera téléchargé</h2>
                 <dl className="fl-sum">
                   <div>
@@ -464,6 +526,12 @@ export function FirstLaunchScreen() {
               })}
               <p className="fl-hint">Vous pourrez changer de modèle plus tard dans Réglages.</p>
             </div>
+            </div>
+            {gridCanScrollMore ? (
+              <div className="fl-scroll-hint" aria-hidden="true">
+                <span>Suite — défiler</span>
+              </div>
+            ) : null}
           </div>
 
           <div className="fl-foot">
@@ -634,7 +702,7 @@ export function FirstLaunchScreen() {
       )}
 
       {(view === "interrupted" || view === "download") && (
-        <div className="fl-card">
+        <div className="fl-card fl-card-download">
           <header className="fl-head">
             <div>
               <p className="fl-eyebrow">Première installation · Téléchargement</p>
@@ -649,97 +717,120 @@ export function FirstLaunchScreen() {
             </div>
           </header>
 
-          <div className="fl-files" role="list">
-            {rows.map((row) => (
-              <div
-                key={row.name}
-                className={`fl-file${row.status === "error" ? " err" : ""}`}
-                role="listitem"
-              >
-                <div className="fl-file-n">
-                  <b>{row.title}</b>
-                  <span>{row.hint}</span>
-                </div>
-                <div>
+          <div
+            className={`fl-scroll-shell${downloadCanScrollMore ? " has-more" : ""}`}
+            data-scroll-more={downloadCanScrollMore ? "true" : "false"}
+          >
+            <div
+              className="fl-scroll-body"
+              ref={downloadScrollRef}
+              tabIndex={downloadCanScrollMore ? 0 : undefined}
+              role="region"
+              aria-label={
+                downloadCanScrollMore
+                  ? "Progression du téléchargement — défiler pour voir la suite"
+                  : "Progression du téléchargement"
+              }
+            >
+              <div className="fl-files" role="list">
+                {rows.map((row) => (
                   <div
-                    className={`fl-pbar${row.status === "error" ? " err" : ""}${row.status === "waiting" ? " wait" : ""}`}
-                    role="progressbar"
-                    aria-valuenow={row.percent}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={row.title}
+                    key={row.name}
+                    className={`fl-file${row.status === "error" ? " err" : ""}`}
+                    role="listitem"
                   >
-                    <i style={{ width: `${row.percent}%` }} />
+                    <div className="fl-file-n">
+                      <b>{row.title}</b>
+                      <span>{row.hint}</span>
+                    </div>
+                    <div>
+                      <div
+                        className={`fl-pbar${row.status === "error" ? " err" : ""}${row.status === "waiting" ? " wait" : ""}`}
+                        role="progressbar"
+                        aria-valuenow={row.percent}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={row.title}
+                      >
+                        <i style={{ width: `${row.percent}%` }} />
+                      </div>
+                      <div className="fl-pinfo">
+                        <span>
+                          <b>{formatBytesFr(row.receivedBytes)}</b>
+                          {row.totalBytes != null ? ` / ${formatBytesFr(row.totalBytes)}` : ""}
+                          {row.percent ? ` · ${row.percent} %` : ""}
+                        </span>
+                        <span>
+                          {row.bytesPerSec
+                            ? `Vitesse : ${formatRateFr(row.bytesPerSec)}`
+                            : row.status === "error"
+                              ? "Vitesse : 0 Mo/s"
+                              : `${row.percent} %`}
+                        </span>
+                      </div>
+                    </div>
+                    <div
+                      className={`fl-st ${
+                        row.status === "complete"
+                          ? "ok"
+                          : row.status === "error" || row.status === "partial"
+                            ? "er"
+                            : "wt"
+                      }`}
+                    >
+                      <FileStatusLabel
+                        status={row.status}
+                        etaSeconds={progress?.etaSeconds}
+                        etaIsEstimate={Boolean(progress?.etaIsEstimate)}
+                        activeTitle={
+                          row.status === "waiting" || row.status === "missing"
+                            ? activeQueueTitle
+                            : null
+                        }
+                      />
+                    </div>
                   </div>
-                  <div className="fl-pinfo">
-                    <span>
-                      <b>{formatBytesFr(row.receivedBytes)}</b>
-                      {row.totalBytes != null ? ` / ${formatBytesFr(row.totalBytes)}` : ""}
-                      {row.percent ? ` · ${row.percent} %` : ""}
-                    </span>
-                    <span>
-                      {row.bytesPerSec
-                        ? `Vitesse : ${formatRateFr(row.bytesPerSec)}`
-                        : row.status === "error"
-                          ? "Vitesse : 0 Mo/s"
-                          : `${row.percent} %`}
-                    </span>
+                ))}
+              </div>
+
+              <div className="fl-global">
+                <span>
+                  Total :{" "}
+                  <b>{formatBytesFr(overallReceived(plan, progress))}</b>
+                  {overallTotal(plan, progress) != null
+                    ? ` reçus sur ${formatBytesFr(overallTotal(plan, progress)!)}`
+                    : " reçus"}
+                </span>
+                <span>Temps restant : {etaLabel}</span>
+              </div>
+
+              {view === "interrupted" && (
+                <div className="fl-errbox" role="alert">
+                  <div className="fl-ai" aria-hidden="true">!</div>
+                  <div>
+                    <h2>{errorCopy.title}</h2>
+                    <p>{errorCopy.body}</p>
+                    <ol>
+                      {errorCopy.steps.map((step) => (
+                        <li key={step}>{step}</li>
+                      ))}
+                    </ol>
                   </div>
                 </div>
-                <div
-                  className={`fl-st ${
-                    row.status === "complete"
-                      ? "ok"
-                      : row.status === "error" || row.status === "partial"
-                        ? "er"
-                        : "wt"
-                  }`}
-                >
-                  <FileStatusLabel
-                    status={row.status}
-                    etaSeconds={progress?.etaSeconds}
-                    etaIsEstimate={Boolean(progress?.etaIsEstimate)}
-                    activeTitle={
-                      row.status === "waiting" || row.status === "missing"
-                        ? activeQueueTitle
-                        : null
-                    }
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="fl-global">
-            <span>
-              Total :{" "}
-              <b>{formatBytesFr(overallReceived(plan, progress))}</b>
-              {overallTotal(plan, progress) != null
-                ? ` reçus sur ${formatBytesFr(overallTotal(plan, progress)!)}`
-                : " reçus"}
-            </span>
-            <span>Temps restant : {etaLabel}</span>
-          </div>
-
-          {view === "interrupted" && (
-            <div className="fl-errbox" role="alert">
-              <div className="fl-ai" aria-hidden="true">!</div>
-              <div>
-                <h2>{errorCopy.title}</h2>
-                <p>{errorCopy.body}</p>
-                <ol>
-                  {errorCopy.steps.map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
-                </ol>
-              </div>
+              )}
             </div>
-          )}
+            {downloadCanScrollMore ? (
+              <div className="fl-scroll-hint" aria-hidden="true">
+                <span>Suite — défiler</span>
+              </div>
+            ) : null}
+          </div>
 
           <div className="fl-row-actions">
             <button
               className="fl-btn fl-btn-lg"
               type="button"
+              data-testid="fl-resume-download"
               disabled={
                 busy ||
                 !licenseAllowsDownload(accepted, settings?.yue2LicenseAccepted) ||

@@ -58,20 +58,16 @@ Tolérance script : ±0,15 sur les valeurs « calcul exact » ci-dessus.
 
 `metrics.json` : les `rect.*` des mesures de visibilité sont arrondis à **2 décimales** à l’écriture (reproductibilité CI / polices). Les contrastes restent en pleine précision.
 
-### PNG identiques (27 fichiers, 24 empreintes)
+### PNG captures (29 fichiers, 29 empreintes distinctes)
 
-Certaines scènes partagent le même rendu pixel (hash SHA-256 identique) : c’est **voulu** — une clé par scène/viewport pour les assertions `metrics.json`, sans dupliquer le contenu visuel.
-
-| Groupe (même hash) | Scènes |
-| --- | --- |
-| En-tête reco | `sep-header`, `sep-recommended-visible`, `sep-unmeasured-badge` |
-| Pied / exclusions | `sep-exclusions`, `sep-footer` |
+Chaque PNG a une empreinte SHA-256 distincte (29/29). Une clé `metrics.json` par scène/viewport.
 
 ### Tolérance `metrics.json` (regen-gate et badges)
 
 - `capture.mts` attend `document.fonts.ready` et, pour `sep-header`, que `popin.top ≥ anchor.bottom` avant mesure.
 - Écarts acceptables entre régénérations sur **positions** (`unmeasuredBadgeReach.rect.right`, `regen-gate-blocked`, etc.) : **±1 px** sur `rect.*` et **±0,01** sur les flottants arrondis, tant que les contrastes `contrast.*` restent identiques au centième.
 - Les tests commités comparent les invariants (overlap ≤ 0,51 px, `footerReach.reachable`, contrastes ≥ 4,5) plutôt qu’une égalité bit-à-bit du JSON.
+- `data-testid="sep-recommend-trigger"` : déjà documenté dans les harness / mesures d’overlap.
 
 ## Non testé
 
