@@ -6,7 +6,6 @@ import {
   EXCLUDED_SEPARATOR_NOTES_FR,
   formatDurationFr,
   licenseStatusLabelFr,
-  recommendReasonFr,
   recommendFocusReasonFr,
   recommendSeparator,
   separatorLicense,

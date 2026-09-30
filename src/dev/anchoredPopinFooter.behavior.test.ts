@@ -14,8 +14,8 @@ const PORT = 5188;
 const BASE = `http://127.0.0.1:${PORT}/separation-export-a11y-capture.html`;
 
 type B1Metrics = {
-  footer?: { reachable?: boolean };
-  run?: { reachable?: boolean };
+  footer?: { reachable?: boolean } | null;
+  run?: { reachable?: boolean } | null;
   popinBottom: number;
   popinTop: number;
   anchorBottom: number;
