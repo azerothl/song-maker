@@ -15,6 +15,7 @@ pub mod jobs;
 pub mod lora_training;
 pub mod mix;
 pub mod package;
+pub mod profiles;
 pub mod projects;
 pub mod score;
 pub mod separation;

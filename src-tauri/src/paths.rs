@@ -13,12 +13,28 @@ pub fn song_maker_documents() -> PathBuf {
     base.join("Song Maker")
 }
 
-pub fn projects_root() -> PathBuf {
+pub fn legacy_projects_root() -> PathBuf {
     song_maker_documents().join("projects")
 }
 
-pub fn library_db_path() -> PathBuf {
+pub fn legacy_library_db_path() -> PathBuf {
     song_maker_documents().join("library.sqlite")
+}
+
+pub fn projects_root() -> PathBuf {
+    if crate::profiles::try_active_projects_root().is_some() {
+        crate::profiles::active_projects_root()
+    } else {
+        legacy_projects_root()
+    }
+}
+
+pub fn library_db_path() -> PathBuf {
+    if crate::profiles::try_active_projects_root().is_some() {
+        crate::profiles::active_library_db_path()
+    } else {
+        legacy_library_db_path()
+    }
 }
 
 pub fn settings_path() -> PathBuf {

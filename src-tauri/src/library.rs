@@ -236,18 +236,21 @@ pub fn rebuild_from_disk() -> Result<(), String> {
 }
 
 pub fn load_settings() -> Result<AppSettings, String> {
-    let path = settings_path();
-    if path.exists() {
-        let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        let mut settings: AppSettings = serde_json::from_str(&text).map_err(|e| e.to_string())?;
-        if migrate_binary_pin(&mut settings) {
-            save_settings(&settings)?;
+    let mut settings = crate::profiles::merged_settings_from_disk().or_else(|_| {
+        let path = settings_path();
+        if path.exists() {
+            let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+            let settings: AppSettings = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+            return Ok(settings);
         }
-        return Ok(settings);
+        let defaults = default_settings();
+        save_settings(&defaults)?;
+        Ok(defaults)
+    })?;
+    if migrate_binary_pin(&mut settings) {
+        save_settings(&settings)?;
     }
-    let defaults = default_settings();
-    save_settings(&defaults)?;
-    Ok(defaults)
+    Ok(settings)
 }
 
 /// Mark queued/running manifests interrupted after a process restart; GPU work
@@ -351,6 +354,9 @@ pub fn default_settings() -> AppSettings {
 }
 
 pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
+    if let Some(id) = crate::profiles::active_profile_id() {
+        return crate::profiles::split_and_save_settings(&id, settings);
+    }
     atomic_write_json(&settings_path(), settings)
 }
 
