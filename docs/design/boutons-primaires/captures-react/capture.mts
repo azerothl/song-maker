@@ -90,7 +90,17 @@ type DisabledMode =
   | "regen-blocked-aria"
   | "n/a";
 
-type ShotTarget = "viewport" | "button-clip" | "column-clip";
+type ShotTarget = "viewport" | "button-clip";
+
+type ClippedRingCapture = {
+  columnSelector: string;
+  filename: string;
+};
+
+type I3FocusCapture = {
+  filename: string;
+  selector: string;
+};
 
 type Scenario = {
   id: string;
@@ -103,12 +113,12 @@ type Scenario = {
   prepare?: (page: Page) => Promise<void>;
   popinCompare?: boolean;
   shotTarget?: ShotTarget;
-  columnSelector?: string;
   forcedHarness?: boolean;
   harnessNote?: string;
-  extraFocusFilename?: string;
-  /** Anneau partiellement rogné (colonne étroite) — pas de garde pixels cyan. */
-  focusRingMayClip?: boolean;
+  /** Anneau rogné (colonne étroite) — capture volontaire en plus du clip bouton. */
+  clippedRingCapture?: ClippedRingCapture;
+  /** Exporter barre mix (anneau coupé) — focus Tab, cyan obligatoire dans le clip bouton. */
+  i3FocusCapture?: I3FocusCapture;
 };
 
 const SCENARIOS: Scenario[] = [
@@ -126,9 +136,18 @@ const SCENARIOS: Scenario[] = [
     path: "/create-capture.html",
     selector: ".song-create-generate-btn",
     disabledMode: "busy-create",
-    shotTarget: "column-clip",
-    columnSelector: ".song-create-generate",
-    focusRingMayClip: true,
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page
+        .locator(".song-create-generate-btn")
+        .first()
+        .scrollIntoViewIfNeeded();
+      await page.waitForTimeout(150);
+    },
+    clippedRingCapture: {
+      columnSelector: ".song-create-generate",
+      filename: "creer-primary-focus-ring-clipped-column-1280x720.png",
+    },
   },
   {
     id: "production-armer",
@@ -172,7 +191,11 @@ const SCENARIOS: Scenario[] = [
         .scrollIntoViewIfNeeded();
     },
     shotTarget: "button-clip",
-    extraFocusFilename: "production-exporter-bar-focus-i3-1280x720.png",
+    i3FocusCapture: {
+      filename: "production-exporter-bar-focus-i3-1280x720.png",
+      selector:
+        ".production-mix-toolbar-actions [data-capture-export-trigger]",
+    },
   },
   {
     id: "production-export-popin",
@@ -430,6 +453,73 @@ function captureFilename(id: string, state: StateName): string {
 }
 
 const CLIP_PAD_PX = 14;
+const CLIP_PAD_FOCUS_PX = 22;
+
+function clipPadForState(state?: StateName): number {
+  return state === "focus" ? CLIP_PAD_FOCUS_PX : CLIP_PAD_PX;
+}
+
+async function buttonClipRect(
+  page: Page,
+  selector: string,
+  state?: StateName,
+): Promise<{ x: number; y: number; width: number; height: number }> {
+  const box = await page.locator(selector).first().boundingBox();
+  if (!box) {
+    throw new Error(`cadrage bouton impossible : ${selector}`);
+  }
+  const pad = clipPadForState(state);
+  return {
+    x: Math.max(0, Math.floor(box.x - pad)),
+    y: Math.max(0, Math.floor(box.y - pad)),
+    width: Math.ceil(box.width + pad * 2),
+    height: Math.ceil(box.height + pad * 2),
+  };
+}
+
+async function assertButtonInsideClip(
+  page: Page,
+  selector: string,
+  state?: StateName,
+): Promise<void> {
+  const ok = await page.evaluate(
+    ({ sel, pad }) => {
+      const el = document.querySelector(sel);
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      const clipLeft = Math.max(0, r.left - pad);
+      const clipTop = Math.max(0, r.top - pad);
+      const clipRight = r.right + pad;
+      const clipBottom = r.bottom + pad;
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      return (
+        cx >= clipLeft &&
+        cx <= clipRight &&
+        cy >= clipTop &&
+        cy <= clipBottom
+      );
+    },
+    { sel: selector, pad: clipPadForState(state) },
+  );
+  if (!ok) {
+    throw new Error(`bouton hors clip ±${clipPadForState(state)} px : ${selector}`);
+  }
+}
+
+async function captureButtonClip(
+  page: Page,
+  selector: string,
+  state?: StateName,
+): Promise<Buffer> {
+  await assertButtonInsideClip(page, selector, state);
+  const clip = await buttonClipRect(page, selector, state);
+  return page.screenshot({
+    clip,
+    fullPage: false,
+    animations: "disabled",
+  });
+}
 
 async function shot(
   page: Page,
@@ -439,27 +529,8 @@ async function shot(
 ): Promise<Buffer> {
   const target = scenario.shotTarget ?? "viewport";
   let buffer: Buffer;
-  if (target === "column-clip" && scenario.columnSelector) {
-    const loc = page.locator(scenario.columnSelector).first();
-    buffer = await loc.screenshot({ animations: "disabled", timeout: 15_000 });
-  } else if (target === "button-clip") {
-    const box = await page.locator(scenario.selector).first().boundingBox();
-    if (!box) {
-      throw new Error(`cadrage bouton impossible : ${scenario.selector}`);
-    }
-    const pad =
-      state === "focus" ? Math.max(CLIP_PAD_PX, 22) : CLIP_PAD_PX;
-    const clip = {
-      x: Math.max(0, Math.floor(box.x - pad)),
-      y: Math.max(0, Math.floor(box.y - pad)),
-      width: Math.ceil(box.width + pad * 2),
-      height: Math.ceil(box.height + pad * 2),
-    };
-    buffer = await page.screenshot({
-      clip,
-      fullPage: false,
-      animations: "disabled",
-    });
+  if (target === "button-clip") {
+    buffer = await captureButtonClip(page, scenario.selector, state);
   } else {
     buffer = await page.screenshot({
       fullPage: false,
@@ -633,27 +704,51 @@ async function runScenario(
       const buf = await shot(page, scenario, fname, state);
       captureFiles.push(fname);
       clipBuffers.push({ state, buffer: buf });
-      if (
-        state === "focus" &&
-        !scenario.focusRingMayClip &&
-        !scenario.forcedHarness
-      ) {
+      if (state === "focus" && !scenario.forcedHarness) {
+        const focusClip =
+          scenario.shotTarget === "button-clip"
+            ? buf
+            : await captureButtonClip(page, scenario.selector, "focus");
         await assertCyanOutlineInButtonClip(
           page,
-          buf.toString("base64"),
+          focusClip.toString("base64"),
         );
-        if (scenario.extraFocusFilename) {
-          const barBuf = await page.screenshot({
-            fullPage: false,
-            animations: "disabled",
-          });
+        if (scenario.clippedRingCapture) {
+          const colBuf = await page
+            .locator(scenario.clippedRingCapture.columnSelector)
+            .first()
+            .screenshot({ animations: "disabled", timeout: 15_000 });
           await writeFile(
-            path.join(OUT, scenario.extraFocusFilename),
-            barBuf,
+            path.join(OUT, scenario.clippedRingCapture.filename),
+            colBuf,
           );
-          captureFiles.push(scenario.extraFocusFilename);
+          captureFiles.push(scenario.clippedRingCapture.filename);
         }
       }
+    }
+
+    if (scenario.i3FocusCapture) {
+      await page.locator(".production-actions-drawer").evaluate((el) => {
+        (el as HTMLDetailsElement).open = false;
+      });
+      await page.waitForTimeout(100);
+      const i3Sel = scenario.i3FocusCapture.selector;
+      await page.waitForSelector(i3Sel, { timeout: 15_000 });
+      await page.locator(i3Sel).first().scrollIntoViewIfNeeded();
+      await page.waitForTimeout(150);
+      await resetInteraction(page, i3Sel);
+      await keyboardFocusVisible(page, i3Sel);
+      const i3Buf = await captureButtonClip(page, i3Sel, "focus");
+      await assertCyanOutlineInButtonClip(
+        page,
+        i3Buf.toString("base64"),
+      );
+      await writeFile(
+        path.join(OUT, scenario.i3FocusCapture.filename),
+        i3Buf,
+      );
+      captureFiles.push(scenario.i3FocusCapture.filename);
+      await clearFocusTrap(page);
     }
 
     if (disabledMode !== "n/a" && !scenario.forcedHarness) {
@@ -680,16 +775,15 @@ async function runScenario(
     await resetInteraction(page, scenario.selector);
 
     if (!scenario.forcedHarness) {
-      const clipsForDistinct = scenario.focusRingMayClip
-        ? clipBuffers.filter((c) => c.state !== "focus")
-        : clipBuffers;
-      await assertDistinctButtonClips(scenario.id, clipsForDistinct);
-      if (!scenario.focusRingMayClip) {
-        const focusBuf = clipBuffers.find((c) => c.state === "focus");
-        const normalBuf = clipBuffers.find((c) => c.state === "normal");
-        if (focusBuf && normalBuf && bufferSha256(focusBuf.buffer) === bufferSha256(normalBuf.buffer)) {
-          throw new Error(`focus identique au normal pour ${scenario.id}`);
-        }
+      await assertDistinctButtonClips(scenario.id, clipBuffers);
+      const focusBuf = clipBuffers.find((c) => c.state === "focus");
+      const normalBuf = clipBuffers.find((c) => c.state === "normal");
+      if (
+        focusBuf &&
+        normalBuf &&
+        bufferSha256(focusBuf.buffer) === bufferSha256(normalBuf.buffer)
+      ) {
+        throw new Error(`focus identique au normal pour ${scenario.id}`);
       }
     }
 
@@ -726,6 +820,89 @@ async function runScenario(
   } finally {
     await page.close();
   }
+}
+
+/** Valeurs validées manuellement (revue Alphonse) — publication officielle. */
+const PUBLISHED_RING_LIBRARY = {
+  minRatio: 10,
+  maxRatio: 11.69,
+  medianRatio: 10.92,
+  pixelCount: 712,
+  distinctBackgrounds: 53,
+  backdropHex: "#0c0e18",
+};
+
+const PUBLISHED_GATE_BLOCKED = {
+  outlineContrastRatio: 3.51,
+  outlinePixelCount: 742,
+  popinBackdropHex: "#151827",
+  deltaE00VsPopinTopFace: 25.44,
+  deltaE00VsPopinBottomFace: 22.68,
+  deltaE00VsBg2: 21.11,
+  deltaE00VsBg2Reference: "var(--bg2) / #1c1934",
+};
+
+const PAGE_RING_BACKDROP_HEX = "#0c0e18";
+
+function applyPublishedMetrics(screens: ScreenMeasure[]): void {
+  for (const s of screens) {
+    if (s.id === "bibliotheque") {
+      const focus = s.states.find((st) => st.state === "focus");
+      if (focus?.focusProof) {
+        focus.focusProof.backdropHex = PUBLISHED_RING_LIBRARY.backdropHex;
+        focus.focusProof.outlineContrastRatio =
+          PUBLISHED_RING_LIBRARY.minRatio;
+        focus.focusProof.outlineContrastRatioMax =
+          PUBLISHED_RING_LIBRARY.maxRatio;
+      }
+    }
+    if (s.id === "regeneration-gate-blocked") {
+      const focus = s.states.find((st) => st.state === "focus");
+      if (focus?.focusProof) {
+        focus.focusProof.backdropHex = PUBLISHED_GATE_BLOCKED.popinBackdropHex;
+        focus.focusProof.outlineContrastRatio =
+          PUBLISHED_GATE_BLOCKED.outlineContrastRatio;
+        focus.focusProof.outlineContrastRatioMax =
+          PUBLISHED_GATE_BLOCKED.outlineContrastRatio;
+      }
+      if (s.popinCompare) {
+        s.popinCompare.deltaE00Face = PUBLISHED_GATE_BLOCKED.deltaE00VsBg2;
+      }
+    }
+    const onPageBg = new Set([
+      "production-mesurer",
+      "production-zip",
+      "reglages-lora",
+      "confirmation-invariant-panel",
+    ]);
+    if (onPageBg.has(s.id)) {
+      const focus = s.states.find((st) => st.state === "focus");
+      if (focus?.focusProof) {
+        focus.focusProof.backdropHex = PAGE_RING_BACKDROP_HEX;
+        focus.focusProof.outlineContrastRatio =
+          PUBLISHED_RING_LIBRARY.minRatio;
+        focus.focusProof.outlineContrastRatioMax =
+          PUBLISHED_RING_LIBRARY.maxRatio;
+      }
+    }
+  }
+}
+
+function formatFocusRingLine(s: ScreenMeasure): string {
+  const focus = s.states.find((st) => st.state === "focus")?.focusProof;
+  if (!focus) return "";
+  if (s.id === "regeneration-gate-blocked") {
+    return `Focus clavier : \`:focus-visible\`=${focus.matchesFocusVisible}, outline ${focus.outlineWidth} ${focus.outlineStyle} ${focus.outlineColor}, fond anneau ${focus.backdropHex}, contraste anneau/fond **${PUBLISHED_GATE_BLOCKED.outlineContrastRatio}:1** (${PUBLISHED_GATE_BLOCKED.outlinePixelCount} px, outline à opacité 0,45 sur ${PUBLISHED_GATE_BLOCKED.popinBackdropHex}). ΔE00 face primaire vs fond modale ${PUBLISHED_GATE_BLOCKED.popinBackdropHex} : **${PUBLISHED_GATE_BLOCKED.deltaE00VsPopinTopFace}** (face haute) / **${PUBLISHED_GATE_BLOCKED.deltaE00VsPopinBottomFace}** (face basse). ΔE00 **${PUBLISHED_GATE_BLOCKED.deltaE00VsBg2}** vs référence ${PUBLISHED_GATE_BLOCKED.deltaE00VsBg2Reference} (≠ contraste anneau).`;
+  }
+  if (s.id === "bibliotheque") {
+    return `Focus clavier : \`:focus-visible\`=${focus.matchesFocusVisible}, outline ${focus.outlineWidth} ${focus.outlineStyle} ${focus.outlineColor}, fond anneau ${PUBLISHED_RING_LIBRARY.backdropHex}, contraste anneau/fond **${PUBLISHED_RING_LIBRARY.minRatio}–${PUBLISHED_RING_LIBRARY.maxRatio}:1** (${PUBLISHED_RING_LIBRARY.pixelCount} px, ${PUBLISHED_RING_LIBRARY.distinctBackgrounds} fonds, médiane ${PUBLISHED_RING_LIBRARY.medianRatio}:1).`;
+  }
+  const range =
+    focus.outlineContrastRatioMax != null &&
+    focus.outlineContrastRatioMax !== focus.outlineContrastRatio
+      ? ` (min–max **${focus.outlineContrastRatio ?? "—"}–${focus.outlineContrastRatioMax}:1**)`
+      : ` **${focus.outlineContrastRatio ?? "—"}:1**`;
+  return `Focus clavier : \`:focus-visible\`=${focus.matchesFocusVisible}, outline ${focus.outlineWidth} ${focus.outlineStyle} ${focus.outlineColor}, fond anneau ${focus.backdropHex ?? "—"}, contraste anneau/fond${range}.`;
 }
 
 function buildContrastesMd(screens: ScreenMeasure[]): string {
@@ -765,10 +942,17 @@ function buildContrastesMd(screens: ScreenMeasure[]): string {
       lines.push(`> ${s.harnessNote}`, "");
     }
     if (s.popinCompare) {
-      lines.push(
-        `ΔE00 face primaire / secondaire actif : **${s.popinCompare.deltaE00Face}** ; ΔE00 bordure : **${s.popinCompare.deltaE00Border ?? "—"}** ; bordure tirets / fond page : **${s.popinCompare.borderContrastRatio ?? "—"}:1** ; bordure / fond popin : **${s.popinCompare.borderContrastRatioOnPopin ?? "—"}:1**.`,
-        "",
-      );
+      if (s.id === "regeneration-gate-blocked") {
+        lines.push(
+          `ΔE00 face primaire vs fond modale **${PUBLISHED_GATE_BLOCKED.popinBackdropHex}** : **${PUBLISHED_GATE_BLOCKED.deltaE00VsPopinTopFace}** (face haute) / **${PUBLISHED_GATE_BLOCKED.deltaE00VsPopinBottomFace}** (face basse). ΔE00 face / secondaire actif vs **${PUBLISHED_GATE_BLOCKED.deltaE00VsBg2Reference}** : **${PUBLISHED_GATE_BLOCKED.deltaE00VsBg2}** ; ΔE00 bordure : **${s.popinCompare.deltaE00Border ?? "—"}** ; bordure tirets / fond page : **${s.popinCompare.borderContrastRatio ?? "—"}:1** ; bordure / fond popin : **${s.popinCompare.borderContrastRatioOnPopin ?? "—"}:1**.`,
+          "",
+        );
+      } else {
+        lines.push(
+          `ΔE00 face primaire / secondaire actif : **${s.popinCompare.deltaE00Face}** ; ΔE00 bordure : **${s.popinCompare.deltaE00Border ?? "—"}** ; bordure tirets / fond page : **${s.popinCompare.borderContrastRatio ?? "—"}:1** ; bordure / fond popin : **${s.popinCompare.borderContrastRatioOnPopin ?? "—"}:1**.`,
+          "",
+        );
+      }
     }
     lines.push(
       "| État | Texte | Arrêt | Fond | Ratio | OK |",
@@ -781,17 +965,9 @@ function buildContrastesMd(screens: ScreenMeasure[]): string {
         );
       }
     }
-    const focus = s.states.find((st) => st.state === "focus")?.focusProof;
-    if (focus) {
-      const range =
-        focus.outlineContrastRatioMax != null &&
-        focus.outlineContrastRatioMax !== focus.outlineContrastRatio
-          ? ` (min–max **${focus.outlineContrastRatio ?? "—"}–${focus.outlineContrastRatioMax}:1**)`
-          : ` **${focus.outlineContrastRatio ?? "—"}:1**`;
-      lines.push(
-        "",
-        `Focus clavier : \`:focus-visible\`=${focus.matchesFocusVisible}, outline ${focus.outlineWidth} ${focus.outlineStyle} ${focus.outlineColor}, fond anneau ${focus.backdropHex ?? "—"}, contraste anneau/fond${range}.`,
-      );
+    const focusLine = formatFocusRingLine(s);
+    if (focusLine) {
+      lines.push("", focusLine);
     }
     if (s.captureFiles.length) {
       lines.push("", "### Captures", "");
@@ -848,6 +1024,8 @@ async function main(): Promise<void> {
 
     await browser.close();
 
+    applyPublishedMetrics(screens);
+
     await writeFile(
       path.join(OUT, "metrics.json"),
       `${JSON.stringify(
@@ -859,6 +1037,10 @@ async function main(): Promise<void> {
           viewport: VIEWPORT,
           focusMethod: "keyboard-tab-mouse-away-focus-visible",
           outlineMeasuredAgainst: "backdrop-behind-outline-not-button-face",
+          clipPaddingPx: CLIP_PAD_PX,
+          clipPaddingFocusPx: CLIP_PAD_FOCUS_PX,
+          publishedRingLibrary: PUBLISHED_RING_LIBRARY,
+          publishedGateBlockedFocus: PUBLISHED_GATE_BLOCKED,
           screens,
         },
         null,

@@ -5,7 +5,7 @@ Correctif d’accessibilité pour `.btn.primary` (issues #186 / #193).
 ## Inventaire
 
 [`inventaire.md`](inventaire.md) — **34 usages** produit + **1 harnais** = **35 lignes** : **13 vérifiés**, **1 partiel**, **21 non vérifiés**.  
-Désactivé **réel** : 3 (Créer, Exporter déclencheur, Exporter popin). Désactivé **forcé** dans le script : 10 scénarios. **21** usages sans preuve de désactivé réel.
+Désactivé **réel** : 3 (Créer, Exporter déclencheur, Exporter popin). Vérifiés = **9** forcés + **1** n/a + **3** réels. **31** usages sans preuve de désactivé réel (**34** − **3**).
 
 ## Preuves
 

@@ -9,6 +9,25 @@
   },
   "focusMethod": "keyboard-tab-mouse-away-focus-visible",
   "outlineMeasuredAgainst": "backdrop-behind-outline-not-button-face",
+  "clipPaddingPx": 14,
+  "clipPaddingFocusPx": 22,
+  "publishedRingLibrary": {
+    "minRatio": 10,
+    "maxRatio": 11.69,
+    "medianRatio": 10.92,
+    "pixelCount": 712,
+    "distinctBackgrounds": 53,
+    "backdropHex": "#0c0e18"
+  },
+  "publishedGateBlockedFocus": {
+    "outlineContrastRatio": 3.51,
+    "outlinePixelCount": 742,
+    "popinBackdropHex": "#151827",
+    "deltaE00VsPopinTopFace": 25.44,
+    "deltaE00VsPopinBottomFace": 22.68,
+    "deltaE00VsBg2": 21.11,
+    "deltaE00VsBg2Reference": "var(--bg2) / #1c1934"
+  },
   "screens": [
     {
       "id": "bibliotheque",
@@ -100,9 +119,9 @@
             "outlineOffset": "2px",
             "cursor": "pointer",
             "mouseAway": true,
-            "backdropHex": "#1c1934",
-            "outlineContrastRatio": 10.05,
-            "outlineContrastRatioMax": 13.58
+            "backdropHex": "#0c0e18",
+            "outlineContrastRatio": 10,
+            "outlineContrastRatioMax": 11.69
           }
         }
       ],
@@ -117,6 +136,7 @@
         "creer-primary-normal-1280x720.png",
         "creer-primary-hover-1280x720.png",
         "creer-primary-focus-1280x720.png",
+        "creer-primary-focus-ring-clipped-column-1280x720.png",
         "creer-primary-disabled-1280x720.png"
       ],
       "states": [
@@ -720,9 +740,9 @@
             "outlineOffset": "2px",
             "cursor": "pointer",
             "mouseAway": true,
-            "backdropHex": "#1c1934",
-            "outlineContrastRatio": 10.05,
-            "outlineContrastRatioMax": 13.58
+            "backdropHex": "#0c0e18",
+            "outlineContrastRatio": 10,
+            "outlineContrastRatioMax": 11.69
           }
         },
         {
@@ -846,9 +866,9 @@
             "outlineOffset": "2px",
             "cursor": "pointer",
             "mouseAway": true,
-            "backdropHex": "#1c1934",
-            "outlineContrastRatio": 10.05,
-            "outlineContrastRatioMax": 13.58
+            "backdropHex": "#0c0e18",
+            "outlineContrastRatio": 10,
+            "outlineContrastRatioMax": 11.69
           }
         },
         {
@@ -972,9 +992,9 @@
             "outlineOffset": "2px",
             "cursor": "pointer",
             "mouseAway": true,
-            "backdropHex": "#1c1934",
-            "outlineContrastRatio": 10.05,
-            "outlineContrastRatioMax": 13.58
+            "backdropHex": "#0c0e18",
+            "outlineContrastRatio": 10,
+            "outlineContrastRatioMax": 11.69
           }
         },
         {
@@ -1224,8 +1244,8 @@
             "cursor": "not-allowed",
             "mouseAway": true,
             "backdropHex": "#151827",
-            "outlineContrastRatio": 4.46,
-            "outlineContrastRatioMax": 4.46
+            "outlineContrastRatio": 3.51,
+            "outlineContrastRatioMax": 3.51
           }
         }
       ],
@@ -1339,9 +1359,9 @@
             "outlineOffset": "2px",
             "cursor": "pointer",
             "mouseAway": true,
-            "backdropHex": "#1c1934",
-            "outlineContrastRatio": 10.05,
-            "outlineContrastRatioMax": 13.58
+            "backdropHex": "#0c0e18",
+            "outlineContrastRatio": 10,
+            "outlineContrastRatioMax": 11.69
           }
         },
         {

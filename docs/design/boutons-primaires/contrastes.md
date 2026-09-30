@@ -1,6 +1,6 @@
 # Contrastes — boutons primaires (#186)
 
-Généré le 2026-09-30T02:31:03.955Z.
+Généré le 2026-09-30T02:47:08.555Z.
 
 Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` résolu) composé sur `--bg0`.
 - États actifs : seuil WCAG 2.2 AA **4.5:1**.
@@ -37,7 +37,7 @@ Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` r�
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond (min–max **10.05–13.58:1**).
+Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond **10–11.69:1** (712 px, 53 fonds, médiane 10.92:1).
 
 ### Captures
 
@@ -65,6 +65,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 - [`creer-primary-normal-1280x720.png`](captures-react/creer-primary-normal-1280x720.png)
 - [`creer-primary-hover-1280x720.png`](captures-react/creer-primary-hover-1280x720.png)
 - [`creer-primary-focus-1280x720.png`](captures-react/creer-primary-focus-1280x720.png)
+- [`creer-primary-focus-ring-clipped-column-1280x720.png`](captures-react/creer-primary-focus-ring-clipped-column-1280x720.png)
 - [`creer-primary-disabled-1280x720.png`](captures-react/creer-primary-disabled-1280x720.png)
 
 ## Production — Armer — `.record-panel button.btn.primary`
@@ -149,7 +150,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond (min–max **10.05–13.58:1**).
+Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond (min–max **10–11.69:1**).
 
 ### Captures
 
@@ -171,7 +172,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond (min–max **10.05–13.58:1**).
+Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond (min–max **10–11.69:1**).
 
 ### Captures
 
@@ -193,7 +194,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond (min–max **10.05–13.58:1**).
+Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond (min–max **10–11.69:1**).
 
 ### Captures
 
@@ -228,7 +229,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 
 > État inatteignable dans l’app réelle : `SongScreen.tsx:339` ouvre le gate seulement si `scoreDocument && isRegen` ; ce harnais force `beforeDocument={null}`.
 
-ΔE00 face primaire / secondaire actif : **21.11** ; ΔE00 bordure : **19.72** ; bordure tirets / fond page : **1.09:1** ; bordure / fond popin : **1.19:1**.
+ΔE00 face primaire vs fond modale **#151827** : **25.44** (face haute) / **22.68** (face basse). ΔE00 face / secondaire actif vs **var(--bg2) / #1c1934** : **21.11** ; ΔE00 bordure : **19.72** ; bordure tirets / fond page : **1.09:1** ; bordure / fond popin : **1.19:1**.
 
 | État | Texte | Arrêt | Fond | Ratio | OK |
 |------|-------|-------|------|-------|----|
@@ -239,7 +240,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | focus | #151827 | top | #c4a8ff | 2.67:1 | FAIL |
 | focus | #151827 | bottom | #a78bfa | 2.23:1 | FAIL |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **4.46:1**.
+Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **3.51:1** (742 px, outline à opacité 0,45 sur #151827). ΔE00 face primaire vs fond modale #151827 : **25.44** (face haute) / **22.68** (face basse). ΔE00 **21.11** vs référence var(--bg2) / #1c1934 (≠ contraste anneau).
 
 ### Captures
 
@@ -260,7 +261,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond (min–max **10.05–13.58:1**).
+Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond (min–max **10–11.69:1**).
 
 ### Captures
 
