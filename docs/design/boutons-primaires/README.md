@@ -12,12 +12,12 @@ Désactivé **réel** : 3 (Créer, Exporter déclencheur, Exporter popin). Véri
 - [`captures-react/`](captures-react/) — PNG + `metrics.json` + `capture.mts`
 - [`contrastes.md`](contrastes.md) — synthèse régénérée
 
-Texte désactivé mesuré : **`#848ba0`** sur **`#1c2034`** → **4,73:1**.
+Texte désactivé mesuré : **`#848ba0`** sur **`#12151f`** → **5,36:1**.
 
 ## Non testé
 
 WebKitGTK, lecteur d’écran, `forced-colors`, `aria-disabled` popin Exporter (0 piste), test négatif garde cyan.
 
-## Signalé (I2 / I3)
+## I2 / I3
 
-Voir `inventaire.md` — bordure popin 1,60:1 (page) / 1,27:1 (fond popin) ; anneau Exporter parfois coupé.
+Corrigés (bordure désactivée ≥ 3:1, ΔE00 face/ghost ~7,7, padding anneau focus) — détails dans `inventaire.md`. Ticket **#186** reste ouvert : **21** usages non vérifiés.

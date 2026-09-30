@@ -931,7 +931,7 @@ function buildContrastesMd(
     "",
     "Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` résolu) composé sur `--bg0`.",
     `- États actifs : seuil WCAG 2.2 AA **${AA_MIN}:1**.`,
-    `- Désactivé : texte **#848ba0** (~**4,73:1** sur **#1c2034**), seuil lisibilité **${DISABLED_MIN}:1**.`,
+    `- Désactivé : texte **#848ba0** (~**5,36:1** sur **#12151f**), seuil lisibilité **${DISABLED_MIN}:1**.`,
     "- Focus : Tab + souris hors bouton ; contraste anneau mesuré contre le **fond** derrière l’outline (pas la face du bouton).",
     `- Champs \`manualReviewAlphonse\` dans \`metrics.json\` : publication **${MANUAL_REVIEW_SOURCE}** (les mesures DOM restent dans \`screens\`).`,
     "",

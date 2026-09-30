@@ -573,16 +573,16 @@ option {
 
 .btn.primary:disabled {
   /*
-   * Distinct du `.btn` secondaire actif dans les popins (#193) :
-   * texte ~4,7:1 (#848ba0), fond #1c2034 via dégradé plat (Chromium annule
-   * `background-color` sur button:disabled), bordure en tirets.
-   * Seuil lisibilité désactivé : ≥ 3:1 (cible ~4,7:1).
+   * Distinct du `.btn` secondaire actif dans les popins (#186 I2 / #193) :
+   * texte ≥ 4,5:1 (#848ba0 sur #12151f), fond via dégradé plat (Chromium
+   * annule `background-color` sur button:disabled), bordure tirets plus
+   * claire (#6a7394 ≥ 3:1 sur page et fond popin — était ~1,6 / 1,27).
    */
   opacity: 1 !important;
   cursor: not-allowed;
   color: #848ba0 !important;
-  background-image: linear-gradient(#1c2034, #1c2034) !important;
-  border-color: var(--line) !important;
+  background-image: linear-gradient(#12151f, #12151f) !important;
+  border-color: #6a7394 !important;
   border-style: dashed;
 }
 
@@ -1038,7 +1038,9 @@ option {
 
 .production-workspace-tight .production-mix-toolbar-sticky {
   min-height: 0;
-  padding: 0;
+  /* #186 I3 — réserve 4 px pour l’anneau focus (2 px + offset 2 px) ;
+   * overflow-x:auto force aussi le clip vertical sans ce padding. */
+  padding: 4px;
   gap: 0.3rem 0.45rem;
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -1265,6 +1267,9 @@ option {
   align-items: center;
   gap: 0.4rem;
   flex: 1 1 auto;
+  /* #186 I3 — l’anneau cyan ne doit pas être rogné par un ancêtre serré. */
+  padding: 4px;
+  margin: -4px;
 }
 
 .production-mix-saved {
@@ -6286,7 +6291,9 @@ details[open] > summary {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  padding: 0.55rem 0.75rem;
+  /* #186 I3 — padding bas/latéral pour garder l’anneau focus dans le popin
+   * (overflow:hidden sur .export-dialog-popin / .separation-recommend-popin). */
+  padding: 0.55rem 0.85rem calc(0.55rem + 4px);
   border-top: 1px solid var(--line);
   background: var(--bg2);
 }

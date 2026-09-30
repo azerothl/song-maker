@@ -62,7 +62,12 @@ Hors tableau : `scoreTabBenchApp.tsx`, `sepExportA11yCaptureMain.tsx`, maquettes
 - `aria-disabled` du popin Exporter quand aucune piste n’est cochée (preuve popin = primaire `:disabled` via `busy`)
 - Garde cyan : échec attendu sur PNG sans pixels cyan (non couvert par un test automatisé)
 
-## Points ouverts (sans correctif CSS)
+## Points CSS (I2 / I3) — corrigés dans cette itération
 
-- **I2** — Popin export désactivé natif : bordure tirets **1,60:1** sur la page, **1,27:1** sur le fond du popin ; ΔE00 face / ghost **~1,51**.
-- **I3** — Anneau focus rogné (barre Exporter, bas popin) — `production-exporter-bar-focus-i3-1280x720.png`.
+- **I2** — Popin export désactivé : bordure tirets **#6a7394** → **4,12:1** (page) / **3,27:1** (fond popin) ; ΔE00 face / ghost **7,66** (était ~1,51) ; face **#12151f**.
+- **I3** — Réserve padding anneau focus (barre mix toolbar + pied popin) ; preuve `production-exporter-bar-focus-i3-1280x720.png` (cyan obligatoire).
+
+## Toujours ouverts
+
+- **21** usages non vérifiés écran par écran (voir tableau).
+- WebKitGTK, lecteur d’écran, `forced-colors`, garde cyan négative.

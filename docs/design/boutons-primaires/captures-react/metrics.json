@@ -268,20 +268,20 @@
           "stops": [
             {
               "stop": "top",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             },
             {
               "stop": "bottom",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             }
           ],
-          "minRatio": 4.73,
+          "minRatio": 5.36,
           "pass": true,
           "disabledProof": {
             "nativeDisabled": true
@@ -394,20 +394,20 @@
           "stops": [
             {
               "stop": "top",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             },
             {
               "stop": "bottom",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             }
           ],
-          "minRatio": 4.73,
+          "minRatio": 5.36,
           "pass": true,
           "disabledProof": {
             "nativeDisabled": true
@@ -522,20 +522,20 @@
           "stops": [
             {
               "stop": "top",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             },
             {
               "stop": "bottom",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             }
           ],
-          "minRatio": 4.73,
+          "minRatio": 5.36,
           "pass": true,
           "disabledProof": {
             "nativeDisabled": true
@@ -648,20 +648,20 @@
           "stops": [
             {
               "stop": "top",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             },
             {
               "stop": "bottom",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             }
           ],
-          "minRatio": 4.73,
+          "minRatio": 5.36,
           "pass": true,
           "disabledProof": {
             "nativeDisabled": true
@@ -672,16 +672,16 @@
       "popinCompare": {
         "primarySel": ".export-dialog-actions-end .btn.primary",
         "secondarySel": ".export-dialog-actions .btn.ghost",
-        "primaryFaceHex": "#1c2034",
+        "primaryFaceHex": "#12151f",
         "secondaryFaceHex": "#20243a",
-        "primaryBorderHex": "#303550",
+        "primaryBorderHex": "#6a7394",
         "secondaryBorderHex": "#303550",
         "primaryBorderStyle": "dashed",
         "secondaryBorderStyle": "solid",
-        "deltaE00Face": 1.51,
-        "deltaE00Border": 0,
-        "borderContrastRatio": 1.6,
-        "borderContrastRatioOnPopin": 1.27,
+        "deltaE00Face": 7.66,
+        "deltaE00Border": 21.68,
+        "borderContrastRatio": 4.12,
+        "borderContrastRatioOnPopin": 3.27,
         "bordersMatch": false
       }
     },
@@ -789,20 +789,20 @@
           "stops": [
             {
               "stop": "top",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             },
             {
               "stop": "bottom",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             }
           ],
-          "minRatio": 4.73,
+          "minRatio": 5.36,
           "pass": true,
           "disabledProof": {
             "nativeDisabled": true
@@ -915,20 +915,20 @@
           "stops": [
             {
               "stop": "top",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             },
             {
               "stop": "bottom",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             }
           ],
-          "minRatio": 4.73,
+          "minRatio": 5.36,
           "pass": true,
           "disabledProof": {
             "nativeDisabled": true
@@ -1041,20 +1041,20 @@
           "stops": [
             {
               "stop": "top",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             },
             {
               "stop": "bottom",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             }
           ],
-          "minRatio": 4.73,
+          "minRatio": 5.36,
           "pass": true,
           "disabledProof": {
             "nativeDisabled": true
@@ -1167,20 +1167,20 @@
           "stops": [
             {
               "stop": "top",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             },
             {
               "stop": "bottom",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             }
           ],
-          "minRatio": 4.73,
+          "minRatio": 5.36,
           "pass": true,
           "disabledProof": {
             "nativeDisabled": true
@@ -1408,20 +1408,20 @@
           "stops": [
             {
               "stop": "top",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             },
             {
               "stop": "bottom",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             }
           ],
-          "minRatio": 4.73,
+          "minRatio": 5.36,
           "pass": true,
           "disabledProof": {
             "nativeDisabled": true
@@ -1534,20 +1534,20 @@
           "stops": [
             {
               "stop": "top",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             },
             {
               "stop": "bottom",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             }
           ],
-          "minRatio": 4.73,
+          "minRatio": 5.36,
           "pass": true,
           "disabledProof": {
             "nativeDisabled": true
@@ -1660,20 +1660,20 @@
           "stops": [
             {
               "stop": "top",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             },
             {
               "stop": "bottom",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             }
           ],
-          "minRatio": 4.73,
+          "minRatio": 5.36,
           "pass": true,
           "disabledProof": {
             "nativeDisabled": true
@@ -1786,20 +1786,20 @@
           "stops": [
             {
               "stop": "top",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             },
             {
               "stop": "bottom",
-              "backgroundCss": "rgb(28, 32, 52)",
-              "backgroundHex": "#1c2034",
-              "ratio": 4.73,
+              "backgroundCss": "rgb(18, 21, 31)",
+              "backgroundHex": "#12151f",
+              "ratio": 5.36,
               "pass": true
             }
           ],
-          "minRatio": 4.73,
+          "minRatio": 5.36,
           "pass": true,
           "disabledProof": {
             "nativeDisabled": true

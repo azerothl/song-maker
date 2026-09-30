@@ -1,10 +1,10 @@
 # Contrastes — boutons primaires (#186)
 
-Généré le 2026-09-30T03:11:33.051Z.
+Généré le 2026-09-30T16:45:29.975Z.
 
 Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` résolu) composé sur `--bg0`.
 - États actifs : seuil WCAG 2.2 AA **4.5:1**.
-- Désactivé : texte **#848ba0** (~**4,73:1** sur **#1c2034**), seuil lisibilité **3:1**.
+- Désactivé : texte **#848ba0** (~**5,36:1** sur **#12151f**), seuil lisibilité **3:1**.
 - Focus : Tab + souris hors bouton ; contraste anneau mesuré contre le **fond** derrière l’outline (pas la face du bouton).
 - Champs `manualReviewAlphonse` dans `metrics.json` : publication **revue manuelle Alphonse** (les mesures DOM restent dans `screens`).
 
@@ -56,8 +56,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #111221, contraste anneau/fond **13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13,65:1** sur #0c0d18. Anneau rogné visible dans `creer-primary-focus-*` (bouton ~243 px, colonne main ~220 px).
 
@@ -78,8 +78,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #141725, contraste anneau/fond **12.58:1**. Publication (**revue manuelle Alphonse**) : anneau **12,68:1**.
 
@@ -100,8 +100,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #141725, contraste anneau/fond **12.58:1**. Publication (**revue manuelle Alphonse**) : anneau **12,68:1**.
 
@@ -115,7 +115,7 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 
 ## Production — Exporter (popin) — `.export-dialog-actions-end .btn.primary`
 
-Mesure script — ΔE00 face primaire / secondaire actif : **1.51** ; ΔE00 bordure : **0** ; bordure tirets / fond page : **1.6:1** ; bordure / fond popin : **1.27:1**.
+Mesure script — ΔE00 face primaire / secondaire actif : **7.66** ; ΔE00 bordure : **21.68** ; bordure tirets / fond page : **4.12:1** ; bordure / fond popin : **3.27:1**.
 
 | État | Texte | Arrêt | Fond | Ratio | OK |
 |------|-------|-------|------|-------|----|
@@ -125,8 +125,8 @@ Mesure script — ΔE00 face primaire / secondaire actif : **1.51** ; ΔE00 bord
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #20243a, contraste anneau/fond **10.79:1**.
 
@@ -147,8 +147,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** uniforme sur fond #0c0e18 (la mesure DOM peut afficher une plage min–max).
 
@@ -169,8 +169,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** uniforme sur fond #0c0e18 (la mesure DOM peut afficher une plage min–max).
 
@@ -191,8 +191,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** uniforme sur fond #0c0e18 (la mesure DOM peut afficher une plage min–max).
 
@@ -213,8 +213,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **12.44:1**.
 
@@ -260,8 +260,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** uniforme sur fond #0c0e18 (la mesure DOM peut afficher une plage min–max).
 
@@ -282,8 +282,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #05060b, contraste anneau/fond **14.3:1**.
 
@@ -304,8 +304,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #20243a, contraste anneau/fond **10.79:1**.
 
@@ -326,8 +326,8 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | hover | #151827 | bottom | #b094fc | 7.12:1 | OK |
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
-| disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
-| disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
+| disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
+| disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
 Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #18202f, contraste anneau/fond **11.53:1**.
 
