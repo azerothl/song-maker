@@ -1,5 +1,5 @@
 import { buildCommercialProfileCreationConfirm } from "@song-maker/stem-providers";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ProfileCommercialCreateConfirmDialog } from "../components/ProfileCommercialCreateConfirmDialog";
 import { ProfileCommercialTypeOption } from "../components/ProfileCommercialTypeOption";
 import { ProfileRenameDialog } from "../components/ProfileRenameDialog";
@@ -41,6 +41,7 @@ export function ProfileOnboardingScreen() {
   const [busy, setBusy] = useState(false);
   const [commercialConfirmOpen, setCommercialConfirmOpen] = useState(false);
   const [renaming, setRenaming] = useState<ProfileSummary | null>(null);
+  const renameTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const commercialState = resolveCommercialCreationState();
   const commercialCreateConfirm = useMemo(
@@ -184,7 +185,10 @@ export function ProfileOnboardingScreen() {
                     aria-label={t("profiles.onboarding.rename")}
                     data-testid={`profile-rename-${p.id}`}
                     disabled={busy}
-                    onClick={() => renameProfile(p)}
+                    onClick={(e) => {
+                      renameTriggerRef.current = e.currentTarget;
+                      renameProfile(p);
+                    }}
                   >
                     ✎
                   </button>
@@ -298,6 +302,8 @@ export function ProfileOnboardingScreen() {
               ? t("profiles.onboarding.type.commercial")
               : t("profiles.onboarding.type.hobby")
           }
+          existingNames={profiles.map((p) => p.name)}
+          returnFocusRef={renameTriggerRef}
           onConfirm={submitRename}
           onCancel={() => setRenaming(null)}
         />

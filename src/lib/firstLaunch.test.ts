@@ -216,6 +216,15 @@ describe("firstLaunch view", () => {
     assert.deepEqual(queuedFileStatusFr({ status: "missing" }), {
       primary: "À télécharger",
     });
+    assert.deepEqual(
+      queuedFileStatusFr({ status: "waiting", installInFlight: true }),
+      { primary: "En file d’attente" },
+    );
+    const names = browserDemoFromHash("download").plan.files.map((f) => f.name);
+    assert.ok(names.includes("yue2-qwen.tiktoken"));
+    assert.ok(names.includes("yue2-model-config.json"));
+    assert.ok(!names.includes("tokenizer.json"));
+    assert.ok(!names.includes("cudart-sidecar.json"));
   });
 
   it("calcule le compteur séquentiel depuis les lignes (#202)", () => {

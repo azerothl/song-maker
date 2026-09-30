@@ -265,11 +265,9 @@ export function ProfileSelector({ collapsed }: Props) {
           open
           current={active}
           target={pending}
+          returnFocusRef={triggerRef}
           onConfirm={() => void performSwitch(pending)}
-          onCancel={() => {
-            setPending(null);
-            focusProfileElement(triggerRef.current);
-          }}
+          onCancel={() => setPending(null)}
         />
       ) : null}
     </>

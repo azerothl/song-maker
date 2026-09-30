@@ -128,7 +128,17 @@ pub fn rename_profile(id: String, name: String) -> Result<(), String> {
     if trimmed.is_empty() {
         return Err("Le nom du profil est obligatoire.".into());
     }
+    if trimmed.len() > 80 {
+        return Err("Nom de profil trop long (80 caractères max).".into());
+    }
     let mut manifest = load_manifest()?;
+    let duplicate = manifest
+        .profiles
+        .iter()
+        .any(|p| p.id != id && p.name.eq_ignore_ascii_case(trimmed));
+    if duplicate {
+        return Err("Ce nom est déjà utilisé par un autre profil.".into());
+    }
     let row = manifest
         .profiles
         .iter_mut()

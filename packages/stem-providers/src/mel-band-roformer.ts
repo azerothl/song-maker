@@ -25,7 +25,7 @@ export const MEL_BAND_ROFORMER_PACKAGE = {
   repo: "audio-cpp/audio.cpp-gguf",
   remotePath: "Mel-Band-RoFormer-GGUF/mel-band-roformer-q8_0.gguf",
   bytes: 251_748_928,
-  displayNameFr: "Mel-Band RoFormer « Kim Vocal 2 »",
+  displayNameFr: "Mel-Band RoFormer « Kim Vocal »",
 } as const;
 
 export const MEL_BAND_ROFORMER_CAPABILITIES: StemSeparatorCapabilities = {
