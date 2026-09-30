@@ -108,7 +108,8 @@ function ProductionCaptureApp() {
   useEffect(() => {
     setMixState(mix);
   }, [mix]);
-  const [mixSavedAt] = useState(() => new Date());
+  /** Heure figée « 08:02 » pour captures Mix (suivi #203 — indépendant de l’horloge machine). */
+  const [mixSavedAt] = useState(() => new Date(2026, 0, 1, 8, 2, 0));
   const playbackDuration = 444;
 
   const playback = useMemo((): PlaybackView => {

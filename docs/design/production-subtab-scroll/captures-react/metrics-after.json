@@ -7,6 +7,12 @@
     "Tauri natif",
     "lecteur d'écran"
   ],
+  "notes": [
+    "Référence Alphonse (#204) : Outils clientHeight 419/467/339 (720/768/640) ; Clips lanesClientHeightPx 210/258/130 ; lanesFullTracksVisible=4 à 768 — confirmé au re-run capture.mts (suivi #207).",
+    "Variance machine/police : 2,3 %–9,4 % de pixels différents observés ; pas de promesse pixel-exact (voir README).",
+    "tools-1280x720-after.png et tools-1280x768-after.png régénérés via capture.mts (empreintes inchangées sur cette machine — rendu identique).",
+    "Heure Mix figée « 08:02 » dans productionCaptureMain.tsx."
+  ],
   "scenes": {
     "mix-1280x720-after": {
       "file": "after/mix-1280x720-after.png",
