@@ -38,10 +38,7 @@ Mesure (legacy) :
 
 Assertion B1 (#196) : footer.reachable === true ET run.reachable === true (pied/boutons dans le viewport, elementFromPoint).
 Attendu legacy : popin 221.4→835.8 sur vh=768 ; footerBottom=834.8.
-Résultat : FAIL attendu — legacy footer devrait être hors viewport
-
-false !== true
-
+Résultat : FAIL attendu (legacy) — pied et Exporter non atteignables (viewport).
 
 → Échec pour débordement viewport / pied non atteignable, pas pour une assertion de calage (top ≥ 112).
 → anchoredPopinFooter.behavior.test.ts (assertB1ViewportReachable) passe avec le AnchoredPopin actuel.

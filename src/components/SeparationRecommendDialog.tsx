@@ -49,6 +49,7 @@ export function SeparationRecommendDialog({
   const [focus, setFocus] = useState<SeparationTrackFocus>("mix");
   const [selected, setSelected] = useState<StemProviderId>("htdemucs");
   const [userPickedModel, setUserPickedModel] = useState(false);
+  const [otherModelsOpen, setOtherModelsOpen] = useState(false);
   const [installing, setInstalling] = useState<StemProviderId | null>(null);
   const [licenseLocal, setLicenseLocal] = useState<Record<string, boolean>>({});
   const licenseDraft = useRef<Record<string, boolean>>({});
@@ -64,6 +65,7 @@ export function SeparationRecommendDialog({
   useEffect(() => {
     if (!open) {
       setUserPickedModel(false);
+      setOtherModelsOpen(false);
       return;
     }
     void refresh();
@@ -225,7 +227,14 @@ export function SeparationRecommendDialog({
   const pickModel = (id: StemProviderId) => {
     setUserPickedModel(true);
     setSelected(id);
+    if (otherOptions.some((o) => o.id === id)) {
+      setOtherModelsOpen(true);
+    }
   };
+
+  const selectedInOther = otherOptions.some((o) => o.id === selected);
+  const showManualPickOutside =
+    userPickedModel && selectedInOther && !otherModelsOpen;
 
   const renderQualityOption = (
     opt: (typeof options)[number],
@@ -249,6 +258,12 @@ export function SeparationRecommendDialog({
     const downloadBlocked = !canDownloadSeparator(opt.id, accepted);
     const downloadReasonId = `sep-dl-reason-${opt.id}`;
     const installBusy = installing === opt.id;
+    const blockInput = busy || installBusy;
+    const suppressLicenseNotice =
+      runnable &&
+      opt.id === recommendedId &&
+      license != null &&
+      license.status !== "verified";
 
     return (
       <li
@@ -256,7 +271,7 @@ export function SeparationRecommendDialog({
         className={
           opt.id === recommendedId ? "sep-quality recommended" : "sep-quality"
         }
-        data-testid={`sep-quality-${opt.id}`}
+        data-testid={`sep-quality-card-${opt.id}`}
       >
         <label className="sep-quality-main">
           <input
@@ -264,8 +279,12 @@ export function SeparationRecommendDialog({
             name="sep-model"
             id={`sep-model-${opt.id}`}
             checked={selected === opt.id}
-            disabled={busy || installBusy}
-            onChange={() => pickModel(opt.id)}
+            aria-busy={installBusy || undefined}
+            aria-disabled={blockInput || undefined}
+            onChange={() => {
+              if (blockInput) return;
+              pickModel(opt.id);
+            }}
           />
           <span>
             <strong>{provider?.displayNameFr ?? opt.id}</strong>
@@ -300,27 +319,35 @@ export function SeparationRecommendDialog({
             )}
           </span>
         </label>
-        {license && (
+        {license &&
+          (showAccept ||
+            !runnable ||
+            (!suppressLicenseNotice && license.status !== "verified")) && (
           <div className="sep-install">
-            <p
-              className="hint warn"
-              data-testid={`sep-rec-notice-${opt.id}`}
-            >
-              {license.noticeFr}
-            </p>
+            {!suppressLicenseNotice &&
+              (!runnable || license.status !== "verified") && (
+              <p
+                className="hint warn"
+                data-testid={`sep-rec-notice-${opt.id}`}
+              >
+                {license.noticeFr}
+              </p>
+            )}
             {showAccept && (
               <label className="sep-license-cb" htmlFor={licenseCbId}>
                 <input
                   id={licenseCbId}
                   type="checkbox"
                   checked={acceptedHere}
-                  disabled={busy || installBusy}
+                  aria-busy={installBusy || undefined}
+                  aria-disabled={blockInput || undefined}
                   aria-label={t("separate.license.acceptNamed", {
                     name: provider?.displayNameFr ?? opt.id,
                   })}
-                  onChange={(e) =>
-                    void persistLicense(opt.id, e.target.checked)
-                  }
+                  onChange={(e) => {
+                    if (blockInput) return;
+                    void persistLicense(opt.id, e.target.checked);
+                  }}
                 />
                 {t("separate.license.acceptNamed", {
                   name: provider?.displayNameFr ?? opt.id,
@@ -333,13 +360,13 @@ export function SeparationRecommendDialog({
                   type="button"
                   className="btn"
                   data-testid={`sep-download-${opt.id}`}
-                  disabled={busy || installBusy}
-                  aria-disabled={downloadBlocked || undefined}
+                  aria-busy={installBusy || undefined}
+                  aria-disabled={downloadBlocked || installBusy || busy || undefined}
                   aria-describedby={
                     downloadBlocked ? downloadReasonId : undefined
                   }
                   onClick={() => {
-                    if (downloadBlocked || installBusy) return;
+                    if (downloadBlocked || installBusy || busy) return;
                     void install(opt.id);
                   }}
                 >
@@ -380,7 +407,10 @@ export function SeparationRecommendDialog({
           <p className="hint">{t("separate.recommend.intro")}</p>
         </header>
 
-        <fieldset className="sep-focus" disabled={busy || installing !== null}>
+        <fieldset
+          className="sep-focus"
+          aria-busy={installing !== null ? true : undefined}
+        >
           <legend>{t("separate.recommend.focus")}</legend>
           {(
             [
@@ -394,7 +424,11 @@ export function SeparationRecommendDialog({
                 type="radio"
                 name="sep-focus"
                 checked={focus === value}
-                onChange={() => setFocus(value)}
+                aria-disabled={busy || installing !== null || undefined}
+                onChange={() => {
+                  if (busy || installing !== null) return;
+                  setFocus(value);
+                }}
               />
               {t(key)}
             </label>
@@ -407,6 +441,15 @@ export function SeparationRecommendDialog({
             aria-label={t("separate.recommend.spotlight")}
             data-testid="sep-recommended-spotlight"
           >
+            <p
+              className="sep-unmeasured-rec-badge"
+              data-testid="sep-unmeasured-rec-badge"
+            >
+              <span className="sep-unmeasured-icon" aria-hidden="true">
+                !
+              </span>
+              {t("separate.recommend.unmeasuredBadge")}
+            </p>
             <ul className="sep-quality-list">
               {renderQualityOption(spotlightOption, true)}
             </ul>
@@ -414,16 +457,6 @@ export function SeparationRecommendDialog({
         )}
 
         <div className="sep-status-cluster" role="status" aria-live="polite">
-          <p
-            className="sep-unmeasured-rec-badge"
-            data-testid="sep-unmeasured-rec-badge"
-          >
-            <span className="sep-unmeasured-icon" aria-hidden="true">
-              !
-            </span>
-            {t("separate.recommend.unmeasuredBadge")}
-          </p>
-
           <p className="hint" data-testid="sep-recommend-reason">
             {recommendFocusReasonFr(focus)}
           </p>
@@ -465,6 +498,22 @@ export function SeparationRecommendDialog({
           </p>
         )}
 
+        {showManualPickOutside && (
+          <section
+            className="sep-manual-pick-visible"
+            data-testid="sep-manual-pick-visible"
+            aria-label={t("separate.recommend.options")}
+          >
+            <p className="hint">{t("separate.recommend.manualPickVisible")}</p>
+            <ul className="sep-quality-list">
+              {renderQualityOption(
+                otherOptions.find((o) => o.id === selected)!,
+                false,
+              )}
+            </ul>
+          </section>
+        )}
+
         <section
           className="sep-exclusions-block"
           aria-labelledby={exclusionsSummaryId}
@@ -492,16 +541,17 @@ export function SeparationRecommendDialog({
               </li>
             ))}
           </ul>
-          <details className="sep-exclusions-details">
-            <summary>{t("separate.license.exclusionsDetail")}</summary>
-            <p className="hint sep-exclusions-detail-body">
-              {t("separate.license.exclusionsDetailBody")}
-            </p>
-          </details>
         </section>
 
         {otherOptions.length > 0 && (
-          <details className="sep-other-models" data-testid="sep-other-models">
+          <details
+            className="sep-other-models"
+            data-testid="sep-other-models"
+            open={otherModelsOpen}
+            onToggle={(e) =>
+              setOtherModelsOpen((e.currentTarget as HTMLDetailsElement).open)
+            }
+          >
             <summary>{t("separate.recommend.otherModels")}</summary>
             <ul
               className="sep-quality-list"

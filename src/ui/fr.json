@@ -158,6 +158,7 @@
   "separate.recommend.options": "Options de qualité",
   "separate.recommend.spotlight": "Modèle recommandé",
   "separate.recommend.otherModels": "Autres modèles",
+  "separate.recommend.manualPickVisible": "Modèle choisi manuellement (hors recommandation)",
   "separate.recommend.unmeasuredBadge": "Recommandation non mesurée",
   "separate.recommend.badge": "Recommandé",
   "separate.recommend.cancel": "Fermer",

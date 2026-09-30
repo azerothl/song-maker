@@ -51,6 +51,26 @@ async function measureExportDrawer(
     });
   }
   await page.waitForSelector('[data-testid="export-dialog-footer"]');
+  if (hash === "export-drawer-b1-12") {
+    await page.waitForFunction(
+      () => {
+        const radios = document.querySelectorAll<HTMLInputElement>(
+          'input[name="export-mode"]',
+        );
+        return radios.length >= 2 && radios[1]?.checked;
+      },
+      { timeout: 8000 },
+    );
+    const stemsOk = await page.evaluate(() => {
+      const boxes = document.querySelectorAll(
+        ".export-stem-list input[type=checkbox]",
+      );
+      return boxes.length;
+    });
+    if (stemsOk !== 12) {
+      throw new Error(`B1: attendu 12 pistes stems, obtenu ${stemsOk}`);
+    }
+  }
   return page.evaluate(
     ({ script }) => {
       eval(script);

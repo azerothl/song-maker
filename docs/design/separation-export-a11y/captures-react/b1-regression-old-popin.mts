@@ -105,11 +105,19 @@ try {
     );
 
     try {
-      assert.equal(m.footerReach?.reachable, true, "legacy footer devrait être hors viewport");
-      assert.equal(m.runReach?.reachable, true, "legacy export devrait être hors viewport");
-      lines.push("Résultat : PASS (inattendu — le legacy ne devrait pas garder le pied visible).");
-    } catch (e) {
-      lines.push(`Résultat : FAIL attendu — ${(e as Error).message}`);
+      assert.equal(
+        m.footerReach?.reachable,
+        false,
+        `legacy footer reachable=${m.footerReach?.reachable}`,
+      );
+      assert.equal(
+        m.runReach?.reachable,
+        false,
+        `legacy export reachable=${m.runReach?.reachable}`,
+      );
+      lines.push(
+        "Résultat : FAIL attendu (legacy) — pied et Exporter non atteignables (viewport).",
+      );
       lines.push("");
       lines.push(
         "→ Échec pour débordement viewport / pied non atteignable, pas pour une assertion de calage (top ≥ 112).",
@@ -117,6 +125,8 @@ try {
       lines.push(
         "→ anchoredPopinFooter.behavior.test.ts (assertB1ViewportReachable) passe avec le AnchoredPopin actuel.",
       );
+    } catch (e) {
+      lines.push(`Résultat : PASS inattendu — ${(e as Error).message}`);
     }
   } finally {
     vite.kill("SIGTERM");

@@ -1,0 +1,43 @@
+/* Harness capture séparation/export — hors CSS production par défaut */
+.production-capture-root[data-capture-anchor-top="1"] .capture-drawer-top {
+  position: fixed;
+  top: 72px;
+  left: calc(var(--sidebar-width) + 12px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  z-index: 4;
+}
+
+.production-capture-root[data-capture-drawer="1"] .capture-drawer-anchor {
+  position: fixed;
+  left: calc(var(--sidebar-width) + 12px);
+  top: 175px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  z-index: 4;
+}
+
+.production-capture-root .capture-mix-tight-bar {
+  margin-top: 1rem;
+}
+
+.production-capture-root .capture-a11y-main {
+  padding: 1.25rem;
+  min-height: 100%;
+}
+
+/* Variante documentaire barre mix 44 px (non livrée en prod — décision Pascal) */
+.production-capture-root.production-capture-mix-toolbar-44
+  .production-mix-toolbar-actions
+  .btn,
+.production-capture-root.production-capture-mix-toolbar-44
+  .production-mix-toolbar-actions
+  .mix-assist-trigger {
+  min-height: 44px;
+  padding: 0 0.65rem;
+  font-size: 0.875rem;
+}

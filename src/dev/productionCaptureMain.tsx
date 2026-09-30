@@ -24,6 +24,7 @@ import { measureMasterWavePlayheadContrast } from "./waveformPlayheadContrast";
 import { parseCaptureHash } from "./productionCaptureHash";
 import { attachPrimaryButtonMetricsWindow } from "./primaryButtonMetrics";
 import "../App.css";
+import "./sepExportA11yCapture.css";
 
 function applyCaptureHashPrefs() {
   const prefs = parseCaptureHash(globalThis.location?.hash ?? "");
@@ -81,6 +82,17 @@ function ProductionCaptureApp() {
       delete window.__productionCaptureSetBusy;
     };
   }, []);
+
+  useEffect(() => {
+    if (!capturePrefs.actionsDrawerOpen) return;
+    const timer = window.setTimeout(() => {
+      const drawer = document.querySelector<HTMLDetailsElement>(
+        ".production-actions-drawer",
+      );
+      if (drawer) drawer.open = true;
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [capturePrefs.actionsDrawerOpen]);
   const mix = useMemo(
     () => buildCaptureDemoMix(capturePrefs.trackCount),
     [capturePrefs.trackCount],
@@ -116,7 +128,16 @@ function ProductionCaptureApp() {
   }, [mix, capturePrefs.midPlayback, capturePrefs.progressRatio]);
 
   return (
-    <div className="app-shell production-capture-root" data-capture-tracks={capturePrefs.trackCount}>
+    <div
+      className={[
+        "app-shell",
+        "production-capture-root",
+        capturePrefs.mixToolbar44Variant ? "production-capture-mix-toolbar-44" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      data-capture-tracks={capturePrefs.trackCount}
+    >
       <CaptureSidebar />
       <main className="main">
         <div className="song-layout song-layout-production song-layout-production-fill">

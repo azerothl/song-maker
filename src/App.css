@@ -4360,6 +4360,10 @@ details[open] > summary {
   margin: 0.75rem 0;
 }
 
+.mix-user-actions .btn {
+  min-height: 44px;
+}
+
 .mix-user-actions .hint {
   flex: 1 1 100%;
   margin: 0;
@@ -6392,54 +6396,12 @@ details[open] > summary {
   margin: 0.35rem 0 0;
   font-size: 0.85rem;
 }
-.production-capture-root[data-capture-drawer="1"] .capture-drawer-anchor {
-  position: fixed;
-  left: calc(var(--sidebar-width) + 12px);
-  top: 175px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  z-index: 4;
-}
-.production-global-actions .song-actions .btn,
-.production-global-actions .song-actions-export .btn {
-  min-height: 44px;
-}
 .sep-install .hint {
   overflow-wrap: anywhere;
 }
 .mockup-note {
   font-style: italic;
   opacity: 0.85;
-}
-.production-capture-root[data-capture-anchor-top="1"] .capture-drawer-top {
-  position: fixed;
-  top: 72px;
-  left: calc(var(--sidebar-width) + 12px);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  z-index: 4;
-}
-.production-capture-root .capture-mix-tight-bar {
-  margin-top: 1rem;
-}
-.production-capture-root[data-capture-drawer="1"] .capture-drawer-bottom {
-  position: fixed;
-  left: calc(var(--sidebar-width) + 12px);
-  right: 12px;
-  bottom: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  z-index: 4;
-}
-.production-capture-root .capture-a11y-main {
-  padding: 1.25rem;
-  min-height: 100%;
 }
 .export-dialog-popin fieldset {
   border: none;

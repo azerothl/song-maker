@@ -4,10 +4,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 
-const metricsPath = path.resolve(
+const capturesDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  "../../docs/design/separation-export-a11y/captures-react/metrics.json",
+  "../../docs/design/separation-export-a11y/captures-react",
 );
+const metricsPath = path.join(capturesDir, "metrics.json");
+const i6ProductionPath = path.join(capturesDir, "i6-production-metrics.json");
 
 type Reach = { reachable?: boolean };
 
@@ -25,6 +27,21 @@ type SceneMetrics = {
 };
 
 describe("captures-react séparation / export (#187 / #191)", () => {
+  it("prouve I6 tiroir ProductionWorkspace (i6-production-metrics.json)", () => {
+    const i6 = JSON.parse(readFileSync(i6ProductionPath, "utf8")) as Record<
+      string,
+      { drawerImportRecordHeightsPx?: number[]; mixToolbar44Variant?: boolean }
+    >;
+    for (const [key, m] of Object.entries(i6)) {
+      if (key.includes("mix-toolbar-44")) continue;
+      const heights = m.drawerImportRecordHeightsPx ?? [];
+      assert.ok(heights.length >= 2, `${key} tiroir`);
+      for (const h of heights) {
+        assert.ok(h >= 44, `${key} bouton tiroir ${h}px`);
+      }
+    }
+  });
+
   it("prouve visibilité réelle (footerReach.reachable)", () => {
     const metrics = JSON.parse(readFileSync(metricsPath, "utf8")) as Record<
       string,
@@ -34,14 +51,6 @@ describe("captures-react séparation / export (#187 / #191)", () => {
       if (scene.startsWith("regen-gate-blocked")) {
         assert.equal(m.regenProceedReasonReach?.reachable, true);
         assert.equal(m.regenDescribedByLinked, true);
-        continue;
-      }
-      if (scene.startsWith("sep-i6-commands")) {
-        const heights = m.i6OutsideBtnHeights as number[] | undefined;
-        assert.ok(heights?.length);
-        for (const h of heights ?? []) {
-          assert.ok(h >= 44, `${scene} bouton I6 ${h}px`);
-        }
         continue;
       }
       assert.equal(m.footerReach?.reachable, true, `${scene} footer`);

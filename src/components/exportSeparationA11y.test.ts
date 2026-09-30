@@ -40,7 +40,8 @@ describe("Dialogues séparation / export a11y (#187 / #191)", () => {
   it("résume les exclusions en tête + details (I3)", () => {
     const sep = readSrc("src/components/SeparationRecommendDialog.tsx");
     assert.match(sep, /sep-exclusions-summary/);
-    assert.match(sep, /sep-exclusions-details/);
+    assert.match(sep, /sep-exclusions-oneline/);
+    assert.doesNotMatch(sep, /sep-exclusions-details/);
     assert.doesNotMatch(sep, /<h4>\{t\("separate\.license\.exclusions"\)\}<\/h4>/);
     assert.ok(EXCLUDED_SEPARATOR_NOTES_FR.length >= 2);
   });
@@ -82,6 +83,17 @@ describe("Dialogues séparation / export a11y (#187 / #191)", () => {
       sep,
       /useEffect\(\(\) => \{\s*setSelected\(recommendSeparator\(focus\)\);\s*\}, \[focus\]\)/,
     );
+  });
+
+  it("I6 partiel (#196) : tiroir ≥44 px, barre mix dense reste ~32 px (décision Pascal)", () => {
+    const css = readSrc("src/App.css");
+    assert.match(css, /\.mix-user-actions \.btn[\s\S]*?min-height:\s*44px/);
+    assert.match(
+      css,
+      /\.production-workspace-tight \.production-mix-toolbar-actions \.btn,\s*\n\.production-workspace-tight \.production-mix-toolbar-actions \.mix-assist-trigger[\s\S]*?min-height:\s*32px/,
+    );
+    const harness = readSrc("src/dev/sepExportA11yCapture.css");
+    assert.match(harness, /production-capture-mix-toolbar-44/);
   });
 
   it("raison visible + aria-describedby sur Exporter (0 piste) et RegenerationGate", () => {

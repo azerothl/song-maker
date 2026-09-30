@@ -55,17 +55,20 @@ function __relativeLuminance(rgb) {
   const b = __channelLinear(rgb[2]);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
-function __contrastRatio(fg, bg) {
-  const f = __parseRgb(fg);
-  const b = __parseRgb(bg);
-  if (!f || !b) return null;
-  const l1 = __relativeLuminance(f);
-  const l2 = __relativeLuminance(b);
+function __contrastRatioRgb(fgRgb, bgRgb) {
+  const l1 = __relativeLuminance(fgRgb);
+  const l2 = __relativeLuminance(bgRgb);
   const lighter = Math.max(l1, l2);
   const darker = Math.min(l1, l2);
   return (lighter + 0.05) / (darker + 0.05);
 }
-function __effectiveBg(el) {
+function __contrastRatio(fg, bg) {
+  const f = __parseRgb(fg);
+  const b = __parseRgb(bg);
+  if (!f || !b) return null;
+  return __contrastRatioRgb(f, b);
+}
+function __effectiveBgRgb(el) {
   const canvas = { r: 32, g: 36, b: 58, a: 1 };
   const layers = [];
   let node = el;
@@ -78,12 +81,19 @@ function __effectiveBg(el) {
   for (let i = layers.length - 1; i >= 0; i--) {
     composed = __compositeOver(layers[i], composed);
   }
-  return "rgb(" + Math.round(composed.r) + ", " + Math.round(composed.g) + ", " + Math.round(composed.b) + ")";
+  return [composed.r, composed.g, composed.b];
+}
+function __effectiveBg(el) {
+  const rgb = __effectiveBgRgb(el);
+  return "rgb(" + Math.round(rgb[0]) + ", " + Math.round(rgb[1]) + ", " + Math.round(rgb[2]) + ")";
 }
 function __contrastOnElement(el) {
   if (!el) return null;
   const fg = window.getComputedStyle(el).color;
-  return __contrastRatio(fg, __effectiveBg(el));
+  const f = __parseRgb(fg);
+  const b = __effectiveBgRgb(el);
+  if (!f || !b) return null;
+  return __contrastRatioRgb(f, b);
 }
 function __isClippedByOverflow(el) {
   let node = el;

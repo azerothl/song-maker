@@ -11,6 +11,7 @@ import {
 } from "./captureDemoMix";
 import { registerCaptureProject } from "./tauriInvokeMock";
 import "../App.css";
+import "./sepExportA11yCapture.css";
 
 export type CaptureScene =
   | "sep-header"
@@ -26,7 +27,7 @@ export type CaptureScene =
   | "export-drawer-top-12-after"
   | "export-drawer-b1-12"
   | "sep-recommended-visible"
-  | "sep-i6-commands"
+  | "sep-selection-cachee"
   | "export-mix"
   | "export-mix-tight"
   | "export-stems-none-selected"
@@ -48,7 +49,7 @@ function parseScene(hash: string): CaptureScene {
     "export-drawer-top-12-after",
     "export-drawer-b1-12",
     "sep-recommended-visible",
-    "sep-i6-commands",
+    "sep-selection-cachee",
     "export-mix",
     "export-mix-tight",
     "export-stems-none-selected",
@@ -89,7 +90,6 @@ function SepExportA11yCaptureApp() {
   const refreshSettings = useAppStore((s) => s.refreshSettings);
   const drawerTopAnchor = scene.startsWith("export-drawer-top");
   const drawerB1Anchor = scene === "export-drawer-b1-12";
-  const sepI6 = scene === "sep-i6-commands";
   const mixTight = scene === "export-mix-tight";
   const regenOnly = scene === "regen-gate-blocked";
 
@@ -106,10 +106,6 @@ function SepExportA11yCaptureApp() {
 
   useEffect(() => {
     if (regenOnly) {
-      setSeparateOpen(false);
-      return;
-    }
-    if (scene === "sep-i6-commands") {
       setSeparateOpen(false);
       return;
     }
@@ -190,9 +186,6 @@ function SepExportA11yCaptureApp() {
         document
           .querySelector<HTMLDetailsElement>(".sep-other-models")
           ?.setAttribute("open", "");
-        const scroll = document.querySelector<HTMLElement>(
-          ".separation-recommend-popin .anchored-popin-scroll",
-        );
         const reason = document.querySelector<HTMLElement>(
           '[data-testid="sep-download-reason-bs_roformer"]',
         );
@@ -222,6 +215,16 @@ function SepExportA11yCaptureApp() {
         document
           .querySelector<HTMLElement>('[data-testid="sep-revert-recommend"]')
           ?.scrollIntoView({ block: "center" });
+      }
+      if (scene === "sep-selection-cachee") {
+        document
+          .querySelector<HTMLDetailsElement>(".sep-other-models")
+          ?.setAttribute("open", "");
+        const radios = document.querySelectorAll<HTMLInputElement>(
+          'input[name="sep-model"]',
+        );
+        if (radios.length > 1) radios[1]?.click();
+        document.querySelector<HTMLElement>(".sep-other-models summary")?.click();
       }
       if (scene === "sep-run-blocked") {
         document.querySelector<HTMLInputElement>("#sep-model-bs_roformer")?.click();
@@ -271,7 +274,7 @@ function SepExportA11yCaptureApp() {
       </aside>
       <main className="main capture-a11y-main">
         <h1>Production</h1>
-        <p className="hint">Capture a11y #191 — {scene}</p>
+        <p className="hint">Capture a11y #196 — {scene}</p>
         {drawerTopAnchor && (
           <div className="capture-drawer-top">
             <ExportDialog
@@ -304,13 +307,7 @@ function SepExportA11yCaptureApp() {
         )}
         {!drawerTopAnchor && !drawerB1Anchor && scene.startsWith("sep-") && (
           <>
-            <div
-              className={
-                sepI6
-                  ? "btn-row capture-i6-commands production-global-actions"
-                  : "btn-row"
-              }
-            >
+            <div className="btn-row">
               <button
                 ref={separateBtnRef}
                 type="button"
@@ -319,18 +316,6 @@ function SepExportA11yCaptureApp() {
               >
                 Séparer les pistes
               </button>
-              {sepI6 && (
-                <div className="song-actions-export" role="group">
-                  <ExportDialog
-                    project={project}
-                    mix={mix12}
-                    sources={sourcesMix}
-                    busy={false}
-                    onBusy={() => {}}
-                    onError={() => {}}
-                  />
-                </div>
-              )}
             </div>
             <SeparationRecommendDialog
               open={separateOpen}

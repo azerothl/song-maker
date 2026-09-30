@@ -1,0 +1,95 @@
+{
+  "i6-production-6-auto-actions-open-1280x720": {
+    "hash": "#6,auto,actions-open",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "mixToolbarBarPx": {
+      "height": 34,
+      "top": 414.65625,
+      "bottom": 448.65625
+    },
+    "mixToolbarBtnHeightsPx": [
+      32,
+      32,
+      32,
+      32
+    ],
+    "drawerImportRecordHeightsPx": [
+      44,
+      44
+    ],
+    "mixTracksScrollPx": {
+      "clientHeight": 269,
+      "scrollHeight": 478,
+      "top": 451.046875,
+      "bottom": 720
+    },
+    "noteMixToolbarTargetPx": 32,
+    "noteDrawerTargetPx": 44,
+    "mixToolbar44Variant": false
+  },
+  "i6-production-16-auto-actions-open-1280x720": {
+    "hash": "#16,auto,actions-open",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "mixToolbarBarPx": {
+      "height": 34,
+      "top": 414.65625,
+      "bottom": 448.65625
+    },
+    "mixToolbarBtnHeightsPx": [
+      32,
+      32,
+      32,
+      32
+    ],
+    "drawerImportRecordHeightsPx": [
+      44,
+      44
+    ],
+    "mixTracksScrollPx": {
+      "clientHeight": 269,
+      "scrollHeight": 478,
+      "top": 451.046875,
+      "bottom": 720
+    },
+    "noteMixToolbarTargetPx": 32,
+    "noteDrawerTargetPx": 44,
+    "mixToolbar44Variant": false
+  },
+  "i6-production-6-auto-mix-toolbar-44-1280x720": {
+    "hash": "#6,auto,actions-open,mix-toolbar-44",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "mixToolbarBarPx": {
+      "height": 44,
+      "top": 414.65625,
+      "bottom": 458.65625
+    },
+    "mixToolbarBtnHeightsPx": [
+      44,
+      44,
+      44,
+      44
+    ],
+    "drawerImportRecordHeightsPx": [
+      44,
+      44
+    ],
+    "mixTracksScrollPx": {
+      "clientHeight": 259,
+      "scrollHeight": 478,
+      "top": 461.046875,
+      "bottom": 720
+    },
+    "noteMixToolbarTargetPx": 32,
+    "noteDrawerTargetPx": 44,
+    "mixToolbar44Variant": true
+  }
+}

@@ -34,7 +34,7 @@ const SCENE_HASHES = [
   "export-drawer-top-12-after",
   "export-drawer-b1-12",
   "sep-recommended-visible",
-  "sep-i6-commands",
+  "sep-selection-cachee",
   "export-mix",
   "export-mix-tight",
   "export-stems-none-selected",
@@ -98,8 +98,19 @@ async function measureScene(
           ? 1400
           : hash === "sep-unmeasured-badge"
             ? 1100
-            : 950;
+            : hash === "sep-selection-cachee"
+              ? 1300
+              : 950;
   await page.waitForTimeout(waitMs);
+  if (hash === "sep-selection-cachee") {
+    await page.waitForSelector('[data-testid="sep-manual-pick-visible"]', {
+      timeout: 8000,
+    });
+    await page
+      .locator('[data-testid="sep-manual-pick-visible"]')
+      .scrollIntoViewIfNeeded();
+    await page.waitForTimeout(250);
+  }
 
   const metrics = await page.evaluate(
     ({ sceneName, script }) => {
@@ -181,9 +192,14 @@ async function measureScene(
       const unmeasuredContrast = __contrastOnElement(unmeasuredBadge);
 
       const spotlight = document.querySelector(
-        ".sep-recommended-spotlight .sep-quality-main",
+        ".sep-recommended-spotlight [data-testid^='sep-quality-card-']",
       ) as HTMLElement | null;
       const spotlightReach = __measureReachability(spotlight);
+      const unmeasuredBadgeEl = document.querySelector(
+        '[data-testid="sep-unmeasured-rec-badge"]',
+      ) as HTMLElement | null;
+      const unmeasuredBadgeReach = __measureReachability(unmeasuredBadgeEl);
+      const exclusionXReach = __measureReachability(xIcon);
 
       let scrollBodyPx: { scrollHeight?: number; clientHeight?: number; scrollTop?: number } | undefined;
       if (sceneName === "sep-recommended-visible" && scroll) {
@@ -194,11 +210,14 @@ async function measureScene(
         };
       }
 
-      let i6OutsideBtnHeights: number[] | undefined;
-      if (sceneName === "sep-i6-commands") {
-        i6OutsideBtnHeights = Array.from(
-          document.querySelectorAll(".capture-i6-commands .btn"),
-        ).map((b) => (b as HTMLElement).getBoundingClientRect().height);
+      let manualPickReach: ReturnType<typeof __measureReachability> | null =
+        null;
+      if (sceneName === "sep-selection-cachee") {
+        manualPickReach = __measureReachability(
+          document.querySelector(
+            '[data-testid="sep-manual-pick-visible"]',
+          ) as HTMLElement | null,
+        );
       }
 
       let sourceLinkHeights: number[] | undefined;
@@ -299,8 +318,10 @@ async function measureScene(
           unmeasuredBadge: unmeasuredContrast,
         },
         spotlightReach,
+        unmeasuredBadgeReach,
+        exclusionXReach,
         scrollBodyPx,
-        i6OutsideBtnHeights,
+        manualPickReach,
         sourceLinkHeights,
         exportPopinBtnHeights,
         exportFieldsetBorder,
@@ -359,7 +380,7 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
   const footer = m.footerReach as { reachable?: boolean } | null;
   if (
     hash !== "regen-gate-blocked" &&
-    hash !== "sep-i6-commands" &&
+    hash !== "sep-selection-cachee" &&
     !footer?.reachable
   ) {
     throw new Error(`B1/I2 pied non atteignable (${label})`);
@@ -386,21 +407,36 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
   if (hash === "sep-recommended-visible") {
     const spot = m.spotlightReach as { reachable?: boolean } | null;
     if (!spot?.reachable) {
-      throw new Error(`modèle recommandé hors vue initiale (${label})`);
+      throw new Error(`fiche recommandée hors vue initiale (${label})`);
+    }
+    const badge = m.unmeasuredBadgeReach as { reachable?: boolean } | null;
+    if (!badge?.reachable) {
+      throw new Error(`pastille non mesurée hors vue (${label})`);
     }
     const scroll = m.scrollBodyPx as { scrollTop?: number } | undefined;
     if (scroll?.scrollTop != null && scroll.scrollTop > 2) {
-      throw new Error(`scroll initial ${scroll.scrollTop}px (reco devrait être sans défilement)`);
+      throw new Error(
+        `scroll initial ${scroll.scrollTop}px (reco devrait être sans défilement)`,
+      );
     }
   }
-  if (hash === "sep-i6-commands") {
-    const heights = m.i6OutsideBtnHeights as number[] | undefined;
-    if (!heights?.length) throw new Error("boutons I6 hors dialogue absents");
-    for (const h of heights) {
-      if (h < 44) throw new Error(`bouton I6 ${h}px < 44`);
+  if (hash === "sep-header") {
+    const badge = m.unmeasuredBadgeReach as { reachable?: boolean } | null;
+    if (!badge?.reachable) {
+      throw new Error(`pastille non mesurée hors vue (${label})`);
     }
   }
-  if (hash.startsWith("sep-") && hash !== "sep-i6-commands") {
+  if (hash === "sep-exclusions") {
+    const xR = m.exclusionXReach as { reachable?: boolean } | null;
+    if (!xR?.reachable) throw new Error("✕ exclusion non visible");
+  }
+  if (hash === "sep-selection-cachee") {
+    const mp = m.manualPickReach as { reachable?: boolean } | null;
+    if (!mp?.reachable) {
+      throw new Error("choix manuel non visible après fermeture Autres modèles");
+    }
+  }
+  if (hash.startsWith("sep-") && hash !== "sep-selection-cachee") {
     const links = m.sourceLinkHeights as number[] | undefined;
     if (links?.length) {
       for (const h of links) {
