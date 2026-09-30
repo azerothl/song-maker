@@ -62,9 +62,11 @@ export function AnchoredPopin({
     const maxW = Math.min(panelMaxWidth(className), window.innerWidth - margin * 2);
     panel.style.width = `${maxW}px`;
 
+    const isExport = className?.includes("export-dialog");
     const maxPanelH = Math.min(
       window.innerHeight * 0.8,
       window.innerHeight - margin * 2,
+      isExport ? 473 : window.innerHeight * 0.8,
     );
     panel.style.maxHeight = `${maxPanelH}px`;
 
@@ -75,9 +77,11 @@ export function AnchoredPopin({
     }
     if (left < margin) left = margin;
 
-    const height = Math.min(panel.getBoundingClientRect().height, maxPanelH);
+    let height = Math.min(panel.getBoundingClientRect().height, maxPanelH);
     let top = rect.bottom + margin;
     if (top + height > window.innerHeight - margin) {
+      const maxAbove = rect.top - margin * 2;
+      height = Math.min(height, maxAbove, maxPanelH);
       const above = rect.top - margin - height;
       if (above >= margin) {
         top = above;

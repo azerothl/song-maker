@@ -10,6 +10,7 @@ import {
   buildCaptureProject,
 } from "./captureDemoMix";
 import { registerCaptureProject } from "./tauriInvokeMock";
+import { t } from "../ui/i18n";
 import "../App.css";
 import "./sepExportA11yCapture.css";
 
@@ -220,13 +221,14 @@ function SepExportA11yCaptureApp() {
         document
           .querySelector<HTMLDetailsElement>(".sep-other-models")
           ?.setAttribute("open", "");
-        const radios = document.querySelectorAll<HTMLInputElement>(
-          'input[name="sep-model"]',
-        );
-        if (radios.length > 1) radios[1]?.click();
         document
-          .querySelector<HTMLElement>('[data-testid="sep-revert-recommend"]')
-          ?.scrollIntoView({ block: "center" });
+          .querySelector<HTMLInputElement>("#sep-model-mel_band_roformer")
+          ?.click();
+        window.setTimeout(() => {
+          document
+            .querySelector<HTMLElement>('[data-testid="sep-revert-recommend"]')
+            ?.scrollIntoView({ block: "center" });
+        }, 120);
       }
       if (scene === "sep-selection-cachee") {
         const summary = document.querySelector<HTMLElement>(
@@ -311,17 +313,27 @@ function SepExportA11yCaptureApp() {
         )}
         {drawerB1Anchor && (
           <div className="capture-drawer-anchor">
-            <ExportDialog
-              key={scene}
-              project={project}
-              mix={mixForDrawer}
-              sources={sourcesDrawer}
-              busy={false}
-              onBusy={() => {}}
-              onError={() => {}}
-              initialMode="mix"
-              triggerRef={exportAnchorRef}
-            />
+            <div className="production-global-actions">
+              <div className="song-actions">
+                <div
+                  className="btn-row song-actions-export"
+                  role="group"
+                  aria-label={t("export.group")}
+                >
+                  <ExportDialog
+                    key={scene}
+                    project={project}
+                    mix={mixForDrawer}
+                    sources={sourcesDrawer}
+                    busy={false}
+                    onBusy={() => {}}
+                    onError={() => {}}
+                    initialMode="mix"
+                    triggerRef={exportAnchorRef}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
         {!drawerTopAnchor && !drawerB1Anchor && scene.startsWith("sep-") && (

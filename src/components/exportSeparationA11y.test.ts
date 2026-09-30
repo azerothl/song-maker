@@ -75,14 +75,36 @@ describe("Dialogues séparation / export a11y (#187 / #191)", () => {
     assert.match(readSrc("src/dev/captureViteServer.ts"), /createServer/);
   });
 
+  it("B1 harness : hauteur Exporter via .production-global-actions (pas de min-height copié)", () => {
+    const main = readSrc("src/dev/sepExportA11yCaptureMain.tsx");
+    const harnessCss = readSrc("src/dev/sepExportA11yCapture.css");
+    assert.match(main, /capture-drawer-anchor[\s\S]*production-global-actions/);
+    assert.match(main, /song-actions-export/);
+    assert.doesNotMatch(
+      harnessCss,
+      /\[data-capture-export-trigger\][\s\S]*min-height/,
+    );
+    assert.doesNotMatch(harnessCss, /--capture-b1-trigger-height/);
+    const behavior = readSrc("src/dev/anchoredPopinFooter.behavior.test.ts");
+    assert.match(behavior, /assertB1ExportMinHeightMatchesProdRule/);
+  });
+
   it("ne réapplique pas la reco si le modèle a été choisi à la main (#196)", () => {
     const sep = readSrc("src/components/SeparationRecommendDialog.tsx");
     assert.match(sep, /userPickedModel/);
     assert.match(sep, /sep-revert-recommend/);
+    assert.match(sep, /SeparatorLicenseNotice/);
+    assert.match(sep, /manualPickBanner/);
+    assert.match(sep, /showManualPickOutside/);
     assert.doesNotMatch(
       sep,
       /useEffect\(\(\) => \{\s*setSelected\(recommendSeparator\(focus\)\);\s*\}, \[focus\]\)/,
     );
+  });
+
+  it("limite le popin export (~473 px) pour éviter le recouvrement Exporter (#196)", () => {
+    const css = readSrc("src/App.css");
+    assert.match(css, /\.export-dialog-popin[\s\S]*?max-height:\s*min\(473px/);
   });
 
   it("I6 partiel (#196) : tiroir ≥44 px, barre mix dense reste ~32 px (décision Pascal)", () => {

@@ -49,14 +49,20 @@ export const LICENSE_STATUS_ICON: Record<LicenseStatusKind, string> = {
   excluded: "✕",
 };
 
-const DEMUCS_327_URL =
-  "https://github.com/facebookresearch/demucs/issues/327#issuecomment-1134828611";
+/** Issue Demucs #327 (sans ancre comment — non revérifiée). */
+export const DEMUCS_327_ISSUE_URL =
+  "https://github.com/facebookresearch/demucs/issues/327";
 
-/** Maintainer statement (adefossez, 2022-05-23) — shown verbatim in HTDemucs notices. */
-export const HTDEMUCS_MAINTAINER_QUOTE_EN =
-  "only for scientific purposes";
+/** Citation complète adefossez, 23 mai 2022 (Demucs #327). */
+export const HTDEMUCS_MAINTAINER_STATEMENT_EN =
+  "are not covered by the MIT license, and are provided only for scientific purposes";
 
-export const HTDEMUCS_NOTICE_FR = `Poids HTDemucs : le mainteneur adefossez a écrit le 23 mai 2022 (Demucs #327) que les poids « are not covered by the MIT license, and are provided ${HTDEMUCS_MAINTAINER_QUOTE_EN} ». Source : ${DEMUCS_327_URL}. Lu le 2026-09-29. La fiche audio.cpp indique MIT — ne pas la traiter comme licence des poids. Code audio.cpp = Apache-2.0 (ne couvre pas les poids).`;
+/** Extrait badge / tests — dernière phrase de la citation. */
+export const HTDEMUCS_MAINTAINER_QUOTE_EN = "only for scientific purposes";
+
+export const HTDEMUCS_NOTICE_FR = `Poids HTDemucs : le mainteneur adefossez a écrit le 23 mai 2022 (Demucs #327) que les poids « ${HTDEMUCS_MAINTAINER_STATEMENT_EN} ». Lu le 2026-09-29. La fiche audio.cpp indique « MIT, usage commercial : oui » mais aucune source amont ne le confirme ; cette mention ne doit pas être lue comme la licence des poids. Le code d'audio.cpp v0.8.2 est sous Apache-2.0 (les poids gardent leur licence d'origine).`;
+
+export const HTDEMUCS_6S_NOTICE_FR = `Même famille Demucs, licence des poids 6 stems non vérifiée. ${HTDEMUCS_NOTICE_FR}`;
 
 /** Models deliberately excluded (no established redistributable license). */
 export const EXCLUDED_SEPARATOR_NOTES_FR = [
@@ -71,8 +77,8 @@ export const SEPARATOR_LICENSES: Record<StemProviderId, SeparatorLicenseInfo> = 
     readDate: "2026-09-29",
     badgeFr: `usage scientifique (${HTDEMUCS_MAINTAINER_QUOTE_EN})`,
     noticeFr: HTDEMUCS_NOTICE_FR,
-    sourceUrl: DEMUCS_327_URL,
-    sourceLabelFr: "Demucs #327 · adefossez · 23 mai 2022",
+    sourceUrl: DEMUCS_327_ISSUE_URL,
+    sourceLabelFr: "Demucs #327",
     offered: true,
     requiresAcceptBeforeDownload: true,
   },
@@ -81,9 +87,9 @@ export const SEPARATOR_LICENSES: Record<StemProviderId, SeparatorLicenseInfo> = 
     status: "unverified",
     readDate: "2026-09-29",
     badgeFr: `usage scientifique (${HTDEMUCS_MAINTAINER_QUOTE_EN})`,
-    noticeFr: `Runtime / poids HTDemucs 6 stems (ONNX) : même famille Demucs. ${HTDEMUCS_NOTICE_FR} Le BS-Roformer 6 stems de jarredou (tous droits réservés) n’est pas proposé.`,
-    sourceUrl: DEMUCS_327_URL,
-    sourceLabelFr: "Demucs #327 · adefossez · 23 mai 2022",
+    noticeFr: HTDEMUCS_6S_NOTICE_FR,
+    sourceUrl: DEMUCS_327_ISSUE_URL,
+    sourceLabelFr: "Demucs #327",
     offered: true,
     requiresAcceptBeforeDownload: true,
   },

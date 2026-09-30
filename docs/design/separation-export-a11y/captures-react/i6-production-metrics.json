@@ -24,7 +24,7 @@
       44,
       44
     ],
-    "exportPopinOverlapPx": 10.66,
+    "exportPopinOverlapPx": 0,
     "mixTracksScrollPx": {
       "clientHeight": 258,
       "scrollHeight": 478,

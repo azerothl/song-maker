@@ -7,12 +7,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 136,
+      "y": 8,
       "width": 520,
       "height": 576,
-      "top": 136,
+      "top": 8,
       "right": 724,
-      "bottom": 712,
+      "bottom": 584,
       "left": 204
     },
     "footerReach": {
@@ -21,9 +21,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 648.40625,
+        "top": 520.41,
         "left": 205,
-        "bottom": 711,
+        "bottom": 583,
         "right": 723
       }
     },
@@ -34,10 +34,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 658.203125,
-        "left": 301.296875,
-        "bottom": 702.203125,
-        "right": 465.21875
+        "top": 530.2,
+        "left": 301.3,
+        "bottom": 574.2,
+        "right": 465.22
       }
     },
     "titleReach": {
@@ -46,9 +46,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 147.390625,
+        "top": 19.39,
         "left": 217,
-        "bottom": 169.390625,
+        "bottom": 41.39,
         "right": 711
       }
     },
@@ -58,10 +58,10 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1314.25,
-        "left": 255.1875,
-        "bottom": 1333.25,
-        "right": 701.40625
+        "top": 1188.05,
+        "left": 255.19,
+        "bottom": 1207.05,
+        "right": 701.41
       }
     },
     "downloadReach": {
@@ -70,22 +70,22 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1266.25,
-        "left": 255.1875,
-        "bottom": 1310.25,
-        "right": 431.828125
+        "top": 1140.05,
+        "left": 255.19,
+        "bottom": 1184.05,
+        "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
-      "inViewport": false,
+      "inViewport": true,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 766.296875,
-        "left": 226.796875,
-        "bottom": 786.296875,
-        "right": 701.203125
+        "top": 640.09,
+        "left": 226.8,
+        "bottom": 660.09,
+        "right": 701.2
       }
     },
     "revertReach": null,
@@ -100,11 +100,11 @@
     },
     "downloadAriaDisabled": true,
     "contrast": {
-      "badge": 10.473674520610192,
-      "readDate": 5.897409219423308,
-      "exclusionX": 8.743680616940761,
-      "licenseIcon": 9.554803509756272,
-      "unmeasuredBadge": 9.554803509756272
+      "badge": 10.47,
+      "readDate": 5.9,
+      "exclusionX": 8.74,
+      "licenseIcon": 9.55,
+      "unmeasuredBadge": 9.55
     },
     "spotlightReach": {
       "inViewport": true,
@@ -112,38 +112,40 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 367.078125,
+        "top": 239.08,
         "left": 217,
-        "bottom": 583.703125,
+        "bottom": 457.5,
         "right": 711
       }
     },
+    "spotlightFooterClearancePx": 62.91,
     "unmeasuredBadgeReach": {
       "inViewport": true,
       "notClippedByOverflow": true,
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 324.984375,
+        "top": 196.98,
         "left": 217,
-        "bottom": 351.078125,
-        "right": 431.671875
+        "bottom": 223.08,
+        "right": 431.67
       }
     },
     "exclusionXReach": {
-      "inViewport": false,
+      "inViewport": true,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 791.890625,
-        "left": 244.390625,
-        "bottom": 809.890625,
-        "right": 255.390625
+        "top": 665.69,
+        "left": 244.39,
+        "bottom": 683.69,
+        "right": 255.39
       }
     },
     "manualPickReach": null,
     "sourceLinkHeights": [
+      44,
       44,
       44,
       44,
@@ -159,12 +161,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 136,
+      "y": 8,
       "width": 520,
       "height": 576,
-      "top": 136,
+      "top": 8,
       "right": 724,
-      "bottom": 712,
+      "bottom": 584,
       "left": 204
     },
     "footerReach": {
@@ -173,9 +175,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 648.40625,
+        "top": 520.41,
         "left": 205,
-        "bottom": 711,
+        "bottom": 583,
         "right": 723
       }
     },
@@ -186,10 +188,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 658.203125,
-        "left": 301.296875,
-        "bottom": 702.203125,
-        "right": 465.21875
+        "top": 530.2,
+        "left": 301.3,
+        "bottom": 574.2,
+        "right": 465.22
       }
     },
     "titleReach": {
@@ -198,9 +200,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -117.609375,
+        "top": -247.61,
         "left": 217,
-        "bottom": -95.609375,
+        "bottom": -225.61,
         "right": 711
       }
     },
@@ -210,10 +212,10 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1049.25,
-        "left": 255.1875,
-        "bottom": 1068.25,
-        "right": 701.40625
+        "top": 921.05,
+        "left": 255.19,
+        "bottom": 940.05,
+        "right": 701.41
       }
     },
     "downloadReach": {
@@ -222,10 +224,10 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1001.25,
-        "left": 255.1875,
-        "bottom": 1045.25,
-        "right": 431.828125
+        "top": 873.05,
+        "left": 255.19,
+        "bottom": 917.05,
+        "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
@@ -234,10 +236,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 501.296875,
-        "left": 226.796875,
-        "bottom": 521.296875,
-        "right": 701.203125
+        "top": 373.09,
+        "left": 226.8,
+        "bottom": 393.09,
+        "right": 701.2
       }
     },
     "revertReach": null,
@@ -252,34 +254,35 @@
     },
     "downloadAriaDisabled": true,
     "contrast": {
-      "badge": 10.473674520610192,
-      "readDate": 5.897409219423308,
-      "exclusionX": 8.743680616940761,
-      "licenseIcon": 9.554803509756272,
-      "unmeasuredBadge": 9.554803509756272
+      "badge": 10.47,
+      "readDate": 5.9,
+      "exclusionX": 8.74,
+      "licenseIcon": 9.55,
+      "unmeasuredBadge": 9.55
     },
     "spotlightReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": true,
       "reachable": false,
       "rect": {
-        "top": 102.078125,
+        "top": -27.92,
         "left": 217,
-        "bottom": 318.703125,
+        "bottom": 190.5,
         "right": 711
       }
     },
+    "spotlightFooterClearancePx": 329.91,
     "unmeasuredBadgeReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 59.984375,
+        "top": -70.02,
         "left": 217,
-        "bottom": 86.078125,
-        "right": 431.671875
+        "bottom": -43.92,
+        "right": 431.67
       }
     },
     "exclusionXReach": {
@@ -288,14 +291,15 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 526.890625,
-        "left": 244.390625,
-        "bottom": 544.890625,
-        "right": 255.390625
+        "top": 398.69,
+        "left": 244.39,
+        "bottom": 416.69,
+        "right": 255.39
       }
     },
     "manualPickReach": null,
     "sourceLinkHeights": [
+      44,
       44,
       44,
       44,
@@ -311,12 +315,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 136,
+      "y": 8,
       "width": 520,
       "height": 576,
-      "top": 136,
+      "top": 8,
       "right": 724,
-      "bottom": 712,
+      "bottom": 584,
       "left": 204
     },
     "footerReach": {
@@ -325,9 +329,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 648.40625,
+        "top": 520.41,
         "left": 205,
-        "bottom": 711,
+        "bottom": 583,
         "right": 723
       }
     },
@@ -338,10 +342,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 658.203125,
-        "left": 301.296875,
-        "bottom": 702.203125,
-        "right": 465.21875
+        "top": 530.2,
+        "left": 301.3,
+        "bottom": 574.2,
+        "right": 465.22
       }
     },
     "titleReach": {
@@ -350,9 +354,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -1230.609375,
+        "top": -1360.61,
         "left": 217,
-        "bottom": -1208.609375,
+        "bottom": -1338.61,
         "right": 711
       }
     },
@@ -362,10 +366,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 383,
-        "left": 255.1875,
-        "bottom": 402,
-        "right": 701.40625
+        "top": 254.8,
+        "left": 255.19,
+        "bottom": 273.8,
+        "right": 701.41
       }
     },
     "downloadReach": {
@@ -374,10 +378,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 335,
-        "left": 255.1875,
-        "bottom": 379,
-        "right": 431.828125
+        "top": 206.8,
+        "left": 255.19,
+        "bottom": 250.8,
+        "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
@@ -386,10 +390,10 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -611.703125,
-        "left": 226.796875,
-        "bottom": -591.703125,
-        "right": 701.203125
+        "top": -739.91,
+        "left": 226.8,
+        "bottom": -719.91,
+        "right": 701.2
       }
     },
     "revertReach": null,
@@ -404,11 +408,11 @@
     },
     "downloadAriaDisabled": true,
     "contrast": {
-      "badge": 10.473674520610192,
-      "readDate": 5.897409219423308,
-      "exclusionX": 8.743680616940761,
-      "licenseIcon": 9.554803509756272,
-      "unmeasuredBadge": 9.554803509756272
+      "badge": 10.47,
+      "readDate": 5.9,
+      "exclusionX": 8.74,
+      "licenseIcon": 9.55,
+      "unmeasuredBadge": 9.55
     },
     "spotlightReach": {
       "inViewport": false,
@@ -416,22 +420,23 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -1010.921875,
+        "top": -1140.92,
         "left": 217,
-        "bottom": -794.296875,
+        "bottom": -922.5,
         "right": 711
       }
     },
+    "spotlightFooterClearancePx": 1442.91,
     "unmeasuredBadgeReach": {
       "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -1053.015625,
+        "top": -1183.02,
         "left": 217,
-        "bottom": -1026.921875,
-        "right": 431.671875
+        "bottom": -1156.92,
+        "right": 431.67
       }
     },
     "exclusionXReach": {
@@ -440,14 +445,15 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -586.109375,
-        "left": 244.390625,
-        "bottom": -568.109375,
-        "right": 255.390625
+        "top": -714.31,
+        "left": 244.39,
+        "bottom": -696.31,
+        "right": 255.39
       }
     },
     "manualPickReach": null,
     "sourceLinkHeights": [
+      44,
       44,
       44,
       44,
@@ -463,12 +469,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 136,
+      "y": 8,
       "width": 520,
       "height": 576,
-      "top": 136,
+      "top": 8,
       "right": 724,
-      "bottom": 712,
+      "bottom": 584,
       "left": 204
     },
     "footerReach": {
@@ -477,9 +483,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 648.40625,
+        "top": 520.41,
         "left": 205,
-        "bottom": 711,
+        "bottom": 583,
         "right": 723
       }
     },
@@ -490,10 +496,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 658.203125,
-        "left": 301.296875,
-        "bottom": 702.203125,
-        "right": 465.21875
+        "top": 530.2,
+        "left": 301.3,
+        "bottom": 574.2,
+        "right": 465.22
       }
     },
     "titleReach": {
@@ -502,9 +508,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -117.609375,
+        "top": -247.61,
         "left": 217,
-        "bottom": -95.609375,
+        "bottom": -225.61,
         "right": 711
       }
     },
@@ -514,10 +520,10 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1049.25,
-        "left": 255.1875,
-        "bottom": 1068.25,
-        "right": 701.40625
+        "top": 921.05,
+        "left": 255.19,
+        "bottom": 940.05,
+        "right": 701.41
       }
     },
     "downloadReach": {
@@ -526,10 +532,10 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1001.25,
-        "left": 255.1875,
-        "bottom": 1045.25,
-        "right": 431.828125
+        "top": 873.05,
+        "left": 255.19,
+        "bottom": 917.05,
+        "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
@@ -538,10 +544,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 501.296875,
-        "left": 226.796875,
-        "bottom": 521.296875,
-        "right": 701.203125
+        "top": 373.09,
+        "left": 226.8,
+        "bottom": 393.09,
+        "right": 701.2
       }
     },
     "revertReach": null,
@@ -556,34 +562,35 @@
     },
     "downloadAriaDisabled": true,
     "contrast": {
-      "badge": 10.473674520610192,
-      "readDate": 5.897409219423308,
-      "exclusionX": 8.743680616940761,
-      "licenseIcon": 9.554803509756272,
-      "unmeasuredBadge": 9.554803509756272
+      "badge": 10.47,
+      "readDate": 5.9,
+      "exclusionX": 8.74,
+      "licenseIcon": 9.55,
+      "unmeasuredBadge": 9.55
     },
     "spotlightReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": true,
       "reachable": false,
       "rect": {
-        "top": 102.078125,
+        "top": -27.92,
         "left": 217,
-        "bottom": 318.703125,
+        "bottom": 190.5,
         "right": 711
       }
     },
+    "spotlightFooterClearancePx": 329.91,
     "unmeasuredBadgeReach": {
-      "inViewport": true,
+      "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 59.984375,
+        "top": -70.02,
         "left": 217,
-        "bottom": 86.078125,
-        "right": 431.671875
+        "bottom": -43.92,
+        "right": 431.67
       }
     },
     "exclusionXReach": {
@@ -592,14 +599,15 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 526.890625,
-        "left": 244.390625,
-        "bottom": 544.890625,
-        "right": 255.390625
+        "top": 398.69,
+        "left": 244.39,
+        "bottom": 416.69,
+        "right": 255.39
       }
     },
     "manualPickReach": null,
     "sourceLinkHeights": [
+      44,
       44,
       44,
       44,
@@ -615,12 +623,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 136,
+      "y": 8,
       "width": 520,
       "height": 576,
-      "top": 136,
+      "top": 8,
       "right": 724,
-      "bottom": 712,
+      "bottom": 584,
       "left": 204
     },
     "footerReach": {
@@ -629,9 +637,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 622.21875,
+        "top": 494.22,
         "left": 205,
-        "bottom": 711,
+        "bottom": 583,
         "right": 723
       }
     },
@@ -642,10 +650,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 658.203125,
-        "left": 301.296875,
-        "bottom": 702.203125,
-        "right": 465.21875
+        "top": 530.2,
+        "left": 301.3,
+        "bottom": 574.2,
+        "right": 465.22
       }
     },
     "titleReach": {
@@ -654,9 +662,9 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -260.609375,
+        "top": -389.61,
         "left": 217,
-        "bottom": -238.609375,
+        "bottom": -367.61,
         "right": 711
       }
     },
@@ -666,10 +674,10 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 976.640625,
-        "left": 255.1875,
-        "bottom": 995.640625,
-        "right": 701.40625
+        "top": 849.44,
+        "left": 255.19,
+        "bottom": 868.44,
+        "right": 701.41
       }
     },
     "downloadReach": {
@@ -678,10 +686,10 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 928.640625,
-        "left": 255.1875,
-        "bottom": 972.640625,
-        "right": 431.828125
+        "top": 801.44,
+        "left": 255.19,
+        "bottom": 845.44,
+        "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
@@ -690,10 +698,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 426.296875,
-        "left": 226.796875,
-        "bottom": 446.296875,
-        "right": 701.203125
+        "top": 299.09,
+        "left": 226.8,
+        "bottom": 319.09,
+        "right": 701.2
       }
     },
     "revertReach": {
@@ -702,10 +710,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 357.296875,
+        "top": 230.09,
         "left": 217,
-        "bottom": 401.296875,
-        "right": 442.34375
+        "bottom": 274.09,
+        "right": 442.34
       }
     },
     "runBlockedReasonReach": {
@@ -714,9 +722,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 632.015625,
+        "top": 504.02,
         "left": 217,
-        "bottom": 651.015625,
+        "bottom": 523.02,
         "right": 711
       }
     },
@@ -731,11 +739,11 @@
     "downloadAriaDisabled": true,
     "sepRunAriaDisabled": true,
     "contrast": {
-      "badge": 10.473674520610192,
-      "readDate": 5.897409219423308,
-      "exclusionX": 8.743680616940761,
-      "licenseIcon": 9.554803509756272,
-      "unmeasuredBadge": 9.554803509756272
+      "badge": 10.47,
+      "readDate": 5.9,
+      "exclusionX": 8.74,
+      "licenseIcon": 9.55,
+      "unmeasuredBadge": 9.55
     },
     "spotlightReach": {
       "inViewport": false,
@@ -743,22 +751,23 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -40.921875,
+        "top": -169.92,
         "left": 217,
-        "bottom": 175.703125,
+        "bottom": 48.5,
         "right": 711
       }
     },
+    "spotlightFooterClearancePx": 445.72,
     "unmeasuredBadgeReach": {
       "inViewport": false,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": -83.015625,
+        "top": -212.02,
         "left": 217,
-        "bottom": -56.921875,
-        "right": 431.671875
+        "bottom": -185.92,
+        "right": 431.67
       }
     },
     "exclusionXReach": {
@@ -767,14 +776,15 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 451.890625,
-        "left": 244.390625,
-        "bottom": 469.890625,
-        "right": 255.390625
+        "top": 324.69,
+        "left": 244.39,
+        "bottom": 342.69,
+        "right": 255.39
       }
     },
     "manualPickReach": null,
     "sourceLinkHeights": [
+      44,
       44,
       44,
       44,
@@ -790,12 +800,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 136,
+      "y": 8,
       "width": 520,
       "height": 576,
-      "top": 136,
+      "top": 8,
       "right": 724,
-      "bottom": 712,
+      "bottom": 584,
       "left": 204
     },
     "footerReach": {
@@ -804,9 +814,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 622.21875,
+        "top": 494.22,
         "left": 205,
-        "bottom": 711,
+        "bottom": 583,
         "right": 723
       }
     },
@@ -817,10 +827,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 658.203125,
-        "left": 301.296875,
-        "bottom": 702.203125,
-        "right": 465.21875
+        "top": 530.2,
+        "left": 301.3,
+        "bottom": 574.2,
+        "right": 465.22
       }
     },
     "titleReach": {
@@ -829,9 +839,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 147.390625,
+        "top": 19.39,
         "left": 217,
-        "bottom": 169.390625,
+        "bottom": 41.39,
         "right": 711
       }
     },
@@ -841,10 +851,10 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1428.25,
-        "left": 255.1875,
-        "bottom": 1447.25,
-        "right": 701.40625
+        "top": 995.94,
+        "left": 255.19,
+        "bottom": 1014.94,
+        "right": 701.41
       }
     },
     "downloadReach": {
@@ -853,34 +863,34 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1380.25,
-        "left": 255.1875,
-        "bottom": 1424.25,
-        "right": 431.828125
+        "top": 947.94,
+        "left": 255.19,
+        "bottom": 991.94,
+        "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
-      "inViewport": false,
-      "notClippedByOverflow": false,
-      "hitTargetMatches": false,
-      "reachable": false,
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
       "rect": {
-        "top": 880.296875,
-        "left": 226.796875,
-        "bottom": 900.296875,
-        "right": 701.203125
+        "top": 447.98,
+        "left": 226.8,
+        "bottom": 467.98,
+        "right": 701.2
       }
     },
     "revertReach": {
-      "inViewport": false,
-      "notClippedByOverflow": false,
-      "hitTargetMatches": false,
-      "reachable": false,
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
       "rect": {
-        "top": 811.296875,
+        "top": 221.39,
         "left": 217,
-        "bottom": 855.296875,
-        "right": 442.34375
+        "bottom": 265.39,
+        "right": 442.34
       }
     },
     "runBlockedReasonReach": {
@@ -889,9 +899,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 632.015625,
+        "top": 504.02,
         "left": 217,
-        "bottom": 651.015625,
+        "bottom": 523.02,
         "right": 711
       }
     },
@@ -906,46 +916,25 @@
     "downloadAriaDisabled": true,
     "sepRunAriaDisabled": true,
     "contrast": {
-      "badge": 10.473674520610192,
-      "readDate": 5.897409219423308,
-      "exclusionX": 8.743680616940761,
-      "licenseIcon": 9.554803509756272,
-      "unmeasuredBadge": 9.554803509756272
+      "badge": 12.26,
+      "readDate": 6.91,
+      "exclusionX": 8.74,
+      "licenseIcon": null,
+      "unmeasuredBadge": null
     },
-    "spotlightReach": {
-      "inViewport": true,
-      "notClippedByOverflow": true,
-      "hitTargetMatches": true,
-      "reachable": true,
-      "rect": {
-        "top": 413.078125,
-        "left": 217,
-        "bottom": 629.703125,
-        "right": 711
-      }
-    },
-    "unmeasuredBadgeReach": {
-      "inViewport": true,
-      "notClippedByOverflow": true,
-      "hitTargetMatches": true,
-      "reachable": true,
-      "rect": {
-        "top": 370.984375,
-        "left": 217,
-        "bottom": 397.078125,
-        "right": 431.671875
-      }
-    },
+    "spotlightReach": null,
+    "spotlightFooterClearancePx": null,
+    "unmeasuredBadgeReach": null,
     "exclusionXReach": {
-      "inViewport": false,
-      "notClippedByOverflow": false,
-      "hitTargetMatches": false,
-      "reachable": false,
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
       "rect": {
-        "top": 905.890625,
-        "left": 244.390625,
-        "bottom": 923.890625,
-        "right": 255.390625
+        "top": 473.58,
+        "left": 244.39,
+        "bottom": 491.58,
+        "right": 255.39
       }
     },
     "manualPickReach": null,
@@ -965,12 +954,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 136,
+      "y": 8,
       "width": 520,
       "height": 576,
-      "top": 136,
+      "top": 8,
       "right": 724,
-      "bottom": 712,
+      "bottom": 584,
       "left": 204
     },
     "footerReach": {
@@ -979,9 +968,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 648.40625,
+        "top": 520.41,
         "left": 205,
-        "bottom": 711,
+        "bottom": 583,
         "right": 723
       }
     },
@@ -992,10 +981,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 658.203125,
-        "left": 301.296875,
-        "bottom": 702.203125,
-        "right": 465.21875
+        "top": 530.2,
+        "left": 301.3,
+        "bottom": 574.2,
+        "right": 465.22
       }
     },
     "titleReach": {
@@ -1004,9 +993,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 147.390625,
+        "top": 19.39,
         "left": 217,
-        "bottom": 169.390625,
+        "bottom": 41.39,
         "right": 711
       }
     },
@@ -1016,10 +1005,10 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1314.25,
-        "left": 255.1875,
-        "bottom": 1333.25,
-        "right": 701.40625
+        "top": 1188.05,
+        "left": 255.19,
+        "bottom": 1207.05,
+        "right": 701.41
       }
     },
     "downloadReach": {
@@ -1028,22 +1017,22 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1266.25,
-        "left": 255.1875,
-        "bottom": 1310.25,
-        "right": 431.828125
+        "top": 1140.05,
+        "left": 255.19,
+        "bottom": 1184.05,
+        "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
-      "inViewport": false,
+      "inViewport": true,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 766.296875,
-        "left": 226.796875,
-        "bottom": 786.296875,
-        "right": 701.203125
+        "top": 640.09,
+        "left": 226.8,
+        "bottom": 660.09,
+        "right": 701.2
       }
     },
     "revertReach": null,
@@ -1058,11 +1047,11 @@
     },
     "downloadAriaDisabled": true,
     "contrast": {
-      "badge": 10.473674520610192,
-      "readDate": 5.897409219423308,
-      "exclusionX": 8.743680616940761,
-      "licenseIcon": 9.554803509756272,
-      "unmeasuredBadge": 9.554803509756272
+      "badge": 10.47,
+      "readDate": 5.9,
+      "exclusionX": 8.74,
+      "licenseIcon": 9.55,
+      "unmeasuredBadge": 9.55
     },
     "spotlightReach": {
       "inViewport": true,
@@ -1070,38 +1059,40 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 367.078125,
+        "top": 239.08,
         "left": 217,
-        "bottom": 583.703125,
+        "bottom": 457.5,
         "right": 711
       }
     },
+    "spotlightFooterClearancePx": 62.91,
     "unmeasuredBadgeReach": {
       "inViewport": true,
       "notClippedByOverflow": true,
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 324.984375,
+        "top": 196.98,
         "left": 217,
-        "bottom": 351.078125,
-        "right": 431.671875
+        "bottom": 223.08,
+        "right": 431.67
       }
     },
     "exclusionXReach": {
-      "inViewport": false,
+      "inViewport": true,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 791.890625,
-        "left": 244.390625,
-        "bottom": 809.890625,
-        "right": 255.390625
+        "top": 665.69,
+        "left": 244.39,
+        "bottom": 683.69,
+        "right": 255.39
       }
     },
     "manualPickReach": null,
     "sourceLinkHeights": [
+      44,
       44,
       44,
       44,
@@ -1117,12 +1108,12 @@
     },
     "popinRect": {
       "x": 196,
-      "y": 118.375,
+      "y": 118.38,
       "width": 520,
-      "height": 576,
-      "top": 118.375,
+      "height": 473,
+      "top": 118.38,
       "right": 716,
-      "bottom": 694.375,
+      "bottom": 591.38,
       "left": 196
     },
     "footerReach": {
@@ -1131,9 +1122,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 630.78125,
+        "top": 527.78,
         "left": 197,
-        "bottom": 693.375,
+        "bottom": 590.38,
         "right": 715
       }
     },
@@ -1143,9 +1134,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 640.578125,
-        "left": 616.953125,
-        "bottom": 684.578125,
+        "top": 537.58,
+        "left": 616.95,
+        "bottom": 581.58,
         "right": 703
       }
     },
@@ -1156,9 +1147,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 129.765625,
+        "top": 129.77,
         "left": 209,
-        "bottom": 151.765625,
+        "bottom": 151.77,
         "right": 703
       }
     },
@@ -1184,6 +1175,7 @@
       "unmeasuredBadge": null
     },
     "spotlightReach": null,
+    "spotlightFooterClearancePx": null,
     "unmeasuredBadgeReach": null,
     "exclusionXReach": null,
     "manualPickReach": null,
@@ -1201,12 +1193,12 @@
     },
     "popinRect": {
       "x": 196,
-      "y": 118.375,
+      "y": 118.38,
       "width": 520,
-      "height": 576,
-      "top": 118.375,
+      "height": 473,
+      "top": 118.38,
       "right": 716,
-      "bottom": 694.375,
+      "bottom": 591.38,
       "left": 196
     },
     "footerReach": {
@@ -1215,9 +1207,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 630.78125,
+        "top": 527.78,
         "left": 197,
-        "bottom": 693.375,
+        "bottom": 590.38,
         "right": 715
       }
     },
@@ -1227,9 +1219,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 640.578125,
-        "left": 616.953125,
-        "bottom": 684.578125,
+        "top": 537.58,
+        "left": 616.95,
+        "bottom": 581.58,
         "right": 703
       }
     },
@@ -1240,9 +1232,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 129.765625,
+        "top": 129.77,
         "left": 209,
-        "bottom": 151.765625,
+        "bottom": 151.77,
         "right": 703
       }
     },
@@ -1268,6 +1260,7 @@
       "unmeasuredBadge": null
     },
     "spotlightReach": null,
+    "spotlightFooterClearancePx": null,
     "unmeasuredBadgeReach": null,
     "exclusionXReach": null,
     "manualPickReach": null,
@@ -1285,12 +1278,12 @@
     },
     "popinRect": {
       "x": 196,
-      "y": 112,
+      "y": 118.38,
       "width": 520,
-      "height": 480,
-      "top": 112,
+      "height": 473,
+      "top": 118.38,
       "right": 716,
-      "bottom": 592,
+      "bottom": 591.38,
       "left": 196
     },
     "footerReach": {
@@ -1299,9 +1292,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 528.40625,
+        "top": 527.78,
         "left": 197,
-        "bottom": 591,
+        "bottom": 590.38,
         "right": 715
       }
     },
@@ -1311,9 +1304,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 538.203125,
-        "left": 616.953125,
-        "bottom": 582.203125,
+        "top": 537.58,
+        "left": 616.95,
+        "bottom": 581.58,
         "right": 703
       }
     },
@@ -1324,9 +1317,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 123.390625,
+        "top": 129.77,
         "left": 209,
-        "bottom": 145.390625,
+        "bottom": 151.77,
         "right": 703
       }
     },
@@ -1352,6 +1345,7 @@
       "unmeasuredBadge": null
     },
     "spotlightReach": null,
+    "spotlightFooterClearancePx": null,
     "unmeasuredBadgeReach": null,
     "exclusionXReach": null,
     "manualPickReach": null,
@@ -1369,12 +1363,12 @@
     },
     "popinRect": {
       "x": 196,
-      "y": 118.375,
+      "y": 118.38,
       "width": 520,
-      "height": 576,
-      "top": 118.375,
+      "height": 473,
+      "top": 118.38,
       "right": 716,
-      "bottom": 694.375,
+      "bottom": 591.38,
       "left": 196
     },
     "footerReach": {
@@ -1383,9 +1377,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 630.78125,
+        "top": 527.78,
         "left": 197,
-        "bottom": 693.375,
+        "bottom": 590.38,
         "right": 715
       }
     },
@@ -1395,9 +1389,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 640.578125,
-        "left": 616.953125,
-        "bottom": 684.578125,
+        "top": 537.58,
+        "left": 616.95,
+        "bottom": 581.58,
         "right": 703
       }
     },
@@ -1408,9 +1402,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 129.765625,
+        "top": 129.77,
         "left": 209,
-        "bottom": 151.765625,
+        "bottom": 151.77,
         "right": 703
       }
     },
@@ -1436,6 +1430,7 @@
       "unmeasuredBadge": null
     },
     "spotlightReach": null,
+    "spotlightFooterClearancePx": null,
     "unmeasuredBadgeReach": null,
     "exclusionXReach": null,
     "manualPickReach": null,
@@ -1453,12 +1448,12 @@
     },
     "popinRect": {
       "x": 196,
-      "y": 118.375,
+      "y": 118.38,
       "width": 520,
-      "height": 576,
-      "top": 118.375,
+      "height": 473,
+      "top": 118.38,
       "right": 716,
-      "bottom": 694.375,
+      "bottom": 591.38,
       "left": 196
     },
     "footerReach": {
@@ -1467,9 +1462,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 604.59375,
+        "top": 501.59,
         "left": 197,
-        "bottom": 693.375,
+        "bottom": 590.38,
         "right": 715
       }
     },
@@ -1479,9 +1474,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 640.578125,
-        "left": 616.953125,
-        "bottom": 684.578125,
+        "top": 537.58,
+        "left": 616.95,
+        "bottom": 581.58,
         "right": 703
       }
     },
@@ -1492,9 +1487,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 129.765625,
+        "top": 129.77,
         "left": 209,
-        "bottom": 151.765625,
+        "bottom": 151.77,
         "right": 703
       }
     },
@@ -1520,6 +1515,7 @@
       "unmeasuredBadge": null
     },
     "spotlightReach": null,
+    "spotlightFooterClearancePx": null,
     "unmeasuredBadgeReach": null,
     "exclusionXReach": null,
     "manualPickReach": null,
@@ -1537,12 +1533,12 @@
     },
     "popinRect": {
       "x": 196,
-      "y": 112,
+      "y": 118.38,
       "width": 520,
-      "height": 480,
-      "top": 112,
+      "height": 473,
+      "top": 118.38,
       "right": 716,
-      "bottom": 592,
+      "bottom": 591.38,
       "left": 196
     },
     "footerReach": {
@@ -1551,9 +1547,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 502.21875,
+        "top": 501.59,
         "left": 197,
-        "bottom": 591,
+        "bottom": 590.38,
         "right": 715
       }
     },
@@ -1563,9 +1559,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 538.203125,
-        "left": 616.953125,
-        "bottom": 582.203125,
+        "top": 537.58,
+        "left": 616.95,
+        "bottom": 581.58,
         "right": 703
       }
     },
@@ -1576,9 +1572,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 123.390625,
+        "top": 129.77,
         "left": 209,
-        "bottom": 145.390625,
+        "bottom": 151.77,
         "right": 703
       }
     },
@@ -1604,6 +1600,7 @@
       "unmeasuredBadge": null
     },
     "spotlightReach": null,
+    "spotlightFooterClearancePx": null,
     "unmeasuredBadgeReach": null,
     "exclusionXReach": null,
     "manualPickReach": null,
@@ -1621,12 +1618,12 @@
     },
     "popinRect": {
       "x": 196,
-      "y": 145.609375,
+      "y": 227,
       "width": 520,
-      "height": 614.390625,
-      "top": 145.609375,
+      "height": 473,
+      "top": 227,
       "right": 716,
-      "bottom": 760,
+      "bottom": 700,
       "left": 196
     },
     "footerReach": {
@@ -1635,9 +1632,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 696.40625,
+        "top": 636.41,
         "left": 197,
-        "bottom": 759,
+        "bottom": 699,
         "right": 715
       }
     },
@@ -1647,9 +1644,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 706.203125,
-        "left": 616.953125,
-        "bottom": 750.203125,
+        "top": 646.2,
+        "left": 616.95,
+        "bottom": 690.2,
         "right": 703
       }
     },
@@ -1660,9 +1657,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 157,
+        "top": 238.39,
         "left": 209,
-        "bottom": 179,
+        "bottom": 260.39,
         "right": 703
       }
     },
@@ -1688,6 +1685,7 @@
       "unmeasuredBadge": null
     },
     "spotlightReach": null,
+    "spotlightFooterClearancePx": null,
     "unmeasuredBadgeReach": null,
     "exclusionXReach": null,
     "manualPickReach": null,
@@ -1705,12 +1703,12 @@
     },
     "popinRect": {
       "x": 196,
-      "y": 172,
+      "y": 227,
       "width": 520,
-      "height": 720,
-      "top": 172,
+      "height": 473,
+      "top": 227,
       "right": 716,
-      "bottom": 892,
+      "bottom": 700,
       "left": 196
     },
     "footerReach": {
@@ -1719,9 +1717,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 828.40625,
+        "top": 636.41,
         "left": 197,
-        "bottom": 891,
+        "bottom": 699,
         "right": 715
       }
     },
@@ -1731,9 +1729,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 838.203125,
-        "left": 616.953125,
-        "bottom": 882.203125,
+        "top": 646.2,
+        "left": 616.95,
+        "bottom": 690.2,
         "right": 703
       }
     },
@@ -1744,9 +1742,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 183.390625,
+        "top": 238.39,
         "left": 209,
-        "bottom": 205.390625,
+        "bottom": 260.39,
         "right": 703
       }
     },
@@ -1772,6 +1770,7 @@
       "unmeasuredBadge": null
     },
     "spotlightReach": null,
+    "spotlightFooterClearancePx": null,
     "unmeasuredBadgeReach": null,
     "exclusionXReach": null,
     "manualPickReach": null,
@@ -1789,12 +1788,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 136,
+      "y": 8,
       "width": 520,
       "height": 576,
-      "top": 136,
+      "top": 8,
       "right": 724,
-      "bottom": 712,
+      "bottom": 584,
       "left": 204
     },
     "footerReach": {
@@ -1803,9 +1802,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 648.40625,
+        "top": 520.41,
         "left": 205,
-        "bottom": 711,
+        "bottom": 583,
         "right": 723
       }
     },
@@ -1816,10 +1815,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 658.203125,
-        "left": 301.296875,
-        "bottom": 702.203125,
-        "right": 465.21875
+        "top": 530.2,
+        "left": 301.3,
+        "bottom": 574.2,
+        "right": 465.22
       }
     },
     "titleReach": {
@@ -1828,9 +1827,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 147.390625,
+        "top": 19.39,
         "left": 217,
-        "bottom": 169.390625,
+        "bottom": 41.39,
         "right": 711
       }
     },
@@ -1840,10 +1839,10 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1314.25,
-        "left": 255.1875,
-        "bottom": 1333.25,
-        "right": 701.40625
+        "top": 1188.05,
+        "left": 255.19,
+        "bottom": 1207.05,
+        "right": 701.41
       }
     },
     "downloadReach": {
@@ -1852,22 +1851,22 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1266.25,
-        "left": 255.1875,
-        "bottom": 1310.25,
-        "right": 431.828125
+        "top": 1140.05,
+        "left": 255.19,
+        "bottom": 1184.05,
+        "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
-      "inViewport": false,
+      "inViewport": true,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 766.296875,
-        "left": 226.796875,
-        "bottom": 786.296875,
-        "right": 701.203125
+        "top": 640.09,
+        "left": 226.8,
+        "bottom": 660.09,
+        "right": 701.2
       }
     },
     "revertReach": null,
@@ -1882,11 +1881,11 @@
     },
     "downloadAriaDisabled": true,
     "contrast": {
-      "badge": 10.473674520610192,
-      "readDate": 5.897409219423308,
-      "exclusionX": 8.743680616940761,
-      "licenseIcon": 9.554803509756272,
-      "unmeasuredBadge": 9.554803509756272
+      "badge": 10.47,
+      "readDate": 5.9,
+      "exclusionX": 8.74,
+      "licenseIcon": 9.55,
+      "unmeasuredBadge": 9.55
     },
     "spotlightReach": {
       "inViewport": true,
@@ -1894,43 +1893,45 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 367.078125,
+        "top": 239.08,
         "left": 217,
-        "bottom": 583.703125,
+        "bottom": 457.5,
         "right": 711
       }
     },
+    "spotlightFooterClearancePx": 62.91,
     "unmeasuredBadgeReach": {
       "inViewport": true,
       "notClippedByOverflow": true,
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 324.984375,
+        "top": 196.98,
         "left": 217,
-        "bottom": 351.078125,
-        "right": 431.671875
+        "bottom": 223.08,
+        "right": 431.67
       }
     },
     "exclusionXReach": {
-      "inViewport": false,
+      "inViewport": true,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 791.890625,
-        "left": 244.390625,
-        "bottom": 809.890625,
-        "right": 255.390625
+        "top": 665.69,
+        "left": 244.39,
+        "bottom": 683.69,
+        "right": 255.39
       }
     },
     "scrollBodyPx": {
-      "scrollHeight": 776,
+      "scrollHeight": 778,
       "clientHeight": 511,
       "scrollTop": 0
     },
     "manualPickReach": null,
     "sourceLinkHeights": [
+      44,
       44,
       44,
       44,
@@ -1946,12 +1947,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 136,
+      "y": 8,
       "width": 520,
       "height": 576,
-      "top": 136,
+      "top": 8,
       "right": 724,
-      "bottom": 712,
+      "bottom": 584,
       "left": 204
     },
     "footerReach": {
@@ -1960,9 +1961,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 622.21875,
+        "top": 494.22,
         "left": 205,
-        "bottom": 711,
+        "bottom": 583,
         "right": 723
       }
     },
@@ -1973,10 +1974,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 658.203125,
-        "left": 301.296875,
-        "bottom": 702.203125,
-        "right": 465.21875
+        "top": 530.2,
+        "left": 301.3,
+        "bottom": 574.2,
+        "right": 465.22
       }
     },
     "titleReach": {
@@ -1985,9 +1986,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 147.390625,
+        "top": 19.39,
         "left": 217,
-        "bottom": 169.390625,
+        "bottom": 41.39,
         "right": 711
       }
     },
@@ -1997,10 +1998,10 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1428.25,
-        "left": 255.1875,
-        "bottom": 1447.25,
-        "right": 701.40625
+        "top": 995.94,
+        "left": 255.19,
+        "bottom": 1014.94,
+        "right": 701.41
       }
     },
     "downloadReach": {
@@ -2009,34 +2010,34 @@
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 1380.25,
-        "left": 255.1875,
-        "bottom": 1424.25,
-        "right": 431.828125
+        "top": 947.94,
+        "left": 255.19,
+        "bottom": 991.94,
+        "right": 431.83
       }
     },
     "exclusionsSummaryReach": {
-      "inViewport": false,
-      "notClippedByOverflow": false,
-      "hitTargetMatches": false,
-      "reachable": false,
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
       "rect": {
-        "top": 880.296875,
-        "left": 226.796875,
-        "bottom": 900.296875,
-        "right": 701.203125
+        "top": 447.98,
+        "left": 226.8,
+        "bottom": 467.98,
+        "right": 701.2
       }
     },
     "revertReach": {
-      "inViewport": false,
-      "notClippedByOverflow": false,
-      "hitTargetMatches": false,
-      "reachable": false,
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
       "rect": {
-        "top": 811.296875,
+        "top": 221.39,
         "left": 217,
-        "bottom": 855.296875,
-        "right": 442.34375
+        "bottom": 265.39,
+        "right": 442.34
       }
     },
     "runBlockedReasonReach": {
@@ -2045,9 +2046,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 632.015625,
+        "top": 504.02,
         "left": 217,
-        "bottom": 651.015625,
+        "bottom": 523.02,
         "right": 711
       }
     },
@@ -2062,46 +2063,25 @@
     "downloadAriaDisabled": true,
     "sepRunAriaDisabled": true,
     "contrast": {
-      "badge": 10.473674520610192,
-      "readDate": 5.897409219423308,
-      "exclusionX": 8.743680616940761,
-      "licenseIcon": 9.554803509756272,
-      "unmeasuredBadge": 9.554803509756272
+      "badge": 12.26,
+      "readDate": 6.91,
+      "exclusionX": 8.74,
+      "licenseIcon": null,
+      "unmeasuredBadge": null
     },
-    "spotlightReach": {
-      "inViewport": true,
-      "notClippedByOverflow": true,
-      "hitTargetMatches": true,
-      "reachable": true,
-      "rect": {
-        "top": 413.078125,
-        "left": 217,
-        "bottom": 629.703125,
-        "right": 711
-      }
-    },
-    "unmeasuredBadgeReach": {
-      "inViewport": true,
-      "notClippedByOverflow": true,
-      "hitTargetMatches": true,
-      "reachable": true,
-      "rect": {
-        "top": 370.984375,
-        "left": 217,
-        "bottom": 397.078125,
-        "right": 431.671875
-      }
-    },
+    "spotlightReach": null,
+    "spotlightFooterClearancePx": null,
+    "unmeasuredBadgeReach": null,
     "exclusionXReach": {
-      "inViewport": false,
-      "notClippedByOverflow": false,
-      "hitTargetMatches": false,
-      "reachable": false,
+      "inViewport": true,
+      "notClippedByOverflow": true,
+      "hitTargetMatches": true,
+      "reachable": true,
       "rect": {
-        "top": 905.890625,
-        "left": 244.390625,
-        "bottom": 923.890625,
-        "right": 255.390625
+        "top": 473.58,
+        "left": 244.39,
+        "bottom": 491.58,
+        "right": 255.39
       }
     },
     "manualPickReach": {
@@ -2110,9 +2090,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 327.390625,
+        "top": 191.39,
         "left": 217,
-        "bottom": 349.390625,
+        "bottom": 265.39,
         "right": 711
       }
     },
@@ -2132,12 +2112,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 136,
+      "y": 8,
       "width": 520,
       "height": 576,
-      "top": 136,
+      "top": 8,
       "right": 724,
-      "bottom": 712,
+      "bottom": 584,
       "left": 204
     },
     "footerReach": {
@@ -2146,9 +2126,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 622.21875,
+        "top": 494.22,
         "left": 205,
-        "bottom": 711,
+        "bottom": 583,
         "right": 723
       }
     },
@@ -2159,10 +2139,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 658.203125,
-        "left": 301.296875,
-        "bottom": 702.203125,
-        "right": 465.21875
+        "top": 530.2,
+        "left": 301.3,
+        "bottom": 574.2,
+        "right": 465.22
       }
     },
     "titleReach": {
@@ -2171,22 +2151,22 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 147.390625,
+        "top": 19.39,
         "left": 217,
-        "bottom": 169.390625,
+        "bottom": 41.39,
         "right": 711
       }
     },
     "downloadReasonReach": {
       "inViewport": true,
       "notClippedByOverflow": true,
-      "hitTargetMatches": false,
-      "reachable": false,
+      "hitTargetMatches": true,
+      "reachable": true,
       "rect": {
-        "top": 623.703125,
-        "left": 255.1875,
-        "bottom": 642.703125,
-        "right": 701.40625
+        "top": 415.53,
+        "left": 255.19,
+        "bottom": 434.53,
+        "right": 701.41
       }
     },
     "downloadReach": {
@@ -2195,22 +2175,22 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 575.703125,
-        "left": 524.765625,
-        "bottom": 619.703125,
-        "right": 701.40625
+        "top": 367.53,
+        "left": 524.77,
+        "bottom": 411.53,
+        "right": 701.41
       }
     },
     "exclusionsSummaryReach": {
-      "inViewport": false,
+      "inViewport": true,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 836.484375,
-        "left": 226.796875,
-        "bottom": 856.484375,
-        "right": 701.203125
+        "top": 628.31,
+        "left": 226.8,
+        "bottom": 648.31,
+        "right": 701.2
       }
     },
     "revertReach": null,
@@ -2220,9 +2200,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 632.015625,
+        "top": 504.02,
         "left": 217,
-        "bottom": 651.015625,
+        "bottom": 523.02,
         "right": 711
       }
     },
@@ -2237,11 +2217,11 @@
     "downloadAriaDisabled": true,
     "sepRunAriaDisabled": true,
     "contrast": {
-      "badge": 10.473674520610192,
-      "readDate": 5.897409219423308,
-      "exclusionX": 8.743680616940761,
-      "licenseIcon": 9.554803509756272,
-      "unmeasuredBadge": 9.554803509756272
+      "badge": 10.47,
+      "readDate": 5.9,
+      "exclusionX": 8.74,
+      "licenseIcon": 9.55,
+      "unmeasuredBadge": 9.55
     },
     "spotlightReach": {
       "inViewport": true,
@@ -2249,38 +2229,40 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 367.078125,
+        "top": 239.08,
         "left": 217,
-        "bottom": 653.890625,
+        "bottom": 445.72,
         "right": 711
       }
     },
+    "spotlightFooterClearancePx": 48.5,
     "unmeasuredBadgeReach": {
       "inViewport": true,
       "notClippedByOverflow": true,
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 324.984375,
+        "top": 196.98,
         "left": 217,
-        "bottom": 351.078125,
-        "right": 431.671875
+        "bottom": 223.08,
+        "right": 431.67
       }
     },
     "exclusionXReach": {
-      "inViewport": false,
+      "inViewport": true,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 862.078125,
-        "left": 244.390625,
-        "bottom": 880.078125,
-        "right": 255.390625
+        "top": 653.91,
+        "left": 244.39,
+        "bottom": 671.91,
+        "right": 255.39
       }
     },
     "manualPickReach": null,
     "sourceLinkHeights": [
+      44,
       44,
       44,
       44,
@@ -2296,12 +2278,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 145.609375,
+      "y": 8,
       "width": 520,
-      "height": 614.390625,
-      "top": 145.609375,
+      "height": 614.39,
+      "top": 8,
       "right": 724,
-      "bottom": 760,
+      "bottom": 622.39,
       "left": 204
     },
     "footerReach": {
@@ -2310,9 +2292,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 670.21875,
+        "top": 532.61,
         "left": 205,
-        "bottom": 759,
+        "bottom": 621.39,
         "right": 723
       }
     },
@@ -2323,10 +2305,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 706.203125,
-        "left": 301.296875,
-        "bottom": 750.203125,
-        "right": 465.21875
+        "top": 568.59,
+        "left": 301.3,
+        "bottom": 612.59,
+        "right": 465.22
       }
     },
     "titleReach": {
@@ -2335,9 +2317,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 157,
+        "top": 19.39,
         "left": 217,
-        "bottom": 179,
+        "bottom": 41.39,
         "right": 711
       }
     },
@@ -2347,10 +2329,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 633.3125,
-        "left": 255.1875,
-        "bottom": 652.3125,
-        "right": 701.40625
+        "top": 415.53,
+        "left": 255.19,
+        "bottom": 434.53,
+        "right": 701.41
       }
     },
     "downloadReach": {
@@ -2359,22 +2341,22 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 585.3125,
-        "left": 524.765625,
-        "bottom": 629.3125,
-        "right": 701.40625
+        "top": 367.53,
+        "left": 524.77,
+        "bottom": 411.53,
+        "right": 701.41
       }
     },
     "exclusionsSummaryReach": {
-      "inViewport": false,
+      "inViewport": true,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 846.09375,
-        "left": 226.796875,
-        "bottom": 866.09375,
-        "right": 701.203125
+        "top": 628.31,
+        "left": 226.8,
+        "bottom": 648.31,
+        "right": 701.2
       }
     },
     "revertReach": null,
@@ -2384,9 +2366,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 680.015625,
+        "top": 542.41,
         "left": 217,
-        "bottom": 699.015625,
+        "bottom": 561.41,
         "right": 711
       }
     },
@@ -2401,11 +2383,11 @@
     "downloadAriaDisabled": true,
     "sepRunAriaDisabled": true,
     "contrast": {
-      "badge": 10.473674520610192,
-      "readDate": 5.897409219423308,
-      "exclusionX": 8.743680616940761,
-      "licenseIcon": 9.554803509756272,
-      "unmeasuredBadge": 9.554803509756272
+      "badge": 10.47,
+      "readDate": 5.9,
+      "exclusionX": 8.74,
+      "licenseIcon": 9.55,
+      "unmeasuredBadge": 9.55
     },
     "spotlightReach": {
       "inViewport": true,
@@ -2413,38 +2395,40 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 376.6875,
+        "top": 239.08,
         "left": 217,
-        "bottom": 663.5,
+        "bottom": 445.72,
         "right": 711
       }
     },
+    "spotlightFooterClearancePx": 86.89,
     "unmeasuredBadgeReach": {
       "inViewport": true,
       "notClippedByOverflow": true,
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 334.59375,
+        "top": 196.98,
         "left": 217,
-        "bottom": 360.6875,
-        "right": 431.671875
+        "bottom": 223.08,
+        "right": 431.67
       }
     },
     "exclusionXReach": {
-      "inViewport": false,
+      "inViewport": true,
       "notClippedByOverflow": false,
       "hitTargetMatches": false,
       "reachable": false,
       "rect": {
-        "top": 871.6875,
-        "left": 244.390625,
-        "bottom": 889.6875,
-        "right": 255.390625
+        "top": 653.91,
+        "left": 244.39,
+        "bottom": 671.91,
+        "right": 255.39
       }
     },
     "manualPickReach": null,
     "sourceLinkHeights": [
+      44,
       44,
       44,
       44,
@@ -2462,10 +2446,10 @@
       "x": 204,
       "y": 193.25,
       "width": 520,
-      "height": 492.125,
+      "height": 473,
       "top": 193.25,
       "right": 724,
-      "bottom": 685.375,
+      "bottom": 666.25,
       "left": 204
     },
     "footerReach": {
@@ -2474,9 +2458,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 621.78125,
+        "top": 602.66,
         "left": 205,
-        "bottom": 684.375,
+        "bottom": 665.25,
         "right": 723
       }
     },
@@ -2486,9 +2470,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 631.578125,
-        "left": 624.953125,
-        "bottom": 675.578125,
+        "top": 612.45,
+        "left": 624.95,
+        "bottom": 656.45,
         "right": 711
       }
     },
@@ -2499,9 +2483,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 204.640625,
+        "top": 204.64,
         "left": 217,
-        "bottom": 226.640625,
+        "bottom": 226.64,
         "right": 711
       }
     },
@@ -2527,6 +2511,7 @@
       "unmeasuredBadge": null
     },
     "spotlightReach": null,
+    "spotlightFooterClearancePx": null,
     "unmeasuredBadgeReach": null,
     "exclusionXReach": null,
     "manualPickReach": null,
@@ -2539,14 +2524,14 @@
       "height": 720
     },
     "popinRect": {
-      "x": 206.390625,
-      "y": 186.875,
+      "x": 206.39,
+      "y": 186.88,
       "width": 520,
-      "height": 492.125,
-      "top": 186.875,
-      "right": 726.390625,
-      "bottom": 679,
-      "left": 206.390625
+      "height": 473,
+      "top": 186.88,
+      "right": 726.39,
+      "bottom": 659.88,
+      "left": 206.39
     },
     "footerReach": {
       "inViewport": true,
@@ -2554,10 +2539,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 615.40625,
-        "left": 207.390625,
-        "bottom": 678,
-        "right": 725.390625
+        "top": 596.28,
+        "left": 207.39,
+        "bottom": 658.88,
+        "right": 725.39
       }
     },
     "exportRunReach": {
@@ -2566,10 +2551,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 625.203125,
-        "left": 640.859375,
-        "bottom": 669.203125,
-        "right": 713.390625
+        "top": 606.08,
+        "left": 640.86,
+        "bottom": 650.08,
+        "right": 713.39
       }
     },
     "sepRunReach": null,
@@ -2579,10 +2564,10 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 198.265625,
-        "left": 219.390625,
-        "bottom": 220.265625,
-        "right": 713.390625
+        "top": 198.27,
+        "left": 219.39,
+        "bottom": 220.27,
+        "right": 713.39
       }
     },
     "downloadReasonReach": null,
@@ -2607,6 +2592,7 @@
       "unmeasuredBadge": null
     },
     "spotlightReach": null,
+    "spotlightFooterClearancePx": null,
     "unmeasuredBadgeReach": null,
     "exclusionXReach": null,
     "manualPickReach": null,
@@ -2625,12 +2611,12 @@
     },
     "popinRect": {
       "x": 204,
-      "y": 136,
+      "y": 193.25,
       "width": 520,
-      "height": 576,
-      "top": 136,
+      "height": 473,
+      "top": 193.25,
       "right": 724,
-      "bottom": 712,
+      "bottom": 666.25,
       "left": 204
     },
     "footerReach": {
@@ -2639,9 +2625,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 622.21875,
+        "top": 576.47,
         "left": 205,
-        "bottom": 711,
+        "bottom": 665.25,
         "right": 723
       }
     },
@@ -2651,9 +2637,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 658.203125,
-        "left": 624.953125,
-        "bottom": 702.203125,
+        "top": 612.45,
+        "left": 624.95,
+        "bottom": 656.45,
         "right": 711
       }
     },
@@ -2664,9 +2650,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 147.390625,
+        "top": 204.64,
         "left": 217,
-        "bottom": 169.390625,
+        "bottom": 226.64,
         "right": 711
       }
     },
@@ -2682,9 +2668,9 @@
       "hitTargetMatches": true,
       "reachable": true,
       "rect": {
-        "top": 632.015625,
+        "top": 586.27,
         "left": 217,
-        "bottom": 651.015625,
+        "bottom": 605.27,
         "right": 711
       }
     },
@@ -2704,6 +2690,7 @@
       "unmeasuredBadge": null
     },
     "spotlightReach": null,
+    "spotlightFooterClearancePx": null,
     "unmeasuredBadgeReach": null,
     "exclusionXReach": null,
     "manualPickReach": null,
@@ -2723,8 +2710,8 @@
       "rect": {
         "top": 449.5,
         "left": 405,
-        "bottom": 487.875,
-        "right": 563.921875
+        "bottom": 487.88,
+        "right": 563.92
       }
     },
     "regenProceedReasonReach": {

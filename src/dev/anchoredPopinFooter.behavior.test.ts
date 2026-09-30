@@ -44,7 +44,9 @@ async function waitExportAnchorStable(page: Page): Promise<void> {
   });
   await page.waitForFunction(
     () => {
-      const el = document.querySelector("[data-capture-export-trigger]");
+      const el = document.querySelector(
+        ".production-global-actions [data-capture-export-trigger]",
+      );
       if (!el) return false;
       const h = el.getBoundingClientRect().height;
       return h >= 43.5;
@@ -53,7 +55,9 @@ async function waitExportAnchorStable(page: Page): Promise<void> {
   );
   await page.waitForFunction(
     () => {
-      const el = document.querySelector("[data-capture-export-trigger]");
+      const el = document.querySelector(
+        ".production-global-actions [data-capture-export-trigger]",
+      );
       const root = document.querySelector(
         ".production-capture-root[data-capture-drawer='1']",
       );
@@ -122,7 +126,7 @@ async function measureExportDrawer(
         ".export-dialog-popin",
       ) as HTMLElement | null;
       const anchor = document.querySelector(
-        "[data-capture-export-trigger]",
+        ".production-global-actions [data-capture-export-trigger]",
       ) as HTMLElement | null;
       const root = document.querySelector(
         ".production-capture-root[data-capture-drawer='1']",
@@ -166,6 +170,30 @@ function assertB1ViewportReachable(metrics: B1Metrics, label: string): void {
   }
 }
 
+async function assertB1ExportMinHeightMatchesProdRule(page: Page): Promise<void> {
+  const { harnessMin, prodMin } = await page.evaluate(() => {
+    const harnessBtn = document.querySelector(
+      ".production-global-actions [data-capture-export-trigger]",
+    ) as HTMLElement | null;
+    const probe = document.createElement("div");
+    probe.innerHTML =
+      '<div class="production-global-actions"><div class="song-actions"><div class="song-actions-export"><button type="button" class="btn primary">x</button></div></div></div>';
+    document.body.appendChild(probe);
+    const prodBtn = probe.querySelector("button") as HTMLElement;
+    const harnessMin = harnessBtn
+      ? getComputedStyle(harnessBtn).minHeight
+      : "";
+    const prodMin = getComputedStyle(prodBtn).minHeight;
+    probe.remove();
+    return { harnessMin, prodMin };
+  });
+  assert.equal(
+    harnessMin,
+    prodMin,
+    `min-height harness (${harnessMin}) ≠ règle prod (${prodMin})`,
+  );
+}
+
 function assertB1AnchorStrict(metrics: B1Metrics, label: string): void {
   assert.ok(
     Number.isFinite(metrics.expectedAnchorBottom),
@@ -206,6 +234,7 @@ describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
       for (const { hash, vp } of cases) {
         const m = await measureExportDrawer(page, hash, vp, BASE, 1400);
         if (hash === "export-drawer-b1-12" && vp.height === 768) {
+          await assertB1ExportMinHeightMatchesProdRule(page);
           assertB1AnchorStrict(m, `${hash}@${vp.width}x${vp.height}`);
         }
         assertB1ViewportReachable(m, `${hash}@${vp.width}x${vp.height}`);

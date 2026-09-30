@@ -19,6 +19,7 @@ import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 import { AnchoredPopin } from "./AnchoredPopin";
 import { SeparatorLicenseBadge } from "./SeparatorLicenseBadge";
+import { SeparatorLicenseNotice } from "./SeparatorLicenseNotice";
 
 type Props = {
   open: boolean;
@@ -299,9 +300,13 @@ export function SeparationRecommendDialog({
                 {t("separate.recommend.badge")}
               </span>
             )}
-            <br />
-            <span className="hint">{provider?.stemLayoutNoteFr}</span>
-            <br />
+            {!spotlightLayout && (
+              <>
+                <br />
+                <span className="hint">{provider?.stemLayoutNoteFr}</span>
+                <br />
+              </>
+            )}
             <span
               className="sep-time"
               data-testid={`sep-time-${opt.id}`}
@@ -311,16 +316,22 @@ export function SeparationRecommendDialog({
             </span>
             {license && (
               <>
-                <br />
-                <SeparatorLicenseBadge license={license} />{" "}
-                <a
-                  className="sep-source-link"
-                  href={license.sourceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {license.sourceLabelFr}
-                </a>
+                {!spotlightLayout && <br />}
+                {spotlightLayout ? (
+                  <SeparatorLicenseBadge license={license} />
+                ) : (
+                  <>
+                    <SeparatorLicenseBadge license={license} />{" "}
+                    <a
+                      className="sep-source-link"
+                      href={license.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {license.sourceLabelFr}
+                    </a>
+                  </>
+                )}
               </>
             )}
           </span>
@@ -328,12 +339,11 @@ export function SeparationRecommendDialog({
         {license && (showLicenseNotice || showAccept || !runnable) && (
           <div className="sep-install">
             {showLicenseNotice && (
-              <p
+              <SeparatorLicenseNotice
+                licenseId={opt.id}
                 className={`hint warn sep-rec-notice${spotlightLayout ? "" : ""}`}
                 data-testid={`sep-rec-notice-${opt.id}`}
-              >
-                {license.noticeFr}
-              </p>
+              />
             )}
             <div
               className={
@@ -458,12 +468,36 @@ export function SeparationRecommendDialog({
         </fieldset>
 
         {showManualPickOutside && (
-          <p className="hint sep-manual-pick-banner" data-testid="sep-manual-pick-visible">
-            {t("separate.recommend.manualPickVisible")}
+          <p
+            className="hint sep-manual-pick-banner"
+            data-testid="sep-manual-pick-visible"
+          >
+            {t("separate.recommend.manualPickBanner", {
+              model:
+                providers.find((p) => p.id === selected)?.displayNameFr ??
+                selected,
+            })}
+            <button
+              type="button"
+              className="btn ghost sep-manual-pick-revert"
+              data-testid="sep-revert-recommend"
+              disabled={busy}
+              onClick={() => {
+                setUserPickedModel(false);
+                setSelected(recommendedId);
+                requestAnimationFrame(() => {
+                  document
+                    .getElementById(`sep-model-${recommendedId}`)
+                    ?.focus();
+                });
+              }}
+            >
+              {t("separate.recommend.revert")}
+            </button>
           </p>
         )}
 
-        {spotlightOption && (
+        {spotlightOption && !showManualPickOutside && (
           <section
             className="sep-recommended-spotlight"
             aria-label={t("separate.recommend.spotlight")}
@@ -504,7 +538,7 @@ export function SeparationRecommendDialog({
           )}
         </div>
 
-        {modelChangedManually && (
+        {modelChangedManually && !showManualPickOutside && (
           <p className="btn-row">
             <button
               type="button"

@@ -18,8 +18,9 @@ Les PNG et clés `metrics.json` sont nommés `{hash}-{largeur}x{hauteur}.png`.
 | --- | --- | --- |
 | `sep-header-1280x720.png` | Contraste I1 sur fond effectif (`__effectiveBgRgb` + composition alpha) | **mesuré** (calcul exact) |
 | `sep-recommended-visible-1280x720.png` | Fiche reco complète sans défilement (`spotlightReach`, `scrollTop≈0`) | **mesuré** |
-| `sep-focus-vocals-1280x720.png` / `…768` | Cas **Voix** — fiche compacte entière dans le viewport (`spotlightReach`) | **mesuré** |
-| `sep-selection-cachee-1280x720.png` | Choix dans « Autres modèles » fermé — texte seul, pas de fiche dupliquée | **mesuré** |
+| `sep-focus-vocals-1280x768.png` | Cas **Voix** — fiche compacte entière (`spotlightReach`, `spotlightFooterClearancePx ≥ 0`) | **mesuré** |
+| `sep-focus-vocals-1280x720.png` | Cas **Voix** @720 — compacte, pied visible (`spotlightFooterClearancePx ≥ 0`) | **mesuré** |
+| `sep-selection-cachee-1280x720.png` | « Autres modèles » fermé — bandeau nomme le modèle + **Revenir à la recommandation**, pas de fiche spotlight | **mesuré** |
 | `export-drawer-b1-12-1280x768.png` | **B1** — « Pistes séparées » + 12 cases avant le pied | **mesuré** |
 
 ### I6 — ProductionWorkspace réel (`production-capture.html`)
@@ -31,7 +32,9 @@ Les PNG et clés `metrics.json` sont nommés `{hash}-{largeur}x{hauteur}.png`.
 | 6 pistes, tiroir ouvert | ~478 |
 | 16 pistes, tiroir ouvert | ~774 |
 
-Recouvrement popin export / bouton Exporter (6 pistes, Exporter à 44 px) : voir `exportPopinOverlapPx` dans `i6-production-metrics.json`.
+Recouvrement popin export / bouton Exporter (6 pistes, tiroir ouvert, Exporter 44 px) : `exportPopinOverlapPx` **0** dans `i6-production-metrics.json` (popin `max-height` ~473 px).
+
+À l’ouverture du dialogue séparation, `setFocus("mix")` réinitialise le focus reco (comportement #196).
 
 ### Contraste I1 (`sep-header-1280x720`)
 
@@ -51,6 +54,8 @@ Chaque ratio est lié à **une** méthode. L’écart entre « calcul exact » e
 | **PR / revue** | PNG + `metrics.json` (`contrast.*`) |
 
 Tolérance script : ±0,15 sur les valeurs « calcul exact » ci-dessus.
+
+`metrics.json` : les `rect.*` des mesures de visibilité sont arrondis à **2 décimales** à l’écriture (reproductibilité CI / polices). Les contrastes restent en pleine précision.
 
 ## Non testé
 

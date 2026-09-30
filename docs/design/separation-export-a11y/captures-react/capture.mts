@@ -105,9 +105,21 @@ async function measureScene(
             : hash === "sep-selection-cachee"
               ? 1900
               : hash === "sep-focus-vocals"
-                ? 1100
+              ? 1100
+              : hash === "sep-revert"
+                ? 1400
                 : 950;
   await page.waitForTimeout(waitMs);
+  if (hash.includes("after")) {
+    await page.waitForSelector('[data-testid="export-result"]', {
+      timeout: 12_000,
+    });
+  }
+  if (hash === "sep-revert") {
+    await page.waitForSelector('[data-testid="sep-revert-recommend"]', {
+      timeout: 8000,
+    });
+  }
   if (hash === "sep-selection-cachee") {
     await page.waitForSelector('[data-testid="sep-manual-pick-visible"]', {
       timeout: 8000,
@@ -197,6 +209,13 @@ async function measureScene(
         ".sep-recommended-spotlight [data-testid^='sep-quality-card-']",
       ) as HTMLElement | null;
       const spotlightReach = __measureReachability(spotlight);
+      let spotlightFooterClearancePx: number | null = null;
+      if (spotlight && footer) {
+        const sr = spotlight.getBoundingClientRect();
+        const ft = footer.getBoundingClientRect().top;
+        spotlightFooterClearancePx =
+          Math.round((ft - sr.bottom) * 100) / 100;
+      }
       const unmeasuredBadgeEl = document.querySelector(
         '[data-testid="sep-unmeasured-rec-badge"]',
       ) as HTMLElement | null;
@@ -226,7 +245,9 @@ async function measureScene(
       if (sceneName.startsWith("sep-")) {
         sourceLinkHeights = Array.from(
           document.querySelectorAll(".separation-recommend-popin a.sep-source-link"),
-        ).map((a) => (a as HTMLElement).getBoundingClientRect().height);
+        )
+          .filter((a) => (a as HTMLElement).getClientRects().length > 0)
+          .map((a) => (a as HTMLElement).getBoundingClientRect().height);
       }
 
       let exportPopinBtnHeights: number[] | undefined;
@@ -320,6 +341,7 @@ async function measureScene(
           unmeasuredBadge: unmeasuredContrast,
         },
         spotlightReach,
+        spotlightFooterClearancePx,
         unmeasuredBadgeReach,
         exclusionXReach,
         scrollBodyPx,
@@ -411,6 +433,12 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
     if (!spot?.reachable) {
       throw new Error(`fiche recommandée hors vue initiale (${label})`);
     }
+    const clearance = m.spotlightFooterClearancePx as number | null;
+    if (clearance != null && clearance < -0.51) {
+      throw new Error(
+        `fiche spotlight dépasse le pied (${clearance}px, ${label})`,
+      );
+    }
     const badge = m.unmeasuredBadgeReach as { reachable?: boolean } | null;
     if (!badge?.reachable) {
       throw new Error(`pastille non mesurée hors vue (${label})`);
@@ -438,8 +466,12 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
       throw new Error("choix manuel non visible après fermeture Autres modèles");
     }
     const spot = m.spotlightReach as { reachable?: boolean } | null;
-    if (!spot?.reachable) {
-      throw new Error("fiche reco spotlight hors vue (sep-selection-cachee)");
+    if (spot?.reachable) {
+      throw new Error("fiche reco spotlight encore visible (sep-selection-cachee)");
+    }
+    const rev = m.revertReach as { reachable?: boolean } | null;
+    if (!rev?.reachable) {
+      throw new Error("Revenir à la recommandation non visible (bandeau)");
     }
   }
   if (hash.startsWith("sep-") && hash !== "sep-selection-cachee") {
@@ -525,6 +557,7 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
 
 mkdirSync(OUT, { recursive: true });
 
+process.env.VITE_CAPTURE = "1";
 const vite = spawn(
   "pnpm",
   ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],
@@ -534,6 +567,23 @@ const vite = spawn(
     env: { ...process.env, VITE_CAPTURE: "1" },
   },
 );
+
+function roundMetricFloats(value: unknown): unknown {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.round(value * 100) / 100;
+  }
+  if (Array.isArray(value)) {
+    return value.map(roundMetricFloats);
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = roundMetricFloats(v);
+    }
+    return out;
+  }
+  return value;
+}
 
 const all: Record<string, SceneMetrics> = {};
 
@@ -549,7 +599,7 @@ try {
   for (const { hash, viewport } of sceneSpecs()) {
     const key = metricsKey(hash, viewport);
     const m = await measureScene(page, hash, viewport);
-    all[key] = m;
+    all[key] = roundMetricFloats(m) as SceneMetrics;
     console.log(key, JSON.stringify(m, null, 0));
     assertScene(hash, m);
     if (m.mockupNoteAbsent === false) throw new Error("note Alphonse visible");

@@ -105,7 +105,11 @@ async function measureExportOverlap(
     const et = exportTrigger?.getBoundingClientRect();
     const pr = popin?.getBoundingClientRect();
     if (!et || !pr) return null;
-    return Math.round(Math.max(0, et.bottom - pr.top) * 100) / 100;
+    const overlap = Math.max(
+      0,
+      Math.min(pr.bottom, et.bottom) - Math.max(pr.top, et.top),
+    );
+    return Math.round(overlap * 100) / 100;
   });
 }
 
@@ -204,11 +208,21 @@ function assertMetrics(m: I6Metrics, scene: I6Scene): void {
         `${label}: scrollHeight ${m.mixTracksScrollPx.scrollHeight} élevé pour 6 pistes`,
       );
     }
+    if (
+      scene.fileBase === "i6-production-6-auto-actions-open" &&
+      m.exportPopinOverlapPx != null &&
+      m.exportPopinOverlapPx > 0.51
+    ) {
+      throw new Error(
+        `${label}: recouvrement popin/Exporter ${m.exportPopinOverlapPx}px (attendu 0)`,
+      );
+    }
   }
 }
 
 mkdirSync(OUT, { recursive: true });
 
+process.env.VITE_CAPTURE = "1";
 const vite = spawn(
   "pnpm",
   ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],

@@ -20,6 +20,7 @@ import type { AppSettings, InstallProgress, Phase3Status } from "../lib/types";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 import { SeparatorLicenseBadge } from "./SeparatorLicenseBadge";
+import { SeparatorLicenseNotice } from "./SeparatorLicenseNotice";
 
 export function Phase3SettingsPanel({
   view,
@@ -362,12 +363,11 @@ export function Phase3SettingsPanel({
                         {license.sourceLabelFr}
                       </a>
                       <br />
-                      <span
+                      <SeparatorLicenseNotice
+                        licenseId={p.id}
                         className="hint warn"
                         data-testid={`sep-license-notice-${p.id}`}
-                      >
-                        {license.noticeFr}
-                      </span>
+                      />
                     </>
                   )}
                   {!p.runnable && p.id === "bs_roformer" && (

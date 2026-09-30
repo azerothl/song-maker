@@ -234,7 +234,17 @@ describe("stem-providers", () => {
     expect(ht?.noticeFr).toMatch(/only for scientific purposes/);
     expect(ht?.noticeFr).toMatch(/Demucs #327/);
     expect(ht?.noticeFr).toMatch(/2026-09-29|23 mai 2022/);
-    expect(ht?.sourceUrl).toContain("demucs/issues/327");
+    expect(ht?.sourceUrl).toBe(
+      "https://github.com/facebookresearch/demucs/issues/327",
+    );
+    expect(ht?.sourceUrl).not.toContain("issuecomment");
+    expect(ht?.noticeFr).toMatch(/MIT, usage commercial : oui/);
+    expect(ht?.noticeFr).toMatch(/audio\.cpp v0\.8\.2/);
+
+    const ht6 = separatorLicense("htdemucs_6s");
+    expect(ht6?.noticeFr).toMatch(/6 stems non vérifiée/);
+    expect(ht6?.noticeFr).not.toMatch(/jarredou/i);
+    expect(ht6?.noticeFr).not.toMatch(/ONNX/i);
     expect(ht?.readDate).toBe("2026-09-29");
 
     expect(EXCLUDED_SEPARATOR_NOTES_FR.some((n) => /jarredou/i.test(n))).toBe(
