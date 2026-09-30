@@ -1,8 +1,9 @@
 import { buildHobbyEngineOffers } from "@song-maker/stem-providers";
-import { t } from "../ui/i18n";
+import { profileLocale, t } from "../ui/i18n";
 
 export function HobbyEnginesPanel() {
   const offers = buildHobbyEngineOffers();
+  const locale = profileLocale();
 
   return (
     <section
@@ -25,10 +26,12 @@ export function HobbyEnginesPanel() {
                     ? t("profiles.engines.category.separation")
                     : t("profiles.engines.category.transcription")}
               </span>
-              <strong>{engine.displayNameFr}</strong>
+              <strong>
+                {locale === "en" ? engine.displayNameEn : engine.displayNameFr}
+              </strong>
               {usageNoticeFr ? (
                 <span className="engine-nc-badge" data-testid={`hobby-engine-nc-${engine.id}`}>
-                  {usageNoticeFr}
+                  {locale === "en" ? "Non-commercial use" : usageNoticeFr}
                 </span>
               ) : null}
             </div>

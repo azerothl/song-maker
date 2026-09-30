@@ -41,9 +41,6 @@ export const COMMERCIAL_GRAY_REASONS_EN: Record<CommercialGrayReasonId, string> 
     "Undocumented weight origin: the link to the original weights is not established.",
 };
 
-export const RESERVED_BADGE_FR = "Disponible avec réserve";
-export const RESERVED_BADGE_EN = "Available with reservation";
-
 export function formatReservedStatusLineFr(t: ReservedStatusTemplate): string {
   const conv = t.conversionLicenseLabel
     ? ` ; la conversion distribuée par audio.cpp déclare « ${t.conversionLicenseLabel} » et renvoie à l'original`

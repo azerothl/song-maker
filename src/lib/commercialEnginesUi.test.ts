@@ -9,7 +9,7 @@ import { buildCommercialEngineRowsUi } from "./commercialEnginesUi.ts";
 describe("commercial engines UI (#210 B3)", () => {
   it("uses fixed gray reasons from catalog, not JSON raison_grise_fr", () => {
     const rows = buildCommercialEngineRowsUi().filter((r) => r.availability === "grayed");
-    assert.ok(rows.length >= 8);
+    assert.ok(rows.length >= 9);
     for (const row of rows) {
       assert.equal(
         row.reasonLabel,

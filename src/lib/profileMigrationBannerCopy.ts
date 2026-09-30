@@ -3,13 +3,20 @@ import type { ProfileSummary } from "./profilesTypes.ts";
 /** Aligné sur `MAX_PROFILES` côté Rust / `profilesState.maxProfiles`. */
 export const PROFILE_MAX_COUNT_DEFAULT = 6;
 
-/** Titre affiché du bandeau : nom du profil migré (ex. « Profil Hobby (vos projets existants) »). */
+/**
+ * Nom du profil créé à la migration (aligné sur Rust `MIGRATION_DEFAULT_NAME`).
+ * Comparaison exacte — pas de `name.includes("Profil Hobby")`.
+ */
+export const MIGRATION_DEFAULT_PROFILE_NAME =
+  "Profil Hobby (vos projets existants)";
+
+/** Titre affiché du bandeau : nom du profil migré. */
 export function pickProfileMigrationBannerProfile(
   profiles: ProfileSummary[],
 ): ProfileSummary | null {
   if (profiles.length === 0) return null;
   return (
-    profiles.find((p) => p.name.includes("Profil Hobby")) ??
+    profiles.find((p) => p.name === MIGRATION_DEFAULT_PROFILE_NAME) ??
     profiles.find((p) => p.isLastUsed) ??
     profiles[0]
   );

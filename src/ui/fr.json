@@ -1116,7 +1116,6 @@
   "profiles.engines.previewBadge": "aperçu",
   "profiles.engines.commercialBadge": "Commercial",
   "profiles.engines.graySection": "Moteurs non proposés dans ce profil",
-  "profiles.engines.reservedBadge": "Disponible avec réserve",
   "profiles.engines.why": "Pourquoi ?",
   "profiles.engines.whyWithDate": "Source lue le {date}",
   "profiles.engines.whyNoDate": "Source non datée",
@@ -1135,5 +1134,7 @@
   "profiles.engines.whySheetsage2AudioCpp": "Selon audio.cpp (docs/model_licenses.md, entrée sheetsage2, CC-BY-NC-4.0, relevée le {date} ; carte Hugging Face non relue)",
   "profiles.projects.none": "aucun morceau",
   "profiles.contracts.count": "{count} contrats acceptés",
-  "profiles.contracts.none": "aucun contrat accepté"
+  "profiles.contracts.none": "aucun contrat accepté",
+  "profiles.rename.save": "Enregistrer",
+  "profiles.rename.cancel": "Annuler"
 }

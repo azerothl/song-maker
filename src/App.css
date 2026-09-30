@@ -6550,9 +6550,10 @@ details[open] > summary {
 
 .profile-selector-name {
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.25;
 }
 
 .profile-selector-kind.hobby {
@@ -6798,6 +6799,10 @@ details[open] > summary {
 }
 
 .engine-why-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.25rem 0;
   font-size: 0.85rem;
 }
 

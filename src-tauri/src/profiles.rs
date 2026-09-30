@@ -535,17 +535,13 @@ pub fn count_accepted_contracts(id: &str) -> u32 {
 const ENGINE_LICENSES_201_JSON: &str =
     include_str!("../../packages/stem-providers/src/data/licences-moteurs-201.json");
 
-/// License row ids for engines wired in the app (mirrors TS `listProductionWiredCommercialEngines`).
-const WIRED_COMMERCIAL_LICENSE_IDS: &[&str] = &[
-    "yue2_3b",
-    "htdemucs",
-    "htdemucs_6s",
-    "bs_roformer_ep368",
-    "mel_band_roformer_kimberley",
-    "sheetsage2",
-    "basic_pitch",
-    "adtof",
-];
+/// Single source shared with TS (`wired-commercial-license-ids.json`).
+const WIRED_COMMERCIAL_LICENSE_IDS_JSON: &str =
+    include_str!("../../packages/stem-providers/src/data/wired-commercial-license-ids.json");
+
+fn wired_commercial_license_ids() -> Vec<String> {
+    serde_json::from_str(WIRED_COMMERCIAL_LICENSE_IDS_JSON).unwrap_or_default()
+}
 
 const COMMERCIAL_RESERVED_STATUT_FR: &str = "disponible avec réserve";
 
@@ -566,9 +562,9 @@ pub fn commercial_creation_allowed() -> bool {
         serde_json::from_str(ENGINE_LICENSES_201_JSON).unwrap_or_default();
     let by_id: std::collections::HashMap<&str, &EngineLicenseRow201Minimal> =
         rows.iter().map(|r| (r.id.as_str(), r)).collect();
-    WIRED_COMMERCIAL_LICENSE_IDS.iter().any(|license_id| {
+    wired_commercial_license_ids().iter().any(|license_id| {
         by_id
-            .get(license_id)
+            .get(license_id.as_str())
             .map(|row| license_row_qualifies_for_commercial_reserved(row))
             .unwrap_or(false)
     })

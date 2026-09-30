@@ -2,6 +2,7 @@ import {
   buildCommercialEngineList,
   COMMERCIAL_GRAY_REASONS_EN,
   COMMERCIAL_GRAY_REASONS_FR,
+  formatCommercialReservedBadge,
   licenseRowByDataId,
   primarySourceUrlForLicenseRow,
   type CommercialGrayReasonId,
@@ -71,6 +72,7 @@ export function commercialEngineWhyLabel(
 export function buildCommercialEngineRowsUi(
   entries: CommercialEngineListEntry[] = buildCommercialEngineList(),
 ): CommercialEngineRowUi[] {
+  const locale = profileLocale();
   return entries.map((entry) => {
     const row = entry.licenseRow;
     const whyHref = primarySourceUrlForLicenseRow(row);
@@ -78,7 +80,10 @@ export function buildCommercialEngineRowsUi(
     const whyLabel = commercialEngineWhyLabel(entry.engine.id, row);
     return {
       id: entry.engine.id,
-      name: entry.engine.displayNameFr,
+      name:
+        locale === "en"
+          ? entry.engine.displayNameEn
+          : entry.engine.displayNameFr,
       categoryLabel: categoryLabelFr(entry.engine.category),
       grayReason: entry.grayReason,
       reasonLabel,
@@ -86,7 +91,9 @@ export function buildCommercialEngineRowsUi(
       whyLabel,
       availability: entry.availability,
       reservedBadge:
-        entry.availability === "reserved" ? t("profiles.engines.reservedBadge") : null,
+        entry.availability === "reserved" && entry.licenseRow?.statut
+          ? formatCommercialReservedBadge(entry.licenseRow.statut)
+          : null,
       reservedStatusLine: null,
     };
   });
