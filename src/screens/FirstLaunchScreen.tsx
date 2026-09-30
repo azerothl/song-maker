@@ -33,6 +33,7 @@ import {
   packModelBytes,
   persistMixOnlySkip,
   Q8_VRAM_FAILURE_RISK_FR,
+  queuedFileStatusFr,
   resolveFirstLaunchView,
   setupComplete,
   vramBarPercent,
@@ -56,10 +57,12 @@ function FileStatusLabel({
   status,
   etaSeconds,
   etaIsEstimate,
+  activeTitle,
 }: {
   status: FileRowStatus;
   etaSeconds: number | null | undefined;
   etaIsEstimate: boolean;
+  activeTitle?: string | null;
 }) {
   switch (status) {
     case "complete":
@@ -95,12 +98,18 @@ function FileStatusLabel({
         </>
       );
     case "waiting":
-    case "missing":
+    case "missing": {
+      const copy = queuedFileStatusFr({ status, activeTitle });
       return (
         <>
-          <span aria-hidden="true">◷</span> En attente
+          <span aria-hidden="true">◷</span>
+          <span>
+            {copy.primary}
+            {copy.secondary ? <small>{copy.secondary}</small> : null}
+          </span>
         </>
       );
+    }
     default: {
       const _exhaustive: never = status;
       return _exhaustive;
@@ -238,6 +247,10 @@ export function FirstLaunchScreen() {
 
   const buckets = useMemo(() => bucketPlanBytes(plan), [plan]);
   const rows = useMemo(() => buildFileRows(plan, progress), [plan, progress]);
+  const activeQueueTitle = useMemo(
+    () => rows.find((row) => row.status === "active")?.title ?? null,
+    [rows],
+  );
   const headline = detectHeadline(gpu?.accelerationKind);
   const suggested = parsePack(gpu?.suggestedPack);
   const etaIsEstimate = Boolean(
@@ -629,8 +642,9 @@ export function FirstLaunchScreen() {
                 {view === "download" ? "Téléchargement en cours" : "Téléchargement interrompu"}
               </h1>
               <p className="fl-lead">
-                Rien n’est perdu : les fichiers déjà reçus sont conservés et le téléchargement
-                reprendra là où il s’est arrêté.
+                {view === "download"
+                  ? "Les fichiers se téléchargent l’un après l’autre. Ceux en file d’attente démarrent dès que le fichier en cours est terminé."
+                  : "Rien n’est perdu : les fichiers déjà reçus sont conservés et le téléchargement reprendra là où il s’est arrêté."}
               </p>
             </div>
           </header>
@@ -685,6 +699,11 @@ export function FirstLaunchScreen() {
                     status={row.status}
                     etaSeconds={progress?.etaSeconds}
                     etaIsEstimate={Boolean(progress?.etaIsEstimate)}
+                    activeTitle={
+                      row.status === "waiting" || row.status === "missing"
+                        ? activeQueueTitle
+                        : null
+                    }
                   />
                 </div>
               </div>

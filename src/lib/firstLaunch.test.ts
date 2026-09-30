@@ -22,6 +22,7 @@ import {
   licenseAllowsDownload,
   modelPackVramFailureRisk,
   parsePack,
+  queuedFileStatusFr,
   resolveFirstLaunchView,
   vramBarPercent,
 } from "./firstLaunch.ts";
@@ -179,6 +180,30 @@ describe("firstLaunch view", () => {
     assert.equal(browserDemoFromHash("metal").gpu.accelerationKind, "appleMetal");
     assert.equal(browserDemoFromHash("c").plan.hasPartialDownloads, true);
     assert.equal(browserDemoFromHash("c").progress?.state, "error");
+    assert.equal(browserDemoFromHash("download").progress?.state, "downloading");
+    assert.equal(browserDemoFromHash("download").pack, "q8");
+    const dlRows = buildFileRows(
+      browserDemoFromHash("download").plan,
+      browserDemoFromHash("download").progress,
+    );
+    assert.equal(dlRows.find((r) => r.status === "active")?.title, "YuE2 (Q8)");
+    assert.ok(dlRows.some((r) => r.status === "waiting"));
+  });
+
+  it("clarifie file d’attente vs à télécharger (#202)", () => {
+    assert.deepEqual(
+      queuedFileStatusFr({ status: "waiting", activeTitle: "YuE2 (Q8)" }),
+      {
+        primary: "En file d’attente",
+        secondary: "Démarre après YuE2 (Q8)",
+      },
+    );
+    assert.deepEqual(queuedFileStatusFr({ status: "waiting" }), {
+      primary: "À télécharger",
+    });
+    assert.deepEqual(queuedFileStatusFr({ status: "missing" }), {
+      primary: "À télécharger",
+    });
   });
 });
 

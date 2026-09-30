@@ -20,7 +20,8 @@ Maquette de l'écran de premier lancement de Song Maker.
 - `etat-a-gpu-detecte.png`, `etat-b-sans-gpu.png`, `etat-c-telechargement-interrompu.png` : captures de chaque état.
 - `fiche-d-rationale-design.png` : fiche de justification du design.
 - `contrastes.md` : rapport d'audit de contraste WCAG (mesures avant/après correction).
-- `captures-react/` : captures React réelles + métriques pli / focus Demucs (#199).
+- `captures-react/` : captures React réelles + métriques pli / focus Demucs (#199) + libellé file d’attente (#202).
+- Fixture navigateur `#download` : téléchargement en cours (YuE2 actif, suivants en file).
 
 ## Notes importantes
 

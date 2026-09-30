@@ -126,7 +126,7 @@ Lecture des lignes « indicatives » (non comptées comme échec) :
 | GPU détecté (A) | Icône ✓ + texte « Carte graphique détectée » | OK |
 | Alerte sans GPU (B) | Icône « ! » + titre « Attention : … » + texte + `role="alert"` | OK |
 | Interrupteur worker (B) | Position du bouton à gauche + texte « (désactivé) » | OK |
-| Terminé / Interrompu / En attente (C) | Icônes ✓ / ⚠ / ◷ + libellés texte | OK |
+| Terminé / Interrompu / À télécharger (C) | Icônes ✓ / ⚠ / ◷ + libellés texte | OK |
 | Barre en erreur (C) | Hachures (motif) + libellé « Interrompu » + pourcentage 43 % ; `role="progressbar"` avec `aria-valuenow` | OK |
 | Barres vide / pleine (C) | Pourcentage et octets en texte | OK |
 | Focus clavier | Anneau 3 px décalé de 3 px (forme), pas seulement une teinte | OK |
@@ -260,14 +260,14 @@ Les PNG ont été régénérés avec `python3 render.py` :
 | C | `span` | / 620 Mo | `#BDB6CF` / `#2A2536` | 12.5 px / 400 | 7.59:1 | 4.5:1 | OK |
 | C | `span` | 0 % | `#BDB6CF` / `#2A2536` | 12.5 px / 400 | 7.59:1 | 4.5:1 | OK |
 | C | `span` | ◷ | `#BDB6CF` / `#2A2536` | 13 px / 700 | 7.59:1 | 4.5:1 | OK |
-| C | `div.st.wt` | En attente | `#BDB6CF` / `#2A2536` | 13 px / 700 | 7.59:1 | 4.5:1 | OK |
+| C | `div.st.wt` | À télécharger | `#BDB6CF` / `#2A2536` | 13 px / 700 | 7.59:1 | 4.5:1 | OK |
 | C | `b` | HTDemucs | `#F3F0FA` / `#2A2536` | 14.5 px / 700 | 13.17:1 | 4.5:1 | OK |
 | C | `span` | Séparation de stems | `#BDB6CF` / `#2A2536` | 12 px / 400 | 7.59:1 | 4.5:1 | OK |
 | C | `b` | 0 Mo | `#F3F0FA` / `#2A2536` | 12.5 px / 600 | 13.17:1 | 4.5:1 | OK |
 | C | `span` | / 300 Mo | `#BDB6CF` / `#2A2536` | 12.5 px / 400 | 7.59:1 | 4.5:1 | OK |
 | C | `span` | 0 % | `#BDB6CF` / `#2A2536` | 12.5 px / 400 | 7.59:1 | 4.5:1 | OK |
 | C | `span` | ◷ | `#BDB6CF` / `#2A2536` | 13 px / 700 | 7.59:1 | 4.5:1 | OK |
-| C | `div.st.wt` | En attente | `#BDB6CF` / `#2A2536` | 13 px / 700 | 7.59:1 | 4.5:1 | OK |
+| C | `div.st.wt` | À télécharger | `#BDB6CF` / `#2A2536` | 13 px / 700 | 7.59:1 | 4.5:1 | OK |
 | C | `span` | Total : | `#BDB6CF` / `#201C29` | 13 px / 400 | 8.54:1 | 4.5:1 | OK |
 | C | `b` | 3,5 Go | `#F3F0FA` / `#201C29` | 13 px / 700 | 14.81:1 | 4.5:1 | OK |
 | C | `span` | reçus sur 8,5 Go (41 %) | `#BDB6CF` / `#201C29` | 13 px / 400 | 8.54:1 | 4.5:1 | OK |

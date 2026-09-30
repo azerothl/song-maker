@@ -262,6 +262,24 @@ export function fileStatusShowsWarningIcon(status: FileRowStatus): boolean {
   return status === "error";
 }
 
+/**
+ * Libellés file vs bloqué : « En attente » seul est ambigu (#202).
+ * - waiting + fichier actif → file d’attente séquentielle
+ * - waiting sans actif (ex. après erreur) / missing → à télécharger (pas bloqué)
+ */
+export function queuedFileStatusFr(input: {
+  status: "waiting" | "missing";
+  activeTitle?: string | null;
+}): { primary: string; secondary?: string } {
+  if (input.status === "waiting" && input.activeTitle) {
+    return {
+      primary: "En file d’attente",
+      secondary: `Démarre après ${input.activeTitle}`,
+    };
+  }
+  return { primary: "À télécharger" };
+}
+
 export function resolveFirstLaunchView(input: {
   loading: boolean;
   gpu: SetupGpuInfo | null;
@@ -533,37 +551,59 @@ export function demoSetupGpu(kind: "nvidiaCuda" | "appleMetal" | "none"): SetupG
   };
 }
 
-/** Fixtures navigateur (hash `#a` / `#metal` / `#b` / `#c`) hors runtime Tauri. */
+/** Fixtures navigateur (hash `#a` / `#metal` / `#b` / `#c` / `#download`) hors runtime Tauri. */
 export function browserDemoFromHash(hashRaw?: string): BrowserDemoFixture {
   const hash = (hashRaw ?? globalThis.location?.hash ?? "").replace(/^#/, "");
   const metal = hash === "metal";
   const none = hash === "b" || hash === "nogpu";
   const interrupted = hash === "c" || hash === "interrompu";
+  const downloading =
+    hash === "download" || hash === "dl" || hash === "telechargement" || hash === "d";
   const gpu = demoSetupGpu(metal ? "appleMetal" : none ? "none" : "nvidiaCuda");
-  const pack = parsePack(gpu.suggestedPack);
+  const pack = downloading ? "q8" : parsePack(gpu.suggestedPack);
   return {
-    gpu,
+    gpu: downloading ? { ...gpu, suggestedPack: "q8" } : gpu,
     pack,
-    plan: demoInstallPlan(pack, interrupted),
-    progress: interrupted ? demoProgressError() : null,
+    plan: demoInstallPlan(pack, interrupted, downloading),
+    progress: interrupted
+      ? demoProgressError()
+      : downloading
+        ? demoProgressDownloading(pack)
+        : null,
   };
 }
 
-export function demoInstallPlan(pack: ModelPack, interrupted: boolean): InstallPlan {
+export function demoInstallPlan(
+  pack: ModelPack,
+  interrupted: boolean,
+  downloading = false,
+): InstallPlan {
   const model = pack === "q8" ? "yue2-3b-q8_0.gguf" : "yue2-3b-q4_0.gguf";
   const modelTotal = packModelBytes(pack);
-  const modelReceived = interrupted ? Math.round(modelTotal * 0.43) : 0;
+  const modelReceived = interrupted
+    ? Math.round(modelTotal * 0.43)
+    : downloading
+      ? Math.round(modelTotal * 0.99)
+      : 0;
+  const done = interrupted || downloading;
   const files: InstallFilePlan[] = [
     {
       name: "audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz",
-      status: interrupted ? "complete" : "missing",
+      status: done ? "complete" : "missing",
       totalBytes: 65_293_844,
-      receivedBytes: interrupted ? 65_293_844 : 0,
-      remainingBytes: interrupted ? 0 : 65_293_844,
+      receivedBytes: done ? 65_293_844 : 0,
+      remainingBytes: done ? 0 : 65_293_844,
+    },
+    {
+      name: "cudart-sidecar.json",
+      status: downloading ? "complete" : "missing",
+      totalBytes: 4_096,
+      receivedBytes: downloading ? 4_096 : 0,
+      remainingBytes: downloading ? 0 : 4_096,
     },
     {
       name: model,
-      status: interrupted ? "partial" : "missing",
+      status: interrupted ? "partial" : downloading ? "partial" : "missing",
       totalBytes: modelTotal,
       receivedBytes: modelReceived,
       remainingBytes: modelTotal - modelReceived,
@@ -576,6 +616,13 @@ export function demoInstallPlan(pack: ModelPack, interrupted: boolean): InstallP
       remainingBytes: 265_218_656,
     },
     {
+      name: "tokenizer.json",
+      status: "missing",
+      totalBytes: 1_048_576,
+      receivedBytes: 0,
+      remainingBytes: 1_048_576,
+    },
+    {
       name: "htdemucs-q8_0.gguf",
       status: "missing",
       totalBytes: 300_000_000,
@@ -583,13 +630,17 @@ export function demoInstallPlan(pack: ModelPack, interrupted: boolean): InstallP
       remainingBytes: 300_000_000,
     },
   ];
+  // Classic 4-file plan for GPU / interrupted; expanded list for `#download` (#202).
+  const useFiles = downloading
+    ? files
+    : files.filter((f) => f.name !== "cudart-sidecar.json" && f.name !== "tokenizer.json");
   return {
     pack,
-    fileCount: files.length,
-    bytesToDownload: files.reduce((sum, file) => sum + file.remainingBytes, 0),
+    fileCount: useFiles.length,
+    bytesToDownload: useFiles.reduce((sum, file) => sum + file.remainingBytes, 0),
     bytesKnown: true,
     hasPartialDownloads: interrupted,
-    files,
+    files: useFiles,
   };
 }
 
@@ -613,5 +664,29 @@ export function demoProgressError(): InstallProgress {
       cause: "network",
       fileName: "YuE2 (Q4)",
     },
+  };
+}
+
+/** Fixture `#download` : YuE2 actif ~99 %, suivants en file (#202). */
+export function demoProgressDownloading(pack: ModelPack = "q8"): InstallProgress {
+  const model = pack === "q8" ? "yue2-3b-q8_0.gguf" : "yue2-3b-q4_0.gguf";
+  const modelTotal = packModelBytes(pack);
+  const received = Math.round(modelTotal * 0.99);
+  const engine = 65_293_844 + 4_096;
+  const rest = 265_218_656 + 1_048_576 + 300_000_000;
+  return {
+    state: "downloading",
+    label: model,
+    fileIndex: 3,
+    fileCount: 6,
+    receivedBytes: received,
+    totalBytes: modelTotal,
+    fileName: model,
+    bytesPerSec: 48 * 1024 * 1024,
+    etaSeconds: 12,
+    etaIsEstimate: true,
+    overallReceivedBytes: engine + received,
+    overallTotalBytes: engine + modelTotal + rest,
+    overallEtaIsEstimate: true,
   };
 }
