@@ -74,7 +74,7 @@ function useCanScrollMore(
     el.addEventListener("scroll", update, { passive: true });
     const ro = new ResizeObserver(update);
     ro.observe(el);
-    for (const child of el.children) {
+    for (const child of Array.from(el.children)) {
       ro.observe(child);
     }
     return () => {
