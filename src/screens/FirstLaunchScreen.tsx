@@ -25,6 +25,7 @@ import {
   detectHeadline,
   downloadAnnounceSnapshot,
   downloadLiveAnnouncementChanged,
+  downloadLiveAnnouncementText,
   downloadSequentialLead,
   fileRowNeedsRetry,
   formatBytesFr,
@@ -47,6 +48,7 @@ import {
   persistMixOnlySkip,
   Q8_VRAM_FAILURE_RISK_FR,
   queuedFileStatusFr,
+  remainingAfterResumeLabel,
   resolveFirstLaunchView,
   setupComplete,
   vramBarPercent,
@@ -139,13 +141,7 @@ function FileStatusLabel({
             ↻
           </span>
           {t("firstLaunch.status.toResume")}
-          {etaSeconds != null ? (
-            <small>
-              {t("firstLaunch.status.remainingAfterResume", {
-                eta: formatEtaFr(etaSeconds, etaIsEstimate),
-              })}
-            </small>
-          ) : null}
+          <small>{remainingAfterResumeLabel(etaSeconds, etaIsEstimate)}</small>
         </span>
       );
     case "active":
@@ -363,15 +359,13 @@ export function FirstLaunchScreen() {
       return;
     }
     announcePrevRef.current = announceSnapshot;
-    const chunks: string[] = [];
-    if (downloadLead) chunks.push(downloadLead);
-    if (announceSnapshot.activeTitle) {
-      chunks.push(t("firstLaunch.live.activeFile", { title: announceSnapshot.activeTitle }));
-    }
-    if (announceSnapshot.errorCount > 0) {
-      chunks.push(t("firstLaunch.live.errors", { count: announceSnapshot.errorCount }));
-    }
-    setDownloadLiveText(chunks.filter(Boolean).join(". "));
+    setDownloadLiveText(
+      downloadLiveAnnouncementText({
+        lead: downloadLead,
+        activeTitle: announceSnapshot.activeTitle,
+        errorCount: announceSnapshot.errorCount,
+      }),
+    );
   }, [view, announceSnapshot, downloadLead]);
   const headline = detectHeadline(gpu?.accelerationKind);
   const suggested = parsePack(gpu?.suggestedPack);
@@ -788,7 +782,7 @@ export function FirstLaunchScreen() {
           <div className="fl-download-body">
           <header className="fl-head">
             <div>
-              <p className="fl-eyebrow">Première installation · Téléchargement</p>
+              <p className="fl-eyebrow">{t("firstLaunch.download.eyebrow")}</p>
               <h1 id="fl-title">
                 {view === "download"
                   ? t("firstLaunch.download.titleActive")
@@ -814,8 +808,8 @@ export function FirstLaunchScreen() {
               role="region"
               aria-label={
                 downloadCanScrollMore
-                  ? "Progression du téléchargement — défiler pour voir la suite"
-                  : "Progression du téléchargement"
+                  ? t("firstLaunch.download.regionAriaMore")
+                  : t("firstLaunch.download.regionAria")
               }
             >
               <div className="fl-files" role="list">
@@ -962,7 +956,7 @@ export function FirstLaunchScreen() {
             </div>
             {downloadCanScrollMore ? (
               <div className="fl-scroll-hint" aria-hidden="true">
-                <span>Suite — défiler</span>
+                <span>{t("firstLaunch.scrollMore")}</span>
               </div>
             ) : null}
           </div>
@@ -995,14 +989,14 @@ export function FirstLaunchScreen() {
                 setError(null);
               }}
             >
-              Annuler et revenir au choix
+              {t("firstLaunch.download.cancelBack")}
             </button>
             <details
               className="fl-details"
               open={techOpen}
               onToggle={(event) => setTechOpen(event.currentTarget.open)}
             >
-              <summary>Détails techniques</summary>
+              <summary>{t("firstLaunch.download.techDetails")}</summary>
               <pre>
                 {JSON.stringify(
                   {
