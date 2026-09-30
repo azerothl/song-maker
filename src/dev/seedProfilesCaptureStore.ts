@@ -65,6 +65,71 @@ export function seedProfilesCaptureStore(patch?: Partial<ProfilesState>): void {
   });
 }
 
+export function seedManyProfilesCaptureStore(): void {
+  const profiles = [
+    {
+      id: "profile-001",
+      name: "Profil Hobby (vos projets existants)",
+      kind: "hobby" as const,
+      projectCount: 12,
+      acceptedContractCount: 3,
+      isLastUsed: true,
+      isActive: true,
+    },
+    {
+      id: "profile-002",
+      name: "test2",
+      kind: "hobby" as const,
+      projectCount: 2,
+      acceptedContractCount: 0,
+      isLastUsed: false,
+      isActive: false,
+    },
+    {
+      id: "profile-003",
+      name: "test1",
+      kind: "hobby" as const,
+      projectCount: 9,
+      acceptedContractCount: 0,
+      isLastUsed: false,
+      isActive: false,
+    },
+    {
+      id: "profile-004",
+      name: "Session live longue pour troncature ellipsis",
+      kind: "commercial" as const,
+      projectCount: 1,
+      acceptedContractCount: 1,
+      isLastUsed: false,
+      isActive: false,
+    },
+    {
+      id: "profile-005",
+      name: "Démos",
+      kind: "hobby" as const,
+      projectCount: 0,
+      acceptedContractCount: 0,
+      isLastUsed: false,
+      isActive: false,
+    },
+    {
+      id: "profile-006",
+      name: "Ateliers",
+      kind: "hobby" as const,
+      projectCount: 3,
+      acceptedContractCount: 0,
+      isLastUsed: false,
+      isActive: false,
+    },
+  ];
+  seedProfilesCaptureStore({
+    profiles,
+    activeProfileId: "profile-001",
+    lastUsedProfileId: "profile-001",
+    maxProfiles: 6,
+  });
+}
+
 export function seedOnboardingCaptureStore(
   patch?: Partial<ProfilesState>,
   sixOfSix = false,

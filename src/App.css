@@ -132,6 +132,8 @@ option {
   padding-left: 0.3125rem;
   padding-right: 0.3125rem;
   overflow: visible;
+  position: relative;
+  z-index: 30;
 }
 
 .sidebar-top {
@@ -408,6 +410,7 @@ option {
 .main {
   overflow: auto;
   position: relative;
+  min-height: 0;
 }
 
 .update-notice {
@@ -6579,6 +6582,16 @@ details[open] > summary {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
 }
 
+.sidebar.is-collapsed .profile-selector-menu {
+  top: 0;
+  left: calc(100% + 8px);
+  right: auto;
+  width: 288px;
+  max-width: calc(100vw - var(--sidebar-width-collapsed) - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+}
+
 .profile-menu-kicker {
   font-size: 0.7rem;
   letter-spacing: 0.08em;
@@ -6618,6 +6631,17 @@ details[open] > summary {
   display: flex;
   flex-direction: column;
   flex: 1;
+}
+
+.sidebar.is-collapsed .profile-menu-item-text {
+  min-width: 0;
+}
+
+.sidebar.is-collapsed .profile-menu-item-name,
+.sidebar.is-collapsed .profile-menu-item-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-menu-item-meta {

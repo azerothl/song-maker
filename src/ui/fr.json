@@ -1100,6 +1100,7 @@
   "profiles.kind.commercial": "Commercial",
   "profiles.selector.label": "Profil actif",
   "profiles.selector.menuTitle": "Profils",
+  "profiles.selector.menuKicker": "Profils ({count} sur {max})",
   "profiles.selector.new": "Nouveau profil…",
   "profiles.selector.all": "Tous les profils…",
   "profiles.switch.confirm.title": "Passer au profil {name} ?",

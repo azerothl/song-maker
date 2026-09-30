@@ -50,13 +50,23 @@ export function ProfileSelector({ collapsed }: Props) {
 
   const closeMenu = () => {
     setOpen(false);
-    focusProfileElement(triggerRef.current);
+    window.setTimeout(() => {
+      focusProfileElement(triggerRef.current);
+    }, 0);
   };
 
   useEffect(() => {
     if (!import.meta.env.VITE_CAPTURE) return;
     const hash = globalThis.location?.hash?.toLowerCase() ?? "";
     if (hash.includes("blocked-generation") && block.blocked) {
+      setOpen(true);
+      return;
+    }
+    if (hash.includes("selector-collapsed-open") || hash.includes("collapsed-menu-open")) {
+      setOpen(true);
+      return;
+    }
+    if (hash.includes("selector-open") && !hash.includes("collapsed")) {
       setOpen(true);
       return;
     }
@@ -68,11 +78,11 @@ export function ProfileSelector({ collapsed }: Props) {
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (triggerRef.current?.contains(t)) return;
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target)) return;
       const menu = menuRef.current ?? document.getElementById(menuId);
-      if (menu?.contains(t)) return;
-      setOpen(false);
+      if (menu?.contains(target)) return;
+      closeMenu();
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
@@ -110,6 +120,11 @@ export function ProfileSelector({ collapsed }: Props) {
         : block.blocked && block.kind === "export"
           ? t("profiles.switch.blocked.export")
           : null;
+
+  const menuKicker = t("profiles.selector.menuKicker", {
+    count: profilesState?.profiles.length ?? 0,
+    max: profilesState?.maxProfiles ?? 6,
+  });
 
   const performSwitch = async (target: ProfileSummary) => {
     try {
@@ -178,10 +193,7 @@ export function ProfileSelector({ collapsed }: Props) {
             role="menu"
             data-testid="profile-selector-menu"
           >
-            <p className="profile-menu-kicker">
-              {t("profiles.selector.menuTitle")} ({profilesState?.profiles.length ?? 0}{" "}
-              {t("profiles.onboarding.ofMax")} {profilesState?.maxProfiles ?? 6})
-            </p>
+            <p className="profile-menu-kicker">{menuKicker}</p>
             {blockMessage ? (
               <div
                 className="profile-switch-block-alert"
@@ -195,6 +207,9 @@ export function ProfileSelector({ collapsed }: Props) {
               {profilesState?.profiles.map((p) => {
                 const isCurrent = p.id === active.id;
                 const blocked = block.blocked && !isCurrent;
+                const meta = profileMetaLine(p);
+                const labelTitle = collapsed ? { title: p.name } : {};
+                const metaTitle = collapsed ? { title: meta } : {};
                 return (
                   <li key={p.id} role="none">
                     <button
@@ -215,9 +230,11 @@ export function ProfileSelector({ collapsed }: Props) {
                         {p.kind === "commercial" ? "💼" : "🏠"}
                       </span>
                       <span className="profile-menu-item-text">
-                        <span className="profile-menu-item-name">{p.name}</span>
-                        <span className="profile-menu-item-meta">
-                          {profileMetaLine(p)}
+                        <span className="profile-menu-item-name" {...labelTitle}>
+                          {p.name}
+                        </span>
+                        <span className="profile-menu-item-meta" {...metaTitle}>
+                          {meta}
                         </span>
                       </span>
                       {isCurrent ? (

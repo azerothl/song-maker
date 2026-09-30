@@ -22,6 +22,7 @@
   "profiles.kind.commercial": "Commercial",
   "profiles.selector.label": "Active profile",
   "profiles.selector.menuTitle": "Profiles",
+  "profiles.selector.menuKicker": "Profiles ({count} of {max})",
   "profiles.selector.new": "New profile…",
   "profiles.selector.all": "All profiles…",
   "profiles.switch.confirm.title": "Switch to profile {name}?",
