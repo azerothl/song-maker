@@ -86,7 +86,7 @@ pub fn create_profile(name: String, kind: String) -> Result<ProfileSummary, Stri
     }
     let mut manifest = load_manifest()?;
     if manifest.profiles.len() >= MAX_PROFILES {
-        return Err(format!("Maximum {MAX_PROFILES} profils atteint.").into());
+        return Err(format!("Maximum {MAX_PROFILES} profils atteint."));
     }
     let id = profiles::next_profile_id(&manifest);
     let meta = ProfileMeta {

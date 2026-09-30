@@ -228,13 +228,12 @@ pub fn next_profile_id(manifest: &ProfilesManifest) -> String {
 
 fn legacy_data_present() -> bool {
     let legacy_projects = legacy_projects_root();
-    if legacy_projects.is_dir() {
-        if std::fs::read_dir(&legacy_projects)
+    if legacy_projects.is_dir()
+        && std::fs::read_dir(&legacy_projects)
             .map(|rd| rd.flatten().next().is_some())
             .unwrap_or(false)
-        {
-            return true;
-        }
+    {
+        return true;
     }
     legacy_library_db_path().is_file()
 }
@@ -379,9 +378,9 @@ pub fn migrate_legacy_if_needed() -> Result<ProfilesManifest, String> {
     if legacy_library_db_path().is_file() {
         let dest = profile_library_db_path(&id);
         if !dest.is_file() {
-            std::fs::rename(&legacy_library_db_path(), &dest).or_else(|_| {
-                std::fs::copy(&legacy_library_db_path(), &dest).map_err(|e| e.to_string())?;
-                std::fs::remove_file(&legacy_library_db_path()).map_err(|e| e.to_string())
+            std::fs::rename(legacy_library_db_path(), &dest).or_else(|_| {
+                std::fs::copy(legacy_library_db_path(), &dest).map_err(|e| e.to_string())?;
+                std::fs::remove_file(legacy_library_db_path()).map_err(|e| e.to_string())
             })?;
         }
     }
@@ -430,7 +429,7 @@ pub fn merged_settings_from_disk() -> Result<AppSettings, String> {
     let active_id = manifest
         .active_profile_id
         .clone()
-        .or_else(|| active_profile_id())
+        .or_else(active_profile_id)
         .or_else(|| manifest.profiles.first().map(|p| p.id.clone()));
 
     if active_id.is_none() {
@@ -620,7 +619,7 @@ mod tests {
             std::env::set_var("SONG_MAKER_DOCUMENTS_DIR", root.as_os_str());
         }
         let legacy_projects = root.join("projects");
-        fs::create_dir_all(&legacy_projects.join("proj-a")).unwrap();
+        fs::create_dir_all(legacy_projects.join("proj-a")).unwrap();
         fs::write(
             legacy_projects.join("proj-a").join("project.json"),
             r#"{"schema":"song-maker.project","schemaVersion":1,"id":"proj-a","title":"A","createdAt":"2020","updatedAt":"2020","sampleRate":48000,"channels":2,"bitDepth":16,"style":"","lyrics":"","cot":"full"}"#,
