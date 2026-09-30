@@ -46,8 +46,13 @@ export function SongScreen() {
   const setError = useAppStore((s) => s.setError);
   const openProject = useAppStore((s) => s.openProject);
   const job = useAppStore((s) => s.job);
+  const setProfileOperationBusy = useAppStore((s) => s.setProfileOperationBusy);
 
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    setProfileOperationBusy(busy);
+    return () => setProfileOperationBusy(false);
+  }, [busy, setProfileOperationBusy]);
   const [showFormErrors, setShowFormErrors] = useState(false);
   const [playback, setPlayback] = useState<PlaybackView | null>(null);
   const [candidateCount, setCandidateCount] = useState(2);

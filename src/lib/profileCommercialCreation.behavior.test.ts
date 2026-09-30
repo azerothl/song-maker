@@ -3,10 +3,7 @@ import { describe, it } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
 import { ProfileCommercialTypeOption } from "../components/ProfileCommercialTypeOption.tsx";
-import {
-  commercialUnavailableReasonFr,
-  resolveCommercialCreationState,
-} from "./profileCommercialCreation.ts";
+import { resolveCommercialCreationState } from "./profileCommercialCreation.ts";
 import type { EngineLicenseRow201, WiredCommercialEngine } from "@song-maker/stem-providers";
 
 function fixtureRows(): Map<string, EngineLicenseRow201> {

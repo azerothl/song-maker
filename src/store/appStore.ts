@@ -31,6 +31,9 @@ type AppStore = {
   error: string | null;
   audioPath: string | null;
   playbackSources: PlaybackSources | null;
+  /** Song screen export / long operations — blocks profile switch (#201). */
+  profileOperationBusy: boolean;
+  setProfileOperationBusy: (busy: boolean) => void;
   refreshHealth: () => Promise<void>;
   refreshSettings: () => Promise<void>;
   refreshJob: () => Promise<void>;
@@ -89,6 +92,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   error: null,
   audioPath: null,
   playbackSources: null,
+  profileOperationBusy: false,
+  setProfileOperationBusy: (profileOperationBusy) =>
+    set({ profileOperationBusy }),
 
   refreshHealth: async () => {
     try {
