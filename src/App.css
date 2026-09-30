@@ -2725,6 +2725,20 @@ details[open] > summary {
   outline-offset: 2px;
 }
 
+/* Région défilante (premier arrêt Tab) : anneau cyan 2 px, pas le contour navigateur (#206). */
+.first-launch .fl-grid:focus-visible,
+.first-launch .fl-scroll-body:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* Réserve sous « Suite — défiler » pour ne pas masquer le contenu défilant (#206). */
+.fl-scroll-shell.has-more > .fl-grid,
+.fl-scroll-shell.has-more > .fl-scroll-body {
+  padding-bottom: 52px;
+  scroll-padding-bottom: 52px;
+}
+
 .fl-card {
   flex: 1;
   min-height: 0;
