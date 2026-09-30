@@ -1,0 +1,35 @@
+{
+  "phase": "before",
+  "measured": "Chromium getBoundingClientRect sur main a600209 (mesuré)",
+  "calculated": [],
+  "notTested": ["WebKitGTK", "Tauri natif", "lecteur d'écran"],
+  "tools1280x720": {
+    "panelScrollHeight": 1932,
+    "panelClientHeight": 1932,
+    "panelScrolls": false,
+    "rackBottomPx": 879.14,
+    "rackEndReachable": false
+  },
+  "scenes": {
+    "tools-1280x720-before": {
+      "file": "before/tools-1280x720-before.png",
+      "sha256": "42bfcac8b54bd63eae69ee65d47977f4eb24c1e7ca6752aadd0f79bee2214697",
+      "bytes": 152255
+    },
+    "tools-1280x768-before": {
+      "file": "before/tools-1280x768-before.png",
+      "sha256": "7ed79bb8044210077a09a780d6ca00ca0f4eaf9f58e53ab31482856967738ad3",
+      "bytes": 158157
+    },
+    "clips-1280x720-before": {
+      "file": "before/clips-1280x720-before.png",
+      "sha256": "9a4280bf4faf6caf78c743add5e308277cef7c00b536478c3fa146b528ebef0e",
+      "bytes": 164115
+    },
+    "clips-1280x768-before": {
+      "file": "before/clips-1280x768-before.png",
+      "sha256": "229ef0b6af855398afe49f7b82c485849ef6bdc620536ae8ea15312e436cb6d9",
+      "bytes": 164583
+    }
+  }
+}

@@ -1,0 +1,417 @@
+{
+  "phase": "after",
+  "measured": "Chromium getBoundingClientRect, scrollTop, getComputedStyle(display) — mesuré",
+  "calculated": [],
+  "notTested": [
+    "WebKitGTK",
+    "Tauri natif",
+    "lecteur d'écran"
+  ],
+  "scenes": {
+    "mix-1280x720-after": {
+      "file": "after/mix-1280x720-after.png",
+      "sha256": "316ca3329f4a4cd1b2e2868836e766b7931c8c4077bf126153d26a5881b2fcdf",
+      "bytes": 169772,
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "hiddenPanelsLeaking": false,
+        "hiddenPanelLeaks": {
+          "mix": false,
+          "clips": false,
+          "tools": false
+        },
+        "tools": {
+          "scrollHeight": 0,
+          "clientHeight": 0,
+          "scrolls": false,
+          "rackEndReachable": false,
+          "rackBottomPx": 0
+        },
+        "clips": {
+          "topClientHeightPx": 0,
+          "topScrollHeightPx": 0,
+          "topScrolls": false,
+          "lanesClientHeightPx": 0,
+          "lanesScrollHeightPx": 0,
+          "lanesScrolls": false,
+          "lanesFullTracksVisible": 0,
+          "topArrangementReachable": false,
+          "lanesLastTrackReachable": false,
+          "lanesRulerReachable": false,
+          "lanesTabIndex": "0"
+        },
+        "mix": {
+          "trackZoneClientHeightPx": 504,
+          "trackZoneScrollHeightPx": 934
+        },
+        "mixToolbar": {
+          "barHeightPx": 34,
+          "mixButtonHeightPx": 32
+        }
+      }
+    },
+    "mix-1280x768-after": {
+      "file": "after/mix-1280x768-after.png",
+      "sha256": "efe4e528b67e0c6fa5f1d1cebfceb8777a2643dcee09bb76840fe5d0da8cddab",
+      "bytes": 178454,
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 768
+        },
+        "hiddenPanelsLeaking": false,
+        "hiddenPanelLeaks": {
+          "mix": false,
+          "clips": false,
+          "tools": false
+        },
+        "tools": {
+          "scrollHeight": 0,
+          "clientHeight": 0,
+          "scrolls": false,
+          "rackEndReachable": false,
+          "rackBottomPx": 0
+        },
+        "clips": {
+          "topClientHeightPx": 0,
+          "topScrollHeightPx": 0,
+          "topScrolls": false,
+          "lanesClientHeightPx": 0,
+          "lanesScrollHeightPx": 0,
+          "lanesScrolls": false,
+          "lanesFullTracksVisible": 0,
+          "topArrangementReachable": false,
+          "lanesLastTrackReachable": false,
+          "lanesRulerReachable": false,
+          "lanesTabIndex": "0"
+        },
+        "mix": {
+          "trackZoneClientHeightPx": 552,
+          "trackZoneScrollHeightPx": 934
+        },
+        "mixToolbar": {
+          "barHeightPx": 34,
+          "mixButtonHeightPx": 32
+        }
+      }
+    },
+    "mix-1280x640-after": {
+      "file": "after/mix-1280x640-after.png",
+      "sha256": "78d2a7b88160cb9c9a9e3bbce249696855b07cdfa25fd6dd9fe4581b303371b0",
+      "bytes": 154489,
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 640
+        },
+        "hiddenPanelsLeaking": false,
+        "hiddenPanelLeaks": {
+          "mix": false,
+          "clips": false,
+          "tools": false
+        },
+        "tools": {
+          "scrollHeight": 0,
+          "clientHeight": 0,
+          "scrolls": false,
+          "rackEndReachable": false,
+          "rackBottomPx": 0
+        },
+        "clips": {
+          "topClientHeightPx": 0,
+          "topScrollHeightPx": 0,
+          "topScrolls": false,
+          "lanesClientHeightPx": 0,
+          "lanesScrollHeightPx": 0,
+          "lanesScrolls": false,
+          "lanesFullTracksVisible": 0,
+          "topArrangementReachable": false,
+          "lanesLastTrackReachable": false,
+          "lanesRulerReachable": false,
+          "lanesTabIndex": "0"
+        },
+        "mix": {
+          "trackZoneClientHeightPx": 424,
+          "trackZoneScrollHeightPx": 934
+        },
+        "mixToolbar": {
+          "barHeightPx": 34,
+          "mixButtonHeightPx": 32
+        }
+      }
+    },
+    "tools-1280x720-after": {
+      "file": "after/tools-1280x720-after.png",
+      "sha256": "efc9a7ed7af5d3b1af7568aa7338401c33ee87709cd52704355187486199eb75",
+      "bytes": 152102,
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "hiddenPanelsLeaking": false,
+        "hiddenPanelLeaks": {
+          "mix": false,
+          "clips": false,
+          "tools": false
+        },
+        "tools": {
+          "scrollHeight": 1921,
+          "clientHeight": 419,
+          "scrolls": true,
+          "rackEndReachable": true,
+          "rackBottomPx": 707.8
+        },
+        "clips": {
+          "topClientHeightPx": 0,
+          "topScrollHeightPx": 0,
+          "topScrolls": false,
+          "lanesClientHeightPx": 0,
+          "lanesScrollHeightPx": 0,
+          "lanesScrolls": false,
+          "lanesFullTracksVisible": 0,
+          "topArrangementReachable": false,
+          "lanesLastTrackReachable": false,
+          "lanesRulerReachable": false,
+          "lanesTabIndex": "0"
+        },
+        "mix": {
+          "trackZoneClientHeightPx": 0,
+          "trackZoneScrollHeightPx": 0
+        },
+        "mixToolbar": {
+          "barHeightPx": 0,
+          "mixButtonHeightPx": 0
+        }
+      }
+    },
+    "tools-1280x768-after": {
+      "file": "after/tools-1280x768-after.png",
+      "sha256": "6ed189dbded4903c8941b512387835a4934990113713f0004dfe42ab847a559d",
+      "bytes": 158284,
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 768
+        },
+        "hiddenPanelsLeaking": false,
+        "hiddenPanelLeaks": {
+          "mix": false,
+          "clips": false,
+          "tools": false
+        },
+        "tools": {
+          "scrollHeight": 1921,
+          "clientHeight": 467,
+          "scrolls": true,
+          "rackEndReachable": true,
+          "rackBottomPx": 755.8
+        },
+        "clips": {
+          "topClientHeightPx": 0,
+          "topScrollHeightPx": 0,
+          "topScrolls": false,
+          "lanesClientHeightPx": 0,
+          "lanesScrollHeightPx": 0,
+          "lanesScrolls": false,
+          "lanesFullTracksVisible": 0,
+          "topArrangementReachable": false,
+          "lanesLastTrackReachable": false,
+          "lanesRulerReachable": false,
+          "lanesTabIndex": "0"
+        },
+        "mix": {
+          "trackZoneClientHeightPx": 0,
+          "trackZoneScrollHeightPx": 0
+        },
+        "mixToolbar": {
+          "barHeightPx": 0,
+          "mixButtonHeightPx": 0
+        }
+      }
+    },
+    "tools-1280x640-after": {
+      "file": "after/tools-1280x640-after.png",
+      "sha256": "c972cfe3892388aa0bf8f6c6260248c1cc8b119862a9516091a5a1a7216a5998",
+      "bytes": 142270,
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 640
+        },
+        "hiddenPanelsLeaking": false,
+        "hiddenPanelLeaks": {
+          "mix": false,
+          "clips": false,
+          "tools": false
+        },
+        "tools": {
+          "scrollHeight": 1921,
+          "clientHeight": 339,
+          "scrolls": true,
+          "rackEndReachable": true,
+          "rackBottomPx": 627.8
+        },
+        "clips": {
+          "topClientHeightPx": 0,
+          "topScrollHeightPx": 0,
+          "topScrolls": false,
+          "lanesClientHeightPx": 0,
+          "lanesScrollHeightPx": 0,
+          "lanesScrolls": false,
+          "lanesFullTracksVisible": 0,
+          "topArrangementReachable": false,
+          "lanesLastTrackReachable": false,
+          "lanesRulerReachable": false,
+          "lanesTabIndex": "0"
+        },
+        "mix": {
+          "trackZoneClientHeightPx": 0,
+          "trackZoneScrollHeightPx": 0
+        },
+        "mixToolbar": {
+          "barHeightPx": 0,
+          "mixButtonHeightPx": 0
+        }
+      }
+    },
+    "clips-1280x720-after": {
+      "file": "after/clips-1280x720-after.png",
+      "sha256": "fbc4e14864e253d208bca8ac9e7b582857d90f99fdd8b804f455dbca409af274",
+      "bytes": 153297,
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "hiddenPanelsLeaking": false,
+        "hiddenPanelLeaks": {
+          "mix": false,
+          "clips": false,
+          "tools": false
+        },
+        "tools": {
+          "scrollHeight": 0,
+          "clientHeight": 0,
+          "scrolls": false,
+          "rackEndReachable": false,
+          "rackBottomPx": 0
+        },
+        "clips": {
+          "topClientHeightPx": 200,
+          "topScrollHeightPx": 294,
+          "topScrolls": true,
+          "lanesClientHeightPx": 210,
+          "lanesScrollHeightPx": 866,
+          "lanesScrolls": true,
+          "lanesFullTracksVisible": 3,
+          "topArrangementReachable": true,
+          "lanesLastTrackReachable": true,
+          "lanesRulerReachable": true,
+          "lanesTabIndex": "0"
+        },
+        "mix": {
+          "trackZoneClientHeightPx": 0,
+          "trackZoneScrollHeightPx": 0
+        },
+        "mixToolbar": {
+          "barHeightPx": 0,
+          "mixButtonHeightPx": 0
+        }
+      }
+    },
+    "clips-1280x768-after": {
+      "file": "after/clips-1280x768-after.png",
+      "sha256": "12a8409db2d8b50107955859f216df7bf97248f408f63ff9d31550c6ca835a4d",
+      "bytes": 153691,
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 768
+        },
+        "hiddenPanelsLeaking": false,
+        "hiddenPanelLeaks": {
+          "mix": false,
+          "clips": false,
+          "tools": false
+        },
+        "tools": {
+          "scrollHeight": 0,
+          "clientHeight": 0,
+          "scrolls": false,
+          "rackEndReachable": false,
+          "rackBottomPx": 0
+        },
+        "clips": {
+          "topClientHeightPx": 200,
+          "topScrollHeightPx": 294,
+          "topScrolls": true,
+          "lanesClientHeightPx": 258,
+          "lanesScrollHeightPx": 866,
+          "lanesScrolls": true,
+          "lanesFullTracksVisible": 4,
+          "topArrangementReachable": true,
+          "lanesLastTrackReachable": true,
+          "lanesRulerReachable": true,
+          "lanesTabIndex": "0"
+        },
+        "mix": {
+          "trackZoneClientHeightPx": 0,
+          "trackZoneScrollHeightPx": 0
+        },
+        "mixToolbar": {
+          "barHeightPx": 0,
+          "mixButtonHeightPx": 0
+        }
+      }
+    },
+    "clips-1280x640-after": {
+      "file": "after/clips-1280x640-after.png",
+      "sha256": "c3d0f6bf2d8f8dd492c763aa0549841a290b4ca6f9510d4261f52404c4b6ed9c",
+      "bytes": 152431,
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 640
+        },
+        "hiddenPanelsLeaking": false,
+        "hiddenPanelLeaks": {
+          "mix": false,
+          "clips": false,
+          "tools": false
+        },
+        "tools": {
+          "scrollHeight": 0,
+          "clientHeight": 0,
+          "scrolls": false,
+          "rackEndReachable": false,
+          "rackBottomPx": 0
+        },
+        "clips": {
+          "topClientHeightPx": 200,
+          "topScrollHeightPx": 294,
+          "topScrolls": true,
+          "lanesClientHeightPx": 130,
+          "lanesScrollHeightPx": 866,
+          "lanesScrolls": true,
+          "lanesFullTracksVisible": 1,
+          "topArrangementReachable": true,
+          "lanesLastTrackReachable": true,
+          "lanesRulerReachable": true,
+          "lanesTabIndex": "0"
+        },
+        "mix": {
+          "trackZoneClientHeightPx": 0,
+          "trackZoneScrollHeightPx": 0
+        },
+        "mixToolbar": {
+          "barHeightPx": 0,
+          "mixButtonHeightPx": 0
+        }
+      }
+    }
+  }
+}

@@ -943,7 +943,10 @@ export function ProductionWorkspace({
         hidden={productionView !== "clips"}
       >
         {mix ? (
-          <div className="production-clips">
+          <div
+            className="production-clips"
+            data-testid="production-clips-panel"
+          >
             <ClipTimeline
               mix={mix}
               onChange={scheduleMixUpdate}
@@ -966,22 +969,30 @@ export function ProductionWorkspace({
         hidden={productionView !== "tools"}
         className="advanced-production"
       >
-        <Phase3MixPanel
-          mix={mix}
-          sources={playbackSources}
-          tempoBpm={form.tempoBpm}
-          durationMs={
-            form.targetDurationSec != null
-              ? form.targetDurationSec * 1000
-              : (project.targetDurationSec ?? 180) * 1000
-          }
-        />
-        <ExportWizard
-          project={project}
-          busy={busy}
-          onBusy={setBusy}
-          onError={setError}
-        />
+        <div
+          className="production-subview-scroll production-tools-scroll"
+          role="region"
+          aria-label={t("workspace.production.tools.scroll")}
+          tabIndex={0}
+          data-testid="production-tools-scroll"
+        >
+          <Phase3MixPanel
+            mix={mix}
+            sources={playbackSources}
+            tempoBpm={form.tempoBpm}
+            durationMs={
+              form.targetDurationSec != null
+                ? form.targetDurationSec * 1000
+                : (project.targetDurationSec ?? 180) * 1000
+            }
+          />
+          <ExportWizard
+            project={project}
+            busy={busy}
+            onBusy={setBusy}
+            onError={setError}
+          />
+        </div>
       </div>
     </section>
   );

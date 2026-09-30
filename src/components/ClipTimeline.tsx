@@ -259,6 +259,7 @@ export function ClipTimeline({
   const [tempoAtDraft, setTempoAtDraft] = useState(0);
   const dragRef = useRef<DragState | null>(null);
   const railScrollRef = useRef<HTMLDivElement | null>(null);
+  const topScrollRef = useRef<HTMLDivElement | null>(null);
 
   const tempoMap = mix.tempoMap ?? [];
   const meterMap = mix.timeSignatures ?? [];
@@ -667,7 +668,76 @@ export function ClipTimeline({
     e.preventDefault();
   }
 
+  function scrollRegionByKey(
+    region: HTMLElement,
+    key: string,
+  ): boolean {
+    const step = Math.max(48, Math.floor(region.clientHeight * 0.85));
+    const max = Math.max(0, region.scrollHeight - region.clientHeight);
+    if (key === "ArrowDown") {
+      region.scrollTop = Math.min(max, region.scrollTop + 40);
+      return true;
+    }
+    if (key === "ArrowUp") {
+      region.scrollTop = Math.max(0, region.scrollTop - 40);
+      return true;
+    }
+    if (key === "PageDown") {
+      region.scrollTop = Math.min(max, region.scrollTop + step);
+      return true;
+    }
+    if (key === "PageUp") {
+      region.scrollTop = Math.max(0, region.scrollTop - step);
+      return true;
+    }
+    if (key === "Home") {
+      region.scrollTop = 0;
+      return true;
+    }
+    if (key === "End") {
+      region.scrollTop = max;
+      return true;
+    }
+    return false;
+  }
+
   function onTimelineKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
+    const target = e.target as HTMLElement;
+    const inField =
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "SELECT" ||
+      target.isContentEditable;
+
+    if (inField) return;
+
+    const scrollKeys = new Set([
+      "ArrowUp",
+      "ArrowDown",
+      "PageUp",
+      "PageDown",
+      "Home",
+      "End",
+    ]);
+    if (scrollKeys.has(e.key)) {
+      const lanes = railScrollRef.current;
+      const top = topScrollRef.current;
+      if (target.closest('[data-testid="clip-timeline-lanes"]') && lanes) {
+        e.preventDefault();
+        scrollRegionByKey(lanes, e.key);
+        return;
+      }
+      if (
+        (target.closest('[data-testid="production-clips-scroll"]') ||
+          target.closest(".clip-inspector")) &&
+        top
+      ) {
+        e.preventDefault();
+        scrollRegionByKey(top, e.key);
+        return;
+      }
+    }
+
     if (!selected || !selectedClip) return;
     const track = mix.tracks.find((tr) => tr.id === selected.trackId);
     if (!track) return;
@@ -752,11 +822,15 @@ export function ClipTimeline({
     gridMode === "musical" && snapEnabled ? nudgeStep : snapEnabled ? TIME_SNAP_MS : 100;
 
   return (
-    <div
-      className="clip-timeline"
-      tabIndex={0}
-      onKeyDown={onTimelineKeyDown}
-    >
+    <div className="clip-timeline" onKeyDown={onTimelineKeyDown}>
+      <div
+        ref={topScrollRef}
+        className="clip-timeline-scroll production-subview-scroll clip-timeline-scroll-chrome"
+        role="region"
+        aria-label={t("workspace.production.clips.scroll")}
+        tabIndex={0}
+        data-testid="production-clips-scroll"
+      >
       <div className="clip-timeline-header">
         <h3>{t("clips.title")}</h3>
         <span className="hint">{t("clips.hint")}</span>
@@ -965,186 +1039,6 @@ export function ClipTimeline({
               </button>
             </div>
           )}
-        </div>
-      </div>
-
-      <div className="clip-lanes-scroll" ref={railScrollRef}>
-        <div className="clip-lanes" style={{ width: railWidthPct }}>
-          <div className="clip-ruler" aria-hidden="true">
-            <span className="clip-lane-label" />
-            <div className="clip-ruler-marks-abs">
-              {rulerMarks.map((mark, i) => (
-                <span
-                  key={`${mark.ms}-${i}`}
-                  className={
-                    mark.major ? "clip-ruler-tick major" : "clip-ruler-tick"
-                  }
-                  style={{ left: `${(mark.ms / timelineMs) * 100}%` }}
-                  title={
-                    gridMode === "musical"
-                      ? formatMusical(
-                          msToMusical(mark.ms, tempoMap, meterMap, subdivision),
-                        )
-                      : formatMs(mark.ms)
-                  }
-                >
-                  {mark.label}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div className="clip-marker-lane">
-            <span className="clip-lane-label">{t("clips.markers")}</span>
-            <div className="clip-lane-rail clip-marker-rail">
-              {markers.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  className={
-                    selectedMarkerId === m.id
-                      ? "clip-marker-flag active"
-                      : "clip-marker-flag"
-                  }
-                  style={{ left: `${(m.startMs / timelineMs) * 100}%` }}
-                  title={`${m.name} · ${formatMs(m.startMs)}`}
-                  onClick={() => jumpToMarker(m)}
-                >
-                  <span className="clip-marker-flag-label">{m.name}</span>
-                </button>
-              ))}
-              {tempoMap
-                .filter((e) => e.startMs > 0)
-                .map((e) => (
-                  <span
-                    key={`tempo-${e.startMs}`}
-                    className="clip-tempo-flag"
-                    style={{ left: `${(e.startMs / timelineMs) * 100}%` }}
-                    title={`${e.quarterBpm} BPM`}
-                  >
-                    {e.quarterBpm}
-                  </span>
-                ))}
-            </div>
-          </div>
-          {mix.tracks.map((tr) => {
-            const role =
-              roleByTrack?.[tr.id] ?? tr.role?.toLowerCase() ?? "other";
-            const color = roleWaveColor(role);
-            const sourceMs = estimateSourceMs(tr, sourceDurationMsByTrack);
-            return (
-              <div
-                key={tr.id}
-                className="clip-lane"
-                data-role={role}
-                style={{ "--track-wave": color } as CSSProperties}
-              >
-                <span className="clip-lane-label">{tr.name}</span>
-                <div className="clip-lane-rail">
-                  {tr.clips.map((clip) => {
-                    const left = (clip.startMs / timelineMs) * 100;
-                    const width = Math.max(
-                      0.8,
-                      (clip.durationMs / timelineMs) * 100,
-                    );
-                    const active =
-                      selected?.trackId === tr.id &&
-                      selected.clipId === clip.id;
-                    const takeMuted = clip.takeActive === false;
-                    const peaks = slicePeaksForClip(
-                      peaksByTrack?.[tr.id],
-                      clip,
-                      sourceMs,
-                    );
-                    const musical = msToMusical(
-                      clip.startMs,
-                      tempoMap,
-                      meterMap,
-                      subdivision,
-                    );
-                    return (
-                      <div
-                        key={clip.id}
-                        role="button"
-                        tabIndex={0}
-                        className={[
-                          "clip-block",
-                          active ? "active" : "",
-                          takeMuted ? "take-muted" : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        style={{
-                          left: `${left}%`,
-                          width: `${width}%`,
-                          background: withAlpha(color, takeMuted ? 0.12 : 0.28),
-                        }}
-                        title={`${tr.name} · ${formatMs(clip.startMs)} (${formatMusical(musical)}) → ${formatMs(clip.startMs + clip.durationMs)}${
-                          clip.takeLabel ? ` · ${clip.takeLabel}` : ""
-                        }`}
-                        aria-label={`${tr.name}, ${formatMs(clip.startMs)}, ${formatMs(clip.durationMs)}`}
-                        onPointerDown={(e) => onClipPointerDown(e, tr, clip)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setSelected({ trackId: tr.id, clipId: clip.id });
-                          }
-                        }}
-                      >
-                        <ClipWaveCanvas peaks={peaks} color={color} />
-                        <span className="clip-block-label">
-                          {gridMode === "musical"
-                            ? formatMusical(musical)
-                            : formatMs(clip.startMs)}
-                        </span>
-                        <span
-                          className="clip-fade-in"
-                          style={{
-                            width: `${
-                              clip.durationMs > 0
-                                ? (clip.fadeInMs / clip.durationMs) * 100
-                                : 0
-                            }%`,
-                          }}
-                        />
-                        <span
-                          className="clip-fade-out"
-                          style={{
-                            width: `${
-                              clip.durationMs > 0
-                                ? (clip.fadeOutMs / clip.durationMs) * 100
-                                : 0
-                            }%`,
-                          }}
-                        />
-                        <span className="clip-handle clip-handle-left" />
-                        <span className="clip-handle clip-handle-right" />
-                        <span
-                          className="clip-fade-handle clip-fade-handle-in"
-                          style={{
-                            left: `${
-                              clip.durationMs > 0
-                                ? (clip.fadeInMs / clip.durationMs) * 100
-                                : 0
-                            }%`,
-                          }}
-                        />
-                        <span
-                          className="clip-fade-handle clip-fade-handle-out"
-                          style={{
-                            right: `${
-                              clip.durationMs > 0
-                                ? (clip.fadeOutMs / clip.durationMs) * 100
-                                : 0
-                            }%`,
-                          }}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
         </div>
       </div>
 
@@ -1382,6 +1276,195 @@ export function ClipTimeline({
       )}
 
       {error && <p className="hint error">{error}</p>}
+      </div>
+
+      <div
+        className="clip-lanes-scroll clip-timeline-lanes-pane production-subview-scroll"
+        ref={railScrollRef}
+        data-testid="clip-timeline-lanes"
+        role="region"
+        aria-label={t("workspace.production.clips.timeline")}
+        tabIndex={0}
+        onKeyDown={onTimelineKeyDown}
+      >
+        <div className="clip-lanes" style={{ width: railWidthPct }}>
+          <div className="clip-ruler" aria-hidden="true">
+            <span className="clip-lane-label" />
+            <div className="clip-ruler-marks-abs">
+              {rulerMarks.map((mark, i) => (
+                <span
+                  key={`${mark.ms}-${i}`}
+                  className={
+                    mark.major ? "clip-ruler-tick major" : "clip-ruler-tick"
+                  }
+                  style={{ left: `${(mark.ms / timelineMs) * 100}%` }}
+                  title={
+                    gridMode === "musical"
+                      ? formatMusical(
+                          msToMusical(mark.ms, tempoMap, meterMap, subdivision),
+                        )
+                      : formatMs(mark.ms)
+                  }
+                >
+                  {mark.label}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="clip-marker-lane">
+            <span className="clip-lane-label">{t("clips.markers")}</span>
+            <div className="clip-lane-rail clip-marker-rail">
+              {markers.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={
+                    selectedMarkerId === m.id
+                      ? "clip-marker-flag active"
+                      : "clip-marker-flag"
+                  }
+                  style={{ left: `${(m.startMs / timelineMs) * 100}%` }}
+                  title={`${m.name} · ${formatMs(m.startMs)}`}
+                  onClick={() => jumpToMarker(m)}
+                >
+                  <span className="clip-marker-flag-label">{m.name}</span>
+                </button>
+              ))}
+              {tempoMap
+                .filter((e) => e.startMs > 0)
+                .map((e) => (
+                  <span
+                    key={`tempo-${e.startMs}`}
+                    className="clip-tempo-flag"
+                    style={{ left: `${(e.startMs / timelineMs) * 100}%` }}
+                    title={`${e.quarterBpm} BPM`}
+                  >
+                    {e.quarterBpm}
+                  </span>
+                ))}
+            </div>
+          </div>
+          {mix.tracks.map((tr) => {
+            const role =
+              roleByTrack?.[tr.id] ?? tr.role?.toLowerCase() ?? "other";
+            const color = roleWaveColor(role);
+            const sourceMs = estimateSourceMs(tr, sourceDurationMsByTrack);
+            return (
+              <div
+                key={tr.id}
+                className="clip-lane"
+                data-role={role}
+                style={{ "--track-wave": color } as CSSProperties}
+              >
+                <span className="clip-lane-label">{tr.name}</span>
+                <div className="clip-lane-rail">
+                  {tr.clips.map((clip) => {
+                    const left = (clip.startMs / timelineMs) * 100;
+                    const width = Math.max(
+                      0.8,
+                      (clip.durationMs / timelineMs) * 100,
+                    );
+                    const active =
+                      selected?.trackId === tr.id &&
+                      selected.clipId === clip.id;
+                    const takeMuted = clip.takeActive === false;
+                    const peaks = slicePeaksForClip(
+                      peaksByTrack?.[tr.id],
+                      clip,
+                      sourceMs,
+                    );
+                    const musical = msToMusical(
+                      clip.startMs,
+                      tempoMap,
+                      meterMap,
+                      subdivision,
+                    );
+                    return (
+                      <div
+                        key={clip.id}
+                        role="button"
+                        tabIndex={0}
+                        className={[
+                          "clip-block",
+                          active ? "active" : "",
+                          takeMuted ? "take-muted" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        style={{
+                          left: `${left}%`,
+                          width: `${width}%`,
+                          background: withAlpha(color, takeMuted ? 0.12 : 0.28),
+                        }}
+                        title={`${tr.name} · ${formatMs(clip.startMs)} (${formatMusical(musical)}) → ${formatMs(clip.startMs + clip.durationMs)}${
+                          clip.takeLabel ? ` · ${clip.takeLabel}` : ""
+                        }`}
+                        aria-label={`${tr.name}, ${formatMs(clip.startMs)}, ${formatMs(clip.durationMs)}`}
+                        onPointerDown={(e) => onClipPointerDown(e, tr, clip)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setSelected({ trackId: tr.id, clipId: clip.id });
+                          }
+                        }}
+                      >
+                        <ClipWaveCanvas peaks={peaks} color={color} />
+                        <span className="clip-block-label">
+                          {gridMode === "musical"
+                            ? formatMusical(musical)
+                            : formatMs(clip.startMs)}
+                        </span>
+                        <span
+                          className="clip-fade-in"
+                          style={{
+                            width: `${
+                              clip.durationMs > 0
+                                ? (clip.fadeInMs / clip.durationMs) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                        <span
+                          className="clip-fade-out"
+                          style={{
+                            width: `${
+                              clip.durationMs > 0
+                                ? (clip.fadeOutMs / clip.durationMs) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                        <span className="clip-handle clip-handle-left" />
+                        <span className="clip-handle clip-handle-right" />
+                        <span
+                          className="clip-fade-handle clip-fade-handle-in"
+                          style={{
+                            left: `${
+                              clip.durationMs > 0
+                                ? (clip.fadeInMs / clip.durationMs) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                        <span
+                          className="clip-fade-handle clip-fade-handle-out"
+                          style={{
+                            right: `${
+                              clip.durationMs > 0
+                                ? (clip.fadeOutMs / clip.durationMs) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

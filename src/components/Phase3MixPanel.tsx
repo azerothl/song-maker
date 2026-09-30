@@ -649,7 +649,7 @@ export function Phase3MixPanel({
             )}
           </div>
 
-          <fieldset className="phase3-fx">
+          <fieldset className="phase3-fx" data-testid="phase3-fx-rack">
             <legend>{t("phase3.mix.fxLegend")}</legend>
             <p className="hint">{t("phase3.mix.fxHint")}</p>
             <div className="btn-row">
