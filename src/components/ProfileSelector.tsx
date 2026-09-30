@@ -1,5 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { api } from "../lib/api";
+import {
+  focusProfileElement,
+  handleProfileOverlayKeydown,
+  listProfileFocusables,
+} from "../lib/profileDialogA11y";
 import { formatProfileProjectCount } from "../lib/profileProjectCount";
 import { profileSwitchBlockReason } from "../lib/profileSwitchBlock";
 import type { ProfileSummary } from "../lib/profilesTypes";
@@ -38,9 +43,15 @@ export function ProfileSelector({ collapsed }: Props) {
   const [pending, setPending] = useState<ProfileSummary | null>(null);
   const menuId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const active = profilesState?.profiles.find((p) => p.isActive) ?? null;
   const block = profileSwitchBlockReason(job, profileOperationBusy);
+
+  const closeMenu = () => {
+    setOpen(false);
+    focusProfileElement(triggerRef.current);
+  };
 
   useEffect(() => {
     if (!import.meta.env.VITE_CAPTURE) return;
@@ -59,13 +70,27 @@ export function ProfileSelector({ collapsed }: Props) {
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
       if (triggerRef.current?.contains(t)) return;
-      const menu = document.getElementById(menuId);
+      const menu = menuRef.current ?? document.getElementById(menuId);
       if (menu?.contains(t)) return;
       setOpen(false);
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open, menuId]);
+
+  useEffect(() => {
+    if (!open) return;
+    const menu = menuRef.current;
+    if (!menu) return;
+    const items = listProfileFocusables(menu);
+    focusProfileElement(items[0] ?? menu);
+
+    const onKey = (e: KeyboardEvent) => {
+      handleProfileOverlayKeydown(e, menu, closeMenu);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [open]);
 
   if (!active) return null;
 
@@ -147,6 +172,7 @@ export function ProfileSelector({ collapsed }: Props) {
         </button>
         {open && (
           <div
+            ref={menuRef}
             id={menuId}
             className="profile-selector-menu"
             role="menu"
@@ -223,7 +249,10 @@ export function ProfileSelector({ collapsed }: Props) {
           current={active}
           target={pending}
           onConfirm={() => void performSwitch(pending)}
-          onCancel={() => setPending(null)}
+          onCancel={() => {
+            setPending(null);
+            focusProfileElement(triggerRef.current);
+          }}
         />
       ) : null}
     </>

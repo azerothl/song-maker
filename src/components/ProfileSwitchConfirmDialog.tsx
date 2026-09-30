@@ -1,4 +1,8 @@
 import { useEffect, useRef } from "react";
+import {
+  focusProfileElement,
+  handleProfileOverlayKeydown,
+} from "../lib/profileDialogA11y";
 import type { ProfileSummary } from "../lib/profilesTypes";
 import { t } from "../ui/i18n";
 
@@ -17,17 +21,28 @@ export function ProfileSwitchConfirmDialog({
   onConfirm,
   onCancel,
 }: Props) {
+  const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (open) cancelRef.current?.focus();
-  }, [open]);
+    if (!open) return;
+    focusProfileElement(cancelRef.current);
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const onKey = (e: KeyboardEvent) => {
+      handleProfileOverlayKeydown(e, dialog, onCancel);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [open, onCancel]);
 
   if (!open) return null;
 
   return (
     <div className="profile-modal-backdrop" role="presentation">
       <div
+        ref={dialogRef}
         className="profile-modal"
         role="alertdialog"
         aria-modal="true"

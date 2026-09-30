@@ -1,4 +1,7 @@
 import rawEntries from "./data/licences-moteurs-201.json" with { type: "json" };
+import wiredCommercialLicenseIdsRaw from "./data/wired-commercial-license-ids.json" with {
+  type: "json",
+};
 import { extractPrimaryLicenseSourceUrl } from "./license-source-url.js";
 
 /** Licence row from Gabriel's 201 dataset (not legal advice). */
@@ -35,6 +38,7 @@ export type AppEngineId =
   | "htdemucs_6s"
   | "bs_roformer"
   | "mel_band_roformer"
+  | "kim_vocal_2"
   | "sheetsage2"
   | "basicpitch"
   | "adtof";
@@ -95,6 +99,14 @@ export const APP_ENGINE_CATALOG: readonly AppEngineDescriptor[] = [
     grayReason: "origin_undocumented",
   },
   {
+    id: "kim_vocal_2",
+    licenseDataId: "kim_vocal_2_mdxnet",
+    category: "separation",
+    displayNameFr: "Kim Vocal 2 (MDX-Net)",
+    displayNameEn: "Kim Vocal 2 (MDX-Net)",
+    grayReason: "weights_unverified",
+  },
+  {
     id: "sheetsage2",
     licenseDataId: "sheetsage2",
     category: "transcription",
@@ -139,18 +151,35 @@ export type WiredCommercialEngine = {
 };
 
 /**
- * Production wiring for Commercial « disponible avec réserve ».
- * Empty on main until a provider is integrated (#201).
+ * Single source (shared with Rust `profiles.rs`) for Commercial wiring license ids.
+ * @see packages/stem-providers/src/data/wired-commercial-license-ids.json
  */
-/** Engines integrated in the app (license row id when present). */
+export const WIRED_COMMERCIAL_LICENSE_IDS: readonly string[] =
+  wiredCommercialLicenseIdsRaw as string[];
+
+const WIRED_LICENSE_ID_SET = new Set(WIRED_COMMERCIAL_LICENSE_IDS);
+
+/**
+ * Engines actually wired in the app for Commercial availability checks.
+ * Catalog may list more engines (grayed-only); wiring comes from the shared JSON.
+ */
 export function listProductionWiredCommercialEngines(): readonly WiredCommercialEngine[] {
-  return APP_ENGINE_CATALOG.filter((e) => e.licenseDataId != null).map((e) => ({
-    engineId: e.id,
-    licenseDataId: e.licenseDataId!,
-  }));
+  return APP_ENGINE_CATALOG.flatMap((e) => {
+    if (!e.licenseDataId || !WIRED_LICENSE_ID_SET.has(e.licenseDataId)) {
+      return [];
+    }
+    return [{ engineId: e.id, licenseDataId: e.licenseDataId }];
+  });
 }
 
 export const COMMERCIAL_RESERVED_STATUT_FR = "disponible avec réserve";
+
+/** Display badge from license-row `statut` (no hardcoded prod UI copy). */
+export function formatCommercialReservedBadge(statut: string): string {
+  const trimmed = statut.trim();
+  if (!trimmed) return "";
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
 
 export function normalizeLicenseStatut(statut: string): string {
   return statut.trim().toLowerCase();

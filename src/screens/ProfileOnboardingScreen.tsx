@@ -2,6 +2,7 @@ import { buildCommercialProfileCreationConfirm } from "@song-maker/stem-provider
 import { useEffect, useMemo, useState } from "react";
 import { ProfileCommercialCreateConfirmDialog } from "../components/ProfileCommercialCreateConfirmDialog";
 import { ProfileCommercialTypeOption } from "../components/ProfileCommercialTypeOption";
+import { ProfileRenameDialog } from "../components/ProfileRenameDialog";
 import { api } from "../lib/api";
 import { resolveCommercialCreationState } from "../lib/profileCommercialCreation";
 import type { ProfileKind, ProfileSummary } from "../lib/profilesTypes";
@@ -39,6 +40,7 @@ export function ProfileOnboardingScreen() {
   const [type, setType] = useState<ProfileKind>("hobby");
   const [busy, setBusy] = useState(false);
   const [commercialConfirmOpen, setCommercialConfirmOpen] = useState(false);
+  const [renaming, setRenaming] = useState<ProfileSummary | null>(null);
 
   const commercialState = resolveCommercialCreationState();
   const commercialCreateConfirm = useMemo(
@@ -78,17 +80,15 @@ export function ProfileOnboardingScreen() {
   };
 
   const renameProfile = (p: ProfileSummary) => {
-    const typeLabel =
-      p.kind === "commercial"
-        ? t("profiles.onboarding.type.commercial")
-        : t("profiles.onboarding.type.hobby");
-    const next = window.prompt(
-      `${t("profiles.onboarding.renameTypeImmutable", { type: typeLabel })}\n\n${t("profiles.onboarding.rename")}`,
-      p.name,
-    );
-    if (!next?.trim() || next.trim() === p.name) return;
+    setRenaming(p);
+  };
+
+  const submitRename = (nextName: string) => {
+    const target = renaming;
+    if (!target) return;
+    setRenaming(null);
     void api
-      .renameProfile(p.id, next.trim())
+      .renameProfile(target.id, nextName)
       .then(() => refreshProfiles())
       .catch((e) => setError(String(e)));
   };
@@ -287,6 +287,19 @@ export function ProfileOnboardingScreen() {
           confirm={commercialCreateConfirm}
           onConfirm={() => void performCreate()}
           onCancel={() => setCommercialConfirmOpen(false)}
+        />
+      ) : null}
+      {renaming ? (
+        <ProfileRenameDialog
+          open
+          currentName={renaming.name}
+          typeLabel={
+            renaming.kind === "commercial"
+              ? t("profiles.onboarding.type.commercial")
+              : t("profiles.onboarding.type.hobby")
+          }
+          onConfirm={submitRename}
+          onCancel={() => setRenaming(null)}
         />
       ) : null}
     </div>

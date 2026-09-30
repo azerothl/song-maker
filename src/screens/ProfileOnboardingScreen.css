@@ -146,9 +146,19 @@
   min-height: 44px;
 }
 
+/* Commercial tile: ≥3:1 vs --bg1 (#151827); --line alone is ~1.46:1 (#212 R7). */
+.profile-type-card.profile-type-commercial {
+  border-color: #8a7430;
+}
+
 .profile-type-card.is-selected {
   border-color: var(--line2);
   box-shadow: 0 0 0 1px var(--line2);
+}
+
+.profile-type-card.profile-type-commercial.is-selected {
+  border-color: #c4a84a;
+  box-shadow: 0 0 0 1px #c4a84a;
 }
 
 .profile-type-card.is-inactive {

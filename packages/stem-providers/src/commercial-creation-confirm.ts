@@ -1,8 +1,6 @@
 import {
-  RESERVED_BADGE_FR,
-} from "./commercial-profile-i18n.js";
-import {
   buildCommercialEngineList,
+  formatCommercialReservedBadge,
   isCommercialProfileAvailable,
   listProductionWiredCommercialEngines,
   type EngineLicenseRow201,
@@ -19,13 +17,21 @@ export const COMMERCIAL_CREATE_CONFIRM_INTRO_FR =
 export const COMMERCIAL_CREATE_CONFIRM_INTRO_EN =
   "For projects you intend to publish or sell. Only engines offered here with reservation are listed, with the reservations stated in the weight licenses.";
 
-/** One line per wired engine with a dated license row (from licences-moteurs-201.json). */
-export function formatCommercialCreationEngineLineFr(engineLabel: string): string {
-  return `Moteur proposé aujourd'hui : ${engineLabel} — ${RESERVED_BADGE_FR}.`;
+/** One line per wired engine with a dated license row (badge from row.statut). */
+export function formatCommercialCreationEngineLineFr(
+  engineLabel: string,
+  statut: string,
+): string {
+  const badge = formatCommercialReservedBadge(statut);
+  return `Moteur proposé aujourd'hui : ${engineLabel} — ${badge}.`;
 }
 
-export function formatCommercialCreationEngineLineEn(engineLabel: string): string {
-  return `Engine offered today: ${engineLabel} — Available with reservation.`;
+export function formatCommercialCreationEngineLineEn(
+  engineLabel: string,
+  statut: string,
+): string {
+  const badge = formatCommercialReservedBadge(statut);
+  return `Engine offered today: ${engineLabel} — ${badge}.`;
 }
 
 export type CommercialProfileCreationConfirm = {
@@ -61,8 +67,9 @@ export function buildCommercialProfileCreationConfirm(
       entry.licenseRow?.nom?.trim() || entry.engine.displayNameFr;
     const labelEn =
       entry.licenseRow?.nom?.trim() || entry.engine.displayNameEn;
-    engineLinesFr.push(formatCommercialCreationEngineLineFr(label));
-    engineLinesEn.push(formatCommercialCreationEngineLineEn(labelEn));
+    const statut = entry.licenseRow?.statut ?? "";
+    engineLinesFr.push(formatCommercialCreationEngineLineFr(label, statut));
+    engineLinesEn.push(formatCommercialCreationEngineLineEn(labelEn, statut));
   }
   return {
     titleFr: COMMERCIAL_CREATE_CONFIRM_TITLE_FR,

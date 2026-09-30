@@ -34,7 +34,6 @@
   "profiles.engines.title": "Engines",
   "profiles.engines.commercialBadge": "Commercial",
   "profiles.engines.graySection": "Engines not offered in this profile",
-  "profiles.engines.reservedBadge": "Available with reservation",
   "profiles.engines.why": "Why?",
   "profiles.engines.whyWithDate": "Source read on {date}",
   "profiles.engines.whyNoDate": "Undated source",
@@ -57,5 +56,7 @@
   "profiles.engines.whySheetsage2AudioCpp": "Per audio.cpp (docs/model_licenses.md, sheetsage2 entry, CC-BY-NC-4.0, reviewed {date}; original Hugging Face card not re-read)",
   "profiles.projects.none": "no songs",
   "profiles.contracts.count": "{count} accepted agreements",
-  "profiles.contracts.none": "no accepted agreements"
+  "profiles.contracts.none": "no accepted agreements",
+  "profiles.rename.save": "Save",
+  "profiles.rename.cancel": "Cancel"
 }
