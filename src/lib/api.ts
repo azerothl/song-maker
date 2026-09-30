@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { PortablePackagePlan } from "./projectPackage";
+import type { ProfilesState, ProfileSummary } from "./profilesTypes";
 import type {
   AppSettings,
   FormInput,
@@ -322,4 +323,24 @@ export const api = {
     ),
   undoMix: (id: string) => invoke<MixDoc | null>("undo_mix", { id }),
   redoMix: (id: string) => invoke<MixDoc | null>("redo_mix", { id }),
+  getProfilesState: () => invoke<ProfilesState>("get_profiles_state"),
+  createProfile: (name: string, kind: "hobby" | "commercial") =>
+    invoke<ProfileSummary>("create_profile", { name, kind }),
+  renameProfile: (id: string, name: string) =>
+    invoke<void>("rename_profile", { id, name }),
+  activateProfile: (id: string) => invoke<void>("activate_profile", { id }),
+  dismissProfileMigrationBanner: () =>
+    invoke<void>("dismiss_profile_migration_banner"),
+  acceptEngineContract: (
+    profileId: string,
+    engineId: string,
+    textFingerprint: string,
+    textVersion: string,
+  ) =>
+    invoke<void>("accept_engine_contract", {
+      profileId,
+      engineId,
+      textFingerprint,
+      textVersion,
+    }),
 };

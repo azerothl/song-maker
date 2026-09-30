@@ -13,6 +13,7 @@ import type {
   ProjectDoc,
   Screen,
 } from "../lib/types";
+import type { ProfilesState } from "../lib/profilesTypes";
 
 type AppStore = {
   screen: Screen;
@@ -34,6 +35,8 @@ type AppStore = {
   /** Song screen export / long operations — blocks profile switch (#201). */
   profileOperationBusy: boolean;
   setProfileOperationBusy: (busy: boolean) => void;
+  profilesState: ProfilesState | null;
+  refreshProfiles: () => Promise<void>;
   refreshHealth: () => Promise<void>;
   refreshSettings: () => Promise<void>;
   refreshJob: () => Promise<void>;
@@ -95,6 +98,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
   profileOperationBusy: false,
   setProfileOperationBusy: (profileOperationBusy) =>
     set({ profileOperationBusy }),
+  profilesState: null,
+  refreshProfiles: async () => {
+    try {
+      const profilesState = await api.getProfilesState();
+      set({ profilesState });
+    } catch (e) {
+      set({ error: String(e) });
+    }
+  },
 
   refreshHealth: async () => {
     try {

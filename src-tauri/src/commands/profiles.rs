@@ -89,7 +89,7 @@ pub fn create_profile(name: String, kind: String) -> Result<ProfileSummary, Stri
     let id = profiles::next_profile_id(&manifest);
     let meta = ProfileMeta {
         id: id.clone(),
-        name: trimmed.clone(),
+        name: trimmed.to_string(),
         kind: kind_norm,
         created_at: now_iso(),
     };

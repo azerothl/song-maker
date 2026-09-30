@@ -20,7 +20,7 @@ fn active_lock() -> &'static RwLock<Option<String>> {
 }
 
 pub fn set_active_profile_id(id: &str) {
-    *active_lock().write() = Some(id.clone());
+    *active_lock().write() = Some(id.to_string());
 }
 
 pub fn active_profile_id() -> Option<String> {
@@ -347,7 +347,7 @@ pub fn split_and_save_settings(
             server_port: merged.server_port,
             output_device: merged.output_device.clone(),
             audio_latency_ms: merged.audio_latency_ms,
-            active_profile_id: Some(active_id.clone()),
+            active_profile_id: Some(active_id.to_string()),
         }
     };
     global.cache_dir = merged.cache_dir.clone();
@@ -361,7 +361,7 @@ pub fn split_and_save_settings(
     global.server_port = merged.server_port;
     global.output_device = merged.output_device.clone();
     global.audio_latency_ms = merged.audio_latency_ms;
-    global.active_profile_id = Some(active_id.clone());
+    global.active_profile_id = Some(active_id.to_string());
     atomic_write_json(&global_path, &global)
 }
 
@@ -435,8 +435,30 @@ pub fn merged_settings_from_disk() -> Result<AppSettings, String> {
         .active_profile_id
         .clone()
         .or_else(|| active_profile_id())
-        .ok_or_else(|| "Aucun profil actif.".to_string())?;
+        .or_else(|| manifest.profiles.first().map(|p| p.id.clone()));
 
+    if active_id.is_none() {
+        let mut settings = crate::library::default_settings();
+        if global_settings_path().is_file() {
+            let text = std::fs::read_to_string(global_settings_path()).map_err(|e| e.to_string())?;
+            if let Ok(global) = serde_json::from_str::<GlobalAppSettings>(&text) {
+                settings.cache_dir = global.cache_dir;
+                settings.binary_tag = global.binary_tag;
+                settings.binary_archive = global.binary_archive;
+                settings.binary_sha256 = global.binary_sha256;
+                settings.model_pack = global.model_pack;
+                settings.model_gguf = global.model_gguf;
+                settings.model_sha256 = global.model_sha256;
+                settings.server_host = global.server_host;
+                settings.server_port = global.server_port;
+                settings.output_device = global.output_device;
+                settings.audio_latency_ms = global.audio_latency_ms;
+            }
+        }
+        return Ok(settings);
+    }
+
+    let active_id = active_id.unwrap();
     set_active_profile_id(&active_id);
 
     let defaults = crate::library::default_settings();
@@ -508,7 +530,7 @@ pub fn count_accepted_contracts(id: &str) -> u32 {
     n += ps
         .accepted_separator_licenses
         .values()
-        .filter(|v| *v)
+        .filter(|v| **v)
         .count() as u32;
     n += ps.engine_contract_acceptances.len() as u32;
     n

@@ -15,6 +15,7 @@ import {
   runtimeApi,
   type LoraTrainerProbe,
 } from "../lib/runtimeHost";
+import { CommercialEnginesPanel } from "../components/CommercialEnginesPanel";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 
@@ -27,10 +28,13 @@ type SettingsPage =
   | "remote"
   | "host"
   | "sync"
-  | "system";
+  | "system"
+  | "engines";
 
 export function SettingsScreen() {
   const settings = useAppStore((s) => s.settings);
+  const profilesState = useAppStore((s) => s.profilesState);
+  const activeProfile = profilesState?.profiles.find((p) => p.isActive);
   const health = useAppStore((s) => s.health);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
   const refreshHealth = useAppStore((s) => s.refreshHealth);
@@ -98,6 +102,7 @@ export function SettingsScreen() {
     host: t("settings.host.title"),
     sync: t("phase4.sync.title"),
     system: t("settings.system.title"),
+    engines: t("profiles.engines.title"),
   };
   const separatorName =
     settings.stemSeparator === "htdemucs_6s"
@@ -141,6 +146,14 @@ export function SettingsScreen() {
               value={separatorName}
               onClick={() => setPage("separation")}
             />
+            {activeProfile?.kind === "commercial" ? (
+              <SettingsCard
+                title={pageTitle.engines}
+                description={t("profiles.engines.graySection")}
+                value={t("profiles.engines.commercialBadge")}
+                onClick={() => setPage("engines")}
+              />
+            ) : null}
             <SettingsCard
               title={pageTitle.lora}
               description={t("settings.card.lora")}
@@ -242,6 +255,7 @@ export function SettingsScreen() {
       )}
 
       {page === "separation" && <Phase3SettingsPanel view="separation" />}
+      {page === "engines" && <CommercialEnginesPanel />}
       {page === "lora" && (
         <div className="settings-lora-pages">
           <Phase3SettingsPanel view="lora" />

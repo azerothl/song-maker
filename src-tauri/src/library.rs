@@ -236,17 +236,20 @@ pub fn rebuild_from_disk() -> Result<(), String> {
 }
 
 pub fn load_settings() -> Result<AppSettings, String> {
-    let mut settings = crate::profiles::merged_settings_from_disk().or_else(|_| {
-        let path = settings_path();
-        if path.exists() {
-            let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-            let settings: AppSettings = serde_json::from_str(&text).map_err(|e| e.to_string())?;
-            return Ok(settings);
+    let mut settings = match crate::profiles::merged_settings_from_disk() {
+        Ok(s) => s,
+        Err(_) => {
+            let path = settings_path();
+            if path.exists() {
+                let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+                serde_json::from_str(&text).map_err(|e| e.to_string())?
+            } else {
+                let defaults = default_settings();
+                save_settings(&defaults)?;
+                defaults
+            }
         }
-        let defaults = default_settings();
-        save_settings(&defaults)?;
-        Ok(defaults)
-    })?;
+    };
     if migrate_binary_pin(&mut settings) {
         save_settings(&settings)?;
     }

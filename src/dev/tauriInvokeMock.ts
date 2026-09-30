@@ -208,6 +208,64 @@ export async function invoke<T>(
       return "/tmp/capture-export/stems.zip" as T;
     case "list_lora_adapters":
       return [] as T;
+    case "get_profiles_state":
+      return {
+        profiles: [
+          {
+            id: "profile-001",
+            name: "Hobby",
+            kind: "hobby",
+            projectCount: 12,
+            acceptedContractCount: 3,
+            isLastUsed: true,
+            isActive: true,
+          },
+          {
+            id: "profile-002",
+            name: "Reprises",
+            kind: "hobby",
+            projectCount: 4,
+            acceptedContractCount: 1,
+            isLastUsed: false,
+            isActive: false,
+          },
+          {
+            id: "profile-003",
+            name: "Studio Maison",
+            kind: "commercial",
+            projectCount: 0,
+            acceptedContractCount: 0,
+            isLastUsed: false,
+            isActive: false,
+          },
+        ],
+        activeProfileId: "profile-001",
+        lastUsedProfileId: "profile-001",
+        onboardingComplete: true,
+        migrationBannerVisible: false,
+        commercialCreationAllowed: false,
+        maxProfiles: 6,
+      } as T;
+    case "create_profile": {
+      const name = String(args?.name ?? "Nouveau");
+      const kind = String(args?.kind ?? "hobby");
+      return {
+        id: "profile-new",
+        name,
+        kind,
+        projectCount: 0,
+        acceptedContractCount: 0,
+        isLastUsed: false,
+        isActive: false,
+      } as T;
+    }
+    case "activate_profile":
+    case "rename_profile":
+    case "dismiss_profile_migration_banner":
+    case "accept_engine_contract":
+      return undefined as T;
+    case "get_job_status":
+      return { state: "idle", label: "" } as T;
     default:
       console.warn(`[capture mock] invoke non géré : ${cmd}`);
       return null as T;

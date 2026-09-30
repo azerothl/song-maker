@@ -7,8 +7,6 @@ export type ProfileSwitchBlock =
   | {
       blocked: true;
       kind: ProfileSwitchBlockKind;
-      /** French user-facing sentence (i18n key wired in UI). */
-      messageFr: string;
     };
 
 /** Active GPU queue states only (not terminal `generated` / `score_only`). */
@@ -21,32 +19,17 @@ export function profileSwitchBlockReason(
   exportBusy: boolean,
 ): ProfileSwitchBlock {
   if (exportBusy) {
-    return {
-      blocked: true,
-      kind: "export",
-      messageFr:
-        "Impossible de changer de profil pendant un export. Attendez la fin ou annulez l'opération.",
-    };
+    return { blocked: true, kind: "export" };
   }
   const state = job?.state?.trim().toLowerCase() ?? "idle";
   if (state === "idle" || state === "failed" || state === "cancelled") {
     return { blocked: false };
   }
   if (SEPARATION_STATES.has(state)) {
-    return {
-      blocked: true,
-      kind: "separation",
-      messageFr:
-        "Impossible de changer de profil pendant une séparation. Attendez la fin ou annulez l'opération.",
-    };
+    return { blocked: true, kind: "separation" };
   }
   if (GENERATION_STATES.has(state)) {
-    return {
-      blocked: true,
-      kind: "generation",
-      messageFr:
-        "Impossible de changer de profil pendant une génération. Attendez la fin ou annulez l'opération.",
-    };
+    return { blocked: true, kind: "generation" };
   }
   return { blocked: false };
 }

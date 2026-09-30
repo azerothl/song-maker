@@ -361,4 +361,10 @@ export type MixVersionSummary = {
 
 export type LocalLoraAdapter = { name: string; path: string; sizeBytes: number };
 
-export type Screen = "splash" | "library" | "song" | "settings" | "licenses";
+export type Screen =
+  | "profiles"
+  | "splash"
+  | "library"
+  | "song"
+  | "settings"
+  | "licenses";
