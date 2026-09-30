@@ -8,10 +8,10 @@ export type ReservedStatusTemplate = {
 };
 
 export const COMMERCIAL_PROFILE_DESCRIPTION_FR =
-  "Pour les projets destinés à être diffusés ou vendus. Seuls les moteurs dont la licence des poids autorise l'usage commercial sont proposés, avec les réserves indiquées. Song Maker affiche des licences sans promettre une conformité juridique.";
+  "Pour les projets destinés à être diffusés ou vendus. Seuls les moteurs proposés avec réserve le sont ici, avec les réserves indiquées dans les licences des poids.";
 
 export const COMMERCIAL_PROFILE_DESCRIPTION_EN =
-  "For projects you intend to publish or sell. Only engines whose weight license allows commercial use are offered, with the stated reservations. Song Maker displays licenses without promising legal compliance.";
+  "For projects you intend to publish or sell. Only engines offered here with reservation are listed, with the reservations stated in the weight licenses.";
 
 export const COMMERCIAL_CREATION_DISABLED_REASON_FR =
   "Indisponible pour l'instant : aucun moteur de Song Maker n'a une licence des poids vérifiée pour l'usage commercial.";
@@ -26,8 +26,7 @@ export const COMMERCIAL_GRAY_SECTION_TITLE_EN =
   "Engines not offered in this profile";
 
 export const COMMERCIAL_GRAY_REASONS_FR: Record<CommercialGrayReasonId, string> = {
-  non_commercial:
-    "Usage non commercial : la licence interdit la vente ou la diffusion commerciale.",
+  non_commercial: "Usage non commercial.",
   weights_unverified:
     "Licence des poids non vérifiée : aucune source fiable ne confirme l'usage commercial.",
   origin_undocumented:
@@ -36,7 +35,7 @@ export const COMMERCIAL_GRAY_REASONS_FR: Record<CommercialGrayReasonId, string> 
 
 export const COMMERCIAL_GRAY_REASONS_EN: Record<CommercialGrayReasonId, string> = {
   non_commercial:
-    "Non-commercial use: the license prohibits commercial sale or distribution.",
+    "Non-commercial use: sale or commercial distribution is not allowed.",
   weights_unverified:
     "Weight license unverified: no reliable source confirms commercial use.",
   origin_undocumented:

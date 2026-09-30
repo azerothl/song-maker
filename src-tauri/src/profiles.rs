@@ -533,9 +533,46 @@ pub fn count_accepted_contracts(id: &str) -> u32 {
     n
 }
 
+const ENGINE_LICENSES_201_JSON: &str =
+    include_str!("../../packages/stem-providers/src/data/licences-moteurs-201.json");
+
+/// License row ids for engines wired in the app (mirrors TS `listProductionWiredCommercialEngines`).
+const WIRED_COMMERCIAL_LICENSE_IDS: &[&str] = &[
+    "yue2_3b",
+    "htdemucs",
+    "htdemucs_6s",
+    "bs_roformer_ep368",
+    "mel_band_roformer_kimberley",
+    "sheetsage2",
+    "basic_pitch",
+    "adtof",
+];
+
+const COMMERCIAL_RESERVED_STATUT_FR: &str = "disponible avec réserve";
+
+#[derive(Debug, Clone, Deserialize)]
+struct EngineLicenseRow201Minimal {
+    id: String,
+    statut: String,
+    date_verification: String,
+}
+
+fn license_row_qualifies_for_commercial_reserved(row: &EngineLicenseRow201Minimal) -> bool {
+    !row.date_verification.trim().is_empty()
+        && row.statut.trim().to_lowercase() == COMMERCIAL_RESERVED_STATUT_FR
+}
+
 pub fn commercial_creation_allowed() -> bool {
-    // Mirrors TS isCommercialProfileAvailable — no wired engines on main.
-    false
+    let rows: Vec<EngineLicenseRow201Minimal> =
+        serde_json::from_str(ENGINE_LICENSES_201_JSON).unwrap_or_default();
+    let by_id: std::collections::HashMap<&str, &EngineLicenseRow201Minimal> =
+        rows.iter().map(|r| (r.id.as_str(), r)).collect();
+    WIRED_COMMERCIAL_LICENSE_IDS.iter().any(|license_id| {
+        by_id
+            .get(license_id)
+            .map(|row| license_row_qualifies_for_commercial_reserved(row))
+            .unwrap_or(false)
+    })
 }
 
 #[cfg(test)]
@@ -553,6 +590,27 @@ mod tests {
         ));
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn commercial_creation_disallowed_on_production_license_rows() {
+        assert!(!commercial_creation_allowed());
+    }
+
+    #[test]
+    fn commercial_reserved_requires_statut_and_date() {
+        let row = EngineLicenseRow201Minimal {
+            id: "yue2_3b".into(),
+            statut: "non commercial".into(),
+            date_verification: "2026-09-30".into(),
+        };
+        assert!(!license_row_qualifies_for_commercial_reserved(&row));
+        let ok = EngineLicenseRow201Minimal {
+            id: "htdemucs".into(),
+            statut: "disponible avec réserve".into(),
+            date_verification: "2026-09-30".into(),
+        };
+        assert!(license_row_qualifies_for_commercial_reserved(&ok));
     }
 
     #[test]

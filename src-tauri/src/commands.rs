@@ -38,6 +38,7 @@ pub struct AppState {
     pub sheetsage_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub sheetsage_jobs: crate::sheetsage::SheetsageJobs,
     pub lora_train_jobs: crate::lora_train::LoraTrainJobs,
+    pub profile_export_busy: std::sync::atomic::AtomicBool,
 }
 
 #[derive(Default)]
@@ -63,6 +64,7 @@ impl Default for AppState {
             sheetsage_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             sheetsage_jobs: crate::sheetsage::SheetsageJobs::default(),
             lora_train_jobs: crate::lora_train::LoraTrainJobs::default(),
+            profile_export_busy: std::sync::atomic::AtomicBool::new(false),
         }
     }
 }

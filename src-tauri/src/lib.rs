@@ -16,6 +16,7 @@ mod mix;
 mod models;
 mod paths;
 mod pins;
+mod profile_switch;
 mod profiles;
 mod project_sync;
 mod queue;

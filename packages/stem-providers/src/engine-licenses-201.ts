@@ -1,4 +1,5 @@
 import rawEntries from "./data/licences-moteurs-201.json" with { type: "json" };
+import { extractPrimaryLicenseSourceUrl } from "./license-source-url.js";
 
 /** Licence row from Gabriel's 201 dataset (not legal advice). */
 export type EngineLicenseRow201 = {
@@ -139,8 +140,33 @@ export type WiredCommercialEngine = {
  * Production wiring for Commercial « disponible avec réserve ».
  * Empty on main until a provider is integrated (#201).
  */
+/** Engines integrated in the app (license row id when present). */
 export function listProductionWiredCommercialEngines(): readonly WiredCommercialEngine[] {
-  return [];
+  return APP_ENGINE_CATALOG.filter((e) => e.licenseDataId != null).map((e) => ({
+    engineId: e.id,
+    licenseDataId: e.licenseDataId!,
+  }));
+}
+
+export const COMMERCIAL_RESERVED_STATUT_FR = "disponible avec réserve";
+
+export function normalizeLicenseStatut(statut: string): string {
+  return statut.trim().toLowerCase();
+}
+
+export function isCommercialReservedStatut(statut: string | undefined | null): boolean {
+  if (!statut?.trim()) return false;
+  return normalizeLicenseStatut(statut) === COMMERCIAL_RESERVED_STATUT_FR;
+}
+
+export function licenseRowQualifiesForCommercialReserved(
+  row: EngineLicenseRow201 | null | undefined,
+): boolean {
+  if (!row) return false;
+  return (
+    Boolean(row.date_verification?.trim()) &&
+    isCommercialReservedStatut(row.statut)
+  );
 }
 
 /**
@@ -166,7 +192,10 @@ export function isCommercialProfileAvailable(
   wired: readonly WiredCommercialEngine[] = listProductionWiredCommercialEngines(),
   rows: ReadonlyMap<string, EngineLicenseRow201> = LICENSE_BY_ID,
 ): boolean {
-  return wired.some((entry) => hasDatedLicenseEntry(entry.licenseDataId, rows));
+  return wired.some((entry) => {
+    const row = rows.get(entry.licenseDataId);
+    return licenseRowQualifiesForCommercialReserved(row);
+  });
 }
 
 export type CommercialCreationState = {
@@ -228,23 +257,17 @@ export function buildHobbyEngineOffers(): HobbyEngineOffer[] {
 
 export function buildCommercialEngineList(
   wired: readonly WiredCommercialEngine[] = listProductionWiredCommercialEngines(),
+  rows: ReadonlyMap<string, EngineLicenseRow201> = LICENSE_BY_ID,
 ): CommercialEngineListEntry[] {
   const wiredByEngine = new Map(wired.map((w) => [w.engineId, w] as const));
   return APP_ENGINE_CATALOG.map((engine) => {
     const wire = wiredByEngine.get(engine.id);
     const licenseRow = wire
-      ? licenseRowByDataId(wire.licenseDataId)
+      ? rows.get(wire.licenseDataId) ?? null
       : licenseRowForEngine(engine);
-    const dated = wire
-      ? hasDatedLicenseEntry(wire.licenseDataId)
-      : Boolean(licenseRow?.date_verification?.trim());
-    const isWired = Boolean(wire);
-    const reserved = isWired && dated;
-    const grayReason: CommercialGrayReasonId = reserved
-      ? engine.grayReason
-      : engine.licenseDataId === null
-        ? "weights_unverified"
-        : engine.grayReason;
+    const reserved =
+      Boolean(wire) && licenseRowQualifiesForCommercialReserved(licenseRow);
+    const grayReason: CommercialGrayReasonId = engine.grayReason;
     return {
       engine,
       availability: reserved ? "reserved" : "grayed",
@@ -252,6 +275,15 @@ export function buildCommercialEngineList(
       grayReason,
     };
   });
+}
+
+export function primarySourceUrlForLicenseRow(
+  row: EngineLicenseRow201 | null | undefined,
+): string | null {
+  if (!row?.source_url?.trim()) return null;
+  const url = extractPrimaryLicenseSourceUrl(row.source_url);
+  if (!url) return null;
+  return url;
 }
 
 /** SHA-256 hex of UTF-8 text (contract fingerprint). */

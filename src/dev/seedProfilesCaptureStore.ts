@@ -1,5 +1,6 @@
 import { useAppStore } from "../store/appStore";
 import type { ProfilesState } from "../lib/profilesTypes";
+import { registerCaptureProfilesState } from "./tauriInvokeMock";
 
 const hobby: ProfilesState = {
   profiles: [
@@ -40,9 +41,11 @@ const hobby: ProfilesState = {
 };
 
 export function seedProfilesCaptureStore(patch?: Partial<ProfilesState>): void {
+  const profilesState = { ...hobby, ...patch };
+  registerCaptureProfilesState(profilesState);
   useAppStore.setState({
     screen: "library",
-    profilesState: { ...hobby, ...patch },
+    profilesState,
     job: null,
     profileOperationBusy: false,
     project: {
@@ -78,14 +81,16 @@ export function seedOnboardingCaptureStore(
       }))
     : hobby.profiles;
 
+  const profilesState: ProfilesState = {
+    ...hobby,
+    profiles,
+    onboardingComplete: false,
+    ...patch,
+  };
+  registerCaptureProfilesState(profilesState);
   useAppStore.setState({
     screen: "profiles",
-    profilesState: {
-      ...hobby,
-      profiles,
-      onboardingComplete: false,
-      ...patch,
-    },
+    profilesState,
     job: null,
     profileOperationBusy: false,
     project: null,

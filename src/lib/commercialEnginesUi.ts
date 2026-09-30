@@ -2,6 +2,7 @@ import {
   buildCommercialEngineList,
   COMMERCIAL_GRAY_REASONS_FR,
   licenseRowByDataId,
+  primarySourceUrlForLicenseRow,
   type CommercialGrayReasonId,
   type CommercialEngineListEntry,
 } from "@song-maker/stem-providers";
@@ -33,19 +34,17 @@ function categoryLabelFr(category: string): string {
   }
 }
 
-function formatWhyUrl(sourceUrl: string): string {
-  const first = sourceUrl.split(";")[0]?.trim() ?? sourceUrl;
-  return first;
-}
-
 export function buildCommercialEngineRowsUi(
   entries: CommercialEngineListEntry[] = buildCommercialEngineList(),
 ): CommercialEngineRowUi[] {
   return entries.map((entry) => {
     const row = entry.licenseRow;
     const dated = row?.date_verification?.trim();
-    const whyHref =
-      row?.source_url ? formatWhyUrl(row.source_url) : null;
+    const whyHref = primarySourceUrlForLicenseRow(row);
+    const reasonFromRow = row?.raison_grise_fr?.trim();
+    const reasonLabel =
+      reasonFromRow ||
+      COMMERCIAL_GRAY_REASONS_FR[entry.grayReason];
     const whyLabel = dated
       ? t("profiles.engines.whyWithDate", { date: dated })
       : t("profiles.engines.whyNoDate");
@@ -54,7 +53,7 @@ export function buildCommercialEngineRowsUi(
       name: entry.engine.displayNameFr,
       categoryLabel: categoryLabelFr(entry.engine.category),
       grayReason: entry.grayReason,
-      reasonLabel: COMMERCIAL_GRAY_REASONS_FR[entry.grayReason],
+      reasonLabel,
       whyHref,
       whyLabel,
       availability: entry.availability,
@@ -71,8 +70,10 @@ export function licenseWhyLinkForDataId(dataId: string): {
 } | null {
   const row = licenseRowByDataId(dataId);
   if (!row?.source_url) return null;
+  const href = primarySourceUrlForLicenseRow(row);
+  if (!href) return null;
   return {
-    href: formatWhyUrl(row.source_url),
+    href,
     date: row.date_verification?.trim() || null,
   };
 }

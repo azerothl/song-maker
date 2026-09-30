@@ -5,10 +5,16 @@ import type {
   PlaybackSources,
   ProjectDoc,
 } from "../lib/types";
+import type { ProfilesState } from "../lib/profilesTypes";
 import { CAPTURE_PROJECT_ID } from "./seedCreateTabCaptureStore";
 import { SIDEBAR_CAPTURE_PROJECT_ID } from "./seedSidebarCaptureStore";
 
 let project: ProjectDoc | null = null;
+let captureProfilesState: ProfilesState | null = null;
+
+export function registerCaptureProfilesState(state: ProfilesState | null): void {
+  captureProfilesState = state;
+}
 
 function ensureProject(): ProjectDoc {
   if (!project) {
@@ -209,6 +215,9 @@ export async function invoke<T>(
     case "list_lora_adapters":
       return [] as T;
     case "get_profiles_state":
+      if (captureProfilesState) {
+        return captureProfilesState as T;
+      }
       return {
         profiles: [
           {

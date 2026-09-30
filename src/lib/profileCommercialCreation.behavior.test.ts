@@ -19,7 +19,7 @@ function fixtureRows(): Map<string, EngineLicenseRow201> {
         licence_code: "",
         donnees_entrainement: "",
         restriction_sorties: "",
-        statut: "test",
+        statut: "disponible avec réserve",
         date_verification: "2026-09-30",
         raison_grise_fr: "",
       },

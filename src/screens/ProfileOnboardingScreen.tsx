@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 import { resolveCommercialCreationState } from "../lib/profileCommercialCreation";
 import type { ProfileKind, ProfileSummary } from "../lib/profilesTypes";
 import { setupComplete } from "../lib/firstLaunch";
+import { profileSwitchBlockReason } from "../lib/profileSwitchBlock";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 import "./ProfileOnboardingScreen.css";
@@ -28,6 +29,8 @@ function profileCardMeta(p: ProfileSummary): string {
 
 export function ProfileOnboardingScreen() {
   const health = useAppStore((s) => s.health);
+  const job = useAppStore((s) => s.job);
+  const profileOperationBusy = useAppStore((s) => s.profileOperationBusy);
   const profilesState = useAppStore((s) => s.profilesState);
   const refreshProfiles = useAppStore((s) => s.refreshProfiles);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
@@ -47,12 +50,22 @@ export function ProfileOnboardingScreen() {
   const maxProfiles = profilesState?.maxProfiles ?? 6;
   const profiles = profilesState?.profiles ?? [];
   const canCreateMore = profiles.length < maxProfiles;
+  const switchBlock = profileSwitchBlockReason(job, profileOperationBusy);
+  const switchBlockMessage =
+    switchBlock.blocked && switchBlock.kind === "generation"
+      ? t("profiles.switch.blocked.generation")
+      : switchBlock.blocked && switchBlock.kind === "separation"
+        ? t("profiles.switch.blocked.separation")
+        : switchBlock.blocked && switchBlock.kind === "export"
+          ? t("profiles.switch.blocked.export")
+          : null;
 
   useEffect(() => {
     void refreshProfiles();
   }, [refreshProfiles]);
 
   const openProfile = async (id: string) => {
+    if (switchBlock.blocked) return;
     setBusy(true);
     try {
       await api.activateProfile(id);
@@ -127,6 +140,15 @@ export function ProfileOnboardingScreen() {
         <p className="profile-kicker">PROFILS</p>
         <h1>{t("profiles.onboarding.title")}</h1>
         <p className="profile-onboarding-sub">{t("profiles.onboarding.subtitle")}</p>
+        {switchBlockMessage ? (
+          <div
+            className="profile-switch-block-alert"
+            role="alert"
+            data-testid="profile-onboarding-switch-block"
+          >
+            {switchBlockMessage}
+          </div>
+        ) : null}
       </header>
       <div className="profile-onboarding-grid">
         <section className="profile-onboarding-list" aria-labelledby="profile-list-title">
@@ -169,7 +191,7 @@ export function ProfileOnboardingScreen() {
                   <button
                     type="button"
                     className={`btn profile-focusable${p.isLastUsed ? " primary" : ""}`}
-                    disabled={busy}
+                    disabled={busy || switchBlock.blocked}
                     data-testid={`profile-open-${p.id}`}
                     onClick={() => void openProfile(p.id)}
                   >

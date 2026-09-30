@@ -5,6 +5,7 @@ import {
   buildCommercialEngineList,
   isCommercialProfileAvailable,
   listProductionWiredCommercialEngines,
+  type EngineLicenseRow201,
   type WiredCommercialEngine,
 } from "./engine-licenses-201.js";
 
@@ -13,10 +14,10 @@ export const COMMERCIAL_CREATE_CONFIRM_TITLE_FR = "Créer un profil Commercial ?
 export const COMMERCIAL_CREATE_CONFIRM_TITLE_EN = "Create a Commercial profile?";
 
 export const COMMERCIAL_CREATE_CONFIRM_INTRO_FR =
-  "Pour les projets destinés à être diffusés ou vendus. Seuls les moteurs dont la licence des poids autorise l'usage commercial sont proposés, avec les réserves indiquées.";
+  "Pour les projets destinés à être diffusés ou vendus. Seuls les moteurs proposés avec réserve le sont ici, avec les réserves indiquées dans les licences des poids.";
 
 export const COMMERCIAL_CREATE_CONFIRM_INTRO_EN =
-  "For projects you intend to publish or sell. Only engines whose weight license allows commercial use are offered, with the stated reservations.";
+  "For projects you intend to publish or sell. Only engines offered here with reservation are listed, with the reservations stated in the weight licenses.";
 
 /** One line per wired engine with a dated license row (from licences-moteurs-201.json). */
 export function formatCommercialCreationEngineLineFr(engineLabel: string): string {
@@ -42,11 +43,12 @@ export type CommercialProfileCreationConfirm = {
  */
 export function buildCommercialProfileCreationConfirm(
   wired: readonly WiredCommercialEngine[] = listProductionWiredCommercialEngines(),
+  rows?: ReadonlyMap<string, EngineLicenseRow201>,
 ): CommercialProfileCreationConfirm | null {
-  if (!isCommercialProfileAvailable(wired)) {
+  if (!isCommercialProfileAvailable(wired, rows)) {
     return null;
   }
-  const reserved = buildCommercialEngineList(wired).filter(
+  const reserved = buildCommercialEngineList(wired, rows).filter(
     (e) => e.availability === "reserved",
   );
   if (reserved.length === 0) {

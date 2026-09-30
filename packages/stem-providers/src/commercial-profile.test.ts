@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import { COMMERCIAL_COPY_FORBIDDEN } from "./commercial-copy-forbidden.js";
 import {
   COMMERCIAL_CREATION_DISABLED_REASON_FR,
   COMMERCIAL_GRAY_REASONS_EN,
@@ -7,23 +8,25 @@ import {
   COMMERCIAL_PROFILE_DESCRIPTION_EN,
   COMMERCIAL_PROFILE_DESCRIPTION_FR,
 } from "./commercial-profile-i18n.js";
+import { buildCommercialProfileCreationConfirm } from "./commercial-creation-confirm.js";
 import {
   APP_ENGINE_CATALOG,
   buildCommercialEngineList,
   buildHobbyEngineOffers,
-  buildCommercialProfileCreationConfirm,
   HOBBY_NON_COMMERCIAL_USAGE_FR,
   COMMERCIAL_CREATION_UI_MODE,
   engineContractFingerprint,
   isCommercialProfileAvailable,
+  isCommercialReservedStatut,
   listProductionWiredCommercialEngines,
+  licenseRowQualifiesForCommercialReserved,
   resolveCommercialCreationState,
   type EngineContractTemplate,
   type EngineLicenseRow201,
   type WiredCommercialEngine,
 } from "./engine-licenses-201.js";
 
-const FORBIDDEN = /\b(sûr|surs|garanti|garantie|garanties|libre de droits)\b/i;
+const FORBIDDEN = COMMERCIAL_COPY_FORBIDDEN;
 
 function commercialCopyFrEn(): string[] {
   return [
@@ -36,8 +39,10 @@ function commercialCopyFrEn(): string[] {
 }
 
 describe("commercial profile availability (#201)", () => {
-  it("has no wired commercial engines in production", () => {
-    expect(listProductionWiredCommercialEngines()).toEqual([]);
+  it("lists wired engines from catalog but Commercial stays off without reserved statut", () => {
+    const wired = listProductionWiredCommercialEngines();
+    expect(wired.length).toBeGreaterThan(0);
+    expect(wired.some((w) => w.engineId === "yue2_3b")).toBe(true);
     expect(isCommercialProfileAvailable()).toBe(false);
   });
 
@@ -64,7 +69,7 @@ describe("commercial profile availability (#201)", () => {
           licence_code: "",
           donnees_entrainement: "",
           restriction_sorties: "",
-          statut: "test",
+          statut: "disponible avec réserve",
           date_verification: "2026-09-30",
           raison_grise_fr: "",
         },
@@ -114,7 +119,7 @@ describe("commercial profile availability (#201)", () => {
     expect(state.showUnavailableReason).toBe(true);
   });
 
-  it("never shows reserved without wired engine and dated license row", () => {
+  it("never shows reserved without disponible avec réserve statut", () => {
     const list = buildCommercialEngineList();
     expect(list.every((e) => e.availability === "grayed")).toBe(true);
     const fixtureWired: WiredCommercialEngine[] = [
@@ -122,16 +127,49 @@ describe("commercial profile availability (#201)", () => {
     ];
     const withFixture = buildCommercialEngineList(fixtureWired);
     const yue = withFixture.find((e) => e.engine.id === "yue2_3b");
-    expect(yue?.availability).toBe("reserved");
+    expect(yue?.availability).toBe("grayed");
+    expect(yue?.grayReason).toBe("non_commercial");
   });
 
-  it("shows reserved only when wired and license row is dated (test fixture)", () => {
+  it("keeps ADTOF grayed when wired with dated non-commercial license", () => {
+    const fixtureWired: WiredCommercialEngine[] = [
+      { engineId: "adtof", licenseDataId: "adtof" },
+    ];
+    const list = buildCommercialEngineList(fixtureWired);
+    const adtof = list.find((e) => e.engine.id === "adtof");
+    expect(adtof?.availability).toBe("grayed");
+    expect(adtof?.grayReason).toBe("non_commercial");
+  });
+
+  it("shows reserved only when wired, dated, and statut disponible avec réserve", () => {
+    const rows = new Map<string, EngineLicenseRow201>([
+      [
+        "htdemucs",
+        {
+          id: "htdemucs",
+          nom: "HTDemucs",
+          licence_poids: "MIT",
+          citation: "",
+          source_url: "https://example.test/license",
+          licence_code: "",
+          donnees_entrainement: "",
+          restriction_sorties: "",
+          statut: "disponible avec réserve",
+          date_verification: "2026-09-30",
+          raison_grise_fr: "",
+        },
+      ],
+    ]);
     const fixtureWired: WiredCommercialEngine[] = [
       { engineId: "htdemucs", licenseDataId: "htdemucs" },
     ];
-    const list = buildCommercialEngineList(fixtureWired);
+    const list = buildCommercialEngineList(fixtureWired, rows);
     const h = list.find((e) => e.engine.id === "htdemucs");
     expect(h?.availability).toBe("reserved");
+    expect(isCommercialReservedStatut("disponible avec réserve")).toBe(true);
+    expect(
+      licenseRowQualifiesForCommercialReserved(rows.get("htdemucs")!),
+    ).toBe(true);
   });
 
   it("grays SheetSage2 in commercial with non_commercial reason and dated license row", () => {
@@ -140,7 +178,7 @@ describe("commercial profile availability (#201)", () => {
     expect(s?.availability).toBe("grayed");
     expect(s?.grayReason).toBe("non_commercial");
     expect(s?.licenseRow?.date_verification).toBe("2026-09-30");
-    expect(COMMERCIAL_GRAY_REASONS_FR.non_commercial).toBe(
+    expect(s?.licenseRow?.raison_grise_fr).toBe(
       "Usage non commercial : la licence interdit la vente ou la diffusion commerciale.",
     );
     expect(s?.licenseRow?.licence_poids).toMatch(/audio\.cpp/i);
@@ -178,15 +216,33 @@ describe("commercial profile availability (#201)", () => {
     expect(buildCommercialProfileCreationConfirm()).toBeNull();
   });
 
-  it("builds engine lines from licence rows when wired and dated", () => {
+  it("builds engine lines from licence rows when wired with reserved statut", () => {
+    const rows = new Map<string, EngineLicenseRow201>([
+      [
+        "htdemucs",
+        {
+          id: "htdemucs",
+          nom: "HTDemucs 4 stems",
+          licence_poids: "MIT",
+          citation: "",
+          source_url: "https://example.test/license",
+          licence_code: "",
+          donnees_entrainement: "",
+          restriction_sorties: "",
+          statut: "disponible avec réserve",
+          date_verification: "2026-09-30",
+          raison_grise_fr: "",
+        },
+      ],
+    ]);
     const wired: WiredCommercialEngine[] = [
       { engineId: "htdemucs", licenseDataId: "htdemucs" },
     ];
-    const dialog = buildCommercialProfileCreationConfirm(wired);
+    const dialog = buildCommercialProfileCreationConfirm(wired, rows);
     expect(dialog).not.toBeNull();
     expect(dialog!.engineLinesFr[0]).toMatch(/^Moteur proposé aujourd'hui :/);
     expect(dialog!.engineLinesFr[0]).toContain("HTDemucs");
-    expect(dialog!.engineLinesFr[0]).toContain("disponible avec réserve");
+    expect(dialog!.engineLinesFr[0]).toMatch(/disponible avec réserve/i);
     expect(dialog!.engineLinesFr.join(" ")).not.toMatch(/ACE-Step/i);
   });
 

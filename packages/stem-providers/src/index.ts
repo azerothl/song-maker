@@ -107,8 +107,12 @@ export {
   licenseRowForEngine,
   licenseRowByDataId,
   listProductionWiredCommercialEngines,
+  COMMERCIAL_RESERVED_STATUT_FR,
   COMMERCIAL_CREATION_UI_MODE,
   isCommercialProfileAvailable,
+  isCommercialReservedStatut,
+  licenseRowQualifiesForCommercialReserved,
+  primarySourceUrlForLicenseRow,
   hasDatedLicenseEntry,
   resolveCommercialCreationState,
   buildCommercialEngineList,
@@ -118,6 +122,11 @@ export {
   sha256HexUtf8,
   engineContractFingerprint,
 } from "./engine-licenses-201.js";
+export {
+  extractPrimaryLicenseSourceUrl,
+  isValidLicenseHref,
+} from "./license-source-url.js";
+export { COMMERCIAL_COPY_FORBIDDEN } from "./commercial-copy-forbidden.js";
 export type { ReservedStatusTemplate } from "./commercial-profile-i18n.js";
 export type { CommercialProfileCreationConfirm } from "./commercial-creation-confirm.js";
 export {
