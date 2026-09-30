@@ -65,7 +65,7 @@ Hors tableau : `scoreTabBenchApp.tsx`, `sepExportA11yCaptureMain.tsx`, maquettes
 ## Points CSS (I2 / I3) — corrigés dans cette itération
 
 - **I2** — Popin export désactivé : bordure tirets **#6a7394** → **4,12:1** (page) / **3,27:1** (fond popin) ; ΔE00 face / ghost **7,66** (était ~1,51) ; face **#12151f**.
-- **I3** — Réserve padding anneau focus (barre mix toolbar + pied popin) ; preuve `production-exporter-bar-focus-i3-1280x720.png` (cyan obligatoire).
+- **I3** — Anneau focus en `outline-offset: -2px` sur barre mix + pied popin (évite le rognage sans changer la hauteur barre / zone pistes) ; preuve `production-exporter-bar-focus-i3-1280x720.png`.
 
 ## Toujours ouverts
 

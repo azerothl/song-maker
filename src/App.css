@@ -1038,9 +1038,7 @@ option {
 
 .production-workspace-tight .production-mix-toolbar-sticky {
   min-height: 0;
-  /* #186 I3 — réserve 4 px pour l’anneau focus (2 px + offset 2 px) ;
-   * overflow-x:auto force aussi le clip vertical sans ce padding. */
-  padding: 4px;
+  padding: 0;
   gap: 0.3rem 0.45rem;
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -1267,9 +1265,13 @@ option {
   align-items: center;
   gap: 0.4rem;
   flex: 1 1 auto;
-  /* #186 I3 — l’anneau cyan ne doit pas être rogné par un ancêtre serré. */
-  padding: 4px;
-  margin: -4px;
+}
+
+/* #186 I3 — anneau focus à l’intérieur (pas de padding layout) quand un
+ * ancêtre clippe (overflow-x:auto / overflow:hidden du popin). */
+.production-mix-toolbar-actions .btn:focus-visible,
+.anchored-popin-footer .btn:focus-visible {
+  outline-offset: -2px;
 }
 
 .production-mix-saved {
@@ -6291,9 +6293,7 @@ details[open] > summary {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  /* #186 I3 — padding bas/latéral pour garder l’anneau focus dans le popin
-   * (overflow:hidden sur .export-dialog-popin / .separation-recommend-popin). */
-  padding: 0.55rem 0.85rem calc(0.55rem + 4px);
+  padding: 0.55rem 0.75rem;
   border-top: 1px solid var(--line);
   background: var(--bg2);
 }

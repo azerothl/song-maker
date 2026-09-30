@@ -20,4 +20,4 @@ WebKitGTK, lecteur d’écran, `forced-colors`, `aria-disabled` popin Exporter (
 
 ## I2 / I3
 
-Corrigés (bordure désactivée ≥ 3:1, ΔE00 face/ghost ~7,7, padding anneau focus) — détails dans `inventaire.md`. Ticket **#186** reste ouvert : **21** usages non vérifiés.
+Corrigés (bordure désactivée ≥ 3:1, ΔE00 face/ghost ~7,7, anneau focus inset barre/popin) — détails dans `inventaire.md`. Ticket **#186** reste ouvert : **21** usages non vérifiés.

@@ -1,6 +1,6 @@
 # Contrastes — boutons primaires (#186)
 
-Généré le 2026-09-30T16:45:29.975Z.
+Généré le 2026-09-30T16:53:09.478Z.
 
 Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` résolu) composé sur `--bg0`.
 - États actifs : seuil WCAG 2.2 AA **4.5:1**.
