@@ -536,9 +536,8 @@ const ENGINE_LICENSES_201_JSON: &str =
     include_str!("../../packages/stem-providers/src/data/licences-moteurs-201.json");
 
 /// Single source shared with TS (`wired-commercial-license-ids.json`).
-const WIRED_COMMERCIAL_LICENSE_IDS_JSON: &str = include_str!(
-    "../../packages/stem-providers/src/data/wired-commercial-license-ids.json"
-);
+const WIRED_COMMERCIAL_LICENSE_IDS_JSON: &str =
+    include_str!("../../packages/stem-providers/src/data/wired-commercial-license-ids.json");
 
 fn wired_commercial_license_ids() -> Vec<String> {
     serde_json::from_str(WIRED_COMMERCIAL_LICENSE_IDS_JSON).unwrap_or_default()
