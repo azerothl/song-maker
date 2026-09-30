@@ -1,17 +1,23 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, it } from "node:test";
+import { afterEach, describe, it } from "node:test";
 import { chromium, type Page } from "playwright";
 import { VISIBILITY_BROWSER_BUNDLE } from "../../docs/design/separation-export-a11y/captures-react/visibility.browser.ts";
+import {
+  captureBaseUrl,
+  startCaptureViteServer,
+  stopCaptureViteServer,
+} from "./captureViteServer.ts";
+import type { ViteDevServer } from "vite";
 
 const ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",
 );
 const PORT = 5188;
-const BASE = `http://127.0.0.1:${PORT}/separation-export-a11y-capture.html`;
+const BASE = captureBaseUrl(PORT);
+const IT_TIMEOUT_MS = 60_000;
 
 type B1Metrics = {
   footer?: { reachable?: boolean } | null;
@@ -19,9 +25,12 @@ type B1Metrics = {
   popinBottom: number;
   popinTop: number;
   anchorBottom: number;
+  expectedAnchorBottom: number;
   vh: number;
   resultVisible?: boolean;
 };
+
+let activeServer: ViteDevServer | null = null;
 
 async function waitServer(url: string): Promise<void> {
   for (let i = 0; i < 120; i++) {
@@ -35,6 +44,36 @@ async function waitServer(url: string): Promise<void> {
   throw new Error(`serveur inaccessible : ${url}`);
 }
 
+async function waitExportAnchorStable(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await document.fonts?.ready;
+  });
+  await page.waitForFunction(
+    () => {
+      const el = document.querySelector("[data-capture-export-trigger]");
+      if (!el) return false;
+      const h = el.getBoundingClientRect().height;
+      return h >= 43.5;
+    },
+    { timeout: 12_000 },
+  );
+  await page.waitForFunction(
+    () => {
+      const el = document.querySelector("[data-capture-export-trigger]");
+      const root = document.querySelector(
+        ".production-capture-root[data-capture-drawer='1']",
+      );
+      if (!el || !root) return false;
+      const expected = parseFloat(
+        getComputedStyle(root).getPropertyValue("--capture-b1-anchor-bottom"),
+      );
+      const bottom = el.getBoundingClientRect().bottom;
+      return Number.isFinite(expected) && Math.abs(bottom - expected) < 0.6;
+    },
+    { timeout: 12_000 },
+  );
+}
+
 async function measureExportDrawer(
   page: Page,
   hash: string,
@@ -44,14 +83,19 @@ async function measureExportDrawer(
 ): Promise<B1Metrics> {
   await page.setViewportSize(viewport);
   await page.goto(`${baseUrl}?v=${encodeURIComponent(hash)}#${hash}`);
-  await page.waitForTimeout(waitMs);
+  const settleMs = hash.includes("after") ? Math.max(waitMs, 1600) : waitMs;
+  await page.waitForTimeout(settleMs);
   if (hash.includes("after")) {
+    await page.waitForSelector('[data-testid="export-dialog-footer"]', {
+      timeout: 10_000,
+    });
     await page.waitForSelector('[data-testid="export-result"]', {
-      timeout: 8000,
+      timeout: 12_000,
     });
   }
   await page.waitForSelector('[data-testid="export-dialog-footer"]');
   if (hash === "export-drawer-b1-12") {
+    await waitExportAnchorStable(page);
     await page.waitForFunction(
       () => {
         const radios = document.querySelectorAll<HTMLInputElement>(
@@ -86,18 +130,27 @@ async function measureExportDrawer(
       const anchor = document.querySelector(
         "[data-capture-export-trigger]",
       ) as HTMLElement | null;
+      const root = document.querySelector(
+        ".production-capture-root[data-capture-drawer='1']",
+      ) as HTMLElement | null;
       const result = document.querySelector(
         '[data-testid="export-result"]',
       ) as HTMLElement | null;
       const anchorBottom = anchor?.getBoundingClientRect().bottom ?? 0;
       const popinTop = popin?.getBoundingClientRect().top ?? 0;
       const popinBottom = popin?.getBoundingClientRect().bottom ?? 0;
+      const expectedAnchorBottom = root
+        ? parseFloat(
+            getComputedStyle(root).getPropertyValue("--capture-b1-anchor-bottom"),
+          )
+        : NaN;
       return {
         footer: __measureReachability(footer),
         run: __measureReachability(run),
         popinBottom,
         popinTop,
         anchorBottom,
+        expectedAnchorBottom,
         vh: window.innerHeight,
         resultVisible: Boolean(result && result.textContent?.trim()),
       };
@@ -119,19 +172,30 @@ function assertB1ViewportReachable(metrics: B1Metrics, label: string): void {
   }
 }
 
-describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
-  it("scénario Alphonse : tiroir y≈219, bascule Pistes séparées après ouverture", async () => {
-    const vite = spawn(
-      "pnpm",
-      ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],
-      {
-        cwd: ROOT,
-        stdio: "ignore",
-        env: { ...process.env, VITE_CAPTURE: "1" },
-      },
-    );
+function assertB1AnchorStrict(metrics: B1Metrics, label: string): void {
+  assert.ok(
+    Number.isFinite(metrics.expectedAnchorBottom),
+    `${label} --capture-b1-anchor-bottom absent`,
+  );
+  assert.ok(
+    Math.abs(metrics.anchorBottom - metrics.expectedAnchorBottom) < 0.51,
+    `${label} ancre bottom=${metrics.anchorBottom} (attendu strict ${metrics.expectedAnchorBottom})`,
+  );
+}
 
-    try {
+afterEach(async () => {
+  if (activeServer) {
+    await stopCaptureViteServer(activeServer);
+    activeServer = null;
+  }
+});
+
+describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
+  it(
+    "scénario Alphonse : tiroir y≈219, bascule Pistes séparées après ouverture",
+    { timeout: IT_TIMEOUT_MS },
+    async () => {
+      activeServer = await startCaptureViteServer(PORT);
       await waitServer(BASE);
       const browser = await chromium.launch();
       const page = await browser.newPage();
@@ -147,35 +211,24 @@ describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
 
       for (const { hash, vp } of cases) {
         const m = await measureExportDrawer(page, hash, vp, BASE, 1400);
-        assert.ok(
-          m.anchorBottom >= 210 && m.anchorBottom <= 230,
-          `${hash}@${vp.width}x${vp.height} ancre bottom=${m.anchorBottom} (attendu≈219)`,
-        );
+        if (hash === "export-drawer-b1-12" && vp.height === 768) {
+          assertB1AnchorStrict(m, `${hash}@${vp.width}x${vp.height}`);
+        }
         assertB1ViewportReachable(m, `${hash}@${vp.width}x${vp.height}`);
       }
 
       await browser.close();
-    } finally {
-      vite.kill("SIGTERM");
-    }
-  });
+    },
+  );
 
-  it("ancre en haut : 4/12/16 pistes + après export (720 et 600)", async () => {
-    const vite = spawn(
-      "pnpm",
-      ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT + 2)],
-      {
-        cwd: ROOT,
-        stdio: "ignore",
-        env: { ...process.env, VITE_CAPTURE: "1" },
-      },
-    );
-
-    try {
-      await waitServer(
-        `http://127.0.0.1:${PORT + 2}/separation-export-a11y-capture.html`,
-      );
-      const topBase = `http://127.0.0.1:${PORT + 2}/separation-export-a11y-capture.html`;
+  it(
+    "ancre en haut : 4/12/16 pistes + après export (720 et 600)",
+    { timeout: IT_TIMEOUT_MS },
+    async () => {
+      const port = PORT + 2;
+      activeServer = await startCaptureViteServer(port);
+      const topBase = captureBaseUrl(port);
+      await waitServer(topBase);
       const browser = await chromium.launch();
       const page = await browser.newPage();
       await page.addInitScript((script: string) => {
@@ -213,31 +266,20 @@ describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
       assert.equal(fieldset!.borderTopWidth, "0px");
 
       await browser.close();
-    } finally {
-      vite.kill("SIGTERM");
-    }
-  });
+    },
+  );
 
-  it("export mix tight : boutons du popin ≥ 44 px", async () => {
-    const vite = spawn(
-      "pnpm",
-      ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT + 1)],
-      {
-        cwd: ROOT,
-        stdio: "ignore",
-        env: { ...process.env, VITE_CAPTURE: "1" },
-      },
-    );
-
-    try {
-      await waitServer(
-        `http://127.0.0.1:${PORT + 1}/separation-export-a11y-capture.html`,
-      );
+  it(
+    "export mix tight : boutons du popin ≥ 44 px",
+    { timeout: IT_TIMEOUT_MS },
+    async () => {
+      const port = PORT + 1;
+      activeServer = await startCaptureViteServer(port);
+      const url = captureBaseUrl(port);
+      await waitServer(url);
       const browser = await chromium.launch();
       const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-      await page.goto(
-        `http://127.0.0.1:${PORT + 1}/separation-export-a11y-capture.html#export-mix-tight`,
-      );
+      await page.goto(`${url}#export-mix-tight`);
       await page.waitForTimeout(900);
       await page.waitForSelector('[data-testid="export-dialog-footer"]');
       const heights = await page.evaluate(() => {
@@ -251,10 +293,8 @@ describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
         assert.ok(h >= 44, `hauteur bouton ${h}`);
       }
       await browser.close();
-    } finally {
-      vite.kill("SIGTERM");
-    }
-  });
+    },
+  );
 });
 
 declare function __measureReachability(

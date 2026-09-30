@@ -69,10 +69,10 @@ describe("Dialogues séparation / export a11y (#187 / #191)", () => {
   });
 
   it("comportement pied export : voir anchoredPopinFooter.behavior.test.ts", () => {
-    assert.match(
-      readSrc("src/dev/anchoredPopinFooter.behavior.test.ts"),
-      /export-drawer-b1-12/,
-    );
+    const behavior = readSrc("src/dev/anchoredPopinFooter.behavior.test.ts");
+    assert.match(behavior, /export-drawer-b1-12/);
+    assert.match(behavior, /assertB1AnchorStrict/);
+    assert.match(readSrc("src/dev/captureViteServer.ts"), /createServer/);
   });
 
   it("ne réapplique pas la reco si le modèle a été choisi à la main (#196)", () => {

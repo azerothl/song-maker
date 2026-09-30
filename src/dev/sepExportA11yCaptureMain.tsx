@@ -149,10 +149,18 @@ function SepExportA11yCaptureApp() {
 
   useEffect(() => {
     if (scene !== "export-drawer-top-12-after") return;
-    const timer = window.setTimeout(() => {
+    const openTimer = window.setTimeout(() => {
+      document
+        .querySelector<HTMLButtonElement>("[data-capture-export-trigger]")
+        ?.click();
+    }, 320);
+    const runTimer = window.setTimeout(() => {
       document.querySelector<HTMLButtonElement>('[data-testid="export-run"]')?.click();
-    }, 700);
-    return () => window.clearTimeout(timer);
+    }, 1100);
+    return () => {
+      window.clearTimeout(openTimer);
+      window.clearTimeout(runTimer);
+    };
   }, [scene]);
 
   useEffect(() => {

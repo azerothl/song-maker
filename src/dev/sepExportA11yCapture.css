@@ -10,15 +10,34 @@
   z-index: 4;
 }
 
+/* B1 Alphonse : ancre export bottom ≈ 219 px (768) — même cible que le tiroir prod. */
+.production-capture-root[data-capture-drawer="1"] {
+  --capture-b1-anchor-bottom: 219px;
+  --capture-b1-trigger-height: 44px;
+}
+
 .production-capture-root[data-capture-drawer="1"] .capture-drawer-anchor {
   position: fixed;
   left: calc(var(--sidebar-width) + 12px);
-  top: 175px;
+  top: calc(var(--capture-b1-anchor-bottom) - var(--capture-b1-trigger-height));
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
   z-index: 4;
+}
+
+/* Hors `.production-global-actions` : même 44 px que le tiroir prod (#196 I6). */
+.production-capture-root[data-capture-drawer="1"] [data-capture-export-trigger] {
+  min-height: var(--capture-b1-trigger-height);
+  min-width: var(--capture-b1-trigger-height);
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.65rem;
+  font-size: 0.875rem;
+  line-height: 1.25;
 }
 
 .production-capture-root .capture-mix-tight-bar {
