@@ -66,9 +66,8 @@ pub fn get_profiles_state() -> Result<ProfilesState, String> {
     })
 }
 
-#[tauri::command]
-pub fn create_profile(
-    state: tauri::State<'_, AppState>,
+pub(crate) fn create_profile_inner(
+    state: &AppState,
     name: String,
     kind: String,
 ) -> Result<ProfileSummary, String> {
@@ -115,6 +114,15 @@ pub fn create_profile(
 }
 
 #[tauri::command]
+pub fn create_profile(
+    state: tauri::State<'_, AppState>,
+    name: String,
+    kind: String,
+) -> Result<ProfileSummary, String> {
+    create_profile_inner(&state, name, kind)
+}
+
+#[tauri::command]
 pub fn rename_profile(id: String, name: String) -> Result<(), String> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
@@ -130,8 +138,7 @@ pub fn rename_profile(id: String, name: String) -> Result<(), String> {
     save_manifest(&manifest)
 }
 
-#[tauri::command]
-pub fn activate_profile(state: tauri::State<'_, AppState>, id: String) -> Result<(), String> {
+pub(crate) fn activate_profile_inner(state: &AppState, id: String) -> Result<(), String> {
     let job = state.queue.status();
     let export_busy = state
         .profile_export_busy
@@ -147,6 +154,11 @@ pub fn activate_profile(state: tauri::State<'_, AppState>, id: String) -> Result
     save_manifest(&manifest)?;
     profiles::set_active_profile_id(&id);
     Ok(())
+}
+
+#[tauri::command]
+pub fn activate_profile(state: tauri::State<'_, AppState>, id: String) -> Result<(), String> {
+    activate_profile_inner(&state, id)
 }
 
 #[tauri::command]
@@ -173,4 +185,202 @@ pub fn accept_engine_contract(
         },
     );
     profiles::save_profile_settings(&profile_id, &settings)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commands::AppState;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::sync::{Mutex, MutexGuard, OnceLock};
+
+    fn docs_env_lock() -> MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    }
+
+    struct TempDocs {
+        root: PathBuf,
+        _guard: MutexGuard<'static, ()>,
+    }
+
+    impl TempDocs {
+        fn new(label: &str) -> Self {
+            let guard = docs_env_lock();
+            let root = std::env::temp_dir().join(format!(
+                "song-maker-cmd-profiles-{label}-{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            fs::create_dir_all(&root).unwrap();
+            unsafe {
+                std::env::set_var("SONG_MAKER_DOCUMENTS_DIR", root.as_os_str());
+            }
+            Self {
+                root,
+                _guard: guard,
+            }
+        }
+    }
+
+    impl Drop for TempDocs {
+        fn drop(&mut self) {
+            unsafe {
+                std::env::remove_var("SONG_MAKER_DOCUMENTS_DIR");
+            }
+            let _ = fs::remove_dir_all(&self.root);
+        }
+    }
+
+    fn seed_two_profiles() -> (String, String) {
+        let a = ProfileMeta {
+            id: "profile-001".into(),
+            name: "Hobby A".into(),
+            kind: "hobby".into(),
+            created_at: now_iso(),
+        };
+        let b = ProfileMeta {
+            id: "profile-002".into(),
+            name: "Hobby B".into(),
+            kind: "hobby".into(),
+            created_at: now_iso(),
+        };
+        profiles::save_profile_settings(&a.id, &Default::default()).unwrap();
+        profiles::save_profile_settings(&b.id, &Default::default()).unwrap();
+        let manifest = ProfilesManifest {
+            schema_version: 1,
+            profiles: vec![a.clone(), b.clone()],
+            active_profile_id: Some(a.id.clone()),
+            last_used_profile_id: Some(a.id.clone()),
+            onboarding_complete: true,
+            migration_banner_dismissed: true,
+        };
+        save_manifest(&manifest).unwrap();
+        profiles::set_active_profile_id(&a.id);
+        (a.id, b.id)
+    }
+
+    fn seed_empty_onboarding() {
+        save_manifest(&ProfilesManifest {
+            schema_version: 1,
+            profiles: vec![],
+            active_profile_id: None,
+            last_used_profile_id: None,
+            onboarding_complete: false,
+            migration_banner_dismissed: true,
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn activate_profile_refuses_during_generation_then_succeeds() {
+        let _docs = TempDocs::new("gen");
+        let (_active, target) = seed_two_profiles();
+        let state = AppState::default();
+
+        state
+            .queue
+            .set_state("generating", "Génération", Some("proj".into()));
+        let err = activate_profile_inner(&state, target.clone()).unwrap_err();
+        assert!(err.contains("génération"), "{err}");
+
+        state.queue.clear_current();
+        activate_profile_inner(&state, target.clone()).unwrap();
+        let manifest = load_manifest().unwrap();
+        assert_eq!(manifest.active_profile_id.as_deref(), Some(target.as_str()));
+    }
+
+    #[test]
+    fn activate_profile_refuses_during_separation_then_succeeds() {
+        let _docs = TempDocs::new("sep");
+        let (_active, target) = seed_two_profiles();
+        let state = AppState::default();
+
+        state
+            .queue
+            .set_state("separating", "Séparation", Some("proj".into()));
+        let err = activate_profile_inner(&state, target.clone()).unwrap_err();
+        assert!(err.contains("séparation"), "{err}");
+
+        state.queue.clear_current();
+        activate_profile_inner(&state, target.clone()).unwrap();
+        assert_eq!(
+            load_manifest().unwrap().active_profile_id.as_deref(),
+            Some(target.as_str())
+        );
+    }
+
+    #[test]
+    fn activate_profile_refuses_during_export_then_succeeds() {
+        let _docs = TempDocs::new("export");
+        let (_active, target) = seed_two_profiles();
+        let state = AppState::default();
+
+        state
+            .profile_export_busy
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        let err = activate_profile_inner(&state, target.clone()).unwrap_err();
+        assert!(err.contains("export"), "{err}");
+
+        state
+            .profile_export_busy
+            .store(false, std::sync::atomic::Ordering::SeqCst);
+        activate_profile_inner(&state, target.clone()).unwrap();
+        assert_eq!(
+            load_manifest().unwrap().active_profile_id.as_deref(),
+            Some(target.as_str())
+        );
+    }
+
+    #[test]
+    fn onboarding_first_profile_choice_refuses_while_task_running_then_succeeds() {
+        let _docs = TempDocs::new("onboard");
+        seed_empty_onboarding();
+        let state = AppState::default();
+
+        state
+            .queue
+            .set_state("generating", "Génération", Some("proj".into()));
+        let create_err =
+            create_profile_inner(&state, "Mon Hobby".into(), "hobby".into()).unwrap_err();
+        assert!(
+            create_err.contains("créer un profil") && create_err.contains("génération"),
+            "{create_err}"
+        );
+        assert!(load_manifest().unwrap().profiles.is_empty());
+
+        state.queue.clear_current();
+        let created = create_profile_inner(&state, "Mon Hobby".into(), "hobby".into()).unwrap();
+        activate_profile_inner(&state, created.id.clone()).unwrap();
+
+        let manifest = load_manifest().unwrap();
+        assert!(manifest.onboarding_complete);
+        assert_eq!(
+            manifest.active_profile_id.as_deref(),
+            Some(created.id.as_str())
+        );
+        assert_eq!(manifest.profiles.len(), 1);
+    }
+
+    #[test]
+    fn onboarding_activate_existing_refuses_while_export_busy() {
+        let _docs = TempDocs::new("onboard-export");
+        let (active, target) = seed_two_profiles();
+        // Simulate unfinished onboarding with existing migration profile.
+        let mut manifest = load_manifest().unwrap();
+        manifest.onboarding_complete = false;
+        manifest.active_profile_id = Some(active);
+        save_manifest(&manifest).unwrap();
+
+        let state = AppState::default();
+        state
+            .profile_export_busy
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        let err = activate_profile_inner(&state, target).unwrap_err();
+        assert!(err.contains("export"), "{err}");
+        assert!(!load_manifest().unwrap().onboarding_complete);
+    }
 }
