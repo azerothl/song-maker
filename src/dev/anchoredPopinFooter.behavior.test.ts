@@ -87,16 +87,6 @@ async function waitExportAnchorStable(page: Page): Promise<void> {
   );
 }
 
-function measurePopinAnchorOverlapPx(
-  popin: DOMRect,
-  anchor: DOMRect,
-): number {
-  return Math.max(
-    0,
-    Math.min(popin.bottom, anchor.bottom) - Math.max(popin.top, anchor.top),
-  );
-}
-
 async function measureSepRecommendOverlap(
   page: Page,
   viewport: { width: number; height: number },
