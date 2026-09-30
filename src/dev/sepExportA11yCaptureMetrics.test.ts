@@ -30,7 +30,11 @@ describe("captures-react séparation / export (#187 / #191)", () => {
   it("prouve I6 tiroir ProductionWorkspace (i6-production-metrics.json)", () => {
     const i6 = JSON.parse(readFileSync(i6ProductionPath, "utf8")) as Record<
       string,
-      { drawerImportRecordHeightsPx?: number[]; mixToolbar44Variant?: boolean }
+      {
+        drawerImportRecordHeightsPx?: number[];
+        drawerSeparateExportHeightsPx?: number[];
+        mixToolbar44Variant?: boolean;
+      }
     >;
     for (const [key, m] of Object.entries(i6)) {
       if (key.includes("mix-toolbar-44")) continue;
@@ -38,6 +42,11 @@ describe("captures-react séparation / export (#187 / #191)", () => {
       assert.ok(heights.length >= 2, `${key} tiroir`);
       for (const h of heights) {
         assert.ok(h >= 44, `${key} bouton tiroir ${h}px`);
+      }
+      const sepExp = m.drawerSeparateExportHeightsPx ?? [];
+      assert.ok(sepExp.length >= 2, `${key} séparer/exporter`);
+      for (const h of sepExp) {
+        assert.ok(h >= 44, `${key} séparer/exporter ${h}px`);
       }
     }
   });

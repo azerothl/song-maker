@@ -227,9 +227,6 @@ export function SeparationRecommendDialog({
   const pickModel = (id: StemProviderId) => {
     setUserPickedModel(true);
     setSelected(id);
-    if (otherOptions.some((o) => o.id === id)) {
-      setOtherModelsOpen(true);
-    }
   };
 
   const selectedInOther = otherOptions.some((o) => o.id === selected);
@@ -239,7 +236,9 @@ export function SeparationRecommendDialog({
   const renderQualityOption = (
     opt: (typeof options)[number],
     showRecommendedBadge: boolean,
+    layout: "default" | "spotlight" = "default",
   ) => {
+    const spotlightLayout = layout === "spotlight";
     const provider = providers.find((p) => p.id === opt.id);
     const license = separatorLicense(opt.id);
     const weightsPresent =
@@ -260,10 +259,17 @@ export function SeparationRecommendDialog({
     const installBusy = installing === opt.id;
     const blockInput = busy || installBusy;
     const suppressLicenseNotice =
+      !spotlightLayout &&
       runnable &&
       opt.id === recommendedId &&
       license != null &&
       license.status !== "verified";
+
+    const showLicenseNotice =
+      license != null &&
+      (spotlightLayout ||
+        (!suppressLicenseNotice &&
+          (!runnable || license.status !== "verified")));
 
     return (
       <li
@@ -319,73 +325,88 @@ export function SeparationRecommendDialog({
             )}
           </span>
         </label>
-        {license &&
-          (showAccept ||
-            !runnable ||
-            (!suppressLicenseNotice && license.status !== "verified")) && (
+        {license && (showLicenseNotice || showAccept || !runnable) && (
           <div className="sep-install">
-            {!suppressLicenseNotice &&
-              (!runnable || license.status !== "verified") && (
+            {showLicenseNotice && (
               <p
-                className="hint warn"
+                className={`hint warn sep-rec-notice${spotlightLayout ? "" : ""}`}
                 data-testid={`sep-rec-notice-${opt.id}`}
               >
                 {license.noticeFr}
               </p>
             )}
-            {showAccept && (
-              <label className="sep-license-cb" htmlFor={licenseCbId}>
-                <input
-                  id={licenseCbId}
-                  type="checkbox"
-                  checked={acceptedHere}
-                  aria-busy={installBusy || undefined}
-                  aria-disabled={blockInput || undefined}
-                  aria-label={t("separate.license.acceptNamed", {
+            <div
+              className={
+                spotlightLayout && (showAccept || !runnable)
+                  ? "sep-install-actions"
+                  : undefined
+              }
+            >
+              {showAccept && (
+                <label className="sep-license-cb" htmlFor={licenseCbId}>
+                  <input
+                    id={licenseCbId}
+                    type="checkbox"
+                    checked={acceptedHere}
+                    aria-busy={installBusy || undefined}
+                    aria-disabled={blockInput || undefined}
+                    aria-label={t("separate.license.acceptNamed", {
+                      name: provider?.displayNameFr ?? opt.id,
+                    })}
+                    onChange={(e) => {
+                      if (blockInput) return;
+                      void persistLicense(opt.id, e.target.checked);
+                    }}
+                  />
+                  {t("separate.license.acceptNamed", {
                     name: provider?.displayNameFr ?? opt.id,
                   })}
-                  onChange={(e) => {
-                    if (blockInput) return;
-                    void persistLicense(opt.id, e.target.checked);
-                  }}
-                />
-                {t("separate.license.acceptNamed", {
-                  name: provider?.displayNameFr ?? opt.id,
-                })}
-              </label>
-            )}
-            {!runnable && (
-              <>
-                <button
-                  type="button"
-                  className="btn"
-                  data-testid={`sep-download-${opt.id}`}
-                  aria-busy={installBusy || undefined}
-                  aria-disabled={downloadBlocked || installBusy || busy || undefined}
-                  aria-describedby={
-                    downloadBlocked ? downloadReasonId : undefined
-                  }
-                  onClick={() => {
-                    if (downloadBlocked || installBusy || busy) return;
-                    void install(opt.id);
-                  }}
-                >
-                  {installBusy
-                    ? t("separate.install.busy")
-                    : opt.id === "htdemucs"
-                      ? t("separate.license.htdemucs.install")
-                      : t("separate.install")}
-                </button>
-                {downloadBlocked && (
-                  <p
-                    id={downloadReasonId}
-                    className="hint sep-download-reason"
-                    data-testid={`sep-download-reason-${opt.id}`}
+                </label>
+              )}
+              {!runnable && (
+                <>
+                  <button
+                    type="button"
+                    className="btn"
+                    data-testid={`sep-download-${opt.id}`}
+                    aria-busy={installBusy || undefined}
+                    aria-disabled={
+                      downloadBlocked || installBusy || busy || undefined
+                    }
+                    aria-describedby={
+                      downloadBlocked ? downloadReasonId : undefined
+                    }
+                    onClick={() => {
+                      if (downloadBlocked || installBusy || busy) return;
+                      void install(opt.id);
+                    }}
                   >
-                    {t("separate.license.blocked")}
-                  </p>
-                )}
-              </>
+                    {installBusy
+                      ? t("separate.install.busy")
+                      : opt.id === "htdemucs"
+                        ? t("separate.license.htdemucs.install")
+                        : t("separate.install")}
+                  </button>
+                  {downloadBlocked && !spotlightLayout && (
+                    <p
+                      id={downloadReasonId}
+                      className="hint sep-download-reason"
+                      data-testid={`sep-download-reason-${opt.id}`}
+                    >
+                      {t("separate.license.blocked")}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+            {downloadBlocked && spotlightLayout && !runnable && (
+              <p
+                id={downloadReasonId}
+                className="hint sep-download-reason"
+                data-testid={`sep-download-reason-${opt.id}`}
+              >
+                {t("separate.license.blocked")}
+              </p>
             )}
           </div>
         )}
@@ -423,6 +444,7 @@ export function SeparationRecommendDialog({
               <input
                 type="radio"
                 name="sep-focus"
+                value={value}
                 checked={focus === value}
                 aria-disabled={busy || installing !== null || undefined}
                 onChange={() => {
@@ -434,6 +456,12 @@ export function SeparationRecommendDialog({
             </label>
           ))}
         </fieldset>
+
+        {showManualPickOutside && (
+          <p className="hint sep-manual-pick-banner" data-testid="sep-manual-pick-visible">
+            {t("separate.recommend.manualPickVisible")}
+          </p>
+        )}
 
         {spotlightOption && (
           <section
@@ -451,7 +479,7 @@ export function SeparationRecommendDialog({
               {t("separate.recommend.unmeasuredBadge")}
             </p>
             <ul className="sep-quality-list">
-              {renderQualityOption(spotlightOption, true)}
+              {renderQualityOption(spotlightOption, true, "spotlight")}
             </ul>
           </section>
         )}
@@ -496,22 +524,6 @@ export function SeparationRecommendDialog({
               {t("separate.recommend.revert")}
             </button>
           </p>
-        )}
-
-        {showManualPickOutside && (
-          <section
-            className="sep-manual-pick-visible"
-            data-testid="sep-manual-pick-visible"
-            aria-label={t("separate.recommend.options")}
-          >
-            <p className="hint">{t("separate.recommend.manualPickVisible")}</p>
-            <ul className="sep-quality-list">
-              {renderQualityOption(
-                otherOptions.find((o) => o.id === selected)!,
-                false,
-              )}
-            </ul>
-          </section>
         )}
 
         <section

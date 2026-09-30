@@ -173,8 +173,6 @@
   "separate.license.readDate": "lu le {date}",
   "separate.license.exclusions": "Modèles exclus",
   "separate.license.exclusionsSummary": "{count} modèles non proposés dans Song Maker.",
-  "separate.license.exclusionsDetail": "Détail des modèles exclus",
-  "separate.license.exclusionsDetailBody": "Les modèles listés ci-dessus ne sont pas proposés dans cette application. Consultez les liens source de chaque modèle disponible pour le texte complet des licences.",
   "separate.license.htdemucs.install": "Télécharger HTDemucs (GGUF)",
   "separate.license.htdemucs.installing": "Téléchargement HTDemucs…",
   "separate.license.htdemucs.missing": "GGUF HTDemucs absent — téléchargement soumis à la lecture de la licence (Demucs #327).",

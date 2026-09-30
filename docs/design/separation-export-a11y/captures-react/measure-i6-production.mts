@@ -1,7 +1,7 @@
 /**
  * I6 — mesures réelles ProductionWorkspace (harness production-capture.html).
  * Barre mix : documentée à ~32 px (décision Pascal pour 44 px).
- * Tiroir actions : boutons « Importer » / « Enregistrer » (mix-user-actions).
+ * Tiroir : séparer / exporter / importer / enregistrer.
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -50,7 +50,9 @@ type I6Metrics = {
   viewport: { width: number; height: number };
   mixToolbarBarPx: { height: number; top: number; bottom: number } | null;
   mixToolbarBtnHeightsPx: number[];
+  drawerSeparateExportHeightsPx: number[];
   drawerImportRecordHeightsPx: number[];
+  exportPopinOverlapPx: number | null;
   mixTracksScrollPx: {
     clientHeight: number;
     scrollHeight: number;
@@ -62,8 +64,56 @@ type I6Metrics = {
   mixToolbar44Variant: boolean;
 };
 
-async function measurePage(page: import("playwright").Page): Promise<I6Metrics> {
+async function measureDrawerHeights(page: import("playwright").Page) {
   return page.evaluate(() => {
+    const separate = document.querySelector(
+      ".production-global-actions .song-actions-primary .btn",
+    ) as HTMLElement | null;
+    const exportBtn = document.querySelector(
+      ".production-global-actions [data-capture-export-trigger]",
+    ) as HTMLElement | null;
+    const drawerBtns = Array.from(
+      document.querySelectorAll(".mix-user-actions .btn"),
+    ) as HTMLElement[];
+    return {
+      drawerSeparateExportHeightsPx: [separate, exportBtn]
+        .filter(Boolean)
+        .map((b) => (b as HTMLElement).getBoundingClientRect().height),
+      drawerImportRecordHeightsPx: drawerBtns.map(
+        (b) => b.getBoundingClientRect().height,
+      ),
+    };
+  });
+}
+
+async function measureExportOverlap(
+  page: import("playwright").Page,
+): Promise<number | null> {
+  const exportBtn = page.locator(
+    ".production-global-actions [data-capture-export-trigger]",
+  );
+  if (!(await exportBtn.count())) return null;
+  await exportBtn.click();
+  await page.waitForTimeout(500);
+  return page.evaluate(() => {
+    const exportTrigger = document.querySelector(
+      "[data-capture-export-trigger]",
+    ) as HTMLElement | null;
+    const popin = document.querySelector(
+      ".export-dialog-popin",
+    ) as HTMLElement | null;
+    const et = exportTrigger?.getBoundingClientRect();
+    const pr = popin?.getBoundingClientRect();
+    if (!et || !pr) return null;
+    return Math.round(Math.max(0, et.bottom - pr.top) * 100) / 100;
+  });
+}
+
+async function measurePage(page: import("playwright").Page): Promise<I6Metrics> {
+  const drawerHeights = await measureDrawerHeights(page);
+
+  return page.evaluate(
+    ({ drawerHeights: drawer }) => {
     const vh = window.innerHeight;
     const vw = window.innerWidth;
     const toolbar = document.querySelector(
@@ -73,9 +123,6 @@ async function measurePage(page: import("playwright").Page): Promise<I6Metrics> 
       document.querySelectorAll(
         ".production-mix-toolbar-actions .btn, .production-mix-toolbar-actions .mix-assist-trigger",
       ),
-    ) as HTMLElement[];
-    const drawerBtns = Array.from(
-      document.querySelectorAll(".mix-user-actions .btn"),
     ) as HTMLElement[];
     const scroll = document.querySelector(
       ".production-mix-scroll",
@@ -91,9 +138,9 @@ async function measurePage(page: import("playwright").Page): Promise<I6Metrics> 
         ? { height: tr.height, top: tr.top, bottom: tr.bottom }
         : null,
       mixToolbarBtnHeightsPx: toolbarBtns.map((b) => b.getBoundingClientRect().height),
-      drawerImportRecordHeightsPx: drawerBtns.map((b) =>
-        b.getBoundingClientRect().height,
-      ),
+      drawerSeparateExportHeightsPx: drawer.drawerSeparateExportHeightsPx,
+      drawerImportRecordHeightsPx: drawer.drawerImportRecordHeightsPx,
+      exportPopinOverlapPx: null as number | null,
       mixTracksScrollPx: scroll
         ? {
             clientHeight: scroll.clientHeight,
@@ -108,7 +155,9 @@ async function measurePage(page: import("playwright").Page): Promise<I6Metrics> 
         .querySelector(".production-capture-root")
         ?.classList.contains("production-capture-mix-toolbar-44") ?? false,
     };
-  });
+    },
+    { drawerHeights },
+  );
 }
 
 function assertMetrics(m: I6Metrics, scene: I6Scene): void {
@@ -118,7 +167,13 @@ function assertMetrics(m: I6Metrics, scene: I6Scene): void {
   if (m.drawerImportRecordHeightsPx.length < 2) {
     throw new Error(`${label}: boutons tiroir mix-user-actions absents`);
   }
-  for (const h of m.drawerImportRecordHeightsPx) {
+  if (m.drawerSeparateExportHeightsPx.length < 2) {
+    throw new Error(`${label}: boutons Séparer / Exporter absents`);
+  }
+  for (const h of [
+    ...m.drawerImportRecordHeightsPx,
+    ...m.drawerSeparateExportHeightsPx,
+  ]) {
     if (h < 44 - 0.5) {
       throw new Error(`${label}: bouton tiroir ${h}px < 44`);
     }
@@ -136,6 +191,18 @@ function assertMetrics(m: I6Metrics, scene: I6Scene): void {
       if (h < 44 - 0.5) {
         throw new Error(`${label}: variante 44 px — bouton ${h}px < 44`);
       }
+    }
+  }
+  if (scene.hash.startsWith("16,") && m.mixTracksScrollPx.scrollHeight < 600) {
+    throw new Error(
+      `${label}: scrollHeight ${m.mixTracksScrollPx.scrollHeight} — attendu ~774 à 16 pistes (recharger la page entre scènes)`,
+    );
+  }
+  if (scene.hash.startsWith("6,") && !scene.mixToolbar44) {
+    if (m.mixTracksScrollPx.scrollHeight > 550) {
+      console.warn(
+        `${label}: scrollHeight ${m.mixTracksScrollPx.scrollHeight} élevé pour 6 pistes`,
+      );
     }
   }
 }
@@ -157,13 +224,17 @@ const all: Record<string, I6Metrics> = {};
 try {
   await waitServer(BASE);
   const browser = await chromium.launch();
-  const page = await browser.newPage();
 
   for (const scene of SCENES) {
+    const page = await browser.newPage();
     await page.setViewportSize(VP);
-    await page.goto(`${BASE}#${scene.hash}`);
+    await page.goto(`${BASE}#${scene.hash}`, { waitUntil: "load" });
     await page.waitForTimeout(1200);
-    const m = await measurePage(page);
+    let m = await measurePage(page);
+    if (scene.fileBase === "i6-production-6-auto-actions-open") {
+      const overlap = await measureExportOverlap(page);
+      m = { ...m, exportPopinOverlapPx: overlap };
+    }
     const key = `${scene.fileBase}-1280x720`;
     all[key] = m;
     await page.screenshot({
@@ -172,6 +243,7 @@ try {
     });
     console.log(key, JSON.stringify(m, null, 0));
     assertMetrics(m, scene);
+    await page.close();
   }
 
   await browser.close();

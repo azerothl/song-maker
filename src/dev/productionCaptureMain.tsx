@@ -104,6 +104,9 @@ function ProductionCaptureApp() {
     () => parseCaptureHash(globalThis.location?.hash ?? "").productionView,
   );
   const [mixState, setMixState] = useState<MixDoc>(mix);
+  useEffect(() => {
+    setMixState(mix);
+  }, [mix]);
   const [mixSavedAt] = useState(() => new Date());
   const playbackDuration = 444;
 

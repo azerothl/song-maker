@@ -7,8 +7,8 @@
     },
     "mixToolbarBarPx": {
       "height": 34,
-      "top": 414.65625,
-      "bottom": 448.65625
+      "top": 425.90625,
+      "bottom": 459.90625
     },
     "mixToolbarBtnHeightsPx": [
       32,
@@ -16,14 +16,19 @@
       32,
       32
     ],
+    "drawerSeparateExportHeightsPx": [
+      44,
+      44
+    ],
     "drawerImportRecordHeightsPx": [
       44,
       44
     ],
+    "exportPopinOverlapPx": 10.66,
     "mixTracksScrollPx": {
-      "clientHeight": 269,
+      "clientHeight": 258,
       "scrollHeight": 478,
-      "top": 451.046875,
+      "top": 462.296875,
       "bottom": 720
     },
     "noteMixToolbarTargetPx": 32,
@@ -38,8 +43,8 @@
     },
     "mixToolbarBarPx": {
       "height": 34,
-      "top": 414.65625,
-      "bottom": 448.65625
+      "top": 425.90625,
+      "bottom": 459.90625
     },
     "mixToolbarBtnHeightsPx": [
       32,
@@ -47,14 +52,19 @@
       32,
       32
     ],
+    "drawerSeparateExportHeightsPx": [
+      44,
+      44
+    ],
     "drawerImportRecordHeightsPx": [
       44,
       44
     ],
+    "exportPopinOverlapPx": null,
     "mixTracksScrollPx": {
-      "clientHeight": 269,
-      "scrollHeight": 478,
-      "top": 451.046875,
+      "clientHeight": 258,
+      "scrollHeight": 774,
+      "top": 462.296875,
       "bottom": 720
     },
     "noteMixToolbarTargetPx": 32,
@@ -69,8 +79,8 @@
     },
     "mixToolbarBarPx": {
       "height": 44,
-      "top": 414.65625,
-      "bottom": 458.65625
+      "top": 425.90625,
+      "bottom": 469.90625
     },
     "mixToolbarBtnHeightsPx": [
       44,
@@ -78,14 +88,19 @@
       44,
       44
     ],
+    "drawerSeparateExportHeightsPx": [
+      44,
+      44
+    ],
     "drawerImportRecordHeightsPx": [
       44,
       44
     ],
+    "exportPopinOverlapPx": null,
     "mixTracksScrollPx": {
-      "clientHeight": 259,
+      "clientHeight": 248,
       "scrollHeight": 478,
-      "top": 461.046875,
+      "top": 472.296875,
       "bottom": 720
     },
     "noteMixToolbarTargetPx": 32,

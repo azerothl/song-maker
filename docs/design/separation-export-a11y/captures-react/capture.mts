@@ -35,6 +35,7 @@ const SCENE_HASHES = [
   "export-drawer-b1-12",
   "sep-recommended-visible",
   "sep-selection-cachee",
+  "sep-focus-vocals",
   "export-mix",
   "export-mix-tight",
   "export-stems-none-selected",
@@ -55,6 +56,9 @@ function sceneSpecs(): SceneSpec[] {
     } else if (hash === "export-drawer-b1-12") {
       specs.push({ hash, viewport: { width: 1280, height: 768 } });
       specs.push({ hash, viewport: { width: 1280, height: 900 } });
+    } else if (hash === "sep-focus-vocals") {
+      specs.push({ hash, viewport: DEFAULT_VP });
+      specs.push({ hash, viewport: { width: 1280, height: 768 } });
     } else {
       specs.push({ hash, viewport: DEFAULT_VP });
     }
@@ -99,17 +103,15 @@ async function measureScene(
           : hash === "sep-unmeasured-badge"
             ? 1100
             : hash === "sep-selection-cachee"
-              ? 1300
-              : 950;
+              ? 1900
+              : hash === "sep-focus-vocals"
+                ? 1100
+                : 950;
   await page.waitForTimeout(waitMs);
   if (hash === "sep-selection-cachee") {
     await page.waitForSelector('[data-testid="sep-manual-pick-visible"]', {
       timeout: 8000,
     });
-    await page
-      .locator('[data-testid="sep-manual-pick-visible"]')
-      .scrollIntoViewIfNeeded();
-    await page.waitForTimeout(250);
   }
 
   const metrics = await page.evaluate(
@@ -404,7 +406,7 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
       throw new Error(`popin dépasse viewport (${popinRect.bottom} > ${vh})`);
     }
   }
-  if (hash === "sep-recommended-visible") {
+  if (hash === "sep-recommended-visible" || hash === "sep-focus-vocals") {
     const spot = m.spotlightReach as { reachable?: boolean } | null;
     if (!spot?.reachable) {
       throw new Error(`fiche recommandée hors vue initiale (${label})`);
@@ -434,6 +436,10 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
     const mp = m.manualPickReach as { reachable?: boolean } | null;
     if (!mp?.reachable) {
       throw new Error("choix manuel non visible après fermeture Autres modèles");
+    }
+    const spot = m.spotlightReach as { reachable?: boolean } | null;
+    if (!spot?.reachable) {
+      throw new Error("fiche reco spotlight hors vue (sep-selection-cachee)");
     }
   }
   if (hash.startsWith("sep-") && hash !== "sep-selection-cachee") {
@@ -494,10 +500,10 @@ function assertScene(hash: SceneHash, m: SceneMetrics): void {
       }
     }
     const expected: Record<string, number> = {
-      badge: 10.47,
-      readDate: 5.9,
-      licenseIcon: 9.55,
-      exclusionX: 8.74,
+      badge: 10.4737,
+      readDate: 5.8974,
+      licenseIcon: 9.5548,
+      exclusionX: 8.7437,
     };
     for (const [k, exp] of Object.entries(expected)) {
       const v = contrast[k];

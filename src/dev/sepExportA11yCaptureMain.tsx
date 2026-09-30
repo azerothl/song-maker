@@ -28,6 +28,7 @@ export type CaptureScene =
   | "export-drawer-b1-12"
   | "sep-recommended-visible"
   | "sep-selection-cachee"
+  | "sep-focus-vocals"
   | "export-mix"
   | "export-mix-tight"
   | "export-stems-none-selected"
@@ -50,6 +51,7 @@ function parseScene(hash: string): CaptureScene {
     "export-drawer-b1-12",
     "sep-recommended-visible",
     "sep-selection-cachee",
+    "sep-focus-vocals",
     "export-mix",
     "export-mix-tight",
     "export-stems-none-selected",
@@ -176,6 +178,8 @@ function SepExportA11yCaptureApp() {
     if (
       scene === "sep-header" ||
       scene === "sep-recommended-visible" ||
+      scene === "sep-selection-cachee" ||
+      scene === "sep-focus-vocals" ||
       scene === "sep-unmeasured-badge" ||
       scene === "sep-revert" ||
       scene === "sep-run-blocked"
@@ -217,17 +221,24 @@ function SepExportA11yCaptureApp() {
           ?.scrollIntoView({ block: "center" });
       }
       if (scene === "sep-selection-cachee") {
-        document
-          .querySelector<HTMLDetailsElement>(".sep-other-models")
-          ?.setAttribute("open", "");
-        const radios = document.querySelectorAll<HTMLInputElement>(
-          'input[name="sep-model"]',
+        const summary = document.querySelector<HTMLElement>(
+          ".sep-other-models summary",
         );
-        if (radios.length > 1) radios[1]?.click();
-        document.querySelector<HTMLElement>(".sep-other-models summary")?.click();
+        window.setTimeout(() => summary?.click(), 80);
+        window.setTimeout(() => {
+          document
+            .querySelector<HTMLInputElement>("#sep-model-mel_band_roformer")
+            ?.click();
+        }, 320);
+        window.setTimeout(() => summary?.click(), 560);
       }
       if (scene === "sep-run-blocked") {
         document.querySelector<HTMLInputElement>("#sep-model-bs_roformer")?.click();
+      }
+      if (scene === "sep-focus-vocals") {
+        document
+          .querySelector<HTMLInputElement>('input[name="sep-focus"][value="vocals"]')
+          ?.click();
       }
     }, 400);
     return () => window.clearTimeout(timer);
@@ -238,7 +249,7 @@ function SepExportA11yCaptureApp() {
       <div className="app-shell production-capture-root" data-capture-scene={scene}>
         <main className="main capture-a11y-main">
           <h1>Régénération</h1>
-          <p className="hint">Capture #191 — {scene}</p>
+          <p className="hint">Capture #196 — {scene}</p>
           <RegenerationGate
             open
             projectId={project.id}
