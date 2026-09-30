@@ -45,6 +45,8 @@
   "profiles.migration.bannerBody": "Your {count} songs and previously accepted agreements are unchanged: nothing is asked again. You can rename this profile or create others (up to {max}).",
   "profiles.migration.rename": "Rename profile",
   "profiles.migration.dismiss": "Got it",
+  "profiles.engines.hobbyTitle": "Hobby-type engines",
+  "profiles.engines.hobbyIntro": "Engines offered in this profile, with a usage notice when the weight license requires it.",
   "profiles.engines.commercialTitle": "Commercial-type engines",
   "profiles.engines.previewBadge": "preview",
   "profiles.projects.count": "{count} songs",

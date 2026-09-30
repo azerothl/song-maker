@@ -97,6 +97,7 @@ export type {
   AppEngineDescriptor,
   WiredCommercialEngine,
   CommercialEngineListEntry,
+  HobbyEngineOffer,
   CommercialCreationState,
   EngineContractTemplate,
 } from "./engine-licenses-201.js";
@@ -111,6 +112,9 @@ export {
   hasDatedLicenseEntry,
   resolveCommercialCreationState,
   buildCommercialEngineList,
+  buildHobbyEngineOffers,
+  hobbyUsageNoticeFr,
+  HOBBY_NON_COMMERCIAL_USAGE_FR,
   sha256HexUtf8,
   engineContractFingerprint,
 } from "./engine-licenses-201.js";

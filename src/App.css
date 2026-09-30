@@ -6665,6 +6665,22 @@ details[open] > summary {
   margin-bottom: 0.5rem;
 }
 
+.hobby-engines-panel .hobby-offered li {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.engine-nc-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ffd76a;
+  border: 1px solid #8a7430;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+}
+
 .engine-why-link {
   font-size: 0.85rem;
 }

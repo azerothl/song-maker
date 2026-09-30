@@ -16,6 +16,7 @@ import {
   type LoraTrainerProbe,
 } from "../lib/runtimeHost";
 import { CommercialEnginesPanel } from "../components/CommercialEnginesPanel";
+import { HobbyEnginesPanel } from "../components/HobbyEnginesPanel";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 
@@ -153,7 +154,14 @@ export function SettingsScreen() {
                 value={t("profiles.engines.commercialBadge")}
                 onClick={() => setPage("engines")}
               />
-            ) : null}
+            ) : (
+              <SettingsCard
+                title={t("profiles.engines.hobbyTitle")}
+                description={t("profiles.engines.hobbyIntro")}
+                value={t("profiles.onboarding.type.hobby")}
+                onClick={() => setPage("engines")}
+              />
+            )}
             <SettingsCard
               title={pageTitle.lora}
               description={t("settings.card.lora")}
@@ -255,7 +263,12 @@ export function SettingsScreen() {
       )}
 
       {page === "separation" && <Phase3SettingsPanel view="separation" />}
-      {page === "engines" && <CommercialEnginesPanel />}
+      {page === "engines" &&
+        (activeProfile?.kind === "commercial" ? (
+          <CommercialEnginesPanel />
+        ) : (
+          <HobbyEnginesPanel />
+        ))}
       {page === "lora" && (
         <div className="settings-lora-pages">
           <Phase3SettingsPanel view="lora" />

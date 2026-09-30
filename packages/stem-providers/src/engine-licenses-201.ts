@@ -93,7 +93,7 @@ export const APP_ENGINE_CATALOG: readonly AppEngineDescriptor[] = [
   },
   {
     id: "sheetsage2",
-    licenseDataId: null,
+    licenseDataId: "sheetsage2",
     category: "transcription",
     displayNameFr: "SheetSage2",
     displayNameEn: "SheetSage2",
@@ -197,6 +197,34 @@ export type CommercialEngineListEntry = {
   licenseRow: EngineLicenseRow201 | null;
   grayReason: CommercialGrayReasonId;
 };
+
+/** Hobby profile: engines offered with optional NC usage line (not legal advice). */
+export const HOBBY_NON_COMMERCIAL_USAGE_FR = "Usage non commercial";
+
+export type HobbyEngineOffer = {
+  engine: AppEngineDescriptor;
+  usageNoticeFr: string | null;
+};
+
+export function hobbyUsageNoticeFr(engineId: AppEngineId): string | null {
+  const engine = APP_ENGINE_CATALOG.find((e) => e.id === engineId);
+  if (!engine) return null;
+  if (engine.grayReason === "non_commercial") {
+    return HOBBY_NON_COMMERCIAL_USAGE_FR;
+  }
+  const row = licenseRowForEngine(engine);
+  if (row?.statut?.toLowerCase().includes("non commercial")) {
+    return HOBBY_NON_COMMERCIAL_USAGE_FR;
+  }
+  return null;
+}
+
+export function buildHobbyEngineOffers(): HobbyEngineOffer[] {
+  return APP_ENGINE_CATALOG.map((engine) => ({
+    engine,
+    usageNoticeFr: hobbyUsageNoticeFr(engine.id),
+  }));
+}
 
 export function buildCommercialEngineList(
   wired: readonly WiredCommercialEngine[] = listProductionWiredCommercialEngines(),

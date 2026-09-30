@@ -10,6 +10,8 @@ import {
 import {
   APP_ENGINE_CATALOG,
   buildCommercialEngineList,
+  buildHobbyEngineOffers,
+  HOBBY_NON_COMMERCIAL_USAGE_FR,
   COMMERCIAL_CREATION_UI_MODE,
   engineContractFingerprint,
   isCommercialProfileAvailable,
@@ -131,12 +133,42 @@ describe("commercial profile availability (#201)", () => {
     expect(h?.availability).toBe("reserved");
   });
 
+  it("grays SheetSage2 in commercial with non_commercial reason and dated license row", () => {
+    const list = buildCommercialEngineList();
+    const s = list.find((e) => e.engine.id === "sheetsage2");
+    expect(s?.availability).toBe("grayed");
+    expect(s?.grayReason).toBe("non_commercial");
+    expect(s?.licenseRow?.date_verification).toBe("2026-09-30");
+    expect(COMMERCIAL_GRAY_REASONS_FR.non_commercial).toBe(
+      "Usage non commercial : la licence interdit la vente ou la diffusion commerciale.",
+    );
+    expect(s?.licenseRow?.licence_poids).toMatch(/audio\.cpp/i);
+    expect(s?.licenseRow?.licence_poids).toMatch(/n'a pas été relue/i);
+    expect(s?.licenseRow?.licence_poids).not.toMatch(/carte Hugging Face d'origine a été/i);
+  });
+
+  it("every grayed commercial engine has a gray reason label and a dated license row", () => {
+    const list = buildCommercialEngineList();
+    for (const entry of list) {
+      if (entry.availability !== "grayed") continue;
+      const reason = COMMERCIAL_GRAY_REASONS_FR[entry.grayReason];
+      expect(reason?.length).toBeGreaterThan(10);
+      const dated = entry.licenseRow?.date_verification?.trim();
+      expect(dated, `missing date for ${entry.engine.id}`).toBeTruthy();
+    }
+  });
+
+  it("offers SheetSage2 in Hobby with Usage non commercial notice", () => {
+    const row = buildHobbyEngineOffers().find((o) => o.engine.id === "sheetsage2");
+    expect(row?.usageNoticeFr).toBe(HOBBY_NON_COMMERCIAL_USAGE_FR);
+  });
+
   it("grays engine without dated source when license row missing date", () => {
     const fixtureWired: WiredCommercialEngine[] = [
-      { engineId: "sheetsage2", licenseDataId: "__missing__" },
+      { engineId: "htdemucs", licenseDataId: "__missing__" },
     ];
     const list = buildCommercialEngineList(fixtureWired);
-    const s = list.find((e) => e.engine.id === "sheetsage2");
+    const s = list.find((e) => e.engine.id === "htdemucs");
     expect(s?.availability).toBe("grayed");
     expect(s?.grayReason).toBe("weights_unverified");
   });

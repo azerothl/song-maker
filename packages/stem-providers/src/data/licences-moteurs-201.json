@@ -91,6 +91,19 @@
     "raison_grise_fr": "La licence Apache-2.0 est énoncée pour le logiciel ; aucune phrase sur les poids ni les données d'entraînement dans les fichiers lus."
   },
   {
+    "id": "sheetsage2",
+    "nom": "SheetSage2 (poids m-a-p/SheetSage2 ; conversion audio-cpp/SheetSage2-GGUF, sheetsage2-orig.gguf)",
+    "licence_poids": "CC-BY-NC-4.0 selon audio.cpp (docs/model_licenses.md, entrée « sheetsage2 » : poids m-a-p/SheetSage2 ; usage commercial « No »). La carte Hugging Face d'origine n'a pas été relue pour cette fiche.",
+    "citation": "docs/model_licenses.md d'audio.cpp (ligne sheetsage2) : poids m-a-p/SheetSage2, licence CC-BY-NC-4.0, usage commercial « No ».",
+    "source_url": "https://github.com/0xShug0/audio.cpp/blob/main/docs/model_licenses.md",
+    "licence_code": "Non relu : le câblage produit passe par audiocpp_cli --task midi --family sheetsage2 (voir docs/sheetsage2-path.md).",
+    "donnees_entrainement": "Non documentées dans la source audio.cpp citée.",
+    "restriction_sorties": "Non lues dans audio.cpp pour cette entrée ; la licence NC vise les poids.",
+    "statut": "non commercial",
+    "date_verification": "2026-09-30",
+    "raison_grise_fr": "Usage non commercial : la licence interdit la vente ou la diffusion commerciale."
+  },
+  {
     "id": "adtof",
     "nom": "ADTOF (MZehren/ADTOF)",
     "licence_poids": "CC BY-NC-SA 4.0 pour « the content of this repository » ; le README mentionne des modèles ADT pré-entraînés sans licence distincte",
