@@ -1,4 +1,5 @@
 import { api } from "../lib/api";
+import { formatProfileMigrationBannerFr } from "../lib/profileMigrationBannerCopy";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 
@@ -39,10 +40,11 @@ export function ProfileMigrationBanner() {
     >
       <div className="profile-migration-banner-icon" aria-hidden="true">🏠</div>
       <div className="profile-migration-banner-text">
-        <p>
-          {t("profiles.migration.bannerBody", {
-            count: migrated.projectCount,
-          })}
+        <p data-testid="profile-migration-banner-body">
+          {formatProfileMigrationBannerFr(
+            migrated.projectCount,
+            profilesState.maxProfiles,
+          )}
         </p>
       </div>
       <div className="profile-migration-banner-actions">

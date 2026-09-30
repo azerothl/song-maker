@@ -1124,7 +1124,6 @@
   "profiles.engines.category.separation": "Séparation des pistes",
   "profiles.engines.category.transcription": "Transcription",
   "profiles.engines.unavailable": "Indisponible",
-  "profiles.migration.bannerBody": "Vos {count} morceaux et vos contrats déjà acceptés sont conservés dans ce profil. Vous pouvez le renommer ou en créer d'autres (6 au maximum).",
   "profiles.commercial.createConfirm.cancel": "Annuler",
   "profiles.commercial.createConfirm.submit": "Créer le profil Commercial",
   "profiles.migration.rename": "Renommer le profil",

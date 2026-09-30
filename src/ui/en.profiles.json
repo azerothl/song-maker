@@ -42,7 +42,6 @@
   "profiles.engines.category.separation": "Track separation",
   "profiles.engines.category.transcription": "Transcription",
   "profiles.engines.unavailable": "Unavailable",
-  "profiles.migration.bannerBody": "Your {count} songs and previously accepted agreements are kept in this profile. You can rename it or create others (up to 6).",
   "profiles.commercial.createConfirm.cancel": "Cancel",
   "profiles.commercial.createConfirm.submit": "Create Commercial profile",
   "profiles.migration.rename": "Rename profile",
