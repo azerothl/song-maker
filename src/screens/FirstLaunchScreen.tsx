@@ -42,6 +42,7 @@ import {
 } from "../lib/firstLaunch";
 import type { InstallPlan, InstallProgress, SetupGpuInfo } from "../lib/types";
 import { useAppStore } from "../store/appStore";
+import "./FirstLaunchScreen.css";
 
 function invokeError(reason: unknown): string {
   if (typeof reason === "string") return reason;
@@ -473,7 +474,7 @@ export function FirstLaunchScreen() {
                 />
                 J’ai lu et j’accepte la licence YuE2
               </label>
-              <p data-testid="fl-htdemucs-notice">
+              <p className="fl-htdemucs-notice" data-testid="fl-htdemucs-notice">
                 {HTDEMUCS_FIRST_LAUNCH_NOTICE_FR}{" "}
                 <a
                   className="fl-demucs-link"
