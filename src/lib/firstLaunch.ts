@@ -13,6 +13,7 @@ import {
   HTDEMUCS_MAINTAINER_QUOTE_EN,
   HTDEMUCS_NOTICE_FR,
 } from "@song-maker/stem-providers";
+import { t } from "../ui/i18n";
 
 export const MIX_ONLY_STORAGE_KEY = "song-maker.first-launch.mix-only";
 export const NVIDIA_DRIVERS_URL = "https://www.nvidia.com/Download/index.aspx";
@@ -118,9 +119,7 @@ export function formatRateFr(bytesPerSec: number | null | undefined): string | n
 
 export function formatEtaFr(seconds: number | null | undefined, isEstimate: boolean): string {
   if (seconds == null || !Number.isFinite(seconds) || seconds < 0) {
-    return isEstimate
-      ? "Estimation dès que le débit sera mesuré"
-      : "—";
+    return isEstimate ? t("firstLaunch.eta.pendingEstimate") : t("firstLaunch.eta.unknown");
   }
   const rounded = Math.max(0, Math.round(seconds));
   const min = Math.floor(rounded / 60);
@@ -129,13 +128,16 @@ export function formatEtaFr(seconds: number | null | undefined, isEstimate: bool
   if (min >= 60) {
     const h = Math.floor(min / 60);
     const m = min % 60;
-    core = `≈ ${h} h ${m} min`;
+    core = t("firstLaunch.eta.hoursMinutes", { h, m });
   } else if (min > 0) {
-    core = sec > 0 ? `≈ ${min} min ${sec} s` : `≈ ${min} min`;
+    core =
+      sec > 0
+        ? t("firstLaunch.eta.minutesSeconds", { min, sec })
+        : t("firstLaunch.eta.minutesOnly", { min });
   } else {
-    core = `≈ ${sec} s`;
+    core = t("firstLaunch.eta.secondsOnly", { sec });
   }
-  return isEstimate ? `${core} (estimation)` : core;
+  return isEstimate ? `${core}${t("firstLaunch.eta.suffixEstimate")}` : core;
 }
 
 export function relativeLuminance(hex: string): number {
@@ -270,14 +272,164 @@ export function fileStatusShowsWarningIcon(status: FileRowStatus): boolean {
 export function queuedFileStatusFr(input: {
   status: "waiting" | "missing";
   activeTitle?: string | null;
+  licenseBlocked?: boolean;
 }): { primary: string; secondary?: string } {
+  if (input.licenseBlocked) {
+    return { primary: t("firstLaunch.status.licenseBlocked") };
+  }
   if (input.status === "waiting" && input.activeTitle) {
     return {
-      primary: "En file d’attente",
-      secondary: `Démarre après ${input.activeTitle}`,
+      primary: t("firstLaunch.status.queued"),
+      secondary: t("firstLaunch.status.startsAfter", { title: input.activeTitle }),
     };
   }
-  return { primary: "À télécharger" };
+  return { primary: t("firstLaunch.status.toDownload") };
+}
+
+/** Rang du fichier actif dans la liste (1-based), dérivé des lignes affichées (#202). */
+export function downloadProgressOrdinal(
+  progress: InstallProgress | null,
+  rows: FileRow[],
+): { index: number; total: number } | null {
+  if (rows.length === 0) {
+    if (progress?.fileCount === 0) {
+      return { index: 0, total: 0 };
+    }
+    return null;
+  }
+  const activeIdx = rows.findIndex((row) => row.status === "active");
+  if (activeIdx >= 0) {
+    return { index: activeIdx + 1, total: rows.length };
+  }
+  if (
+    progress &&
+    (progress.state === "downloading" || progress.state === "preparing") &&
+    progress.fileCount > 0
+  ) {
+    const index = Math.min(Math.max(1, progress.fileIndex), progress.fileCount);
+    return { index, total: Math.max(rows.length, progress.fileCount) };
+  }
+  return null;
+}
+
+export type DownloadAnnounceSnapshot = {
+  lead: string | null;
+  activeTitle: string | null;
+  errorCount: number;
+  completeCount: number;
+};
+
+export function downloadAnnounceSnapshot(
+  rows: FileRow[],
+  lead: string | null,
+): DownloadAnnounceSnapshot {
+  return {
+    lead,
+    activeTitle: rows.find((row) => row.status === "active")?.title ?? null,
+    errorCount: rows.filter((row) => row.status === "error").length,
+    completeCount: rows.filter((row) => row.status === "complete").length,
+  };
+}
+
+export function downloadLiveAnnouncementChanged(
+  prev: DownloadAnnounceSnapshot | null,
+  next: DownloadAnnounceSnapshot,
+): boolean {
+  if (!prev) return Boolean(next.lead || next.activeTitle || next.errorCount || next.completeCount);
+  return (
+    prev.lead !== next.lead ||
+    prev.activeTitle !== next.activeTitle ||
+    prev.errorCount !== next.errorCount ||
+    prev.completeCount !== next.completeCount
+  );
+}
+
+export function licensesBlockDownload(
+  accepted: boolean,
+  settingsYue2?: boolean,
+  htdemucsAccepted?: boolean,
+  settingsHtdemucs?: boolean,
+): boolean {
+  return (
+    !licenseAllowsDownload(accepted, settingsYue2) ||
+    !htdemucsLicenseAllowsDownload(
+      htdemucsAccepted ?? false,
+      settingsHtdemucs,
+    )
+  );
+}
+
+/** Blocage par licence sur une ligne en attente (HTDemucs vs reste du plan). */
+export function fileRowLicenseBlocked(input: {
+  fileName: string;
+  status: FileRowStatus;
+  yue2Accepted: boolean;
+  settingsYue2?: boolean;
+  htdemucsAccepted: boolean;
+  settingsHtdemucs?: boolean;
+}): boolean {
+  if (input.status !== "waiting" && input.status !== "missing") return false;
+  const lower = input.fileName.toLowerCase();
+  if (lower.includes("htdemucs")) {
+    return !htdemucsLicenseAllowsDownload(
+      input.htdemucsAccepted,
+      input.settingsHtdemucs,
+    );
+  }
+  return !licenseAllowsDownload(input.yue2Accepted, input.settingsYue2);
+}
+
+export function downloadSequentialLead(
+  progress: InstallProgress | null,
+  rows: FileRow[],
+): string | null {
+  const ordinal = downloadProgressOrdinal(progress, rows);
+  if (!ordinal || ordinal.total === 0) return null;
+  return t("firstLaunch.download.leadSequential", ordinal);
+}
+
+/** Nom de fichier cible pour l’état « Échec », y compris après un 2e événement sans `fileName` (#202 / installer). */
+export function resolveInstallErrorFileName(progress: InstallProgress | null): string | null {
+  if (!progress || progress.state !== "error") return null;
+  const fromError = progress.error?.fileName ?? progress.fileName ?? null;
+  if (fromError) return fromError;
+  const label = progress.label?.trim();
+  if (label && planFileNameMatchesLabel(label)) return label;
+  return null;
+}
+
+function planFileNameMatchesLabel(label: string): boolean {
+  return label.includes(".") || label.startsWith("yue2-") || label.startsWith("htdemucs");
+}
+
+/** Fusionne les événements `setup-progress` (le backend réémet parfois l’erreur sans `fileName`). */
+export function mergeInstallProgress(
+  prev: InstallProgress | null,
+  next: InstallProgress,
+): InstallProgress {
+  if (next.state !== "error") return next;
+  const prevName =
+    prev?.error?.fileName ??
+    prev?.fileName ??
+    (prev?.state === "downloading" || prev?.state === "preparing" ? prev.fileName : null) ??
+    null;
+  const nextName = next.error?.fileName ?? next.fileName ?? null;
+  const fileName = nextName ?? prevName ?? undefined;
+  const error = next.error
+    ? {
+        ...next.error,
+        fileName: next.error.fileName ?? fileName ?? undefined,
+      }
+    : next.error;
+  return {
+    ...next,
+    fileName: next.fileName ?? fileName,
+    error,
+  };
+}
+
+export function fileRowNeedsRetry(status: FileRowStatus): boolean {
+  return status === "error" || status === "partial";
 }
 
 export function resolveFirstLaunchView(input: {
@@ -363,10 +515,11 @@ export function installErrorCopy(error: InstallErrorInfo | null | undefined): In
   const receivedHint = "Les octets déjà reçus sont conservés.";
   const cause = normalizeInstallCause(error?.cause);
   switch (cause) {
-    case "network":
+    case "network": {
+      const fileTitle = error?.fileName ? fileMeta(error.fileName).title : null;
       return {
-        title: error?.fileName
-          ? `La connexion Internet a été coupée pendant le téléchargement de ${error.fileName}`
+        title: fileTitle
+          ? `La connexion Internet a été coupée pendant le téléchargement de ${fileTitle}`
           : "La connexion Internet a été coupée pendant le téléchargement",
         body: `Ce n’est pas grave. ${receivedHint} Que faire :`,
         steps: [
@@ -374,6 +527,7 @@ export function installErrorCopy(error: InstallErrorInfo | null | undefined): In
           "Cliquez sur « Reprendre ». Si cela échoue encore, essayez dans quelques minutes.",
         ],
       };
+    }
     case "diskFull":
       return {
         title: "Le disque est plein : le téléchargement n’a pas pu se terminer",
@@ -430,7 +584,7 @@ export function buildFileRows(
   const activeName = progress?.fileName ?? progress?.label ?? null;
   const downloading = progress?.state === "downloading" || progress?.state === "preparing";
   const errored = progress?.state === "error";
-  const errorName = progress?.error?.fileName ?? progress?.fileName ?? null;
+  const errorName = resolveInstallErrorFileName(progress);
 
   return plan.files.map((file) => {
     const meta = fileMeta(file.name);
@@ -459,8 +613,6 @@ export function buildFileRows(
       status = "waiting";
     } else if (status === "missing" && (errored || plan.hasPartialDownloads)) {
       status = "waiting";
-    } else if (status === "partial" && errored) {
-      status = "error";
     }
 
     return {
@@ -513,6 +665,8 @@ export type BrowserDemoFixture = {
   pack: ModelPack;
   plan: InstallPlan;
   progress: InstallProgress | null;
+  yue2LicenseAccepted: boolean;
+  htdemucsLicenseAccepted: boolean;
 };
 
 export function demoSetupGpu(kind: "nvidiaCuda" | "appleMetal" | "none"): SetupGpuInfo {
@@ -551,25 +705,57 @@ export function demoSetupGpu(kind: "nvidiaCuda" | "appleMetal" | "none"): SetupG
   };
 }
 
+function demoPreacceptLicenses(hash: string): boolean {
+  return (
+    hash === "download" ||
+    hash === "dl" ||
+    hash === "telechargement" ||
+    hash === "d" ||
+    hash === "c" ||
+    hash === "interrompu" ||
+    hash === "error-double" ||
+    hash === "reprise" ||
+    hash === "partial"
+  );
+}
+
 /** Fixtures navigateur (hash `#a` / `#metal` / `#b` / `#c` / `#download`) hors runtime Tauri. */
 export function browserDemoFromHash(hashRaw?: string): BrowserDemoFixture {
   const hash = (hashRaw ?? globalThis.location?.hash ?? "").replace(/^#/, "");
   const metal = hash === "metal";
   const none = hash === "b" || hash === "nogpu";
-  const interrupted = hash === "c" || hash === "interrompu";
+  const licenseBlocked =
+    hash === "blocked-license" || hash === "licence" || hash === "license-blocked";
+  const interrupted = hash === "c" || hash === "interrompu" || hash === "error-double";
+  const partialResume = hash === "reprise" || hash === "partial";
   const downloading =
-    hash === "download" || hash === "dl" || hash === "telechargement" || hash === "d";
+    hash === "download" ||
+    hash === "dl" ||
+    hash === "telechargement" ||
+    hash === "d" ||
+    licenseBlocked;
   const gpu = demoSetupGpu(metal ? "appleMetal" : none ? "none" : "nvidiaCuda");
-  const pack = downloading ? "q8" : parsePack(gpu.suggestedPack);
+  const pack = downloading && !licenseBlocked ? "q8" : parsePack(gpu.suggestedPack);
+  const licensesOk = demoPreacceptLicenses(hash);
+  const progressForHash = (): InstallProgress | null => {
+    if (hash === "error-double") return demoProgressErrorDoubleEmitFinal();
+    if (interrupted) return demoProgressErrorDoubleEmitFinal();
+    if (partialResume) return demoProgressPartialResumeLabel();
+    if (licenseBlocked) return demoProgressDownloading("q8");
+    if (downloading) return demoProgressDownloading(pack);
+    return null;
+  };
   return {
-    gpu: downloading ? { ...gpu, suggestedPack: "q8" } : gpu,
+    gpu: downloading && !licenseBlocked ? { ...gpu, suggestedPack: "q8" } : gpu,
     pack,
-    plan: demoInstallPlan(pack, interrupted, downloading),
-    progress: interrupted
-      ? demoProgressError()
-      : downloading
-        ? demoProgressDownloading(pack)
-        : null,
+    plan: demoInstallPlan(
+      pack,
+      interrupted || partialResume,
+      downloading && !licenseBlocked,
+    ),
+    progress: progressForHash(),
+    yue2LicenseAccepted: licenseBlocked ? true : licensesOk,
+    htdemucsLicenseAccepted: licenseBlocked ? false : licensesOk,
   };
 }
 
@@ -645,14 +831,15 @@ export function demoInstallPlan(
 }
 
 export function demoProgressError(): InstallProgress {
+  const fileName = "yue2-3b-q4_0.gguf";
   return {
     state: "error",
-    label: "yue2-3b-q4_0.gguf",
+    label: fileName,
     fileIndex: 2,
     fileCount: 4,
     receivedBytes: Math.round(YUE2_Q4_BYTES * 0.43),
     totalBytes: YUE2_Q4_BYTES,
-    fileName: "yue2-3b-q4_0.gguf",
+    fileName,
     bytesPerSec: 0,
     etaSeconds: 85,
     etaIsEstimate: true,
@@ -662,7 +849,37 @@ export function demoProgressError(): InstallProgress {
     error: {
       message: "La connexion a été interrompue.",
       cause: "network",
-      fileName: "YuE2 (Q4)",
+      fileName,
+    },
+  };
+}
+
+/** 2e événement `install()` après `install_inner` : erreur sans `fileName` (#202). */
+export function demoProgressErrorDoubleEmitFinal(): InstallProgress {
+  const first = demoProgressError();
+  return mergeInstallProgress(first, {
+    ...first,
+    fileName: undefined,
+    error: {
+      ...first.error!,
+      fileName: undefined,
+    },
+  });
+}
+
+/** Fixture `#reprise` : ligne partielle + estimation (vue interrompue, sans ligne Échec). */
+export function demoProgressPartialResumeLabel(): InstallProgress {
+  return {
+    state: "error",
+    label: "",
+    fileIndex: 2,
+    fileCount: 4,
+    receivedBytes: 0,
+    etaSeconds: 85,
+    etaIsEstimate: true,
+    error: {
+      message: "La connexion a été interrompue.",
+      cause: "network",
     },
   };
 }

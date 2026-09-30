@@ -1,7 +1,8 @@
 {
   "issue": 202,
-  "generatedAt": "2026-09-30T07:33:50.697Z",
-  "method": "Vite + FirstLaunchScreen React, hash #download, Playwright 1280×720",
+  "baseGitSha": "f6335287325f858bfcea6406036b18bea315df38",
+  "generatedAt": "2026-09-30T20:43:27.790Z",
+  "method": "Vite VITE_CAPTURE=1 + FirstLaunchScreen React, hash #download, Playwright 1280×720",
   "viewport": {
     "width": 1280,
     "height": 720
@@ -9,7 +10,7 @@
   "file": "first-launch-queue-label-1280x720.png",
   "labels": {
     "title": "Téléchargement en cours",
-    "lead": "Les fichiers se téléchargent l’un après l’autre. Ceux en file d’attente démarrent dès que le fichier en cours est terminé.",
+    "lead": "Les fichiers se téléchargent l’un après l’autre · 3 sur 6",
     "statuses": [
       "✓ Terminé",
       "✓ Terminé",
@@ -29,9 +30,10 @@
   },
   "files": {
     "first-launch-queue-label-1280x720.png": {
-      "sha256": "974f4deef2c6e9830126bc5c7ff09a304e632c775b9e2181936f8fe0e67752dd",
-      "bytes": 127253
+      "sha256": "ea086a24feac424656545f304ce5c6eadf4b48af30113f842787630fc068771c",
+      "bytes": 141293
     }
   },
-  "pass": true
+  "pass": true,
+  "metricsSha256": "299f6f1f1bd5288437a5c8d49f6f1d5ae432153af816891c653942af9bdb9cb6"
 }

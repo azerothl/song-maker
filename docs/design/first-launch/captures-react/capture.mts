@@ -4,7 +4,7 @@
  * Usage : pnpm exec tsx docs/design/first-launch/captures-react/capture.mts
  */
 import { createHash } from "node:crypto";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -242,7 +242,7 @@ async function main(): Promise<void> {
     ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],
     {
       cwd: ROOT,
-      env: { ...process.env },
+      env: { ...process.env, VITE_CAPTURE: "1" },
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
@@ -341,8 +341,14 @@ async function main(): Promise<void> {
 
     await browser.close();
 
-    const metrics = {
+    const baseGitSha = spawnSync("git", ["rev-parse", "HEAD"], {
+      cwd: ROOT,
+      encoding: "utf8",
+    }).stdout?.trim();
+
+    const metricsBody = {
       issue: 199,
+      baseGitSha,
       generatedAt: new Date().toISOString(),
       method:
         "Vite + App React réelle, Playwright Chromium/Chrome, getBoundingClientRect (pas pixels seuls)",
@@ -381,12 +387,15 @@ async function main(): Promise<void> {
         ),
     };
 
+    const metricsJson = `${JSON.stringify(metricsBody, null, 2)}\n`;
+    const metricsSha256 = sha256(Buffer.from(metricsJson, "utf8"));
+
     await writeFile(
       path.join(OUT, "metrics.json"),
-      `${JSON.stringify(metrics, null, 2)}\n`,
+      `${JSON.stringify({ ...metricsBody, metricsSha256 }, null, 2)}\n`,
     );
-    console.log(JSON.stringify(metrics, null, 2));
-    if (!metrics.pass) {
+    console.log(JSON.stringify({ ...metricsBody, metricsSha256 }, null, 2));
+    if (!metricsBody.pass) {
       process.exitCode = 1;
     }
   } finally {

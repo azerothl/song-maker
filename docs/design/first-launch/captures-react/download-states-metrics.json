@@ -1,0 +1,170 @@
+{
+  "issue": 202,
+  "captureBaseSha": "f6335287325f858bfcea6406036b18bea315df38",
+  "generatedAt": "2026-09-30T20:44:27.929Z",
+  "method": "Vite VITE_CAPTURE=1 + FirstLaunchScreen, Playwright viewport 1280×720 plein écran (clips `-clip.png` optionnels)",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "shots": {
+    "active-fr": {
+      "file": "first-launch-download-active-fr-1280x720.png",
+      "locale": "fr",
+      "bytes": 141293,
+      "width": 1280,
+      "height": 720
+    },
+    "active-en": {
+      "file": "first-launch-download-active-en-1280x720.png",
+      "locale": "en",
+      "bytes": 138898,
+      "width": 1280,
+      "height": 720
+    },
+    "queue-fr": {
+      "file": "first-launch-download-queue-fr-1280x720.png",
+      "locale": "fr",
+      "bytes": 141293,
+      "width": 1280,
+      "height": 720
+    },
+    "queue-en": {
+      "file": "first-launch-download-queue-en-1280x720.png",
+      "locale": "en",
+      "bytes": 138898,
+      "width": 1280,
+      "height": 720
+    },
+    "failure-fr": {
+      "file": "first-launch-download-failure-fr-1280x720.png",
+      "locale": "fr",
+      "bytes": 140288,
+      "width": 1280,
+      "height": 720
+    },
+    "failure-en": {
+      "file": "first-launch-download-failure-en-1280x720.png",
+      "locale": "en",
+      "bytes": 137330,
+      "width": 1280,
+      "height": 720
+    },
+    "resume-fr": {
+      "file": "first-launch-download-resume-fr-1280x720.png",
+      "locale": "fr",
+      "bytes": 139895,
+      "width": 1280,
+      "height": 720
+    },
+    "resume-en": {
+      "file": "first-launch-download-resume-en-1280x720.png",
+      "locale": "en",
+      "bytes": 138720,
+      "width": 1280,
+      "height": 720
+    },
+    "license-blocked-fr": {
+      "file": "first-launch-download-license-blocked-fr-1280x720.png",
+      "locale": "fr",
+      "bytes": 120019,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "labels": {
+    "downloadFr": {
+      "lead": "Les fichiers se téléchargent l’un après l’autre · 3 sur 6",
+      "etaLine": "Total : 4,0 Go reçus sur 4,6 GoTemps restant : ≈ 12 s (estimation)",
+      "resumePartialLine": "",
+      "locale": "fr"
+    },
+    "downloadEn": {
+      "lead": "Files download one after another · 3 of 6",
+      "etaLine": "Total: 4,0 Go of 4,6 Go receivedTime left: ≈ 12 s (estimate)",
+      "resumePartialLine": "",
+      "locale": "en"
+    },
+    "resumeEn": {
+      "lead": "Nothing is lost: files already received are kept and the download will continue where it stopped.",
+      "etaLine": "Total: 1,1 Go of 3,1 Go receivedTime left: ≈ 1 min 25 s (estimate)",
+      "resumePartialLine": "↻To resume≈ 1 min 25 s (estimate) left after resumeRetry",
+      "locale": "en"
+    }
+  },
+  "measures": {
+    "retryBtnHeightPx": 44,
+    "borderStyles": {
+      "queueBorderStyle": "dashed",
+      "blockedBorderStyle": "double"
+    }
+  },
+  "checks": {
+    "allPng1280x720": true,
+    "counterFr": true,
+    "counterEn": true,
+    "etaEnNoFrenchPending": true,
+    "etaEnHasEstimate": true,
+    "resumeEnLeftAfterResume": true,
+    "retryButtonMin36px": true,
+    "licenseDistinctFromQueue": true
+  },
+  "files": {
+    "first-launch-download-active-fr-1280x720.png": {
+      "sha256": "ea086a24feac424656545f304ce5c6eadf4b48af30113f842787630fc068771c",
+      "bytes": 141293,
+      "width": 1280,
+      "height": 720
+    },
+    "first-launch-download-active-en-1280x720.png": {
+      "sha256": "21a49a4b173353d89836b074c8fa5fa492c5022ff610e2ee0ed502c9d46b4e06",
+      "bytes": 138898,
+      "width": 1280,
+      "height": 720
+    },
+    "first-launch-download-queue-fr-1280x720.png": {
+      "sha256": "ea086a24feac424656545f304ce5c6eadf4b48af30113f842787630fc068771c",
+      "bytes": 141293,
+      "width": 1280,
+      "height": 720
+    },
+    "first-launch-download-queue-en-1280x720.png": {
+      "sha256": "21a49a4b173353d89836b074c8fa5fa492c5022ff610e2ee0ed502c9d46b4e06",
+      "bytes": 138898,
+      "width": 1280,
+      "height": 720
+    },
+    "first-launch-download-failure-fr-1280x720.png": {
+      "sha256": "dd21dbfdd7e7e2d239a158597f4acf02405fd10255e31299cf0493b3bbb8161d",
+      "bytes": 140288,
+      "width": 1280,
+      "height": 720
+    },
+    "first-launch-download-failure-en-1280x720.png": {
+      "sha256": "1a48fc4dff7a5eac6141fdd53457630a3d650097942d2a86ec010f8a84bf15ef",
+      "bytes": 137330,
+      "width": 1280,
+      "height": 720
+    },
+    "first-launch-download-resume-fr-1280x720.png": {
+      "sha256": "473c3f072632f36af98c7a08db7b683239f72fe4a79d44424c6a54e35947b1e1",
+      "bytes": 139895,
+      "width": 1280,
+      "height": 720
+    },
+    "first-launch-download-resume-en-1280x720.png": {
+      "sha256": "f97a02201b945772589883db44ed2c7ef62697de873caac63bdb4490e5d0e726",
+      "bytes": 138720,
+      "width": 1280,
+      "height": 720
+    },
+    "first-launch-download-license-blocked-fr-1280x720.png": {
+      "sha256": "7ed285798d59c579017c45c039fe1a8968176062c163bfae9c95f4f3df1c7a94",
+      "bytes": 120019,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "pass": true,
+  "metricsSha256": "01f54a3475595de19e2aa9fd96b06aea11aa81a9bd9476f02e92d8988faae3d6"
+}
