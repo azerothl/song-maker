@@ -26,8 +26,7 @@ export const COMMERCIAL_GRAY_SECTION_TITLE_EN =
   "Engines not offered in this profile";
 
 export const COMMERCIAL_GRAY_REASONS_FR: Record<CommercialGrayReasonId, string> = {
-  non_commercial:
-    "Usage non commercial : la licence interdit la vente ou la diffusion commerciale.",
+  non_commercial: "Usage non commercial uniquement.",
   weights_unverified:
     "Licence des poids non vérifiée : aucune source fiable ne confirme l'usage commercial.",
   origin_undocumented:

@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright";
+import { chromium, type Page } from "playwright";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../../../..");
@@ -73,18 +73,64 @@ const SCENES: Array<{ hash: string; baseName: string; waitFor: string }> = [
   },
 ];
 
-function assertPngNotBlank(filePath: string): void {
+/** Écart-type de luminance sur pixels décodés ; captures valides ~21–31 sur cette VM. */
+const LUMINANCE_STDDEV_MIN = 18;
+const NON_BACKGROUND_MIN = 0.02;
+const PIXEL_DIFF_FROM_BG = 15;
+
+async function assertPngNotBlank(page: Page, filePath: string): Promise<void> {
   const buf = readFileSync(filePath);
   if (buf.length < 64) {
     throw new Error(`capture trop petite : ${filePath}`);
   }
-  let dark = 0;
-  const sampleStep = 97;
-  for (let i = 0; i < buf.length; i += sampleStep) {
-    if (buf[i]! < 250) dark += 1;
+  const b64 = buf.toString("base64");
+  const stats = await page.evaluate(
+    async ([b64, diffThreshold]: [string, number]) => {
+      const img = new Image();
+      await new Promise<void>((res, rej) => {
+        img.onload = () => res();
+        img.onerror = () => rej(new Error("decode png"));
+        img.src = `data:image/png;base64,${b64}`;
+      });
+      const c = document.createElement("canvas");
+      c.width = img.width;
+      c.height = img.height;
+      const ctx = c.getContext("2d");
+      if (!ctx) throw new Error("canvas 2d");
+      ctx.drawImage(img, 0, 0);
+      const { data, width, height } = ctx.getImageData(0, 0, c.width, c.height);
+      const lum: number[] = [];
+      for (let i = 0; i < data.length; i += 4) {
+        lum.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+      }
+      const mean = lum.reduce((a, b) => a + b, 0) / lum.length;
+      const stdDev = Math.sqrt(
+        lum.reduce((a, b) => a + (b - mean) ** 2, 0) / lum.length,
+      );
+      const bg = [data[0], data[1], data[2]];
+      let diff = 0;
+      const n = width * height;
+      for (let i = 0; i < data.length; i += 4) {
+        const dr =
+          Math.abs(data[i] - bg[0]) +
+          Math.abs(data[i + 1] - bg[1]) +
+          Math.abs(data[i + 2] - bg[2]);
+        if (dr > diffThreshold) diff += 1;
+      }
+      return { stdDev, nonBackgroundFraction: diff / n };
+    },
+    [b64, PIXEL_DIFF_FROM_BG] as [string, number],
+  );
+
+  if (stats.stdDev < LUMINANCE_STDDEV_MIN) {
+    throw new Error(
+      `capture blanche ou quasi vide (écart-type luminance ${stats.stdDev.toFixed(1)} < ${LUMINANCE_STDDEV_MIN}) : ${filePath}`,
+    );
   }
-  if (dark < 8) {
-    throw new Error(`capture vide ou blanche : ${filePath}`);
+  if (stats.nonBackgroundFraction < NON_BACKGROUND_MIN) {
+    throw new Error(
+      `capture sans contenu (${(stats.nonBackgroundFraction * 100).toFixed(2)} % hors fond < ${NON_BACKGROUND_MIN * 100} %) : ${filePath}`,
+    );
   }
 }
 
@@ -95,6 +141,7 @@ const vite = spawn("pnpm", ["exec", "vite", "--host", "127.0.0.1", "--port", Str
 });
 
 const hashes = new Map<string, string>();
+const EXPECTED_CAPTURES = SCENES.length * 2;
 
 try {
   await waitServer(BASE);
@@ -105,6 +152,7 @@ try {
         viewport: { width: 1280, height },
       });
       await page.goto(`${BASE}#${scene.hash}`, { waitUntil: "networkidle" });
+      await page.evaluate(() => document.fonts.ready);
       if (scene.hash === "selector-open") {
         await page.waitForSelector('[data-testid="profile-selector-trigger"]', {
           timeout: 15_000,
@@ -116,25 +164,49 @@ try {
       } else {
         await page.waitForSelector(scene.waitFor, { timeout: 15_000 });
       }
-      await page.waitForTimeout(scene.hash.includes("open") ? 500 : 300);
+      if (scene.hash === "onboarding-commercial-disabled") {
+        const commercial = page.locator('[data-testid="profile-type-commercial"]');
+        await commercial.waitFor({ state: "visible", timeout: 10_000 });
+        const reason = page.locator(
+          '[data-testid="profile-commercial-unavailable-reason"]',
+        );
+        await reason.waitFor({ state: "visible", timeout: 10_000 });
+        const reasonText = (await reason.textContent())?.trim() ?? "";
+        if (!reasonText.includes("usage commercial")) {
+          throw new Error(
+            `L1-01 : raison Commercial absente ou incomplète (« ${reasonText.slice(0, 80)} »)`,
+          );
+        }
+        const box = await commercial.boundingBox();
+        if (!box || box.height < 40) {
+          throw new Error("L1-01 : tuile Commercial non entièrement visible");
+        }
+      }
+      if (scene.hash === "onboarding-six-max") {
+        await page.locator('[data-testid="profile-type-commercial"]').waitFor({
+          state: "visible",
+          timeout: 10_000,
+        });
+      }
+      await page.waitForTimeout(scene.hash.includes("open") ? 500 : 350);
       const file = `${scene.baseName}-1280x${height}.png`;
       const outPath = path.join(OUT, file);
       await page.screenshot({ path: outPath, fullPage: false });
-      assertPngNotBlank(outPath);
-      const hash = createHash("sha256").update(readFileSync(outPath)).digest("hex");
-      const prior = hashes.get(hash);
+      await assertPngNotBlank(page, outPath);
+      const md5 = createHash("md5").update(readFileSync(outPath)).digest("hex");
+      const prior = hashes.get(md5);
       if (prior && prior !== file) {
-        throw new Error(`capture dupliquée ${file} == ${prior}`);
+        throw new Error(`capture dupliquée (md5) ${file} == ${prior}`);
       }
-      hashes.set(hash, file);
-      console.log(file, hash.slice(0, 12));
+      hashes.set(md5, file);
+      console.log(file, md5);
       await page.close();
     }
   }
   await browser.close();
-  if (hashes.size < SCENES.length) {
+  if (hashes.size !== EXPECTED_CAPTURES) {
     throw new Error(
-      `trop peu de captures distinctes : ${hashes.size} hashes pour ${SCENES.length} scènes`,
+      `captures distinctes : ${hashes.size} md5 pour ${EXPECTED_CAPTURES} fichiers attendus`,
     );
   }
 } finally {

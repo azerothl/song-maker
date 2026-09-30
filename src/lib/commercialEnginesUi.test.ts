@@ -27,10 +27,7 @@ describe("commercial engines UI (#210 B3)", () => {
     const html = renderToStaticMarkup(React.createElement(CommercialEnginesPanel));
     const sheetsage = buildCommercialEngineRowsUi().find((r) => r.id === "sheetsage2");
     assert.ok(sheetsage);
-    assert.match(
-      sheetsage!.reasonLabel,
-      /Usage non commercial : la licence interdit la vente ou la diffusion commerciale\./,
-    );
+    assert.equal(sheetsage!.reasonLabel, "Usage non commercial uniquement.");
     assert.match(sheetsage!.whyLabel, /audio\.cpp/i);
     assert.match(sheetsage!.whyLabel, /model_licenses/i);
     assert.match(sheetsage!.whyLabel, /sheetsage2/i);
