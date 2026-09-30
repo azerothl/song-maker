@@ -55,6 +55,10 @@ const captureSettings: AppSettings = {
   ccByNcAccepted: true,
   yue2LicenseAccepted: true,
   localYue2Enabled: true,
+  acceptedSeparatorLicenses: {},
+  separatorTimeStats: {
+    htdemucs: { msPerAudioSec: 1200, samples: 3 },
+  },
 };
 
 export function isTauri(): boolean {
@@ -154,6 +158,11 @@ export async function invoke<T>(
       return captureHealth as T;
     case "get_settings":
       return captureSettings as T;
+    case "update_settings": {
+      const next = args?.settings as AppSettings | undefined;
+      if (next) Object.assign(captureSettings, next);
+      return (next ?? captureSettings) as T;
+    }
     case "get_phase3_status":
       return {
         stemSeparator: "htdemucs",
@@ -165,9 +174,7 @@ export async function invoke<T>(
         htdemucs6sRuntimeAvailable: false,
         ccByNcAccepted: true,
         acceptedSeparatorLicenses: { htdemucs: true },
-        separatorTimeStats: {
-          htdemucs: { msPerAudioSec: 1200, samples: 3 },
-        },
+        separatorTimeStats: captureSettings.separatorTimeStats ?? {},
         guitarPianoAvailable: false,
         honestyFr: "Capture mock.",
       } as T;
@@ -197,11 +204,8 @@ export async function invoke<T>(
         defaultSeparator: "mel_band_roformer",
         stemLayoutFr: "voix / instruments",
       } as T;
-    case "update_settings": {
-      const next = args?.settings as AppSettings | undefined;
-      if (next) Object.assign(captureSettings, next);
-      return (next ?? captureSettings) as T;
-    }
+    case "export_separation_stems":
+      return "/tmp/capture-export/stems.zip" as T;
     case "list_lora_adapters":
       return [] as T;
     default:

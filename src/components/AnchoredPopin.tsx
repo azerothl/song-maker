@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
@@ -24,8 +25,19 @@ function focusFirst(container: HTMLElement) {
   el?.focus();
 }
 
+function panelMaxWidth(className?: string): number {
+  if (
+    className?.includes("separation-recommend") ||
+    className?.includes("export-dialog")
+  ) {
+    return 520;
+  }
+  return 420;
+}
+
 /**
  * Non-blocking anchored panel (#132): playback and mix stay usable underneath.
+ * Repositions when content or viewport size changes (#187 / B1).
  */
 export function AnchoredPopin({
   open,
@@ -37,38 +49,79 @@ export function AnchoredPopin({
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const positionedOnceRef = useRef(false);
   const popinId = useId();
 
-  useLayoutEffect(() => {
-    if (!open) return;
-    returnFocusRef.current = document.activeElement as HTMLElement | null;
+  const positionPanel = useCallback(() => {
     const panel = panelRef.current;
     const anchor = anchorRef.current;
     if (!panel || !anchor) return;
-    const rect = anchor.getBoundingClientRect();
+
     const margin = 8;
-    let top = rect.bottom + margin;
-    let left = rect.left;
-    const maxW = Math.min(
-      className?.includes("separation-recommend") ||
-        className?.includes("export-dialog")
-        ? 520
-        : 420,
-      window.innerWidth - margin * 2,
-    );
+    const rect = anchor.getBoundingClientRect();
+    const maxW = Math.min(panelMaxWidth(className), window.innerWidth - margin * 2);
     panel.style.width = `${maxW}px`;
+
+    const maxPanelH = Math.min(
+      window.innerHeight * 0.8,
+      window.innerHeight - margin * 2,
+    );
+    panel.style.maxHeight = `${maxPanelH}px`;
+
+    let left = rect.left;
     const panelRect = panel.getBoundingClientRect();
     if (left + panelRect.width > window.innerWidth - margin) {
       left = window.innerWidth - panelRect.width - margin;
     }
     if (left < margin) left = margin;
-    if (top + panelRect.height > window.innerHeight - margin) {
-      top = Math.max(margin, rect.top - panelRect.height - margin);
+
+    const height = Math.min(panel.getBoundingClientRect().height, maxPanelH);
+    let top = rect.bottom + margin;
+    if (top + height > window.innerHeight - margin) {
+      const above = rect.top - margin - height;
+      if (above >= margin) {
+        top = above;
+      } else {
+        top = Math.max(margin, window.innerHeight - height - margin);
+      }
     }
+    if (top < margin) top = margin;
+
     panel.style.top = `${top}px`;
     panel.style.left = `${left}px`;
-    focusFirst(panel);
-  }, [open, anchorRef, className]);
+  }, [anchorRef, className]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      positionedOnceRef.current = false;
+      return;
+    }
+    returnFocusRef.current = document.activeElement as HTMLElement | null;
+    positionPanel();
+    if (!positionedOnceRef.current) {
+      const panel = panelRef.current;
+      if (panel) focusFirst(panel);
+      positionedOnceRef.current = true;
+    }
+  }, [open, positionPanel]);
+
+  useEffect(() => {
+    if (!open) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    positionPanel();
+    const ro = new ResizeObserver(() => {
+      positionPanel();
+    });
+    ro.observe(panel);
+    const onResize = () => positionPanel();
+    window.addEventListener("resize", onResize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", onResize);
+    };
+  }, [open, positionPanel]);
 
   useEffect(() => {
     if (!open) return;

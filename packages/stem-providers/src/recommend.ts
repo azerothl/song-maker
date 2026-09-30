@@ -14,6 +14,23 @@ export type SeparatorTimeStat = {
 const UNMEASURED_RECOMMENDATION_FR =
   "Recommandation non mesurée — deviendra un conseil après tests sur nos propres pistes.";
 
+const UNMEASURED_RECOMMENDATION_BADGE_FR = "Recommandation non mesurée";
+
+export function recommendFocusReasonFr(focus: SeparationTrackFocus): string {
+  switch (focus) {
+    case "vocals":
+      return "Pour une piste voix / instrumental, Mel-Band RoFormer « Kim Vocal 2 » est proposé.";
+    case "drums":
+      return "Pour isoler la batterie dans un mix, HTDemucs (4 stems) est proposé.";
+    case "mix":
+      return "Pour un mix complet (voix, batterie, basse, accompagnement), HTDemucs est proposé.";
+    default: {
+      const _exhaustive: never = focus;
+      return _exhaustive;
+    }
+  }
+}
+
 export function recommendSeparator(
   focus: SeparationTrackFocus,
 ): StemProviderId {
@@ -32,21 +49,11 @@ export function recommendSeparator(
 }
 
 export function recommendReasonFr(focus: SeparationTrackFocus): string {
-  const base = (() => {
-    switch (focus) {
-      case "vocals":
-        return "Pour une piste voix / instrumental, Mel-Band RoFormer « Kim Vocal 2 » est proposé.";
-      case "drums":
-        return "Pour isoler la batterie dans un mix, HTDemucs (4 stems) est proposé.";
-      case "mix":
-        return "Pour un mix complet (voix, batterie, basse, accompagnement), HTDemucs est proposé.";
-      default: {
-        const _exhaustive: never = focus;
-        return _exhaustive;
-      }
-    }
-  })();
-  return `${UNMEASURED_RECOMMENDATION_FR} ${base}`;
+  return `${UNMEASURED_RECOMMENDATION_FR} ${recommendFocusReasonFr(focus)}`;
+}
+
+export function unmeasuredRecommendationBadgeFr(): string {
+  return UNMEASURED_RECOMMENDATION_BADGE_FR;
 }
 
 export function unmeasuredRecommendationNoticeFr(): string {

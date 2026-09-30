@@ -37,7 +37,7 @@ describe("exportOptions (#168)", () => {
   });
 });
 
-describe("export UI surface (#168 cold review)", () => {
+describe("export UI surface (#168 / #187)", () => {
   it("does not ship a second tracks-only export popin module", async () => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
@@ -46,6 +46,23 @@ describe("export UI surface (#168 cold review)", () => {
       "../components/ExportTracksPopin.tsx",
     );
     await assert.rejects(() => fs.access(popin), /ENOENT/);
+  });
+
+  it("keeps ExportWizard as portable package only (no mix/stems path)", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const wizard = await fs.readFile(
+      path.resolve(import.meta.dirname, "../components/ExportWizard.tsx"),
+      "utf8",
+    );
+    assert.match(wizard, /Portable project package only/);
+    assert.doesNotMatch(wizard, /exportAlignedStems|ExportFormat|mode === "stems"/);
+    const dialog = await fs.readFile(
+      path.resolve(import.meta.dirname, "../components/ExportDialog.tsx"),
+      "utf8",
+    );
+    assert.doesNotMatch(dialog, /Maquette Alphonse|mockupMissing/);
+    assert.doesNotMatch(dialog, /window\.alert/);
   });
 });
 

@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type RefObject } from "react";
 import type { MixDoc, PlaybackSources, ProjectDoc } from "../lib/types";
 import { api } from "../lib/api";
 import {
@@ -25,12 +25,13 @@ type Props = {
   onError: (message: string | null) => void;
   /** Open directly on stems mode (absorbs « Exporter les pistes »). */
   initialMode?: ExportMode;
+  /** Ancre externe (tiroir production, harness capture). */
+  triggerRef?: RefObject<HTMLButtonElement | null>;
 };
 
 /**
- * Unified export screen (#168): format-aware options (hide unused),
- * folder vs zip always, mix + stems in one place.
- * Sole audio export UI — portable package stays on the Tools panel.
+ * Unified export screen (#168 / #187): format-aware options, sticky footer,
+ * sole audio export UI — portable package stays on the Tools panel.
  */
 export function ExportDialog({
   project,
@@ -40,14 +41,20 @@ export function ExportDialog({
   onBusy,
   onError,
   initialMode = "mix",
+  triggerRef,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLButtonElement>(null);
+  const internalAnchorRef = useRef<HTMLButtonElement>(null);
+  const anchorRef = triggerRef ?? internalAnchorRef;
   const titleId = useId();
+  const formatId = useId();
+  const formatLiveId = useId();
+  const exportDisabledId = useId();
   const [opts, setOpts] = useState<ExportOptionsState>(() => ({
     ...defaultExportOptions(),
     mode: initialMode,
   }));
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
   const aiTracks = useMemo(
     () => (mix?.tracks ?? []).filter((tr) => tr.aiSeparated),
     [mix?.id, mix?.tracks],
@@ -57,6 +64,7 @@ export function ExportDialog({
   useEffect(() => {
     if (open) {
       setOpts((prev) => ({ ...prev, mode: initialMode }));
+      setResultMessage(null);
     }
   }, [open, initialMode]);
 
@@ -76,9 +84,24 @@ export function ExportDialog({
     );
   };
 
+  const stemsExportBlocked =
+    opts.mode === "stems" &&
+    (selected.length === 0 || aiTracks.length === 0);
+  const exportDisabledReason = useMemo(() => {
+    if (opts.mode !== "stems") return null;
+    if (aiTracks.length === 0) return t("export.tracks.disabledNoStems");
+    if (selected.length === 0) return t("export.tracks.disabledNoneSelected");
+    return null;
+  }, [opts.mode, aiTracks.length, selected.length]);
+  const exportBlockedNotBusy = Boolean(exportDisabledReason) && !busy;
+  const showAlignedStems =
+    opts.mode === "mix" && mix && sources && opts.format !== "mp3";
+
   const onExport = async () => {
+    if (stemsExportBlocked) return;
     onBusy(true);
     onError(null);
+    setResultMessage(null);
     try {
       if (opts.mode === "stems") {
         if (!mix || selected.length === 0) {
@@ -90,7 +113,10 @@ export function ExportDialog({
           pack: opts.pack,
           destination: null,
         });
-        if (path) window.alert(path);
+        if (path) {
+          setResultMessage(t("export.dialog.result", { path }));
+          return;
+        }
       } else {
         const path = await exportProjectAudio(
           project.id,
@@ -103,7 +129,10 @@ export function ExportDialog({
             pack: opts.pack,
           },
         );
-        if (path) window.alert(path);
+        if (path) {
+          setResultMessage(t("export.dialog.result", { path }));
+          return;
+        }
       }
       setOpen(false);
     } catch (e) {
@@ -121,6 +150,7 @@ export function ExportDialog({
     }
     onBusy(true);
     onError(null);
+    setResultMessage(null);
     try {
       const paths = await exportAlignedStems(project.id, mix, sources, {
         format: opts.format,
@@ -128,8 +158,9 @@ export function ExportDialog({
         includeMaster: true,
         bitDepth: opts.bitDepth,
       });
-      window.alert(paths.join("\n"));
-      setOpen(false);
+      setResultMessage(
+        t("export.dialog.result", { path: paths.join("\n") }),
+      );
     } catch (e) {
       onError(String(e));
     } finally {
@@ -145,6 +176,7 @@ export function ExportDialog({
         ref={anchorRef}
         type="button"
         className="btn primary"
+        data-capture-export-trigger="1"
         disabled={!project.activeGenerationId || busy}
         onClick={() => setOpen(true)}
       >
@@ -157,161 +189,205 @@ export function ExportDialog({
         labelId={titleId}
         className="export-dialog-popin"
       >
-        <header className="anchored-popin-header">
-          <h3 id={titleId}>{t("export.dialog.title")}</h3>
-          <p className="hint">{t("export.dialog.intro")}</p>
-          <p className="hint mockup-note">{t("export.dialog.mockupMissing")}</p>
-        </header>
+        <div className="anchored-popin-scroll">
+          <header className="anchored-popin-header">
+            <h3 id={titleId}>{t("export.dialog.title")}</h3>
+            <p className="hint">{t("export.dialog.intro")}</p>
+          </header>
 
-        <fieldset disabled={busy}>
-          <legend>{t("export.dialog.mode")}</legend>
-          <label>
-            <input
-              type="radio"
-              name="export-mode"
-              checked={opts.mode === "mix"}
-              onChange={() => setOpts((o) => ({ ...o, mode: "mix" }))}
-            />
-            {t("export.dialog.mode.mix")}
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="export-mode"
-              checked={opts.mode === "stems"}
-              onChange={() => setOpts((o) => ({ ...o, mode: "stems" }))}
-            />
-            {t("export.dialog.mode.stems")}
-          </label>
-        </fieldset>
+          <fieldset disabled={busy}>
+            <legend>{t("export.dialog.mode")}</legend>
+            <label>
+              <input
+                type="radio"
+                name="export-mode"
+                checked={opts.mode === "mix"}
+                onChange={() => setOpts((o) => ({ ...o, mode: "mix" }))}
+              />
+              {t("export.dialog.mode.mix")}
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="export-mode"
+                checked={opts.mode === "stems"}
+                onChange={() => setOpts((o) => ({ ...o, mode: "stems" }))}
+              />
+              {t("export.dialog.mode.stems")}
+            </label>
+          </fieldset>
 
-        {opts.mode === "mix" && (
-          <fieldset disabled={busy} data-testid="export-format-family">
-            <legend>{t("export.stems.format")}</legend>
+          {opts.mode === "mix" && (
+            <fieldset disabled={busy} data-testid="export-format-family">
+              <legend>{t("export.stems.format")}</legend>
+              <label htmlFor={formatId}>
+                {t("export.dialog.formatLabel")}
+                <select
+                  id={formatId}
+                  value={opts.format}
+                  data-testid="export-format"
+                  aria-describedby={formatLiveId}
+                  onChange={(e) =>
+                    setOpts((o) => ({
+                      ...o,
+                      format: e.target.value as ExportFormat,
+                    }))
+                  }
+                >
+                  <option value="wav">WAV</option>
+                  <option value="flac">FLAC</option>
+                  <option value="mp3">MP3</option>
+                </select>
+              </label>
+              <p
+                id={formatLiveId}
+                className="sr-only"
+                role="status"
+                aria-live="polite"
+                data-testid="export-format-live"
+              >
+                {t("export.dialog.formatLive", {
+                  format: opts.format.toUpperCase(),
+                })}
+              </p>
+              {controls.showBitDepth && (
+                <label data-testid="export-bit-depth">
+                  {t("export.dialog.bitDepth")}
+                  <select
+                    value={opts.bitDepth}
+                    onChange={(e) =>
+                      setOpts((o) => ({
+                        ...o,
+                        bitDepth: Number(e.target.value) as 16 | 24,
+                      }))
+                    }
+                  >
+                    <option value={16}>16 bits</option>
+                    <option value={24}>24 bits</option>
+                  </select>
+                </label>
+              )}
+              {controls.showBitrate && (
+                <label data-testid="export-bitrate">
+                  {t("export.dialog.bitrate")}
+                  <select
+                    value={opts.bitrateKbps}
+                    onChange={(e) =>
+                      setOpts((o) => ({
+                        ...o,
+                        bitrateKbps: Number(e.target.value) as 128 | 192 | 320,
+                      }))
+                    }
+                  >
+                    <option value={128}>128 kb/s</option>
+                    <option value={192}>192 kb/s</option>
+                    <option value={320}>320 kb/s</option>
+                  </select>
+                </label>
+              )}
+              {!controls.showBitDepth && (
+                <span data-testid="export-bit-depth-hidden" hidden />
+              )}
+              {!controls.showBitrate && (
+                <span data-testid="export-bitrate-hidden" hidden />
+              )}
+            </fieldset>
+          )}
+
+          {opts.mode === "stems" && (
+            <>
+              <p className="hint">{t("export.tracks.hint")}</p>
+              <ul className="export-stem-list">
+                {trackList.map((tr) => (
+                  <li key={tr.id}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(tr.id)}
+                        onChange={() => toggle(tr.id)}
+                      />
+                      {tr.name} ({tr.role})
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          <label data-testid="export-pack">
+            {t("export.tracks.pack")}
             <select
-              value={opts.format}
-              data-testid="export-format"
+              value={opts.pack}
               onChange={(e) =>
                 setOpts((o) => ({
                   ...o,
-                  format: e.target.value as ExportFormat,
+                  pack: e.target.value as ExportPack,
                 }))
               }
             >
-              <option value="wav">WAV</option>
-              <option value="flac">FLAC</option>
-              <option value="mp3">MP3</option>
+              <option value="folder">{t("export.tracks.packFolder")}</option>
+              <option value="zip">{t("export.tracks.packZip")}</option>
             </select>
-            {controls.showBitDepth && (
-              <label data-testid="export-bit-depth">
-                {t("export.dialog.bitDepth")}
-                <select
-                  value={opts.bitDepth}
-                  onChange={(e) =>
-                    setOpts((o) => ({
-                      ...o,
-                      bitDepth: Number(e.target.value) as 16 | 24,
-                    }))
-                  }
-                >
-                  <option value={16}>16 bits</option>
-                  <option value={24}>24 bits</option>
-                </select>
-              </label>
-            )}
-            {controls.showBitrate && (
-              <label data-testid="export-bitrate">
-                {t("export.dialog.bitrate")}
-                <select
-                  value={opts.bitrateKbps}
-                  onChange={(e) =>
-                    setOpts((o) => ({
-                      ...o,
-                      bitrateKbps: Number(e.target.value) as 128 | 192 | 320,
-                    }))
-                  }
-                >
-                  <option value={128}>128 kb/s</option>
-                  <option value={192}>192 kb/s</option>
-                  <option value={320}>320 kb/s</option>
-                </select>
-              </label>
-            )}
-            {!controls.showBitDepth && (
-              <span data-testid="export-bit-depth-hidden" hidden />
-            )}
-            {!controls.showBitrate && (
-              <span data-testid="export-bitrate-hidden" hidden />
-            )}
-          </fieldset>
-        )}
+          </label>
+        </div>
 
-        {opts.mode === "stems" && (
-          <>
-            <p className="hint">{t("export.tracks.hint")}</p>
-            <ul className="export-stem-list">
-              {trackList.map((tr) => (
-                <li key={tr.id}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(tr.id)}
-                      onChange={() => toggle(tr.id)}
-                    />
-                    {tr.name} ({tr.role})
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-
-        <label data-testid="export-pack">
-          {t("export.tracks.pack")}
-          <select
-            value={opts.pack}
-            onChange={(e) =>
-              setOpts((o) => ({
-                ...o,
-                pack: e.target.value as ExportPack,
-              }))
-            }
-          >
-            <option value="folder">{t("export.tracks.packFolder")}</option>
-            <option value="zip">{t("export.tracks.packZip")}</option>
-          </select>
-        </label>
-
-        <div className="btn-row">
-          <button
-            type="button"
-            className="btn ghost"
-            onClick={() => setOpen(false)}
-          >
-            {t("export.tracks.cancel")}
-          </button>
-          {opts.mode === "mix" && mix && sources && opts.format !== "mp3" && (
+        <div className="anchored-popin-footer" data-testid="export-dialog-footer">
+          {exportDisabledReason && (
+            <p
+              id={exportDisabledId}
+              className="hint export-dialog-disabled-reason"
+              role="status"
+              data-testid="export-disabled-reason"
+            >
+              {exportDisabledReason}
+            </p>
+          )}
+          {resultMessage && (
+            <p
+              className="export-dialog-result"
+              role="status"
+              data-testid="export-result"
+            >
+              {resultMessage}
+            </p>
+          )}
+          <div className="export-dialog-actions">
             <button
               type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => void onExportAligned()}
+              className="btn ghost"
+              onClick={() => setOpen(false)}
             >
-              {t("export.stems.run")}
+              {t("export.tracks.cancel")}
             </button>
-          )}
-          <button
-            type="button"
-            className="btn primary"
-            disabled={
-              busy ||
-              (opts.mode === "stems" &&
-                (selected.length === 0 || aiTracks.length === 0))
-            }
-            onClick={() => void onExport()}
-          >
-            {t("export.tracks.run")}
-          </button>
+            <div className="export-dialog-actions-end">
+              {showAlignedStems && (
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => void onExportAligned()}
+                >
+                  {t("export.stems.run")}
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn primary"
+                data-testid="export-run"
+                disabled={busy}
+                aria-disabled={exportBlockedNotBusy || undefined}
+                aria-describedby={
+                  exportDisabledReason ? exportDisabledId : undefined
+                }
+                onClick={() => {
+                  if (exportBlockedNotBusy || stemsExportBlocked) return;
+                  void onExport();
+                }}
+              >
+                {t("export.tracks.run")}
+              </button>
+            </div>
+          </div>
         </div>
       </AnchoredPopin>
     </>

@@ -1,0 +1,18 @@
+Preuve B1 — AnchoredPopin legacy (git 2db918a) vs calage viewport (#191)
+
+Étapes : remplacement temporaire de src/components/AnchoredPopin.tsx, mesure Playwright
+export-drawer-top-12 @ 1280×600 (ancre haut, scène capture réelle).
+
+Mesure (legacy) :
+{
+  "popinTop": 8,
+  "popinBottom": 488,
+  "anchorBottom": 110.375,
+  "vh": 600,
+  "footerBottom": 487
+}
+
+Assertion B1 (behavior test) : popinTop ≥ 112.0 (calage bas viewport)
+Résultat : FAIL attendu — legacy popinTop=8 < 112
+
+→ anchoredPopinFooter.behavior.test.ts (assertB1Reachable) échoue avec le même fichier.

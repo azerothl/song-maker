@@ -78,6 +78,8 @@ export type {
 export {
   recommendSeparator,
   recommendReasonFr,
+  recommendFocusReasonFr,
+  unmeasuredRecommendationBadgeFr,
   unmeasuredRecommendationNoticeFr,
   formatDurationFr,
   timeLabelFr,
