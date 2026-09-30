@@ -9,6 +9,7 @@ import { generateScoreOnly, renderNFromScore } from "../lib/scoreOnlyApi";
 import { importAbcText, prepareAbcForGeneration, type ScoreDocument } from "../lib/score";
 import { loadInvariantBaseline } from "../lib/invariants";
 import { ProductionWorkspace } from "./song/ProductionWorkspace";
+import { ProfileKindBadge } from "../components/ProfileKindBadge";
 import { RegenerationGate } from "../components/RegenerationGate";
 import { RemoteGenerateConfirm } from "../components/RemoteGenerateConfirm";
 import { ScoreWorkspace } from "./song/ScoreWorkspace";
@@ -46,8 +47,13 @@ export function SongScreen() {
   const setError = useAppStore((s) => s.setError);
   const openProject = useAppStore((s) => s.openProject);
   const job = useAppStore((s) => s.job);
+  const setProfileOperationBusy = useAppStore((s) => s.setProfileOperationBusy);
 
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    setProfileOperationBusy(busy);
+    return () => setProfileOperationBusy(false);
+  }, [busy, setProfileOperationBusy]);
   const [showFormErrors, setShowFormErrors] = useState(false);
   const [playback, setPlayback] = useState<PlaybackView | null>(null);
   const [candidateCount, setCandidateCount] = useState(2);
@@ -637,7 +643,10 @@ export function SongScreen() {
       <header className="song-workspace-chrome">
         <div className="song-workspace-chrome-top">
           <div className="song-workspace-project">
-            <h1>{project.title || t("form.createTitle")}</h1>
+            <h1 className="song-title-with-badge">
+              {project.title || t("form.createTitle")}
+              <ProfileKindBadge />
+            </h1>
             {job && job.state !== "idle" && (
               <p className="song-job-banner" role="status" aria-live="polite">
                 {job.label || t("job.generating")}

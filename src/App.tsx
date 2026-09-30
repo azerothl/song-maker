@@ -16,6 +16,9 @@ import { UpdateNotice } from "./components/UpdateNotice";
 import { LibraryScreen } from "./screens/LibraryScreen";
 import { LicensesScreen, SettingsScreen } from "./screens/SettingsScreen";
 import { SongScreen } from "./screens/SongScreen";
+import { ProfileMigrationBanner } from "./components/ProfileMigrationBanner";
+import { ProfileSelector } from "./components/ProfileSelector";
+import { ProfileOnboardingScreen } from "./screens/ProfileOnboardingScreen";
 import { SplashScreen } from "./screens/SplashScreen";
 import { useAppStore } from "./store/appStore";
 import { t } from "./ui/i18n";
@@ -216,7 +219,7 @@ export function Sidebar() {
     return bindSidebarTipDismiss(el);
   }, [collapsed, screen]);
 
-  if (screen === "splash") return null;
+  if (screen === "splash" || screen === "profiles") return null;
 
   const gpuLabel = !health
     ? "…"
@@ -241,6 +244,7 @@ export function Sidebar() {
           <span className="brand-mark" aria-hidden="true">♪</span>
           <span className="brand-name sidebar-label">{t("app.name")}</span>
         </div>
+        <ProfileSelector collapsed={collapsed} />
         <SidebarRow
           tip={
             collapsed
@@ -361,11 +365,26 @@ export function Sidebar() {
 
 export default function App() {
   const screen = useAppStore((s) => s.screen);
+  const setScreen = useAppStore((s) => s.setScreen);
   const error = useAppStore((s) => s.error);
   const setError = useAppStore((s) => s.setError);
   const refreshJob = useAppStore((s) => s.refreshJob);
   const refreshHealth = useAppStore((s) => s.refreshHealth);
+  const refreshProfiles = useAppStore((s) => s.refreshProfiles);
+  const profilesState = useAppStore((s) => s.profilesState);
   const [availableUpdate, setAvailableUpdate] = useState<Update | null>(null);
+  const [profileBoot, setProfileBoot] = useState(false);
+
+  useEffect(() => {
+    void refreshProfiles().finally(() => setProfileBoot(true));
+  }, [refreshProfiles]);
+
+  useEffect(() => {
+    if (!profileBoot || !profilesState) return;
+    if (!profilesState.onboardingComplete && screen !== "profiles") {
+      setScreen("profiles");
+    }
+  }, [profileBoot, profilesState, screen, setScreen]);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -411,6 +430,8 @@ export default function App() {
             </button>
           </div>
         )}
+        <ProfileMigrationBanner />
+        {screen === "profiles" && <ProfileOnboardingScreen />}
         {screen === "splash" && <SplashScreen />}
         {screen === "library" && <LibraryScreen />}
         {screen === "song" && <SongScreen />}

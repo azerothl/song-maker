@@ -16,6 +16,8 @@ mod mix;
 mod models;
 mod paths;
 mod pins;
+mod profile_switch;
+mod profiles;
 mod project_sync;
 mod queue;
 mod resample;
@@ -25,6 +27,7 @@ use commands::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _ = profiles::init_profile_system();
     let _ = library::recover_generation_jobs();
     let state = AppState::default();
     tauri::Builder::default()
@@ -53,6 +56,13 @@ pub fn run() {
             commands::settings::list_lora_adapters,
             commands::settings::import_lora_adapters,
             commands::settings::confirm_model_pack,
+            // Profils (#201)
+            commands::profiles::get_profiles_state,
+            commands::profiles::create_profile,
+            commands::profiles::rename_profile,
+            commands::profiles::activate_profile,
+            commands::profiles::dismiss_profile_migration_banner,
+            commands::profiles::accept_engine_contract,
             // Projets
             commands::projects::list_projects,
             commands::projects::create_project,

@@ -89,3 +89,69 @@ export {
   buildQualityTimeOptions,
   mergeTimeStat,
 } from "./recommend.js";
+export type {
+  EngineLicenseRow201,
+  CommercialGrayReasonId,
+  AppEngineCategory,
+  AppEngineId,
+  AppEngineDescriptor,
+  WiredCommercialEngine,
+  CommercialEngineListEntry,
+  HobbyEngineOffer,
+  CommercialCreationState,
+  EngineContractTemplate,
+} from "./engine-licenses-201.js";
+export {
+  ENGINE_LICENSE_ROWS_201,
+  APP_ENGINE_CATALOG,
+  licenseRowForEngine,
+  licenseRowByDataId,
+  listProductionWiredCommercialEngines,
+  COMMERCIAL_RESERVED_STATUT_FR,
+  COMMERCIAL_CREATION_UI_MODE,
+  isCommercialProfileAvailable,
+  isCommercialReservedStatut,
+  licenseRowQualifiesForCommercialReserved,
+  primarySourceUrlForLicenseRow,
+  hasDatedLicenseEntry,
+  resolveCommercialCreationState,
+  buildCommercialEngineList,
+  buildHobbyEngineOffers,
+  hobbyUsageNoticeFr,
+  HOBBY_NON_COMMERCIAL_USAGE_FR,
+  sha256HexUtf8,
+  engineContractFingerprint,
+} from "./engine-licenses-201.js";
+export {
+  extractPrimaryLicenseSourceUrl,
+  isValidLicenseHref,
+} from "./license-source-url.js";
+export { COMMERCIAL_COPY_FORBIDDEN } from "./commercial-copy-forbidden.js";
+export type { ReservedStatusTemplate } from "./commercial-profile-i18n.js";
+export type { CommercialProfileCreationConfirm } from "./commercial-creation-confirm.js";
+export {
+  buildCommercialProfileCreationConfirm,
+  formatCommercialCreationEngineLineFr,
+  COMMERCIAL_CREATE_CONFIRM_TITLE_FR,
+  COMMERCIAL_CREATE_CONFIRM_INTRO_FR,
+} from "./commercial-creation-confirm.js";
+export {
+  COMMERCIAL_PROFILE_DESCRIPTION_FR,
+  COMMERCIAL_PROFILE_DESCRIPTION_EN,
+  COMMERCIAL_CREATION_DISABLED_REASON_FR,
+  COMMERCIAL_CREATION_DISABLED_REASON_EN,
+  COMMERCIAL_GRAY_SECTION_TITLE_FR,
+  COMMERCIAL_GRAY_SECTION_TITLE_EN,
+  COMMERCIAL_GRAY_REASONS_FR,
+  COMMERCIAL_GRAY_REASONS_EN,
+  RESERVED_BADGE_FR,
+  RESERVED_BADGE_EN,
+  formatReservedStatusLineFr,
+  formatReservedStatusLineEn,
+  ENGINE_CONTRACT_TITLE_FR,
+  ENGINE_CONTRACT_TITLE_EN,
+  ENGINE_CONTRACT_BODY_FR,
+  ENGINE_CONTRACT_BODY_EN,
+  ENGINE_CONTRACT_CHECKBOX_FR,
+  ENGINE_CONTRACT_CHECKBOX_EN,
+} from "./commercial-profile-i18n.js";

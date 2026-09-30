@@ -404,6 +404,15 @@ pub fn read_preview_audio(id: String) -> Result<Vec<u8>, String> {
 
 #[tauri::command]
 pub fn export_audio(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    id: String,
+    req: ExportRequest,
+) -> Result<String, String> {
+    super::with_profile_export_busy(&state, || export_audio_inner(app, id, req))
+}
+
+fn export_audio_inner(
     app: tauri::AppHandle,
     id: String,
     req: ExportRequest,
@@ -507,6 +516,15 @@ pub fn export_audio(
 /// Export a float32 mix baked by `@song-maker/mix-production` (same bake as Web Audio).
 #[tauri::command]
 pub fn export_pcm_audio(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    id: String,
+    req: ExportPcmRequest,
+) -> Result<String, String> {
+    super::with_profile_export_busy(&state, || export_pcm_audio_inner(app, id, req))
+}
+
+fn export_pcm_audio_inner(
     app: tauri::AppHandle,
     id: String,
     req: ExportPcmRequest,

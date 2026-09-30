@@ -15,6 +15,7 @@ pub mod jobs;
 pub mod lora_training;
 pub mod mix;
 pub mod package;
+pub mod profiles;
 pub mod projects;
 pub mod score;
 pub mod separation;
@@ -37,12 +38,24 @@ pub struct AppState {
     pub sheetsage_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub sheetsage_jobs: crate::sheetsage::SheetsageJobs,
     pub lora_train_jobs: crate::lora_train::LoraTrainJobs,
+    pub profile_export_busy: std::sync::atomic::AtomicBool,
 }
 
 #[derive(Default)]
 pub struct UndoStacks {
     /// project_id -> (undo, redo) of MixUpdate / form snapshots as JSON
     pub stacks: BTreeMap<String, (Vec<serde_json::Value>, Vec<serde_json::Value>)>,
+}
+
+pub fn with_profile_export_busy<T>(
+    state: &AppState,
+    f: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    use std::sync::atomic::Ordering;
+    state.profile_export_busy.store(true, Ordering::SeqCst);
+    let result = f();
+    state.profile_export_busy.store(false, Ordering::SeqCst);
+    result
 }
 
 impl Default for AppState {
@@ -62,6 +75,7 @@ impl Default for AppState {
             sheetsage_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             sheetsage_jobs: crate::sheetsage::SheetsageJobs::default(),
             lora_train_jobs: crate::lora_train::LoraTrainJobs::default(),
+            profile_export_busy: std::sync::atomic::AtomicBool::new(false),
         }
     }
 }

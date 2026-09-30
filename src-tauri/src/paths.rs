@@ -7,18 +7,37 @@ use dirs::{cache_dir, document_dir, home_dir};
 use std::path::{Path, PathBuf};
 
 pub fn song_maker_documents() -> PathBuf {
+    if let Ok(dir) = std::env::var("SONG_MAKER_DOCUMENTS_DIR") {
+        return PathBuf::from(dir);
+    }
     let base = document_dir()
         .or_else(home_dir)
         .unwrap_or_else(|| PathBuf::from("."));
     base.join("Song Maker")
 }
 
-pub fn projects_root() -> PathBuf {
+pub fn legacy_projects_root() -> PathBuf {
     song_maker_documents().join("projects")
 }
 
-pub fn library_db_path() -> PathBuf {
+pub fn legacy_library_db_path() -> PathBuf {
     song_maker_documents().join("library.sqlite")
+}
+
+pub fn projects_root() -> PathBuf {
+    if crate::profiles::try_active_projects_root().is_some() {
+        crate::profiles::active_projects_root()
+    } else {
+        legacy_projects_root()
+    }
+}
+
+pub fn library_db_path() -> PathBuf {
+    if crate::profiles::try_active_projects_root().is_some() {
+        crate::profiles::active_library_db_path()
+    } else {
+        legacy_library_db_path()
+    }
 }
 
 pub fn settings_path() -> PathBuf {

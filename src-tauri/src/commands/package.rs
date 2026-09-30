@@ -1,3 +1,4 @@
+use crate::commands::AppState;
 use crate::library::{load_project, project_folder};
 use crate::paths::{atomic_write_json, ensure_dir, now_iso};
 use serde_json::json;
@@ -124,8 +125,7 @@ pub fn list_project_package_inventory(id: String) -> Result<Vec<serde_json::Valu
     Ok(out)
 }
 
-#[tauri::command]
-pub fn export_project_package(id: String) -> Result<serde_json::Value, String> {
+fn export_project_package_inner(id: String) -> Result<serde_json::Value, String> {
     let folder = project_folder(&id);
     let doc = load_project(&folder)?;
     let exports = folder.join("exports");
@@ -287,4 +287,12 @@ pub fn export_project_package(id: String) -> Result<serde_json::Value, String> {
         "path": zip_path.display().to_string(),
         "plan": manifest,
     }))
+}
+
+#[tauri::command]
+pub fn export_project_package(
+    state: tauri::State<'_, AppState>,
+    id: String,
+) -> Result<serde_json::Value, String> {
+    super::with_profile_export_busy(&state, || export_project_package_inner(id))
 }

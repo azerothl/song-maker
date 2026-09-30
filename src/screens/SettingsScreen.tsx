@@ -15,6 +15,8 @@ import {
   runtimeApi,
   type LoraTrainerProbe,
 } from "../lib/runtimeHost";
+import { CommercialEnginesPanel } from "../components/CommercialEnginesPanel";
+import { HobbyEnginesPanel } from "../components/HobbyEnginesPanel";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 
@@ -27,16 +29,25 @@ type SettingsPage =
   | "remote"
   | "host"
   | "sync"
-  | "system";
+  | "system"
+  | "engines";
 
 export function SettingsScreen() {
   const settings = useAppStore((s) => s.settings);
+  const profilesState = useAppStore((s) => s.profilesState);
+  const activeProfile = profilesState?.profiles.find((p) => p.isActive);
   const health = useAppStore((s) => s.health);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
   const refreshHealth = useAppStore((s) => s.refreshHealth);
   const setScreen = useAppStore((s) => s.setScreen);
   const setError = useAppStore((s) => s.setError);
-  const [page, setPage] = useState<SettingsPage>("home");
+  const captureSettingsPage = (): SettingsPage | null => {
+    if (!import.meta.env.VITE_CAPTURE) return null;
+    const hash = globalThis.location?.hash?.toLowerCase() ?? "";
+    if (hash.includes("engines") || hash.includes("moteurs")) return "engines";
+    return null;
+  };
+  const [page, setPage] = useState<SettingsPage>(captureSettingsPage() ?? "home");
   const [loraProbe, setLoraProbe] = useState<LoraTrainerProbe | null>(null);
   const [loraProbing, setLoraProbing] = useState(true);
   const [loraPanelStatus, setLoraPanelStatus] =
@@ -98,6 +109,7 @@ export function SettingsScreen() {
     host: t("settings.host.title"),
     sync: t("phase4.sync.title"),
     system: t("settings.system.title"),
+    engines: t("profiles.engines.title"),
   };
   const separatorName =
     settings.stemSeparator === "htdemucs_6s"
@@ -141,6 +153,21 @@ export function SettingsScreen() {
               value={separatorName}
               onClick={() => setPage("separation")}
             />
+            {activeProfile?.kind === "commercial" ? (
+              <SettingsCard
+                title={pageTitle.engines}
+                description={t("profiles.engines.graySection")}
+                value={t("profiles.engines.commercialBadge")}
+                onClick={() => setPage("engines")}
+              />
+            ) : (
+              <SettingsCard
+                title={t("profiles.engines.hobbyTitle")}
+                description={t("profiles.engines.hobbyIntro")}
+                value={t("profiles.onboarding.type.hobby")}
+                onClick={() => setPage("engines")}
+              />
+            )}
             <SettingsCard
               title={pageTitle.lora}
               description={t("settings.card.lora")}
@@ -242,6 +269,12 @@ export function SettingsScreen() {
       )}
 
       {page === "separation" && <Phase3SettingsPanel view="separation" />}
+      {page === "engines" &&
+        (activeProfile?.kind === "commercial" ? (
+          <CommercialEnginesPanel />
+        ) : (
+          <HobbyEnginesPanel />
+        ))}
       {page === "lora" && (
         <div className="settings-lora-pages">
           <Phase3SettingsPanel view="lora" />
