@@ -9,6 +9,11 @@ import {
   buildFileRows,
   contrastRatio,
   detectHeadline,
+  downloadAnnounceSnapshot,
+  downloadLiveAnnouncementChanged,
+  downloadProgressOrdinal,
+  downloadSequentialLead,
+  fileRowNeedsRetry,
   fileMeta,
   formatBytesFr,
   formatEtaFr,
@@ -16,6 +21,8 @@ import {
   fileStatusShowsWarningIcon,
   gpuDetailLine,
   installErrorCopy,
+  mergeInstallProgress,
+  resolveInstallErrorFileName,
   HTDEMUCS_FIRST_LAUNCH_NOTICE_FR,
   HTDEMUCS_LICENSE_URL,
   LICENSE_REQUIRED_FR,
@@ -26,6 +33,7 @@ import {
   resolveFirstLaunchView,
   vramBarPercent,
 } from "./firstLaunch.ts";
+import { t } from "../ui/i18n.ts";
 
 function gpu(partial: Partial<SetupGpuInfo>): SetupGpuInfo {
   return {
@@ -180,6 +188,9 @@ describe("firstLaunch view", () => {
     assert.equal(browserDemoFromHash("metal").gpu.accelerationKind, "appleMetal");
     assert.equal(browserDemoFromHash("c").plan.hasPartialDownloads, true);
     assert.equal(browserDemoFromHash("c").progress?.state, "error");
+    assert.equal(browserDemoFromHash("").yue2LicenseAccepted, false);
+    assert.equal(browserDemoFromHash("metal").yue2LicenseAccepted, false);
+    assert.equal(browserDemoFromHash("download").yue2LicenseAccepted, true);
     assert.equal(browserDemoFromHash("download").progress?.state, "downloading");
     assert.equal(browserDemoFromHash("download").pack, "q8");
     const dlRows = buildFileRows(
@@ -187,7 +198,8 @@ describe("firstLaunch view", () => {
       browserDemoFromHash("download").progress,
     );
     assert.equal(dlRows.find((r) => r.status === "active")?.title, "YuE2 (Q8)");
-    assert.ok(dlRows.some((r) => r.status === "waiting"));
+    const cRows = buildFileRows(browserDemoFromHash("c").plan, browserDemoFromHash("c").progress);
+    assert.equal(cRows.filter((r) => r.status === "error").length, 1);
   });
 
   it("clarifie file d’attente vs à télécharger (#202)", () => {
@@ -205,6 +217,61 @@ describe("firstLaunch view", () => {
       primary: "À télécharger",
     });
   });
+
+  it("calcule le compteur séquentiel depuis les lignes (#202)", () => {
+    const fixture = browserDemoFromHash("download");
+    const rows = buildFileRows(fixture.plan, fixture.progress);
+    assert.deepEqual(downloadProgressOrdinal(fixture.progress, rows), {
+      index: 3,
+      total: 6,
+    });
+    assert.match(
+      downloadSequentialLead(fixture.progress, rows) ?? "",
+      /· 3 sur 6/,
+    );
+    assert.equal(fileRowNeedsRetry("error"), true);
+    assert.equal(fileRowNeedsRetry("partial"), true);
+    assert.equal(fileRowNeedsRetry("waiting"), false);
+    assert.deepEqual(downloadProgressOrdinal(null, []), null);
+    assert.deepEqual(downloadProgressOrdinal({ ...fixture.progress!, fileCount: 0 }, []), {
+      index: 0,
+      total: 0,
+    });
+    assert.equal(
+      downloadSequentialLead({ ...fixture.progress!, fileCount: 0, state: "downloading", label: "", fileIndex: 0, receivedBytes: 0 }, []),
+      null,
+    );
+    const reprise = browserDemoFromHash("reprise");
+    const repriseRows = buildFileRows(reprise.plan, reprise.progress);
+    assert.equal(repriseRows.filter((r) => r.status === "partial").length, 1);
+    assert.ok((reprise.progress?.etaSeconds ?? 0) > 0);
+    assert.equal(reprise.progress?.state, "error");
+  });
+
+  it("n’annonce pas le live region à chaque pourcentage (#202)", () => {
+    const fixture = browserDemoFromHash("download");
+    const baseRows = buildFileRows(fixture.plan, fixture.progress);
+    const lead = downloadSequentialLead(fixture.progress, baseRows);
+    let prev = null;
+    let announcements = 0;
+    for (let pct = 1; pct <= 99; pct += 1) {
+      const rows = baseRows.map((row) =>
+        row.status === "active" ? { ...row, percent: pct } : row,
+      );
+      const snap = downloadAnnounceSnapshot(rows, lead);
+      if (downloadLiveAnnouncementChanged(prev, snap)) {
+        announcements += 1;
+        prev = snap;
+      }
+    }
+    assert.equal(announcements, 1);
+  });
+
+  it("distingue licence requise et file d’attente (#202)", () => {
+    assert.deepEqual(queuedFileStatusFr({ status: "waiting", licenseBlocked: true }), {
+      primary: "Licence requise",
+    });
+  });
 });
 
 describe("firstLaunch formatters", () => {
@@ -213,8 +280,8 @@ describe("firstLaunch formatters", () => {
     assert.equal(formatVramGo(12288), "12 Go");
     assert.equal(parsePack("q8"), "q8");
     assert.equal(parsePack("q4"), "q4");
-    assert.match(formatEtaFr(180, true), /estimation/);
-    assert.equal(formatEtaFr(null, true), "Estimation dès que le débit sera mesuré");
+    assert.match(formatEtaFr(180, true), /estimation/i);
+    assert.equal(formatEtaFr(null, true), t("firstLaunch.eta.pendingEstimate"));
   });
 
   it("sépare le poids du modèle YuE2 du reste du plan", () => {
@@ -269,11 +336,53 @@ describe("firstLaunch formatters", () => {
     assert.equal(rows[2]?.status, "waiting");
   });
 
+  it("garde la ligne Échec après double événement sans fileName (#202)", () => {
+    const p = plan({
+      hasPartialDownloads: true,
+      files: [
+        {
+          name: "audio.tar.gz",
+          status: "complete",
+          totalBytes: 100,
+          receivedBytes: 100,
+          remainingBytes: 0,
+        },
+        {
+          name: "yue2-3b-q4_0.gguf",
+          status: "partial",
+          totalBytes: 1000,
+          receivedBytes: 430,
+          remainingBytes: 570,
+        },
+      ],
+    });
+    const first: InstallProgress = {
+      state: "error",
+      label: "yue2-3b-q4_0.gguf",
+      fileIndex: 2,
+      fileCount: 2,
+      receivedBytes: 430,
+      totalBytes: 1000,
+      fileName: "yue2-3b-q4_0.gguf",
+      error: { message: "réseau", cause: "network", fileName: "yue2-3b-q4_0.gguf" },
+    };
+    const second = mergeInstallProgress(first, {
+      ...first,
+      fileName: undefined,
+      error: { ...first.error!, fileName: undefined },
+    });
+    assert.equal(resolveInstallErrorFileName(second), "yue2-3b-q4_0.gguf");
+    const rows = buildFileRows(p, second);
+    assert.equal(rows[1]?.status, "error");
+    const copy = installErrorCopy(second.error);
+    assert.match(copy.title, /YuE2 \(Q4\)/);
+  });
+
   it("rédige une erreur réseau lisible, pas un dump brut", () => {
     const copy = installErrorCopy({
       message: "timed out",
       cause: "network",
-      fileName: "YuE2",
+      fileName: "yue2-3b-q4_0.gguf",
     });
     assert.match(copy.title, /connexion/i);
     assert.match(copy.body, /conservés/);

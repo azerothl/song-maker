@@ -19,10 +19,14 @@ import {
   bucketPlanBytes,
   buildFileRows,
   demoInstallPlan,
+  mergeInstallProgress,
   demoProgressError,
   demoSetupGpu,
   detectHeadline,
-  fileStatusShowsWarningIcon,
+  downloadAnnounceSnapshot,
+  downloadLiveAnnouncementChanged,
+  downloadSequentialLead,
+  fileRowNeedsRetry,
   formatBytesFr,
   formatEtaFr,
   formatRateFr,
@@ -32,6 +36,8 @@ import {
   isMixOnlySkipped,
   LICENSE_REQUIRED_FR,
   licenseAllowsDownload,
+  fileRowLicenseBlocked,
+  licensesBlockDownload,
   htdemucsLicenseAllowsDownload,
   modelPackVramFailureRisk,
   overallReceived,
@@ -50,6 +56,7 @@ import {
 } from "../lib/firstLaunch";
 import type { InstallPlan, InstallProgress, SetupGpuInfo } from "../lib/types";
 import { useAppStore } from "../store/appStore";
+import { t } from "../ui/i18n";
 import "./FirstLaunchScreen.css";
 
 /** Indique s’il reste du contenu sous le bord bas d’une zone défilante (#196). */
@@ -99,51 +106,64 @@ function FileStatusLabel({
   etaSeconds,
   etaIsEstimate,
   activeTitle,
+  licenseBlocked = false,
 }: {
   status: FileRowStatus;
   etaSeconds: number | null | undefined;
   etaIsEstimate: boolean;
   activeTitle?: string | null;
+  licenseBlocked?: boolean;
 }) {
   switch (status) {
     case "complete":
       return (
         <>
-          <span aria-hidden="true">✓</span> Terminé
+          <span aria-hidden="true">✓</span> {t("firstLaunch.status.complete")}
         </>
       );
     case "error":
       return (
         <>
-          {fileStatusShowsWarningIcon(status) ? (
-            <span aria-hidden="true">⚠</span>
-          ) : null}
-          <span>Interrompu</span>
+          <span className="fl-st-ico" aria-hidden="true">
+            ✕
+          </span>
+          <span>{t("firstLaunch.status.failed")}</span>
         </>
       );
     case "partial":
       return (
         <span>
-          Interrompu
-          {etaSeconds != null && (
+          <span className="fl-st-ico" aria-hidden="true">
+            ↻
+          </span>
+          {t("firstLaunch.status.toResume")}
+          {etaSeconds != null ? (
             <small>
-              Reste {formatEtaFr(etaSeconds, etaIsEstimate)} après reprise
+              {t("firstLaunch.status.remainingAfterResume", {
+                eta: formatEtaFr(etaSeconds, etaIsEstimate),
+              })}
             </small>
-          )}
+          ) : null}
         </span>
       );
     case "active":
       return (
         <>
-          <span aria-hidden="true">↓</span> En cours
+          <span aria-hidden="true">↓</span> {t("firstLaunch.status.inProgress")}
         </>
       );
     case "waiting":
     case "missing": {
-      const copy = queuedFileStatusFr({ status, activeTitle });
+      const copy = queuedFileStatusFr({ status, activeTitle, licenseBlocked });
       return (
         <>
-          <span aria-hidden="true">◷</span>
+          {licenseBlocked ? (
+            <span className="fl-st-ico" aria-hidden="true">
+              ⊘
+            </span>
+          ) : (
+            <span aria-hidden="true">◷</span>
+          )}
           <span>
             {copy.primary}
             {copy.secondary ? <small>{copy.secondary}</small> : null}
@@ -172,9 +192,12 @@ export function FirstLaunchScreen() {
   const [gpu, setGpu] = useState<SetupGpuInfo | null>(initialDemo?.gpu ?? null);
   const [plan, setPlan] = useState<InstallPlan | null>(initialDemo?.plan ?? null);
   const [pack, setPack] = useState<ModelPack>(initialDemo?.pack ?? "q4");
-  const [accepted, setAccepted] = useState(Boolean(initialDemo?.progress));
+  const [accepted, setAccepted] = useState(
+    initialDemo?.yue2LicenseAccepted ?? Boolean(initialDemo?.progress),
+  );
   const [htdemucsAccepted, setHtdemucsAccepted] = useState(
-    Boolean(settings?.acceptedSeparatorLicenses?.htdemucs),
+    initialDemo?.htdemucsLicenseAccepted ??
+      Boolean(settings?.acceptedSeparatorLicenses?.htdemucs),
   );
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<InstallProgress | null>(
@@ -187,10 +210,11 @@ export function FirstLaunchScreen() {
   const downloadScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (browser) return;
     if (settings?.acceptedSeparatorLicenses?.htdemucs) {
       setHtdemucsAccepted(true);
     }
-  }, [settings?.acceptedSeparatorLicenses?.htdemucs]);
+  }, [browser, settings?.acceptedSeparatorLicenses?.htdemucs]);
 
   const loadPlan = useCallback(async (nextPack: ModelPack) => {
     const next = await api.getInstallPlan(nextPack);
@@ -205,7 +229,8 @@ export function FirstLaunchScreen() {
     setPlan(demo.plan);
     setProgress(demo.progress);
     setInterruptDismissed(false);
-    setAccepted(Boolean(demo.progress));
+    setAccepted(demo.yue2LicenseAccepted ?? Boolean(demo.progress));
+    setHtdemucsAccepted(demo.htdemucsLicenseAccepted ?? false);
     setLoading(false);
   }, []);
 
@@ -265,7 +290,7 @@ export function FirstLaunchScreen() {
     if (!isTauriRuntime()) return undefined;
     let unlisten: (() => void) | undefined;
     void listen<InstallProgress>("setup-progress", (event) => {
-      setProgress(event.payload);
+      setProgress((prev) => mergeInstallProgress(prev, event.payload));
     })
       .then((dispose) => {
         unlisten = dispose;
@@ -299,6 +324,44 @@ export function FirstLaunchScreen() {
     () => rows.find((row) => row.status === "active")?.title ?? null,
     [rows],
   );
+  const downloadLead = useMemo(
+    () =>
+      view === "download" ? downloadSequentialLead(progress, rows) : null,
+    [view, progress, rows],
+  );
+  const licenseBlocked = licensesBlockDownload(
+    accepted,
+    settings?.yue2LicenseAccepted,
+    htdemucsAccepted,
+    settings?.acceptedSeparatorLicenses?.htdemucs,
+  );
+  const announceSnapshot = useMemo(
+    () => downloadAnnounceSnapshot(rows, downloadLead),
+    [rows, downloadLead],
+  );
+  const [downloadLiveText, setDownloadLiveText] = useState("");
+  const announcePrevRef = useRef<typeof announceSnapshot | null>(null);
+
+  useEffect(() => {
+    if (view !== "download" && view !== "interrupted") {
+      announcePrevRef.current = null;
+      setDownloadLiveText("");
+      return;
+    }
+    if (!downloadLiveAnnouncementChanged(announcePrevRef.current, announceSnapshot)) {
+      return;
+    }
+    announcePrevRef.current = announceSnapshot;
+    const chunks: string[] = [];
+    if (downloadLead) chunks.push(downloadLead);
+    if (announceSnapshot.activeTitle) {
+      chunks.push(t("firstLaunch.live.activeFile", { title: announceSnapshot.activeTitle }));
+    }
+    if (announceSnapshot.errorCount > 0) {
+      chunks.push(t("firstLaunch.live.errors", { count: announceSnapshot.errorCount }));
+    }
+    setDownloadLiveText(chunks.filter(Boolean).join(". "));
+  }, [view, announceSnapshot, downloadLead]);
   const headline = detectHeadline(gpu?.accelerationKind);
   const suggested = parsePack(gpu?.suggestedPack);
   const etaIsEstimate = Boolean(
@@ -703,16 +766,27 @@ export function FirstLaunchScreen() {
 
       {(view === "interrupted" || view === "download") && (
         <div className="fl-card fl-card-download">
+          <div
+            className="sr-only"
+            role="status"
+            aria-live="polite"
+            data-testid="fl-download-live"
+          >
+            {downloadLiveText}
+          </div>
           <header className="fl-head">
             <div>
               <p className="fl-eyebrow">Première installation · Téléchargement</p>
               <h1 id="fl-title">
-                {view === "download" ? "Téléchargement en cours" : "Téléchargement interrompu"}
-              </h1>
-              <p className="fl-lead">
                 {view === "download"
-                  ? "Les fichiers se téléchargent l’un après l’autre. Ceux en file d’attente démarrent dès que le fichier en cours est terminé."
-                  : "Rien n’est perdu : les fichiers déjà reçus sont conservés et le téléchargement reprendra là où il s’est arrêté."}
+                  ? t("firstLaunch.download.titleActive")
+                  : t("firstLaunch.download.titleInterrupted")}
+              </h1>
+              <p className="fl-lead" data-testid="fl-download-lead">
+                {view === "download"
+                  ? (downloadLead ??
+                    t("firstLaunch.download.leadSequentialFallback"))
+                  : t("firstLaunch.download.leadInterrupted")}
               </p>
             </div>
           </header>
@@ -733,11 +807,32 @@ export function FirstLaunchScreen() {
               }
             >
               <div className="fl-files" role="list">
-                {rows.map((row) => (
+                {rows.map((row) => {
+                  const rowLicenseBlocked = fileRowLicenseBlocked({
+                    fileName: row.name,
+                    status: row.status,
+                    yue2Accepted: accepted,
+                    settingsYue2: settings?.yue2LicenseAccepted,
+                    htdemucsAccepted: htdemucsAccepted,
+                    settingsHtdemucs: settings?.acceptedSeparatorLicenses?.htdemucs,
+                  });
+                  return (
                   <div
                     key={row.name}
-                    className={`fl-file${row.status === "error" ? " err" : ""}`}
+                    className={`fl-file${
+                      row.status === "error"
+                        ? " err fl-needs-action"
+                        : row.status === "partial"
+                          ? " fl-needs-action fl-needs-resume"
+                          : rowLicenseBlocked
+                            ? " fl-blocked-license"
+                            : row.status === "waiting"
+                              ? " fl-queued"
+                              : ""
+                    }`}
                     role="listitem"
+                    data-fl-status={row.status}
+                    data-testid={`fl-file-row-${row.name}`}
                   >
                     <div className="fl-file-n">
                       <b>{row.title}</b>
@@ -762,9 +857,11 @@ export function FirstLaunchScreen() {
                         </span>
                         <span>
                           {row.bytesPerSec
-                            ? `Vitesse : ${formatRateFr(row.bytesPerSec)}`
+                            ? t("firstLaunch.download.speed", {
+                                rate: formatRateFr(row.bytesPerSec) ?? "",
+                              })
                             : row.status === "error"
-                              ? "Vitesse : 0 Mo/s"
+                              ? t("firstLaunch.download.speedZero")
                               : `${row.percent} %`}
                         </span>
                       </div>
@@ -774,7 +871,7 @@ export function FirstLaunchScreen() {
                         row.status === "complete"
                           ? "ok"
                           : row.status === "error" || row.status === "partial"
-                            ? "er"
+                            ? "er fl-st-action"
                             : "wt"
                       }`}
                     >
@@ -787,21 +884,52 @@ export function FirstLaunchScreen() {
                             ? activeQueueTitle
                             : null
                         }
+                        licenseBlocked={rowLicenseBlocked}
                       />
+                      {fileRowNeedsRetry(row.status) ? (
+                        <>
+                          {licenseBlocked ? (
+                            <p
+                              className="fl-retry-blocked-reason"
+                              id={`fl-retry-reason-${row.name}`}
+                            >
+                              {t("firstLaunch.retryFileBlockedReason")}
+                            </p>
+                          ) : null}
+                          <button
+                            className="fl-btn fl-btn-sec fl-btn-row-retry"
+                            type="button"
+                            data-testid="fl-retry-file"
+                            disabled={busy || licenseBlocked}
+                            aria-describedby={
+                              licenseBlocked ? `fl-retry-reason-${row.name}` : undefined
+                            }
+                            onClick={() => void install()}
+                          >
+                            {t("firstLaunch.retryFile")}
+                          </button>
+                        </>
+                      ) : null}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="fl-global">
                 <span>
-                  Total :{" "}
-                  <b>{formatBytesFr(overallReceived(plan, progress))}</b>
                   {overallTotal(plan, progress) != null
-                    ? ` reçus sur ${formatBytesFr(overallTotal(plan, progress)!)}`
-                    : " reçus"}
+                    ? t("firstLaunch.download.totalKnown", {
+                        received: formatBytesFr(overallReceived(plan, progress)),
+                        total: formatBytesFr(overallTotal(plan, progress)!),
+                      })
+                    : t("firstLaunch.download.totalPartial", {
+                        received: formatBytesFr(overallReceived(plan, progress)),
+                      })}
                 </span>
-                <span>Temps restant : {etaLabel}</span>
+                <span>
+                  {t("firstLaunch.download.timeRemaining", { eta: etaLabel })}
+                </span>
               </div>
 
               {view === "interrupted" && (
@@ -841,7 +969,7 @@ export function FirstLaunchScreen() {
               }
               onClick={() => void install()}
             >
-              {view === "download" ? "Installation en cours…" : "▶ Reprendre le téléchargement"}
+              {view === "download" ? t("firstLaunch.installBusy") : t("firstLaunch.resumeDownload")}
             </button>
             <button
               className="fl-btn fl-btn-sec"

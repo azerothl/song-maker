@@ -253,7 +253,7 @@ describe("first-launch fold + Demucs focus (#199 / #196)", () => {
       ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],
       {
         cwd: ROOT,
-        env: { ...process.env },
+        env: { ...process.env, VITE_CAPTURE: "1" },
         stdio: ["ignore", "pipe", "pipe"],
       },
     );
@@ -313,6 +313,21 @@ describe("first-launch fold + Demucs focus (#199 / #196)", () => {
       assert.ok(
         m.noticeFontPx >= 14,
         `notice ${m.noticeFontPx}px < 14`,
+      );
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("Reprendre visible sans scroll à 1280×720 (téléchargement interrompu)", async () => {
+    const page = await browser!.newPage();
+    try {
+      const m = await measureInterrupted(page, { width: 1280, height: 720 });
+      assert.equal(m.vh, 720);
+      assert.equal(
+        m.resumeInView,
+        true,
+        `Reprendre hors pli (bottom=${m.resumeBottom})`,
       );
     } finally {
       await page.close();

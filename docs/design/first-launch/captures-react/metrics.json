@@ -1,6 +1,7 @@
 {
   "issue": 199,
-  "generatedAt": "2026-09-30T12:06:41.704Z",
+  "baseGitSha": "f6335287325f858bfcea6406036b18bea315df38",
+  "generatedAt": "2026-09-30T20:43:24.402Z",
   "method": "Vite + App React réelle, Playwright Chromium/Chrome, getBoundingClientRect (pas pixels seuls)",
   "fold": {
     "fold-720": {
@@ -190,41 +191,42 @@
   },
   "files": {
     "first-launch-gpu-fold-1280x720.png": {
-      "sha256": "1feee72dc99d18b886667ce16796e468d10998b9836049ea7a202bf958b8ca8e",
-      "bytes": 209190
+      "sha256": "584171c43da3ab3f2ccb59eec1182e5b7bd6a53020b684573b42eb81bf208f5c",
+      "bytes": 204946
     },
     "first-launch-gpu-fold-1280x640.png": {
-      "sha256": "2c0f732551910cd6706ee67aa8ddd70efa2d5ef69420064d384a599cbbc0e2a2",
-      "bytes": 199531
+      "sha256": "a9a739489c59feb3de412b82c0e188b660f74a4a14c718c4d06a16887ce5c02d",
+      "bytes": 194464
     },
     "first-launch-demucs-link-focus-1280x720.png": {
-      "sha256": "fe5ab86d9e57b0e2d7d5e6173f2bc90d2ebe8d62196848b40f6ef7c943cc1195",
-      "bytes": 1828
+      "sha256": "f501d1f340655670eff3a9c5ea2095d70385727ff9493a52ca6464ee979ae9af",
+      "bytes": 1812
     },
     "first-launch-grid-focus-1280x640.png": {
-      "sha256": "427bd37f0a9351b6eccc78d5b6a716c537f4d1ce6eb9519110143d115a945232",
-      "bytes": 200643
+      "sha256": "2f76c09b0e6f9823039068f6f7f81cb8d04db8d8f9e2c298290d633e306d017f",
+      "bytes": 195834
     },
     "first-launch-grid-focus-1280x720.png": {
-      "sha256": "bf15b3f8b22851aff21dbc04975b49735308681b7a84a91b3d040f232b00efc4",
-      "bytes": 210630
+      "sha256": "0ff071a99a06a15e0acb4b57ccde7f1a8bfb6cb0a5cc093d42434b79e6add712",
+      "bytes": 206347
     },
     "first-launch-grid-focus-1280x768.png": {
-      "sha256": "644306068cdeb7523f4b7aaf19a5cfd9177a32fef101382e376ece31df5db12e",
-      "bytes": 214841
+      "sha256": "d98bc15f258d6545b3b58c80f0af1828262b529670ed9614644b5922e8faccc8",
+      "bytes": 210024
     },
     "first-launch-interrupted-1280x640.png": {
-      "sha256": "6737fb50cac6c5e357ce07b91674de9b3645fe56cac051624b6ae49de9aaff8e",
-      "bytes": 131764
+      "sha256": "86e95b3f11960629f4f2508c48240748fb4043a1d303d5d7459dcc42a598dafb",
+      "bytes": 129460
     },
     "first-launch-interrupted-1280x720.png": {
-      "sha256": "df4449e279f95b5ee2dd8c61c0d9312ba561d8d75cce3ee2f89a78af8ab52afc",
-      "bytes": 140911
+      "sha256": "d4976575ed283d313896defd93eb7cff8e6458d35be7233ca01fd64b86cfcc28",
+      "bytes": 136856
     },
     "first-launch-interrupted-1280x768.png": {
-      "sha256": "3bc391d796859b58c6fc6ccf70f068fd126842885da4ecb8d76a50ce149f3bf1",
-      "bytes": 146250
+      "sha256": "1462f21360cf63684997b2b843532863cee6515259d96beeadf99d149f978bb9",
+      "bytes": 141906
     }
   },
-  "pass": true
+  "pass": true,
+  "metricsSha256": "8335667af5fc24ed97e0db00172caa3d7e258b0311fd5b793d2219944cc4f8f7"
 }

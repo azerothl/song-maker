@@ -4,7 +4,7 @@
  * Usage : pnpm exec tsx docs/design/first-launch/captures-react/capture-queue-label.mts
  */
 import { createHash } from "node:crypto";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -49,7 +49,7 @@ async function main(): Promise<void> {
     ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],
     {
       cwd: ROOT,
-      env: { ...process.env },
+      env: { ...process.env, VITE_CAPTURE: "1" },
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
@@ -90,22 +90,28 @@ async function main(): Promise<void> {
     );
     const pass =
       labels.title.includes("Téléchargement en cours") &&
-      /l’un après l’autre|un après l’autre/i.test(labels.lead) &&
+      /· \d+ sur \d+/.test(labels.lead) &&
       hasQueue &&
       hasActive &&
       !hasBareWaiting;
 
-    const metrics = {
+    const baseGitSha = spawnSync("git", ["rev-parse", "HEAD"], {
+      cwd: ROOT,
+      encoding: "utf8",
+    }).stdout?.trim();
+
+    const metricsBody = {
       issue: 202,
+      baseGitSha,
       generatedAt: new Date().toISOString(),
       method:
-        "Vite + FirstLaunchScreen React, hash #download, Playwright 1280×720",
+        "Vite VITE_CAPTURE=1 + FirstLaunchScreen React, hash #download, Playwright 1280×720",
       viewport: { width: 1280, height: 720 },
       file,
       labels,
       checks: {
         downloadTitle: labels.title.includes("Téléchargement en cours"),
-        sequentialLead: /l’un après l’autre|un après l’autre/i.test(labels.lead),
+        sequentialLead: /· \d+ sur \d+/.test(labels.lead),
         queueLabelWithAfter: hasQueue,
         activeInProgress: hasActive,
         noBareEnAttente: !hasBareWaiting,
@@ -117,11 +123,14 @@ async function main(): Promise<void> {
       pass,
     };
 
+    const metricsJson = `${JSON.stringify(metricsBody, null, 2)}\n`;
+    const metricsSha256 = sha256(Buffer.from(metricsJson, "utf8"));
+
     await writeFile(
       path.join(OUT, "queue-label-metrics.json"),
-      `${JSON.stringify(metrics, null, 2)}\n`,
+      `${JSON.stringify({ ...metricsBody, metricsSha256 }, null, 2)}\n`,
     );
-    console.log(JSON.stringify(metrics, null, 2));
+    console.log(JSON.stringify({ ...metricsBody, metricsSha256 }, null, 2));
     await browser.close();
     if (!pass) process.exitCode = 1;
   } finally {

@@ -1,0 +1,3 @@
+# SHA git enregistré au lancement de capture-download-states.mts
+# (commit parent des PNG : base de branche avant le commit unique des captures).
+f6335287325f858bfcea6406036b18bea315df38
