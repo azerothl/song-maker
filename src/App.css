@@ -102,6 +102,16 @@ option {
   grid-template-columns: 1fr;
 }
 
+/* Premier lancement : le pied (licences + Télécharger) reste dans le viewport ;
+   le milieu (.fl-grid) défile si besoin — Refs #199. */
+.main:has(.first-launch) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+}
+
 .sidebar {
   width: var(--sidebar-width);
   min-width: 0;
@@ -2603,7 +2613,12 @@ details[open] > summary {
   --fl-focus: #ffd76a;
   --fl-license: #e4def3;
   --fl-link: #c4b2ff;
-  min-height: 100%;
+  box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   padding: 24px clamp(16px, 6vw, 80px);
   color: var(--fl-text);
   background:
@@ -2617,15 +2632,29 @@ details[open] > summary {
   outline-offset: 3px;
 }
 
+/* Lien Demucs : même anneau 2 px cyan que le reste de l’app (#199). */
+.first-launch a.fl-demucs-link:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
 .fl-card {
-  min-height: min(672px, calc(100vh - 48px));
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: auto;
   padding: 26px clamp(16px, 3vw, 36px) 22px;
   border: 1px solid var(--fl-line);
   border-radius: 24px;
   background: linear-gradient(180deg, var(--fl-card), #1e1a27);
   box-shadow: 0 24px 60px rgb(0 0 0 / 50%);
+}
+
+/* État GPU : pied licences/Télécharger épinglé ; le milieu défile. */
+.fl-card:has(.fl-foot) {
+  overflow: hidden;
 }
 
 .fl-eyebrow {
@@ -2667,6 +2696,7 @@ details[open] > summary {
   margin-top: 16px;
   flex: 1;
   min-height: 0;
+  overflow: auto;
 }
 
 .fl-stack {
@@ -2891,6 +2921,7 @@ details[open] > summary {
 }
 
 .fl-foot {
+  flex-shrink: 0;
   margin-top: 14px;
   border-top: 1px solid var(--fl-line);
   padding-top: 12px;
@@ -2898,6 +2929,61 @@ details[open] > summary {
   gap: 24px;
   align-items: center;
   justify-content: space-between;
+}
+
+@media (max-height: 720px) {
+  .first-launch {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  .fl-card {
+    padding-top: 18px;
+    padding-bottom: 14px;
+  }
+
+  .fl-grid {
+    gap: 14px;
+    margin-top: 10px;
+  }
+
+  .fl-foot {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+}
+
+@media (max-height: 640px) {
+  .first-launch {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .fl-card {
+    padding-top: 14px;
+    padding-bottom: 12px;
+  }
+
+  .fl-lead {
+    font-size: 13.5px;
+  }
+
+  .fl-grid {
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .fl-panel,
+  .fl-model {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .fl-foot {
+    margin-top: 8px;
+    padding-top: 8px;
+    gap: 16px;
+  }
 }
 
 .fl-license {

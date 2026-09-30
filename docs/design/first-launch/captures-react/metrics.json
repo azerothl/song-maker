@@ -1,0 +1,133 @@
+{
+  "issue": 199,
+  "generatedAt": "2026-09-30T06:46:18.712Z",
+  "method": "Vite + App React réelle, Playwright Chromium/Chrome, getBoundingClientRect (pas pixels seuls)",
+  "fold": {
+    "fold-720": {
+      "file": "first-launch-gpu-fold-1280x720.png",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "mainScrollHeight": 720,
+      "mainClientHeight": 720,
+      "htdemucsCheckbox": {
+        "top": 645,
+        "bottom": 689,
+        "left": 113.8,
+        "right": 732.7,
+        "width": 618.9,
+        "height": 44,
+        "inViewport": true
+      },
+      "downloadButton": {
+        "top": 594.5,
+        "bottom": 648.5,
+        "left": 973.1,
+        "right": 1166.2,
+        "width": 193.1,
+        "height": 54,
+        "inViewport": true
+      },
+      "foot": {
+        "top": 514,
+        "bottom": 689,
+        "left": 113.8,
+        "right": 1166.2,
+        "width": 1052.4,
+        "height": 175,
+        "inViewport": true
+      },
+      "demucsLink": {
+        "top": 626,
+        "bottom": 645,
+        "left": 629.1,
+        "right": 704,
+        "width": 74.9,
+        "height": 19,
+        "inViewport": true
+      },
+      "checks": {
+        "htdemucsCheckboxAboveFold": true,
+        "downloadButtonAboveFold": true,
+        "pass": true
+      }
+    },
+    "fold-640": {
+      "file": "first-launch-gpu-fold-1280x640.png",
+      "viewport": {
+        "width": 1280,
+        "height": 640
+      },
+      "mainScrollHeight": 640,
+      "mainClientHeight": 640,
+      "htdemucsCheckbox": {
+        "top": 571,
+        "bottom": 615,
+        "left": 113.8,
+        "right": 740.7,
+        "width": 626.9,
+        "height": 44,
+        "inViewport": true
+      },
+      "downloadButton": {
+        "top": 520.5,
+        "bottom": 574.5,
+        "left": 973.1,
+        "right": 1166.2,
+        "width": 193.1,
+        "height": 54,
+        "inViewport": true
+      },
+      "foot": {
+        "top": 442,
+        "bottom": 615,
+        "left": 113.8,
+        "right": 1166.2,
+        "width": 1052.4,
+        "height": 173,
+        "inViewport": true
+      },
+      "demucsLink": {
+        "top": 552,
+        "bottom": 571,
+        "left": 629.1,
+        "right": 704,
+        "width": 74.9,
+        "height": 19,
+        "inViewport": true
+      },
+      "checks": {
+        "htdemucsCheckboxAboveFold": true,
+        "downloadButtonAboveFold": true,
+        "pass": true
+      }
+    }
+  },
+  "demucsFocus": {
+    "file": "first-launch-demucs-link-focus-1280x720.png",
+    "outlineStyle": "solid",
+    "outlineWidth": "2px",
+    "outlineColor": "rgb(94, 236, 248)",
+    "outlineOffset": "2px",
+    "matchesFocusVisible": true,
+    "isCyan2px": true,
+    "expected": "2px solid var(--accent-cyan) / rgb(94, 236, 248)",
+    "pass": true
+  },
+  "files": {
+    "first-launch-gpu-fold-1280x720.png": {
+      "sha256": "3dd04d54ba226c937dfb75efef9114c018c68f4daaae74d30cd7534e12825f90",
+      "bytes": 209935
+    },
+    "first-launch-gpu-fold-1280x640.png": {
+      "sha256": "b42386fe6832b2e1a5d2e4652aac0c0da6d26c1843d0fc6792e0d3686ea6f2bd",
+      "bytes": 203003
+    },
+    "first-launch-demucs-link-focus-1280x720.png": {
+      "sha256": "80eec9b21ed347d65605e406b0376b23374501e94615b7e04c510996f5a668ae",
+      "bytes": 1627
+    }
+  },
+  "pass": true
+}

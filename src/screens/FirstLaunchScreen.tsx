@@ -475,7 +475,12 @@ export function FirstLaunchScreen() {
               </label>
               <p data-testid="fl-htdemucs-notice">
                 {HTDEMUCS_FIRST_LAUNCH_NOTICE_FR}{" "}
-                <a href={HTDEMUCS_LICENSE_URL} target="_blank" rel="noreferrer">
+                <a
+                  className="fl-demucs-link"
+                  href={HTDEMUCS_LICENSE_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Demucs #327
                 </a>
                 .
