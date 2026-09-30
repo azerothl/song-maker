@@ -1,19 +1,26 @@
 {
   "aaMin": 4.5,
   "disabledMin": 3,
+  "disabledTextHex": "#848ba0",
+  "disabledTextRatioOnFace": 4.73,
   "viewport": {
     "width": 1280,
     "height": 720
   },
   "focusMethod": "keyboard-tab-mouse-away-focus-visible",
+  "outlineMeasuredAgainst": "backdrop-behind-outline-not-button-face",
   "screens": [
     {
       "id": "bibliotheque",
       "screen": "Bibliothèque",
       "selector": ".panel.library .btn.primary",
       "label": "Nouveau morceau",
-      "file": "bibliotheque-primary-1280x720.png",
-      "focusFile": "bibliotheque-primary-focus-1280x720.png",
+      "captureFiles": [
+        "bibliotheque-primary-normal-1280x720.png",
+        "bibliotheque-primary-hover-1280x720.png",
+        "bibliotheque-primary-focus-1280x720.png",
+        "bibliotheque-primary-disabled-1280x720.png"
+      ],
       "states": [
         {
           "state": "normal",
@@ -93,7 +100,9 @@
             "outlineColor": "rgb(94, 236, 248)",
             "outlineOffset": "2px",
             "cursor": "pointer",
-            "mouseAway": true
+            "mouseAway": true,
+            "backdropHex": "#0c0e18",
+            "outlineContrastRatio": 13.58
           }
         },
         {
@@ -118,7 +127,10 @@
             }
           ],
           "minRatio": 4.73,
-          "pass": true
+          "pass": true,
+          "disabledProof": {
+            "nativeDisabled": true
+          }
         }
       ],
       "pass": true
@@ -128,8 +140,12 @@
       "screen": "Créer",
       "selector": ".song-create-generate-btn",
       "label": "Générer",
-      "file": "creer-primary-1280x720.png",
-      "focusFile": "creer-primary-focus-1280x720.png",
+      "captureFiles": [
+        "creer-primary-normal-1280x720.png",
+        "creer-primary-hover-1280x720.png",
+        "creer-primary-focus-1280x720.png",
+        "creer-primary-disabled-1280x720.png"
+      ],
       "states": [
         {
           "state": "normal",
@@ -209,7 +225,9 @@
             "outlineColor": "rgb(94, 236, 248)",
             "outlineOffset": "2px",
             "cursor": "pointer",
-            "mouseAway": true
+            "mouseAway": true,
+            "backdropHex": "#0c0e18",
+            "outlineContrastRatio": 13.58
           }
         },
         {
@@ -234,7 +252,10 @@
             }
           ],
           "minRatio": 4.73,
-          "pass": true
+          "pass": true,
+          "disabledProof": {
+            "nativeDisabled": true
+          }
         }
       ],
       "pass": true
@@ -244,8 +265,12 @@
       "screen": "Production — Armer",
       "selector": ".record-panel button.btn.primary",
       "label": "Armer",
-      "file": "production-armer-primary-1280x720.png",
-      "focusFile": "production-armer-primary-focus-1280x720.png",
+      "captureFiles": [
+        "production-armer-primary-normal-1280x720.png",
+        "production-armer-primary-hover-1280x720.png",
+        "production-armer-primary-focus-1280x720.png",
+        "production-armer-primary-disabled-1280x720.png"
+      ],
       "states": [
         {
           "state": "normal",
@@ -325,7 +350,9 @@
             "outlineColor": "rgb(94, 236, 248)",
             "outlineOffset": "2px",
             "cursor": "pointer",
-            "mouseAway": true
+            "mouseAway": true,
+            "backdropHex": "#141725",
+            "outlineContrastRatio": 12.58
           }
         },
         {
@@ -350,18 +377,25 @@
             }
           ],
           "minRatio": 4.73,
-          "pass": true
+          "pass": true,
+          "disabledProof": {
+            "nativeDisabled": true
+          }
         }
       ],
       "pass": true
     },
     {
       "id": "production-exporter",
-      "screen": "Production — Exporter",
+      "screen": "Production — Exporter (déclencheur)",
       "selector": ".song-actions-export button.btn.primary",
       "label": "Exporter",
-      "file": "production-exporter-primary-1280x720.png",
-      "focusFile": "production-exporter-primary-focus-1280x720.png",
+      "captureFiles": [
+        "production-exporter-primary-normal-1280x720.png",
+        "production-exporter-primary-hover-1280x720.png",
+        "production-exporter-primary-focus-1280x720.png",
+        "production-exporter-primary-disabled-1280x720.png"
+      ],
       "states": [
         {
           "state": "normal",
@@ -441,7 +475,9 @@
             "outlineColor": "rgb(94, 236, 248)",
             "outlineOffset": "2px",
             "cursor": "pointer",
-            "mouseAway": true
+            "mouseAway": true,
+            "backdropHex": "#141725",
+            "outlineContrastRatio": 12.58
           }
         },
         {
@@ -466,18 +502,164 @@
             }
           ],
           "minRatio": 4.73,
-          "pass": true
+          "pass": true,
+          "disabledProof": {
+            "nativeDisabled": true
+          }
         }
       ],
       "pass": true
+    },
+    {
+      "id": "production-export-popin",
+      "screen": "Production — Exporter (popin)",
+      "selector": ".export-dialog-actions-end .btn.primary",
+      "label": "Exporter",
+      "captureFiles": [
+        "production-export-popin-primary-normal-1280x720.png",
+        "production-export-popin-primary-hover-1280x720.png",
+        "production-export-popin-primary-focus-1280x720.png",
+        "production-export-popin-primary-disabled-1280x720.png"
+      ],
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "color(srgb 0.824157 0.740706 1)",
+              "backgroundHex": "#d2bdff",
+              "ratio": 10.46,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "color(srgb 0.691294 0.58149 0.986667)",
+              "backgroundHex": "#b094fc",
+              "ratio": 7.12,
+              "pass": true
+            }
+          ],
+          "minRatio": 7.12,
+          "pass": true
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 8.72,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 6.47,
+              "pass": true
+            }
+          ],
+          "minRatio": 6.47,
+          "pass": true,
+          "focusProof": {
+            "matchesFocusVisible": true,
+            "outlineStyle": "solid",
+            "outlineWidth": "2px",
+            "outlineColor": "rgb(94, 236, 248)",
+            "outlineOffset": "2px",
+            "cursor": "pointer",
+            "mouseAway": true,
+            "backdropHex": "#20243a",
+            "outlineContrastRatio": 10.79
+          }
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(132, 139, 160)",
+          "foregroundHex": "#848ba0",
+          "opacity": 1,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(28, 32, 52)",
+              "backgroundHex": "#1c2034",
+              "ratio": 4.73,
+              "pass": true
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(28, 32, 52)",
+              "backgroundHex": "#1c2034",
+              "ratio": 4.73,
+              "pass": true
+            }
+          ],
+          "minRatio": 4.73,
+          "pass": true,
+          "disabledProof": {
+            "nativeDisabled": true
+          }
+        }
+      ],
+      "pass": true,
+      "popinCompare": {
+        "primarySel": ".export-dialog-actions-end .btn.primary",
+        "secondarySel": ".export-dialog-actions .btn.ghost",
+        "primaryFaceHex": "#1c2034",
+        "secondaryFaceHex": "#20243a",
+        "primaryBorderHex": "#303550",
+        "secondaryBorderHex": "#303550",
+        "primaryBorderStyle": "dashed",
+        "secondaryBorderStyle": "solid",
+        "deltaE00Face": 1.51,
+        "deltaE00Border": 0,
+        "borderContrastRatio": 1.6,
+        "bordersMatch": false
+      }
     },
     {
       "id": "production-mesurer",
       "screen": "Production — Mesurer le mix rendu",
       "selector": ".phase3-actions button.btn.primary",
       "label": "Mesurer le mix rendu",
-      "file": "production-mesurer-primary-1280x720.png",
-      "focusFile": "production-mesurer-primary-focus-1280x720.png",
+      "captureFiles": [
+        "production-mesurer-primary-normal-1280x720.png",
+        "production-mesurer-primary-hover-1280x720.png",
+        "production-mesurer-primary-focus-1280x720.png",
+        "production-mesurer-primary-disabled-1280x720.png"
+      ],
       "states": [
         {
           "state": "normal",
@@ -557,7 +739,9 @@
             "outlineColor": "rgb(94, 236, 248)",
             "outlineOffset": "2px",
             "cursor": "pointer",
-            "mouseAway": true
+            "mouseAway": true,
+            "backdropHex": "#0c0e18",
+            "outlineContrastRatio": 13.58
           }
         },
         {
@@ -582,7 +766,10 @@
             }
           ],
           "minRatio": 4.73,
-          "pass": true
+          "pass": true,
+          "disabledProof": {
+            "nativeDisabled": true
+          }
         }
       ],
       "pass": true
@@ -592,8 +779,12 @@
       "screen": "Production — Créer l'archive ZIP",
       "selector": ".export-wizard button.btn.primary",
       "label": "Créer l’archive ZIP",
-      "file": "production-zip-primary-1280x720.png",
-      "focusFile": "production-zip-primary-focus-1280x720.png",
+      "captureFiles": [
+        "production-zip-primary-normal-1280x720.png",
+        "production-zip-primary-hover-1280x720.png",
+        "production-zip-primary-focus-1280x720.png",
+        "production-zip-primary-disabled-1280x720.png"
+      ],
       "states": [
         {
           "state": "normal",
@@ -673,7 +864,9 @@
             "outlineColor": "rgb(94, 236, 248)",
             "outlineOffset": "2px",
             "cursor": "pointer",
-            "mouseAway": true
+            "mouseAway": true,
+            "backdropHex": "#0c0e18",
+            "outlineContrastRatio": 13.58
           }
         },
         {
@@ -698,18 +891,25 @@
             }
           ],
           "minRatio": 4.73,
-          "pass": true
+          "pass": true,
+          "disabledProof": {
+            "nativeDisabled": true
+          }
         }
       ],
       "pass": true
     },
     {
       "id": "reglages-lora",
-      "screen": "Réglages — LoRA (primaire visible)",
+      "screen": "Réglages — LoRA",
       "selector": ".phase3-lora-list button.btn.primary",
       "label": "Télécharger vers le cache",
-      "file": "reglages-lora-primary-1280x720.png",
-      "focusFile": "reglages-lora-primary-focus-1280x720.png",
+      "captureFiles": [
+        "reglages-lora-primary-normal-1280x720.png",
+        "reglages-lora-primary-hover-1280x720.png",
+        "reglages-lora-primary-focus-1280x720.png",
+        "reglages-lora-primary-disabled-1280x720.png"
+      ],
       "states": [
         {
           "state": "normal",
@@ -789,7 +989,9 @@
             "outlineColor": "rgb(94, 236, 248)",
             "outlineOffset": "2px",
             "cursor": "pointer",
-            "mouseAway": true
+            "mouseAway": true,
+            "backdropHex": "#0c0e18",
+            "outlineContrastRatio": 13.58
           }
         },
         {
@@ -814,18 +1016,25 @@
             }
           ],
           "minRatio": 4.73,
-          "pass": true
+          "pass": true,
+          "disabledProof": {
+            "nativeDisabled": true
+          }
         }
       ],
       "pass": true
     },
     {
       "id": "confirmation-regeneration-gate",
-      "screen": "Confirmation — RegenerationGate",
-      "selector": ".regeneration-gate button.btn.primary, button.btn.primary",
+      "screen": "Confirmation — RegenerationGate (actif)",
+      "selector": ".regeneration-gate button.btn.primary, .modal.regeneration-gate .btn-row .btn.primary",
       "label": "Capturer et générer",
-      "file": "confirmation-regeneration-gate-primary-1280x720.png",
-      "focusFile": "confirmation-regeneration-gate-primary-focus-1280x720.png",
+      "captureFiles": [
+        "confirmation-regeneration-gate-primary-normal-1280x720.png",
+        "confirmation-regeneration-gate-primary-hover-1280x720.png",
+        "confirmation-regeneration-gate-primary-focus-1280x720.png",
+        "confirmation-regeneration-gate-primary-disabled-1280x720.png"
+      ],
       "states": [
         {
           "state": "normal",
@@ -905,7 +1114,9 @@
             "outlineColor": "rgb(94, 236, 248)",
             "outlineOffset": "2px",
             "cursor": "pointer",
-            "mouseAway": true
+            "mouseAway": true,
+            "backdropHex": "#151827",
+            "outlineContrastRatio": 12.44
           }
         },
         {
@@ -930,18 +1141,165 @@
             }
           ],
           "minRatio": 4.73,
-          "pass": true
+          "pass": true,
+          "disabledProof": {
+            "nativeDisabled": true
+          }
         }
       ],
       "pass": true
+    },
+    {
+      "id": "regeneration-gate-blocked",
+      "screen": "RegenerationGate — primaire bloqué",
+      "selector": ".modal.regeneration-gate .btn-row .btn.primary",
+      "label": "Capturer et générer",
+      "captureFiles": [
+        "regeneration-gate-blocked-primary-normal-1280x720.png",
+        "regeneration-gate-blocked-primary-hover-1280x720.png",
+        "regeneration-gate-blocked-primary-focus-1280x720.png",
+        "regeneration-gate-blocked-primary-disabled-1280x720.png"
+      ],
+      "states": [
+        {
+          "state": "normal",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 0.45,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 2.67,
+              "pass": false
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 2.23,
+              "pass": false
+            }
+          ],
+          "minRatio": 2.23,
+          "pass": false
+        },
+        {
+          "state": "hover",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 0.45,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "color(srgb 0.824157 0.740706 1)",
+              "backgroundHex": "#d2bdff",
+              "ratio": 3.02,
+              "pass": false
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "color(srgb 0.691294 0.58149 0.986667)",
+              "backgroundHex": "#b094fc",
+              "ratio": 2.36,
+              "pass": false
+            }
+          ],
+          "minRatio": 2.36,
+          "pass": false
+        },
+        {
+          "state": "focus",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 0.45,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 2.67,
+              "pass": false
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 2.23,
+              "pass": false
+            }
+          ],
+          "minRatio": 2.23,
+          "pass": false,
+          "focusProof": {
+            "matchesFocusVisible": true,
+            "outlineStyle": "solid",
+            "outlineWidth": "2px",
+            "outlineColor": "rgb(94, 236, 248)",
+            "outlineOffset": "2px",
+            "cursor": "not-allowed",
+            "mouseAway": true,
+            "backdropHex": "#151827",
+            "outlineContrastRatio": 12.44
+          }
+        },
+        {
+          "state": "disabled",
+          "foregroundCss": "rgb(21, 24, 39)",
+          "foregroundHex": "#151827",
+          "opacity": 0.45,
+          "stops": [
+            {
+              "stop": "top",
+              "backgroundCss": "rgb(196, 168, 255)",
+              "backgroundHex": "#c4a8ff",
+              "ratio": 2.67,
+              "pass": false
+            },
+            {
+              "stop": "bottom",
+              "backgroundCss": "rgb(167, 139, 250)",
+              "backgroundHex": "#a78bfa",
+              "ratio": 2.23,
+              "pass": false
+            }
+          ],
+          "minRatio": 2.23,
+          "pass": false,
+          "disabledProof": {
+            "nativeDisabled": false,
+            "note": "disabled attribute forced for style read"
+          }
+        }
+      ],
+      "pass": true,
+      "popinCompare": {
+        "primarySel": ".modal.regeneration-gate .btn-row .btn.primary",
+        "secondarySel": ".modal.regeneration-gate .btn-row .btn.ghost",
+        "primaryFaceHex": "#c4a8ff",
+        "secondaryFaceHex": "#20243a",
+        "primaryBorderHex": "#000000",
+        "secondaryBorderHex": "#303550",
+        "primaryBorderStyle": "solid",
+        "secondaryBorderStyle": "solid",
+        "deltaE00Face": 57.58,
+        "deltaE00Border": 19.72,
+        "borderContrastRatio": 1.09,
+        "bordersMatch": false
+      }
     },
     {
       "id": "confirmation-invariant-panel",
       "screen": "Confirmation — InvariantPanel",
       "selector": ".invariant-panel button.btn.primary",
       "label": "Vérifier",
-      "file": "confirmation-invariant-panel-primary-1280x720.png",
-      "focusFile": "confirmation-invariant-panel-primary-focus-1280x720.png",
+      "captureFiles": [
+        "confirmation-invariant-panel-primary-normal-1280x720.png",
+        "confirmation-invariant-panel-primary-hover-1280x720.png",
+        "confirmation-invariant-panel-primary-focus-1280x720.png",
+        "confirmation-invariant-panel-primary-disabled-1280x720.png"
+      ],
       "states": [
         {
           "state": "normal",
@@ -1021,7 +1379,9 @@
             "outlineColor": "rgb(94, 236, 248)",
             "outlineOffset": "2px",
             "cursor": "pointer",
-            "mouseAway": true
+            "mouseAway": true,
+            "backdropHex": "#0c0e18",
+            "outlineContrastRatio": 13.58
           }
         },
         {
@@ -1046,7 +1406,10 @@
             }
           ],
           "minRatio": 4.73,
-          "pass": true
+          "pass": true,
+          "disabledProof": {
+            "nativeDisabled": true
+          }
         }
       ],
       "pass": true
@@ -1056,8 +1419,12 @@
       "screen": "Confirmation — RemoteGenerateConfirm",
       "selector": ".remote-generate-confirm button.btn.primary",
       "label": "Consentir et envoyer",
-      "file": "confirmation-remote-generate-primary-1280x720.png",
-      "focusFile": "confirmation-remote-generate-primary-focus-1280x720.png",
+      "captureFiles": [
+        "confirmation-remote-generate-primary-normal-1280x720.png",
+        "confirmation-remote-generate-primary-hover-1280x720.png",
+        "confirmation-remote-generate-primary-focus-1280x720.png",
+        "confirmation-remote-generate-primary-disabled-1280x720.png"
+      ],
       "states": [
         {
           "state": "normal",
@@ -1137,7 +1504,9 @@
             "outlineColor": "rgb(94, 236, 248)",
             "outlineOffset": "2px",
             "cursor": "pointer",
-            "mouseAway": true
+            "mouseAway": true,
+            "backdropHex": "#05060b",
+            "outlineContrastRatio": 14.3
           }
         },
         {
@@ -1162,7 +1531,10 @@
             }
           ],
           "minRatio": 4.73,
-          "pass": true
+          "pass": true,
+          "disabledProof": {
+            "nativeDisabled": true
+          }
         }
       ],
       "pass": true
@@ -1172,8 +1544,12 @@
       "screen": "Confirmation — SeparationRecommendDialog",
       "selector": ".separation-recommend-popin button.btn.primary, button.btn.primary",
       "label": "Lancer la séparation",
-      "file": "confirmation-separation-recommend-primary-1280x720.png",
-      "focusFile": "confirmation-separation-recommend-primary-focus-1280x720.png",
+      "captureFiles": [
+        "confirmation-separation-recommend-primary-normal-1280x720.png",
+        "confirmation-separation-recommend-primary-hover-1280x720.png",
+        "confirmation-separation-recommend-primary-focus-1280x720.png",
+        "confirmation-separation-recommend-primary-disabled-1280x720.png"
+      ],
       "states": [
         {
           "state": "normal",
@@ -1253,7 +1629,9 @@
             "outlineColor": "rgb(94, 236, 248)",
             "outlineOffset": "2px",
             "cursor": "pointer",
-            "mouseAway": true
+            "mouseAway": true,
+            "backdropHex": "#20243a",
+            "outlineContrastRatio": 10.79
           }
         },
         {
@@ -1278,7 +1656,10 @@
             }
           ],
           "minRatio": 4.73,
-          "pass": true
+          "pass": true,
+          "disabledProof": {
+            "nativeDisabled": true
+          }
         }
       ],
       "pass": true
@@ -1288,8 +1669,12 @@
       "screen": "Confirmation — UpdateNotice",
       "selector": ".update-notice button.btn.primary",
       "label": "Mettre à jour",
-      "file": "confirmation-update-notice-primary-1280x720.png",
-      "focusFile": "confirmation-update-notice-primary-focus-1280x720.png",
+      "captureFiles": [
+        "confirmation-update-notice-primary-normal-1280x720.png",
+        "confirmation-update-notice-primary-hover-1280x720.png",
+        "confirmation-update-notice-primary-focus-1280x720.png",
+        "confirmation-update-notice-primary-disabled-1280x720.png"
+      ],
       "states": [
         {
           "state": "normal",
@@ -1369,7 +1754,9 @@
             "outlineColor": "rgb(94, 236, 248)",
             "outlineOffset": "2px",
             "cursor": "pointer",
-            "mouseAway": true
+            "mouseAway": true,
+            "backdropHex": "#18202f",
+            "outlineContrastRatio": 11.53
           }
         },
         {
@@ -1394,7 +1781,10 @@
             }
           ],
           "minRatio": 4.73,
-          "pass": true
+          "pass": true,
+          "disabledProof": {
+            "nativeDisabled": true
+          }
         }
       ],
       "pass": true

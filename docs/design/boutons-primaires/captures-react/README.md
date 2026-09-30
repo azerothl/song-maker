@@ -1,7 +1,7 @@
 # Captures React — boutons primaires
 
 Captures **application React réelle** (Vite + mock Tauri), pas de maquette HTML.  
-**Ne couvre pas toute l’application** — uniquement les scénarios listés.
+**Ne couvre pas toute l’application** — voir [`inventaire.md`](../inventaire.md).
 
 ## Régénérer
 
@@ -9,43 +9,51 @@ Captures **application React réelle** (Vite + mock Tauri), pas de maquette HTML
 pnpm exec tsx docs/design/boutons-primaires/captures-react/capture.mts
 ```
 
-Écrit ici les PNG 1280×720 (état courant + `*-focus-*`), `metrics.json`, et met à jour `../contrastes.md`.
+Écrit les PNG 1280×720 (`*-primary-{normal|hover|focus|disabled}-*`), `metrics.json`, et met à jour `../contrastes.md`.
 
-## Focus clavier (#193)
+## Focus clavier
 
-Pour chaque scénario, l’état **focus** est obtenu par :
+Pour chaque scénario :
 
 1. souris hors du bouton ;
 2. piège focusable + **Tab** (pas `page.focus()` seul) ;
-3. vérification `element.matches(":focus-visible")` + outline non nul ;
-4. capture `*-focus-1280x720.png` avec l’anneau visible.
+3. `element.matches(":focus-visible")` + outline non nul ;
+4. contraste de l’anneau mesuré contre le **fond** derrière l’outline (pas la face du bouton).
 
-`metrics.json` enregistre `focusProof` (anneau, offset, curseur) et `focusMethod: keyboard-tab-mouse-away-focus-visible`.
+Vérification : les PNG `normal`, `hover` et `focus` ont des empreintes distinctes (échec du script si identiques).
 
-La mesure **désactivé** force `disabled` uniquement pour lire les styles calculés — ce n’est pas une preuve d’interaction.
+## Désactivé
 
-## Fichiers
+| Scénario | Preuve désactivé |
+|----------|------------------|
+| Créer — Générer | `busy` harnais (`__captureSetGenerateBusy`) |
+| Exporter déclencheur / popin | `busy` harnais (`__productionCaptureSetBusy`) |
+| Autres captures listées | `disabled` injecté pour lecture de styles (pas interaction réelle) |
 
-| Fichier | Écran | Bouton |
-|---------|-------|--------|
-| `bibliotheque-primary-1280x720.png` (+ focus) | Bibliothèque | Nouveau morceau |
-| `creer-primary-1280x720.png` (+ focus) | Créer | Générer |
-| `production-armer-primary-1280x720.png` (+ focus) | Production — enregistrement | Armer |
-| `production-exporter-primary-1280x720.png` (+ focus) | Production — actions | Exporter |
-| `production-mesurer-primary-1280x720.png` (+ focus) | Production — outils | Mesurer le mix rendu |
-| `production-zip-primary-1280x720.png` (+ focus) | Production — outils | Créer l’archive ZIP |
-| `reglages-lora-primary-1280x720.png` (+ focus) | Réglages — LoRA | Télécharger vers le cache |
-| `confirmation-*-primary-1280x720.png` (+ focus) | Dialogues de confirmation | RegenerationGate, InvariantPanel, RemoteGenerateConfirm, SeparationRecommendDialog, UpdateNotice |
-| `metrics.json` | Mesures DOM des 4 états + preuves focus | — |
+Texte désactivé mesuré : **`#848ba0`** (~**4,73:1** sur face **`#1c2034`**).
+
+## Fichiers par scénario
+
+| Préfixe | Écran |
+|---------|-------|
+| `bibliotheque-primary-*` | Bibliothèque — Nouveau |
+| `creer-primary-*` | Créer — Générer |
+| `production-armer-primary-*` | Production — Armer |
+| `production-exporter-primary-*` | Production — Exporter (déclencheur) |
+| `production-export-popin-primary-*` | Production — Exporter (popin) |
+| `production-mesurer-primary-*` | Mesurer le mix rendu |
+| `production-zip-primary-*` | Créer l’archive ZIP |
+| `reglages-lora-primary-*` | Réglages LoRA |
+| `confirmation-*-primary-*` | Dialogues de confirmation |
+| `regeneration-gate-blocked-primary-*` | RegenerationGate bloqué (`aria-disabled`) |
 
 ## Non vérifiés
 
+Voir [`inventaire.md`](../inventaire.md) (18 usages non couverts, désactivés réels en majorité non prouvés).
+
 | Élément | Raison |
 |---------|--------|
-| Autres usages `btn primary` (voir inventaire #186) | Pas capturés un par un dans cette livraison |
-| `scoreTabBench` / `scoreTabBenchApp` | Banc interne de perf, hors parcours produit |
-| WebKitGTK | Mesures Chromium (Playwright / Chrome canal), pas le runtime Tauri natif |
-| Lecteur d’écran | Hors périmètre contraste (pas de parcours NVDA/Orca) |
-| `forced-colors` | Non traité (#193) |
-
-La classe `.btn.primary` est globale (`src/App.css`) : les ratios mesurés s’appliquent aux autres écrans qui réutilisent le même token, **sans** prétendre avoir capturé toute l’app.
+| `scoreTabBench` | Banc interne |
+| WebKitGTK | Chromium / Playwright uniquement |
+| Lecteur d’écran | Hors périmètre contraste |
+| `forced-colors` | Non traité (décision produit) |

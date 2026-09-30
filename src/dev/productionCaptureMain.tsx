@@ -69,10 +69,18 @@ function CaptureSidebar() {
 }
 
 function ProductionCaptureApp() {
+  const [captureBusy, setCaptureBusy] = useState(false);
   const capturePrefs = useCaptureHashPrefs();
   useEffect(() => {
     setProductionView(capturePrefs.productionView);
   }, [capturePrefs.productionView]);
+  useEffect(() => {
+    if (!import.meta.env.VITE_CAPTURE) return;
+    window.__productionCaptureSetBusy = (next: boolean) => setCaptureBusy(next);
+    return () => {
+      delete window.__productionCaptureSetBusy;
+    };
+  }, []);
   const mix = useMemo(
     () => buildCaptureDemoMix(capturePrefs.trackCount),
     [capturePrefs.trackCount],
@@ -142,7 +150,7 @@ function ProductionCaptureApp() {
           </header>
           <div className="song-workspace-body">
             <ProductionWorkspace
-              busy={false}
+              busy={captureBusy}
               form={{
                 title: project.title,
                 style: project.style,
@@ -186,6 +194,12 @@ function ProductionCaptureApp() {
       </main>
     </div>
   );
+}
+
+declare global {
+  interface Window {
+    __productionCaptureSetBusy?: (busy: boolean) => void;
+  }
 }
 
 const root = document.getElementById("root");
