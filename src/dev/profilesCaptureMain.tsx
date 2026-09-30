@@ -1,18 +1,24 @@
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { Sidebar } from "../App";
+import { ProfileKindBadge } from "../components/ProfileKindBadge";
+import { ProfileMigrationBanner } from "../components/ProfileMigrationBanner";
 import { ProfileOnboardingScreen } from "../screens/ProfileOnboardingScreen";
 import { ProfileSwitchConfirmDialog } from "../components/ProfileSwitchConfirmDialog";
 import { CommercialEnginesPanel } from "../components/CommercialEnginesPanel";
 import { useAppStore } from "../store/appStore";
 import { writeSidebarCollapsedPref } from "../lib/sidebarCollapse";
-import { seedProfilesCaptureStore } from "./seedProfilesCaptureStore";
+import {
+  seedOnboardingCaptureStore,
+  seedProfilesCaptureStore,
+} from "./seedProfilesCaptureStore";
 import "../App.css";
 import "../screens/ProfileOnboardingScreen.css";
 
 export type ProfileCaptureScene =
   | "onboarding"
   | "onboarding-commercial-disabled"
+  | "onboarding-six-max"
   | "selector-closed"
   | "selector-open"
   | "selector-collapsed"
@@ -23,6 +29,7 @@ export type ProfileCaptureScene =
 
 function parseScene(hash: string): ProfileCaptureScene {
   const h = hash.replace(/^#/, "").toLowerCase();
+  if (h.includes("six-max")) return "onboarding-six-max";
   if (h.includes("commercial-disabled")) return "onboarding-commercial-disabled";
   if (h.includes("selector-open")) return "selector-open";
   if (h.includes("selector-collapsed")) return "selector-collapsed";
@@ -42,24 +49,23 @@ if (scene.includes("collapsed")) {
   writeSidebarCollapsedPref(false);
 }
 
-seedProfilesCaptureStore(
-  scene === "migration-banner" ? { migrationBannerVisible: true } : undefined,
-);
+if (
+  scene === "onboarding" ||
+  scene === "onboarding-commercial-disabled" ||
+  scene === "onboarding-six-max"
+) {
+  seedOnboardingCaptureStore(undefined, scene === "onboarding-six-max");
+} else {
+  seedProfilesCaptureStore(
+    scene === "migration-banner" ? { migrationBannerVisible: true } : undefined,
+  );
+}
 
 function CaptureShell() {
   useEffect(() => {
-    if (scene === "onboarding" || scene === "onboarding-commercial-disabled") {
-      const prev = useAppStore.getState().profilesState;
-      useAppStore.setState({
-        screen: "profiles",
-        profilesState: prev
-          ? { ...prev, onboardingComplete: false }
-          : prev,
-      });
-    }
     if (scene === "switch-blocked-generation") {
       useAppStore.setState({
-        job: { state: "generating", label: "Génération en cours (étape 2/4)" },
+        job: { state: "generating", label: "Génération en cours · étape 2/4" },
       });
     }
     if (scene === "selector-open") {
@@ -67,9 +73,21 @@ function CaptureShell() {
         document.querySelector<HTMLButtonElement>('[data-testid="profile-selector-trigger"]')?.click();
       }, 200);
     }
+    if (scene === "selector-collapsed") {
+      setTimeout(() => {
+        const trigger = document.querySelector<HTMLButtonElement>(
+          '[data-testid="profile-selector-trigger"]',
+        );
+        trigger?.focus();
+      }, 250);
+    }
   }, []);
 
-  if (scene === "onboarding" || scene === "onboarding-commercial-disabled") {
+  if (
+    scene === "onboarding" ||
+    scene === "onboarding-commercial-disabled" ||
+    scene === "onboarding-six-max"
+  ) {
     return (
       <div className="app-shell profiles-capture-root">
         <main className="main">
@@ -83,7 +101,6 @@ function CaptureShell() {
     return (
       <div className="app-shell profiles-capture-root">
         <main className="main panel settings">
-          <p className="hint">Fixture de test — aucun moteur branché en production.</p>
           <CommercialEnginesPanel />
         </main>
       </div>
@@ -97,10 +114,27 @@ function CaptureShell() {
         <ProfileSwitchConfirmDialog
           open
           current={profiles[0]}
-          target={profiles[2]}
+          target={profiles[1]}
           onConfirm={() => {}}
           onCancel={() => {}}
         />
+      </div>
+    );
+  }
+
+  if (scene === "migration-banner") {
+    return (
+      <div className="app-shell profiles-capture-root">
+        <Sidebar />
+        <main className="main panel library">
+          <header className="panel-header">
+            <h1 className="song-title-with-badge">
+              Bibliothèque
+              <ProfileKindBadge />
+            </h1>
+          </header>
+          <ProfileMigrationBanner />
+        </main>
       </div>
     );
   }
@@ -110,7 +144,13 @@ function CaptureShell() {
       <Sidebar />
       <main className="main">
         <header className="song-header">
-          <h1>Nuit claire</h1>
+          <h1 className="song-title-with-badge">
+            Nuit claire
+            <ProfileKindBadge />
+          </h1>
+          {scene === "switch-blocked-generation" ? (
+            <p className="profile-capture-jobline">Génération en cours · étape 2/4</p>
+          ) : null}
         </header>
       </main>
     </div>

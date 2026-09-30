@@ -13,9 +13,9 @@ export function CommercialEnginesPanel() {
       aria-labelledby="commercial-engines-title"
     >
       <header className="commercial-engines-header">
-        <h2 id="commercial-engines-title">{t("profiles.engines.title")}</h2>
-        <span className="profile-kind-badge commercial">
-          {t("profiles.engines.commercialBadge")}
+        <h2 id="commercial-engines-title">{t("profiles.engines.commercialTitle")}</h2>
+        <span className="profile-engines-preview-badge">
+          {t("profiles.engines.previewBadge")}
         </span>
       </header>
       {reserved.length > 0 ? (

@@ -246,8 +246,13 @@ option {
 }
 
 .sidebar :where(.sidebar-toggle, nav button, .sidebar-meta-row):focus-visible {
-  outline: 3px solid #ffd76a;
-  outline-offset: 1px;
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.sidebar .profile-selector-trigger:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
 }
 
 .sidebar nav {
@@ -2709,8 +2714,8 @@ details[open] > summary {
 }
 
 .first-launch :where(button, input, textarea, select, summary, a):focus-visible {
-  outline: 3px solid var(--fl-focus);
-  outline-offset: 3px;
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
 }
 
 /* Lien Demucs : même anneau 2 px cyan que le reste de l’app (#199). */
@@ -6559,12 +6564,84 @@ details[open] > summary {
 
 .profile-migration-banner {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
   gap: 1rem;
-  padding: 0.65rem 1rem;
-  background: color-mix(in srgb, var(--bg2) 80%, #5eecf8);
-  border-bottom: 1px solid var(--line);
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  background: color-mix(in srgb, var(--hobby-bg, #12332f) 55%, var(--bg1));
+  border: 1px solid color-mix(in srgb, var(--hobby-line, #2f6b62) 70%, var(--line));
+  border-radius: 12px;
+}
+
+.profile-migration-banner-text strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.profile-migration-banner-text p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.profile-migration-banner-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.profile-migration-banner-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--hobby-bg, #12332f);
+  border: 1px solid var(--hobby-line, #2f6b62);
+  flex-shrink: 0;
+}
+
+.profile-title-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 26px;
+  padding: 0 0.55rem;
+  border-radius: 13px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  vertical-align: middle;
+  margin-left: 0.65rem;
+}
+
+.profile-title-badge.hobby {
+  color: #5ed8c9;
+  border: 1px solid #2f6b62;
+  background: #12332f;
+}
+
+.profile-title-badge.commercial {
+  color: #ffd76a;
+  border: 1px solid #8a7430;
+  background: #332c12;
+}
+
+.song-title-with-badge {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.profile-engines-preview-badge {
+  font-size: 0.75rem;
+  text-transform: lowercase;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
 }
 
 .commercial-engines-panel {

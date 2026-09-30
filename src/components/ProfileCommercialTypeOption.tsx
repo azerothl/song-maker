@@ -25,15 +25,6 @@ export function ProfileCommercialTypeOption({
 
   return (
     <div className="profile-type-commercial-block">
-      {state.showUnavailableReason ? (
-        <p
-          id={reasonId}
-          className="profile-commercial-unavailable-reason"
-          data-testid="profile-commercial-unavailable-reason"
-        >
-          {commercialUnavailableReasonFr()}
-        </p>
-      ) : null}
       <div
         role="radio"
         aria-checked={selected}
@@ -57,6 +48,18 @@ export function ProfileCommercialTypeOption({
         </span>
         <span className="profile-type-label">{name}</span>
         <span className="profile-type-hint">{COMMERCIAL_PROFILE_DESCRIPTION_FR}</span>
+        {state.showUnavailableReason ? (
+          <p
+            id={reasonId}
+            className="profile-commercial-unavailable-reason"
+            data-testid="profile-commercial-unavailable-reason"
+          >
+            <span className="profile-commercial-unavailable-icon" aria-hidden="true">
+              i
+            </span>
+            {commercialUnavailableReasonFr()}
+          </p>
+        ) : null}
       </div>
     </div>
   );

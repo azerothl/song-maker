@@ -1,8 +1,8 @@
+use crate::paths::now_iso;
 use crate::profiles::{
     self, commercial_creation_allowed, count_accepted_contracts, count_projects, load_manifest,
     save_manifest, ProfileMeta, ProfilesManifest, MAX_PROFILES,
 };
-use crate::paths::now_iso;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
@@ -148,15 +148,13 @@ pub fn accept_engine_contract(
     text_version: String,
 ) -> Result<(), String> {
     let mut settings = profiles::load_profile_settings(&profile_id)?;
-    settings
-        .engine_contract_acceptances
-        .insert(
-            engine_id,
-            profiles::EngineContractAcceptance {
-                text_fingerprint,
-                accepted_at: now_iso(),
-                text_version,
-            },
-        );
+    settings.engine_contract_acceptances.insert(
+        engine_id,
+        profiles::EngineContractAcceptance {
+            text_fingerprint,
+            accepted_at: now_iso(),
+            text_version,
+        },
+    );
     profiles::save_profile_settings(&profile_id, &settings)
 }

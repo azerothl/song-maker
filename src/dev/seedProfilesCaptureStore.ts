@@ -5,7 +5,7 @@ const hobby: ProfilesState = {
   profiles: [
     {
       id: "profile-001",
-      name: "Hobby",
+      name: "Profil Hobby (vos projets existants)",
       kind: "hobby",
       projectCount: 12,
       acceptedContractCount: 3,
@@ -23,9 +23,9 @@ const hobby: ProfilesState = {
     },
     {
       id: "profile-003",
-      name: "Studio Maison",
-      kind: "commercial",
-      projectCount: 0,
+      name: "Jams",
+      kind: "hobby",
+      projectCount: 7,
       acceptedContractCount: 0,
       isLastUsed: false,
       isActive: false,
@@ -59,5 +59,35 @@ export function seedProfilesCaptureStore(patch?: Partial<ProfilesState>): void {
       lyrics: "Paroles d'exemple",
       cot: "full",
     },
+  });
+}
+
+export function seedOnboardingCaptureStore(
+  patch?: Partial<ProfilesState>,
+  sixOfSix = false,
+): void {
+  const profiles = sixOfSix
+    ? Array.from({ length: 6 }, (_, i) => ({
+        id: `profile-${i + 1}`,
+        name: ["Hobby", "Reprises", "Jams", "Covers", "Ateliers", "Démos"][i]!,
+        kind: "hobby" as const,
+        projectCount: 12 - i,
+        acceptedContractCount: i === 0 ? 3 : 0,
+        isLastUsed: i === 0,
+        isActive: i === 0,
+      }))
+    : hobby.profiles;
+
+  useAppStore.setState({
+    screen: "profiles",
+    profilesState: {
+      ...hobby,
+      profiles,
+      onboardingComplete: false,
+      ...patch,
+    },
+    job: null,
+    profileOperationBusy: false,
+    project: null,
   });
 }

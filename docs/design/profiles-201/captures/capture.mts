@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, "../../..");
+const ROOT = path.resolve(__dirname, "../../../..");
 const OUT = __dirname;
 mkdirSync(OUT, { recursive: true });
 const PORT = 5181;
@@ -25,15 +25,24 @@ async function waitServer(url: string, timeoutMs = 60_000): Promise<void> {
 }
 
 const SCENES: Array<{ hash: string; baseName: string }> = [
-  { hash: "onboarding", baseName: "profils-onboarding-hobby" },
-  { hash: "onboarding-commercial-disabled", baseName: "profils-commercial-disabled" },
-  { hash: "selector-closed", baseName: "profils-selector-ferme" },
-  { hash: "selector-open", baseName: "profils-selector-ouvert" },
-  { hash: "selector-collapsed", baseName: "profils-selector-replie" },
-  { hash: "switch-confirm", baseName: "profils-switch-confirm" },
-  { hash: "blocked-generation", baseName: "profils-switch-bloque-generation" },
-  { hash: "engines", baseName: "profils-moteurs-commercial-fixture" },
-  { hash: "migration-banner", baseName: "profils-migration-banner" },
+  {
+    hash: "onboarding-commercial-disabled",
+    baseName: "profils-L1-01-creation-profil-commercial-desactive",
+  },
+  { hash: "onboarding-six-max", baseName: "profils-L1-03-six-profils-sur-six" },
+  { hash: "selector-closed", baseName: "profils-L1-04-selecteur-ferme-badge-titre" },
+  { hash: "selector-open", baseName: "profils-L1-05-selecteur-menu-ouvert" },
+  { hash: "switch-confirm", baseName: "profils-L1-06-changement-de-profil-confirmation" },
+  {
+    hash: "blocked-generation",
+    baseName: "profils-L1-07-selecteur-desactive-generation-infobulle",
+  },
+  { hash: "selector-collapsed", baseName: "profils-L1-09-barre-repliee-icone-infobulle" },
+  { hash: "migration-banner", baseName: "profils-L1-11-migration-profil-hobby-par-defaut" },
+  {
+    hash: "commercial-engines-fixture",
+    baseName: "profils-L1-13-moteurs-non-proposes-commercial",
+  },
 ];
 
 const vite = spawn("pnpm", ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)], {
@@ -51,7 +60,7 @@ try {
         viewport: { width: 1280, height },
       });
       await page.goto(`${BASE}#${scene.hash}`, { waitUntil: "networkidle" });
-      await page.waitForTimeout(scene.hash.includes("open") ? 600 : 400);
+      await page.waitForTimeout(scene.hash.includes("open") ? 700 : 450);
       const file = `${scene.baseName}-1280x${height}.png`;
       await page.screenshot({ path: path.join(OUT, file), fullPage: false });
       console.log(file);

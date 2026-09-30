@@ -13,8 +13,17 @@
 .profile-kicker {
   font-size: 0.75rem;
   letter-spacing: 0.08em;
-  color: var(--muted);
+  color: #5ed8c9;
   margin: 0;
+  font-weight: 700;
+}
+
+.profile-section-kicker {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .profile-onboarding-sub {
@@ -47,6 +56,53 @@
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+}
+
+.profile-card.is-last-used {
+  border-color: #7a6ea1;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-2) 35%, transparent);
+}
+
+.profile-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.profile-card-edit {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+
+.profile-limit-alert {
+  border: 1px solid #ff6b6b;
+  background: color-mix(in srgb, #3a1f26 80%, var(--bg1));
+  color: #ffb4a8;
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin-bottom: 1rem;
+}
+
+.profile-onboarding-create.is-limit .profile-field input,
+.profile-onboarding-create.is-limit .profile-type-card {
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+.profile-create-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.profile-limit-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .profile-card-head {
@@ -101,9 +157,29 @@
 }
 
 .profile-commercial-unavailable-reason {
-  font-size: 0.9rem;
-  color: var(--muted);
-  margin: 0 0 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  font-size: 0.85rem;
+  color: var(--text);
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg2) 90%, var(--bg1));
+}
+
+.profile-commercial-unavailable-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 @media (max-width: 900px) {

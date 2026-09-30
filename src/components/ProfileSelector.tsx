@@ -8,8 +8,8 @@ import { ProfileSwitchConfirmDialog } from "./ProfileSwitchConfirmDialog";
 
 function kindLabel(kind: string): string {
   return kind === "commercial"
-    ? t("profiles.kind.commercial")
-    : t("profiles.kind.hobby");
+    ? t("profiles.onboarding.type.commercial")
+    : t("profiles.onboarding.type.hobby");
 }
 
 function profileMetaLine(p: ProfileSummary): string {
@@ -136,7 +136,10 @@ export function ProfileSelector({ collapsed }: Props) {
             role="menu"
             data-testid="profile-selector-menu"
           >
-            <p className="profile-menu-kicker">{t("profiles.selector.menuTitle")}</p>
+            <p className="profile-menu-kicker">
+              {t("profiles.selector.menuTitle")} ({profilesState?.profiles.length ?? 0}{" "}
+              {t("profiles.onboarding.ofMax")} {profilesState?.maxProfiles ?? 6})
+            </p>
             {blockMessage ? (
               <div
                 className="profile-switch-block-alert"

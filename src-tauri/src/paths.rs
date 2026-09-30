@@ -7,6 +7,9 @@ use dirs::{cache_dir, document_dir, home_dir};
 use std::path::{Path, PathBuf};
 
 pub fn song_maker_documents() -> PathBuf {
+    if let Ok(dir) = std::env::var("SONG_MAKER_DOCUMENTS_DIR") {
+        return PathBuf::from(dir);
+    }
     let base = document_dir()
         .or_else(home_dir)
         .unwrap_or_else(|| PathBuf::from("."));

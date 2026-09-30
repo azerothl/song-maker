@@ -309,10 +309,7 @@ pub fn save_profile_settings(id: &str, settings: &ProfileSettings) -> Result<(),
     atomic_write_json(&profile_settings_path(id), settings)
 }
 
-pub fn split_and_save_settings(
-    active_id: &str,
-    merged: &AppSettings,
-) -> Result<(), String> {
+pub fn split_and_save_settings(active_id: &str, merged: &AppSettings) -> Result<(), String> {
     let profile = ProfileSettings {
         schema_version: 1,
         stem_separator: merged.stem_separator.clone(),
@@ -325,8 +322,7 @@ pub fn split_and_save_settings(
         yue2_nar_lora: merged.yue2_nar_lora.clone(),
         yue2_ar_lora_scale: merged.yue2_ar_lora_scale,
         yue2_nar_lora_scale: merged.yue2_nar_lora_scale,
-        engine_contract_acceptances: load_profile_settings(active_id)?
-            .engine_contract_acceptances,
+        engine_contract_acceptances: load_profile_settings(active_id)?.engine_contract_acceptances,
     };
     save_profile_settings(active_id, &profile)?;
     let global_path = global_settings_path();
@@ -440,7 +436,8 @@ pub fn merged_settings_from_disk() -> Result<AppSettings, String> {
     if active_id.is_none() {
         let mut settings = crate::library::default_settings();
         if global_settings_path().is_file() {
-            let text = std::fs::read_to_string(global_settings_path()).map_err(|e| e.to_string())?;
+            let text =
+                std::fs::read_to_string(global_settings_path()).map_err(|e| e.to_string())?;
             if let Ok(global) = serde_json::from_str::<GlobalAppSettings>(&text) {
                 settings.cache_dir = global.cache_dir;
                 settings.binary_tag = global.binary_tag;
@@ -561,6 +558,9 @@ mod tests {
     #[test]
     fn migration_moves_legacy_projects_and_keeps_contracts() {
         let root = temp_root();
+        unsafe {
+            std::env::set_var("SONG_MAKER_DOCUMENTS_DIR", root.as_os_str());
+        }
         let legacy_projects = root.join("projects");
         fs::create_dir_all(&legacy_projects.join("proj-a")).unwrap();
         fs::write(
@@ -569,19 +569,22 @@ mod tests {
         )
         .unwrap();
         let settings = format!(
-            r#"{{"projectsDir":"{}","cacheDir":"/tmp/cache","binaryTag":"t","binaryArchive":"a","binarySha256":"s","modelPack":"q4","modelGguf":"m","modelSha256":"x","serverHost":"127.0.0.1","serverPort":8787,"yue2LicenseAccepted":true,"acceptedSeparatorLicenses":{{"htdemucs":true}}}}"#,
+            r#"{{"projectsDir":"{}","cacheDir":"/tmp/cache","binaryTag":"t","binaryArchive":"a","binarySha256":"s","modelPack":"q4","modelGguf":"m","modelSha256":"x","serverHost":"127.0.0.1","serverPort":8787,"yue2LicenseAccepted":true,"ccByNcAccepted":true,"acceptedSeparatorLicenses":{{"htdemucs":true}}}}"#,
             legacy_projects.display()
         );
         fs::write(root.join("settings.json"), settings).unwrap();
 
-        // Point paths — use chdir simulation via profile migration internals
-        // Integration covered in TS; Rust unit checks manifest shape.
-        let ps = ProfileSettings {
-            yue2_license_accepted: true,
-            accepted_separator_licenses: [("htdemucs".into(), true)].into(),
-            ..ProfileSettings::default()
-        };
+        let manifest = migrate_legacy_if_needed().expect("migrate");
+        assert_eq!(manifest.profiles.len(), 1);
+        assert_eq!(manifest.profiles[0].name, MIGRATION_DEFAULT_NAME);
+        let id = &manifest.profiles[0].id;
+        assert!(profile_projects_root(id).join("proj-a").is_dir());
+        let ps = load_profile_settings(id).expect("profile settings");
         assert!(ps.yue2_license_accepted);
+        assert!(ps.cc_by_nc_accepted);
         assert_eq!(ps.accepted_separator_licenses.get("htdemucs"), Some(&true));
+        unsafe {
+            std::env::remove_var("SONG_MAKER_DOCUMENTS_DIR");
+        }
     }
 }
