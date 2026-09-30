@@ -3,7 +3,6 @@ use crate::library::{load_project, project_folder};
 use crate::paths::{atomic_write_json, ensure_dir, now_iso};
 use serde_json::json;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 
 fn portable_should_include(rel: &str) -> bool {
     let norm = rel.replace('\\', "/");
@@ -295,8 +294,5 @@ pub fn export_project_package(
     state: tauri::State<'_, AppState>,
     id: String,
 ) -> Result<serde_json::Value, String> {
-    state.profile_export_busy.store(true, Ordering::SeqCst);
-    let result = export_project_package_inner(id);
-    state.profile_export_busy.store(false, Ordering::SeqCst);
-    result
+    super::with_profile_export_busy(&state, || export_project_package_inner(id))
 }

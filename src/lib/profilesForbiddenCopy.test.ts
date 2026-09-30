@@ -9,6 +9,7 @@ import {
   COMMERCIAL_CREATION_DISABLED_REASON_FR,
   COMMERCIAL_PROFILE_DESCRIPTION_FR,
   COMMERCIAL_GRAY_REASONS_FR,
+  ENGINE_LICENSE_ROWS_201,
 } from "@song-maker/stem-providers";
 
 const FORBIDDEN = COMMERCIAL_COPY_FORBIDDEN;
@@ -34,6 +35,17 @@ describe("profiles commercial copy forbidden words (#201)", () => {
   it("no sûr / garanti / libre de droits in profile UI strings", () => {
     for (const text of profileStrings()) {
       assert.equal(FORBIDDEN.test(text), false, `forbidden word in: ${text}`);
+    }
+  });
+
+  it("no forbidden words in licence row raison_grise_fr (#210 R10)", () => {
+    for (const row of ENGINE_LICENSE_ROWS_201) {
+      const text = row.raison_grise_fr ?? "";
+      assert.equal(
+        FORBIDDEN.test(text),
+        false,
+        `forbidden word in raison_grise_fr for ${row.id}`,
+      );
     }
   });
 });

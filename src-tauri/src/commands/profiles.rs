@@ -1,6 +1,6 @@
 use crate::commands::AppState;
 use crate::paths::now_iso;
-use crate::profile_switch::{profile_activation_error, profile_switch_blocked};
+use crate::profile_switch::{ensure_profile_creation_allowed, ensure_profile_switch_allowed};
 use crate::profiles::{
     self, commercial_creation_allowed, count_accepted_contracts, count_projects, load_manifest,
     save_manifest, ProfileMeta, ProfilesManifest, MAX_PROFILES,
@@ -67,7 +67,16 @@ pub fn get_profiles_state() -> Result<ProfilesState, String> {
 }
 
 #[tauri::command]
-pub fn create_profile(name: String, kind: String) -> Result<ProfileSummary, String> {
+pub fn create_profile(
+    state: tauri::State<'_, AppState>,
+    name: String,
+    kind: String,
+) -> Result<ProfileSummary, String> {
+    let job = state.queue.status();
+    let export_busy = state
+        .profile_export_busy
+        .load(std::sync::atomic::Ordering::SeqCst);
+    ensure_profile_creation_allowed(&job, export_busy)?;
     let trimmed = name.trim();
     if trimmed.is_empty() {
         return Err("Le nom du profil est obligatoire.".into());
@@ -127,9 +136,7 @@ pub fn activate_profile(state: tauri::State<'_, AppState>, id: String) -> Result
     let export_busy = state
         .profile_export_busy
         .load(std::sync::atomic::Ordering::SeqCst);
-    if let Some(kind) = profile_switch_blocked(&job, export_busy) {
-        return Err(profile_activation_error(kind));
-    }
+    ensure_profile_switch_allowed(&job, export_busy)?;
     let mut manifest = load_manifest()?;
     if !manifest.profiles.iter().any(|p| p.id == id) {
         return Err("Profil introuvable.".to_string());

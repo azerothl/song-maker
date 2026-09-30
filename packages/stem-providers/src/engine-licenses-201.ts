@@ -13,6 +13,8 @@ export type EngineLicenseRow201 = {
   restriction_sorties: string;
   statut: string;
   date_verification: string;
+  /** Date de relevé audio.cpp (docs/model_licenses.md), si distincte de la fiche. */
+  date_releve_audio_cpp?: string;
   raison_grise_fr: string;
 };
 

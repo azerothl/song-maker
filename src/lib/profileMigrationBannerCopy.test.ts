@@ -3,8 +3,10 @@ import { describe, it } from "node:test";
 import {
   formatProfileMigrationBannerEn,
   formatProfileMigrationBannerFr,
+  pickProfileMigrationBannerProfile,
   PROFILE_MAX_COUNT_DEFAULT,
 } from "./profileMigrationBannerCopy.ts";
+import type { ProfileSummary } from "./profilesTypes.ts";
 
 const MAX = PROFILE_MAX_COUNT_DEFAULT;
 
@@ -66,5 +68,25 @@ describe("profileMigrationBannerCopy (#210)", () => {
   it("uses maxProfiles from state in tail", () => {
     assert.match(formatProfileMigrationBannerFr(2, 8), /\(8 au maximum\)\.$/);
     assert.match(formatProfileMigrationBannerEn(2, 8), /\(up to 8\)\.$/);
+  });
+
+  it("picks migrated hobby profile name for banner title", () => {
+    const hobby: ProfileSummary = {
+      id: "profile-001",
+      name: "Profil Hobby (vos projets existants)",
+      kind: "hobby",
+      projectCount: 12,
+      acceptedContractCount: 3,
+      isLastUsed: true,
+      isActive: true,
+    };
+    const picked = pickProfileMigrationBannerProfile([hobby]);
+    assert.equal(picked?.name, "Profil Hobby (vos projets existants)");
+  });
+
+  it("english body copy is wired for migration banner", () => {
+    const text = formatProfileMigrationBannerEn(12, MAX);
+    assert.match(text, /Your 12 songs/);
+    assert.match(text, /up to 6/);
   });
 });

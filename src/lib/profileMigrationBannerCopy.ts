@@ -1,5 +1,19 @@
+import type { ProfileSummary } from "./profilesTypes.ts";
+
 /** Aligné sur `MAX_PROFILES` côté Rust / `profilesState.maxProfiles`. */
 export const PROFILE_MAX_COUNT_DEFAULT = 6;
+
+/** Titre affiché du bandeau : nom du profil migré (ex. « Profil Hobby (vos projets existants) »). */
+export function pickProfileMigrationBannerProfile(
+  profiles: ProfileSummary[],
+): ProfileSummary | null {
+  if (profiles.length === 0) return null;
+  return (
+    profiles.find((p) => p.name.includes("Profil Hobby")) ??
+    profiles.find((p) => p.isLastUsed) ??
+    profiles[0]
+  );
+}
 
 const TAIL_FR = (maxProfiles: number) =>
   ` Vous pouvez le renommer ou en créer d'autres (${maxProfiles} au maximum).`;

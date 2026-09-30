@@ -20,11 +20,33 @@ pub fn profile_switch_blocked(job: &JobStatus, export_busy: bool) -> Option<&'st
 }
 
 pub fn profile_activation_error(kind: &str) -> String {
+    profile_operation_blocked_error(kind, "changer de profil")
+}
+
+pub fn profile_creation_blocked_error(kind: &str) -> String {
+    profile_operation_blocked_error(kind, "créer un profil")
+}
+
+fn profile_operation_blocked_error(kind: &str, action: &str) -> String {
     match kind {
-        "export" => "Impossible de changer de profil pendant un export.".into(),
-        "separation" => "Impossible de changer de profil pendant une séparation de stems.".into(),
-        "generation" => "Impossible de changer de profil pendant une génération.".into(),
-        _ => "Impossible de changer de profil pour le moment.".into(),
+        "export" => format!("Impossible de {action} pendant un export."),
+        "separation" => format!("Impossible de {action} pendant une séparation de stems."),
+        "generation" => format!("Impossible de {action} pendant une génération."),
+        _ => format!("Impossible de {action} pour le moment."),
+    }
+}
+
+pub fn ensure_profile_switch_allowed(job: &JobStatus, export_busy: bool) -> Result<(), String> {
+    match profile_switch_blocked(job, export_busy) {
+        Some(kind) => Err(profile_activation_error(kind)),
+        None => Ok(()),
+    }
+}
+
+pub fn ensure_profile_creation_allowed(job: &JobStatus, export_busy: bool) -> Result<(), String> {
+    match profile_switch_blocked(job, export_busy) {
+        Some(kind) => Err(profile_creation_blocked_error(kind)),
+        None => Ok(()),
     }
 }
 
@@ -66,5 +88,25 @@ mod tests {
     fn allows_when_idle() {
         assert_eq!(profile_switch_blocked(&job("idle"), false), None);
         assert_eq!(profile_switch_blocked(&job("generated"), false), None);
+    }
+
+    #[test]
+    fn blocks_profile_creation_during_generation() {
+        let err = ensure_profile_creation_allowed(&job("generating"), false).unwrap_err();
+        assert!(err.contains("créer un profil"));
+        assert!(err.contains("génération"));
+    }
+
+    #[test]
+    fn blocks_profile_creation_during_export_flag() {
+        let err = ensure_profile_creation_allowed(&job("idle"), true).unwrap_err();
+        assert!(err.contains("créer un profil"));
+        assert!(err.contains("export"));
+    }
+
+    #[test]
+    fn blocks_profile_activation_during_separation() {
+        let err = ensure_profile_switch_allowed(&job("separating"), false).unwrap_err();
+        assert!(err.contains("séparation"));
     }
 }

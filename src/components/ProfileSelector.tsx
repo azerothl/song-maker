@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { api } from "../lib/api";
+import { formatProfileProjectCount } from "../lib/profileProjectCount";
 import { profileSwitchBlockReason } from "../lib/profileSwitchBlock";
 import type { ProfileSummary } from "../lib/profilesTypes";
 import { useAppStore } from "../store/appStore";
@@ -13,10 +14,7 @@ function kindLabel(kind: string): string {
 }
 
 function profileMetaLine(p: ProfileSummary): string {
-  const projects =
-    p.projectCount > 0
-      ? t("profiles.projects.count", { count: p.projectCount })
-      : t("profiles.projects.none");
+  const projects = formatProfileProjectCount(p.projectCount);
   const kind = kindLabel(p.kind);
   return `${kind} · ${projects}`;
 }
@@ -45,6 +43,18 @@ export function ProfileSelector({ collapsed }: Props) {
   const block = profileSwitchBlockReason(job, profileOperationBusy);
 
   useEffect(() => {
+    if (!import.meta.env.VITE_CAPTURE) return;
+    const hash = globalThis.location?.hash?.toLowerCase() ?? "";
+    if (hash.includes("blocked-generation") && block.blocked) {
+      setOpen(true);
+      return;
+    }
+    if (!hash.includes("switch-confirm")) return;
+    const target = profilesState?.profiles.find((p) => !p.isActive);
+    if (target) setPending(target);
+  }, [profilesState, block.blocked]);
+
+  useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
@@ -62,6 +72,10 @@ export function ProfileSelector({ collapsed }: Props) {
   const tip = collapsed
     ? `${active.name} — ${kindLabel(active.kind)}`
     : `${active.name} (${kindLabel(active.kind)})`;
+  const collapsedAriaLabel = t("profiles.selector.collapsedAria", {
+    name: active.name,
+    kind: kindLabel(active.kind),
+  });
 
   const blockMessage =
     block.blocked && block.kind === "generation"
@@ -106,6 +120,8 @@ export function ProfileSelector({ collapsed }: Props) {
           aria-expanded={open}
           aria-controls={menuId}
           title={tip}
+          aria-label={collapsed ? collapsedAriaLabel : undefined}
+          {...(block.blocked ? { "aria-disabled": true } : {})}
           data-testid="profile-selector-trigger"
           onClick={() => setOpen((v) => !v)}
         >

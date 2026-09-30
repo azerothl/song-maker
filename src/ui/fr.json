@@ -1129,6 +1129,10 @@
   "profiles.migration.rename": "Renommer le profil",
   "profiles.migration.dismiss": "Compris",
   "profiles.projects.count": "{count} morceaux",
+  "profiles.projects.one": "1 morceau",
+  "profiles.projects.many": "{count} morceaux",
+  "profiles.selector.collapsedAria": "Profil actif : {name} — {kind}. Changer de profil.",
+  "profiles.engines.whySheetsage2AudioCpp": "Selon audio.cpp (docs/model_licenses.md, entrée sheetsage2, CC-BY-NC-4.0, relevée le {date} ; carte Hugging Face non relue)",
   "profiles.projects.none": "aucun morceau",
   "profiles.contracts.count": "{count} contrats acceptés",
   "profiles.contracts.none": "aucun contrat accepté"

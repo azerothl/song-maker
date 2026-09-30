@@ -4,7 +4,7 @@ import enProfiles from "./en.profiles.json";
 
 type Keys = keyof typeof fr;
 
-function profileLocale(): "fr" | "en" {
+export function profileLocale(): "fr" | "en" {
   if (typeof localStorage === "undefined") return "fr";
   return localStorage.getItem("song-maker.locale") === "en" ? "en" : "fr";
 }

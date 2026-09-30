@@ -98,7 +98,8 @@ option {
 
 .app-shell:has(.splash),
 .app-shell:has(.setup-screen),
-.app-shell:has(.first-launch) {
+.app-shell:has(.first-launch),
+.app-shell:has(.profile-onboarding) {
   grid-template-columns: 1fr;
 }
 
@@ -6605,6 +6606,10 @@ details[open] > summary {
   flex-direction: column;
   gap: 0.5rem;
   flex-shrink: 0;
+}
+
+.profile-migration-banner-actions .btn {
+  min-height: 44px;
 }
 
 .profile-migration-banner-icon {

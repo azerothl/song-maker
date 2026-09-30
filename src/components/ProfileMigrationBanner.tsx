@@ -1,7 +1,11 @@
 import { api } from "../lib/api";
-import { formatProfileMigrationBannerFr } from "../lib/profileMigrationBannerCopy";
+import {
+  formatProfileMigrationBannerEn,
+  formatProfileMigrationBannerFr,
+  pickProfileMigrationBannerProfile,
+} from "../lib/profileMigrationBannerCopy";
 import { useAppStore } from "../store/appStore";
-import { t } from "../ui/i18n";
+import { profileLocale, t } from "../ui/i18n";
 
 export function ProfileMigrationBanner() {
   const profilesState = useAppStore((s) => s.profilesState);
@@ -10,10 +14,7 @@ export function ProfileMigrationBanner() {
 
   if (!profilesState?.migrationBannerVisible) return null;
 
-  const migrated =
-    profilesState.profiles.find((p) => p.name.includes("Profil Hobby")) ??
-    profilesState.profiles.find((p) => p.isLastUsed) ??
-    profilesState.profiles[0];
+  const migrated = pickProfileMigrationBannerProfile(profilesState.profiles);
   if (!migrated) return null;
 
   const onRename = () => {
@@ -40,8 +41,11 @@ export function ProfileMigrationBanner() {
     >
       <div className="profile-migration-banner-icon" aria-hidden="true">🏠</div>
       <div className="profile-migration-banner-text">
+        <strong data-testid="profile-migration-banner-title">{migrated.name}</strong>
         <p data-testid="profile-migration-banner-body">
-          {formatProfileMigrationBannerFr(
+          {(profileLocale() === "en"
+            ? formatProfileMigrationBannerEn
+            : formatProfileMigrationBannerFr)(
             migrated.projectCount,
             profilesState.maxProfiles,
           )}

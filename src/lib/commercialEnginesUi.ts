@@ -1,12 +1,14 @@
 import {
   buildCommercialEngineList,
+  COMMERCIAL_GRAY_REASONS_EN,
   COMMERCIAL_GRAY_REASONS_FR,
   licenseRowByDataId,
   primarySourceUrlForLicenseRow,
   type CommercialGrayReasonId,
   type CommercialEngineListEntry,
+  type EngineLicenseRow201,
 } from "@song-maker/stem-providers";
-import { t } from "../ui/i18n";
+import { profileLocale, t } from "../ui/i18n";
 
 export type CommercialEngineRowUi = {
   id: string;
@@ -34,20 +36,46 @@ function categoryLabelFr(category: string): string {
   }
 }
 
+function formatReleveDateFr(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  if (!y || !m || !d) return iso;
+  return `${d}/${m}/${y}`;
+}
+
+export function commercialGrayReasonLabel(
+  grayReason: CommercialGrayReasonId,
+): string {
+  const table =
+    profileLocale() === "en"
+      ? COMMERCIAL_GRAY_REASONS_EN
+      : COMMERCIAL_GRAY_REASONS_FR;
+  return table[grayReason];
+}
+
+export function commercialEngineWhyLabel(
+  engineId: string,
+  row: EngineLicenseRow201 | null | undefined,
+): string {
+  if (engineId === "sheetsage2") {
+    const iso = row?.date_releve_audio_cpp?.trim() || "2026-09-21";
+    const date =
+      profileLocale() === "en" ? iso : formatReleveDateFr(iso);
+    return t("profiles.engines.whySheetsage2AudioCpp", { date });
+  }
+  const dated = row?.date_verification?.trim();
+  return dated
+    ? t("profiles.engines.whyWithDate", { date: dated })
+    : t("profiles.engines.whyNoDate");
+}
+
 export function buildCommercialEngineRowsUi(
   entries: CommercialEngineListEntry[] = buildCommercialEngineList(),
 ): CommercialEngineRowUi[] {
   return entries.map((entry) => {
     const row = entry.licenseRow;
-    const dated = row?.date_verification?.trim();
     const whyHref = primarySourceUrlForLicenseRow(row);
-    const reasonFromRow = row?.raison_grise_fr?.trim();
-    const reasonLabel =
-      reasonFromRow ||
-      COMMERCIAL_GRAY_REASONS_FR[entry.grayReason];
-    const whyLabel = dated
-      ? t("profiles.engines.whyWithDate", { date: dated })
-      : t("profiles.engines.whyNoDate");
+    const reasonLabel = commercialGrayReasonLabel(entry.grayReason);
+    const whyLabel = commercialEngineWhyLabel(entry.engine.id, row);
     return {
       id: entry.engine.id,
       name: entry.engine.displayNameFr,

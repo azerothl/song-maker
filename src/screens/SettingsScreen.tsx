@@ -41,7 +41,13 @@ export function SettingsScreen() {
   const refreshHealth = useAppStore((s) => s.refreshHealth);
   const setScreen = useAppStore((s) => s.setScreen);
   const setError = useAppStore((s) => s.setError);
-  const [page, setPage] = useState<SettingsPage>("home");
+  const captureSettingsPage = (): SettingsPage | null => {
+    if (!import.meta.env.VITE_CAPTURE) return null;
+    const hash = globalThis.location?.hash?.toLowerCase() ?? "";
+    if (hash.includes("engines") || hash.includes("moteurs")) return "engines";
+    return null;
+  };
+  const [page, setPage] = useState<SettingsPage>(captureSettingsPage() ?? "home");
   const [loraProbe, setLoraProbe] = useState<LoraTrainerProbe | null>(null);
   const [loraProbing, setLoraProbing] = useState(true);
   const [loraPanelStatus, setLoraPanelStatus] =

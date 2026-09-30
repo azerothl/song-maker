@@ -178,9 +178,7 @@ describe("commercial profile availability (#201)", () => {
     expect(s?.availability).toBe("grayed");
     expect(s?.grayReason).toBe("non_commercial");
     expect(s?.licenseRow?.date_verification).toBe("2026-09-30");
-    expect(s?.licenseRow?.raison_grise_fr).toBe(
-      "Usage non commercial : la licence interdit la vente ou la diffusion commerciale.",
-    );
+    expect(s?.licenseRow?.date_releve_audio_cpp).toBe("2026-09-21");
     expect(s?.licenseRow?.licence_poids).toMatch(/audio\.cpp/i);
     expect(s?.licenseRow?.licence_poids).toMatch(/n'a pas été relue/i);
     expect(s?.licenseRow?.licence_poids).not.toMatch(/carte Hugging Face d'origine a été/i);

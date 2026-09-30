@@ -32,7 +32,7 @@ export function ProfileCommercialTypeOption({
         aria-describedby={state.showUnavailableReason ? reasonId : undefined}
         tabIndex={0}
         data-testid="profile-type-commercial"
-        className={`profile-type-card profile-type-commercial${selected ? " is-selected" : ""}${state.activatable ? "" : " is-inactive"}`}
+        className={`profile-type-card profile-type-commercial profile-focusable${selected ? " is-selected" : ""}${state.activatable ? "" : " is-inactive"}`}
         onClick={() => {
           if (state.activatable) onSelect();
         }}

@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 import { resolveCommercialCreationState } from "../lib/profileCommercialCreation";
 import type { ProfileKind, ProfileSummary } from "../lib/profilesTypes";
 import { setupComplete } from "../lib/firstLaunch";
+import { formatProfileProjectCount } from "../lib/profileProjectCount";
 import { profileSwitchBlockReason } from "../lib/profileSwitchBlock";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
@@ -16,10 +17,7 @@ function profileCardMeta(p: ProfileSummary): string {
     p.kind === "commercial"
       ? t("profiles.onboarding.type.commercial")
       : t("profiles.onboarding.type.hobby");
-  const projects =
-    p.projectCount > 0
-      ? t("profiles.projects.count", { count: p.projectCount })
-      : t("profiles.projects.none");
+  const projects = formatProfileProjectCount(p.projectCount);
   const contracts =
     p.acceptedContractCount > 0
       ? t("profiles.contracts.count", { count: p.acceptedContractCount })
@@ -96,6 +94,7 @@ export function ProfileOnboardingScreen() {
   };
 
   const performCreate = async () => {
+    if (switchBlock.blocked) return;
     const trimmed = name.trim();
     setBusy(true);
     try {
@@ -130,6 +129,7 @@ export function ProfileOnboardingScreen() {
 
   const createDisabled =
     busy ||
+    switchBlock.blocked ||
     !canCreateMore ||
     !name.trim() ||
     (type === "commercial" && !commercialState.activatable);

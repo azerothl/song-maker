@@ -47,6 +47,17 @@ pub struct UndoStacks {
     pub stacks: BTreeMap<String, (Vec<serde_json::Value>, Vec<serde_json::Value>)>,
 }
 
+pub fn with_profile_export_busy<T>(
+    state: &AppState,
+    f: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    use std::sync::atomic::Ordering;
+    state.profile_export_busy.store(true, Ordering::SeqCst);
+    let result = f();
+    state.profile_export_busy.store(false, Ordering::SeqCst);
+    result
+}
+
 impl Default for AppState {
     fn default() -> Self {
         Self {

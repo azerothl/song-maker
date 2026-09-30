@@ -51,6 +51,10 @@
   "profiles.engines.commercialTitle": "Commercial-type engines",
   "profiles.engines.previewBadge": "preview",
   "profiles.projects.count": "{count} songs",
+  "profiles.projects.one": "1 song",
+  "profiles.projects.many": "{count} songs",
+  "profiles.selector.collapsedAria": "Active profile: {name} — {kind}. Switch profile.",
+  "profiles.engines.whySheetsage2AudioCpp": "Per audio.cpp (docs/model_licenses.md, sheetsage2 entry, CC-BY-NC-4.0, reviewed {date}; original Hugging Face card not re-read)",
   "profiles.projects.none": "no songs",
   "profiles.contracts.count": "{count} accepted agreements",
   "profiles.contracts.none": "no accepted agreements"

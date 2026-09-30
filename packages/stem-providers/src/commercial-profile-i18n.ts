@@ -26,7 +26,8 @@ export const COMMERCIAL_GRAY_SECTION_TITLE_EN =
   "Engines not offered in this profile";
 
 export const COMMERCIAL_GRAY_REASONS_FR: Record<CommercialGrayReasonId, string> = {
-  non_commercial: "Usage non commercial.",
+  non_commercial:
+    "Usage non commercial : la licence interdit la vente ou la diffusion commerciale.",
   weights_unverified:
     "Licence des poids non vérifiée : aucune source fiable ne confirme l'usage commercial.",
   origin_undocumented:
@@ -34,8 +35,7 @@ export const COMMERCIAL_GRAY_REASONS_FR: Record<CommercialGrayReasonId, string> 
 };
 
 export const COMMERCIAL_GRAY_REASONS_EN: Record<CommercialGrayReasonId, string> = {
-  non_commercial:
-    "Non-commercial use: sale or commercial distribution is not allowed.",
+  non_commercial: "Non-commercial use only.",
   weights_unverified:
     "Weight license unverified: no reliable source confirms commercial use.",
   origin_undocumented:

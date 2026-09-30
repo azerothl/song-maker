@@ -10,7 +10,7 @@ const ROOT = path.resolve(__dirname, "../../../..");
 const OUT = __dirname;
 mkdirSync(OUT, { recursive: true });
 const PORT = 5181;
-const BASE = `http://127.0.0.1:${PORT}/profiles-capture.html`;
+const BASE = `http://127.0.0.1:${PORT}/profiles-app-capture.html`;
 
 async function waitServer(url: string, timeoutMs = 60_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -105,14 +105,13 @@ try {
         viewport: { width: 1280, height },
       });
       await page.goto(`${BASE}#${scene.hash}`, { waitUntil: "networkidle" });
-      if (scene.hash === "selector-open" || scene.hash === "blocked-generation") {
+      if (scene.hash === "selector-open") {
         await page.waitForSelector('[data-testid="profile-selector-trigger"]', {
           timeout: 15_000,
         });
-        if (scene.hash === "blocked-generation") {
-          await page.waitForTimeout(350);
-        }
         await page.click('[data-testid="profile-selector-trigger"]');
+        await page.waitForSelector(scene.waitFor, { timeout: 15_000 });
+      } else if (scene.hash === "blocked-generation") {
         await page.waitForSelector(scene.waitFor, { timeout: 15_000 });
       } else {
         await page.waitForSelector(scene.waitFor, { timeout: 15_000 });
