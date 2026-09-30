@@ -133,6 +133,71 @@ async function measureFold(page: Page) {
   }>;
 }
 
+async function measureGridFocus(page: Page): Promise<FocusProof> {
+  const grid = page.locator(".fl-grid").first();
+  await grid.focus();
+  return page.evaluate(`(() => {
+    const el = document.querySelector(".fl-grid");
+    if (!el) {
+      return {
+        outlineStyle: "",
+        outlineWidth: "",
+        outlineColor: "",
+        outlineOffset: "",
+        matchesFocusVisible: false,
+        isCyan2px: false,
+      };
+    }
+    el.focus();
+    const cs = getComputedStyle(el);
+    const outlineStyle = cs.outlineStyle;
+    const outlineWidth = cs.outlineWidth;
+    const outlineColor = cs.outlineColor;
+    const outlineOffset = cs.outlineOffset;
+    const matchesFocusVisible = el.matches(":focus-visible");
+    const isCyan2px =
+      outlineStyle === "solid" &&
+      (outlineWidth === "2px" || outlineWidth === "2") &&
+      /rgb\\(\\s*94\\s*,\\s*236\\s*,\\s*248\\s*\\)/.test(outlineColor);
+    return {
+      outlineStyle,
+      outlineWidth,
+      outlineColor,
+      outlineOffset,
+      matchesFocusVisible,
+      isCyan2px,
+    };
+  })()`) as Promise<FocusProof>;
+}
+
+async function scrollInterruptedErrboxClear(page: Page): Promise<number> {
+  return page.evaluate(`(() => {
+    const body = document.querySelector(".fl-scroll-body");
+    if (!body) return 0;
+    body.scrollTop = Math.max(0, body.scrollHeight - body.clientHeight);
+    const hint = document.querySelector(".fl-scroll-hint");
+    const texts = [
+      ...document.querySelectorAll(".fl-errbox h2, .fl-errbox p, .fl-errbox li"),
+    ];
+    if (!hint) return 0;
+    const hr = hint.getBoundingClientRect();
+    let masked = 0;
+    for (const el of texts) {
+      const tr = el.getBoundingClientRect();
+      if (
+        tr.height > 0 &&
+        tr.bottom > hr.top + 0.5 &&
+        tr.top < hr.bottom - 0.5 &&
+        tr.right > hr.left &&
+        tr.left < hr.right
+      ) {
+        masked += 1;
+      }
+    }
+    return masked;
+  })()`) as Promise<number>;
+}
+
 async function measureDemucsFocus(page: Page): Promise<FocusProof> {
   const link = page.locator("a.fl-demucs-link").first();
   await link.focus();
@@ -230,6 +295,50 @@ async function main(): Promise<void> {
     const focusBuf = await readFile(path.join(OUT, focusFile));
     files[focusFile] = { sha256: sha256(focusBuf), bytes: focusBuf.length };
     await focusPage.close();
+
+    const gridFocusResults: Record<string, unknown> = {};
+    for (const height of [640, 720, 768] as const) {
+      const page = await browser.newPage({
+        viewport: { width: 1280, height },
+      });
+      await page.goto(BASE, { waitUntil: "networkidle" });
+      await page.waitForSelector(".fl-grid[tabindex='0']", { timeout: 15_000 });
+      const gridFocus = await measureGridFocus(page);
+      const file = `first-launch-grid-focus-1280x${height}.png`;
+      await page.screenshot({ path: path.join(OUT, file), fullPage: false });
+      const buf = await readFile(path.join(OUT, file));
+      files[file] = { sha256: sha256(buf), bytes: buf.length };
+      gridFocusResults[`grid-${height}`] = {
+        file,
+        viewport: { width: 1280, height },
+        ...gridFocus,
+        pass: gridFocus.isCyan2px && gridFocus.matchesFocusVisible,
+      };
+      await page.close();
+    }
+
+    const interruptedResults: Record<string, unknown> = {};
+    for (const height of [640, 720, 768] as const) {
+      const page = await browser.newPage({
+        viewport: { width: 1280, height },
+      });
+      await page.goto(`${BASE}#c`, { waitUntil: "networkidle" });
+      await page.waitForSelector(".fl-errbox", { timeout: 15_000 });
+      await page.waitForTimeout(250);
+      const masked = await scrollInterruptedErrboxClear(page);
+      const file = `first-launch-interrupted-1280x${height}.png`;
+      await page.screenshot({ path: path.join(OUT, file), fullPage: false });
+      const buf = await readFile(path.join(OUT, file));
+      files[file] = { sha256: sha256(buf), bytes: buf.length };
+      interruptedResults[`interrupted-${height}`] = {
+        file,
+        viewport: { width: 1280, height },
+        maskedErrboxTextNodes: masked,
+        pass: masked === 0,
+      };
+      await page.close();
+    }
+
     await browser.close();
 
     const metrics = {
@@ -244,6 +353,8 @@ async function main(): Promise<void> {
         expected: "2px solid var(--accent-cyan) / rgb(94, 236, 248)",
         pass: demucsFocus.isCyan2px && demucsFocus.matchesFocusVisible,
       },
+      gridFocus: gridFocusResults,
+      interruptedErrbox: interruptedResults,
       files,
       pass:
         Object.values(foldResults).every(
@@ -252,7 +363,22 @@ async function main(): Promise<void> {
             typeof row === "object" &&
             "checks" in row &&
             (row as { checks: { pass: boolean } }).checks.pass,
-        ) && demucsFocus.isCyan2px,
+        ) &&
+        demucsFocus.isCyan2px &&
+        Object.values(gridFocusResults).every(
+          (row) =>
+            row &&
+            typeof row === "object" &&
+            "pass" in row &&
+            (row as { pass: boolean }).pass,
+        ) &&
+        Object.values(interruptedResults).every(
+          (row) =>
+            row &&
+            typeof row === "object" &&
+            "pass" in row &&
+            (row as { pass: boolean }).pass,
+        ),
     };
 
     await writeFile(

@@ -2725,6 +2725,20 @@ details[open] > summary {
   outline-offset: 2px;
 }
 
+/* Région défilante (premier arrêt Tab) : anneau cyan 2 px, pas le contour navigateur (#206). */
+.first-launch .fl-grid:focus-visible,
+.first-launch .fl-scroll-body:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* Réserve sous « Suite — défiler » pour ne pas masquer le contenu défilant (#206). */
+.fl-scroll-shell.has-more > .fl-grid,
+.fl-scroll-shell.has-more > .fl-scroll-body {
+  padding-bottom: 52px;
+  scroll-padding-bottom: 52px;
+}
+
 .fl-card {
   flex: 1;
   min-height: 0;
@@ -2742,6 +2756,75 @@ details[open] > summary {
 /* État GPU : pied licences/Télécharger épinglé ; le milieu défile. */
 .fl-card:has(.fl-foot) {
   overflow: hidden;
+}
+
+/* État téléchargement / interrompu : actions « Reprendre » épinglées (#196). */
+.fl-card:has(.fl-row-actions) {
+  overflow: hidden;
+}
+
+.fl-scroll-shell {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+.fl-scroll-shell > .fl-grid,
+.fl-scroll-shell > .fl-scroll-body {
+  flex: 1;
+  min-height: 0;
+}
+
+.fl-scroll-body {
+  overflow: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--fl-line2) #171320;
+}
+
+.fl-scroll-body::-webkit-scrollbar,
+.fl-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.fl-scroll-body::-webkit-scrollbar-track,
+.fl-grid::-webkit-scrollbar-track {
+  background: #171320;
+  border-radius: 4px;
+}
+
+.fl-scroll-body::-webkit-scrollbar-thumb,
+.fl-grid::-webkit-scrollbar-thumb {
+  background: var(--fl-line2);
+  border-radius: 4px;
+}
+
+.fl-scroll-hint {
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  right: 8px;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-bottom: 4px;
+  height: 36px;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--fl-card) 92%, #1e1a27));
+  color: var(--fl-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.fl-scroll-hint span {
+  background: color-mix(in srgb, var(--fl-card2) 88%, transparent);
+  border: 1px solid var(--fl-line);
+  border-radius: 999px;
+  padding: 2px 10px;
 }
 
 .fl-eyebrow {
@@ -2780,10 +2863,13 @@ details[open] > summary {
   display: grid;
   grid-template-columns: 1fr 1.15fr;
   gap: 22px;
-  margin-top: 16px;
+  margin-top: 0;
   flex: 1;
   min-height: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--fl-line2) #171320;
 }
 
 .fl-stack {
@@ -3031,6 +3117,10 @@ details[open] > summary {
 
   .fl-grid {
     gap: 14px;
+    margin-top: 0;
+  }
+
+  .fl-scroll-shell {
     margin-top: 10px;
   }
 
@@ -3057,6 +3147,10 @@ details[open] > summary {
 
   .fl-grid {
     gap: 10px;
+    margin-top: 0;
+  }
+
+  .fl-scroll-shell {
     margin-top: 8px;
   }
 
@@ -3332,7 +3426,7 @@ details[open] > summary {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 0;
 }
 
 .fl-file {
@@ -3443,8 +3537,10 @@ details[open] > summary {
   display: flex;
   gap: 12px;
   align-items: center;
-  margin-top: auto;
+  flex-shrink: 0;
+  margin-top: 0;
   padding-top: 12px;
+  border-top: 1px solid var(--fl-line);
   flex-wrap: wrap;
 }
 

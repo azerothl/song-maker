@@ -1,6 +1,6 @@
 {
   "issue": 199,
-  "generatedAt": "2026-09-30T06:46:18.712Z",
+  "generatedAt": "2026-09-30T12:06:41.704Z",
   "method": "Vite + App React réelle, Playwright Chromium/Chrome, getBoundingClientRect (pas pixels seuls)",
   "fold": {
     "fold-720": {
@@ -15,36 +15,36 @@
         "top": 645,
         "bottom": 689,
         "left": 113.8,
-        "right": 732.7,
-        "width": 618.9,
+        "right": 730.2,
+        "width": 616.4,
         "height": 44,
         "inViewport": true
       },
       "downloadButton": {
-        "top": 594.5,
-        "bottom": 648.5,
-        "left": 973.1,
+        "top": 566.3,
+        "bottom": 620.3,
+        "left": 975.2,
         "right": 1166.2,
-        "width": 193.1,
+        "width": 191,
         "height": 54,
         "inViewport": true
       },
       "foot": {
-        "top": 514,
+        "top": 457.5,
         "bottom": 689,
         "left": 113.8,
         "right": 1166.2,
         "width": 1052.4,
-        "height": 175,
+        "height": 231.5,
         "inViewport": true
       },
       "demucsLink": {
-        "top": 626,
-        "bottom": 645,
-        "left": 629.1,
-        "right": 704,
-        "width": 74.9,
-        "height": 19,
+        "top": 625.1,
+        "bottom": 645.1,
+        "left": 376.8,
+        "right": 455.8,
+        "width": 79,
+        "height": 20,
         "inViewport": true
       },
       "checks": {
@@ -65,36 +65,36 @@
         "top": 571,
         "bottom": 615,
         "left": 113.8,
-        "right": 740.7,
-        "width": 626.9,
+        "right": 738.2,
+        "width": 624.4,
         "height": 44,
         "inViewport": true
       },
       "downloadButton": {
-        "top": 520.5,
-        "bottom": 574.5,
-        "left": 973.1,
+        "top": 492.3,
+        "bottom": 546.3,
+        "left": 975.2,
         "right": 1166.2,
-        "width": 193.1,
+        "width": 191,
         "height": 54,
         "inViewport": true
       },
       "foot": {
-        "top": 442,
+        "top": 385.5,
         "bottom": 615,
         "left": 113.8,
         "right": 1166.2,
         "width": 1052.4,
-        "height": 173,
+        "height": 229.5,
         "inViewport": true
       },
       "demucsLink": {
-        "top": 552,
-        "bottom": 571,
-        "left": 629.1,
-        "right": 704,
-        "width": 74.9,
-        "height": 19,
+        "top": 551.1,
+        "bottom": 571.1,
+        "left": 356.8,
+        "right": 435.8,
+        "width": 79,
+        "height": 20,
         "inViewport": true
       },
       "checks": {
@@ -115,18 +115,115 @@
     "expected": "2px solid var(--accent-cyan) / rgb(94, 236, 248)",
     "pass": true
   },
+  "gridFocus": {
+    "grid-640": {
+      "file": "first-launch-grid-focus-1280x640.png",
+      "viewport": {
+        "width": 1280,
+        "height": 640
+      },
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgb(94, 236, 248)",
+      "outlineOffset": "2px",
+      "matchesFocusVisible": true,
+      "isCyan2px": true,
+      "pass": true
+    },
+    "grid-720": {
+      "file": "first-launch-grid-focus-1280x720.png",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgb(94, 236, 248)",
+      "outlineOffset": "2px",
+      "matchesFocusVisible": true,
+      "isCyan2px": true,
+      "pass": true
+    },
+    "grid-768": {
+      "file": "first-launch-grid-focus-1280x768.png",
+      "viewport": {
+        "width": 1280,
+        "height": 768
+      },
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgb(94, 236, 248)",
+      "outlineOffset": "2px",
+      "matchesFocusVisible": true,
+      "isCyan2px": true,
+      "pass": true
+    }
+  },
+  "interruptedErrbox": {
+    "interrupted-640": {
+      "file": "first-launch-interrupted-1280x640.png",
+      "viewport": {
+        "width": 1280,
+        "height": 640
+      },
+      "maskedErrboxTextNodes": 0,
+      "pass": true
+    },
+    "interrupted-720": {
+      "file": "first-launch-interrupted-1280x720.png",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "maskedErrboxTextNodes": 0,
+      "pass": true
+    },
+    "interrupted-768": {
+      "file": "first-launch-interrupted-1280x768.png",
+      "viewport": {
+        "width": 1280,
+        "height": 768
+      },
+      "maskedErrboxTextNodes": 0,
+      "pass": true
+    }
+  },
   "files": {
     "first-launch-gpu-fold-1280x720.png": {
-      "sha256": "3dd04d54ba226c937dfb75efef9114c018c68f4daaae74d30cd7534e12825f90",
-      "bytes": 209935
+      "sha256": "1feee72dc99d18b886667ce16796e468d10998b9836049ea7a202bf958b8ca8e",
+      "bytes": 209190
     },
     "first-launch-gpu-fold-1280x640.png": {
-      "sha256": "b42386fe6832b2e1a5d2e4652aac0c0da6d26c1843d0fc6792e0d3686ea6f2bd",
-      "bytes": 203003
+      "sha256": "2c0f732551910cd6706ee67aa8ddd70efa2d5ef69420064d384a599cbbc0e2a2",
+      "bytes": 199531
     },
     "first-launch-demucs-link-focus-1280x720.png": {
-      "sha256": "80eec9b21ed347d65605e406b0376b23374501e94615b7e04c510996f5a668ae",
-      "bytes": 1627
+      "sha256": "fe5ab86d9e57b0e2d7d5e6173f2bc90d2ebe8d62196848b40f6ef7c943cc1195",
+      "bytes": 1828
+    },
+    "first-launch-grid-focus-1280x640.png": {
+      "sha256": "427bd37f0a9351b6eccc78d5b6a716c537f4d1ce6eb9519110143d115a945232",
+      "bytes": 200643
+    },
+    "first-launch-grid-focus-1280x720.png": {
+      "sha256": "bf15b3f8b22851aff21dbc04975b49735308681b7a84a91b3d040f232b00efc4",
+      "bytes": 210630
+    },
+    "first-launch-grid-focus-1280x768.png": {
+      "sha256": "644306068cdeb7523f4b7aaf19a5cfd9177a32fef101382e376ece31df5db12e",
+      "bytes": 214841
+    },
+    "first-launch-interrupted-1280x640.png": {
+      "sha256": "6737fb50cac6c5e357ce07b91674de9b3645fe56cac051624b6ae49de9aaff8e",
+      "bytes": 131764
+    },
+    "first-launch-interrupted-1280x720.png": {
+      "sha256": "df4449e279f95b5ee2dd8c61c0d9312ba561d8d75cce3ee2f89a78af8ab52afc",
+      "bytes": 140911
+    },
+    "first-launch-interrupted-1280x768.png": {
+      "sha256": "3bc391d796859b58c6fc6ccf70f068fd126842885da4ecb8d76a50ce149f3bf1",
+      "bytes": 146250
     }
   },
   "pass": true
