@@ -11,7 +11,10 @@ Captures PNG et `captures/apres/metrics.json` régénérés après ce rebase (`V
 |---------|------------------:|:-----------------:|
 | `main` (f83c10a, réf. relecture) | 401,7 | non |
 | PR avant correctif B1 (d2a8518) | 281,7 | oui |
-| PR après correctif (métriques ci-dessous) | 401,72 | non |
+| PR après correctif (métriques locales) | 401,72 | non |
+| Actions CI (Chrome runner, post-correctif) | ~368,7 | non |
+
+Test : plage `[350, 430]` (évite le pixel-perfect fragile entre machines) + `nameTruncated === false`.
 
 ## Popover barre repliée (mesuré)
 

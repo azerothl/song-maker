@@ -12,7 +12,9 @@ import type { ProfilePopoverMetrics } from "./profileIssue215Metrics";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const PORT = 5198;
 const BASE = `http://127.0.0.1:${PORT}/profiles-app-capture.html`;
-const MAIN_EXPANDED_MENU_HEIGHT_PX = 401.7;
+/** Réf. main ~401.7 (Chrome local) ; Actions CI ~368.7 (polices). Régression ellipsis : ~281.7. */
+const EXPANDED_MENU_HEIGHT_MIN_PX = 350;
+const EXPANDED_MENU_HEIGHT_MAX_PX = 430;
 
 async function waitServer(url: string): Promise<void> {
   for (let i = 0; i < 120; i++) {
@@ -133,6 +135,7 @@ describe("profile selector collapsed popover (#215)", () => {
     await page.goto(`${BASE}#selector-open`, { waitUntil: "networkidle" });
     await page.waitForSelector("#sidebar:not(.is-collapsed)");
     await page.waitForSelector('[data-testid="profile-selector-menu"]');
+    await page.evaluate(() => document.fonts.ready);
     const expanded = await page.evaluate(() => {
       const fn = window.__profileIssue215ExpandedMenu;
       if (!fn) throw new Error("__profileIssue215ExpandedMenu manquant");
@@ -140,8 +143,9 @@ describe("profile selector collapsed popover (#215)", () => {
     });
     assert.ok(expanded, "mesures menu déplié");
     assert.ok(
-      Math.abs(expanded.menuHeight - MAIN_EXPANDED_MENU_HEIGHT_PX) < 2,
-      `hauteur menu ${expanded.menuHeight} vs ${MAIN_EXPANDED_MENU_HEIGHT_PX}`,
+      expanded.menuHeight >= EXPANDED_MENU_HEIGHT_MIN_PX &&
+        expanded.menuHeight <= EXPANDED_MENU_HEIGHT_MAX_PX,
+      `hauteur menu ${expanded.menuHeight} hors plage B1 [${EXPANDED_MENU_HEIGHT_MIN_PX}, ${EXPANDED_MENU_HEIGHT_MAX_PX}]`,
     );
     assert.equal(expanded.nameTruncated, false, "libellés non tronqués barre dépliée");
     await page.close();
