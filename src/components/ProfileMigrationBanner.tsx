@@ -16,7 +16,14 @@ export function ProfileMigrationBanner() {
   if (!migrated) return null;
 
   const onRename = () => {
-    const next = window.prompt(t("profiles.onboarding.rename"), migrated.name);
+    const typeLabel =
+      migrated.kind === "commercial"
+        ? t("profiles.onboarding.type.commercial")
+        : t("profiles.onboarding.type.hobby");
+    const next = window.prompt(
+      `${t("profiles.onboarding.renameTypeImmutable", { type: typeLabel })}\n\n${t("profiles.onboarding.rename")}`,
+      migrated.name,
+    );
     if (!next?.trim() || next.trim() === migrated.name) return;
     void api
       .renameProfile(migrated.id, next.trim())
@@ -32,11 +39,9 @@ export function ProfileMigrationBanner() {
     >
       <div className="profile-migration-banner-icon" aria-hidden="true">🏠</div>
       <div className="profile-migration-banner-text">
-        <strong>{t("profiles.migration.bannerTitle")}</strong>
         <p>
           {t("profiles.migration.bannerBody", {
             count: migrated.projectCount,
-            max: profilesState.maxProfiles,
           })}
         </p>
       </div>

@@ -11,6 +11,7 @@ import {
   APP_ENGINE_CATALOG,
   buildCommercialEngineList,
   buildHobbyEngineOffers,
+  buildCommercialProfileCreationConfirm,
   HOBBY_NON_COMMERCIAL_USAGE_FR,
   COMMERCIAL_CREATION_UI_MODE,
   engineContractFingerprint,
@@ -171,6 +172,22 @@ describe("commercial profile availability (#201)", () => {
     const s = list.find((e) => e.engine.id === "htdemucs");
     expect(s?.availability).toBe("grayed");
     expect(s?.grayReason).toBe("weights_unverified");
+  });
+
+  it("returns no Commercial create confirm dialog in production (no wired dated engines)", () => {
+    expect(buildCommercialProfileCreationConfirm()).toBeNull();
+  });
+
+  it("builds engine lines from licence rows when wired and dated", () => {
+    const wired: WiredCommercialEngine[] = [
+      { engineId: "htdemucs", licenseDataId: "htdemucs" },
+    ];
+    const dialog = buildCommercialProfileCreationConfirm(wired);
+    expect(dialog).not.toBeNull();
+    expect(dialog!.engineLinesFr[0]).toMatch(/^Moteur proposé aujourd'hui :/);
+    expect(dialog!.engineLinesFr[0]).toContain("HTDemucs");
+    expect(dialog!.engineLinesFr[0]).toContain("disponible avec réserve");
+    expect(dialog!.engineLinesFr.join(" ")).not.toMatch(/ACE-Step/i);
   });
 
   it("catalog excludes ACE-Step", () => {

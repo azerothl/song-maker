@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import fr from "../ui/fr.json";
 import enProfiles from "../ui/en.profiles.json";
 import {
+  COMMERCIAL_CREATE_CONFIRM_INTRO_FR,
+  COMMERCIAL_CREATE_CONFIRM_TITLE_FR,
   COMMERCIAL_CREATION_DISABLED_REASON_FR,
   COMMERCIAL_PROFILE_DESCRIPTION_FR,
   COMMERCIAL_GRAY_REASONS_FR,
@@ -21,6 +23,8 @@ function profileStrings(): string[] {
     ...fromEn,
     COMMERCIAL_PROFILE_DESCRIPTION_FR,
     COMMERCIAL_CREATION_DISABLED_REASON_FR,
+    COMMERCIAL_CREATE_CONFIRM_TITLE_FR,
+    COMMERCIAL_CREATE_CONFIRM_INTRO_FR,
     ...Object.values(COMMERCIAL_GRAY_REASONS_FR),
   ];
 }

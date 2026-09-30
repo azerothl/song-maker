@@ -119,6 +119,13 @@ export {
   engineContractFingerprint,
 } from "./engine-licenses-201.js";
 export type { ReservedStatusTemplate } from "./commercial-profile-i18n.js";
+export type { CommercialProfileCreationConfirm } from "./commercial-creation-confirm.js";
+export {
+  buildCommercialProfileCreationConfirm,
+  formatCommercialCreationEngineLineFr,
+  COMMERCIAL_CREATE_CONFIRM_TITLE_FR,
+  COMMERCIAL_CREATE_CONFIRM_INTRO_FR,
+} from "./commercial-creation-confirm.js";
 export {
   COMMERCIAL_PROFILE_DESCRIPTION_FR,
   COMMERCIAL_PROFILE_DESCRIPTION_EN,

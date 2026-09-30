@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { buildCommercialProfileCreationConfirm } from "@song-maker/stem-providers";
+import { useEffect, useMemo, useState } from "react";
+import { ProfileCommercialCreateConfirmDialog } from "../components/ProfileCommercialCreateConfirmDialog";
 import { ProfileCommercialTypeOption } from "../components/ProfileCommercialTypeOption";
 import { api } from "../lib/api";
 import { resolveCommercialCreationState } from "../lib/profileCommercialCreation";
@@ -35,8 +37,13 @@ export function ProfileOnboardingScreen() {
   const [name, setName] = useState("");
   const [type, setType] = useState<ProfileKind>("hobby");
   const [busy, setBusy] = useState(false);
+  const [commercialConfirmOpen, setCommercialConfirmOpen] = useState(false);
 
   const commercialState = resolveCommercialCreationState();
+  const commercialCreateConfirm = useMemo(
+    () => buildCommercialProfileCreationConfirm(),
+    [],
+  );
   const maxProfiles = profilesState?.maxProfiles ?? 6;
   const profiles = profilesState?.profiles ?? [];
   const canCreateMore = profiles.length < maxProfiles;
@@ -60,7 +67,14 @@ export function ProfileOnboardingScreen() {
   };
 
   const renameProfile = (p: ProfileSummary) => {
-    const next = window.prompt(t("profiles.onboarding.rename"), p.name);
+    const typeLabel =
+      p.kind === "commercial"
+        ? t("profiles.onboarding.type.commercial")
+        : t("profiles.onboarding.type.hobby");
+    const next = window.prompt(
+      `${t("profiles.onboarding.renameTypeImmutable", { type: typeLabel })}\n\n${t("profiles.onboarding.rename")}`,
+      p.name,
+    );
     if (!next?.trim() || next.trim() === p.name) return;
     void api
       .renameProfile(p.id, next.trim())
@@ -68,15 +82,8 @@ export function ProfileOnboardingScreen() {
       .catch((e) => setError(String(e)));
   };
 
-  const createProfile = async () => {
+  const performCreate = async () => {
     const trimmed = name.trim();
-    if (!trimmed) {
-      setError("Nom du profil requis.");
-      return;
-    }
-    if (type === "commercial" && !commercialState.activatable) {
-      return;
-    }
     setBusy(true);
     try {
       const created = await api.createProfile(trimmed, type);
@@ -88,7 +95,24 @@ export function ProfileOnboardingScreen() {
       setError(String(e));
     } finally {
       setBusy(false);
+      setCommercialConfirmOpen(false);
     }
+  };
+
+  const createProfile = () => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError("Nom du profil requis.");
+      return;
+    }
+    if (type === "commercial" && !commercialState.activatable) {
+      return;
+    }
+    if (type === "commercial" && commercialCreateConfirm) {
+      setCommercialConfirmOpen(true);
+      return;
+    }
+    void performCreate();
   };
 
   const createDisabled =
@@ -170,7 +194,7 @@ export function ProfileOnboardingScreen() {
               role="alert"
               data-testid="profile-limit-alert"
             >
-              ⚠ {t("profiles.onboarding.limitReached", { max: maxProfiles })}
+              ⚠ {t("profiles.onboarding.limitReached")}
             </div>
           ) : null}
           <label className="profile-field">
@@ -223,11 +247,11 @@ export function ProfileOnboardingScreen() {
               className="btn primary profile-focusable"
               disabled={createDisabled}
               data-testid="profile-create-submit"
-              onClick={() => void createProfile()}
-            >
-              {t("profiles.onboarding.create")}
-            </button>
-            {!canCreateMore ? (
+            onClick={() => createProfile()}
+          >
+            {t("profiles.onboarding.create")}
+          </button>
+          {!canCreateMore ? (
               <p className="profile-limit-hint" data-testid="profile-limit-hint">
                 {t("profiles.onboarding.limitHint")}
               </p>
@@ -235,6 +259,14 @@ export function ProfileOnboardingScreen() {
           </div>
         </section>
       </div>
+      {commercialCreateConfirm ? (
+        <ProfileCommercialCreateConfirmDialog
+          open={commercialConfirmOpen}
+          confirm={commercialCreateConfirm}
+          onConfirm={() => void performCreate()}
+          onCancel={() => setCommercialConfirmOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
