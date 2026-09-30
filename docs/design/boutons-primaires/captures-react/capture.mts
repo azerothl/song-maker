@@ -92,11 +92,6 @@ type DisabledMode =
 
 type ShotTarget = "viewport" | "button-clip";
 
-type ClippedRingCapture = {
-  columnSelector: string;
-  filename: string;
-};
-
 type I3FocusCapture = {
   filename: string;
   selector: string;
@@ -115,8 +110,6 @@ type Scenario = {
   shotTarget?: ShotTarget;
   forcedHarness?: boolean;
   harnessNote?: string;
-  /** Anneau rogné (colonne étroite) — capture volontaire en plus du clip bouton. */
-  clippedRingCapture?: ClippedRingCapture;
   /** Exporter barre mix (anneau coupé) — focus Tab, cyan obligatoire dans le clip bouton. */
   i3FocusCapture?: I3FocusCapture;
 };
@@ -143,10 +136,6 @@ const SCENARIOS: Scenario[] = [
         .first()
         .scrollIntoViewIfNeeded();
       await page.waitForTimeout(150);
-    },
-    clippedRingCapture: {
-      columnSelector: ".song-create-generate",
-      filename: "creer-primary-focus-ring-clipped-column-1280x720.png",
     },
   },
   {
@@ -713,17 +702,6 @@ async function runScenario(
           page,
           focusClip.toString("base64"),
         );
-        if (scenario.clippedRingCapture) {
-          const colBuf = await page
-            .locator(scenario.clippedRingCapture.columnSelector)
-            .first()
-            .screenshot({ animations: "disabled", timeout: 15_000 });
-          await writeFile(
-            path.join(OUT, scenario.clippedRingCapture.filename),
-            colBuf,
-          );
-          captureFiles.push(scenario.clippedRingCapture.filename);
-        }
       }
     }
 
@@ -822,90 +800,108 @@ async function runScenario(
   }
 }
 
-/** Valeurs validées manuellement (revue Alphonse) — publication officielle. */
-const PUBLISHED_RING_LIBRARY = {
-  minRatio: 10,
-  maxRatio: 11.69,
-  medianRatio: 10.92,
-  pixelCount: 712,
-  distinctBackgrounds: 53,
-  backdropHex: "#0c0e18",
-};
+const MANUAL_REVIEW_SOURCE = "revue manuelle Alphonse";
 
-const PUBLISHED_GATE_BLOCKED = {
-  outlineContrastRatio: 3.51,
-  outlinePixelCount: 742,
-  popinBackdropHex: "#151827",
-  deltaE00VsPopinTopFace: 25.44,
-  deltaE00VsPopinBottomFace: 22.68,
-  deltaE00VsBg2: 21.11,
-  deltaE00VsBg2Reference: "var(--bg2) / #1c1934",
-};
-
-const PAGE_RING_BACKDROP_HEX = "#0c0e18";
-
-function applyPublishedMetrics(screens: ScreenMeasure[]): void {
-  for (const s of screens) {
-    if (s.id === "bibliotheque") {
-      const focus = s.states.find((st) => st.state === "focus");
-      if (focus?.focusProof) {
-        focus.focusProof.backdropHex = PUBLISHED_RING_LIBRARY.backdropHex;
-        focus.focusProof.outlineContrastRatio =
-          PUBLISHED_RING_LIBRARY.minRatio;
-        focus.focusProof.outlineContrastRatioMax =
-          PUBLISHED_RING_LIBRARY.maxRatio;
-      }
-    }
-    if (s.id === "regeneration-gate-blocked") {
-      const focus = s.states.find((st) => st.state === "focus");
-      if (focus?.focusProof) {
-        focus.focusProof.backdropHex = PUBLISHED_GATE_BLOCKED.popinBackdropHex;
-        focus.focusProof.outlineContrastRatio =
-          PUBLISHED_GATE_BLOCKED.outlineContrastRatio;
-        focus.focusProof.outlineContrastRatioMax =
-          PUBLISHED_GATE_BLOCKED.outlineContrastRatio;
-      }
-      if (s.popinCompare) {
-        s.popinCompare.deltaE00Face = PUBLISHED_GATE_BLOCKED.deltaE00VsBg2;
-      }
-    }
-    const onPageBg = new Set([
-      "production-mesurer",
-      "production-zip",
-      "reglages-lora",
-      "confirmation-invariant-panel",
-    ]);
-    if (onPageBg.has(s.id)) {
-      const focus = s.states.find((st) => st.state === "focus");
-      if (focus?.focusProof) {
-        focus.focusProof.backdropHex = PAGE_RING_BACKDROP_HEX;
-        focus.focusProof.outlineContrastRatio =
-          PUBLISHED_RING_LIBRARY.minRatio;
-        focus.focusProof.outlineContrastRatioMax =
-          PUBLISHED_RING_LIBRARY.maxRatio;
-      }
-    }
-  }
+/** Publication officielle — ne modifie pas `screens[].states` (mesure script intacte). */
+function buildManualReviewAlphonse(): Record<string, unknown> {
+  return {
+    source: MANUAL_REVIEW_SOURCE,
+    bibliotheque: {
+      focusRingRatioMin: 10,
+      focusRingRatioMax: 11.7,
+      medianRatio: 10.92,
+      pixelCount: 712,
+      distinctBackgrounds: 53,
+      backdropNote: "dégradé panneau #131f31 → #192c43",
+    },
+    creer: {
+      focusRingRatio: 13.58,
+      backdropHex: "#111221",
+      note:
+        "Anneau rogné visible dans `creer-primary-focus-*` (bouton ~243 px, colonne main ~220 px).",
+    },
+    "production-armer": {
+      focusRingRatio: 12.58,
+    },
+    "production-exporter": {
+      focusRingRatio: 12.58,
+    },
+    "production-mesurer": {
+      focusRingRatio: 13.58,
+    },
+    "production-zip": {
+      focusRingRatio: 13.58,
+    },
+    "reglages-lora": {
+      focusRingRatio: 13.58,
+    },
+    "confirmation-invariant-panel": {
+      focusRingRatio: 13.58,
+    },
+    "regeneration-gate-blocked": {
+      focusRingRatio: 3.51,
+      focusRingPixelCount: 742,
+      popinBackdropHex: "#151827",
+      deltaE00FaceVsPopin151827Top: 25.44,
+      deltaE00FaceVsPopin151827Bottom: 22.68,
+      deltaE00FaceVsBg2Approx: 20.9,
+      bg2Hex: "#20243a",
+    },
+  };
 }
 
-function formatFocusRingLine(s: ScreenMeasure): string {
-  const focus = s.states.find((st) => st.state === "focus")?.focusProof;
-  if (!focus) return "";
-  if (s.id === "regeneration-gate-blocked") {
-    return `Focus clavier : \`:focus-visible\`=${focus.matchesFocusVisible}, outline ${focus.outlineWidth} ${focus.outlineStyle} ${focus.outlineColor}, fond anneau ${focus.backdropHex}, contraste anneau/fond **${PUBLISHED_GATE_BLOCKED.outlineContrastRatio}:1** (${PUBLISHED_GATE_BLOCKED.outlinePixelCount} px, outline à opacité 0,45 sur ${PUBLISHED_GATE_BLOCKED.popinBackdropHex}). ΔE00 face primaire vs fond modale ${PUBLISHED_GATE_BLOCKED.popinBackdropHex} : **${PUBLISHED_GATE_BLOCKED.deltaE00VsPopinTopFace}** (face haute) / **${PUBLISHED_GATE_BLOCKED.deltaE00VsPopinBottomFace}** (face basse). ΔE00 **${PUBLISHED_GATE_BLOCKED.deltaE00VsBg2}** vs référence ${PUBLISHED_GATE_BLOCKED.deltaE00VsBg2Reference} (≠ contraste anneau).`;
-  }
-  if (s.id === "bibliotheque") {
-    return `Focus clavier : \`:focus-visible\`=${focus.matchesFocusVisible}, outline ${focus.outlineWidth} ${focus.outlineStyle} ${focus.outlineColor}, fond anneau ${PUBLISHED_RING_LIBRARY.backdropHex}, contraste anneau/fond **${PUBLISHED_RING_LIBRARY.minRatio}–${PUBLISHED_RING_LIBRARY.maxRatio}:1** (${PUBLISHED_RING_LIBRARY.pixelCount} px, ${PUBLISHED_RING_LIBRARY.distinctBackgrounds} fonds, médiane ${PUBLISHED_RING_LIBRARY.medianRatio}:1).`;
-  }
+function formatScriptFocusRingLine(focus: FocusProof): string {
   const range =
     focus.outlineContrastRatioMax != null &&
     focus.outlineContrastRatioMax !== focus.outlineContrastRatio
-      ? ` (min–max **${focus.outlineContrastRatio ?? "—"}–${focus.outlineContrastRatioMax}:1**)`
-      : ` **${focus.outlineContrastRatio ?? "—"}:1**`;
-  return `Focus clavier : \`:focus-visible\`=${focus.matchesFocusVisible}, outline ${focus.outlineWidth} ${focus.outlineStyle} ${focus.outlineColor}, fond anneau ${focus.backdropHex ?? "—"}, contraste anneau/fond${range}.`;
+      ? `min–max **${focus.outlineContrastRatio ?? "—"}–${focus.outlineContrastRatioMax}:1**`
+      : `**${focus.outlineContrastRatio ?? "—"}:1**`;
+  return `Mesure script (DOM) : \`:focus-visible\`=${focus.matchesFocusVisible}, outline ${focus.outlineWidth} ${focus.outlineStyle} ${focus.outlineColor}, fond anneau ${focus.backdropHex ?? "—"}, contraste anneau/fond ${range}.`;
 }
 
-function buildContrastesMd(screens: ScreenMeasure[]): string {
+function formatManualFocusPublication(
+  id: string,
+  manual: Record<string, unknown>,
+): string | null {
+  const entry = manual[id];
+  if (!entry || typeof entry !== "object") return null;
+  const e = entry as Record<string, unknown>;
+  switch (id) {
+    case "bibliotheque":
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **${e.focusRingRatioMin}–${e.focusRingRatioMax}:1** (${e.pixelCount} px, ${e.distinctBackgrounds} fonds, médiane ${e.medianRatio}:1) ; fond derrière l’anneau = ${e.backdropNote}.`;
+    case "creer":
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **${e.focusRingRatio}:1** sur ${e.backdropHex}. ${e.note}`;
+    case "production-armer":
+    case "production-exporter":
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **${e.focusRingRatio}:1**.`;
+    case "production-mesurer":
+    case "production-zip":
+    case "reglages-lora":
+    case "confirmation-invariant-panel":
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **${e.focusRingRatio}:1** (uniforme sur les pixels d’anneau ; la mesure DOM peut afficher une plage min–max).`;
+    case "regeneration-gate-blocked":
+      return `Publication (**${MANUAL_REVIEW_SOURCE}**) : anneau **${e.focusRingRatio}:1** (${e.focusRingPixelCount} px, outline à 0,45 sur ${e.popinBackdropHex}). ΔE00 face primaire vs fond modale ${e.popinBackdropHex} : **${e.deltaE00FaceVsPopin151827Top}** (haut) / **${e.deltaE00FaceVsPopin151827Bottom}** (bas). ΔE00 face ~**${e.deltaE00FaceVsBg2Approx}** vs \`--bg2\` ${e.bg2Hex}.`;
+    default:
+      return null;
+  }
+}
+
+function formatFocusRingLine(
+  s: ScreenMeasure,
+  manual: Record<string, unknown>,
+): string {
+  const focus = s.states.find((st) => st.state === "focus")?.focusProof;
+  if (!focus) return "";
+  const lines = [formatScriptFocusRingLine(focus)];
+  const pub = formatManualFocusPublication(s.id, manual);
+  if (pub) lines.push(pub);
+  return lines.join(" ");
+}
+
+function buildContrastesMd(
+  screens: ScreenMeasure[],
+  manual: Record<string, unknown>,
+): string {
   const lines: string[] = [
     "# Contrastes — boutons primaires (#186)",
     "",
@@ -915,6 +911,7 @@ function buildContrastesMd(screens: ScreenMeasure[]): string {
     `- États actifs : seuil WCAG 2.2 AA **${AA_MIN}:1**.`,
     `- Désactivé : texte **#848ba0** (~**4,73:1** sur **#1c2034**), seuil lisibilité **${DISABLED_MIN}:1**.`,
     "- Focus : Tab + souris hors bouton ; contraste anneau mesuré contre le **fond** derrière l’outline (pas la face du bouton).",
+    `- Champs \`manualReviewAlphonse\` dans \`metrics.json\` : publication **${MANUAL_REVIEW_SOURCE}** (les mesures DOM restent dans \`screens\`).`,
     "",
     "## Synthèse",
     "",
@@ -942,14 +939,17 @@ function buildContrastesMd(screens: ScreenMeasure[]): string {
       lines.push(`> ${s.harnessNote}`, "");
     }
     if (s.popinCompare) {
+      lines.push(
+        `Mesure script — ΔE00 face primaire / secondaire actif : **${s.popinCompare.deltaE00Face}** ; ΔE00 bordure : **${s.popinCompare.deltaE00Border ?? "—"}** ; bordure tirets / fond page : **${s.popinCompare.borderContrastRatio ?? "—"}:1** ; bordure / fond popin : **${s.popinCompare.borderContrastRatioOnPopin ?? "—"}:1**.`,
+        "",
+      );
       if (s.id === "regeneration-gate-blocked") {
+        const gate = manual["regeneration-gate-blocked"] as Record<
+          string,
+          unknown
+        >;
         lines.push(
-          `ΔE00 face primaire vs fond modale **${PUBLISHED_GATE_BLOCKED.popinBackdropHex}** : **${PUBLISHED_GATE_BLOCKED.deltaE00VsPopinTopFace}** (face haute) / **${PUBLISHED_GATE_BLOCKED.deltaE00VsPopinBottomFace}** (face basse). ΔE00 face / secondaire actif vs **${PUBLISHED_GATE_BLOCKED.deltaE00VsBg2Reference}** : **${PUBLISHED_GATE_BLOCKED.deltaE00VsBg2}** ; ΔE00 bordure : **${s.popinCompare.deltaE00Border ?? "—"}** ; bordure tirets / fond page : **${s.popinCompare.borderContrastRatio ?? "—"}:1** ; bordure / fond popin : **${s.popinCompare.borderContrastRatioOnPopin ?? "—"}:1**.`,
-          "",
-        );
-      } else {
-        lines.push(
-          `ΔE00 face primaire / secondaire actif : **${s.popinCompare.deltaE00Face}** ; ΔE00 bordure : **${s.popinCompare.deltaE00Border ?? "—"}** ; bordure tirets / fond page : **${s.popinCompare.borderContrastRatio ?? "—"}:1** ; bordure / fond popin : **${s.popinCompare.borderContrastRatioOnPopin ?? "—"}:1**.`,
+          `Publication (**${MANUAL_REVIEW_SOURCE}**) — ΔE00 face vs fond modale **${gate.popinBackdropHex}** : **${gate.deltaE00FaceVsPopin151827Top}** / **${gate.deltaE00FaceVsPopin151827Bottom}** ; ~**${gate.deltaE00FaceVsBg2Approx}** vs \`--bg2\` **${gate.bg2Hex}**.`,
           "",
         );
       }
@@ -965,7 +965,7 @@ function buildContrastesMd(screens: ScreenMeasure[]): string {
         );
       }
     }
-    const focusLine = formatFocusRingLine(s);
+    const focusLine = formatFocusRingLine(s, manual);
     if (focusLine) {
       lines.push("", focusLine);
     }
@@ -990,6 +990,7 @@ function buildContrastesMd(screens: ScreenMeasure[]): string {
     "| Lecteur d’écran | Hors périmètre contraste |",
     "| `forced-colors` | Non traité (décision produit) |",
     "| `aria-disabled` popin Exporter (0 piste) | Non testé — preuve popin = `busy` natif |",
+    "| Garde cyan (échec attendu sans pixels cyan) | Non testé en test automatisé |",
     "",
   );
   return `${lines.join("\n")}\n`;
@@ -1024,7 +1025,7 @@ async function main(): Promise<void> {
 
     await browser.close();
 
-    applyPublishedMetrics(screens);
+    const manualReviewAlphonse = buildManualReviewAlphonse();
 
     await writeFile(
       path.join(OUT, "metrics.json"),
@@ -1039,8 +1040,7 @@ async function main(): Promise<void> {
           outlineMeasuredAgainst: "backdrop-behind-outline-not-button-face",
           clipPaddingPx: CLIP_PAD_PX,
           clipPaddingFocusPx: CLIP_PAD_FOCUS_PX,
-          publishedRingLibrary: PUBLISHED_RING_LIBRARY,
-          publishedGateBlockedFocus: PUBLISHED_GATE_BLOCKED,
+          manualReviewAlphonse,
           screens,
         },
         null,
@@ -1049,7 +1049,7 @@ async function main(): Promise<void> {
     );
     await writeFile(
       path.join(ROOT, "docs/design/boutons-primaires/contrastes.md"),
-      buildContrastesMd(screens),
+      buildContrastesMd(screens, manualReviewAlphonse),
     );
 
     const failed = screens.filter((s) => !s.pass && !s.forcedHarness);

@@ -1,11 +1,12 @@
 # Contrastes — boutons primaires (#186)
 
-Généré le 2026-09-30T02:47:08.555Z.
+Généré le 2026-09-30T03:07:04.870Z.
 
 Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` résolu) composé sur `--bg0`.
 - États actifs : seuil WCAG 2.2 AA **4.5:1**.
 - Désactivé : texte **#848ba0** (~**4,73:1** sur **#1c2034**), seuil lisibilité **3:1**.
 - Focus : Tab + souris hors bouton ; contraste anneau mesuré contre le **fond** derrière l’outline (pas la face du bouton).
+- Champs `manualReviewAlphonse` dans `metrics.json` : publication **revue manuelle Alphonse** (les mesures DOM restent dans `screens`).
 
 ## Synthèse
 
@@ -37,7 +38,7 @@ Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` r�
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond **10–11.69:1** (712 px, 53 fonds, médiane 10.92:1).
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **10–11.7:1** (712 px, 53 fonds, médiane 10.92:1) ; fond derrière l’anneau = dégradé panneau #131f31 → #192c43.
 
 ### Captures
 
@@ -58,14 +59,13 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #111221, contraste anneau/fond **13.58:1**.
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #111221, contraste anneau/fond **13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** sur #111221. Anneau rogné visible dans `creer-primary-focus-*` (bouton ~243 px, colonne main ~220 px).
 
 ### Captures
 
 - [`creer-primary-normal-1280x720.png`](captures-react/creer-primary-normal-1280x720.png)
 - [`creer-primary-hover-1280x720.png`](captures-react/creer-primary-hover-1280x720.png)
 - [`creer-primary-focus-1280x720.png`](captures-react/creer-primary-focus-1280x720.png)
-- [`creer-primary-focus-ring-clipped-column-1280x720.png`](captures-react/creer-primary-focus-ring-clipped-column-1280x720.png)
 - [`creer-primary-disabled-1280x720.png`](captures-react/creer-primary-disabled-1280x720.png)
 
 ## Production — Armer — `.record-panel button.btn.primary`
@@ -81,7 +81,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #141725, contraste anneau/fond **12.58:1**.
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #141725, contraste anneau/fond **12.58:1**. Publication (**revue manuelle Alphonse**) : anneau **12.58:1**.
 
 ### Captures
 
@@ -103,7 +103,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #141725, contraste anneau/fond **12.58:1**.
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #141725, contraste anneau/fond **12.58:1**. Publication (**revue manuelle Alphonse**) : anneau **12.58:1**.
 
 ### Captures
 
@@ -115,7 +115,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 
 ## Production — Exporter (popin) — `.export-dialog-actions-end .btn.primary`
 
-ΔE00 face primaire / secondaire actif : **1.51** ; ΔE00 bordure : **0** ; bordure tirets / fond page : **1.6:1** ; bordure / fond popin : **1.27:1**.
+Mesure script — ΔE00 face primaire / secondaire actif : **1.51** ; ΔE00 bordure : **0** ; bordure tirets / fond page : **1.6:1** ; bordure / fond popin : **1.27:1**.
 
 | État | Texte | Arrêt | Fond | Ratio | OK |
 |------|-------|-------|------|-------|----|
@@ -128,7 +128,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #20243a, contraste anneau/fond **10.79:1**.
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #20243a, contraste anneau/fond **10.79:1**.
 
 ### Captures
 
@@ -150,7 +150,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond (min–max **10–11.69:1**).
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** (uniforme sur les pixels d’anneau ; la mesure DOM peut afficher une plage min–max).
 
 ### Captures
 
@@ -172,7 +172,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond (min–max **10–11.69:1**).
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** (uniforme sur les pixels d’anneau ; la mesure DOM peut afficher une plage min–max).
 
 ### Captures
 
@@ -194,7 +194,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond (min–max **10–11.69:1**).
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** (uniforme sur les pixels d’anneau ; la mesure DOM peut afficher une plage min–max).
 
 ### Captures
 
@@ -216,7 +216,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **12.44:1**.
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **12.44:1**.
 
 ### Captures
 
@@ -229,7 +229,9 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 
 > État inatteignable dans l’app réelle : `SongScreen.tsx:339` ouvre le gate seulement si `scoreDocument && isRegen` ; ce harnais force `beforeDocument={null}`.
 
-ΔE00 face primaire vs fond modale **#151827** : **25.44** (face haute) / **22.68** (face basse). ΔE00 face / secondaire actif vs **var(--bg2) / #1c1934** : **21.11** ; ΔE00 bordure : **19.72** ; bordure tirets / fond page : **1.09:1** ; bordure / fond popin : **1.19:1**.
+Mesure script — ΔE00 face primaire / secondaire actif : **21.11** ; ΔE00 bordure : **19.72** ; bordure tirets / fond page : **1.09:1** ; bordure / fond popin : **1.19:1**.
+
+Publication (**revue manuelle Alphonse**) — ΔE00 face vs fond modale **#151827** : **25.44** / **22.68** ; ~**20.9** vs `--bg2` **#20243a**.
 
 | État | Texte | Arrêt | Fond | Ratio | OK |
 |------|-------|-------|------|-------|----|
@@ -240,7 +242,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | focus | #151827 | top | #c4a8ff | 2.67:1 | FAIL |
 | focus | #151827 | bottom | #a78bfa | 2.23:1 | FAIL |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **3.51:1** (742 px, outline à opacité 0,45 sur #151827). ΔE00 face primaire vs fond modale #151827 : **25.44** (face haute) / **22.68** (face basse). ΔE00 **21.11** vs référence var(--bg2) / #1c1934 (≠ contraste anneau).
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **4.46:1**. Publication (**revue manuelle Alphonse**) : anneau **3.51:1** (742 px, outline à 0,45 sur #151827). ΔE00 face primaire vs fond modale #151827 : **25.44** (haut) / **22.68** (bas). ΔE00 face ~**20.9** vs `--bg2` #20243a.
 
 ### Captures
 
@@ -261,7 +263,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #0c0e18, contraste anneau/fond (min–max **10–11.69:1**).
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** (uniforme sur les pixels d’anneau ; la mesure DOM peut afficher une plage min–max).
 
 ### Captures
 
@@ -283,7 +285,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #05060b, contraste anneau/fond **14.3:1**.
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #05060b, contraste anneau/fond **14.3:1**.
 
 ### Captures
 
@@ -305,7 +307,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #20243a, contraste anneau/fond **10.79:1**.
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #20243a, contraste anneau/fond **10.79:1**.
 
 ### Captures
 
@@ -327,7 +329,7 @@ Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond
 | disabled | #848ba0 | top | #1c2034 | 4.73:1 | OK |
 | disabled | #848ba0 | bottom | #1c2034 | 4.73:1 | OK |
 
-Focus clavier : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #18202f, contraste anneau/fond **11.53:1**.
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #18202f, contraste anneau/fond **11.53:1**.
 
 ### Captures
 
@@ -347,4 +349,5 @@ Voir `inventaire.md` pour les 35 usages `btn primary` — seuls les scénarios c
 | Lecteur d’écran | Hors périmètre contraste |
 | `forced-colors` | Non traité (décision produit) |
 | `aria-disabled` popin Exporter (0 piste) | Non testé — preuve popin = `busy` natif |
+| Garde cyan (échec attendu sans pixels cyan) | Non testé en test automatisé |
 

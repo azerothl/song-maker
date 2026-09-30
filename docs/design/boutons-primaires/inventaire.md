@@ -17,7 +17,7 @@ Preuves Playwright : `captures-react/` (`VITE_CAPTURE=1`).
 | # | Fichier:ligne | Libellé | Statut | Désactivé | Preuve |
 |---|---------------|---------|--------|-----------|--------|
 | 1 | `LibraryScreen.tsx:71` | Nouveau morceau | vérifié | n/a (pas de `disabled` au source) | `bibliotheque-primary-{normal,hover,focus}-*` |
-| 2 | `CreateWorkspace.tsx:213` | Générer | vérifié | **réel** (`busy`) | `creer-primary-*` (clip bouton ±14/22 px) + `creer-primary-focus-ring-clipped-column-*` |
+| 2 | `CreateWorkspace.tsx:213` | Générer | vérifié | **réel** (`busy`) | `creer-primary-*` (clip bouton ±14/22 px ; anneau rogné sur `creer-primary-focus-*`) |
 | 3 | `CreateWorkspace.tsx:538` | Générer (avancé) | non vérifié | — | autre vue |
 | 4 | `RecordTrackPanel.tsx:864` | Armer | vérifié* | forcé | `production-armer-primary-*` (*`normal` : voir `normalInViewport` dans `metrics.json`) |
 | 5 | `RecordTrackPanel.tsx:874` | Démarrer | non vérifié | — | — |
@@ -40,8 +40,8 @@ Preuves Playwright : `captures-react/` (`VITE_CAPTURE=1`).
 | 22 | `MixAssistPanel.tsx:314` | Appliquer le preset | non vérifié | — | — |
 | 23 | `MixAssistPanel.tsx:339` | Analyser l’équilibre | non vérifié | — | — |
 | 24 | `MixAssistPanel.tsx:415` | Confirmer l’équilibre | non vérifié | — | — |
-| 25 | `ProductionAssistPanel.tsx:296` | Assist prod | non vérifié | — | — |
-| 26 | `ProductionAssistPanel.tsx:366` | Assist prod | non vérifié | — | — |
+| 25 | `ProductionAssistPanel.tsx:296` | Analyser (copilote) | non vérifié | — | — |
+| 26 | `ProductionAssistPanel.tsx:366` | Confirmer (copilote) | non vérifié | — | — |
 | 27 | `MidiInstrumentPanel.tsx:376` | MIDI armer | non vérifié | — | — |
 | 28 | `MidiInstrumentPanel.tsx:442` | MIDI stop | non vérifié | — | — |
 | 29 | `ScorePanel.tsx:288` | Quantifier | non vérifié | — | — |
@@ -60,6 +60,7 @@ Hors tableau : `scoreTabBenchApp.tsx`, `sepExportA11yCaptureMain.tsx`, maquettes
 - Lecteur d’écran (NVDA, Orca, VoiceOver)
 - `forced-colors` (décision produit)
 - `aria-disabled` du popin Exporter quand aucune piste n’est cochée (preuve popin = primaire `:disabled` via `busy`)
+- Garde cyan : échec attendu sur PNG sans pixels cyan (non couvert par un test automatisé)
 
 ## Points ouverts (sans correctif CSS)
 

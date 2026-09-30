@@ -16,7 +16,7 @@ Texte désactivé mesuré : **`#848ba0`** sur **`#1c2034`** → **4,73:1**.
 
 ## Non testé
 
-WebKitGTK, lecteur d’écran, `forced-colors`, `aria-disabled` popin Exporter (0 piste cochée).
+WebKitGTK, lecteur d’écran, `forced-colors`, `aria-disabled` popin Exporter (0 piste), test négatif garde cyan.
 
 ## Signalé (I2 / I3)
 

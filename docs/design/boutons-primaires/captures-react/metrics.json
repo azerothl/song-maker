@@ -11,22 +11,48 @@
   "outlineMeasuredAgainst": "backdrop-behind-outline-not-button-face",
   "clipPaddingPx": 14,
   "clipPaddingFocusPx": 22,
-  "publishedRingLibrary": {
-    "minRatio": 10,
-    "maxRatio": 11.69,
-    "medianRatio": 10.92,
-    "pixelCount": 712,
-    "distinctBackgrounds": 53,
-    "backdropHex": "#0c0e18"
-  },
-  "publishedGateBlockedFocus": {
-    "outlineContrastRatio": 3.51,
-    "outlinePixelCount": 742,
-    "popinBackdropHex": "#151827",
-    "deltaE00VsPopinTopFace": 25.44,
-    "deltaE00VsPopinBottomFace": 22.68,
-    "deltaE00VsBg2": 21.11,
-    "deltaE00VsBg2Reference": "var(--bg2) / #1c1934"
+  "manualReviewAlphonse": {
+    "source": "revue manuelle Alphonse",
+    "bibliotheque": {
+      "focusRingRatioMin": 10,
+      "focusRingRatioMax": 11.7,
+      "medianRatio": 10.92,
+      "pixelCount": 712,
+      "distinctBackgrounds": 53,
+      "backdropNote": "dégradé panneau #131f31 → #192c43"
+    },
+    "creer": {
+      "focusRingRatio": 13.58,
+      "backdropHex": "#111221",
+      "note": "Anneau rogné visible dans `creer-primary-focus-*` (bouton ~243 px, colonne main ~220 px)."
+    },
+    "production-armer": {
+      "focusRingRatio": 12.58
+    },
+    "production-exporter": {
+      "focusRingRatio": 12.58
+    },
+    "production-mesurer": {
+      "focusRingRatio": 13.58
+    },
+    "production-zip": {
+      "focusRingRatio": 13.58
+    },
+    "reglages-lora": {
+      "focusRingRatio": 13.58
+    },
+    "confirmation-invariant-panel": {
+      "focusRingRatio": 13.58
+    },
+    "regeneration-gate-blocked": {
+      "focusRingRatio": 3.51,
+      "focusRingPixelCount": 742,
+      "popinBackdropHex": "#151827",
+      "deltaE00FaceVsPopin151827Top": 25.44,
+      "deltaE00FaceVsPopin151827Bottom": 22.68,
+      "deltaE00FaceVsBg2Approx": 20.9,
+      "bg2Hex": "#20243a"
+    }
   },
   "screens": [
     {
@@ -119,9 +145,9 @@
             "outlineOffset": "2px",
             "cursor": "pointer",
             "mouseAway": true,
-            "backdropHex": "#0c0e18",
-            "outlineContrastRatio": 10,
-            "outlineContrastRatioMax": 11.69
+            "backdropHex": "#1c1934",
+            "outlineContrastRatio": 10.05,
+            "outlineContrastRatioMax": 13.58
           }
         }
       ],
@@ -136,7 +162,6 @@
         "creer-primary-normal-1280x720.png",
         "creer-primary-hover-1280x720.png",
         "creer-primary-focus-1280x720.png",
-        "creer-primary-focus-ring-clipped-column-1280x720.png",
         "creer-primary-disabled-1280x720.png"
       ],
       "states": [
@@ -740,9 +765,9 @@
             "outlineOffset": "2px",
             "cursor": "pointer",
             "mouseAway": true,
-            "backdropHex": "#0c0e18",
-            "outlineContrastRatio": 10,
-            "outlineContrastRatioMax": 11.69
+            "backdropHex": "#1c1934",
+            "outlineContrastRatio": 10.05,
+            "outlineContrastRatioMax": 13.58
           }
         },
         {
@@ -866,9 +891,9 @@
             "outlineOffset": "2px",
             "cursor": "pointer",
             "mouseAway": true,
-            "backdropHex": "#0c0e18",
-            "outlineContrastRatio": 10,
-            "outlineContrastRatioMax": 11.69
+            "backdropHex": "#1c1934",
+            "outlineContrastRatio": 10.05,
+            "outlineContrastRatioMax": 13.58
           }
         },
         {
@@ -992,9 +1017,9 @@
             "outlineOffset": "2px",
             "cursor": "pointer",
             "mouseAway": true,
-            "backdropHex": "#0c0e18",
-            "outlineContrastRatio": 10,
-            "outlineContrastRatioMax": 11.69
+            "backdropHex": "#1c1934",
+            "outlineContrastRatio": 10.05,
+            "outlineContrastRatioMax": 13.58
           }
         },
         {
@@ -1244,8 +1269,8 @@
             "cursor": "not-allowed",
             "mouseAway": true,
             "backdropHex": "#151827",
-            "outlineContrastRatio": 3.51,
-            "outlineContrastRatioMax": 3.51
+            "outlineContrastRatio": 4.46,
+            "outlineContrastRatioMax": 4.46
           }
         }
       ],
@@ -1359,9 +1384,9 @@
             "outlineOffset": "2px",
             "cursor": "pointer",
             "mouseAway": true,
-            "backdropHex": "#0c0e18",
-            "outlineContrastRatio": 10,
-            "outlineContrastRatioMax": 11.69
+            "backdropHex": "#1c1934",
+            "outlineContrastRatio": 10.05,
+            "outlineContrastRatioMax": 13.58
           }
         },
         {
