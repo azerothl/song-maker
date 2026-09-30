@@ -23,6 +23,7 @@ import { measureProductionStemColors } from "./stemCaptureMetrics";
 import { measureMasterWavePlayheadContrast } from "./waveformPlayheadContrast";
 import { parseCaptureHash } from "./productionCaptureHash";
 import { attachPrimaryButtonMetricsWindow } from "./primaryButtonMetrics";
+import { measureProductionSubtabScroll } from "./productionSubtabScrollMetrics";
 import "../App.css";
 import "./sepExportA11yCapture.css";
 
@@ -243,6 +244,9 @@ declare global {
       typeof measureMasterWavePlayheadContrast
     >;
     __productionStemColors?: () => ReturnType<typeof measureProductionStemColors>;
+    __productionSubtabScrollMetrics?: () => ReturnType<
+      typeof measureProductionSubtabScroll
+    >;
   }
 }
 
@@ -250,6 +254,7 @@ window.__productionCaptureMetrics = () => measureProductionMix();
 window.__productionTransportMetrics = () => measureProductionTransport();
 window.__productionPlayheadContrast = () => measureMasterWavePlayheadContrast();
 window.__productionStemColors = () => measureProductionStemColors();
+window.__productionSubtabScrollMetrics = () => measureProductionSubtabScroll();
 attachPrimaryButtonMetricsWindow();
 
 void loadCollapsedTrackFamilies();

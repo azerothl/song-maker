@@ -1,0 +1,20 @@
+{
+  "phase": "after",
+  "measured": "Chromium — tests Playwright `productionSubtabScroll.behavior.test.ts` (mesuré en CI)",
+  "calculated": [
+    "mix-1280x720-after.png / mix-1280x768-after.png : à régénérer via capture.mts (VM agent disque saturé lors de ce run)"
+  ],
+  "notTested": ["WebKitGTK", "Tauri natif", "lecteur d'écran"],
+  "hiddenPanelsLeaking": false,
+  "mixTrackZonePx": {
+    "640": 424,
+    "720": 504,
+    "768": 552
+  },
+  "clipsTopBandPx": {
+    "640": 200,
+    "720": 200,
+    "768": 200
+  },
+  "note": "Voir métriques détaillées exportées par __productionSubtabScrollMetrics dans les tests."
+}

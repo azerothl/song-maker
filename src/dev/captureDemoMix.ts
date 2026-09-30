@@ -39,6 +39,18 @@ const CAPTURE_DEMO_TRACKS: MixTrack[] = [
   track("trk-strings", "other", "Cordes aiguës", { gainDb: -9, pan: -0.15 }),
 ];
 
+const CAPTURE_DEMO_CLIP = {
+  id: "clip-capture-demo",
+  sourcePath: "capture/demo.wav",
+  sourceSha256: "0",
+  startMs: 0,
+  offsetMs: 0,
+  durationMs: 4000,
+  gainDb: 0,
+  fadeInMs: 0,
+  fadeOutMs: 0,
+};
+
 /** Stems de démo pour captures navigateur (6, 12 ou 16 pistes). */
 export function buildCaptureDemoMix(trackCount = 12): MixDoc {
   const n = Math.min(Math.max(trackCount, 1), CAPTURE_DEMO_TRACKS.length);
@@ -50,7 +62,14 @@ export function buildCaptureDemoMix(trackCount = 12): MixDoc {
     sampleRate: 48_000,
     masterGainDb: 0,
     peakCeilingDb: -1,
-    tracks: CAPTURE_DEMO_TRACKS.slice(0, n),
+    tracks: CAPTURE_DEMO_TRACKS.slice(0, n).map((tr, index) =>
+      index === 0
+        ? {
+            ...tr,
+            clips: [{ ...CAPTURE_DEMO_CLIP, id: "clip-capture-demo", trackId: tr.id }],
+          }
+        : tr,
+    ),
   };
 }
 
