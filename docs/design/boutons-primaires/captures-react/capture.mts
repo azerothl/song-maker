@@ -4,7 +4,7 @@
  * Usage : pnpm exec tsx docs/design/boutons-primaires/captures-react/capture.mts
  */
 import { createHash } from "node:crypto";
-import { spawn } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,6 +40,9 @@ type FocusProof = {
   backdropHex?: string;
   outlineContrastRatio?: number | null;
   outlineContrastRatioMax?: number | null;
+  outlineContrastOnFaceMin?: number | null;
+  focusRingInsetSepContrast?: number | null;
+  focusInsetSepVsFace?: number | null;
 };
 
 type PopinCompare = {
@@ -87,6 +90,7 @@ type DisabledMode =
   | "busy-create"
   | "busy-export-trigger"
   | "busy-export-popin"
+  | "export-stems-none-aria"
   | "regen-blocked-aria"
   | "n/a";
 
@@ -181,7 +185,7 @@ const SCENARIOS: Scenario[] = [
     },
     shotTarget: "button-clip",
     i3FocusCapture: {
-      filename: "production-exporter-bar-focus-i3-1280x720.png",
+      filename: "production-exporter-bar-focus-i3-clip.png",
       selector:
         ".production-mix-toolbar-actions [data-capture-export-trigger]",
     },
@@ -208,6 +212,33 @@ const SCENARIOS: Scenario[] = [
         .scrollIntoViewIfNeeded();
       await page.waitForTimeout(200);
     },
+  },
+  {
+    id: "production-export-popin-aria",
+    screen: "Production — Exporter (popin, 0 piste)",
+    path: "/production-capture.html",
+    hash: "#12,confortable,view-mix",
+    selector: ".export-dialog-actions-end .btn.primary",
+    disabledMode: "export-stems-none-aria",
+    prepare: async (page) => {
+      await page.locator(".production-actions-drawer").evaluate((el) => {
+        (el as HTMLDetailsElement).open = true;
+      });
+      const trigger = ".song-actions-export button.btn.primary";
+      await page.waitForSelector(trigger, { timeout: 15_000 });
+      await page.click(trigger);
+      await page.waitForSelector(".export-dialog-popin", { timeout: 10_000 });
+      await page.locator('input[name="export-mode"]').nth(1).click();
+      await page.waitForSelector(".export-stem-list input[type='checkbox']", {
+        timeout: 10_000,
+      });
+      await page.waitForTimeout(200);
+      await page
+        .locator(".export-dialog-actions-end .btn.primary")
+        .scrollIntoViewIfNeeded();
+      await page.waitForTimeout(200);
+    },
+    shotTarget: "button-clip",
   },
   {
     id: "production-mesurer",
@@ -431,13 +462,36 @@ async function applyDisabledMode(
   if (mode === "regen-blocked-aria") {
     return;
   }
+  if (mode === "export-stems-none-aria") {
+    const boxes = page.locator(".export-stem-list input[type='checkbox']");
+    const n = await boxes.count();
+    for (let i = 0; i < n; i++) {
+      const box = boxes.nth(i);
+      if (await box.isChecked()) {
+        await box.click();
+        await page.waitForTimeout(40);
+      }
+    }
+    await page.waitForSelector('[data-testid="export-disabled-reason"]', {
+      timeout: 10_000,
+    });
+    await page.waitForTimeout(150);
+    return;
+  }
   await page.evaluate((sel) => {
     const btn = document.querySelector(sel) as HTMLButtonElement | null;
     if (btn) btn.disabled = true;
   }, selector);
 }
 
-function captureFilename(id: string, state: StateName): string {
+function captureFilename(
+  id: string,
+  state: StateName,
+  shotTarget: ShotTarget = "viewport",
+): string {
+  if (shotTarget === "button-clip") {
+    return `${id}-primary-${state}-clip.png`;
+  }
   return `${id}-primary-${state}-1280x720.png`;
 }
 
@@ -530,6 +584,89 @@ async function shot(
   return buffer;
 }
 
+const MIN_DISABLED_FACE_PX = 40;
+const MIN_DISABLED_BORDER_PX = 20;
+const MIN_ACTIVE_ACCENT_PX = 30;
+
+type ClipPixelKind = "disabled-face" | "disabled-border" | "accent-face";
+
+async function countClipPixels(
+  page: Page,
+  pngBase64: string,
+  kind: ClipPixelKind,
+): Promise<number> {
+  return page.evaluate(
+    async ([b64, pixelKind]) => {
+      const blob = await fetch(`data:image/png;base64,${b64}`).then((r) =>
+        r.blob(),
+      );
+      const bitmap = await createImageBitmap(blob);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return 0;
+      ctx.drawImage(bitmap, 0, 0);
+      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      let n = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+        if (a < 120) continue;
+        let match = false;
+        if (pixelKind === "disabled-face") {
+          match =
+            r >= 14 && r <= 22 && g >= 18 && g <= 26 && b >= 26 && b <= 36;
+        } else if (pixelKind === "disabled-border") {
+          match =
+            r >= 98 &&
+            r <= 112 &&
+            g >= 108 &&
+            g <= 122 &&
+            b >= 138 &&
+            b <= 156;
+        } else {
+          match =
+            (r >= 150 && g >= 120 && b >= 240) ||
+            (r >= 155 && g >= 125 && b >= 235 && r < 200);
+        }
+        if (match) n += 1;
+      }
+      return n;
+    },
+    [pngBase64, kind] as [string, ClipPixelKind],
+  );
+}
+
+async function assertDisabledButtonClip(
+  page: Page,
+  pngBase64: string,
+  label: string,
+): Promise<void> {
+  const face = await countClipPixels(page, pngBase64, "disabled-face");
+  const border = await countClipPixels(page, pngBase64, "disabled-border");
+  if (face < MIN_DISABLED_FACE_PX || border < MIN_DISABLED_BORDER_PX) {
+    throw new Error(
+      `clip désactivé invalide (${label}) : face=${face}, bordure=${border}`,
+    );
+  }
+}
+
+async function assertActivePrimaryClip(
+  page: Page,
+  pngBase64: string,
+  label: string,
+): Promise<void> {
+  const accent = await countClipPixels(page, pngBase64, "accent-face");
+  if (accent < MIN_ACTIVE_ACCENT_PX) {
+    throw new Error(
+      `clip actif sans face lavande (${label}) : ${accent} px accent`,
+    );
+  }
+}
+
 async function assertCyanOutlineInButtonClip(
   page: Page,
   pngBase64: string,
@@ -608,9 +745,9 @@ async function measureState(
   }
 
   if (state === "disabled") {
-    measure.pass = measure.stops.every((s) => s.ratio >= DISABLED_MIN);
+    measure.pass = measure.stops.every((s) => s.ratio >= AA_MIN);
     for (const stop of measure.stops) {
-      stop.pass = stop.ratio >= DISABLED_MIN;
+      stop.pass = stop.ratio >= AA_MIN;
     }
   }
 
@@ -623,7 +760,10 @@ function bufferSha256(buf: Buffer): string {
 
 async function assertDistinctButtonClips(
   id: string,
-  clips: Array<{ state: "normal" | "hover" | "focus"; buffer: Buffer }>,
+  clips: Array<{
+    state: "normal" | "hover" | "focus" | "disabled";
+    buffer: Buffer;
+  }>,
 ): Promise<void> {
   const hashes = clips.map((c) => ({
     state: c.state,
@@ -673,8 +813,9 @@ async function runScenario(
     const captureFiles: string[] = [];
     const states: StateMeasure[] = [];
     const disabledMode = scenario.disabledMode ?? "forced";
+    const shotTarget = scenario.shotTarget ?? "viewport";
     const clipBuffers: Array<{
-      state: "normal" | "hover" | "focus";
+      state: "normal" | "hover" | "focus" | "disabled";
       buffer: Buffer;
     }> = [];
 
@@ -689,10 +830,21 @@ async function runScenario(
         await page.waitForTimeout(100);
       }
       states.push(await measureState(page, scenario.selector, state));
-      const fname = captureFilename(scenario.id, state);
+      const fname = captureFilename(scenario.id, state, shotTarget);
       const buf = await shot(page, scenario, fname, state);
       captureFiles.push(fname);
       clipBuffers.push({ state, buffer: buf });
+      const b64 = buf.toString("base64");
+      if (shotTarget === "button-clip") {
+        const ariaOff =
+          (await page
+            .locator(scenario.selector)
+            .first()
+            .getAttribute("aria-disabled")) !== "true";
+        if (ariaOff) {
+          await assertActivePrimaryClip(page, b64, `${scenario.id}/${state}`);
+        }
+      }
       if (state === "focus" && !scenario.forcedHarness) {
         const focusClip =
           scenario.shotTarget === "button-clip"
@@ -703,6 +855,25 @@ async function runScenario(
           focusClip.toString("base64"),
         );
       }
+    }
+
+    if (disabledMode !== "n/a" && !scenario.forcedHarness) {
+      await applyDisabledMode(page, scenario.selector, disabledMode);
+      states.push(await measureState(page, scenario.selector, "disabled"));
+      const disabledFname = captureFilename(scenario.id, "disabled", shotTarget);
+      captureFiles.push(disabledFname);
+      const disabledBuf = await shot(
+        page,
+        scenario,
+        disabledFname,
+        "disabled",
+      );
+      clipBuffers.push({ state: "disabled", buffer: disabledBuf });
+      await assertDisabledButtonClip(
+        page,
+        disabledBuf.toString("base64"),
+        `${scenario.id}/disabled`,
+      );
     }
 
     if (scenario.i3FocusCapture) {
@@ -716,6 +887,13 @@ async function runScenario(
       await page.waitForTimeout(150);
       await resetInteraction(page, i3Sel);
       await keyboardFocusVisible(page, i3Sel);
+      const i3Measure = await measureState(page, i3Sel, "focus");
+      const faceMin = i3Measure.focusProof?.outlineContrastOnFaceMin;
+      if (faceMin == null || faceMin < 3) {
+        throw new Error(
+          `I3 : contraste anneau/face ${faceMin ?? "—"}:1 < 3:1 sur ${i3Sel}`,
+        );
+      }
       const i3Buf = await captureButtonClip(page, i3Sel, "focus");
       await assertCyanOutlineInButtonClip(
         page,
@@ -727,15 +905,6 @@ async function runScenario(
       );
       captureFiles.push(scenario.i3FocusCapture.filename);
       await clearFocusTrap(page);
-    }
-
-    if (disabledMode !== "n/a" && !scenario.forcedHarness) {
-      await applyDisabledMode(page, scenario.selector, disabledMode);
-      states.push(await measureState(page, scenario.selector, "disabled"));
-      captureFiles.push(
-        captureFilename(scenario.id, "disabled"),
-      );
-      await shot(page, scenario, captureFilename(scenario.id, "disabled"), "disabled");
     }
 
     let popinCompare: PopinCompare | undefined;
@@ -920,14 +1089,23 @@ function formatFocusRingLine(
   return lines.join(" ");
 }
 
+function resolveCaptureGitSha(): string {
+  try {
+    return execSync("git rev-parse HEAD", { cwd: ROOT, encoding: "utf8" }).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
 function buildContrastesMd(
   screens: ScreenMeasure[],
   manual: Record<string, unknown>,
+  captureGitSha: string,
 ): string {
   const lines: string[] = [
     "# Contrastes — boutons primaires (#186)",
     "",
-    `Généré le ${new Date().toISOString()}.`,
+    `Généré le ${new Date().toISOString()} — commit des captures : \`${captureGitSha}\`.`,
     "",
     "Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` résolu) composé sur `--bg0`.",
     `- États actifs : seuil WCAG 2.2 AA **${AA_MIN}:1**.`,
@@ -1003,16 +1181,16 @@ function buildContrastesMd(
     "",
     "## Non vérifiés",
     "",
-    "Voir `inventaire.md` pour les 35 usages `btn primary` — seuls les scénarios capturés ci-dessus sont vérifiés écran par écran.",
+    "Voir `inventaire.md` (**39** usages produit + **1** harnais) — seuls les scénarios capturés ci-dessus sont vérifiés écran par écran.",
     "",
     "| Élément | Raison |",
     "|---------|--------|",
     "| `scoreTabBench` | Banc interne, hors parcours produit |",
     "| WebKitGTK | Chromium / Playwright uniquement |",
     "| Lecteur d’écran | Hors périmètre contraste |",
-    "| `forced-colors` | Non traité (décision produit) |",
-    "| `aria-disabled` popin Exporter (0 piste) | Non testé — preuve popin = `busy` natif |",
-    "| Garde cyan (échec attendu sans pixels cyan) | Non testé en test automatisé |",
+    "| `forced-colors` | Non traité (#212) |",
+    "| Rognages anneau Créer / Mesurer | Préexistants (#212) |",
+    "| Garde cyan négative | Couvert par garde pixels + tests `primaryButtonContrast` |",
     "",
   );
   return `${lines.join("\n")}\n`;
@@ -1048,6 +1226,15 @@ async function main(): Promise<void> {
     await browser.close();
 
     const manualReviewAlphonse = buildManualReviewAlphonse();
+    const captureGitSha = resolveCaptureGitSha();
+    const disabledRatios = screens
+      .flatMap((s) => s.states.filter((st) => st.state === "disabled"))
+      .map((st) => st.minRatio)
+      .filter((r) => Number.isFinite(r));
+    const disabledTextRatioOnFace =
+      disabledRatios.length > 0
+        ? Math.round(Math.min(...disabledRatios) * 100) / 100
+        : null;
 
     await writeFile(
       path.join(OUT, "metrics.json"),
@@ -1056,7 +1243,9 @@ async function main(): Promise<void> {
           aaMin: AA_MIN,
           disabledMin: DISABLED_MIN,
           disabledTextHex: "#848ba0",
-          disabledTextRatioOnFace: 4.73,
+          disabledFaceHex: "#12151f",
+          disabledTextRatioOnFace,
+          captureGitSha,
           viewport: VIEWPORT,
           focusMethod: "keyboard-tab-mouse-away-focus-visible",
           outlineMeasuredAgainst: "backdrop-behind-outline-not-button-face",
@@ -1071,7 +1260,7 @@ async function main(): Promise<void> {
     );
     await writeFile(
       path.join(ROOT, "docs/design/boutons-primaires/contrastes.md"),
-      buildContrastesMd(screens, manualReviewAlphonse),
+      buildContrastesMd(screens, manualReviewAlphonse, captureGitSha),
     );
 
     const failed = screens.filter((s) => !s.pass && !s.forcedHarness);

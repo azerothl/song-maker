@@ -1,73 +1,77 @@
 # Inventaire `btn primary`
 
-**34 usages** dans le code produit (`src/`, hors bancs et maquettes HTML) + **1 scénario harnais** (ligne 35, inatteignable en prod) = **35 lignes de suivi**.
+**39 usages** produit (`src/`, hors `src/dev` et `src/bench`) + **1 harnais** (`regen-gate-capture.html`) = **40 lignes**.
 
-Preuves Playwright : `captures-react/` (`VITE_CAPTURE=1`).
+Régénéré depuis `rg 'className=.*btn primary|btn primary'` sur `src/` (hors dev/bench) au **HEAD de la PR** ; captures Playwright : voir `metrics.json` → `captureGitSha` (commit au moment de `capture.mts`, sans circularité avec le SHA de tête).
 
-| Statut | Nombre |
-|--------|--------|
-| Vérifié (capture + métriques) | **13** |
-| Partiel (harnais forcé uniquement) | **1** |
-| Non vérifié | **21** |
+| Statut capture | Nombre |
+|----------------|--------|
+| Vérifié (scénario Playwright + métriques) | **15** scénarios → **22** usages couverts (voir tableau) |
+| Partiel (harnais forcé) | **1** |
+| Non vérifié écran par écran | **17** usages |
 
-**Désactivé réel** (`:disabled` ou `busy` harnais, 3 seulement) : Créer `Générer`, Exporter déclencheur, Exporter popin.  
-**Désactivé forcé** (`btn.disabled = true` dans le script, **9** scénarios) + **1** `n/a` (Bibliothèque) + **3** **réels** = **13** lignes vérifiées.  
-**Sans preuve désactivé réelle** : **31** usages (**34** − **3** réels ; les **21** non vérifiés + **9** forcés + **1** n/a).
+Légende preuves : **[M]** mesuré (DOM / PNG / `metrics.json`) · **[C]** calculé (même règle `.btn.primary`, non rejoué sur l’écran) · **[—]** non testé.
 
-| # | Fichier:ligne | Libellé | Statut | Désactivé | Preuve |
-|---|---------------|---------|--------|-----------|--------|
-| 1 | `LibraryScreen.tsx:71` | Nouveau morceau | vérifié | n/a (pas de `disabled` au source) | `bibliotheque-primary-{normal,hover,focus}-*` |
-| 2 | `CreateWorkspace.tsx:213` | Générer | vérifié | **réel** (`busy`) | `creer-primary-*` (clip bouton ±14/22 px ; anneau rogné sur `creer-primary-focus-*`) |
-| 3 | `CreateWorkspace.tsx:538` | Générer (avancé) | non vérifié | — | autre vue |
-| 4 | `RecordTrackPanel.tsx:864` | Armer | vérifié* | forcé | `production-armer-primary-*` (*`normal` : voir `normalInViewport` dans `metrics.json`) |
-| 5 | `RecordTrackPanel.tsx:874` | Démarrer | non vérifié | — | — |
-| 6 | `RecordTrackPanel.tsx:911` | Reprendre | non vérifié | — | — |
-| 7 | `RecordTrackPanel.tsx:925` | Garder les prises | non vérifié | — | — |
-| 8 | `Phase3MixPanel.tsx:1571` | Mesurer le mix rendu | vérifié | forcé | `production-mesurer-primary-*` |
-| 9 | `ExportWizard.tsx:77` | Créer l’archive ZIP | vérifié | forcé | `production-zip-primary-*` |
-| 10 | `ExportDialog.tsx:178` | Exporter (déclencheur) | vérifié | **réel** (`busy`) | `production-exporter-primary-*` ; I3 barre mix : `production-exporter-bar-focus-i3-*` |
-| 11 | `ExportDialog.tsx:375` | Exporter (popin) | vérifié | **réel** (`busy`) | `production-export-popin-primary-*` |
-| 12 | `ProductionWorkspace.tsx:316` | Séparer les pistes | non vérifié | — | `hasAiStems` démo |
-| 13 | `RegenerationGate.tsx:162` | Capturer et générer | vérifié | forcé | `confirmation-regeneration-gate-primary-*` |
-| 14 | `RegenerationGate.tsx:186` | Garder (post_check ok) | non vérifié | — | phase non montée |
-| 15 | `RegenerationGate.tsx:215` | Garder (violations) | non vérifié | — | phase non montée |
-| 16 | `InvariantPanel.tsx:94` | Vérifier | vérifié | forcé | `confirmation-invariant-panel-primary-*` |
-| 17 | `RemoteGenerateConfirm.tsx:66` | Consentir et envoyer | vérifié | forcé | `confirmation-remote-generate-primary-*` |
-| 18 | `SeparationRecommendDialog.tsx:493` | Lancer la séparation | vérifié | forcé | `confirmation-separation-recommend-primary-*` |
-| 19 | `UpdateNotice.tsx:54` | Mettre à jour | vérifié | forcé | `confirmation-update-notice-primary-*` |
-| 20 | `Phase3SettingsPanel.tsx:655` | Télécharger LoRA | vérifié | forcé | `reglages-lora-primary-*` |
-| 21 | `Phase4SettingsPanel.tsx:565` | LoRA phase 4 | non vérifié | — | — |
-| 22 | `MixAssistPanel.tsx:314` | Appliquer le preset | non vérifié | — | — |
-| 23 | `MixAssistPanel.tsx:339` | Analyser l’équilibre | non vérifié | — | — |
-| 24 | `MixAssistPanel.tsx:415` | Confirmer l’équilibre | non vérifié | — | — |
-| 25 | `ProductionAssistPanel.tsx:296` | Analyser (copilote) | non vérifié | — | — |
-| 26 | `ProductionAssistPanel.tsx:366` | Confirmer (copilote) | non vérifié | — | — |
-| 27 | `MidiInstrumentPanel.tsx:376` | MIDI armer | non vérifié | — | — |
-| 28 | `MidiInstrumentPanel.tsx:442` | MIDI stop | non vérifié | — | — |
-| 29 | `ScorePanel.tsx:288` | Quantifier | non vérifié | — | — |
-| 30 | `ScorePanel.tsx:311` | Importer un MIDI | non vérifié | — | — |
-| 31 | `ScoreBranchPanel.tsx:370` | Branche partition | non vérifié | — | — |
-| 32 | `PianoRoll.tsx:523` | Quantifier (bannière) | non vérifié | — | — |
-| 33 | `ClipTimeline.tsx:1245` | Activer prise | non vérifié | — | — |
-| 34 | `SheetSage2Panel.tsx:574` | Sheet Sage | non vérifié | — | — |
-| 35 | `regen-gate-capture.html` (harnais) | Gate bloqué forcé | **partiel** | `aria-disabled` (pas `:disabled`) | `regeneration-gate-blocked-primary-*` — **inatteignable** (`SongScreen.tsx:339`) |
+Ratios actifs **[C]** (tous les primaires non surchargés) : normal **6,47:1** · survol **7,12:1** · focus texte **6,47:1**. Désactivé I2 **[M/C]** : **#848ba0** / **#12151f** → **5,36:1** (`:disabled` natif et `aria-disabled="true"`).
 
-Hors tableau : `scoreTabBenchApp.tsx`, `sepExportA11yCaptureMain.tsx`, maquettes `create-stemforge-captures.html`.
+## Tableau écran × bouton × état
 
-## Non testé (honnête)
+| # | Fichier:ligne | Libellé | Cond. | normal | survol | focus | `:disabled` | `aria-disabled` |
+|---|---------------|---------|-------|--------|--------|-------|-------------|-----------------|
+| 1 | `LibraryScreen.tsx:75` | Nouveau morceau | | [M] 6,47 | [M] 7,12 | [M] 6,47 | n/a | n/a |
+| 2 | `CreateWorkspace.tsx:213` | Générer | | [M] 6,47 | [M] 7,12 | [M] 6,47 | [M] 5,36 (`busy`) | n/a |
+| 3 | `CreateWorkspace.tsx:538` | Générer (avancé) | | [—] | [—] | [—] | [—] | [—] |
+| 4 | `RecordTrackPanel.tsx:864` | Armer | | [M] 6,47 | [M] 7,12 | [M] 6,47 | [M] 5,36 (forcé) | n/a |
+| 5 | `RecordTrackPanel.tsx:874` | Démarrer | | [—] | [—] | [—] | [—] | [—] |
+| 6 | `RecordTrackPanel.tsx:911` | Reprendre | | [—] | [—] | [—] | [—] | [—] |
+| 7 | `RecordTrackPanel.tsx:925` | Garder les prises | | [—] | [—] | [—] | [—] | [—] |
+| 8 | `Phase3MixPanel.tsx:1571` | Mesurer le mix rendu | | [M] 6,47 | [M] 7,12 | [M] 6,47 | [M] 5,36 (forcé) | n/a |
+| 9 | `ExportWizard.tsx:77` | Créer l’archive ZIP | | [M] 6,47 | [M] 7,12 | [M] 6,47 | [M] 5,36 (forcé) | n/a |
+| 10 | `ExportDialog.tsx:178` | Exporter (déclencheur) | | [M] 6,47 | [M] 7,12 | [M] 6,47 | [M] 5,36 (`busy`) | n/a |
+| 11 | `ExportDialog.tsx:375` | Exporter (popin) | | [M] 6,47 | [M] 7,12 | [M] 6,47 | [M] 5,36 (`busy`) | [M] 5,36 (0 piste) |
+| 12 | `ProductionWorkspace.tsx:316` | Séparer les pistes | oui `hasAiStems` | [C] 6,47 | [C] 7,12 | [C] 6,47 | [—] | [—] |
+| 13 | `RegenerationGate.tsx:162` | Capturer et générer | | [M] 6,47 | [M] 7,12 | [M] 6,47 | [M] 5,36 (forcé) | [M] 5,36 (harnais) |
+| 14 | `RegenerationGate.tsx:186` | Garder (post_check ok) | | [—] | [—] | [—] | [—] | [—] |
+| 15 | `RegenerationGate.tsx:215` | Garder (violations) | | [—] | [—] | [—] | [—] | [—] |
+| 16 | `InvariantPanel.tsx:94` | Vérifier | | [M] 6,47 | [M] 7,12 | [M] 6,47 | [M] 5,36 (forcé) | n/a |
+| 17 | `RemoteGenerateConfirm.tsx:66` | Consentir et envoyer | | [M] 6,47 | [M] 7,12 | [M] 6,47 | [M] 5,36 (forcé) | n/a |
+| 18 | `SeparationRecommendDialog.tsx:682` | Lancer la séparation | | [M] 6,47 | [M] 7,12 | [M] 6,47 | [M] 5,36 (forcé) | [C] 5,36 (modèle indisponible) |
+| 19 | `UpdateNotice.tsx:54` | Mettre à jour | | [M] 6,47 | [M] 7,12 | [M] 6,47 | [M] 5,36 (forcé) | n/a |
+| 20 | `Phase3SettingsPanel.tsx:655` | Télécharger LoRA | | [M] 6,47 | [M] 7,12 | [M] 6,47 | [M] 5,36 (forcé) | n/a |
+| 21 | `Phase4SettingsPanel.tsx:565` | LoRA phase 4 | | [—] | [—] | [—] | [—] | [—] |
+| 22 | `MixAssistPanel.tsx:314` | Appliquer le preset | | [C] 6,47 | [C] 7,12 | [C] 6,47 | [—] | [—] |
+| 23 | `MixAssistPanel.tsx:339` | Analyser l’équilibre | | [C] 6,47 | [C] 7,12 | [C] 6,47 | [—] | [—] |
+| 24 | `MixAssistPanel.tsx:415` | Confirmer l’équilibre | | [—] | [—] | [—] | [—] | [—] |
+| 25 | `ProductionAssistPanel.tsx:296` | Analyser (copilote) | | [C] 6,47 | [C] 7,12 | [C] 6,47 | [—] | [—] |
+| 26 | `ProductionAssistPanel.tsx:366` | Confirmer (copilote) | | [—] | [—] | [—] | [—] | [—] |
+| 27 | `MidiInstrumentPanel.tsx:376` | MIDI armer | | [—] | [—] | [—] | [—] | [—] |
+| 28 | `MidiInstrumentPanel.tsx:442` | MIDI stop | | [—] | [—] | [—] | [—] | [—] |
+| 29 | `ScorePanel.tsx:288` | Quantifier | | [—] | [—] | [—] | [—] | [—] |
+| 30 | `ScorePanel.tsx:311` | Importer un MIDI | | [—] | [—] | [—] | [—] | [—] |
+| 31 | `ScoreBranchPanel.tsx:370` | Branche partition | | [—] | [—] | [—] | [—] | [—] |
+| 32 | `PianoRoll.tsx:523` | Quantifier (bannière) | | [—] | [—] | [—] | [—] | [—] |
+| 33 | `ClipTimeline.tsx:1139` | Activer prise | oui `takeActive` | [—] | [—] | [—] | [—] | [—] |
+| 34 | `SheetSage2Panel.tsx:574` | Sheet Sage | | [—] | [—] | [—] | [—] | [—] |
+| 35 | `ProfileOnboardingScreen.tsx:193` | Ouvrir (dernier profil) | oui `isLastUsed` | [C] 6,47 | [C] 7,12 | [C] 6,47 | [—] | [—] |
+| 36 | `ProfileOnboardingScreen.tsx:269` | Créer le profil | | [C] 6,47 | [C] 7,12 | [C] 6,47 | [C] 5,36 (natif vide) | n/a |
+| 37 | `ProfileRenameDialog.tsx:96` | Renommer | | [—] | [—] | [—] | [—] | [—] |
+| 38 | `ProfileCommercialCreateConfirmDialog.tsx:43` | Création commerciale | | [—] | [—] | [—] | [—] | [—] |
+| 39 | `ProfileSwitchConfirmDialog.tsx:71` | Confirmer le switch | | [C] 6,47 | [C] 7,12 | [C] 6,47 | [—] | [—] |
+| 40 | `regen-gate-capture.html` | Gate bloqué (harnais) | | [M] 5,36 | [M] 5,36 | [M] 5,36 | n/a | [M] 5,36 |
 
-- WebKitGTK (Chromium / Playwright uniquement)
-- Lecteur d’écran (NVDA, Orca, VoiceOver)
-- `forced-colors` (décision produit)
-- `aria-disabled` du popin Exporter quand aucune piste n’est cochée (preuve popin = primaire `:disabled` via `busy`)
-- Garde cyan : échec attendu sur PNG sans pixels cyan (non couvert par un test automatisé)
+Hors tableau : `scoreTabBenchApp.tsx`, `sepExportA11yCaptureMain.tsx`, maquettes HTML.
 
-## Points CSS (I2 / I3) — corrigés dans cette itération
+## I2 / I3 (cette itération)
 
-- **I2** — Popin export désactivé : bordure tirets **#6a7394** → **4,12:1** (page) / **3,27:1** (fond popin) ; ΔE00 face / ghost **7,66** (était ~1,51) ; face **#12151f**.
-- **I3** — Anneau focus en `outline-offset: -2px` sur barre mix + pied popin (évite le rognage sans changer la hauteur barre / zone pistes) ; preuve `production-exporter-bar-focus-i3-1280x720.png`.
+- **I2** — `.btn.primary:disabled` **et** `.btn.primary[aria-disabled="true"]` : face **#12151f**, tirets **#6a7394**, texte **5,36:1** ; survol désactivé.
+- **I3** — Barre mix uniquement : `.production-mix-toolbar-actions > .btn.primary:focus-visible` avec `outline-offset: -2px` + `box-shadow: inset 0 0 0 2px #151827` (anneau deux tons ≥ 3:1). Règle **`.anchored-popin-footer`** retirée (R-2 : aucun rognage démontré sur le pied de popin Exporter).
+- **Captures** — Recadrages bouton : suffixe `-clip.png` ; vues 1280×720 plein écran : `-1280x720.png` (R-5).
 
-## Toujours ouverts
+## Renvoi #212
 
-- **21** usages non vérifiés écran par écran (voir tableau).
-- WebKitGTK, lecteur d’écran, `forced-colors`, garde cyan négative.
+- Rognages d’anneau préexistants (Créer, Mesurer, etc.).
+- `forced-colors` (Windows HC non testé).
+
+## Non testé
+
+WebKitGTK, lecteur d’écran, **17** usages (colonne [—]), garde cyan négative (couvert par tests unitaires + garde pixels `capture.mts`).

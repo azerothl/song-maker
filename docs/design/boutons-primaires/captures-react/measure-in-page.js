@@ -344,8 +344,16 @@
 
     const pageBg = pageBackground();
     const composedFg = blend(fg, pageBg, Number.isFinite(opacity) ? opacity : 1);
-    const disabled = btn.matches(":disabled");
-    const minRatioRequired = disabled ? AA_MIN_DISABLED : AA_MIN;
+    const nativeDisabled = btn.matches(":disabled");
+    const ariaDisabled = btn.getAttribute("aria-disabled") === "true";
+    const isPrimary = btn.classList.contains("primary");
+    const primaryBlocked =
+      isPrimary && (nativeDisabled || ariaDisabled);
+    const minRatioRequired = primaryBlocked
+      ? AA_MIN
+      : nativeDisabled || ariaDisabled
+        ? AA_MIN_DISABLED
+        : AA_MIN;
 
     const stopCssList = parseGradientStops(style.backgroundImage);
     let stops;
@@ -402,6 +410,37 @@
         outlineRatios.length > 0
           ? Math.round(Math.max(...outlineRatios) * 100) / 100
           : outlineContrastRatio;
+      const face = sampleButtonFace(sel);
+      const insetSep = { r: 21, g: 24, b: 39 };
+      let outlineContrastOnFaceMin = null;
+      let focusRingInsetSepContrast = null;
+      let focusInsetSepVsFace = null;
+      if (outline) {
+        focusRingInsetSepContrast =
+          Math.round(contrast(outline, insetSep) * 100) / 100;
+      }
+      if (face.backgroundRgb) {
+        focusInsetSepVsFace =
+          Math.round(contrast(insetSep, face.backgroundRgb) * 100) / 100;
+        const shadow = style.boxShadow || "";
+        const hasInsetSep =
+          shadow.includes("inset") &&
+          (shadow.includes("151827") ||
+            shadow.includes("21, 24, 39") ||
+            shadow.includes("rgb(21, 24, 39)"));
+        if (hasInsetSep) {
+          outlineContrastOnFaceMin = Math.min(
+            focusRingInsetSepContrast ?? Infinity,
+            focusInsetSepVsFace ?? Infinity,
+          );
+          if (!Number.isFinite(outlineContrastOnFaceMin)) {
+            outlineContrastOnFaceMin = null;
+          }
+        } else {
+          outlineContrastOnFaceMin =
+            Math.round(contrast(outline, face.backgroundRgb) * 100) / 100;
+        }
+      }
       focusProof = {
         matchesFocusVisible: btn.matches(":focus-visible"),
         outlineStyle: style.outlineStyle,
@@ -413,6 +452,9 @@
         backdropHex: toHex(backdrop.r, backdrop.g, backdrop.b),
         outlineContrastRatio,
         outlineContrastRatioMax,
+        outlineContrastOnFaceMin,
+        focusRingInsetSepContrast,
+        focusInsetSepVsFace,
       };
     }
 
@@ -425,11 +467,16 @@
       minRatio: Math.min(...stops.map((s) => s.ratio)),
       pass: stops.every((s) => s.pass),
       focusProof,
-      disabledProof: disabled
+      disabledProof: nativeDisabled
         ? { nativeDisabled: true }
-        : stateName === "disabled"
-          ? { nativeDisabled: false, note: "disabled attribute forced for style read" }
-          : undefined,
+        : ariaDisabled
+          ? { nativeDisabled: false, note: "aria-disabled" }
+          : stateName === "disabled"
+            ? {
+                nativeDisabled: false,
+                note: "disabled attribute forced for style read",
+              }
+            : undefined,
     };
   }
 

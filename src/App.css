@@ -560,7 +560,7 @@ option {
   transition: background-image 120ms ease, background-color 120ms ease;
 }
 
-.btn.primary:hover:not(:disabled) {
+.btn.primary:hover:not(:disabled):not([aria-disabled="true"]) {
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--accent) 76%, white),
@@ -571,12 +571,14 @@ option {
 
 /* :focus-visible anneau = règle globale `button:focus-visible` (App.css ~82) — pas de doublon. */
 
-.btn.primary:disabled {
+.btn.primary:disabled,
+.btn.primary[aria-disabled="true"] {
   /*
    * Distinct du `.btn` secondaire actif dans les popins (#186 I2 / #193) :
    * texte ≥ 4,5:1 (#848ba0 sur #12151f), fond via dégradé plat (Chromium
    * annule `background-color` sur button:disabled), bordure tirets plus
    * claire (#6a7394 ≥ 3:1 sur page et fond popin — était ~1,6 / 1,27).
+   * `aria-disabled` : état durable (0 piste, gate, séparation) — pas l’opacité .45.
    */
   opacity: 1 !important;
   cursor: not-allowed;
@@ -1267,11 +1269,10 @@ option {
   flex: 1 1 auto;
 }
 
-/* #186 I3 — anneau focus à l’intérieur (pas de padding layout) quand un
- * ancêtre clippe (overflow-x:auto / overflow:hidden du popin). */
-.production-mix-toolbar-actions .btn:focus-visible,
-.anchored-popin-footer .btn:focus-visible {
+/* #186 I3 — anneau inset + liseré sombre (≥ 3:1 vs face lavande, WCAG 1.4.11). */
+.production-mix-toolbar-actions > .btn.primary:focus-visible {
   outline-offset: -2px;
+  box-shadow: inset 0 0 0 2px #151827;
 }
 
 .production-mix-saved {
