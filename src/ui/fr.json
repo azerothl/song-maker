@@ -1352,5 +1352,16 @@
   "production.unit.dbValue": "{value} dB",
   "production.common.mix": "Pistes et mixage",
   "production.common.clips": "Arrangement et clips",
-  "production.common.advanced": "Automation, effets avancés et export"
+  "production.common.advanced": "Automation, effets avancés et export",
+  "production.auto.restore": "Rétablir la courbe",
+  "production.auto.track": "Automation de {track}",
+  "production.auto.target": "Cible",
+  "production.auto.remove": "Supprimer",
+  "production.auto.point": "{time} ms : {value} {unit}",
+  "production.auto.empty": "Aucun point : le réglage de la piste reste actif.",
+  "production.auto.addPosition": "Ajouter à cette position",
+  "production.auto.laneNamed": "Courbe d’automation : {target}",
+  "production.auto.delete": "Supprimer le point {point}",
+  "production.auto.time": "Position (ms)",
+  "production.auto.addPlayback": "Ajouter à la position de lecture"
 }

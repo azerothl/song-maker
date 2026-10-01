@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useEffect,
   useId,
   useLayoutEffect,
@@ -23,6 +24,7 @@ import { ProductionAssistPanel } from "../../components/ProductionAssistPanel";
 import { RecordTrackPanel } from "../../components/RecordTrackPanel";
 import { ProductionAddTrackMenu } from "../../components/production/ProductionAddTrackMenu";
 import { ProductionTrackTools } from "../../components/production/ProductionTrackTools";
+import { ProductionTrackAutomation } from "../../components/production/ProductionTrackAutomation";
 import { MixBakeStatusIndicator } from "../../components/MixBakeStatusIndicator";
 import { PlaybackTime } from "../../components/PlaybackTime";
 import { Waveform } from "../../components/Waveform";
@@ -631,8 +633,8 @@ export function ProductionWorkspace({
                       .filter(Boolean)
                       .join(" ");
                     return (
+                      <Fragment key={tr.id}>
                       <div
-                        key={tr.id}
                         className={rowClass}
                         data-role={tr.role.toLowerCase()}
                         role="listitem"
@@ -761,6 +763,13 @@ export function ProductionWorkspace({
                           />
                         </div>
                       </div>
+                      <ProductionTrackAutomation
+                        mixId={mix.id} trackId={tr.id} trackName={tr.name}
+                        durationMs={Math.max((playback?.duration ?? 0) * 1000,
+                          ...mix.tracks.flatMap(track => track.clips.map(clip => clip.startMs + clip.durationMs)), 5000)}
+                        currentMs={(playback?.current ?? 0) * 1000}
+                      />
+                      </Fragment>
                     );
                   };
 

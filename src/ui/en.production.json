@@ -150,5 +150,19 @@
   "production.strip.pan.valuetext": "{value}",
   "production.common.mix": "Tracks and mix",
   "production.common.clips": "Arrangement and clips",
-  "production.common.advanced": "Automation, advanced effects and export"
+  "production.common.advanced": "Automation, advanced effects and export",
+  "production.auto.restore": "Restore curve",
+  "production.auto.track": "Automation for {track}",
+  "production.auto.target": "Target",
+  "production.auto.remove": "Delete",
+  "production.auto.point": "{time} ms: {value} {unit}",
+  "production.auto.empty": "No points: the track setting remains active.",
+  "production.auto.addPosition": "Add at this position",
+  "production.auto.laneNamed": "Automation curve: {target}",
+  "production.auto.delete": "Delete point {point}",
+  "production.auto.time": "Position (ms)",
+  "production.auto.addPlayback": "Add at playback position",
+  "phase3.mix.clearAutomation": "Clear curve",
+  "phase3.mix.targetVolume": "Volume",
+  "phase3.mix.targetPan": "Pan"
 }

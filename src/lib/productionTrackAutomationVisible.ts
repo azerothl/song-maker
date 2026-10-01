@@ -1,4 +1,10 @@
 const STORAGE_KEY = "song-maker:production-track-auto-visible";
+const listeners = new Set<() => void>();
+
+export function subscribeTrackAutomationVisible(listener: () => void) {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
 
 export function isTrackAutomationVisible(trackId: string): boolean {
   if (typeof localStorage === "undefined") return false;
@@ -23,4 +29,5 @@ export function setTrackAutomationVisible(trackId: string, visible: boolean): vo
   } catch {
     /* ignore quota */
   }
+  for (const listener of listeners) listener();
 }

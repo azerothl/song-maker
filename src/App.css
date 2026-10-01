@@ -1249,6 +1249,38 @@ option {
   overflow: visible;
 }
 
+.production-track-automation {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg2);
+}
+
+.production-auto-toolbar,
+.production-auto-points li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.production-track-automation label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.production-track-automation input { width: 6rem; }
+.production-track-automation .btn,
+.production-track-automation input,
+.production-track-automation select { min-height: 44px; }
+.production-auto-points { padding-left: 1.5rem; }
+.production-auto-points li { margin-block: 0.5rem; }
+.production-auto-curve { width: 100%; height: 96px; background: #101523; touch-action: none; }
+.production-auto-curve polyline { fill: none; stroke: #5eecf8; stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.production-auto-curve ellipse { fill: #eff0fb; }
+.production-auto-zero { stroke: #747d96; stroke-width: 1px; vector-effect: non-scaling-stroke; }
+
 .mixer-density.production-mix-panel {
   flex: 1;
   min-height: 0;
