@@ -46,6 +46,11 @@ import { t, profileLocale } from "../ui/i18n";
 import type { ProductionClipViewPrefs } from "../lib/productionClipViewPrefs";
 import { DEFAULT_PRODUCTION_CLIP_VIEW_PREFS } from "../lib/productionClipViewPrefs";
 import { AnchoredPopin } from "./AnchoredPopin";
+import {
+  CLIP_EDIT_TOOLS,
+  clipEditToolFromKey,
+  type ClipEditTool,
+} from "./ClipEditToolbar";
 
 const TIME_SNAP_MS = 50;
 const EDGE_PX = 6;
@@ -78,6 +83,14 @@ type Props = {
   hideHeaderTools?: boolean;
   /** Actions in the clips header (#225 — Réglages du mix). */
   headerActions?: ReactNode;
+  /**
+   * #299 — hide stacked chrome (palette / hints / « Clips » title / grid row)
+   * when the parent owns the maquette toolbar + context bar.
+   */
+  hideChrome?: boolean;
+  /** Controlled edit tool (#299 — V/C/F/M). */
+  editTool?: ClipEditTool;
+  onEditToolChange?: (tool: ClipEditTool) => void;
   currentTimeMs?: number;
   onSeek?: (seconds: number) => void;
   renderTracks?: (renderLane: (track: MixTrack) => ReactNode, durationMs: number) => ReactNode;
@@ -255,6 +268,9 @@ export function ClipTimeline({
   onClipViewPrefsChange,
   hideHeaderTools = false,
   headerActions,
+  hideChrome = false,
+  editTool: editToolProp,
+  onEditToolChange,
   currentTimeMs = 0,
   onSeek,
   renderTracks,
@@ -264,7 +280,12 @@ export function ClipTimeline({
     [rawMix, projectTempoBpm, projectMeter],
   );
   const editor = useMemo(() => createClipEditor(), []);
-  const [editTool, setEditTool] = useState<"select" | "cut" | "fade">("select");
+  const [editToolState, setEditToolState] = useState<ClipEditTool>("select");
+  const editTool = editToolProp ?? editToolState;
+  const setEditTool = (tool: ClipEditTool) => {
+    onEditToolChange?.(tool);
+    if (editToolProp === undefined) setEditToolState(tool);
+  };
   const [arrangementOpen, setArrangementOpen] = useState<"tempo" | "markers" | null>(null);
   const tempoAnchor = useRef<HTMLElement | null>(null);
   const markerAnchor = useRef<HTMLElement | null>(null);
@@ -722,6 +743,12 @@ export function ClipTimeline({
       return;
     }
 
+    if (editTool === "marker") {
+      e.preventDefault();
+      addMarkerAt(atMs);
+      return;
+    }
+
     const kind: DragKind = editTool === "fade" && zone === "body"
       ? (localX < width / 2 ? "fade-in" : "fade-out")
       : zone === "body" ? "move" : zone;
@@ -780,10 +807,18 @@ export function ClipTimeline({
       target.isContentEditable;
 
     if (inField) return;
-    if (!e.ctrlKey && !e.metaKey && !e.altKey && ["1", "2", "3"].includes(e.key)) {
-      e.preventDefault();
-      setEditTool(e.key === "1" ? "select" : e.key === "2" ? "cut" : "fade");
-      return;
+    if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+      const fromKey = clipEditToolFromKey(e.key);
+      if (fromKey) {
+        e.preventDefault();
+        setEditTool(fromKey);
+        return;
+      }
+      if (e.key === "x" || e.key === "X") {
+        e.preventDefault();
+        cutSelected();
+        return;
+      }
     }
 
     const scrollKeys = new Set([
@@ -1099,25 +1134,31 @@ export function ClipTimeline({
         tabIndex={0}
         data-testid="production-clips-scroll"
       >
+      {!hideChrome && (
+        <>
       <div className="clip-edit-toolbar" role="toolbar" aria-label={t("production.edit.title")}
         onKeyDown={event => {
           if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
           event.preventDefault(); event.stopPropagation();
-          const tools = ["select", "cut", "fade"] as const;
+          const tools = CLIP_EDIT_TOOLS;
           const index = tools.indexOf(editTool);
-          const next = event.key === "Home" ? 0 : event.key === "End" ? 2
-            : (index + (event.key === "ArrowLeft" ? 2 : 1)) % 3;
+          const next = event.key === "Home" ? 0 : event.key === "End" ? tools.length - 1
+            : (index + (event.key === "ArrowLeft" ? tools.length - 1 : 1)) % tools.length;
           setEditTool(tools[next]);
           event.currentTarget.querySelectorAll<HTMLButtonElement>("button")[next]?.focus();
         }}>
-        {(["select", "cut", "fade"] as const).map((tool, index) => (
+        {CLIP_EDIT_TOOLS.map((tool) => {
+          const shortcut =
+            tool === "select" ? "V" : tool === "cut" ? "C" : tool === "fade" ? "F" : "M";
+          return (
           <button key={tool} type="button" className="btn" aria-pressed={editTool === tool}
-            tabIndex={editTool === tool ? 0 : -1} aria-keyshortcuts={String(index + 1)}
+            tabIndex={editTool === tool ? 0 : -1} aria-keyshortcuts={shortcut}
             onClick={() => setEditTool(tool)}>
             <span className="clip-edit-tool-check" aria-hidden="true">{editTool === tool ? "✓" : ""}</span>
             <span>{t(`production.edit.${tool}`)}</span>
           </button>
-        ))}
+          );
+        })}
       </div>
       <p className="hint" role="status">{t(`production.edit.${editTool}.hint`)}</p>
       <div className="clip-timeline-header">
@@ -1186,6 +1227,8 @@ export function ClipTimeline({
           )}
         </div>
       </div>
+        </>
+      )}
 
       <div className="clip-arrangement-popins">
         <AnchoredPopin open={arrangementOpen === "tempo"} onClose={() => setArrangementOpen(null)}
@@ -1685,7 +1728,17 @@ export function ClipTimeline({
               <button type="button" className="btn clip-marker-add" ref={markerOpenButton}
                 aria-label={t("production.marker.addNamed")} aria-haspopup="dialog" aria-expanded={arrangementOpen === "markers"}
                 onClick={event=>{markerAnchor.current=event.currentTarget;setArrangementOpen("markers");}}>+</button>
-            <div className="clip-lane-rail clip-marker-rail">
+            <div
+              className="clip-lane-rail clip-marker-rail"
+              onClick={(event) => {
+                if (editTool !== "marker") return;
+                if ((event.target as HTMLElement).closest(".clip-marker-flag")) return;
+                const rail = event.currentTarget;
+                const rect = rail.getBoundingClientRect();
+                const ratio = (event.clientX - rect.left) / Math.max(1, rect.width);
+                addMarkerAt(ratio * timelineMs);
+              }}
+            >
               {markers.map((m) => (
                 <button
                   key={m.id}

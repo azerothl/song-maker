@@ -265,7 +265,7 @@ describe("Production commune (#223, #230)", () => {
       await page.locator(".clip-block").first().click();
       const start = page.locator(".clip-inspector .clip-field input").first();
       const oldValue = await start.inputValue();
-      const gain=page.locator('.track-gain-knob [role="slider"]').first();
+      const gain=page.locator('.track-gain-knob [role="slider"], .track-gain-slider input[type="range"]').first();
       const oldGain=await gain.getAttribute("aria-valuenow");
       await gain.focus();
       await page.keyboard.press("ArrowRight");

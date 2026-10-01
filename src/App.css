@@ -1894,6 +1894,105 @@ option {
   margin-bottom: 0.35rem;
 }
 
+.production-main-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+  min-height: 44px;
+  margin-bottom: 0.25rem;
+}
+
+.production-main-toolbar .clip-edit-toolbar {
+  flex: 0 1 auto;
+}
+
+.production-main-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.production-context-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+  min-height: 36px;
+  padding: 0.15rem 0;
+}
+
+.production-context-bar .production-mix-saved {
+  margin-left: auto;
+}
+
+.production-workspace-maquette .production-mix-master.mix-master-banner {
+  min-height: 40px;
+  gap: 0.35rem;
+}
+
+.production-workspace-maquette .production-mix-sticky-master {
+  padding: 0.1rem 0;
+}
+
+.production-workspace-maquette .production-chrome-stack {
+  margin-bottom: 0.15rem;
+}
+
+.production-workspace-maquette .production-heading-compact .hint,
+.production-workspace-maquette .mixer-tracks-title {
+  display: none;
+}
+
+.production-edit-footer {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.mix-slider {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.1rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.mix-slider-range {
+  width: 100%;
+  min-width: 0;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--accent, #7c6cf0);
+}
+
+.mix-slider-value,
+.mix-slider-input {
+  font: inherit;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  min-height: 22px;
+  padding: 0 0.2rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.mix-slider-value:hover,
+.mix-slider-value:focus-visible {
+  outline: 2px solid var(--accent-cyan, #5eecf8);
+  outline-offset: 1px;
+}
+
+.mixer-density .mix-slider-range:focus-visible {
+  outline: 2px solid var(--accent-cyan, #5eecf8);
+  outline-offset: 2px;
+}
+
 .production-add-track-wrap {
   position: relative;
 }

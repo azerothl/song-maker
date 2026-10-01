@@ -8,7 +8,6 @@ import {
   useState,
   type Dispatch,
   SetStateAction,
-  type RefObject,
 } from "react";
 import { TruncatedTrackLabel } from "../../components/TruncatedTrackLabel";
 import { ClipTimeline } from "../../components/ClipTimeline";
@@ -19,6 +18,13 @@ import { EstimatedSeparationMarker } from "../../components/EstimatedSeparationM
 import { AnchoredPopin } from "../../components/AnchoredPopin";
 import { ProductionMixSettingsPopin } from "../../components/ProductionMixSettingsPopin";
 import { MixKnob } from "../../components/MixKnob";
+import { MixSlider } from "../../components/MixSlider";
+import {
+  ClipEditToolbar,
+  clipEditToolFromKey,
+  type ClipEditTool,
+} from "../../components/ClipEditToolbar";
+import { ProductionClipViewControls } from "../../components/ProductionClipViewControls";
 import { Phase3MixPanel } from "../../components/Phase3MixPanel";
 import { ProductionAssistPanel } from "../../components/ProductionAssistPanel";
 import { QwenMixAssistant } from "../../components/QwenMixAssistant";
@@ -72,7 +78,6 @@ import {
   formatPan,
   parseGainDb,
   parsePan,
-  workspaceIntro,
   workspaceTitle,
 } from "./shared";
 
@@ -194,10 +199,9 @@ export function ProductionWorkspace({
   const mixAssistBtnRef = useRef<HTMLButtonElement>(null);
   const separateAnchorRef = useRef<HTMLButtonElement | null>(null);
   const mixSettingsAnchorRef = useRef<HTMLButtonElement | null>(null);
-  const [mixSettingsPreferAbove, setMixSettingsPreferAbove] = useState(false);
-  const mixSettingsMixBtnRef = useRef<HTMLButtonElement>(null);
-  const mixSettingsClipsBtnRef = useRef<HTMLButtonElement>(null);
+  const mixSettingsBtnRef = useRef<HTMLButtonElement>(null);
   const [mixSettingsOpen, setMixSettingsOpen] = useState(false);
+  const [editTool, setEditTool] = useState<ClipEditTool>("select");
   const mixLayoutNarrow = useProductionMixLayoutNarrow();
   const [localClipViewPrefs, setLocalClipViewPrefs] = useState<ProductionClipViewPrefs>(
     () => DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
@@ -243,30 +247,22 @@ export function ProductionWorkspace({
   };
 
 
-  const toggleMixSettingsFrom = (
-    button: HTMLButtonElement | null,
-    preferAbove: boolean,
-  ) => {
+  const toggleMixSettingsFrom = (button: HTMLButtonElement | null) => {
     if (!button) return;
     mixSettingsAnchorRef.current = button;
-    setMixSettingsPreferAbove(preferAbove);
     setMixSettingsOpen((open) => !open);
   };
 
   const mixSettingsTrigger = (
-    ref: RefObject<HTMLButtonElement | null>,
-    testId: string,
-    preferAbove: boolean,
-  ) => (
     <button
-      ref={ref}
+      ref={mixSettingsBtnRef}
       type="button"
       className="btn production-mix-settings-trigger"
-      data-testid={testId}
+      data-testid="production-mix-settings-trigger"
       aria-haspopup="dialog"
       aria-expanded={mixSettingsOpen}
       aria-controls={mixSettingsPanelId}
-      onClick={() => toggleMixSettingsFrom(ref.current, preferAbove)}
+      onClick={() => toggleMixSettingsFrom(mixSettingsBtnRef.current)}
     >
       {t("production.mixSettings")}
     </button>
@@ -287,7 +283,7 @@ export function ProductionWorkspace({
     [mix],
   );
   const tightMixLayout = shouldUseProductionTightLayout("mix", effectiveDensity);
-  const masterWaveHeight = 56;
+  const masterWaveHeight = 36;
 
   const setDensityPreferencePersist = (next: ProductionDensityPreference) => {
     setDensityPreference(next);
@@ -333,6 +329,28 @@ export function ProductionWorkspace({
     return () => ro.disconnect();
   }, [densityPreference, layoutMeasureKey]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      const tool = clipEditToolFromKey(e.key);
+      if (!tool) return;
+      e.preventDefault();
+      setEditTool(tool);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   const toggleFamilyCollapsed = (family: TrackFamilyId) => {
     setCollapsedFamilies((prev) => {
       const collapsed = !prev[family];
@@ -345,46 +363,57 @@ export function ProductionWorkspace({
     <section
       className={
         tightMixLayout
-          ? "song-workspace-panel wide production-workspace production-workspace-common production-workspace-tight"
-          : "song-workspace-panel wide production-workspace production-workspace-common"
+          ? "song-workspace-panel wide production-workspace production-workspace-common production-workspace-tight production-workspace-maquette"
+          : "song-workspace-panel wide production-workspace production-workspace-common production-workspace-maquette"
       }
       role="tabpanel"
       id="song-panel-production"
       aria-labelledby="song-tab-production"
     >
       <div className="production-chrome-stack">
-        <div className="production-chrome-row">
-          <header className="song-workspace-heading production-heading-compact">
-            <h2>{workspaceTitle("production")}</h2>
-            <p className="hint">{workspaceIntro("production")}</p>
-          </header>
-
-
-        </div>
-
-
-
+        <header className="song-workspace-heading production-heading-compact">
+          <h2>{workspaceTitle("production")}</h2>
+        </header>
         <MixBakeStatusIndicator
           pending={playback?.mixBakePending ?? false}
           failed={playback?.mixBakeFailed ?? false}
           className="production-mix-bake-chrome"
         />
-        <div className="production-page-actions">
-          <ProductionAddTrackMenu
-            busy={busy}
-            importingAudio={importingAudio}
-            recordOpen={recordOpen}
-            onImport={() => void onImportUserAudio()}
-            onToggleRecord={() => setRecordOpen((v) => !v)}
-          />
-          <RecordTrackPanel
-            projectId={project.id}
-            open={recordOpen}
-            onClose={() => setRecordOpen(false)}
-            onTrackAdded={(m) => void onUserTrackAdded(m)}
-            onError={setError}
-          />
+        <div
+          className="production-main-toolbar"
+          role="toolbar"
+          aria-label={t("production.edit.title")}
+        >
+          <ClipEditToolbar editTool={editTool} onEditToolChange={setEditTool} />
+          <div className="production-main-toolbar-actions">
+            <ProductionAddTrackMenu
+              busy={busy}
+              importingAudio={importingAudio}
+              recordOpen={recordOpen}
+              onImport={() => void onImportUserAudio()}
+              onToggleRecord={() => setRecordOpen((v) => !v)}
+            />
+            {mix ? (
+              <ExportDialog
+                project={project}
+                mix={mix}
+                sources={playbackSources}
+                busy={busy}
+                onBusy={setBusy}
+                onError={setError}
+                initialMode={hasAiStems ? "stems" : "mix"}
+              />
+            ) : null}
+            {mixSettingsTrigger}
+          </div>
         </div>
+        <RecordTrackPanel
+          projectId={project.id}
+          open={recordOpen}
+          onClose={() => setRecordOpen(false)}
+          onTrackAdded={(m) => void onUserTrackAdded(m)}
+          onError={setError}
+        />
       </div>
 
       <div
@@ -514,68 +543,21 @@ export function ProductionWorkspace({
               </div>
               <div
                 className={[
-                  "production-mix-toolbar",
-                  "production-mix-toolbar-sticky",
-                  mixLayoutNarrow ? "production-mix-toolbar-narrow" : "",
+                  "production-context-bar",
+                  mixLayoutNarrow ? "production-context-bar-narrow" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                role="toolbar"
-                aria-label={t("production.common.mix")}
               >
-                <div className="production-mix-toolbar-title">
-                  <h3 className="mixer-tracks-title">{t("mix.tracksTitle")}</h3>
-                  {separationInfo && separationInfo.warnings.length > 0 && (
-                    <EstimatedSeparationMarker warningCodes={separationInfo.warnings} />
-                  )}
-                </div>
-                <div
-                  className="production-density-seg"
-                  role="group"
-                  aria-label={t("mix.density.group")}
-                >
-                  {(["auto", "compact", "confortable"] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      className="production-density-btn"
-                      aria-pressed={densityPreference === mode}
-                      onClick={() => setDensityPreferencePersist(mode)}
-                    >
-                      <span className="production-density-check" aria-hidden>
-                        ✓
-                      </span>
-                      {t(`mix.density.${mode}`)}
-                    </button>
-                  ))}
-                </div>
-                {densityPreference === "auto" && (
-                  <p className="production-density-auto-hint" role="status">
-                    {t("mix.density.autoStatus", {
-                      mode: t(
-                        effectiveDensity === "compact"
-                          ? "mix.density.compact"
-                          : "mix.density.confortable",
-                      ),
-                    })}
-                  </p>
+                {separationInfo && separationInfo.warnings.length > 0 && (
+                  <EstimatedSeparationMarker warningCodes={separationInfo.warnings} />
                 )}
-                <div className="production-mix-toolbar-actions">
-                  <ExportDialog
-                    project={project}
-                    mix={mix}
-                    sources={playbackSources}
-                    busy={busy}
-                    onBusy={setBusy}
-                    onError={setError}
-                    initialMode={hasAiStems ? "stems" : "mix"}
-                  />
-                  {mixSettingsTrigger(
-                    mixSettingsMixBtnRef,
-                    "production-mix-settings-trigger",
-                    false,
-                  )}
-                </div>
+                <ProductionClipViewControls
+                  prefs={clipViewPrefs}
+                  onChange={patchClipViewPrefs}
+                  variant="quick"
+                  idPrefix="production-context"
+                />
                 <p className="mix-autosave production-mix-saved" role="status">
                   {mixSavedAt
                     ? t("mix.savedAt", { time: formatSavedClock(mixSavedAt) })
@@ -608,11 +590,10 @@ export function ProductionWorkspace({
                   projectTempoBpm={project.tempoBpm} projectMeter={project.meter ?? null}
                   currentTimeMs={(playback?.current ?? 0)*1000} onSeek={playback?.seek}
                   clipViewPrefs={clipViewPrefs} onClipViewPrefsChange={patchClipViewPrefs}
-                  headerActions={mixSettingsTrigger(
-                    mixSettingsClipsBtnRef,
-                    "production-mix-settings-trigger-clips",
-                    true,
-                  )}
+                  hideChrome
+                  hideHeaderTools
+                  editTool={editTool}
+                  onEditToolChange={setEditTool}
                   renderTracks={(renderLane,timelineMs)=>{
                   const anySolo = mix.tracks.some((x) => x.solo);
                   const renderTrack = (tr: MixTrack, inGroup: boolean) => {
@@ -655,8 +636,8 @@ export function ProductionWorkspace({
                             )}
                           </TruncatedTrackLabel>
                         </div>
-                        <MixKnob
-                          className="track-gain-knob"
+                        <MixSlider
+                          className="track-gain-knob track-gain-slider"
                           value={tr.gainDb}
                           min={-24}
                           max={12}
@@ -675,8 +656,8 @@ export function ProductionWorkspace({
                             scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }))
                           }
                         />
-                        <MixKnob
-                          className="track-pan-knob"
+                        <MixSlider
+                          className="track-pan-knob track-pan-slider"
                           value={tr.pan}
                           min={-1}
                           max={1}
@@ -920,7 +901,7 @@ export function ProductionWorkspace({
             panelId={mixSettingsPanelId}
             labelId={mixSettingsLabelId}
             deferEscapeClose={mixSettingsDeferEscape}
-            preferAboveAnchor={mixSettingsPreferAbove}
+            preferAboveAnchor={false}
             clipView={clipViewPrefs}
             onClipViewChange={patchClipViewPrefs}
             densityPreference={densityPreference}
@@ -994,6 +975,9 @@ export function ProductionWorkspace({
           void onSeparate();
         }}
       />
+      <p className="production-edit-footer hint" role="status">
+        {t(`production.edit.${editTool}.hint`)}
+      </p>
     </section>
   );
 }

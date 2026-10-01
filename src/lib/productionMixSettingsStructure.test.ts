@@ -20,8 +20,19 @@ describe("production mix settings structure (#225)", () => {
 
   it("Clips trigger opens popover above timeline (preferAboveAnchor)", () => {
     const src = readFileSync("src/screens/song/ProductionWorkspace.tsx", "utf8");
-    assert.match(src, /preferAboveAnchor=\{mixSettingsPreferAbove\}/);
-    assert.match(src, /production-mix-settings-trigger-clips[\s\S]*?true/);
+    assert.match(src, /preferAboveAnchor=\{false\}/);
+    assert.doesNotMatch(src, /production-mix-settings-trigger-clips/);
+    assert.match(src, /production-mix-settings-trigger/);
+  });
+
+  it("single mix settings access in main toolbar (#299)", () => {
+    const src = readFileSync("src/screens/song/ProductionWorkspace.tsx", "utf8");
+    assert.match(src, /production-main-toolbar/);
+    assert.match(src, /hideChrome/);
+    assert.equal(
+      (src.match(/data-testid="production-mix-settings-trigger"/g) ?? []).length,
+      1,
+    );
   });
 
   it("tools menu exposes aria-expanded when Assistant and Copilot both shown", () => {
