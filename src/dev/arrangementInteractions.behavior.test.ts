@@ -1,5 +1,5 @@
 /**
- * #276 — marqueur borné à la durée affichée (règle).
+ * #276 — marqueur borné à la durée affichée ; #277 — saisie tempo conservée.
  */
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
@@ -45,9 +45,9 @@ after(async () => {
   if (vite) await stopCaptureViteServer(vite);
 });
 
-describe("arrangement interactions (#276)", () => {
+describe("arrangement interactions", () => {
   it(
-    "clamps marker position to the displayed ruler",
+    "#276 clamps marker position to the displayed ruler",
     { timeout: IT_TIMEOUT_MS },
     async () => {
       const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
@@ -87,6 +87,46 @@ describe("arrangement interactions (#276)", () => {
           await page.locator(".clip-ruler").getAttribute("aria-valuemax"),
           "30000",
         );
+      } finally {
+        await page.close();
+      }
+    },
+  );
+
+  it(
+    "#277 keeps applied tempo draft after a second apply",
+    { timeout: IT_TIMEOUT_MS },
+    async () => {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+      try {
+        await page.addInitScript(() => localStorage.setItem("song-maker.locale", "fr"));
+        await page.goto(BASE, { waitUntil: "networkidle" });
+        await page.getByRole("button", { name: "Carte de tempo", exact: true }).click();
+        const bpm = page.getByLabel("BPM", { exact: true });
+        const at = page.getByLabel("À (ms)", { exact: true });
+        await bpm.fill("150");
+        await at.fill("8000");
+        const apply = page.getByRole("button", { name: "Ajouter / mettre à jour", exact: true });
+        await apply.click();
+        let mix = await readMix(page);
+        assert.deepEqual(mix.tempoMap, [
+          { startMs: 0, quarterBpm: 120 },
+          { startMs: 8000, quarterBpm: 150 },
+        ]);
+        assert.equal(await bpm.inputValue(), "150");
+        assert.equal(await at.inputValue(), "8000");
+        await apply.click();
+        mix = await readMix(page);
+        assert.deepEqual(
+          mix.tempoMap,
+          [
+            { startMs: 0, quarterBpm: 120 },
+            { startMs: 8000, quarterBpm: 150 },
+          ],
+          "second apply must not reset the change to the first BPM",
+        );
+        assert.equal(await bpm.inputValue(), "150");
+        assert.equal(await at.inputValue(), "8000");
       } finally {
         await page.close();
       }

@@ -320,9 +320,12 @@ export function ClipTimeline({
   const meterMap = mix.timeSignatures ?? [];
   const markers = mix.markers ?? [];
 
+  // Reset tempo draft only when opening another mix — not after each apply (#277).
   useEffect(() => {
     setTempoBpmDraft(mix.tempoMap?.[0]?.quarterBpm ?? 120);
-  }, [mix.tempoMap]);
+    setTempoAtDraft(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawMix.id]);
 
   // Persist defaults once so markers/tempo survive reopen (clips unchanged).
   useEffect(() => {
@@ -903,6 +906,8 @@ export function ClipTimeline({
   function commitTempoChange() {
     const bpm = Math.max(1, Math.min(400, Math.round(tempoBpmDraft)));
     const startMs = snap(Math.max(0, tempoAtDraft));
+    setTempoBpmDraft(bpm);
+    setTempoAtDraft(startMs);
     // Tempo map is display/snap only — never rewrite clip ms or source offsets.
     patchMix(upsertTempoEvent(mix, { startMs, quarterBpm: bpm }));
   }
