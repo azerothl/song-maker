@@ -38,7 +38,6 @@ export type AdvancedSettingsPage =
   | "meter"
   | "seed";
 export type SongWorkspace = "create" | "score" | "production" | "versions";
-export type ProductionView = "mix" | "clips" | "tools";
 export type ScoreMode = "edit" | "reprise";
 
 export const WORKSPACES: SongWorkspace[] = [
@@ -48,7 +47,6 @@ export const WORKSPACES: SongWorkspace[] = [
   "versions",
 ];
 
-export const PRODUCTION_VIEWS: ProductionView[] = ["mix", "clips", "tools"];
 export const SCORE_MODES: ScoreMode[] = ["edit", "reprise"];
 
 export type FormFieldErrors = {
@@ -99,41 +97,11 @@ export function workspaceIntro(space: SongWorkspace): string {
     case "score":
       return t("workspace.score.intro");
     case "production":
-      return t("workspace.production.intro");
+      return t("production.common.intro");
     case "versions":
       return t("workspace.versions.intro");
     default: {
       const _exhaustive: never = space;
-      return _exhaustive;
-    }
-  }
-}
-
-export function productionViewLabel(view: ProductionView): string {
-  switch (view) {
-    case "mix":
-      return t("workspace.production.mix");
-    case "clips":
-      return t("workspace.production.clips");
-    case "tools":
-      return t("workspace.production.tools");
-    default: {
-      const _exhaustive: never = view;
-      return _exhaustive;
-    }
-  }
-}
-
-export function productionViewIntro(view: ProductionView): string {
-  switch (view) {
-    case "mix":
-      return t("workspace.production.mix.intro");
-    case "clips":
-      return t("workspace.production.clips.intro");
-    case "tools":
-      return t("workspace.production.tools.intro");
-    default: {
-      const _exhaustive: never = view;
       return _exhaustive;
     }
   }

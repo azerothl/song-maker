@@ -64,6 +64,16 @@ describe("production mix settings i18n (#225)", () => {
       assert.ok(key in enProduction, `missing EN for ${key}`);
     }
   });
+  it("the common page removes obsolete subview labels and intros", () => {
+    for(const suffix of ["intro","nav","mix","clips","tools","mix.intro","clips.intro","tools.intro","clips.scroll","clips.timeline","tools.scroll"]){
+      const key=`workspace.production.${suffix}`;
+      assert.equal(key in fr,false,`obsolete key restored: ${key}`);
+      assert.equal(key in enProduction,false,`obsolete EN key restored: ${key}`);
+    }
+    localStorage.setItem(LOCALE_KEY,"en");
+    assert.match(t("production.common.intro"),/on this page/);
+    assert.match(t("production.common.timelineNamed"),/shared ruler/);
+  });
 
   it("popover + Clips bar: every UI key has EN (mutation: drop en.production.json key)", () => {
     localStorage.setItem(LOCALE_KEY, "en");
