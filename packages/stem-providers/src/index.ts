@@ -109,6 +109,8 @@ export {
   listProductionWiredCommercialEngines,
   WIRED_COMMERCIAL_LICENSE_IDS,
   COMMERCIAL_RESERVED_STATUT_FR,
+  COMMERCIAL_RESERVED_BADGE_FR,
+  COMMERCIAL_RESERVED_BADGE_EN,
   COMMERCIAL_CREATION_UI_MODE,
   isCommercialProfileAvailable,
   isCommercialReservedStatut,
@@ -134,6 +136,7 @@ export type { CommercialProfileCreationConfirm } from "./commercial-creation-con
 export {
   buildCommercialProfileCreationConfirm,
   formatCommercialCreationEngineLineFr,
+  formatCommercialCreationEngineLineEn,
   COMMERCIAL_CREATE_CONFIRM_TITLE_FR,
   COMMERCIAL_CREATE_CONFIRM_INTRO_FR,
 } from "./commercial-creation-confirm.js";

@@ -6,6 +6,14 @@ import type {
   ProjectDoc,
 } from "../lib/types";
 import type { ProfilesState } from "../lib/profilesTypes";
+import {
+  PROFILE_RENAME_ERROR_EMPTY,
+  PROFILE_RENAME_ERROR_TOO_LONG,
+} from "../lib/profileRenameErrors";
+import {
+  PROFILE_NAME_MAX_LENGTH,
+  profileNameCharCount,
+} from "../lib/profileRenameValidation";
 import { CAPTURE_PROJECT_ID } from "./seedCreateTabCaptureStore";
 import { SIDEBAR_CAPTURE_PROJECT_ID } from "./seedSidebarCaptureStore";
 
@@ -266,7 +274,13 @@ export async function invoke<T>(
         maxProfiles: 6,
       } as T;
     case "create_profile": {
-      const name = String(args?.name ?? "Nouveau");
+      const name = String(args?.name ?? "Nouveau").trim();
+      if (!name) {
+        throw PROFILE_RENAME_ERROR_EMPTY;
+      }
+      if (profileNameCharCount(name) > PROFILE_NAME_MAX_LENGTH) {
+        throw PROFILE_RENAME_ERROR_TOO_LONG;
+      }
       const kind = String(args?.kind ?? "hobby");
       return {
         id: "profile-new",

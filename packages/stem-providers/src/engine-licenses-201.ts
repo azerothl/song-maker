@@ -94,8 +94,8 @@ export const APP_ENGINE_CATALOG: readonly AppEngineDescriptor[] = [
     id: "mel_band_roformer",
     licenseDataId: "mel_band_roformer_kimberley",
     category: "separation",
-    displayNameFr: "Mel-Band RoFormer « Kim Vocal 2 »",
-    displayNameEn: "Mel-Band RoFormer « Kim Vocal 2 »",
+    displayNameFr: "Mel-Band RoFormer « Kim Vocal »",
+    displayNameEn: "Mel-Band RoFormer « Kim Vocal »",
     grayReason: "origin_undocumented",
   },
   {
@@ -174,10 +174,21 @@ export function listProductionWiredCommercialEngines(): readonly WiredCommercial
 
 export const COMMERCIAL_RESERVED_STATUT_FR = "disponible avec réserve";
 
-/** Display badge from license-row `statut` (no hardcoded prod UI copy). */
-export function formatCommercialReservedBadge(statut: string): string {
+export const COMMERCIAL_RESERVED_BADGE_FR = "Disponible avec réserve";
+export const COMMERCIAL_RESERVED_BADGE_EN = "Available with conditions";
+
+/** Display badge from license-row `statut` (localized; no hardcoded prod UI copy). */
+export function formatCommercialReservedBadge(
+  statut: string,
+  locale: "fr" | "en" = "fr",
+): string {
   const trimmed = statut.trim();
   if (!trimmed) return "";
+  if (isCommercialReservedStatut(trimmed)) {
+    return locale === "en"
+      ? COMMERCIAL_RESERVED_BADGE_EN
+      : COMMERCIAL_RESERVED_BADGE_FR;
+  }
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }
 

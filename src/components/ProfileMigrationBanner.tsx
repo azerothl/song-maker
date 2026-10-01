@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ProfileRenameDialog } from "./ProfileRenameDialog";
 import { api } from "../lib/api";
+import { formatProfileRenameInvokeError } from "../lib/profileRenameErrors";
 import {
   formatProfileMigrationBannerEn,
   formatProfileMigrationBannerFr,
@@ -14,6 +15,7 @@ export function ProfileMigrationBanner() {
   const refreshProfiles = useAppStore((s) => s.refreshProfiles);
   const setError = useAppStore((s) => s.setError);
   const [renameOpen, setRenameOpen] = useState(false);
+  const renameTriggerRef = useRef<HTMLButtonElement>(null);
 
   if (!profilesState?.migrationBannerVisible) return null;
 
@@ -46,6 +48,7 @@ export function ProfileMigrationBanner() {
         </div>
         <div className="profile-migration-banner-actions">
           <button
+            ref={renameTriggerRef}
             type="button"
             className="btn ghost profile-focusable"
             data-testid="profile-migration-rename"
@@ -69,13 +72,15 @@ export function ProfileMigrationBanner() {
         open={renameOpen}
         currentName={migrated.name}
         typeLabel={typeLabel}
+        existingNames={profilesState.profiles.map((p) => p.name)}
+        returnFocusRef={renameTriggerRef}
         onCancel={() => setRenameOpen(false)}
         onConfirm={(next) => {
           setRenameOpen(false);
           void api
             .renameProfile(migrated.id, next)
             .then(() => refreshProfiles())
-            .catch((e) => setError(String(e)));
+            .catch((e) => setError(formatProfileRenameInvokeError(e)));
         }}
       />
     </>

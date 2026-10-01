@@ -23,6 +23,9 @@ mod queue;
 mod resample;
 mod sheetsage;
 
+#[cfg(test)]
+mod test_docs_env;
+
 use commands::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

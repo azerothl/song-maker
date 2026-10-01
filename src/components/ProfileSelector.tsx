@@ -260,16 +260,16 @@ export function ProfileSelector({ collapsed }: Props) {
           </div>
         )}
       </div>
-      {pending && active ? (
+      {active ? (
         <ProfileSwitchConfirmDialog
-          open
+          open={pending !== null}
           current={active}
-          target={pending}
-          onConfirm={() => void performSwitch(pending)}
-          onCancel={() => {
-            setPending(null);
-            focusProfileElement(triggerRef.current);
+          target={pending ?? active}
+          returnFocusRef={triggerRef}
+          onConfirm={() => {
+            if (pending) void performSwitch(pending);
           }}
+          onCancel={() => setPending(null)}
         />
       ) : null}
     </>

@@ -77,12 +77,7 @@ pub(crate) fn create_profile_inner(
         .load(std::sync::atomic::Ordering::SeqCst);
     ensure_profile_creation_allowed(&job, export_busy)?;
     let trimmed = name.trim();
-    if trimmed.is_empty() {
-        return Err("Le nom du profil est obligatoire.".into());
-    }
-    if trimmed.len() > 80 {
-        return Err("Nom de profil trop long (80 caractères max).".into());
-    }
+    profiles::validate_profile_name_trimmed(trimmed)?;
     let kind_norm = kind.trim().to_ascii_lowercase();
     if kind_norm != "hobby" && kind_norm != "commercial" {
         return Err("Type de profil inconnu.".into());
@@ -125,10 +120,15 @@ pub fn create_profile(
 #[tauri::command]
 pub fn rename_profile(id: String, name: String) -> Result<(), String> {
     let trimmed = name.trim();
-    if trimmed.is_empty() {
-        return Err("Le nom du profil est obligatoire.".into());
-    }
+    profiles::validate_profile_name_trimmed(trimmed)?;
     let mut manifest = load_manifest()?;
+    let duplicate = manifest
+        .profiles
+        .iter()
+        .any(|p| p.id != id && profiles::profile_names_collide(&p.name, trimmed));
+    if duplicate {
+        return Err(profiles::PROFILE_RENAME_ERROR_DUPLICATE.into());
+    }
     let row = manifest
         .profiles
         .iter_mut()
@@ -191,49 +191,7 @@ pub fn accept_engine_contract(
 mod tests {
     use super::*;
     use crate::commands::AppState;
-    use std::fs;
-    use std::path::PathBuf;
-    use std::sync::{Mutex, MutexGuard, OnceLock};
-
-    fn docs_env_lock() -> MutexGuard<'static, ()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
-    }
-
-    struct TempDocs {
-        root: PathBuf,
-        _guard: MutexGuard<'static, ()>,
-    }
-
-    impl TempDocs {
-        fn new(label: &str) -> Self {
-            let guard = docs_env_lock();
-            let root = std::env::temp_dir().join(format!(
-                "song-maker-cmd-profiles-{label}-{}",
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos()
-            ));
-            fs::create_dir_all(&root).unwrap();
-            unsafe {
-                std::env::set_var("SONG_MAKER_DOCUMENTS_DIR", root.as_os_str());
-            }
-            Self {
-                root,
-                _guard: guard,
-            }
-        }
-    }
-
-    impl Drop for TempDocs {
-        fn drop(&mut self) {
-            unsafe {
-                std::env::remove_var("SONG_MAKER_DOCUMENTS_DIR");
-            }
-            let _ = fs::remove_dir_all(&self.root);
-        }
-    }
+    use crate::test_docs_env::guard::TempDocs;
 
     fn seed_two_profiles() -> (String, String) {
         let a = ProfileMeta {
@@ -382,5 +340,68 @@ mod tests {
         let err = activate_profile_inner(&state, target).unwrap_err();
         assert!(err.contains("export"), "{err}");
         assert!(!load_manifest().unwrap().onboarding_complete);
+    }
+
+    #[test]
+    fn rename_accepts_long_accented_name_by_char_count() {
+        let _docs = TempDocs::new("rename-long");
+        let (_a, id_b) = seed_two_profiles();
+        let name = "é".repeat(41);
+        assert_eq!(profiles::profile_name_char_count(&name), 41);
+        assert!(name.len() > profiles::PROFILE_NAME_MAX_CHARS);
+        rename_profile(id_b.clone(), name.clone()).unwrap();
+        let manifest = load_manifest().unwrap();
+        let row = manifest.profiles.iter().find(|p| p.id == id_b).unwrap();
+        assert_eq!(row.name, name);
+    }
+
+    #[test]
+    fn rename_rejects_duplicate_with_unicode_case() {
+        let _docs = TempDocs::new("rename-dup");
+        let (id_a, id_b) = seed_two_profiles();
+        let mut manifest = load_manifest().unwrap();
+        manifest
+            .profiles
+            .iter_mut()
+            .find(|p| p.id == id_a)
+            .unwrap()
+            .name = "Été".into();
+        save_manifest(&manifest).unwrap();
+        let err = rename_profile(id_b, "ÉTÉ".into()).unwrap_err();
+        assert_eq!(err, profiles::PROFILE_RENAME_ERROR_DUPLICATE);
+    }
+
+    #[test]
+    fn profile_name_length_boundary_rename() {
+        let _docs = TempDocs::new("rename-boundary");
+        let (_a, id_b) = seed_two_profiles();
+        let ok = "a".repeat(profiles::PROFILE_NAME_MAX_CHARS);
+        rename_profile(id_b.clone(), ok.clone()).unwrap();
+        assert_eq!(
+            load_manifest()
+                .unwrap()
+                .profiles
+                .iter()
+                .find(|p| p.id == id_b)
+                .unwrap()
+                .name,
+            ok
+        );
+        let too_long = "a".repeat(profiles::PROFILE_NAME_MAX_CHARS + 1);
+        let err = rename_profile(id_b, too_long).unwrap_err();
+        assert_eq!(err, profiles::PROFILE_RENAME_ERROR_TOO_LONG);
+    }
+
+    #[test]
+    fn profile_name_length_boundary_create() {
+        let _docs = TempDocs::new("create-boundary");
+        seed_empty_onboarding();
+        let state = AppState::default();
+        let ok = "b".repeat(profiles::PROFILE_NAME_MAX_CHARS);
+        let created = create_profile_inner(&state, ok.clone(), "hobby".into()).unwrap();
+        assert_eq!(created.name, ok);
+        let too_long = "b".repeat(profiles::PROFILE_NAME_MAX_CHARS + 1);
+        let err = create_profile_inner(&state, too_long, "hobby".into()).unwrap_err();
+        assert_eq!(err, profiles::PROFILE_RENAME_ERROR_TOO_LONG);
     }
 }

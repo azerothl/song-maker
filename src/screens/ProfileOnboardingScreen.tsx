@@ -1,5 +1,5 @@
 import { buildCommercialProfileCreationConfirm } from "@song-maker/stem-providers";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ProfileCommercialCreateConfirmDialog } from "../components/ProfileCommercialCreateConfirmDialog";
 import { ProfileCommercialTypeOption } from "../components/ProfileCommercialTypeOption";
 import { ProfileRenameDialog } from "../components/ProfileRenameDialog";
@@ -7,6 +7,8 @@ import { api } from "../lib/api";
 import { resolveCommercialCreationState } from "../lib/profileCommercialCreation";
 import type { ProfileKind, ProfileSummary } from "../lib/profilesTypes";
 import { setupComplete } from "../lib/firstLaunch";
+import { formatProfileRenameInvokeError } from "../lib/profileRenameErrors";
+import { PROFILE_NAME_MAX_LENGTH } from "../lib/profileRenameValidation";
 import { formatProfileProjectCount } from "../lib/profileProjectCount";
 import { profileSwitchBlockReason } from "../lib/profileSwitchBlock";
 import { useAppStore } from "../store/appStore";
@@ -41,6 +43,7 @@ export function ProfileOnboardingScreen() {
   const [busy, setBusy] = useState(false);
   const [commercialConfirmOpen, setCommercialConfirmOpen] = useState(false);
   const [renaming, setRenaming] = useState<ProfileSummary | null>(null);
+  const renameTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const commercialState = resolveCommercialCreationState();
   const commercialCreateConfirm = useMemo(
@@ -90,7 +93,7 @@ export function ProfileOnboardingScreen() {
     void api
       .renameProfile(target.id, nextName)
       .then(() => refreshProfiles())
-      .catch((e) => setError(String(e)));
+      .catch((e) => setError(formatProfileRenameInvokeError(e)));
   };
 
   const performCreate = async () => {
@@ -104,7 +107,7 @@ export function ProfileOnboardingScreen() {
       await refreshSettings();
       setScreen(setupComplete(health) ? "library" : "splash");
     } catch (e) {
-      setError(String(e));
+      setError(formatProfileRenameInvokeError(e));
     } finally {
       setBusy(false);
       setCommercialConfirmOpen(false);
@@ -184,7 +187,10 @@ export function ProfileOnboardingScreen() {
                     aria-label={t("profiles.onboarding.rename")}
                     data-testid={`profile-rename-${p.id}`}
                     disabled={busy}
-                    onClick={() => renameProfile(p)}
+                    onClick={(e) => {
+                      renameTriggerRef.current = e.currentTarget;
+                      renameProfile(p);
+                    }}
                   >
                     ✎
                   </button>
@@ -225,6 +231,7 @@ export function ProfileOnboardingScreen() {
               className="profile-focusable"
               type="text"
               value={name}
+              maxLength={PROFILE_NAME_MAX_LENGTH}
               disabled={!canCreateMore}
               onChange={(e) => setName(e.target.value)}
               placeholder={t("profiles.onboarding.name.placeholder")}
@@ -289,19 +296,19 @@ export function ProfileOnboardingScreen() {
           onCancel={() => setCommercialConfirmOpen(false)}
         />
       ) : null}
-      {renaming ? (
-        <ProfileRenameDialog
-          open
-          currentName={renaming.name}
-          typeLabel={
-            renaming.kind === "commercial"
-              ? t("profiles.onboarding.type.commercial")
-              : t("profiles.onboarding.type.hobby")
-          }
-          onConfirm={submitRename}
-          onCancel={() => setRenaming(null)}
-        />
-      ) : null}
+      <ProfileRenameDialog
+        open={renaming !== null}
+        currentName={renaming?.name ?? ""}
+        typeLabel={
+          renaming?.kind === "commercial"
+            ? t("profiles.onboarding.type.commercial")
+            : t("profiles.onboarding.type.hobby")
+        }
+        existingNames={profiles.map((p) => p.name)}
+        returnFocusRef={renameTriggerRef}
+        onConfirm={submitRename}
+        onCancel={() => setRenaming(null)}
+      />
     </div>
   );
 }

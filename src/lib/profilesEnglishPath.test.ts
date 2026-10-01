@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { afterEach, before, describe, it } from "node:test";
-import { COMMERCIAL_GRAY_REASONS_EN } from "@song-maker/stem-providers";
+import {
+  buildCommercialProfileCreationConfirm,
+  COMMERCIAL_GRAY_REASONS_EN,
+  COMMERCIAL_RESERVED_BADGE_EN,
+  formatCommercialCreationEngineLineEn,
+  formatCommercialReservedBadge,
+} from "@song-maker/stem-providers";
 import { buildCommercialEngineRowsUi } from "./commercialEnginesUi.ts";
 import {
   formatProfileMigrationBannerEn,
@@ -51,6 +57,27 @@ describe("profiles English path (#212 R13)", () => {
     assert.equal(sheetsage!.name, "SheetSage2");
     assert.match(sheetsage!.whyLabel, /2026-09-21/);
     assert.doesNotMatch(sheetsage!.whyLabel, /21\/09\/2026/);
+  });
+
+  it("EN reserved badge and creation confirm line stay English", () => {
+    assert.equal(
+      formatCommercialReservedBadge("disponible avec réserve", "en"),
+      COMMERCIAL_RESERVED_BADGE_EN,
+    );
+    assert.match(
+      formatCommercialCreationEngineLineEn("HTDemucs", "disponible avec réserve"),
+      /Available with conditions/,
+    );
+    assert.doesNotMatch(
+      formatCommercialCreationEngineLineEn("HTDemucs", "disponible avec réserve"),
+      /Disponible avec réserve/,
+    );
+    const confirm = buildCommercialProfileCreationConfirm();
+    if (confirm) {
+      for (const line of confirm.engineLinesEn) {
+        assert.doesNotMatch(line, /Disponible avec réserve/);
+      }
+    }
   });
 
   it("selector collapsed aria and switch copy resolve in English", () => {

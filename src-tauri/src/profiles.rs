@@ -11,7 +11,33 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 pub const MAX_PROFILES: usize = 6;
+pub const PROFILE_NAME_MAX_CHARS: usize = 80;
+
+/// i18n keys returned to the frontend (`profiles.rename.error.*`).
+pub const PROFILE_RENAME_ERROR_EMPTY: &str = "profiles.rename.error.empty";
+pub const PROFILE_RENAME_ERROR_TOO_LONG: &str = "profiles.rename.error.tooLong";
+pub const PROFILE_RENAME_ERROR_DUPLICATE: &str = "profiles.rename.error.duplicate";
+
 pub const MIGRATION_DEFAULT_NAME: &str = "Profil Hobby (vos projets existants)";
+
+pub fn profile_name_char_count(name: &str) -> usize {
+    name.chars().count()
+}
+
+/// True when two profile names differ only by Unicode case (or surrounding space).
+pub fn profile_names_collide(a: &str, b: &str) -> bool {
+    a.trim().to_lowercase() == b.trim().to_lowercase()
+}
+
+pub fn validate_profile_name_trimmed(trimmed: &str) -> Result<(), String> {
+    if trimmed.is_empty() {
+        return Err(PROFILE_RENAME_ERROR_EMPTY.into());
+    }
+    if profile_name_char_count(trimmed) > PROFILE_NAME_MAX_CHARS {
+        return Err(PROFILE_RENAME_ERROR_TOO_LONG.into());
+    }
+    Ok(())
+}
 
 static ACTIVE_PROFILE_ID: OnceLock<RwLock<Option<String>>> = OnceLock::new();
 
@@ -570,21 +596,20 @@ pub fn commercial_creation_allowed() -> bool {
     })
 }
 
+/// Serializes tests that mutate `SONG_MAKER_DOCUMENTS_DIR` (process-global env).
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_docs_env::guard::TempDocs;
     use std::fs;
-
-    fn temp_root() -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "song-maker-profiles-test-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir_all(&dir).unwrap();
-        dir
+    #[test]
+    fn wired_commercial_license_ids_non_empty() {
+        let ids = wired_commercial_license_ids();
+        assert!(
+            !ids.is_empty(),
+            "wired-commercial-license-ids.json must list at least one id"
+        );
+        assert!(ids.iter().all(|id| !id.trim().is_empty()));
     }
 
     #[test]
@@ -610,11 +635,8 @@ mod tests {
 
     #[test]
     fn migration_moves_legacy_projects_and_keeps_contracts() {
-        let root = temp_root();
-        unsafe {
-            std::env::set_var("SONG_MAKER_DOCUMENTS_DIR", root.as_os_str());
-        }
-        let legacy_projects = root.join("projects");
+        let docs = TempDocs::new("migration");
+        let legacy_projects = docs.root.join("projects");
         fs::create_dir_all(legacy_projects.join("proj-a")).unwrap();
         fs::write(
             legacy_projects.join("proj-a").join("project.json"),
@@ -625,7 +647,7 @@ mod tests {
             r#"{{"projectsDir":"{}","cacheDir":"/tmp/cache","binaryTag":"t","binaryArchive":"a","binarySha256":"s","modelPack":"q4","modelGguf":"m","modelSha256":"x","serverHost":"127.0.0.1","serverPort":8787,"yue2LicenseAccepted":true,"ccByNcAccepted":true,"acceptedSeparatorLicenses":{{"htdemucs":true}}}}"#,
             legacy_projects.display()
         );
-        fs::write(root.join("settings.json"), settings).unwrap();
+        fs::write(docs.root.join("settings.json"), settings).unwrap();
 
         let manifest = migrate_legacy_if_needed().expect("migrate");
         assert_eq!(manifest.profiles.len(), 1);
@@ -636,8 +658,5 @@ mod tests {
         assert!(ps.yue2_license_accepted);
         assert!(ps.cc_by_nc_accepted);
         assert_eq!(ps.accepted_separator_licenses.get("htdemucs"), Some(&true));
-        unsafe {
-            std::env::remove_var("SONG_MAKER_DOCUMENTS_DIR");
-        }
     }
 }

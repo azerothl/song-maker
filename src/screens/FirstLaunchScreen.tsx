@@ -107,12 +107,14 @@ function FileStatusLabel({
   etaIsEstimate,
   activeTitle,
   licenseBlocked = false,
+  installInFlight,
 }: {
   status: FileRowStatus;
   etaSeconds: number | null | undefined;
   etaIsEstimate: boolean;
   activeTitle?: string | null;
   licenseBlocked?: boolean;
+  installInFlight?: boolean;
 }) {
   switch (status) {
     case "complete":
@@ -154,7 +156,12 @@ function FileStatusLabel({
       );
     case "waiting":
     case "missing": {
-      const copy = queuedFileStatusFr({ status, activeTitle, licenseBlocked });
+      const copy = queuedFileStatusFr({
+        status,
+        activeTitle,
+        licenseBlocked,
+        installInFlight,
+      });
       return (
         <>
           {licenseBlocked ? (
@@ -335,6 +342,10 @@ export function FirstLaunchScreen() {
     htdemucsAccepted,
     settings?.acceptedSeparatorLicenses?.htdemucs,
   );
+  const installInFlight =
+    busy ||
+    progress?.state === "downloading" ||
+    progress?.state === "preparing";
   const announceSnapshot = useMemo(
     () => downloadAnnounceSnapshot(rows, downloadLead),
     [rows, downloadLead],
@@ -774,6 +785,7 @@ export function FirstLaunchScreen() {
           >
             {downloadLiveText}
           </div>
+          <div className="fl-download-body">
           <header className="fl-head">
             <div>
               <p className="fl-eyebrow">Première installation · Téléchargement</p>
@@ -885,6 +897,7 @@ export function FirstLaunchScreen() {
                             : null
                         }
                         licenseBlocked={rowLicenseBlocked}
+                        installInFlight={installInFlight}
                       />
                       {fileRowNeedsRetry(row.status) ? (
                         <>
@@ -953,8 +966,9 @@ export function FirstLaunchScreen() {
               </div>
             ) : null}
           </div>
+          </div>
 
-          <div className="fl-row-actions">
+          <div className="fl-foot fl-row-actions">
             <button
               className="fl-btn fl-btn-lg"
               type="button"
