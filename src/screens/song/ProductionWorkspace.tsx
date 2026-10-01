@@ -985,6 +985,7 @@ export function ProductionWorkspace({
             anchorRef={mixAssistBtnRef}
             labelId={mixAssistTitleId}
             className="mix-assist-popin"
+            preferAboveAnchor
           >
             <header className="anchored-popin-header">
               <h3 id={mixAssistTitleId}>{t("qwen.mix.title")}</h3>

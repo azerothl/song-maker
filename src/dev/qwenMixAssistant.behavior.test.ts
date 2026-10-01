@@ -10,7 +10,7 @@ for(let i=0;i<480;i++)wav.writeInt16LE(Math.round(Math.sin(i/10)*1000),44+i*2);
 before(async()=>{server=await startCaptureViteServer(5231);browser=await chromium.launch();});
 after(async()=>{await browser?.close();if(server)await stopCaptureViteServer(server);});
 it("Qwen settings require confirmation and can be undone; manual functions remain",async()=>{
- const page=await browser.newPage({viewport:{width:1280,height:720}});
+ const page=await browser.newPage({viewport:{width:1280,height:830}});
  try {
   await page.route("**/dev/null/*.wav",route=>route.fulfill({status:200,contentType:"audio/wav",body:wav}));
   await page.addInitScript(()=>{
@@ -24,9 +24,23 @@ it("Qwen settings require confirmation and can be undone; manual functions remai
   const gain=page.locator(".track-gain-knob .mix-knob-value").first();
   const before=await gain.innerText();
   await page.getByTestId("production-mix-settings-trigger").click();
+  // Reproduce the trigger height observed in the native seven-track project.
+  await page.waitForTimeout(250);
+  await page.getByRole("button",{name:"Mix assistant",exact:true}).evaluate(el => {
+    Object.assign((el as HTMLElement).style,{position:"fixed",top:"665px",left:"420px"});
+  });
   await page.getByRole("button",{name:"Mix assistant",exact:true}).click();
   assert.equal(await page.getByRole("menuitem").count(),0);
   const panel=page.locator(".qwen-mix-assistant");
+  await panel.waitFor();
+  await page.waitForTimeout(250);
+  const initialVisibility=await page.locator(".mix-assist-popin").evaluate(el=>{
+    const title=el.querySelector("h3")!.getBoundingClientRect();
+    const action=el.querySelector(".qwen-mix-assistant button")!.getBoundingClientRect();
+    const panel=el.getBoundingClientRect();
+    return {titleTop:title.top,actionBottom:action.bottom,panelTop:panel.top,panelBottom:panel.bottom,vh:innerHeight};
+  });
+  assert.ok(initialVisibility.titleTop>=initialVisibility.panelTop && initialVisibility.actionBottom<=initialVisibility.panelBottom && initialVisibility.panelBottom<=initialVisibility.vh,JSON.stringify(initialVisibility));
   await panel.getByRole("button",{name:"Propose settings with Qwen",exact:true}).click();
   await panel.getByRole("button",{name:"Review and apply",exact:true}).waitFor();
   assert.equal(await gain.innerText(),before);
