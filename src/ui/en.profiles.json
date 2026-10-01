@@ -219,5 +219,6 @@
   "firstLaunch.noGpu.noteNoModel": "No large model will be downloaded without your consent.",
   "firstLaunch.noGpu.noteDetect": "Detection: {detail}",
   "score.staff.loading": "Loading the staff…",
-  "score.staff.loadingRegion": "Staff loading"
+  "score.staff.loadingRegion": "Staff loading",
+  "score.piano.noteAria": "Note {pitchName}, start {startTick}, duration {durationTick}"
 }

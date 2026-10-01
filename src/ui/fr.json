@@ -627,6 +627,7 @@
   "score.transposeHint": "Sélection seule si une note est sélectionnée ; sinon toute la voix.",
   "score.quantize": "Quantifier…",
   "score.pianoHint": "Double-clic : ajouter · glisser : déplacer · Suppr / flèches : éditer",
+  "score.piano.noteAria": "Note {pitchName}, départ {startTick}, durée {durationTick}",
   "score.quantizeAsk": "Quantifier sur la triple-croche (120 ticks) ?",
   "score.quantizeYes": "Quantifier",
   "score.quantizeNo": "Garder tel quel",
