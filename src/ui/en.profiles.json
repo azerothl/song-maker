@@ -214,5 +214,7 @@
   "firstLaunch.noGpu.opt3.li2": "Can be changed later in Settings",
   "firstLaunch.noGpu.opt3.cta": "Continue without generation",
   "firstLaunch.noGpu.noteNoModel": "No large model will be downloaded without your consent.",
-  "firstLaunch.noGpu.noteDetect": "Detection: {detail}"
+  "firstLaunch.noGpu.noteDetect": "Detection: {detail}",
+  "score.staff.loading": "Loading the staff…",
+  "score.staff.loadingRegion": "Staff loading"
 }

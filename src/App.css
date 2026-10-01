@@ -5299,6 +5299,66 @@ details[open] > summary {
   min-height: min(280px, 40vh);
 }
 
+.score-staff-skeleton-scroll {
+  /* Même empreinte que la zone portée pour CLS 0 pendant le gel (#249). */
+  min-height: min(280px, 40vh);
+  max-height: min(420px, 55vh);
+  height: min(280px, 40vh);
+  box-sizing: border-box;
+}
+
+.score-staff-skeleton-toolbar {
+  pointer-events: none;
+}
+
+.score-staff-skeleton-chip {
+  display: inline-block;
+  height: 44px;
+  width: 4.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg1) 70%, #1a2230);
+}
+
+.score-staff-skeleton-chip.wide {
+  width: 7.5rem;
+}
+
+.score-staff-skeleton-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.75rem 0.5rem;
+}
+
+.score-staff-skeleton-bars > span {
+  display: block;
+  height: 2.4rem;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--line) 35%, transparent) 0%,
+    color-mix(in srgb, var(--line2) 55%, transparent) 45%,
+    color-mix(in srgb, var(--line) 35%, transparent) 100%
+  );
+  background-size: 200% 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .score-staff-skeleton-bars > span {
+    animation: score-staff-skeleton-shift 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes score-staff-skeleton-shift {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
 .abc-staff-pages {
   display: flex;
   flex-wrap: wrap;
