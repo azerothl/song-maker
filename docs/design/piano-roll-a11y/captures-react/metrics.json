@@ -1,0 +1,92 @@
+{
+  "issue": 246,
+  "capturedAt": "2026-10-01T03:10:37.556Z",
+  "viewports": {
+    "640": {
+      "file": "piano-notes-640.png",
+      "viewport": {
+        "width": 640,
+        "height": 720
+      },
+      "notes": [
+        {
+          "id": "n1",
+          "ariaLabel": "Note C4, départ 0, durée 480",
+          "ariaSelected": "false",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "id": "n2",
+          "ariaLabel": "Note E4, départ 480, durée 240",
+          "ariaSelected": "true",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "id": "n3",
+          "ariaLabel": "Note G4, départ 960, durée 480",
+          "ariaSelected": "false",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "id": "n4",
+          "ariaLabel": "Note C5, départ 1440, durée 960",
+          "ariaSelected": "false",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "checks": {
+        "targetsAtLeast44Px": true,
+        "accessibleNames": true,
+        "enterSelects": true,
+        "spaceSelects": true
+      }
+    },
+    "1280": {
+      "file": "piano-notes-1280.png",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "notes": [
+        {
+          "id": "n1",
+          "ariaLabel": "Note C4, départ 0, durée 480",
+          "ariaSelected": "false",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "id": "n2",
+          "ariaLabel": "Note E4, départ 480, durée 240",
+          "ariaSelected": "true",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "id": "n3",
+          "ariaLabel": "Note G4, départ 960, durée 480",
+          "ariaSelected": "false",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "id": "n4",
+          "ariaLabel": "Note C5, départ 1440, durée 960",
+          "ariaSelected": "false",
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "checks": {
+        "targetsAtLeast44Px": true,
+        "accessibleNames": true,
+        "enterSelects": true,
+        "spaceSelects": true
+      }
+    }
+  }
+}

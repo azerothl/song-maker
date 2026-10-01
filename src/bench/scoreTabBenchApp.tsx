@@ -482,6 +482,9 @@ function benchAbcResizeStorm(abc: string, passes = 5): BenchPhaseResult[] {
 }
 
 export type PianoFocusScrollProbe = {
+  accessibleName: string | null;
+  pressed: string | null;
+  selectedAttribute: string | null;
   partition: string;
   focusedNoteId: string;
   activeNoteId: string | null;
@@ -667,6 +670,9 @@ async function probePianoNoteFocusAfterScroll(
     container.querySelector(`button.piano-note[data-note-id="${focusedNoteId}"]`),
   );
   const result: PianoFocusScrollProbe = {
+    accessibleName: active?.getAttribute("aria-label") ?? null,
+    pressed: active?.getAttribute("aria-pressed") ?? null,
+    selectedAttribute: active?.getAttribute("aria-selected") ?? null,
     partition,
     focusedNoteId,
     activeNoteId,
