@@ -15,6 +15,7 @@
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "bench:score-tab": "node --import tsx scripts/bench-score-tab.mts",
     "bench:score-open": "node --import tsx scripts/probe-ui-perf.mts",
+    "bench:waveform-playback": "node --import tsx scripts/bench-waveform-playback.mts",
     "bench:partition": "node scripts/bench-partition-freeze.mjs",
     "packages:build": "pnpm -r --filter \"./packages/**\" run build",
     "packages:test": "pnpm -r --filter \"./packages/**\" run test",

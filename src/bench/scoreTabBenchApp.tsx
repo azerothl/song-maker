@@ -492,6 +492,12 @@ export type PianoRollFocusStealProbe = {
   activeElementTag: string;
 };
 
+export type PianoFocusBlurReleaseProbe = {
+  focusedNoteId: string;
+  noteStillMountedAfterBlurScroll: boolean;
+  hasProductionDataPianoAttrs: boolean;
+};
+
 async function waitPianoRollNotes(container: ParentNode): Promise<void> {
   for (let i = 0; i < 120; i++) {
     if (container.querySelectorAll(".piano-note").length > 0) return;
@@ -610,6 +616,59 @@ async function probePianoRollFocusNotStolenOnScroll(
   return result;
 }
 
+async function probePianoFocusedNoteReleasedOnBlur(
+  scoreDoc: ScoreDocument,
+): Promise<PianoFocusBlurReleaseProbe> {
+  document
+    .querySelectorAll("#bench-piano-focus-root, #bench-staff-piano-root")
+    .forEach((el) => el.remove());
+  const container = document.createElement("div");
+  container.id = "bench-piano-focus-root";
+  container.style.width = "900px";
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  root.render(
+    <PianoRoll document={scoreDoc} onChange={() => {}} onError={() => {}} />,
+  );
+  await waitPianoRollNotes(container);
+
+  const scrollEl = container.querySelector(".piano-scroll") as HTMLElement;
+  const grid = container.querySelector(".piano-grid") as HTMLElement | null;
+  const firstNote = container.querySelector(
+    ".piano-note",
+  ) as HTMLButtonElement | null;
+  const roll = container.querySelector(".piano-roll") as HTMLElement | null;
+  if (!scrollEl || !firstNote || !roll || !grid) {
+    root.unmount();
+    container.remove();
+    throw new Error("piano roll blur probe missing nodes");
+  }
+
+  const focusedNoteId = firstNote.dataset.noteId ?? "";
+  firstNote.focus();
+  await waitAnimationFrames(4);
+  roll.focus();
+  await waitAnimationFrames(4);
+  scrollEl.scrollLeft = scrollEl.scrollWidth;
+  scrollEl.dispatchEvent(new Event("scroll", { bubbles: true }));
+  await waitAnimationFrames(60);
+
+  const hasProductionDataPianoAttrs = Array.from(grid.attributes).some((attr) =>
+    attr.name.startsWith("data-piano-"),
+  );
+  const result: PianoFocusBlurReleaseProbe = {
+    focusedNoteId,
+    noteStillMountedAfterBlurScroll: Boolean(
+      container.querySelector(`button.piano-note[data-note-id="${focusedNoteId}"]`),
+    ),
+    hasProductionDataPianoAttrs,
+  };
+
+  root.unmount();
+  container.remove();
+  return result;
+}
+
 const api = {
   referenceDoc,
   longReferenceDoc,
@@ -620,6 +679,7 @@ const api = {
   measureStaffToPianoSwitch,
   probePianoNoteFocusAfterScroll,
   probePianoRollFocusNotStolenOnScroll,
+  probePianoFocusedNoteReleasedOnBlur,
   benchAbcStaffOnly,
   benchAbcStaffNoResize,
   benchPianoRollMount,

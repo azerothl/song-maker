@@ -4,15 +4,16 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
-import {
-  DEFAULT_WAVE_COLOR,
-  PRODUCTION_WAVE_TRACK_BG,
-  resolveWaveFillColors,
-  roleWaveColor,
-  WAVE_PLAYHEAD_OUTLINE,
-  WAVE_PLAYHEAD_STROKE,
-} from "../lib/trackRoleColors";
+import { subscribePlaybackPosition } from "../lib/playbackPosition";
 import { t } from "../ui/i18n";
+import {
+  buildWaveformLayers,
+  paintWaveformProgress,
+  readCanvasBackdrop,
+  resolveDrawColors,
+  resolveMutedDrawColors,
+  type WaveformLayerBitmap,
+} from "./waveformDraw";
 
 export type WaveformStatus = "ready" | "loading" | "empty";
 
@@ -53,60 +54,16 @@ function resolveStatus(
   return "ready";
 }
 
-function readCssWaveColors(el: Element | null): {
-  wave: string | null;
-  played: string | null;
-} {
-  if (!el) return { wave: null, played: null };
-  const style = getComputedStyle(el);
-  const wave = style.getPropertyValue("--track-wave").trim();
-  const played = style.getPropertyValue("--track-wave-played").trim();
-  return {
-    wave: wave || null,
-    played: played || null,
-  };
-}
-
-function readCanvasBackdrop(canvas: HTMLCanvasElement): string {
-  const frame = canvas.closest(".waveform-frame");
-  if (frame) {
-    const bg = getComputedStyle(frame).backgroundColor;
-    if (bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent") {
-      return bg;
-    }
-  }
-  const canvasBg = getComputedStyle(canvas).backgroundColor;
-  if (canvasBg && canvasBg !== "rgba(0, 0, 0, 0)" && canvasBg !== "transparent") {
-    return canvasBg;
-  }
-  return PRODUCTION_WAVE_TRACK_BG;
-}
-
-function resolveDrawColors(
-  el: Element | null,
-  opts: { color?: string; playedColor?: string; role?: string },
-): { unplayed: string; played: string } {
-  // Prefer inherited `--track-wave` so pastille + waveform share one CSS source (#159).
-  const css = readCssWaveColors(el);
-  if (opts.color || opts.playedColor) {
-    const base = opts.color ?? css.wave ?? roleWaveColor(opts.role);
-    const fills = resolveWaveFillColors(base);
-    if (opts.playedColor) {
-      return { unplayed: fills.unplayed, played: opts.playedColor };
-    }
-    return fills;
-  }
-  if (css.wave) {
-    const fills = resolveWaveFillColors(css.wave);
-    if (css.played && css.played !== css.wave) {
-      return { unplayed: fills.unplayed, played: css.played };
-    }
-    return fills;
-  }
-  if (opts.role) {
-    return resolveWaveFillColors(roleWaveColor(opts.role));
-  }
-  return resolveWaveFillColors(DEFAULT_WAVE_COLOR);
+function syncWaveformAria(
+  canvas: HTMLCanvasElement,
+  progress: number,
+  duration: number,
+): void {
+  canvas.setAttribute("aria-valuenow", String(Number.isFinite(progress) ? progress : 0));
+  canvas.setAttribute(
+    "aria-valuetext",
+    `${formatTime(progress)} / ${formatTime(duration)}`,
+  );
 }
 
 export function Waveform({
@@ -124,66 +81,88 @@ export function Waveform({
   role,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const layersRef = useRef<WaveformLayerBitmap | null>(null);
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
   const status = resolveStatus(peaks, statusProp);
   const canSeek = Boolean(onSeek) && duration > 0 && status === "ready";
+
+  const paint = (seconds: number) => {
+    const canvas = canvasRef.current;
+    const layers = layersRef.current;
+    if (!canvas || !layers) return;
+    paintWaveformProgress(canvas, layers, seconds, duration);
+    syncWaveformAria(canvas, seconds, duration);
+    progressRef.current = seconds;
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const dpr = window.devicePixelRatio || 1;
-    const width = canvas.clientWidth || 300;
-    canvas.width = Math.floor(width * dpr);
-    canvas.height = Math.floor(height * dpr);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = readCanvasBackdrop(canvas);
-    ctx.fillRect(0, 0, width, height);
-    if (status !== "ready" || !peaks || peaks.length === 0) return;
 
-    const mid = height / 2;
-    const barW = width / peaks.length;
-    const playedRatio =
-      duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
-    const playedX = playedRatio * width;
+    const clearCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const width = canvas.clientWidth || 300;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      const backdrop = readCanvasBackdrop(canvas);
+      ctx.fillStyle = backdrop;
+      ctx.fillRect(0, 0, width, height);
+      layersRef.current = null;
+    };
+
+    if (status !== "ready" || !peaks || peaks.length === 0) {
+      clearCanvas();
+      syncWaveformAria(canvas, progressRef.current, duration);
+      return;
+    }
 
     const colors = muted
-      ? {
-          unplayed: "rgba(120,120,130,0.35)",
-          played: "rgba(160,160,170,0.75)",
-        }
+      ? resolveMutedDrawColors()
       : resolveDrawColors(canvas, { color, playedColor, role });
-
-    ctx.fillStyle = colors.unplayed;
-    for (let i = 0; i < peaks.length; i++) {
-      const amp = Math.max(1, peaks[i]! * mid * 0.92);
-      const x = i * barW;
-      ctx.fillRect(x, mid - amp, Math.max(1, barW * 0.85), amp * 2);
+    const backdrop = readCanvasBackdrop(canvas);
+    const layers = buildWaveformLayers(canvas, peaks, height, colors, backdrop);
+    layersRef.current = layers;
+    if (layers) {
+      paint(progressRef.current);
     }
 
-    ctx.fillStyle = colors.played;
-    for (let i = 0; i < peaks.length; i++) {
-      const x = i * barW;
-      if (x > playedX) break;
-      const amp = Math.max(1, peaks[i]! * mid * 0.92);
-      ctx.fillRect(x, mid - amp, Math.max(1, barW * 0.85), amp * 2);
-    }
+    const ro = new ResizeObserver(() => {
+      const next = buildWaveformLayers(
+        canvas,
+        peaks,
+        height,
+        colors,
+        readCanvasBackdrop(canvas),
+      );
+      layersRef.current = next;
+      if (next) paint(progressRef.current);
+    });
+    ro.observe(canvas);
 
-    const playheadX = playedX + 0.5;
-    ctx.strokeStyle = WAVE_PLAYHEAD_OUTLINE;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(playheadX, 0);
-    ctx.lineTo(playheadX, height);
-    ctx.stroke();
-    ctx.strokeStyle = WAVE_PLAYHEAD_STROKE;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(playheadX, 0);
-    ctx.lineTo(playheadX, height);
-    ctx.stroke();
-  }, [peaks, progress, duration, height, muted, status, color, playedColor, role]);
+    return () => ro.disconnect();
+  }, [peaks, duration, height, muted, status, color, playedColor, role]);
+
+  useEffect(() => {
+    paint(progress);
+  }, [progress, duration]);
+
+  useEffect(() => {
+    return subscribePlaybackPosition((seconds) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      if (layersRef.current) {
+        paint(seconds);
+      } else {
+        syncWaveformAria(canvas, seconds, duration);
+        progressRef.current = seconds;
+      }
+    });
+  }, [duration]);
 
   function seekToRatio(ratio: number) {
     if (!onSeek || duration <= 0) return;
@@ -200,19 +179,20 @@ export function Waveform({
     if (!canSeek || !onSeek) return;
     const small = Math.max(0.25, duration * 0.01);
     const large = Math.max(1, duration * 0.05);
+    const current = progressRef.current;
     let next: number | null = null;
     switch (e.key) {
       case "ArrowLeft":
-        next = progress - small;
+        next = current - small;
         break;
       case "ArrowRight":
-        next = progress + small;
+        next = current + small;
         break;
       case "ArrowDown":
-        next = progress - large;
+        next = current - large;
         break;
       case "ArrowUp":
-        next = progress + large;
+        next = current + large;
         break;
       case "Home":
         next = 0;

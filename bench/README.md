@@ -31,3 +31,17 @@ La sortie JSON est écrite dans `bench/score-tab-last.json` et affichée sur std
 | `rafales resize après montage` | `responsive: "resize"` + `viewportHorizontal` enregistrent la portée dans `resizeDivs` ; chaque `resize` fenêtre ajuste la largeur et force une mise en page coûteuse |
 
 Le rendu piano-roll en onglet caché n’est plus monté à l’ouverture (voir correctif dans `ScorePanel`).
+
+## Bench — waveforms en lecture (#232)
+
+```bash
+pnpm bench:waveform-playback
+```
+
+Chromium headless, harness `waveform-playback-bench.html` : pour 12 et 16 pistes, 120 frames RAF, compare le chemin **legacy** (2× boucle `peaks` + `setState` React) au chemin **optimisé** (bus `emitPlaybackPosition` + calques `drawImage`).
+
+Sorties :
+
+- `bench/waveform-playback-last.json` — rapport complet
+- `bench/waveform-playback-before.json` — baseline legacy (figée au premier run)
+- `bench/waveform-playback-after.json` — dernier run optimisé

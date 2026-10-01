@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { contrastRatio } from "./firstLaunch.ts";
 import {
+  followPlaybackAfterPositionTick,
   shouldResumeFollowOnPlaybackRestart,
   staffScrollTopTo,
 } from "./staffScroll.ts";
@@ -10,6 +11,17 @@ describe("staff a11y tokens", () => {
   it("respecte le contraste AA sur le bouton Suivre actif", () => {
     assert.ok(contrastRatio("#ffffff", "#805cdf") >= 4.5);
     assert.ok(contrastRatio("#f3f0fa", "#2a2536") >= 4.5);
+  });
+});
+
+describe("followPlaybackAfterPositionTick (#232 B3)", () => {
+  it("réactive le suivi quand le bus repasse à 0 alors que la prop parent est figée", () => {
+    const staleProp = 48;
+    assert.equal(
+      followPlaybackAfterPositionTick(staleProp, staleProp, false),
+      false,
+    );
+    assert.equal(followPlaybackAfterPositionTick(12.4, 0, false), true);
   });
 });
 
