@@ -14,6 +14,7 @@ pub mod generation;
 pub mod jobs;
 pub mod lora_training;
 pub mod mix;
+pub mod mix_assistant;
 pub mod package;
 pub mod profiles;
 pub mod projects;

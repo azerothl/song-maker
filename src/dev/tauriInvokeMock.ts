@@ -112,6 +112,13 @@ export async function invoke<T>(
   args?: Record<string, unknown>,
 ): Promise<T> {
   switch (cmd) {
+    case "propose_qwen_mix": {
+      const hook = (globalThis as typeof globalThis & {
+        __captureQwenMix?: (args?: Record<string, unknown>) => unknown;
+      }).__captureQwenMix;
+      if (hook) return await hook(args) as T;
+      throw new Error("MODEL_MISSING");
+    }
     case "list_projects":
       if (captureLibraryProjects) {
         return captureLibraryProjects as T;

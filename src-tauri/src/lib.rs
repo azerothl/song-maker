@@ -40,6 +40,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(state)
         .invoke_handler(tauri::generate_handler![
+            commands::mix_assistant::propose_qwen_mix,
             // Réglages, santé, installation des modèles
             commands::settings::get_health,
             commands::settings::get_setup_gpu_info,

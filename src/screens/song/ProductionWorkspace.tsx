@@ -21,6 +21,7 @@ import { ProductionMixSettingsPopin } from "../../components/ProductionMixSettin
 import { MixKnob } from "../../components/MixKnob";
 import { Phase3MixPanel } from "../../components/Phase3MixPanel";
 import { ProductionAssistPanel } from "../../components/ProductionAssistPanel";
+import { QwenMixAssistant } from "../../components/QwenMixAssistant";
 import { RecordTrackPanel } from "../../components/RecordTrackPanel";
 import { ProductionAddTrackMenu } from "../../components/production/ProductionAddTrackMenu";
 import { ProductionTrackTools } from "../../components/production/ProductionTrackTools";
@@ -192,7 +193,6 @@ export function ProductionWorkspace({
   );
 
   const mixAssistBtnRef = useRef<HTMLButtonElement>(null);
-  const copilotBtnRef = useRef<HTMLButtonElement>(null);
   const separateAnchorRef = useRef<HTMLButtonElement | null>(null);
   const mixSettingsAnchorRef = useRef<HTMLButtonElement | null>(null);
   const [mixSettingsPreferAbove, setMixSettingsPreferAbove] = useState(false);
@@ -214,7 +214,6 @@ export function ProductionWorkspace({
   const [separateOpen, setSeparateOpen] = useState(false);
   const mixScrollRef = useRef<HTMLDivElement>(null);
   const [mixAssistOpen, setMixAssistOpen] = useState(false);
-  const [copilotOpen, setCopilotOpen] = useState(false);
   const [densityPreference, setDensityPreference] = useState<ProductionDensityPreference>(
     () => loadProductionDensityPreference(),
   );
@@ -228,7 +227,6 @@ export function ProductionWorkspace({
     () => loadCollapsedTrackFamilies(),
   );
   const mixAssistTitleId = useId();
-  const copilotTitleId = useId();
   const [openTrackToolsId, setOpenTrackToolsId] = useState<string | null>(null);
   const mixSettingsLabelId = useId();
   const mixSettingsPanelId = useId();
@@ -245,11 +243,6 @@ export function ProductionWorkspace({
     setMixAssistOpen(true);
   };
 
-  const openCopilotFrom = (button: HTMLButtonElement | null) => {
-    if (!button) return;
-    copilotBtnRef.current = button;
-    setCopilotOpen(true);
-  };
 
   const toggleMixSettingsFrom = (
     button: HTMLButtonElement | null,
@@ -288,7 +281,7 @@ export function ProductionWorkspace({
       : undefined;
 
   const mixSettingsDeferEscape =
-    mixAssistOpen || copilotOpen || separateOpen;
+    mixAssistOpen || separateOpen;
 
   const trackGroups = useMemo(
     () => (mix ? buildTrackFamilyGroups(mix.tracks) : []),
@@ -979,10 +972,10 @@ export function ProductionWorkspace({
             separateDisabled={separateDisabled}
             separateDisabledReason={separateDisabledReason}
             onSeparateClick={(el) => openSeparateFrom(el)}
-            showMixAssist={showMixAssist}
-            showProductionCopilot={showProductionCopilot}
+            showMixAssist={showMixAssist || showProductionCopilot}
+            showProductionCopilot={false}
             onOpenMixAssist={(el) => openMixAssistFrom(el)}
-            onOpenCopilot={(el) => openCopilotFrom(el)}
+            onOpenCopilot={(el) => openMixAssistFrom(el)}
           />
           <AnchoredPopin
             open={mixAssistOpen}
@@ -992,8 +985,15 @@ export function ProductionWorkspace({
             className="mix-assist-popin"
           >
             <header className="anchored-popin-header">
-              <h3 id={mixAssistTitleId}>{t("mix.assist.title")}</h3>
+              <h3 id={mixAssistTitleId}>{t("qwen.mix.title")}</h3>
             </header>
+            <QwenMixAssistant
+              mix={mix}
+              sources={playbackSources}
+              onCommitMix={(next) => scheduleMixUpdate(next)}
+            />
+            <details className="mix-assistant-manual">
+              <summary>{t("qwen.mix.manual")}</summary>
             <MixAssistPanel
               mix={mix}
               sources={playbackSources}
@@ -1001,17 +1001,6 @@ export function ProductionWorkspace({
               onCommitMix={(next) => scheduleMixUpdate(next)}
               onPreviewMix={setMixPreview}
             />
-          </AnchoredPopin>
-          <AnchoredPopin
-            open={copilotOpen}
-            onClose={() => setCopilotOpen(false)}
-            anchorRef={copilotBtnRef}
-            labelId={copilotTitleId}
-            className="mix-copilot-popin"
-          >
-            <header className="anchored-popin-header">
-              <h3 id={copilotTitleId}>{t("copilot.title")}</h3>
-            </header>
             <ProductionAssistPanel
               mix={mix}
               sources={playbackSources}
@@ -1020,6 +1009,7 @@ export function ProductionWorkspace({
               onCommitMix={(next) => scheduleMixUpdate(next)}
               onPreviewMix={setMixPreview}
             />
+            </details>
           </AnchoredPopin>
         </>
       )}
