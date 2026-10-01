@@ -15,4 +15,6 @@ La suite complète passe : 419 tests, aucune erreur. La compilation de productio
 
 ## Portée restante
 
+Après fusion de #278, le parcours a aussi été rejoué dans Tauri Windows, sur un nouveau projet « Audit Production 2026-10-01 » et un WAV synthétique importé de 12 s : ajout du marqueur, désactivation du déplacement des clips, saisie 60 000 ms ramenée à 30 000 ms. Le JSON sauvegardé contient le marqueur à 30 000 ms et le clip inchangé (début 0, offset 0, durée 12 000 ms). `native-marker-bounded.jpg` (1282×832) montre le drapeau à la borne. Cette observation ne valide pas encore le tempo natif ni les formats natifs à 640 px.
+
 Ce lot corrige #276 et #277 et contribue à #227. Il ne termine pas #227 : déplacement à la souris, organisation finale de la barre d'arrangement, vérification native et revue exhaustive des fonctions restent à traiter. Il ne démontre pas non plus une traduction exhaustive de toute la page Production.

@@ -568,7 +568,7 @@ export function ProductionWorkspace({
                     busy={busy}
                     onBusy={setBusy}
                     onError={setError}
-                    initialMode="stems"
+                    initialMode={hasAiStems ? "stems" : "mix"}
                   />
                   {mixSettingsTrigger(
                     mixSettingsMixBtnRef,

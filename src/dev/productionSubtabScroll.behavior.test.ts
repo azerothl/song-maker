@@ -19,6 +19,31 @@ after(async () => {
 });
 
 describe("Production commune (#223, #230)", () => {
+  it("export popin stays above the sticky ruler, tempo and marker zones", async () => {
+    for (const width of [1280,640]) {
+      const page=await browser.newPage({viewport:{width,height:720}});
+      try {
+        await page.goto(BASE,{waitUntil:"networkidle"});
+        await page.locator(".production-mix-toolbar [data-capture-export-trigger]").click();
+        const panel=page.getByRole("dialog");
+        await panel.waitFor();
+        const intersections=await page.evaluate(()=>{
+          const dialog=document.querySelector('[role="dialog"]')!;
+          const d=dialog.getBoundingClientRect();
+          return Array.from(document.querySelectorAll(".clip-ruler,.clip-tempo-lane,.clip-marker-lane")).flatMap(row=>{
+            const r=row.getBoundingClientRect(),left=Math.max(d.left,r.left),right=Math.min(d.right,r.right),top=Math.max(d.top,r.top),bottom=Math.min(d.bottom,r.bottom);
+            if(right<=left||bottom<=top)return [];
+            const hit=document.elementFromPoint((left+right)/2,(top+bottom)/2);
+            return [{row:row.className,dialogOnTop:Boolean(hit&&dialog.contains(hit))}];
+          });
+        });
+        assert.ok(intersections.length>0,`no overlapping zones at ${width}`);
+        for(const overlap of intersections)assert.equal(overlap.dialogOnTop,true,`${width}: ${overlap.row}`);
+        await page.keyboard.press("Escape");
+        assert.equal(await page.locator(".production-mix-sticky-master").evaluate(el=>getComputedStyle(el).zIndex),"4");
+      }finally{await page.close();}
+    }
+  });
   it("PageDown scrolls from a toolbar button and Tab leaves the timeline", async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 768 } });
     try {

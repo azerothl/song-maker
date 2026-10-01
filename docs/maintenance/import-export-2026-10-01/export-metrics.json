@@ -1,0 +1,12 @@
+{
+  "evidence": "WAV exported through native Tauri UI from a synthetic local fixture",
+  "format": "PCM",
+  "channels": 2,
+  "sampleRate": 48000,
+  "bits": 24,
+  "frames": 576000,
+  "durationSec": 12,
+  "peak": 0.06473755836486816,
+  "rms": 0.04564888550040733,
+  "sha256": "1bfc685d3ffc024c10b7c18e25a25ea65d6664e53cf0c6a412e9f232cf0ee7b9"
+}
