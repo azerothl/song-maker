@@ -422,6 +422,8 @@ export function ClipTimeline({
     [markers, selectedMarkerId],
   );
 
+  // Ruler length follows clips (and tempo flags), not markers — a marker at the
+  // end must not stretch the rule on every nudge (#276).
   const timelineMs = useMemo(() => {
     let max = 1;
     for (const tr of mix.tracks) {
@@ -429,14 +431,11 @@ export function ClipTimeline({
         max = Math.max(max, c.startMs + c.durationMs);
       }
     }
-    for (const m of markers) {
-      max = Math.max(max, m.startMs + 1000);
-    }
     for (const e of tempoMap) {
       max = Math.max(max, e.startMs + 1000);
     }
     return Math.max(max, 30_000);
-  }, [mix, markers, tempoMap]);
+  }, [mix, tempoMap]);
 
   const snap = useCallback(
     (ms: number) =>
@@ -449,6 +448,11 @@ export function ClipTimeline({
         timeSnapMs: TIME_SNAP_MS,
       }),
     [snapEnabled, gridMode, tempoMap, meterMap, subdivision],
+  );
+
+  const clampMarkerStartMs = useCallback(
+    (ms: number) => Math.min(timelineMs, Math.max(0, snap(ms))),
+    [snap, timelineMs],
   );
 
   const nudgeStep = useMemo(() => {
@@ -853,7 +857,7 @@ export function ClipTimeline({
   }
 
   function addMarkerAt(ms: number) {
-    const startMs = snap(ms);
+    const startMs = clampMarkerStartMs(ms);
     const kind = newMarkerKind;
     const name =
       newMarkerName.trim() || markerKindLabel(kind);
@@ -881,7 +885,13 @@ export function ClipTimeline({
 
   function updateSelectedMarker(patch: Partial<MixMarker>) {
     if (!selectedMarker) return;
-    const next: MixMarker = { ...selectedMarker, ...patch };
+    const next: MixMarker = {
+      ...selectedMarker,
+      ...patch,
+      ...(patch.startMs != null
+        ? { startMs: clampMarkerStartMs(patch.startMs) }
+        : {}),
+    };
     patchMix(
       upsertMixMarker(mix, next, {
         shiftClips: shiftClipsWithMarker && patch.startMs != null,
@@ -1265,11 +1275,14 @@ export function ClipTimeline({
                 <input
                   type="number"
                   min={0}
+                  max={timelineMs}
                   step={stepForInputs}
                   value={selectedMarker.startMs}
+                  aria-valuemin={0}
+                  aria-valuemax={timelineMs}
                   onChange={(e) =>
                     updateSelectedMarker({
-                      startMs: snap(Number(e.target.value)),
+                      startMs: Number(e.target.value),
                     })
                   }
                 />
@@ -1614,9 +1627,18 @@ export function ClipTimeline({
                   title={`${m.name} · ${formatMs(m.startMs)}`}
                   aria-pressed={selectedMarkerId === m.id}
                   onKeyDown={event => {
-                    if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+                    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
                     event.preventDefault(); event.stopPropagation();
-                    const startMs = snap(Math.max(0, m.startMs + (event.key === "ArrowLeft" ? -1 : 1) * nudgeStep));
+                    const delta =
+                      (event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0) *
+                      nudgeStep *
+                      (event.shiftKey ? 10 : 1);
+                    const startMs =
+                      event.key === "Home"
+                        ? clampMarkerStartMs(0)
+                        : event.key === "End"
+                          ? clampMarkerStartMs(timelineMs)
+                          : clampMarkerStartMs(m.startMs + delta);
                     patchMix(upsertMixMarker(mix, { ...m, startMs }, {
                       shiftClips: shiftClipsWithMarker, previousStartMs: m.startMs,
                     }));
