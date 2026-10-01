@@ -63,6 +63,12 @@ describe("export UI surface (#168 / #187)", () => {
     );
     assert.doesNotMatch(dialog, /Maquette Alphonse|mockupMissing/);
     assert.doesNotMatch(dialog, /window\.alert/);
+    assert.doesNotMatch(
+      dialog,
+      /disabled=\{!project\.activeGenerationId/,
+      "export trigger must not require an active generation (#279)",
+    );
+    assert.match(dialog, /hasExportableAudio/);
   });
 });
 

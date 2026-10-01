@@ -13,6 +13,7 @@ import {
   type ExportOptionsState,
   type ExportPack,
 } from "../lib/exportOptions";
+import { hasExportableAudio } from "../lib/exportableAudio";
 import { t } from "../ui/i18n";
 import { AnchoredPopin } from "./AnchoredPopin";
 
@@ -50,6 +51,7 @@ export function ExportDialog({
   const formatId = useId();
   const formatLiveId = useId();
   const exportDisabledId = useId();
+  const triggerDisabledId = useId();
   const [opts, setOpts] = useState<ExportOptionsState>(() => ({
     ...defaultExportOptions(),
     mode: initialMode,
@@ -169,6 +171,13 @@ export function ExportDialog({
   };
 
   const trackList = opts.mode === "stems" ? aiTracks : (mix?.tracks ?? []);
+  const canExportAudio = hasExportableAudio(mix, sources);
+  const triggerDisabled = !canExportAudio || busy;
+  const triggerDisabledReason = !canExportAudio
+    ? t("export.button.disabledNoAudio")
+    : busy
+      ? t("export.button.disabledBusy")
+      : null;
 
   return (
     <>
@@ -177,11 +186,20 @@ export function ExportDialog({
         type="button"
         className="btn primary"
         data-capture-export-trigger="1"
-        disabled={!project.activeGenerationId || busy}
+        disabled={triggerDisabled}
+        aria-describedby={
+          triggerDisabledReason ? triggerDisabledId : undefined
+        }
+        title={triggerDisabledReason ?? undefined}
         onClick={() => setOpen(true)}
       >
         {t("export.button")}
       </button>
+      {triggerDisabledReason ? (
+        <span id={triggerDisabledId} className="sr-only">
+          {triggerDisabledReason}
+        </span>
+      ) : null}
       <AnchoredPopin
         open={open}
         onClose={() => setOpen(false)}

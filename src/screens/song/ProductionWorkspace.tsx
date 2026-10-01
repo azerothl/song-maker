@@ -568,7 +568,9 @@ export function ProductionWorkspace({
                     busy={busy}
                     onBusy={setBusy}
                     onError={setError}
-                    initialMode="stems"
+                    initialMode={
+                      mix?.tracks.some((tr) => tr.aiSeparated) ? "stems" : "mix"
+                    }
                   />
                   {mixSettingsTrigger(
                     mixSettingsMixBtnRef,
