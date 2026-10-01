@@ -1,8 +1,17 @@
-# Maquettes Production unique et profils (hébergement des captures)
+# Maquettes (hébergement des captures)
 
-Ces captures sont des images de maquettes HTML statiques **non publiées** (source HTML, scripts et mesures sur la boîte de travail de l'équipe). Elles hébergent les images affichées dans les tickets #223 à #230 (épique « Production : une seule page »), #209 (profils, lot 2). Aucun code produit. Données d'exemple factices (« Exemple factice »).
+Ces captures sont des images de maquettes HTML statiques **non publiées** (source HTML, scripts et mesures sur la boîte de travail de l'équipe). Aucun code produit. Données d'exemple factices (« Exemple factice »).
 
-Référence produit de la maquette : `origin/main` = `2c13dd7cb79d4b4bda855b276674eb18492aef85` (README de la maquette).
+Référence produit de la maquette Production unique : `origin/main` = `2c13dd7cb79d4b4bda855b276674eb18492aef85` (README de la maquette).
+
+Dossiers :
+
+| Dossier | Tickets / sujet |
+|---------|-----------------|
+| `production-unique/` | #223–#230, #224 |
+| `profils-201/` | #201 / #209 (L1 + L2) |
+| `stemforge/` | séparation / licence / export (StemForge) |
+| `tickets/` | maquettes proposées par ticket (`170`, `235`, `27`, …) |
 
 ## production-unique/ (1280×720 et 640×720) — hash d'URL de la maquette `index.html#…`
 
@@ -36,6 +45,21 @@ Référence produit de la maquette : `origin/main` = `2c13dd7cb79d4b4bda855b2766
 p1 Réglages de la piste · p2 Ligne d'effets · p3 Égaliseur · p4 Ligne d'automation + menu des cibles · p4b Automation (Réglages détaillés) · p5 Routage de la piste Basse · p6 Réglages du mix · p7 Groupes, bus auxiliaires et sends · p8 Édition des clips : Prises + Tempo / hauteur · p9 Exporter : paquet portable.
 Ce sont des **propositions** d'emplacement (à valider), pas des décisions.
 
-## profils-201/ — lot 2, FUTUR (dépend de l'intégration ACE-Step, #209)
+## profils-201/ — lots 1 et 2 (#201 / #209)
 
-Vues `L2-05` à `L2-11` de la maquette des profils (moteurs du profil Commercial, fiche « Pourquoi ? », infobulle, contrat ACE-Step, premier usage). Filigrane « Lot 2 · futur » sur ces vues.
+- **L1** (`profils-L1-01` … `L1-16`) : création profil Commercial, sélecteur, moteurs Hobby, fiches « Pourquoi ? », planche d’états.
+- **L2** (`profils-L2-05` … `L2-11`) : FUTUR (dépend de l’intégration ACE-Step, #209) — moteurs Commercial, contrat ACE-Step, premier usage. Filigrane « Lot 2 · futur ».
+
+## stemforge/ — séparation, licence, export
+
+Sous-dossiers `separation/`, `licence/`, `export/` (captures de maquettes StemForge affichées dans les tickets liés).
+
+## tickets/ — maquettes proposées par numéro d’issue
+
+| Sous-dossier | Sujet (indicatif) |
+|--------------|-------------------|
+| `170/` | Sortie MIDI / « Tout arrêter » |
+| `235/` | Assistant de mix (point d’entrée, propositions, erreurs) |
+| `27/` … `97/` | Autres tickets (partition, piano-roll, branches, LoRA, SheetSage, presets, etc.) |
+
+Ce sont des **propositions** à valider ; elles n’engagent pas le produit tant que le ticket concerné ne les a pas acceptées.
