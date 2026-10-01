@@ -793,6 +793,7 @@ export function ClipTimeline({
     if (!selected || !selectedClip) return;
     const track = mix.tracks.find((tr) => tr.id === selected.trackId);
     if (!track) return;
+    if (target.closest(".clip-marker-flag, .clip-tempo-flag, .clip-arrangement-bar, .clip-edit-toolbar")) return;
     const step = nudgeStep;
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       e.preventDefault();
@@ -843,6 +844,7 @@ export function ClipTimeline({
 
   function jumpToMarker(marker: MixMarker) {
     setSelectedMarkerId(marker.id);
+    onSeek?.(marker.startMs / 1000);
     const scroller = railScrollRef.current;
     if (!scroller) return;
     const ratio = marker.startMs / timelineMs;
@@ -1462,6 +1464,14 @@ export function ClipTimeline({
                   style={{ left: `${(m.startMs / timelineMs) * 100}%`, transform: m.startMs === 0 ? "none" : undefined }}
                   title={`${m.name} · ${formatMs(m.startMs)}`}
                   aria-pressed={selectedMarkerId === m.id}
+                  onKeyDown={event => {
+                    if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+                    event.preventDefault(); event.stopPropagation();
+                    const startMs = snap(Math.max(0, m.startMs + (event.key === "ArrowLeft" ? -1 : 1) * nudgeStep));
+                    patchMix(upsertMixMarker(mix, { ...m, startMs }, {
+                      shiftClips: shiftClipsWithMarker, previousStartMs: m.startMs,
+                    }));
+                  }}
                   onClick={event => {
                     jumpToMarker(m); markerAnchor.current = event.currentTarget; setArrangementOpen("markers");
                   }}

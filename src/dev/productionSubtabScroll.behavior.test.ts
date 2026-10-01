@@ -52,9 +52,20 @@ describe("Production commune (#223, #230)", () => {
       const markers = page.locator(".clip-arrangement-bar > button").nth(1);
       await markers.click();
       await page.locator(".clip-marker-editor select").waitFor();
+      await page.locator(".clip-marker-editor input[type=checkbox]").uncheck();
+      const clipsBefore = await page.locator(".clip-block").evaluateAll(elements => elements.map(el => el.getAttribute("style")));
+      await page.locator(".clip-marker-editor > button").first().click();
       await page.keyboard.press("Escape");
       assert.equal(await markers.evaluate(el => el === document.activeElement), true);
       assert.equal(await page.locator(".clip-tempo-lane .clip-tempo-flag").count() > 0, true);
+      const flag = page.locator(".clip-marker-flag").first();
+      const oldPosition = await flag.getAttribute("style");
+      await flag.focus();
+      await page.keyboard.press("ArrowRight");
+      assert.notEqual(await flag.getAttribute("style"), oldPosition);
+      assert.deepEqual(await page.locator(".clip-block").evaluateAll(elements => elements.map(el => el.getAttribute("style"))), clipsBefore);
+      await page.keyboard.press("Enter");
+      assert.ok(Number(await page.locator(".clip-ruler").getAttribute("aria-valuenow")) > 0);
     } finally { await page.close(); }
   });
   it("editing tools switch by keyboard and Cut selects the created clip", async () => {
