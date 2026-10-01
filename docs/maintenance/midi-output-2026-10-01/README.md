@@ -15,3 +15,7 @@ La sortie de la voix sélectionnée de la partition utilise midir côté Rust, i
 macOS et Linux : non testés nativement. La dépendance ALSA est ajoutée aux bibliothèques de compilation de la CI Linux. Le scénario matériel/port virtuel de #170 reste ouvert. #164 garde sa dépendance.
 
 Limites : une voix à la fois, carte de tempo utilisée comme le lecteur MIDI existant (premier tempo), maximum 50 000 notes et une heure. Le bouton d’arrêt concerne cette sortie MIDI ; l’arrêt du synthétiseur interne reste séparé.
+
+Le sélecteur explicite « Voix de la partition » a été ajouté après la capture native conservée. Le test React vérifie qu’une seconde voix est envoyée avec ses propres hauteurs et durées, sans envoyer la première. La capture native documente la connexion et le retour au repos avant cet ajout d’interface.
+
+SHA-256 du JPEG natif : `3537d46ea864d14e578cc5598a78a2bac09a616b8cfb25bb5a13a1e2f54e8322`.

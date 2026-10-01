@@ -26,6 +26,7 @@ it("MIDI output connects only after selection and panic cancels playback",async(
   assert.equal(await play.isDisabled(),true);
   await page.getByRole("button",{name:"Find MIDI outputs"}).click();
   await page.getByLabel("Output",{exact:true}).selectOption("virtual-test");
+  await page.getByLabel("Score voice",{exact:true}).selectOption("second");
   await play.click();
   await page.getByText("Playing through MIDI output…",{exact:true}).waitFor();
   await page.getByRole("button",{name:"Stop all notes",exact:true}).click();
@@ -36,7 +37,7 @@ it("MIDI output connects only after selection and panic cancels playback",async(
   const start=commands.findIndex(c=>c.cmd==="play_midi_output");
   assert.ok(connection>=0&&start>connection);
   assert.equal(commands.at(-1)?.cmd,"panic_midi_output");
-  assert.deepEqual(commands[start].args,{notes:[{startMs:0,endMs:250,pitch:60,velocity:90}],channel:0,program:0});
+  assert.deepEqual(commands[start].args,{notes:[{startMs:500,endMs:1000,pitch:64,velocity:70}],channel:0,program:0});
  } finally {await page.close();}
 });
 it("disconnected MIDI output shows a readable failure and never starts score playback",async()=>{

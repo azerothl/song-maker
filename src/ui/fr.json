@@ -1407,6 +1407,7 @@
   "production.ruler.value": "{time} ms",
   "production.rulerNamed": "Position de lecture, règle temporelle",
   "midi.output.title": "Sortie MIDI",
+  "midi.output.voice": "Voix de la partition",
   "midi.output.hint": "Envoyez la voix sélectionnée de la partition vers un synthétiseur ou un port MIDI virtuel. Canal et programme sont numérotés à partir de 1.",
   "midi.output.refresh": "Rechercher les sorties MIDI",
   "midi.output.port": "Sortie",

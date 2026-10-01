@@ -11,10 +11,12 @@ export function MidiOutputPanel({document,voiceId}:{document:ScoreDocument;voice
  const [playing,setPlaying]=useState(false);
  const [channel,setChannel]=useState(1);
  const [program,setProgram]=useState(1);
+ const [selectedVoice,setSelectedVoice]=useState(voiceId??document.voices[0]?.id??"");
  const [error,setError]=useState(false);
  const epoch=useRef(0);
  const alive=useRef(true);
- const notes=scoreOutputNotes(document,voiceId);
+ const outputVoice=document.voices.find(voice=>voice.id===selectedVoice)?.id??voiceId??document.voices[0]?.id??"";
+ const notes=scoreOutputNotes(document,outputVoice);
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;epoch.current++;void disconnectMidiOutput().catch(()=>{});};},[]);
  async function refresh() {
   setBusy(true);setError(false);
@@ -55,6 +57,9 @@ export function MidiOutputPanel({document,voiceId}:{document:ScoreDocument;voice
   <h4>{t("midi.output.title")}</h4>
   <p className="hint">{t("midi.output.hint")}</p>
   <div className="midi-instrument-controls">
+   <label>{t("midi.output.voice")}<select aria-label={t("midi.output.voice")} value={outputVoice} disabled={playing} onChange={e=>setSelectedVoice(e.target.value)}>
+    {document.voices.map(voice=><option key={voice.id} value={voice.id}>{voice.name||voice.id}</option>)}
+   </select></label>
    <button type="button" className="btn" disabled={busy} onClick={()=>void refresh()}>{t("midi.output.refresh")}</button>
    <label>{t("midi.output.port")}<select aria-label={t("midi.output.port")} value={portId} disabled={busy} onChange={e=>void select(e.target.value)}>
     <option value="">{t("midi.output.none")}</option>
