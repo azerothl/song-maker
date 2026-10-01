@@ -2,14 +2,12 @@
  * #215 — popover profil (barre repliée) : mesures, empilement, clavier.
  */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import type { ViteDevServer } from "vite";
+import { startCaptureViteServer, stopCaptureViteServer } from "./captureViteServer";
 import { after, before, describe, it } from "node:test";
 import { chromium, type Browser, type Page } from "playwright";
 import type { ProfilePopoverMetrics } from "./profileIssue215Metrics";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const PORT = 5198;
 const BASE = `http://127.0.0.1:${PORT}/profiles-app-capture.html`;
 /** Réf. main ~401.7 (Chrome local) ; Actions CI ~368.7 (polices). Régression ellipsis : ~281.7. */
@@ -30,7 +28,6 @@ async function waitServer(url: string): Promise<void> {
 
 async function launchBrowser(): Promise<Browser> {
   return chromium.launch({
-    channel: "chrome",
     args: ["--no-sandbox", "--disable-dev-shm-usage"],
   });
 }
@@ -65,7 +62,7 @@ async function popoverMetrics(
 }
 
 describe("profile selector collapsed popover (#215)", () => {
-  let vite: ReturnType<typeof spawn> | null = null;
+  let vite: ViteDevServer | null = null;
   let browser: Browser;
 
   before(async () => {
@@ -77,15 +74,7 @@ describe("profile selector collapsed popover (#215)", () => {
       serverUp = false;
     }
     if (!serverUp) {
-      vite = spawn(
-        "pnpm",
-        ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT), "--strictPort"],
-        {
-          cwd: ROOT,
-          env: { ...process.env, VITE_CAPTURE: "1" },
-          stdio: "ignore",
-        },
-      );
+      vite = await startCaptureViteServer(PORT);
       await waitServer(BASE);
     }
     browser = await launchBrowser();
@@ -94,7 +83,7 @@ describe("profile selector collapsed popover (#215)", () => {
   after(async () => {
     await browser?.close();
     if (vite) {
-      vite.kill("SIGTERM");
+      await stopCaptureViteServer(vite);
       await new Promise((r) => setTimeout(r, 400));
     }
   });

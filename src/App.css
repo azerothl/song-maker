@@ -1281,6 +1281,12 @@ option {
 .production-auto-curve ellipse { fill: #eff0fb; }
 .production-auto-zero { stroke: #747d96; stroke-width: 1px; vector-effect: non-scaling-stroke; }
 
+.qwen-mix-assistant textarea { display: block; width: 100%; min-height: 72px; margin-block: 0.5rem; }
+.qwen-mix-assistant .btn,
+.mix-assistant-manual > summary { min-height: 44px; margin: 0.25rem; }
+.mix-assistant-manual > summary { padding: 0.75rem; cursor: pointer; }
+.mix-assistant-manual > summary:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 2px; }
+
 .mixer-density.production-mix-panel {
   flex: 1;
   min-height: 0;

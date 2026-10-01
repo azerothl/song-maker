@@ -129,7 +129,6 @@ describe("production mix settings comportement (#225)", () => {
       await page.click('[data-testid="production-mix-settings-trigger"]');
       await page.waitForSelector('[data-testid="production-mix-settings-popin"]');
       await page.getByRole("button", { name: "Assistant de mix" }).click();
-      await page.getByRole("menuitem", { name: "Assistant de mix" }).click();
       await page.waitForSelector(".mix-assist-popin");
       await page.keyboard.press("Escape");
       assert.equal(await page.locator(".mix-assist-popin").count(), 0);

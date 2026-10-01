@@ -11,7 +11,7 @@ import enProfiles from "../ui/en.profiles.json";
 import fr from "../ui/fr.json";
 import type { ViteDevServer } from "vite";
 
-const PORT = 5196;
+const PORT = 5233;
 const BASE = captureBaseUrl(PORT, "profiles-capture.html");
 const IT_TIMEOUT_MS = 60_000;
 let activeServer: ViteDevServer | null = null;

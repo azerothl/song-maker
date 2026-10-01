@@ -2,9 +2,8 @@
  * #202 — compteur séquentiel et états file / échec / reprise (Playwright, VITE_CAPTURE=1).
  */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import type { ViteDevServer } from "vite";
+import { startCaptureViteServer, stopCaptureViteServer } from "../dev/captureViteServer";
 import { after, before, describe, it } from "node:test";
 import { chromium, type Browser, type Page } from "playwright";
 import {
@@ -13,10 +12,6 @@ import {
   downloadProgressOrdinal,
 } from "../lib/firstLaunch.ts";
 
-const ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../..",
-);
 const PORT = 5214;
 const BASE = `http://127.0.0.1:${PORT}/`;
 
@@ -99,26 +94,18 @@ async function probeDownload(page: Page, hash: string): Promise<DownloadProbe> {
 }
 
 describe("first-launch download UI (#202)", { concurrency: 1 }, () => {
-  let proc: ReturnType<typeof spawn> | undefined;
+  let proc: ViteDevServer | undefined;
   let browser: Browser | undefined;
 
   before(async () => {
-    proc = spawn(
-    process.execPath,
-    [path.join(ROOT, "node_modules/vite/bin/vite.js"), "--host", "127.0.0.1", "--port", String(PORT), "--strictPort"],
-      {
-        cwd: ROOT,
-        env: { ...process.env, VITE_CAPTURE: "1" },
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
+    proc = await startCaptureViteServer(PORT);
     await waitServer(BASE);
     browser = await launchBrowser();
   });
 
   after(async () => {
     await browser?.close();
-    proc?.kill("SIGTERM");
+    if (proc) await stopCaptureViteServer(proc);
   });
 
   it("640 px: download footer buttons stretch to the available width (#237)", async () => {
