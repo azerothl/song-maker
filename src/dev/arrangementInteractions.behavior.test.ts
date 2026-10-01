@@ -6,6 +6,37 @@ import {startCaptureViteServer,stopCaptureViteServer} from "./captureViteServer"
 let server:ViteDevServer,browser:Browser;
 before(async()=>{server=await startCaptureViteServer(5239);browser=await chromium.launch();});
 after(async()=>{await browser?.close();if(server)await stopCaptureViteServer(server);});
+it("dragging arrangement flags preserves sources and Escape restores the marker",async()=>{
+ const page=await browser.newPage({viewport:{width:1280,height:720}});
+ try{
+  await page.addInitScript(()=>localStorage.setItem("song-maker.locale","en"));
+  await page.goto("http://127.0.0.1:5239/arrangement-capture.html");
+  const before=await page.evaluate(()=>(window as unknown as {__arrangementMix:{tracks:unknown}}).__arrangementMix.tracks);
+  const marker=page.locator(".clip-marker-flag");
+  await marker.click();
+  await page.getByRole("checkbox",{name:"Move clips with the marker (without changing the source)",exact:true}).uncheck();
+  await page.keyboard.press("Escape");
+  const original=await page.evaluate(()=>(window as unknown as {__arrangementMix:{markers:Array<{startMs:number}>}}).__arrangementMix.markers[0].startMs);
+  const box=(await marker.boundingBox())!;
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);
+  await page.mouse.down();await page.mouse.move(box.x+box.width/2+80,box.y+box.height/2,{steps:5});
+  assert.notEqual(await page.evaluate(()=>(window as unknown as {__arrangementMix:{markers:Array<{startMs:number}>}}).__arrangementMix.markers[0].startMs),original);
+  await page.keyboard.press("Escape");await page.mouse.up();
+  assert.equal(await page.evaluate(()=>(window as unknown as {__arrangementMix:{markers:Array<{startMs:number}>}}).__arrangementMix.markers[0].startMs),original);
+  await page.locator(".clip-tempo-add").click();
+  await page.getByLabel("At (ms)",{exact:true}).fill("8000");
+  await page.getByLabel("BPM",{exact:true}).fill("150");
+  await page.getByRole("button",{name:"Add / update",exact:true}).click();await page.keyboard.press("Escape");
+  const tempo=page.locator('.clip-tempo-flag[data-tempo-ms="8000"]');
+  const t=(await tempo.boundingBox())!;
+  await page.mouse.move(t.x+t.width/2,t.y+t.height/2);await page.mouse.down();
+  await page.mouse.move(t.x+t.width/2+60,t.y+t.height/2,{steps:5});await page.mouse.up();
+  const map=await page.evaluate(()=>(window as unknown as {__arrangementMix:{tempoMap:Array<{startMs:number;quarterBpm:number}>}}).__arrangementMix.tempoMap);
+  assert.equal(map[0].startMs,0);assert.equal(map[1].quarterBpm,150);assert.ok(map[1].startMs>8000);
+  assert.equal(await page.getByRole("dialog").count(),0);
+  assert.deepEqual(await page.evaluate(()=>(window as unknown as {__arrangementMix:{tracks:unknown}}).__arrangementMix.tracks),before);
+ }finally{await page.close();}
+});
 it("tempo zone replaces the old bar and keyboard movement protects the first tempo",async()=>{
  const page=await browser.newPage({viewport:{width:640,height:720}});
  try{

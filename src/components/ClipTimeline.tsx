@@ -272,6 +272,9 @@ export function ClipTimeline({
   const tempoOpenButton = useRef<HTMLButtonElement | null>(null);
   const arrangementId = useId();
   const [arrangementStatus,setArrangementStatus]=useState("");
+  const suppressArrangementClick = useRef(false);
+  const arrangementDragCleanup = useRef<(() => void) | null>(null);
+  useEffect(()=>()=>arrangementDragCleanup.current?.(),[]);
   const [selected, setSelected] = useState<{
     trackId: string;
     clipId: string;
@@ -914,6 +917,50 @@ export function ClipTimeline({
     patchMix(upsertTempoEvent(mix, { startMs, quarterBpm: bpm }));
     setTempoBpmDraft(bpm);setTempoAtDraft(startMs);
     setArrangementStatus(t("production.status.tempoSet",{bpm,time:formatMs(startMs)}));
+  }
+
+  function startArrangementDrag(event: ReactPointerEvent<HTMLButtonElement>, item: MixMarker | { startMs:number; quarterBpm:number }) {
+    if(event.button!==0 || (!("id" in item)&&item.startMs===0))return;
+    const rail=event.currentTarget.closest(".clip-lane-rail");
+    if(!rail)return;
+    const width=rail.getBoundingClientRect().width;
+    if(width<=0)return;
+    const origin=event.clientX;
+    let moved=false;
+    let latest=item.startMs;
+    arrangementDragCleanup.current?.();
+    const cleanup=()=>{
+      window.removeEventListener("pointermove",move);
+      window.removeEventListener("pointerup",finish);
+      window.removeEventListener("pointercancel",cancel);
+      window.removeEventListener("keydown",key,true);
+      arrangementDragCleanup.current=null;
+    };
+    const move=(e:PointerEvent)=>{
+      if(e.pointerId!==event.pointerId)return;
+      if(!moved&&Math.abs(e.clientX-origin)<4)return;
+      moved=true;suppressArrangementClick.current=true;
+      const lower="id" in item?0:1;
+      latest=Math.min(timelineMs,Math.max(lower,snap(item.startMs+(e.clientX-origin)/width*timelineMs)));
+      if("id" in item)patchMix(upsertMixMarker(mix,{...item,startMs:latest},{shiftClips:shiftClipsWithMarker,previousStartMs:item.startMs}));
+      else patchMix(upsertTempoEvent(removeTempoEvent(mix,item.startMs),{...item,startMs:latest}));
+    };
+    const finish=(e:PointerEvent)=>{
+      if(e.pointerId!==event.pointerId)return;
+      cleanup();
+      if(!moved)return;
+      setArrangementStatus("id" in item?t("production.status.markerUpdated",{name:item.name,time:formatMs(latest)}):t("production.status.tempoSet",{bpm:item.quarterBpm,time:formatMs(latest)}));
+      // The browser's synthetic click follows pointerup before this timeout.
+      window.setTimeout(()=>{suppressArrangementClick.current=false;},0);
+      requestAnimationFrame(()=>railScrollRef.current?.querySelector<HTMLButtonElement>("id" in item?`[data-marker-id="${item.id}"]`:`[data-tempo-ms="${latest}"]`)?.focus());
+    };
+    const cancel=()=>{cleanup();if(moved)patchMix(mix);suppressArrangementClick.current=true;window.setTimeout(()=>{suppressArrangementClick.current=false;},0);};
+    const key=(e:KeyboardEvent)=>{if(e.key==="Escape"){e.preventDefault();e.stopImmediatePropagation();cancel();}};
+    arrangementDragCleanup.current=cleanup;
+    window.addEventListener("pointermove",move);
+    window.addEventListener("pointerup",finish);
+    window.addEventListener("pointercancel",cancel);
+    window.addEventListener("keydown",key,true);
   }
 
   const railWidthPct = `${Math.max(100, zoom * 100)}%`;
@@ -1609,6 +1656,7 @@ export function ClipTimeline({
                   style={{ left: `${(ev.startMs / timelineMs) * 100}%`, transform: ev.startMs === 0 ? "none" : undefined }}
                   aria-pressed={arrangementOpen === "tempo" && tempoAtDraft === ev.startMs}
                   aria-label={t("production.tempo.flagNamed", { bpm: ev.quarterBpm, time: formatMs(ev.startMs) })}
+                  onPointerDown={event=>startArrangementDrag(event,ev)}
                   onKeyDown={event=>{
                     if(!["ArrowLeft","ArrowRight","Delete","Backspace"].includes(event.key))return;
                     event.preventDefault();event.stopPropagation();
@@ -1625,6 +1673,7 @@ export function ClipTimeline({
                     requestAnimationFrame(()=>railScrollRef.current?.querySelector<HTMLButtonElement>(`[data-tempo-ms="${startMs}"]`)?.focus());
                   }}
                   onClick={event => {
+                    if(suppressArrangementClick.current)return;
                     tempoAnchor.current = event.currentTarget;
                     setTempoAtDraft(ev.startMs); setTempoBpmDraft(ev.quarterBpm); setArrangementOpen("tempo");
                   }}><span aria-hidden="true">♩ </span>{ev.quarterBpm}</button>
@@ -1651,6 +1700,7 @@ export function ClipTimeline({
                   title={`${m.name} · ${formatMs(m.startMs)}`}
                   aria-label={t("production.marker.flagNamed",{name:m.name,time:formatMs(m.startMs)})}
                   aria-pressed={selectedMarkerId === m.id}
+                  onPointerDown={event=>startArrangementDrag(event,m)}
                   onKeyDown={event => {
                     if (["Delete","Backspace"].includes(event.key)) {
                       event.preventDefault();event.stopPropagation();deleteMarker(m);return;
@@ -1665,6 +1715,7 @@ export function ClipTimeline({
                     setArrangementStatus(t("production.status.markerUpdated",{name:m.name,time:formatMs(startMs)}));
                   }}
                   onClick={event => {
+                    if(suppressArrangementClick.current)return;
                     jumpToMarker(m); markerAnchor.current = event.currentTarget; setArrangementOpen("markers");
                   }}
                 >

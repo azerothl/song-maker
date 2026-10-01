@@ -6167,6 +6167,7 @@ details[open] > summary {
 .clip-lanes { padding-right: 52px; }
 .clip-tempo-add, .clip-marker-add { position: absolute; right: -50px; top: 0; z-index: 2; min-width: 44px; min-height: 44px; }
 .clip-marker-flag { min-width: 44px; min-height: 44px; }
+.clip-tempo-flag, .clip-marker-flag { touch-action: none; user-select: none; }
 .clip-ruler, .clip-tempo-lane, .clip-marker-lane {
   position: sticky;
   background: var(--bg1);
