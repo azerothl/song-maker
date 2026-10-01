@@ -48,13 +48,13 @@ describe("production mix settings comportement (#225)", () => {
       try {
         await page.addInitScript(() => localStorage.setItem("song-maker.locale", "en"));
         await page.goto(`${BASE}#view-clips-16`, { waitUntil: "networkidle" });
-        const trigger = page.getByTestId("production-mix-settings-trigger-clips");
+        const trigger = page.getByTestId("production-mix-settings-trigger");
         await trigger.waitFor({ timeout: 10000 }).catch(error => {
           assert.fail(`${String(error)}; page errors: ${pageErrors.join("; ")}`);
         });
         assert.equal(await trigger.textContent(), "Mix settings");
-        const bar = page.locator(".clip-timeline-tools");
-        assert.equal(await bar.getByRole("checkbox", { name: "Snap to musical grid", exact: true }).count(), 1);
+        const bar = page.locator(".production-context-bar");
+        assert.equal(await bar.getByRole("button", { name: "Snap", exact: true }).count(), 1);
         assert.equal(await bar.getByRole("slider", { name: "Zoom", exact: true }).count(), 1);
         await trigger.click();
         const popin = page.getByTestId("production-mix-settings-popin");
@@ -71,15 +71,22 @@ describe("production mix settings comportement (#225)", () => {
       } finally { await page.close(); }
     });
   it(
-    "Clips : bouton Réglages du mix visible",
+    "Un seul bouton Réglages du mix visible",
     { timeout: IT_TIMEOUT_MS },
     async () => {
       const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
       await page.goto(`${BASE}#view-clips-16`, { waitUntil: "networkidle" });
-      await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
-      await page.waitForSelector('[data-testid="production-mix-settings-trigger-clips"]', {
+      await page.waitForSelector('[data-testid="production-mix-settings-trigger"]', {
         state: "visible",
       });
+      assert.equal(
+        await page.locator('[data-testid="production-mix-settings-trigger"]').count(),
+        1,
+      );
+      assert.equal(
+        await page.locator('[data-testid="production-mix-settings-trigger-clips"]').count(),
+        0,
+      );
       await page.close();
     },
   );
@@ -90,8 +97,7 @@ describe("production mix settings comportement (#225)", () => {
     async () => {
       const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
       await page.goto(`${BASE}#view-clips-16`, { waitUntil: "networkidle" });
-      await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
-      await page.click('[data-testid="production-mix-settings-trigger-clips"]');
+      await page.click('[data-testid="production-mix-settings-trigger"]');
       await page.waitForSelector('[data-testid="production-mix-settings-popin"]');
       await page.waitForSelector(".clip-lane .clip-block", { timeout: 30_000 });
       await page.locator(".clip-lane .clip-block").first().scrollIntoViewIfNeeded();

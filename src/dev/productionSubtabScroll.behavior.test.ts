@@ -24,7 +24,7 @@ describe("Production commune (#223, #230)", () => {
       const page=await browser.newPage({viewport:{width,height:720}});
       try {
         await page.goto(BASE,{waitUntil:"networkidle"});
-        await page.locator(".production-mix-toolbar [data-capture-export-trigger]").click();
+        await page.locator(".production-main-toolbar [data-capture-export-trigger]").click();
         const panel=page.getByRole("dialog");
         await panel.waitFor();
         const intersections=await page.evaluate(()=>{
@@ -132,7 +132,7 @@ describe("Production commune (#223, #230)", () => {
       await buttons.first().focus();
       await page.keyboard.press("ArrowRight");
       assert.equal(await buttons.nth(1).getAttribute("aria-pressed"), "true");
-      assert.equal(await buttons.nth(1).locator("span").last().innerText(),"Split");
+      assert.equal(await buttons.nth(1).locator("span").last().innerText(),"Split [C]");
       assert.equal(await buttons.nth(1).locator(".clip-edit-tool-check").innerText(),"✓");
       assert.equal(await buttons.nth(1).getAttribute("tabindex"),"0");
       assert.equal(await buttons.first().getAttribute("tabindex"),"-1");
@@ -146,6 +146,8 @@ describe("Production commune (#223, #230)", () => {
       await toolbar.scrollIntoViewIfNeeded();
       await buttons.nth(1).focus();
       await page.keyboard.press("End");
+      assert.equal(await buttons.nth(3).getAttribute("aria-pressed"), "true");
+      await page.keyboard.press("ArrowLeft");
       assert.equal(await buttons.nth(2).getAttribute("aria-pressed"), "true");
       const fade = page.locator(".clip-inspector input[type=number]").nth(3);
       await fade.fill("50");
@@ -218,7 +220,7 @@ describe("Production commune (#223, #230)", () => {
         assert.ok(Math.abs(rulerLine.x-clipLine.x)<=1);
         assert.ok(Math.abs(rulerLine.x-autoLine.x)<=1);
         const labelsBefore=await page.locator(".clip-ruler-tick").evaluateAll(elements=>elements.filter(el=>el.textContent?.trim()).length);
-        const zoom=page.locator(".clip-tool-zoom input");
+        const zoom=page.locator(".production-clip-view-zoom input");
         await zoom.focus();
         await zoom.press("End");
         await page.waitForFunction(count=>Array.from(document.querySelectorAll(".clip-ruler-tick")).filter(el=>el.textContent?.trim()).length>count,labelsBefore);
@@ -265,11 +267,11 @@ describe("Production commune (#223, #230)", () => {
       await page.locator(".clip-block").first().click();
       const start = page.locator(".clip-inspector .clip-field input").first();
       const oldValue = await start.inputValue();
-      const gain=page.locator('.track-gain-knob [role="slider"]').first();
-      const oldGain=await gain.getAttribute("aria-valuenow");
+      const gain=page.locator(".track-gain-slider input[type=\"range\"]").first();
+      const oldGain=await gain.inputValue();
       await gain.focus();
       await page.keyboard.press("ArrowRight");
-      assert.notEqual(await gain.getAttribute("aria-valuenow"),oldGain);
+      assert.notEqual(await gain.inputValue(),oldGain);
       assert.equal(await start.inputValue(),oldValue);
       await lanes.focus();
       await page.keyboard.press("ArrowRight");

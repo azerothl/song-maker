@@ -18,7 +18,7 @@ for (const locale of ["fr", "en"] as const) it(`missing Qwen model has a readabl
    (window as unknown as {__captureQwenMix:()=>never}).__captureQwenMix=()=>{throw new Error("MODEL_MISSING private diagnostic");};
   },locale);
   await page.goto("http://127.0.0.1:5231/production-capture.html#confortable-12",{waitUntil:"networkidle"});
-  const gain=page.locator(".track-gain-knob .mix-knob-value").first();
+  const gain=page.locator(".track-gain-knob .mix-knob-value, .track-gain-slider .mix-slider-value").first();
   const initial=await gain.innerText();
   await page.getByTestId("production-mix-settings-trigger").click();
   await page.getByRole("button",{name:locale==="fr"?"Assistant de mix":"Mix assistant",exact:true}).click();
@@ -41,7 +41,7 @@ it("Qwen settings require confirmation and can be undone; manual functions remai
     };
   });
   await page.goto("http://127.0.0.1:5231/production-capture.html#confortable-12",{waitUntil:"networkidle"});
-  const gain=page.locator(".track-gain-knob .mix-knob-value").first();
+  const gain=page.locator(".track-gain-knob .mix-knob-value, .track-gain-slider .mix-slider-value").first();
   const before=await gain.innerText();
   await page.getByTestId("production-mix-settings-trigger").click();
   // Reproduce the trigger height observed in the native seven-track project.
@@ -91,7 +91,7 @@ it("invalid local answers leave gains unchanged and disclose only a closed diagn
     };
   });
   await page.goto("http://127.0.0.1:5231/production-capture.html#confortable-12",{waitUntil:"networkidle"});
-  const gain=page.locator(".track-gain-knob .mix-knob-value").first();
+  const gain=page.locator(".track-gain-knob .mix-knob-value, .track-gain-slider .mix-slider-value").first();
   const before=await gain.innerText();
   await page.getByTestId("production-mix-settings-trigger").click();
   await page.getByRole("button",{name:"Mix assistant",exact:true}).click();
