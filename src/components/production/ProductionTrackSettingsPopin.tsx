@@ -11,6 +11,7 @@ import {
   getProductionClipSelection,
   subscribeProductionClipSelection,
 } from "../../lib/productionClipSelection";
+import { clipFadeErrorMessage } from "../../lib/clipFadeErrorMessage";
 import { applyClipFadeEdit } from "../../lib/mixClipFadeEdit";
 import {
   isTrackAutomationVisible,
@@ -92,7 +93,7 @@ export function ProductionTrackSettingsPopin({
       onMixChange(next);
       setFadeError(null);
     } catch (e) {
-      setFadeError(e instanceof Error ? e.message : String(e));
+      setFadeError(clipFadeErrorMessage(e));
     }
   };
 
@@ -216,6 +217,7 @@ export function ProductionTrackSettingsPopin({
                 min={0}
                 value={selectedClip.fadeOutMs}
                 aria-invalid={fadeError ? true : undefined}
+                aria-describedby={fadeError ? "production-fade-err" : undefined}
                 onChange={(e) => applyFade("fadeOutMs", e.target.value)}
               />
             </label>

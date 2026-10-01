@@ -1,4 +1,8 @@
 import type { TrackEffectSlot } from "@song-maker/mix-production";
+import {
+  formatProductionDb,
+  formatProductionDbPerOct,
+} from "../../lib/productionFormat";
 import { t } from "../../ui/i18n";
 
 const DELAY_DIV_OPTIONS = [
@@ -124,8 +128,9 @@ export function Phase3FxParamFields({
           </label>
           {grByEffect?.[fx.id] != null && (
             <p className="hint">
-              {t("phase3.mix.param.gainReduction")}:{" "}
-              <strong>−{grByEffect[fx.id]!.toFixed(1)} dB</strong>
+              {t("production.mix.param.gainReductionNamed", {
+                value: formatProductionDb(-grByEffect[fx.id]!),
+              })}
             </p>
           )}
         </>
@@ -252,8 +257,8 @@ export function Phase3FxParamFields({
                 updateEffectParam("slopeDbPerOct", Number(e.target.value))
               }
             >
-              <option value={12}>12 dB/oct</option>
-              <option value={24}>24 dB/oct</option>
+              <option value={12}>{formatProductionDbPerOct(12)}</option>
+              <option value={24}>{formatProductionDbPerOct(24)}</option>
             </select>
           </label>
         </>

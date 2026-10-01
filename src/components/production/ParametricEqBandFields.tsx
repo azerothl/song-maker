@@ -51,9 +51,7 @@ export function ParametricEqBandFields({ fx, updateEffectParam }: Props) {
                 updateEffectParam(`band${bi}Enabled`, e.target.checked)
               }
             />
-            <span>
-              {t("phase3.mix.param.band")} {bi + 1}
-            </span>
+            <span>{t("production.eq.bandNamed", { n: bi + 1 })}</span>
           </label>
           <label className="phase3-field">
             <span>{t("phase3.mix.param.curveType")}</span>
