@@ -1,4 +1,14 @@
 {
+  "production.tempo.flagNamed": "Tempo {bpm} BPM, {time}",
+  "production.arrangement.close": "Close",
+
+  "production.edit.title": "Clip editing",
+  "production.edit.select": "Select",
+  "production.edit.cut": "Cut",
+  "production.edit.fade": "Fade",
+  "production.edit.select.hint": "1: select and move. Edges trim the clip; the fields below accept values in ms.",
+  "production.edit.cut.hint": "2: click to cut. The cut button uses the playback position inside the clip, or its midpoint otherwise.",
+  "production.edit.fade.hint": "3: drag in the left or right half to adjust the fade. Fade fields also accept values in ms.",
   "mix.columns.tools": "Settings",
   "mix.importAudio": "Import audio track",
   "mix.importing": "Importing…",

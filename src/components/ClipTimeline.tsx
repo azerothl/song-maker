@@ -6,6 +6,7 @@ import {
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -43,6 +44,7 @@ import type {
 import { t, profileLocale } from "../ui/i18n";
 import type { ProductionClipViewPrefs } from "../lib/productionClipViewPrefs";
 import { DEFAULT_PRODUCTION_CLIP_VIEW_PREFS } from "../lib/productionClipViewPrefs";
+import { AnchoredPopin } from "./AnchoredPopin";
 
 const TIME_SNAP_MS = 50;
 const EDGE_PX = 6;
@@ -259,6 +261,11 @@ export function ClipTimeline({
     [rawMix, projectTempoBpm, projectMeter],
   );
   const editor = useMemo(() => createClipEditor(), []);
+  const [editTool, setEditTool] = useState<"select" | "cut" | "fade">("select");
+  const [arrangementOpen, setArrangementOpen] = useState<"tempo" | "markers" | null>(null);
+  const tempoAnchor = useRef<HTMLElement | null>(null);
+  const markerAnchor = useRef<HTMLElement | null>(null);
+  const arrangementId = useId();
   const [selected, setSelected] = useState<{
     trackId: string;
     clipId: string;
@@ -683,17 +690,19 @@ export function ClipTimeline({
     setCutAtMs(atMs);
     setSelectedMarkerId(null);
 
-    if (e.altKey) {
+    if (e.altKey || editTool === "cut") {
       e.preventDefault();
       applyEdit(track, {
         kind: "cut",
         clipId: clip.id,
-        atMs: Math.round(atMs),
+        atMs: Math.min(clip.startMs + clip.durationMs - 1, Math.max(clip.startMs + 1, Math.round(snap(atMs)))),
       });
       return;
     }
 
-    const kind: DragKind = zone === "body" ? "move" : zone;
+    const kind: DragKind = editTool === "fade" && zone === "body"
+      ? (localX < width / 2 ? "fade-in" : "fade-out")
+      : zone === "body" ? "move" : zone;
     dragRef.current = {
       kind,
       trackId: track.id,
@@ -748,6 +757,11 @@ export function ClipTimeline({
       target.isContentEditable;
 
     if (inField) return;
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && ["1", "2", "3"].includes(e.key)) {
+      e.preventDefault();
+      setEditTool(e.key === "1" ? "select" : e.key === "2" ? "cut" : "fade");
+      return;
+    }
 
     const scrollKeys = new Set([
       "ArrowUp",
@@ -779,6 +793,7 @@ export function ClipTimeline({
     if (!selected || !selectedClip) return;
     const track = mix.tracks.find((tr) => tr.id === selected.trackId);
     if (!track) return;
+    if (target.closest(".clip-marker-flag, .clip-tempo-flag, .clip-arrangement-bar, .clip-edit-toolbar")) return;
     const step = nudgeStep;
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       e.preventDefault();
@@ -797,7 +812,7 @@ export function ClipTimeline({
     if (!track) return;
     const mid =
       selectedClip.startMs + Math.floor(selectedClip.durationMs / 2);
-    let atMs = cutAtMs ?? mid;
+    let atMs = onSeek ? currentTimeMs : cutAtMs ?? mid;
     if (
       atMs <= selectedClip.startMs ||
       atMs >= selectedClip.startMs + selectedClip.durationMs
@@ -829,6 +844,7 @@ export function ClipTimeline({
 
   function jumpToMarker(marker: MixMarker) {
     setSelectedMarkerId(marker.id);
+    onSeek?.(marker.startMs / 1000);
     const scroller = railScrollRef.current;
     if (!scroller) return;
     const ratio = marker.startMs / timelineMs;
@@ -869,6 +885,24 @@ export function ClipTimeline({
         tabIndex={0}
         data-testid="production-clips-scroll"
       >
+      <div className="clip-edit-toolbar" role="toolbar" aria-label={t("production.edit.title")}
+        onKeyDown={event => {
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+          event.preventDefault(); event.stopPropagation();
+          const tools = ["select", "cut", "fade"] as const;
+          const index = tools.indexOf(editTool);
+          const next = event.key === "Home" ? 0 : event.key === "End" ? 2
+            : (index + (event.key === "ArrowLeft" ? 2 : 1)) % 3;
+          setEditTool(tools[next]);
+          event.currentTarget.querySelectorAll<HTMLButtonElement>("button")[next]?.focus();
+        }}>
+        {(["select", "cut", "fade"] as const).map((tool, index) => (
+          <button key={tool} type="button" className="btn" aria-pressed={editTool === tool}
+            tabIndex={editTool === tool ? 0 : -1} aria-keyshortcuts={String(index + 1)}
+            onClick={() => setEditTool(tool)}>{t(`production.edit.${tool}`)}</button>
+        ))}
+      </div>
+      <p className="hint" role="status">{t(`production.edit.${editTool}.hint`)}</p>
       <div className="clip-timeline-header">
         <h3>{t("clips.title")}</h3>
         <span className="hint">{t("clips.hint")}</span>
@@ -937,8 +971,20 @@ export function ClipTimeline({
       </div>
 
       <div className="clip-arrangement-bar">
+        <button type="button" className="btn" ref={tempoAnchor as React.RefObject<HTMLButtonElement | null>}
+          aria-haspopup="dialog" aria-expanded={arrangementOpen === "tempo"}
+          onClick={event => { tempoAnchor.current = event.currentTarget; setArrangementOpen("tempo"); }}>
+          {t("clips.tempoMap")}
+        </button>
+        <button type="button" className="btn" ref={markerAnchor as React.RefObject<HTMLButtonElement | null>}
+          aria-haspopup="dialog" aria-expanded={arrangementOpen === "markers"}
+          onClick={event => { markerAnchor.current = event.currentTarget; setArrangementOpen("markers"); }}>
+          {t("clips.markers")}
+        </button>
+        <AnchoredPopin open={arrangementOpen === "tempo"} onClose={() => setArrangementOpen(null)}
+          anchorRef={tempoAnchor} labelId={`${arrangementId}-tempo`}>
         <div className="clip-tempo-editor">
-          <strong>{t("clips.tempoMap")}</strong>
+          <strong id={`${arrangementId}-tempo`}>{t("clips.tempoMap")}</strong>
           <label>
             <span>{t("clips.tempoBpm")}</span>
             <input
@@ -990,10 +1036,14 @@ export function ClipTimeline({
             ))}
           </ul>
           <p className="hint">{t("clips.tempoHint")}</p>
+          <button type="button" className="btn" onClick={() => setArrangementOpen(null)}>{t("production.arrangement.close")}</button>
         </div>
+        </AnchoredPopin>
 
+        <AnchoredPopin open={arrangementOpen === "markers"} onClose={() => setArrangementOpen(null)}
+          anchorRef={markerAnchor} labelId={`${arrangementId}-markers`}>
         <div className="clip-marker-editor">
-          <strong>{t("clips.markers")}</strong>
+          <strong id={`${arrangementId}-markers`}>{t("clips.markers")}</strong>
           <label>
             <span>{t("clips.markerKind")}</span>
             <select
@@ -1021,7 +1071,7 @@ export function ClipTimeline({
           <button
             type="button"
             className="btn"
-            onClick={() => addMarkerAt(selectedClip?.startMs ?? 0)}
+            onClick={() => addMarkerAt(onSeek ? currentTimeMs : selectedClip?.startMs ?? 0)}
           >
             {t("clips.markerAdd")}
           </button>
@@ -1088,7 +1138,9 @@ export function ClipTimeline({
               </button>
             </div>
           )}
+          <button type="button" className="btn" onClick={() => setArrangementOpen(null)}>{t("production.arrangement.close")}</button>
         </div>
+        </AnchoredPopin>
       </div>
 
       {selected && selectedClip && (
@@ -1382,7 +1434,22 @@ export function ClipTimeline({
               ))}
             </div>
           </div>
-          <div className="clip-marker-lane">
+          <div className="clip-marker-lane clip-tempo-lane" role="group" aria-label={t("clips.tempoMap")}>
+            <span className="clip-lane-label">{t("clips.tempoMap")}</span>
+            <div className="clip-lane-rail clip-marker-rail">
+              {tempoMap.map(ev => (
+                <button type="button" key={ev.startMs} className="clip-tempo-flag"
+                  style={{ left: `${(ev.startMs / timelineMs) * 100}%`, transform: ev.startMs === 0 ? "none" : undefined }}
+                  aria-pressed={arrangementOpen === "tempo" && tempoAtDraft === ev.startMs}
+                  aria-label={t("production.tempo.flagNamed", { bpm: ev.quarterBpm, time: formatMs(ev.startMs) })}
+                  onClick={event => {
+                    tempoAnchor.current = event.currentTarget;
+                    setTempoAtDraft(ev.startMs); setTempoBpmDraft(ev.quarterBpm); setArrangementOpen("tempo");
+                  }}>♩ {ev.quarterBpm}</button>
+              ))}
+            </div>
+          </div>
+          <div className="clip-marker-lane" role="group" aria-label={t("clips.markers")}>
             <span className="clip-lane-label">{t("clips.markers")}</span>
             <div className="clip-lane-rail clip-marker-rail">
               {markers.map((m) => (
@@ -1394,25 +1461,24 @@ export function ClipTimeline({
                       ? "clip-marker-flag active"
                       : "clip-marker-flag"
                   }
-                  style={{ left: `${(m.startMs / timelineMs) * 100}%` }}
+                  style={{ left: `${(m.startMs / timelineMs) * 100}%`, transform: m.startMs === 0 ? "none" : undefined }}
                   title={`${m.name} · ${formatMs(m.startMs)}`}
-                  onClick={() => jumpToMarker(m)}
+                  aria-pressed={selectedMarkerId === m.id}
+                  onKeyDown={event => {
+                    if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+                    event.preventDefault(); event.stopPropagation();
+                    const startMs = snap(Math.max(0, m.startMs + (event.key === "ArrowLeft" ? -1 : 1) * nudgeStep));
+                    patchMix(upsertMixMarker(mix, { ...m, startMs }, {
+                      shiftClips: shiftClipsWithMarker, previousStartMs: m.startMs,
+                    }));
+                  }}
+                  onClick={event => {
+                    jumpToMarker(m); markerAnchor.current = event.currentTarget; setArrangementOpen("markers");
+                  }}
                 >
                   <span className="clip-marker-flag-label">{m.name}</span>
                 </button>
               ))}
-              {tempoMap
-                .filter((e) => e.startMs > 0)
-                .map((e) => (
-                  <span
-                    key={`tempo-${e.startMs}`}
-                    className="clip-tempo-flag"
-                    style={{ left: `${(e.startMs / timelineMs) * 100}%` }}
-                    title={`${e.quarterBpm} BPM`}
-                  >
-                    {e.quarterBpm}
-                  </span>
-                ))}
             </div>
           </div>
           {mix.tracks.map((tr) => {
@@ -1454,6 +1520,7 @@ export function ClipTimeline({
                       <div
                         key={clip.id}
                         role="button"
+                        aria-pressed={active}
                         tabIndex={0}
                         className={[
                           "clip-block",
