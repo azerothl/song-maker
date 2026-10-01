@@ -8,7 +8,8 @@ import {
 } from "../dev/captureViteServer.ts";
 import type { ViteDevServer } from "vite";
 
-const PORT = 5198;
+/** Port distinct de `profileSelectorCollapsed.behavior` (5198) pour éviter les collisions en parallèle. */
+const PORT = 5219;
 const BASE = captureBaseUrl(PORT, "score-tab-bench.html");
 const IT_TIMEOUT_MS = 120_000;
 
@@ -103,6 +104,33 @@ describe("piano roll focus (virtualisation)", () => {
           return await api.probePianoRollFocusNotStolenOnScroll(api.referenceDoc);
         });
         assert.equal(probe.focusOnRoll, true, JSON.stringify(probe));
+      });
+    },
+  );
+
+  it(
+    "blur : focus mémorisé relâché ; pas de data-piano-* en production",
+    { timeout: IT_TIMEOUT_MS },
+    async () => {
+      activeServer = await startCaptureViteServer(PORT);
+      await waitServer(BASE);
+      await withPage(async (page) => {
+        await page.goto(BASE, { waitUntil: "networkidle" });
+        const probe = await page.evaluate(async () => {
+          const api = window.__scoreTabBench;
+          if (!api) throw new Error("bench API missing");
+          return await api.probePianoFocusedNoteReleasedOnBlur(api.referenceDoc);
+        });
+        assert.equal(
+          probe.noteStillMountedAfterBlurScroll,
+          false,
+          JSON.stringify(probe),
+        );
+        assert.equal(
+          probe.hasProductionDataPianoAttrs,
+          false,
+          JSON.stringify(probe),
+        );
       });
     },
   );
