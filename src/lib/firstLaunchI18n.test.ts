@@ -94,7 +94,8 @@ describe("firstLaunch i18n (#202 / #221)", () => {
   it("English remainingAfterResume with invalid ETA (#221)", () => {
     localStorage.setItem(LOCALE_KEY, "en");
     const line = remainingAfterResumeLabel(null, true);
-    assert.match(line, /left after resume/);
+    assert.equal(line, "Estimated once download speed is known");
+    assert.doesNotMatch(line, /left after resume/);
     assert.match(line, /Estimated once download speed is known/);
     assert.doesNotMatch(line, /Reste|après reprise|Estimation|dès que/i);
   });

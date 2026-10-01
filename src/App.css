@@ -3664,6 +3664,10 @@ details[open] > summary {
 }
 
 @media (max-width: 980px) {
+  .fl-card-download > .fl-foot.fl-row-actions {
+    align-items: stretch;
+  }
+
   .fl-grid,
   .fl-alts,
   .fl-file {

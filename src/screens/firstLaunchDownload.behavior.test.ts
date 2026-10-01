@@ -104,8 +104,8 @@ describe("first-launch download UI (#202)", { concurrency: 1 }, () => {
 
   before(async () => {
     proc = spawn(
-      "pnpm",
-      ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],
+    process.execPath,
+    [path.join(ROOT, "node_modules/vite/bin/vite.js"), "--host", "127.0.0.1", "--port", String(PORT), "--strictPort"],
       {
         cwd: ROOT,
         env: { ...process.env, VITE_CAPTURE: "1" },
@@ -119,6 +119,24 @@ describe("first-launch download UI (#202)", { concurrency: 1 }, () => {
   after(async () => {
     await browser?.close();
     proc?.kill("SIGTERM");
+  });
+
+  it("640 px: download footer buttons stretch to the available width (#237)", async () => {
+    const page = await browser!.newPage({ viewport: { width: 640, height: 720 } });
+    try {
+      await page.goto(`${BASE}#c`, { waitUntil: "networkidle" });
+      await page.getByTestId("fl-resume-download").waitFor();
+      const geometry = await page.locator(".fl-card-download > .fl-foot.fl-row-actions").evaluate(footer => {
+        const rect = footer.getBoundingClientRect();
+        const style = getComputedStyle(footer);
+        const available = rect.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+          - parseFloat(style.borderLeftWidth) - parseFloat(style.borderRightWidth);
+        return { available, buttons: Array.from(footer.querySelectorAll(":scope > button")).map(button => button.getBoundingClientRect().width) };
+      });
+      assert.ok(geometry.buttons.length >= 2);
+      for (const width of geometry.buttons) assert.ok(Math.abs(width - geometry.available) < 1,
+        `button ${width}px, footer content ${geometry.available}px`);
+    } finally { await page.close(); }
   });
 
   for (let run = 0; run < 3; run += 1) {

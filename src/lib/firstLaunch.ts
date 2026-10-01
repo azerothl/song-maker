@@ -609,6 +609,9 @@ export function remainingAfterResumeLabel(
   etaSeconds: number | null | undefined,
   etaIsEstimate: boolean,
 ): string {
+  if (etaSeconds == null || !Number.isFinite(etaSeconds) || etaSeconds < 0) {
+    return formatEtaFr(etaSeconds, etaIsEstimate);
+  }
   return t("firstLaunch.status.remainingAfterResume", {
     eta: formatEtaFr(etaSeconds, etaIsEstimate),
   });
