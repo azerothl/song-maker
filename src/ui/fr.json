@@ -656,6 +656,8 @@
   "score.staff.renderFailed": "abcjs n’a produit aucune portée.",
   "score.staff.emptyAbc": "ABC vide — rien à afficher sur la portée.",
   "score.staff.composing": "Composition de la portée…",
+  "score.staff.loading": "Chargement de la portée…",
+  "score.staff.loadingRegion": "Portée en cours de chargement",
   "score.staff.followPlayback": "Suivre la lecture",
   "score.staff.renderIssueSummaryOne": "1 mesure n'a pas pu être affichée. Le son n'est pas affecté.",
   "score.staff.renderIssuesSummary": "{count} mesures n'ont pas pu être affichées. Le son n'est pas affecté.",
