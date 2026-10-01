@@ -15,6 +15,7 @@ import {
   fileMeta,
   formatBytesFr,
   formatEtaFr,
+  formatDownloadPercent,
   formatRateFr,
   formatVramGo,
   gpuDetailLine,
@@ -54,6 +55,17 @@ afterEach(() => {
 });
 
 describe("firstLaunch i18n (#202 / #221)", () => {
+  it("EN HTTP/other errors keep backend text out of the translated explanation (#237)", () => {
+    localStorage.setItem(LOCALE_KEY, "en");
+    for (const cause of ["http", "other"] as const) {
+      const copy=installErrorCopy({message:"Erreur du téléchargement serveur en français",cause});
+      assert.doesNotMatch(copy.body,/Erreur du téléchargement/);
+      assert.match(copy.body,/download|error/i);
+    }
+    assert.equal(formatDownloadPercent(20),"20%");
+    localStorage.setItem(LOCALE_KEY,"fr");
+    assert.match(formatDownloadPercent(20),/^20\s%$/);
+  });
   it("FR and EN share the same firstLaunch key set", () => {
     const enKeys = Object.keys(enProfiles).filter((k) => k.startsWith("firstLaunch."));
     assert.deepEqual(enKeys.sort(), FIRST_LAUNCH_KEYS.sort());
