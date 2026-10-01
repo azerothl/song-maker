@@ -7,7 +7,7 @@ import type {
   MixBakeWorkerResponse,
 } from "./mixBake.worker";
 
-let worker: Worker | null = null;
+const activeCancellations = new Set<() => void>();
 let nextJobId = 1;
 
 export type MixBakeAsyncJob = {
@@ -31,15 +31,6 @@ export function setMixBakeAsyncTestDelegate(
   bakeAsyncTestDelegate = delegate;
 }
 
-function ensureWorker(): Worker {
-  if (!worker) {
-    worker = new Worker(new URL("./mixBake.worker.ts", import.meta.url), {
-      type: "module",
-    });
-  }
-  return worker;
-}
-
 /** Bake mix PCM off the main thread (Web Worker). */
 export function bakeMixPcmAsync(
   mix: MixDoc,
@@ -60,18 +51,30 @@ function bakeMixPcmAsyncImpl(
   tempoBpm: number | null,
 ): MixBakeAsyncJob {
   const id = nextJobId++;
-  let cancelled = false;
-  const w = ensureWorker();
+  // Each job owns its worker: terminating a superseded render must not cancel
+  // an independent render, or leave synchronous DSP queued ahead of the next mix.
+  const w = new Worker(new URL("./mixBake.worker.ts", import.meta.url), {
+    type: "module",
+  });
+  let cancel = () => {};
 
   const result = new Promise<MixRenderResult>((resolve, reject) => {
-    const onMessage = (ev: MessageEvent<MixBakeWorkerResponse>) => {
-      if (ev.data.id !== id) return;
+    let settled = false;
+    const cleanup = () => {
+      settled = true;
       w.removeEventListener("message", onMessage);
       w.removeEventListener("error", onError);
-      if (cancelled) {
-        reject(new Error("Mix bake annulé."));
-        return;
-      }
+      activeCancellations.delete(cancel);
+      w.terminate();
+    };
+    cancel = () => {
+      if (settled) return;
+      cleanup();
+      reject(new DOMException("Mix bake annulé.", "AbortError"));
+    };
+    const onMessage = (ev: MessageEvent<MixBakeWorkerResponse>) => {
+      if (settled || ev.data.id !== id) return;
+      cleanup();
       if (!ev.data.ok) {
         reject(new Error(ev.data.error));
         return;
@@ -91,12 +94,13 @@ function bakeMixPcmAsyncImpl(
       });
     };
     const onError = (err: ErrorEvent) => {
-      w.removeEventListener("message", onMessage);
-      w.removeEventListener("error", onError);
+      if (settled) return;
+      cleanup();
       reject(err.error ?? new Error(err.message));
     };
     w.addEventListener("message", onMessage);
     w.addEventListener("error", onError);
+    activeCancellations.add(cancel);
 
     const payload: MixBakeWorkerRequest = {
       id,
@@ -105,18 +109,20 @@ function bakeMixPcmAsyncImpl(
       overlay,
       tempoBpm,
     };
-    w.postMessage(payload);
+    try {
+      w.postMessage(payload);
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
   });
 
   return {
-    cancel: () => {
-      cancelled = true;
-    },
+    cancel,
     result,
   };
 }
 
 export function disposeMixBakeWorker(): void {
-  worker?.terminate();
-  worker = null;
+  for (const cancel of activeCancellations) cancel();
 }
