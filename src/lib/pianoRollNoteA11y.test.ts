@@ -68,10 +68,12 @@ describe("piano roll note a11y (#246)", () => {
     );
   });
 
-  it("PianoRoll wires aria-label, aria-selected, Enter/Space, ≥44px", () => {
+  it("PianoRoll wires aria-label, aria-pressed, Enter/Space, ≥44px", () => {
     const src = readFileSync(path.join(root, "src/components/PianoRoll.tsx"), "utf8");
     assert.match(src, /aria-label=\{t\("score\.piano\.noteAria"/);
-    assert.match(src, /aria-selected=\{selected\}/);
+    // Bouton : aria-pressed (pas aria-selected — rôle option/gridcell).
+    assert.match(src, /aria-pressed=\{selected\}/);
+    assert.doesNotMatch(src, /aria-selected=\{selected\}/);
     assert.match(src, /NOTE_HIT_PX = 44/);
     assert.match(src, /e\.key !== "Enter" && e\.key !== " "/);
     assert.match(src, /selectNote\(noteId, pitch\)/);
