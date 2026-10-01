@@ -25,7 +25,7 @@ Au **premier lancement**, un écran d’assistant dédié vérifie GPU / composa
 
 Song Maker propose aussi les mises à jour au démarrage (depuis la version **0.1.1**). Les versions antérieures doivent d’abord être mises à jour manuellement depuis les Releases. Détails : [`docs/auto-updates.md`](docs/auto-updates.md).
 
-Sur Windows, l’installeur n’est pas encore signé Authenticode ; Windows peut afficher SmartScreen. Sur macOS, le binaire n’est pas notarié : autoriser l’app dans Réglages Système → Confidentialité et sécurité au premier lancement.
+Les installeurs Windows déjà publiés ne sont pas signés Authenticode. Pour les prochaines releases, le workflow exige la configuration Microsoft Artifact Signing et bloque le build Windows si elle manque ; voir le [guide de signature Windows](docs/windows-code-signing.md). SmartScreen peut encore afficher un avertissement sur les premières versions signées. Sur macOS, le binaire n’est pas notarié : autoriser l’app dans Réglages Système → Confidentialité et sécurité au premier lancement.
 
 ## Ce qui est livré aujourd’hui
 
@@ -85,7 +85,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Entraînement LoRA NAR | Pilote (format / chargement) — pas un entraînement YuE2 officiel complet |
 | Capture basse latence | Chemin WebView (pas ASIO / WASAPI exclusif) |
 | Licences modèles | YuE2 & SheetSage2 : **CC BY-NC 4.0** — usage commercial des poids restreint |
-| Signature Windows / notarisation macOS | Pas encore |
+| Signature Windows / notarisation macOS | Workflow Windows configuré, signature réelle à valider avec Azure ; macOS non notarié |
 | UI app bilingue | Non — français seul ; le site marketing est FR/EN |
 
 ## Stack
