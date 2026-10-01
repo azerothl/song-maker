@@ -1,14 +1,14 @@
 import {
   convertFileSrc,
 } from "@tauri-apps/api/core";
+import type { MixProductionToolkit, MixRenderResult } from "@song-maker/mix-production";
+import type { MixDoc, PlaybackSources } from "./types";
 import {
-  placeClipsOnTimeline,
-  renderMixOffline,
-  resolveClipStretchRatio,
-  type MixProductionToolkit,
-  type MixRenderResult,
-} from "@song-maker/mix-production";
-import type { MixClip, MixDoc, PlaybackSources } from "./types";
+  bakeMixPcmCore,
+  mixNeedsClipProcessingBakeCore,
+  type DecodedStem,
+  type MixBakeRouting,
+} from "./mixBakeCore";
 import {
   getProductionOverlay,
   getProductionTempoBpm,
@@ -16,61 +16,11 @@ import {
   productionIsActive,
 } from "./productionState";
 
-export type DecodedStem = {
-  trackId: string;
-  left: Float32Array;
-  right: Float32Array;
-  sampleRate: number;
-};
+export type { DecodedStem };
 
 /** True when clip placement needs the offline bake path (stretch / takes). */
 export function mixNeedsClipProcessingBake(mix: MixDoc | null | undefined): boolean {
-  if (!mix) return false;
-  const projectTempo =
-    mix.tempoMap?.[0]?.quarterBpm ?? getProductionTempoBpm();
-  for (const track of mix.tracks) {
-    for (const c of track.clips) {
-      if (c.takeActive === false) return true;
-      if (c.processingEnabled === false) continue;
-      const stretch = resolveClipStretchRatio({
-        ...(c.processingEnabled !== undefined
-          ? { processingEnabled: c.processingEnabled }
-          : {}),
-        ...(c.followProjectTempo !== undefined
-          ? { followProjectTempo: c.followProjectTempo }
-          : {}),
-        ...(c.sourceTempoBpm !== undefined
-          ? { sourceTempoBpm: c.sourceTempoBpm }
-          : {}),
-        ...(projectTempo !== undefined
-          ? { projectTempoBpm: projectTempo }
-          : {}),
-        ...(c.timeStretchRatio !== undefined
-          ? { timeStretchRatio: c.timeStretchRatio }
-          : {}),
-      });
-      if (Math.abs(stretch - 1) >= 1e-4) return true;
-      if (Math.abs(c.pitchSemitones ?? 0) >= 1e-4) return true;
-    }
-  }
-  return false;
-}
-
-function clipPlacementFromMix(c: MixClip) {
-  return {
-    startMs: c.startMs,
-    offsetMs: c.offsetMs,
-    durationMs: c.durationMs,
-    fadeInMs: c.fadeInMs,
-    fadeOutMs: c.fadeOutMs,
-    gainDb: c.gainDb,
-    takeActive: c.takeActive,
-    processingEnabled: c.processingEnabled,
-    followProjectTempo: c.followProjectTempo,
-    sourceTempoBpm: c.sourceTempoBpm,
-    timeStretchRatio: c.timeStretchRatio,
-    pitchSemitones: c.pitchSemitones,
-  };
+  return mixNeedsClipProcessingBakeCore(mix, getProductionTempoBpm());
 }
 
 async function decodeStemFile(
@@ -120,6 +70,15 @@ export async function decodeMixStems(
   }
 }
 
+function routingFromOverlay(): MixBakeRouting {
+  const overlay = getProductionOverlay();
+  return {
+    buses: overlay?.buses,
+    sends: overlay?.sends,
+    trackGroupIds: overlay?.trackGroupIds,
+  };
+}
+
 /**
  * Shared bake: place clips → production DSP → §10.5 sum.
  * Used by Web Audio playback (baked buffer) and offline export.
@@ -130,56 +89,10 @@ export function bakeMixPcm(
   toolkit: MixProductionToolkit = getProductionToolkit(),
   options?: { tempoBpm?: number | null },
 ): MixRenderResult {
-  const sampleRate = mix.sampleRate || stems[0]?.sampleRate || 48000;
-  const byId = new Map(stems.map((s) => [s.trackId, s]));
-  const tracks = mix.tracks.map((track) => {
-    const src = byId.get(track.id);
-    const empty = new Float32Array(1);
-    const left = src?.left ?? empty;
-    const right = src?.right ?? empty;
-    const clips =
-      track.clips.length > 0
-        ? track.clips.map((c) => clipPlacementFromMix(c))
-        : [
-            {
-              startMs: 0,
-              offsetMs: 0,
-              durationMs: Math.round((left.length / sampleRate) * 1000),
-              fadeInMs: 0,
-              fadeOutMs: 0,
-              gainDb: 0,
-            },
-          ];
-    const placed = placeClipsOnTimeline(left, right, clips, sampleRate, {
-      projectTempoBpm:
-        options?.tempoBpm ??
-        mix.tempoMap?.[0]?.quarterBpm ??
-        getProductionTempoBpm(),
-    });
-    return {
-      trackId: track.id,
-      left: placed.left,
-      right: placed.right,
-      gainDb: track.gainDb,
-      pan: track.pan,
-      mute: track.mute,
-      solo: track.solo,
-    };
-  });
-
-  return renderMixOffline({
-    mixId: mix.id,
-    sampleRate,
-    masterGainDb: mix.masterGainDb,
-    peakCeilingDb: mix.peakCeilingDb,
-    tracks,
-    automation: toolkit.automation,
-    effects: toolkit.effects,
-    sidechain: toolkit.sidechain,
-    tempoBpm: options?.tempoBpm ?? getProductionTempoBpm(),
-    buses: getProductionOverlay()?.buses,
-    sends: getProductionOverlay()?.sends,
-    trackGroupIds: getProductionOverlay()?.trackGroupIds,
+  const tempo = options?.tempoBpm ?? getProductionTempoBpm();
+  return bakeMixPcmCore(mix, stems, toolkit, routingFromOverlay(), {
+    tempoBpm: tempo,
+    projectTempoBpm: tempo,
   });
 }
 

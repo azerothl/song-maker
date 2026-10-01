@@ -3,6 +3,7 @@ import type { MixDoc, PlaybackSources } from "../lib/types";
 import { MixPlaybackEngine, type PlaybackSnapshot } from "../lib/playback";
 import { subscribeProduction } from "../lib/productionState";
 import { t } from "../ui/i18n";
+import { MixBakeStatusIndicator } from "./MixBakeStatusIndicator";
 import { Waveform } from "./Waveform";
 
 function formatTime(seconds: number): string {
@@ -23,6 +24,8 @@ export type PlaybackView = {
   playing: boolean;
   loading: boolean;
   ready: boolean;
+  mixBakePending: boolean;
+  mixBakeFailed: boolean;
 };
 
 type Props = {
@@ -31,6 +34,8 @@ type Props = {
   mix: MixDoc | null;
   /** Vue split : le master porte lecture et temps (#132). */
   delegateTransport?: boolean;
+  /** Onglet Production : indicateur porté par ProductionWorkspace. */
+  hideMixBakeStatus?: boolean;
   onError?: (message: string) => void;
   onPlaybackChange?: (view: PlaybackView | null) => void;
 };
@@ -46,6 +51,8 @@ const emptySnap: PlaybackSnapshot = {
   peaks: [],
   mixPeaks: null,
   productionBake: false,
+  productionMixBakePending: false,
+  productionMixBakeFailed: false,
 };
 
 function sourcesKey(sources: PlaybackSources | null): string {
@@ -60,6 +67,7 @@ export function AudioPlayer({
   sources,
   mix,
   delegateTransport = false,
+  hideMixBakeStatus = false,
   onError,
   onPlaybackChange,
 }: Props) {
@@ -94,6 +102,8 @@ export function AudioPlayer({
         playing: next.playing,
         loading: next.loading,
         ready: next.ready,
+        mixBakePending: next.productionMixBakePending,
+        mixBakeFailed: next.productionMixBakeFailed,
       });
     });
   }, [engine]);
@@ -163,6 +173,13 @@ export function AudioPlayer({
           : "player-block"
       }
     >
+      {!delegateTransport && !hideMixBakeStatus && (
+        <MixBakeStatusIndicator
+          pending={snap.productionMixBakePending}
+          failed={snap.productionMixBakeFailed}
+        />
+      )}
+
       {(showMixWave || showStereoWave) && (
         <Waveform
           peaks={snap.mixPeaks}

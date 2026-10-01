@@ -681,6 +681,7 @@ export function SongScreen() {
             sources={playbackSources}
             mix={listeningMix}
             delegateTransport={splitTransport}
+            hideMixBakeStatus={workspace === "production"}
             onError={setError}
             onPlaybackChange={setPlayback}
           />

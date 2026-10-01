@@ -141,5 +141,8 @@
   "firstLaunch.error.other.body": "{message} {receivedHint}",
   "firstLaunch.error.other.messageFallback": "An error occurred.",
   "firstLaunch.error.other.step1": "Check the connection and disk space.",
-  "firstLaunch.error.other.step2": "Click “Resume download”."
+  "firstLaunch.error.other.step2": "Click “Resume download”.",
+  "player.mixBakePending": "Rendering mix…",
+  "player.mixBakeDone": "Mix updated",
+  "player.mixBakeFailed": "Mix rendering failed."
 }

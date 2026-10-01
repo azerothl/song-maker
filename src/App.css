@@ -4310,6 +4310,28 @@ details[open] > summary {
   gap: 0.65rem;
 }
 
+.player-mix-bake-status-slot {
+  flex: 0 0 auto;
+  min-height: 1.35rem;
+  max-width: 22rem;
+}
+
+.player-mix-bake-status {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.35;
+  min-height: 1.35rem;
+}
+
+.player-mix-bake-status-slot .player-mix-bake-status[role="alert"] {
+  color: var(--danger, #c44);
+}
+
+.production-mix-bake-chrome {
+  margin: 0.15rem 0 0.35rem;
+}
+
 .waveform {
   display: flex;
   gap: 0.5rem;

@@ -14,6 +14,8 @@ describe("parseCaptureHash", () => {
       recordOpen: false,
       actionsDrawerOpen: false,
       mixToolbar44Variant: false,
+      mixBakeIndicator: false,
+      mixBakeIndicatorCycle: false,
     });
     assert.deepEqual(parseCaptureHash("16,compact,collapsed"), {
       trackCount: 16,
@@ -25,6 +27,8 @@ describe("parseCaptureHash", () => {
       recordOpen: false,
       actionsDrawerOpen: false,
       mixToolbar44Variant: false,
+      mixBakeIndicator: false,
+      mixBakeIndicatorCycle: false,
     });
     assert.deepEqual(parseCaptureHash("confortable"), {
       trackCount: 12,
@@ -36,6 +40,8 @@ describe("parseCaptureHash", () => {
       recordOpen: false,
       actionsDrawerOpen: false,
       mixToolbar44Variant: false,
+      mixBakeIndicator: false,
+      mixBakeIndicatorCycle: false,
     });
     assert.equal(parseCaptureHash("16,auto,midplay").midPlayback, true);
     assert.equal(parseCaptureHash("16,auto,midplay").progressRatio, 0.5);
@@ -62,5 +68,10 @@ describe("parseCaptureHash", () => {
       parseCaptureHash("6,auto,actions-open,mix-toolbar-44").mixToolbar44Variant,
       true,
     );
+  });
+
+  it("résout l’indicateur rebake mix pour captures (#234)", () => {
+    assert.equal(parseCaptureHash("mixbake-indicator").mixBakeIndicator, true);
+    assert.equal(parseCaptureHash("mixbake-cycle").mixBakeIndicatorCycle, true);
   });
 });

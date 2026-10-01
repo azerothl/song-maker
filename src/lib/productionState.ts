@@ -9,6 +9,7 @@ import {
   type SidechainRoute,
   type TrackEffectSlot,
 } from "@song-maker/mix-production";
+import { createToolkitFromProductionOverlay } from "./productionToolkitSnapshot";
 
 const STORAGE_PREFIX = "song-maker:production:";
 const OVERLAY_UNDO_CAP = 100;
@@ -377,48 +378,7 @@ export function loadProductionOverlay(mixId: string): ProductionOverlay | null {
 }
 
 function rebuildToolkit() {
-  toolkit = createMixProductionToolkit();
-  if (!overlay) return;
-  const mixId = overlay.mixId;
-
-  for (const [trackId, points] of Object.entries(overlay.volumePointsByTrack)) {
-    if (points.length === 0) continue;
-    toolkit.automation.setLane(mixId, {
-      trackId,
-      target: "volume",
-      points,
-    });
-  }
-
-  for (const [trackId, points] of Object.entries(overlay.panPointsByTrack)) {
-    if (points.length === 0) continue;
-    toolkit.automation.setLane(mixId, {
-      trackId,
-      target: "pan",
-      points,
-    });
-  }
-
-  for (const [key, points] of Object.entries(overlay.automationLanes)) {
-    if (points.length === 0) continue;
-    const sep = key.indexOf("|");
-    if (sep <= 0) continue;
-    const trackId = key.slice(0, sep);
-    const target = key.slice(sep + 1);
-    toolkit.automation.setLane(mixId, { trackId, target, points });
-  }
-
-  for (const [trackId, effects] of Object.entries(overlay.effectsByTrack)) {
-    for (const slot of effects) {
-      if (!isUiEffectKind(slot.kind)) continue;
-      toolkit.effects.insert(trackId, slot);
-    }
-  }
-
-  for (const route of overlay.sidechainRoutes) {
-    if (route.sourceTrackId === route.destinationTrackId) continue;
-    toolkit.sidechain.upsert(mixId, route);
-  }
+  toolkit = createToolkitFromProductionOverlay(overlay);
 }
 
 export function getProductionToolkit(): MixProductionToolkit {
