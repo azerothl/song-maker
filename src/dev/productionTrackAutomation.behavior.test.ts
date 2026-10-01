@@ -25,8 +25,8 @@ for(const [locale,width] of [["fr",1280],["en",640]] as const) {
       await page.keyboard.press("ArrowUp");
       await page.keyboard.press("ArrowRight");
       const inputs=editor.locator(".production-auto-points li input");
-      assert.equal(await inputs.nth(0).inputValue(),"50");
-      assert.equal(await inputs.nth(1).inputValue(),"0.5");
+      assert.equal(await inputs.nth(0).inputValue(),"125");
+      assert.equal(Number(await inputs.nth(1).inputValue()),1.8);
       await inputs.nth(1).fill("-100");
       assert.equal(await inputs.nth(1).inputValue(),"-24");
       const sampled = await page.evaluate(async () => {
@@ -34,14 +34,40 @@ for(const [locale,width] of [["fr",1280],["en",640]] as const) {
         const state = await import(/* @vite-ignore */ modulePath);
         const overlay = state.getProductionOverlay();
         const track = Object.keys(overlay.volumePointsByTrack)[0];
-        return state.getProductionToolkit().automation.sampleAt(overlay.mixId,track,"volume",50);
+        return state.getProductionToolkit().automation.sampleAt(overlay.mixId,track,"volume",125);
       });
       assert.equal(sampled,-24);
+      assert.equal(await point.getAttribute("role"),"slider");
+      assert.match(await point.getAttribute("aria-valuetext") ?? "",/125/);
+      const position=editor.locator('input[type="number"]').last();
+      await position.fill("1125");
+      await editor.getByRole("button",{name:locale === "en" ? "Add at this position" : "Ajouter à cette position",exact:true}).click();
+      assert.equal(await editor.locator(".production-auto-point").count(),2);
+      assert.equal(Number(await editor.locator(".production-auto-points li input").nth(3).inputValue()),-24);
+      await page.keyboard.press("Home");
+      assert.equal(await point.evaluate(el=>el===document.activeElement),true);
+      await page.keyboard.press("End");
+      assert.equal(await editor.locator(".production-auto-point").last().evaluate(el=>el===document.activeElement),true);
+      await page.keyboard.press("Delete");
+      assert.equal(await editor.locator(".production-auto-point").count(),1);
       const clear=locale === "en" ? "Clear curve" : "Effacer la courbe";
       await editor.getByRole("button",{name:clear,exact:true}).click();
       assert.equal(await editor.locator(".production-auto-point").count(),0);
       await editor.getByRole("button",{name:locale === "en" ? "Restore curve" : "Rétablir la courbe",exact:true}).click();
       assert.equal(await editor.locator(".production-auto-point").count(),1);
+      const curve=editor.locator(".production-auto-curve");
+      await curve.scrollIntoViewIfNeeded();
+      const bounds=await curve.boundingBox();
+      assert.ok(bounds);
+      const beforeDrag=await inputs.nth(0).inputValue();
+      await page.mouse.move(bounds.x+1,bounds.y+bounds.height-1);
+      await page.mouse.down();
+      await page.mouse.move(bounds.x+bounds.width/3,bounds.y+bounds.height/2);
+      await page.keyboard.press("Escape");
+      await page.mouse.up();
+      assert.equal(await editor.locator(".production-auto-point").count(),1);
+      assert.equal(await inputs.nth(0).inputValue(),beforeDrag);
+      assert.equal(await inputs.nth(1).inputValue(),"-24");
       await editor.locator("select").selectOption("pan");
       assert.equal(await editor.locator(".production-auto-point").count(),0);
       await editor.getByRole("button",{name:addPlayback,exact:true}).click();
@@ -53,6 +79,9 @@ for(const [locale,width] of [["fr",1280],["en",640]] as const) {
       await page.reload({waitUntil:"networkidle"});
       await page.locator(".production-track-automation").first().waitFor();
       assert.equal(await page.locator(".production-auto-points li input").nth(1).inputValue(),"-24");
+      await page.locator(".production-track-automation").first().getByRole("button",{name:/Replier|Collapse/}).click();
+      assert.equal(await page.locator(".production-track-automation").count(),0);
+      await page.waitForFunction(()=>document.activeElement?.classList.contains("production-track-tools-btn"));
     } finally {await page.close();}
   });
 }

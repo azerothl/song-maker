@@ -1271,6 +1271,9 @@ option {
 }
 
 .production-track-automation input { width: 6rem; }
+.production-auto-controls { border: 0; padding: 0; min-width: 0; }
+.production-auto-controls:disabled .production-auto-curve { opacity: 0.5; cursor: not-allowed; }
+.production-auto-point:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 2px; box-shadow: 0 0 0 4px var(--bg2); }
 .production-track-automation .btn,
 .production-track-automation input,
 .production-track-automation select { min-height: 44px; }
