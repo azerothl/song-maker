@@ -4,6 +4,8 @@
 
 ```bash
 pnpm bench:score-tab
+# ou probe issue #231 (JSON sur stdout uniquement) :
+pnpm bench:score-open
 ```
 
 Prérequis : Chromium Playwright (`pnpm exec playwright install chromium` une fois).

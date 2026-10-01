@@ -120,6 +120,14 @@ export function ScorePanel({
     return buildStaffAbc(document, title || undefined);
   }, [document, title]);
 
+  const staffBarDurationSeconds = useMemo(() => {
+    if (!document) return undefined;
+    const quarterBpm = document.tempoMap[0]?.quarterBpm;
+    const ts = document.timeSignatures[0];
+    if (!quarterBpm || !ts?.numerator || !ts.denominator) return undefined;
+    return ((ts.numerator * 4) / ts.denominator) * (60 / quarterBpm);
+  }, [document]);
+
   async function persist(doc: ScoreDocument) {
     setBusy(true);
     onError(null);
@@ -411,6 +419,8 @@ export function ScorePanel({
                   playbackSeconds={playbackSeconds}
                   playbackReady={playbackReady}
                   onSeek={onSeekPlayback}
+                  fallbackBarDurationSeconds={staffBarDurationSeconds}
+                  abcPrepared
                 />
               ) : (
                 <div className="score-staff-fallback">

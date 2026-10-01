@@ -123,9 +123,9 @@ async function measureScorePanelOpen(
   title: string,
 ): Promise<BenchRunResult> {
   const phases: BenchPhaseResult[] = [];
-  const openStart = performance.now();
-  const staffBuilt = buildStaffAbc(scoreDoc, title);
   const stats = referenceScoreStats(scoreDoc);
+  const staffBuilt = buildStaffAbc(scoreDoc, title);
+  const openStart = performance.now();
 
   const container = document.getElementById("bench-score-panel-root");
   if (!container) {
