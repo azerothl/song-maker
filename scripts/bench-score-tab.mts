@@ -72,6 +72,13 @@ async function main() {
     const page = await browser.newPage();
 
     await page.goto(baseUrl, { waitUntil: "networkidle" });
+    await page.waitForFunction(
+      () =>
+        typeof (window as Window & { __scoreTabBench?: unknown })
+          .__scoreTabBench !== "undefined",
+      undefined,
+      { timeout: 45_000 },
+    );
 
     const micro = await page.evaluate(async () => {
       const api = window.__scoreTabBench;
@@ -140,8 +147,10 @@ async function main() {
       staffToPianoLong: staffToPianoLong,
     };
 
-    mkdirSync(outDir, { recursive: true });
-    writeFileSync(outFile, JSON.stringify(report, null, 2));
+    if (!process.env.BENCH_SKIP_WRITE) {
+      mkdirSync(outDir, { recursive: true });
+      writeFileSync(outFile, JSON.stringify(report, null, 2));
+    }
     console.log(JSON.stringify(report, null, 2));
   } finally {
     vite.kill("SIGTERM");

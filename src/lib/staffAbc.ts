@@ -21,7 +21,14 @@ export type StaffAbcResult =
  * Prefers cot=full so chords / Ins stay visible; falls back to melody.
  * Never invents notes — only exports what the model already holds.
  */
-export function buildStaffAbc(
+/** Cache par identité d'objet (glissé piano : même version, contenu différent). */
+const staffAbcCache = new WeakMap<ScoreDocument, Map<string, StaffAbcResult>>();
+
+function staffAbcTitleKey(title?: string): string {
+  return title ?? "";
+}
+
+function buildStaffAbcUncached(
   document: ScoreDocument,
   title?: string,
 ): StaffAbcResult {
@@ -70,6 +77,29 @@ export function buildStaffAbc(
     error: firstError,
     issues: collected,
   };
+}
+
+export function buildStaffAbc(
+  document: ScoreDocument,
+  title?: string,
+): StaffAbcResult {
+  let byTitle = staffAbcCache.get(document);
+  if (!byTitle) {
+    byTitle = new Map();
+    staffAbcCache.set(document, byTitle);
+  }
+  const titleKey = staffAbcTitleKey(title);
+  const cached = byTitle.get(titleKey);
+  if (cached) return cached;
+
+  const result = buildStaffAbcUncached(document, title);
+  byTitle.set(titleKey, result);
+  return result;
+}
+
+/** Vide le cache split ABC (tests). Le cache staff est lié à l'objet document. */
+export function clearStaffAbcCache(): void {
+  clearAbcMeasureSplitCache();
 }
 
 /** Mesures d'une voix, dans l'ordre du document. */
@@ -125,7 +155,17 @@ function expandBar(bar: string): string[] {
  * entrelacées, pas juxtaposées : une fenêtre doit tronquer chaque voix à la
  * même position temporelle, sinon l'ABC rendu désaligne les parties.
  */
+const abcMeasureSplitCache = new Map<string, AbcMeasureSplit>();
+const ABC_MEASURE_SPLIT_CACHE_MAX = 12;
+
+export function clearAbcMeasureSplitCache(): void {
+  abcMeasureSplitCache.clear();
+}
+
 export function splitAbcMeasures(abc: string): AbcMeasureSplit {
+  const cached = abcMeasureSplitCache.get(abc);
+  if (cached) return cached;
+
   const lines = abc.split(/\r?\n/).filter((l) => l.trim());
   const headerLines: string[] = [];
   const blocks: AbcVoiceBlock[] = [];
@@ -175,12 +215,19 @@ export function splitAbcMeasures(abc: string): AbcMeasureSplit {
     }
   }
 
-  return {
+  const result: AbcMeasureSplit = {
     header: headerLines.join("\n"),
     blocks,
     barCount: blocks.reduce((max, b) => Math.max(max, b.bars.length), 0),
     windowable,
   };
+
+  if (abcMeasureSplitCache.size >= ABC_MEASURE_SPLIT_CACHE_MAX) {
+    const oldest = abcMeasureSplitCache.keys().next().value;
+    if (oldest) abcMeasureSplitCache.delete(oldest);
+  }
+  abcMeasureSplitCache.set(abc, result);
+  return result;
 }
 
 /**
@@ -228,8 +275,9 @@ export function sliceAbcMeasures(
   abc: string,
   start: number,
   count: number,
+  split?: AbcMeasureSplit,
 ): string {
-  const { header, blocks, barCount, windowable } = splitAbcMeasures(abc);
+  const { header, blocks, barCount, windowable } = split ?? splitAbcMeasures(abc);
   if (barCount === 0) return header;
   if (!windowable) return abc;
 
