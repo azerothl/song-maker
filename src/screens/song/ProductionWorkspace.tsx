@@ -36,6 +36,7 @@ import { MixBakeStatusIndicator } from "../../components/MixBakeStatusIndicator"
 import { PlaybackTime } from "../../components/PlaybackTime";
 import { Waveform } from "../../components/Waveform";
 import { t } from "../../ui/i18n";
+import { appendEmptyUserTrack } from "../../lib/appendEmptyUserTrack";
 import {
   buildTrackFamilyGroups,
   groupMutePressed,
@@ -392,6 +393,13 @@ export function ProductionWorkspace({
               recordOpen={recordOpen}
               onImport={() => void onImportUserAudio()}
               onToggleRecord={() => setRecordOpen((v) => !v)}
+              onAddEmptyTrack={
+                mix
+                  ? () => {
+                      scheduleMixUpdate(appendEmptyUserTrack(mix));
+                    }
+                  : undefined
+              }
             />
             {mix ? (
               <ExportDialog

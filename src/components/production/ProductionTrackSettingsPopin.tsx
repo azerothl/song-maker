@@ -31,6 +31,8 @@ type Props = {
   mix: MixDoc;
   onMixChange: (next: MixDoc, opts?: { persist?: boolean }) => void;
   onOpenFxLine: () => void;
+  /** When true, render body only (parent owns the AnchoredPopin shell / tabs). */
+  embedded?: boolean;
 };
 
 function parseFadeMsInput(raw: string): number | null {
@@ -49,6 +51,7 @@ export function ProductionTrackSettingsPopin({
   mix,
   onMixChange,
   onOpenFxLine,
+  embedded = false,
 }: Props) {
   const titleId = useId();
   const fadesId = useId();
@@ -121,14 +124,9 @@ export function ProductionTrackSettingsPopin({
     setTrackAutomationVisible(track.id, next);
   };
 
-  return (
-    <AnchoredPopin
-      open={open}
-      onClose={onClose}
-      anchorRef={anchorRef}
-      labelId={titleId}
-      className="production-track-settings-popin"
-    >
+  const body = (
+    <>
+      {!embedded && (
       <header className="anchored-popin-header">
         <h3 id={titleId}>
           {t("production.track.popover", { track: track.name })}
@@ -137,6 +135,7 @@ export function ProductionTrackSettingsPopin({
           {t("production.track.close")}
         </button>
       </header>
+      )}
 
       <div
         className="production-track-settings-ms"
@@ -230,6 +229,8 @@ export function ProductionTrackSettingsPopin({
         )}
       </div>
 
+      {!embedded && (
+        <>
       <button type="button" className="btn" onClick={onOpenFxLine}>
         {t("production.track.moreEq")}
       </button>
@@ -247,6 +248,25 @@ export function ProductionTrackSettingsPopin({
           {t("production.track.showAuto")}
         </button>
         {track.locked && <p className="hint">{t("production.auto.locked")}</p>}
+        </>
+      )}
+    </>
+  );
+
+  if (embedded) {
+    if (!open) return null;
+    return <div className="production-track-settings-embedded">{body}</div>;
+  }
+
+  return (
+    <AnchoredPopin
+      open={open}
+      onClose={onClose}
+      anchorRef={anchorRef}
+      labelId={titleId}
+      className="production-track-settings-popin"
+    >
+      {body}
     </AnchoredPopin>
   );
 }

@@ -2024,9 +2024,28 @@ option {
 
 .production-track-settings-popin,
 .production-fx-line-popin,
-.production-eq-popin {
+.production-eq-popin,
+.production-track-detail-popin {
   overflow-y: auto;
   max-height: calc(100vh - 16px);
+}
+
+.production-track-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0 0 0.65rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.production-track-tab[aria-selected="true"] {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.production-track-tabpanel {
+  min-width: 0;
 }
 
 .production-fx-line-row {

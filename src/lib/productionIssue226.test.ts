@@ -24,6 +24,12 @@ const PRODUCTION_KEYS = [
   "production.eq.popover.close",
   "production.addTrack",
   "production.addTrack.menu",
+  "production.addTrack.empty",
+  "production.track.tabs",
+  "production.track.tab.eq",
+  "production.track.tab.fx",
+  "production.track.tab.automation",
+  "production.track.tab.settings",
   "production.fx.line.title",
   "production.strip.invalid",
 ] as const;

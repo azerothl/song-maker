@@ -11,6 +11,7 @@ type Props = {
   mixId: string;
   trackId: string;
   trackName: string;
+  embedded?: boolean;
 };
 
 export function ProductionParametricEqPopin({
@@ -20,6 +21,7 @@ export function ProductionParametricEqPopin({
   mixId,
   trackId,
   trackName,
+  embedded = false,
 }: Props) {
   const titleId = useId();
   const { effects, updateEffectParam } = useTrackEffects(mixId, trackId);
@@ -29,14 +31,9 @@ export function ProductionParametricEqPopin({
     [effects],
   );
 
-  return (
-    <AnchoredPopin
-      open={open}
-      onClose={onClose}
-      anchorRef={anchorRef}
-      labelId={titleId}
-      className="production-eq-popin"
-    >
+  const body = (
+    <>
+      {!embedded && (
       <header className="anchored-popin-header">
         <h3 id={titleId}>
           {t("production.eq.popover", { track: trackName })}
@@ -45,6 +42,7 @@ export function ProductionParametricEqPopin({
           {t("production.eq.popover.close")}
         </button>
       </header>
+      )}
       {!paramEq ? (
         <p className="hint">{t("production.eq.missing")}</p>
       ) : (
@@ -55,6 +53,23 @@ export function ProductionParametricEqPopin({
           }
         />
       )}
+    </>
+  );
+
+  if (embedded) {
+    if (!open) return null;
+    return <div className="production-eq-embedded">{body}</div>;
+  }
+
+  return (
+    <AnchoredPopin
+      open={open}
+      onClose={onClose}
+      anchorRef={anchorRef}
+      labelId={titleId}
+      className="production-eq-popin"
+    >
+      {body}
     </AnchoredPopin>
   );
 }

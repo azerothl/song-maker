@@ -12,6 +12,7 @@ type Props = {
   recordOpen: boolean;
   onImport: () => void;
   onToggleRecord: () => void;
+  onAddEmptyTrack?: () => void;
 };
 
 export function ProductionAddTrackMenu({
@@ -20,6 +21,7 @@ export function ProductionAddTrackMenu({
   recordOpen,
   onImport,
   onToggleRecord,
+  onAddEmptyTrack,
 }: Props) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -107,6 +109,20 @@ export function ProductionAddTrackMenu({
           >
             {t("mix.recordAudio")}
           </button>
+          {onAddEmptyTrack ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="btn production-add-track-item"
+              disabled={busy}
+              onClick={() => {
+                closeMenu();
+                onAddEmptyTrack();
+              }}
+            >
+              {t("production.addTrack.empty")}
+            </button>
+          ) : null}
           <p className="hint production-add-track-hint">{t("mix.importHint")}</p>
         </div>
       )}
