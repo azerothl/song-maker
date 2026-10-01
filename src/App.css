@@ -5976,18 +5976,6 @@ details[open] > summary {
   width: 6rem;
 }
 
-.clip-arrangement-bar {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-}
-
-@media (max-width: 900px) {
-  .clip-arrangement-bar {
-    grid-template-columns: 1fr;
-  }
-}
-
 .clip-tempo-editor,
 .clip-marker-editor {
   display: flex;
@@ -6176,6 +6164,8 @@ details[open] > summary {
 }
 
 .clip-marker-rail { min-height: 44px; }
+.clip-lanes { padding-right: 52px; }
+.clip-tempo-add, .clip-marker-add { position: absolute; right: -50px; top: 0; z-index: 2; min-width: 44px; min-height: 44px; }
 .clip-marker-flag { min-width: 44px; min-height: 44px; }
 .clip-ruler, .clip-tempo-lane, .clip-marker-lane {
   position: sticky;
