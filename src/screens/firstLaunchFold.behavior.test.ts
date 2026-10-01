@@ -460,7 +460,7 @@ describe("first-launch notice markup (#196)", () => {
       "utf8",
     );
     assert.doesNotMatch(src, /SeparatorLicenseNotice/);
-    assert.match(src, /HTDEMUCS_FIRST_LAUNCH_NOTICE_FR/);
+    assert.match(src, /firstLaunch\.license\.htdemucsNotice/);
     assert.match(src, /fl-htdemucs-notice/);
     assert.match(css, /font-size:\s*max\(14px/);
   });

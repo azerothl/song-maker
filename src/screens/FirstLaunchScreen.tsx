@@ -13,8 +13,6 @@ import {
   NVIDIA_DRIVERS_URL,
   YUE2_LICENSE_URL,
   HTDEMUCS_LICENSE_URL,
-  HTDEMUCS_FIRST_LAUNCH_NOTICE_FR,
-  HTDEMUCS_LICENSE_REQUIRED_FR,
   browserDemoFromHash,
   bucketPlanBytes,
   buildFileRows,
@@ -35,7 +33,6 @@ import {
   gpuDetailLine,
   installErrorCopy,
   isMixOnlySkipped,
-  LICENSE_REQUIRED_FR,
   licenseAllowsDownload,
   fileRowLicenseBlocked,
   licensesBlockDownload,
@@ -46,11 +43,11 @@ import {
   parsePack,
   packModelBytes,
   persistMixOnlySkip,
-  Q8_VRAM_FAILURE_RISK_FR,
   queuedFileStatusFr,
   remainingAfterResumeLabel,
   resolveFirstLaunchView,
   setupComplete,
+  suggestedPackReasonCopy,
   vramBarPercent,
   yue2PeakMib,
   type FileRowStatus,
@@ -447,9 +444,9 @@ export function FirstLaunchScreen() {
     return (
       <section className="first-launch" aria-live="polite">
         <div className="fl-card">
-          <p className="fl-eyebrow">Première installation</p>
+          <p className="fl-eyebrow">{t("firstLaunch.eyebrow")}</p>
           <h1>Song Maker</h1>
-          <p className="fl-lead">Vérification des composants nécessaires…</p>
+          <p className="fl-lead">{t("firstLaunch.loading.lead")}</p>
         </div>
       </section>
     );
@@ -467,12 +464,9 @@ export function FirstLaunchScreen() {
         <div className="fl-card">
           <header className="fl-head">
             <div>
-              <p className="fl-eyebrow">Première installation</p>
-              <h1 id="fl-title">Préparons Song Maker</h1>
-              <p className="fl-lead">
-                Nous avons analysé votre ordinateur et choisi la meilleure configuration.
-                Il vous suffit de vérifier, puis de lancer le téléchargement.
-              </p>
+              <p className="fl-eyebrow">{t("firstLaunch.eyebrow")}</p>
+              <h1 id="fl-title">{t("firstLaunch.gpu.title")}</h1>
+              <p className="fl-lead">{t("firstLaunch.gpu.lead")}</p>
             </div>
           </header>
 
@@ -487,8 +481,8 @@ export function FirstLaunchScreen() {
               role="region"
               aria-label={
                 gridCanScrollMore
-                  ? "Récapitulatif et choix du modèle — défiler pour voir la suite"
-                  : "Récapitulatif et choix du modèle"
+                  ? t("firstLaunch.gpu.regionAriaMore")
+                  : t("firstLaunch.gpu.regionAria")
               }
             >
             <div className="fl-stack">
@@ -504,34 +498,36 @@ export function FirstLaunchScreen() {
               </div>
 
               <div className="fl-panel fl-reco">
-                <h2>Recommandé pour cet ordinateur</h2>
+                <h2>{t("firstLaunch.gpu.recoTitle")}</h2>
                 <div className="fl-big">
-                  Modèle {suggested.toUpperCase()}{" "}
-                  <span className="fl-chip">★ Recommandé</span>
+                  {t("firstLaunch.gpu.recoModel", { pack: suggested.toUpperCase() })}{" "}
+                  <span className="fl-chip">{t("firstLaunch.gpu.chipRecommended")}</span>
                 </div>
-                <p>{gpu.suggestedPackReasonFr}</p>
+                <p>{suggestedPackReasonCopy(gpu)}</p>
               </div>
 
               <div className="fl-panel" data-testid="fl-download-summary">
-                <h2>Ce qui sera téléchargé</h2>
+                <h2>{t("firstLaunch.gpu.downloadTitle")}</h2>
                 <dl className="fl-sum">
                   <div>
-                    <dt>Moteur audio, VAE, HTDemucs</dt>
+                    <dt>{t("firstLaunch.gpu.sumEngine")}</dt>
                     <dd>{formatBytesFr(buckets.engineBytes)}</dd>
                   </div>
                   <div>
-                    <dt>Modèle YuE2 {pack.toUpperCase()}</dt>
+                    <dt>{t("firstLaunch.gpu.sumModel", { pack: pack.toUpperCase() })}</dt>
                     <dd>{formatBytesFr(buckets.modelBytes)}</dd>
                   </div>
                   <div className="fl-sum-total">
-                    <dt>Total à télécharger</dt>
+                    <dt>{t("firstLaunch.gpu.sumTotal")}</dt>
                     <dd>{formatBytesFr(buckets.totalBytes)}</dd>
                   </div>
                   <div>
                     <dt>
                       {progress?.overallBytesPerSec
-                        ? `Durée estimée à ${formatRateFr(progress.overallBytesPerSec)}`
-                        : "Durée estimée"}
+                        ? t("firstLaunch.gpu.etaAtRate", {
+                            rate: formatRateFr(progress.overallBytesPerSec) ?? "",
+                          })
+                        : t("firstLaunch.gpu.eta")}
                     </dt>
                     <dd>{etaLabel}</dd>
                   </div>
@@ -539,7 +535,7 @@ export function FirstLaunchScreen() {
               </div>
             </div>
 
-            <div className="fl-models" role="radiogroup" aria-label="Choix de la précision du modèle">
+            <div className="fl-models" role="radiogroup" aria-label={t("firstLaunch.gpu.modelsAria")}>
               {(["q4", "q8"] as const).map((option) => {
                 const selected = pack === option;
                 const recommended = suggested === option;
@@ -559,11 +555,13 @@ export function FirstLaunchScreen() {
                     />
                     <div className="fl-model-t">
                       <b>
-                        {option === "q4" ? "Q4 · Rapide et léger" : "Q8 · Qualité maximale"}{" "}
+                        {option === "q4"
+                          ? t("firstLaunch.gpu.pack.q4.title")
+                          : t("firstLaunch.gpu.pack.q8.title")}{" "}
                         {recommended ? (
-                          <span className="fl-chip">★ Recommandé</span>
+                          <span className="fl-chip">{t("firstLaunch.gpu.chipRecommended")}</span>
                         ) : (
-                          <span className="fl-chip neutral">Plus exigeant</span>
+                          <span className="fl-chip neutral">{t("firstLaunch.gpu.chipDemanding")}</span>
                         )}
                       </b>
                       <span className="fl-size">
@@ -572,13 +570,17 @@ export function FirstLaunchScreen() {
                     </div>
                     <p>
                       {option === "q4"
-                        ? "Bonne qualité, génération plus rapide. Fonctionne dès 8 Go de VRAM."
-                        : "Rendu un peu plus fin, mais plus lent et plus proche de la limite de votre carte."}
+                        ? t("firstLaunch.gpu.pack.q4.body")
+                        : t("firstLaunch.gpu.pack.q8.body")}
                     </p>
                     <div className="fl-bars">
                       <span>
-                        VRAM utilisée ≈ {peakGo ?? "—"}
-                        {vramGo ? ` / ${vramGo}` : ""} (pic publié)
+                        {t("firstLaunch.gpu.vramUsed", {
+                          peak: peakGo ?? "—",
+                          detected: vramGo
+                            ? t("firstLaunch.gpu.vramDetected", { vram: vramGo })
+                            : "",
+                        })}
                       </span>
                       <div className="fl-vram" aria-hidden="true">
                         <i className={peakPct >= 90 ? "hi" : undefined} style={{ width: `${peakPct}%` }} />
@@ -586,18 +588,18 @@ export function FirstLaunchScreen() {
                     </div>
                     {modelPackVramFailureRisk(option, vram) ? (
                       <p className="fl-vram-risk" role="note">
-                        {Q8_VRAM_FAILURE_RISK_FR}
+                        {t("firstLaunch.gpu.q8Risk")}
                       </p>
                     ) : null}
                   </label>
                 );
               })}
-              <p className="fl-hint">Vous pourrez changer de modèle plus tard dans Réglages.</p>
+              <p className="fl-hint">{t("firstLaunch.gpu.packHint")}</p>
             </div>
             </div>
             {gridCanScrollMore ? (
               <div className="fl-scroll-hint" aria-hidden="true">
-                <span>Suite — défiler</span>
+                <span>{t("firstLaunch.scrollMore")}</span>
               </div>
             ) : null}
           </div>
@@ -605,13 +607,11 @@ export function FirstLaunchScreen() {
           <div className="fl-foot">
             <div className="fl-license">
               <p>
-                YuE2 est sous licence{" "}
+                {t("firstLaunch.license.yue2Before")}{" "}
                 <a href={YUE2_LICENSE_URL} target="_blank" rel="noreferrer">
                   CC BY-NC 4.0
-                </a>
-                {" "}
-                : usage personnel et non commercial uniquement, vous ne pouvez pas vendre
-                ou monétiser les morceaux générés.
+                </a>{" "}
+                {t("firstLaunch.license.yue2After")}
               </p>
               <label className="fl-cb" htmlFor="fl-license-accept">
                 <input
@@ -621,10 +621,10 @@ export function FirstLaunchScreen() {
                   disabled={busy}
                   onChange={(event) => setAccepted(event.target.checked)}
                 />
-                J’ai lu et j’accepte la licence YuE2
+                {t("firstLaunch.license.yue2Accept")}
               </label>
               <p className="fl-htdemucs-notice" data-testid="fl-htdemucs-notice">
-                {HTDEMUCS_FIRST_LAUNCH_NOTICE_FR}{" "}
+                {t("firstLaunch.license.htdemucsNotice")}{" "}
                 <a
                   className="fl-demucs-link"
                   href={HTDEMUCS_LICENSE_URL}
@@ -641,16 +641,16 @@ export function FirstLaunchScreen() {
                   type="checkbox"
                   checked={htdemucsAccepted}
                   disabled={busy}
-                  aria-label="J’ai lu la licence de HTDemucs"
+                  aria-label={t("firstLaunch.license.htdemucsAccept")}
                   onChange={(event) => setHtdemucsAccepted(event.target.checked)}
                 />
-                J’ai lu la licence de HTDemucs
+                {t("firstLaunch.license.htdemucsAccept")}
               </label>
             </div>
             <div className="fl-actions">
               {!licenseAllowsDownload(accepted, settings?.yue2LicenseAccepted) ? (
                 <p className="fl-license-required" role="status">
-                  {LICENSE_REQUIRED_FR}
+                  {t("firstLaunch.license.required")}
                 </p>
               ) : null}
               {!htdemucsLicenseAllowsDownload(
@@ -658,7 +658,7 @@ export function FirstLaunchScreen() {
                 settings?.acceptedSeparatorLicenses?.htdemucs,
               ) ? (
                 <p className="fl-license-required" role="status">
-                  {HTDEMUCS_LICENSE_REQUIRED_FR}
+                  {t("firstLaunch.license.htdemucsRequired")}
                 </p>
               ) : null}
               <button
@@ -674,9 +674,11 @@ export function FirstLaunchScreen() {
                 }
                 onClick={() => void install()}
               >
-                Télécharger ({formatBytesFr(buckets.totalBytes)})
+                {t("firstLaunch.gpu.downloadCta", {
+                  size: formatBytesFr(buckets.totalBytes),
+                })}
               </button>
-              <span className="fl-hint">Reprise automatique si la connexion est coupée</span>
+              <span className="fl-hint">{t("firstLaunch.gpu.resumeHint")}</span>
             </div>
           </div>
           {error && view === "gpu" && (
@@ -689,82 +691,73 @@ export function FirstLaunchScreen() {
         <div className="fl-card">
           <header className="fl-head">
             <div>
-              <p className="fl-eyebrow">Première installation</p>
-              <h1 id="fl-title">Préparons Song Maker</h1>
-              <p className="fl-lead">
-                Choisissez comment vous souhaitez utiliser l’application sur cet ordinateur.
-              </p>
+              <p className="fl-eyebrow">{t("firstLaunch.eyebrow")}</p>
+              <h1 id="fl-title">{t("firstLaunch.gpu.title")}</h1>
+              <p className="fl-lead">{t("firstLaunch.noGpu.lead")}</p>
             </div>
           </header>
 
           <div className="fl-alert" role="alert">
             <div className="fl-ai" aria-hidden="true">!</div>
             <div>
-              <h2>Attention : aucune carte graphique compatible détectée</h2>
-              <p>
-                La génération de musique demande une carte graphique <b>NVIDIA</b> (Windows
-                ou Linux) ou une puce <b>Apple avec Metal</b> (Mac). Sans elle, le modèle
-                YuE2 ne peut pas fonctionner : c’est pourquoi nous ne le téléchargeons pas.
-              </p>
+              <h2>{t("firstLaunch.noGpu.alertTitle")}</h2>
+              <p>{t("firstLaunch.noGpu.alertBody")}</p>
             </div>
           </div>
 
           <div className="fl-alts">
             <section className="fl-alt" aria-labelledby="fl-b1">
-              <span className="fl-num">Option 1 · Si vous avez une carte NVIDIA</span>
-              <h3 id="fl-b1">Installer ou mettre à jour le pilote NVIDIA</h3>
-              <p>Un pilote absent ou trop ancien est la cause la plus fréquente. Après l’installation, relancez la détection.</p>
+              <span className="fl-num">{t("firstLaunch.noGpu.opt1.num")}</span>
+              <h3 id="fl-b1">{t("firstLaunch.noGpu.opt1.title")}</h3>
+              <p>{t("firstLaunch.noGpu.opt1.body")}</p>
               <ul>
-                <li>Ouvrir le site officiel de NVIDIA</li>
-                <li>Redémarrage possible</li>
+                <li>{t("firstLaunch.noGpu.opt1.li1")}</li>
+                <li>{t("firstLaunch.noGpu.opt1.li2")}</li>
               </ul>
               <div className="fl-sp" />
               <a className="fl-btn fl-btn-sec" href={NVIDIA_DRIVERS_URL} target="_blank" rel="noreferrer">
-                Ouvrir la page des pilotes ↗
+                {t("firstLaunch.noGpu.opt1.drivers")}
               </a>
               <button className="fl-btn fl-btn-sec" type="button" onClick={() => void relancer()}>
-                ↻ Relancer la détection
+                {t("firstLaunch.noGpu.opt1.redetect")}
               </button>
             </section>
 
             <section className="fl-alt" aria-labelledby="fl-b2">
-              <span className="fl-num">Option 2 · Facultatif</span>
-              <h3 id="fl-b2">Utiliser un worker GPU distant</h3>
-              <p>Un autre ordinateur ou un serveur GPU que vous contrôlez génère la musique à votre place.</p>
+              <span className="fl-num">{t("firstLaunch.noGpu.opt2.num")}</span>
+              <h3 id="fl-b2">{t("firstLaunch.noGpu.opt2.title")}</h3>
+              <p>{t("firstLaunch.noGpu.opt2.body")}</p>
               <ul>
-                <li>Désactivé par défaut</li>
-                <li>Vos données audio quittent cet ordinateur</li>
+                <li>{t("firstLaunch.noGpu.opt2.li1")}</li>
+                <li>{t("firstLaunch.noGpu.opt2.li2")}</li>
               </ul>
               <div className="fl-toggle">
                 <span className="fl-sw" aria-hidden="true" />
-                Activer le worker distant (désactivé)
+                {t("firstLaunch.noGpu.opt2.toggle")}
               </div>
               <div className="fl-sp" />
               <button className="fl-btn fl-btn-sec" type="button" onClick={ouvrirWorker}>
-                Configurer un worker…
+                {t("firstLaunch.noGpu.opt2.configure")}
               </button>
             </section>
 
             <section className="fl-alt rec" aria-labelledby="fl-b3">
-              <span className="fl-num">Option 3 · Disponible tout de suite</span>
-              <h3 id="fl-b3">Continuer sans génération</h3>
-              <p>
-                Utilisez la <b>séparation de stems</b> et le <b>mixage</b>. Aucun poids YuE2
-                ne sera téléchargé.
-              </p>
+              <span className="fl-num">{t("firstLaunch.noGpu.opt3.num")}</span>
+              <h3 id="fl-b3">{t("firstLaunch.noGpu.opt3.title")}</h3>
+              <p>{t("firstLaunch.noGpu.opt3.body")}</p>
               <ul>
-                <li>La génération de musique sera désactivée</li>
-                <li>Modifiable plus tard dans les Réglages</li>
+                <li>{t("firstLaunch.noGpu.opt3.li1")}</li>
+                <li>{t("firstLaunch.noGpu.opt3.li2")}</li>
               </ul>
               <div className="fl-sp" />
               <button className="fl-btn" type="button" onClick={continuerSansGeneration}>
-                Continuer sans génération
+                {t("firstLaunch.noGpu.opt3.cta")}
               </button>
             </section>
           </div>
           <p className="fl-note-b">
-            <span>Aucun modèle lourd ne sera téléchargé sans votre accord.</span>
-            <span>Détection : {headline.detail}</span>
+            <span>{t("firstLaunch.noGpu.noteNoModel")}</span>
+            <span>{t("firstLaunch.noGpu.noteDetect", { detail: headline.detail })}</span>
           </p>
         </div>
       )}
