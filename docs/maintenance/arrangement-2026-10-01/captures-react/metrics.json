@@ -1,0 +1,90 @@
+[
+  {
+    "filename": "marker-bounded-fr-1280.png",
+    "locale": "fr",
+    "width": 1280,
+    "height": 720,
+    "sha256": "473df7c7d4efc7608618b9064228a3c72552c73b1da5bb703d67d9cd9aa04d19",
+    "rulerMax": "30000",
+    "markerName": "Marqueur : My chorus, 0:30,0",
+    "markerRect": {
+      "x": 1195.40625,
+      "y": 362.328125,
+      "width": 51.59375,
+      "height": 44,
+      "top": 362.328125,
+      "right": 1247,
+      "bottom": 406.328125,
+      "left": 1195.40625
+    },
+    "clipsUnchanged": true,
+    "status": "Position du marqueur « My chorus » limitée à 0:30,0.",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "marker-bounded-fr-640.png",
+    "locale": "fr",
+    "width": 640,
+    "height": 720,
+    "sha256": "9b1b52d4f85f3664377426035840af5cafc20d6b07f6e914b872bc0da7e2139b",
+    "rulerMax": "30000",
+    "markerName": "Marqueur : My chorus, 0:30,0",
+    "markerRect": {
+      "x": 555.40625,
+      "y": 518.296875,
+      "width": 51.59375,
+      "height": 44,
+      "top": 518.296875,
+      "right": 607,
+      "bottom": 562.296875,
+      "left": 555.40625
+    },
+    "clipsUnchanged": true,
+    "status": "Position du marqueur « My chorus » limitée à 0:30,0.",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "marker-bounded-en-1280.png",
+    "locale": "en",
+    "width": 1280,
+    "height": 720,
+    "sha256": "98423be59dbf2eefccc755f1ad8ca84da9abd725cdf7b01de508844ec93d4a8c",
+    "rulerMax": "30000",
+    "markerName": "Marker: My chorus, 0:30.0",
+    "markerRect": {
+      "x": 1195.40625,
+      "y": 362.328125,
+      "width": 51.59375,
+      "height": 44,
+      "top": 362.328125,
+      "right": 1247,
+      "bottom": 406.328125,
+      "left": 1195.40625
+    },
+    "clipsUnchanged": true,
+    "status": "Marker “My chorus” position limited to 0:30.0.",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "marker-bounded-en-640.png",
+    "locale": "en",
+    "width": 640,
+    "height": 720,
+    "sha256": "de2cc8fdf7d73c601545ba0ec1d5ca7cc7bcade42bfae68f60c4c95cbb4622b2",
+    "rulerMax": "30000",
+    "markerName": "Marker: My chorus, 0:30.0",
+    "markerRect": {
+      "x": 555.40625,
+      "y": 497.296875,
+      "width": 51.59375,
+      "height": 44,
+      "top": 497.296875,
+      "right": 607,
+      "bottom": 541.296875,
+      "left": 555.40625
+    },
+    "clipsUnchanged": true,
+    "status": "Marker “My chorus” position limited to 0:30.0.",
+    "evidence": "React Chromium fixture; not native Tauri"
+  }
+]
