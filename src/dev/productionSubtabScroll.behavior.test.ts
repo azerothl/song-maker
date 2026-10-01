@@ -40,8 +40,36 @@ describe("Production commune (#223, #230)", () => {
         assert.ok(intersections.length>0,`no overlapping zones at ${width}`);
         for(const overlap of intersections)assert.equal(overlap.dialogOnTop,true,`${width}: ${overlap.row}`);
         await page.keyboard.press("Escape");
-        assert.equal(await page.locator(".production-mix-sticky-master").evaluate(el=>getComputedStyle(el).zIndex),"4");
+        assert.equal(await page.locator(".production-mix-sticky-master").evaluate(el=>getComputedStyle(el).zIndex),"6");
       }finally{await page.close();}
+    }
+  });
+  it("the master stays above intersecting timeline zones during outer scroll", async () => {
+    for (const width of [1280,640]) {
+      const page=await browser.newPage({viewport:{width,height:720}});
+      try {
+        await page.goto(BASE,{waitUntil:"networkidle"});
+        const overlaps=await page.evaluate(()=>{
+          const outer=document.querySelector(".production-workspace-common")!;
+          const master=document.querySelector(".production-mix-sticky-master")!;
+          const rows=Array.from(document.querySelectorAll(".clip-ruler,.clip-tempo-lane,.clip-marker-lane"));
+          const results:{row:string; masterOnTop:boolean}[]=[];
+          for(let offset=0;offset<=outer.scrollHeight-outer.clientHeight;offset+=20){
+            outer.scrollTop=offset;
+            const m=master.getBoundingClientRect();
+            for(const row of rows){
+              const r=row.getBoundingClientRect();
+              const left=Math.max(m.left,r.left),right=Math.min(m.right,r.right),top=Math.max(m.top,r.top),bottom=Math.min(m.bottom,r.bottom);
+              if(right<=left||bottom<=top)continue;
+              const hit=document.elementFromPoint((left+right)/2,(top+bottom)/2);
+              results.push({row:row.className,masterOnTop:Boolean(hit&&master.contains(hit))});
+            }
+          }
+          return results;
+        });
+        assert.ok(overlaps.length>0,`no master/ruler overlap at ${width}`);
+        for(const overlap of overlaps)assert.equal(overlap.masterOnTop,true,`${width}: ${overlap.row}`);
+      } finally {await page.close();}
     }
   });
   it("PageDown scrolls from a toolbar button and Tab leaves the timeline", async () => {

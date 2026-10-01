@@ -1342,17 +1342,14 @@ option {
 .production-mix-sticky-master {
   position: sticky;
   top: 0;
-  z-index: 4;
+  z-index: 6;
   flex: 0 0 auto;
   padding: 0.15rem 0;
-  background: color-mix(in srgb, var(--bg0) 94%, transparent);
+  background: var(--bg0);
 }
 
-/* A fixed popin remains inside its ancestor's stacking context. Lift that
-   context above the sticky ruler while a master-toolbar popin is open. */
-.production-mix-sticky-master:has(.anchored-popin-layer) {
-  z-index: 6;
-}
+/* Keep the master above all three sticky timeline zones, including when
+   no toolbar popin is open and the outer Production page is scrolled. */
 
 .production-mix-master.mix-master-banner {
   min-height: 52px;
