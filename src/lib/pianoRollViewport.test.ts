@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  buildPianoNotesIndex,
   filterNotesInPianoViewport,
+  filterNotesInPianoViewportIndexed,
   filterSectionMarkersInPianoViewport,
   noteHorizontalSpanPx,
+  quantizePianoScrollLeft,
+  shouldSyncPianoScrollViewport,
 } from "./pianoRollViewport";
 
 describe("pianoRollViewport", () => {
@@ -48,6 +52,52 @@ describe("pianoRollViewport", () => {
       overscanPx: 100,
     });
     assert.deepEqual(visible.map((n) => n.id), ["in"]);
+  });
+
+  it("index + filtre : même ensemble que le filtre naïf sur 200 notes", () => {
+    const notes = Array.from({ length: 200 }, (_, i) => ({
+      id: `n${i}`,
+      startTick: i * 2_000,
+      durationTick: 480,
+    }));
+    const scrollLeft = 40_000 * 0.04;
+    const naive = filterNotesInPianoViewport(notes, scrollLeft, 800, 0.04, {
+      overscanPx: 200,
+      selectedId: "n199",
+    });
+    const indexed = filterNotesInPianoViewportIndexed(
+      buildPianoNotesIndex(notes, 0.04),
+      scrollLeft,
+      800,
+      { overscanPx: 200, selectedId: "n199" },
+    );
+    assert.deepEqual(
+      indexed.map((n) => n.id).sort(),
+      naive.map((n) => n.id).sort(),
+    );
+  });
+
+  it("quantizePianoScrollLeft et shouldSyncPianoScrollViewport", () => {
+    assert.equal(quantizePianoScrollLeft(239, 240), 0);
+    assert.equal(quantizePianoScrollLeft(240, 240), 240);
+    assert.equal(
+      shouldSyncPianoScrollViewport({ left: 0, width: 900 }, 100, 900),
+      false,
+    );
+    assert.equal(
+      shouldSyncPianoScrollViewport({ left: 0, width: 900 }, 240, 900),
+      true,
+    );
+    assert.equal(
+      shouldSyncPianoScrollViewport({ left: 0, width: 900 }, 0, 800),
+      true,
+    );
+    assert.equal(
+      shouldSyncPianoScrollViewport({ left: 0, width: 900 }, 1000, 900, {
+        overscanPx: 960,
+      }),
+      true,
+    );
   });
 
   it("filterSectionMarkersInPianoViewport", () => {
