@@ -14,7 +14,7 @@ import {
 import { t } from "../ui/i18n.ts";
 
 describe("separator licenses UI contract (#167)", () => {
-  it("Kim Vocal 2 is non vérifié (no MIT / commercialOk from third-party conversion)", () => {
+  it("Mel-Band « Kim Vocal » is non vérifié (no MIT / commercialOk from third-party conversion)", () => {
     const mel = separatorLicense("mel_band_roformer");
     assert.ok(mel);
     assert.equal(mel.status, "unverified");
@@ -22,6 +22,8 @@ describe("separator licenses UI contract (#167)", () => {
     assert.equal(licenseStatusLabelFr(mel.status), "non vérifié");
     assert.doesNotMatch(mel.sourceUrl, /mlx-community/);
     assert.match(mel.noticeFr, /non vérifié/i);
+    assert.match(mel.noticeFr, /Kim Vocal »/);
+    assert.doesNotMatch(mel.noticeFr, /Kim Vocal 2/);
     assert.equal(mel.readDate, "2026-09-29");
     assert.equal(canDownloadSeparator("mel_band_roformer", {}), false);
   });

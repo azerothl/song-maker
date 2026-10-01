@@ -102,7 +102,7 @@ pub const BS_ROFORMER_REMOTE: &str = "BS-RoFormer-ep368-GGUF/bs-roformer-ep368-q
 /// Exact on-disk size of the pinned GGUF (bytes).
 pub const BS_ROFORMER_BYTES: u64 = 172_532_256;
 
-/// Mel-Band RoFormer « Kim Vocal 2 » — opt-in vocal separator (not in first-build installer).
+/// Mel-Band RoFormer « Kim Vocal » — opt-in vocal separator (not in first-build installer).
 pub const MEL_BAND_ROFORMER_GGUF: &str = "mel-band-roformer-q8_0.gguf";
 pub const MEL_BAND_ROFORMER_SHA: &str =
     "2dd898ceb0e3812c18d6125dcd60174d35d3da22c94add76b029fbb21fc238fd";

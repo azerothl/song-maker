@@ -721,7 +721,7 @@ export function FirstLaunchScreen() {
               <h3 id="fl-b1">Installer ou mettre à jour le pilote NVIDIA</h3>
               <p>Un pilote absent ou trop ancien est la cause la plus fréquente. Après l’installation, relancez la détection.</p>
               <ul>
-                <li>Ouvre le site officiel de NVIDIA</li>
+                <li>Ouvrir le site officiel de NVIDIA</li>
                 <li>Redémarrage possible</li>
               </ul>
               <div className="fl-sp" />

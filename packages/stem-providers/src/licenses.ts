@@ -112,7 +112,7 @@ export const SEPARATOR_LICENSES: Record<StemProviderId, SeparatorLicenseInfo> = 
     readDate: "2026-09-29",
     badgeFr: "source primaire absente",
     noticeFr:
-      "Mel-Band RoFormer « Kim Vocal 2 » (GGUF Q8) : non vérifié. Aucune source primaire de licence des poids n’a été confirmée ici ; les conversions tierces (ex. mlx-community) ne suffisent pas à afficher MIT ni commercialOk. Opt-in hors installeur. Les poids sous licence non commerciale (Banquet, ADTOF) restent écartés du socle.",
+      "Mel-Band RoFormer « Kim Vocal » (GGUF Q8) : non vérifié. Aucune source primaire de licence des poids n’a été confirmée ici ; les conversions tierces (ex. mlx-community) ne suffisent pas à afficher MIT ni commercialOk. Opt-in hors installeur. Les poids sous licence non commerciale (Banquet, ADTOF) restent écartés du socle.",
     sourceUrl:
       "https://huggingface.co/audio-cpp/audio.cpp-gguf/tree/main/Mel-Band-RoFormer-GGUF",
     sourceLabelFr: "audio-cpp/audio.cpp-gguf · Mel-Band-RoFormer (poids GGUF)",
