@@ -79,6 +79,7 @@ type Props = {
   canAddPitchCorrect?: boolean;
   grByEffect?: Record<string, number>;
   onOpenEq: () => void;
+  embedded?: boolean;
 };
 
 export function ProductionTrackFxLinePopin({
@@ -92,6 +93,7 @@ export function ProductionTrackFxLinePopin({
   canAddPitchCorrect = true,
   grByEffect,
   onOpenEq,
+  embedded = false,
 }: Props) {
   const titleId = useId();
   const propsGroupId = useId();
@@ -126,14 +128,9 @@ export function ProductionTrackFxLinePopin({
 
   const selectedLabel = selectedFx ? effectDisplayName(selectedFx) : "";
 
-  return (
-    <AnchoredPopin
-      open={open}
-      onClose={onClose}
-      anchorRef={anchorRef}
-      labelId={titleId}
-      className="production-fx-line-popin"
-    >
+  const body = (
+    <>
+      {!embedded && (
       <header className="anchored-popin-header">
         <h3 id={titleId}>
           {t("production.fx.line.title", { track: trackName })}
@@ -142,6 +139,7 @@ export function ProductionTrackFxLinePopin({
           {t("production.fx.line.close")}
         </button>
       </header>
+      )}
 
       {effects.length === 0 ? (
         <p className="hint">{t("phase3.mix.fxEmpty")}</p>
@@ -264,6 +262,23 @@ export function ProductionTrackFxLinePopin({
       {!canAddPitchCorrect && (
         <p className="hint">{t("phase3.mix.pitchCorrect.vocalsOnly")}</p>
       )}
+    </>
+  );
+
+  if (embedded) {
+    if (!open) return null;
+    return <div className="production-fx-line-embedded">{body}</div>;
+  }
+
+  return (
+    <AnchoredPopin
+      open={open}
+      onClose={onClose}
+      anchorRef={anchorRef}
+      labelId={titleId}
+      className="production-fx-line-popin"
+    >
+      {body}
     </AnchoredPopin>
   );
 }

@@ -10,6 +10,7 @@ try {
     const page=await browser.newPage({viewport:{width,height:720}});
     await page.goto("http://127.0.0.1:5230/production-capture.html#confortable-12",{waitUntil:"networkidle"});
     await page.locator(".production-track-tools-btn").first().click();
+    await page.getByRole("tab", { name: "Automation", exact: true }).click();
     await page.locator(".production-track-auto-toggle").click();
     await page.keyboard.press("Escape");
     const editor=page.locator(".production-track-automation").first();
