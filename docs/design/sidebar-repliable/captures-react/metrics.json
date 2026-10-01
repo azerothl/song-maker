@@ -1,0 +1,1802 @@
+{
+  "replie_icon_center_avant_1280": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": null,
+    "collapsedIconCenters": [
+      {
+        "id": "brand-mark",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "toggle",
+        "centerXPx": 22.3,
+        "expectedCenterXPx": 28,
+        "deltaPx": -5.7,
+        "withinTolerance": false
+      },
+      {
+        "id": "nav:Bibliothèque",
+        "centerXPx": 22.3,
+        "expectedCenterXPx": 28,
+        "deltaPx": -5.7,
+        "withinTolerance": false
+      },
+      {
+        "id": "nav:Nouveau",
+        "centerXPx": 22.3,
+        "expectedCenterXPx": 28,
+        "deltaPx": -5.7,
+        "withinTolerance": false
+      },
+      {
+        "id": "nav:Paramètres",
+        "centerXPx": 22.3,
+        "expectedCenterXPx": 28,
+        "deltaPx": -5.7,
+        "withinTolerance": false
+      },
+      {
+        "id": "meta:…",
+        "centerXPx": 22.3,
+        "expectedCenterXPx": 28,
+        "deltaPx": -5.7,
+        "withinTolerance": false
+      }
+    ],
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": false,
+      "collapsedIconsCentered": false,
+      "iconCenterById": {
+        "brand-mark": true,
+        "toggle": false,
+        "nav:Bibliothèque": false,
+        "nav:Nouveau": false,
+        "nav:Paramètres": false,
+        "meta:…": false
+      }
+    }
+  },
+  "deplie_1280_ref": {
+    "sidebarWidthPx": 220,
+    "toggleSizePx": [
+      199,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        199,
+        44
+      ],
+      [
+        199,
+        44
+      ],
+      [
+        199,
+        44
+      ]
+    ],
+    "mockupSidebarExpandedPx": 220,
+    "checks": {
+      "widthMatchesExpanded": true,
+      "targetsAtLeast44Px": true
+    }
+  },
+  "deplie_1280": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 220,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "true",
+    "toggleAriaLabel": "Réduire le menu",
+    "toggleSizePx": [
+      199,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        199,
+        44
+      ],
+      [
+        199,
+        44
+      ],
+      [
+        199,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": null,
+    "collapsedTipPointerProbes": null,
+    "collapsedIconCenters": null,
+    "checks": {
+      "widthMatchesExpanded": true,
+      "widthMatchesCollapsed": false,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": false,
+      "collapsedIconsCentered": true,
+      "iconCenterById": {},
+      "tipsNeverCapturePointerAtRest": true
+    }
+  },
+  "replie_1280": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": null,
+    "collapsedTipPointerProbes": [
+      {
+        "label": "Développer le menu",
+        "centerXPx": 141.94,
+        "centerYPx": 85.59,
+        "topTag": "input",
+        "topClass": "search",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Bibliothèque",
+        "centerXPx": 104.41,
+        "centerYPx": 149.78,
+        "topTag": "th",
+        "topClass": "",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Nouveau",
+        "centerXPx": 93.62,
+        "centerYPx": 197.78,
+        "topTag": "td",
+        "topClass": "",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Paramètres",
+        "centerXPx": 100.33,
+        "centerYPx": 245.78,
+        "topTag": "div",
+        "topClass": "panel library",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Capture (mock)",
+        "centerXPx": 111.36,
+        "centerYPx": 682,
+        "topTag": "main",
+        "topClass": "main",
+        "hitsSidebarTip": false
+      }
+    ],
+    "collapsedIconCenters": [
+      {
+        "id": "brand-mark",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "toggle",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Bibliothèque",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Nouveau",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Paramètres",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "meta:Capture (mock)",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      }
+    ],
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": false,
+      "collapsedIconsCentered": true,
+      "iconCenterById": {
+        "brand-mark": true,
+        "toggle": true,
+        "nav:Bibliothèque": true,
+        "nav:Nouveau": true,
+        "nav:Paramètres": true,
+        "meta:Capture (mock)": true
+      },
+      "tipsNeverCapturePointerAtRest": true
+    }
+  },
+  "replie_icon_center_apres_1280": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": null,
+    "collapsedTipPointerProbes": [
+      {
+        "label": "Développer le menu",
+        "centerXPx": 141.94,
+        "centerYPx": 85.59,
+        "topTag": "input",
+        "topClass": "search",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Bibliothèque",
+        "centerXPx": 104.41,
+        "centerYPx": 149.78,
+        "topTag": "th",
+        "topClass": "",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Nouveau",
+        "centerXPx": 93.62,
+        "centerYPx": 197.78,
+        "topTag": "td",
+        "topClass": "",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Paramètres",
+        "centerXPx": 100.33,
+        "centerYPx": 245.78,
+        "topTag": "div",
+        "topClass": "panel library",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Capture (mock)",
+        "centerXPx": 111.36,
+        "centerYPx": 682,
+        "topTag": "main",
+        "topClass": "main",
+        "hitsSidebarTip": false
+      }
+    ],
+    "collapsedIconCenters": [
+      {
+        "id": "brand-mark",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "toggle",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Bibliothèque",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Nouveau",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Paramètres",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "meta:Capture (mock)",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      }
+    ],
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": false,
+      "collapsedIconsCentered": true,
+      "iconCenterById": {
+        "brand-mark": true,
+        "toggle": true,
+        "nav:Bibliothèque": true,
+        "nav:Nouveau": true,
+        "nav:Paramètres": true,
+        "meta:Capture (mock)": true
+      },
+      "tipsNeverCapturePointerAtRest": true
+    }
+  },
+  "tip_pointer_apres_1280": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": null,
+    "collapsedTipPointerProbes": [
+      {
+        "label": "Développer le menu",
+        "centerXPx": 141.94,
+        "centerYPx": 85.59,
+        "topTag": "input",
+        "topClass": "search",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Bibliothèque",
+        "centerXPx": 104.41,
+        "centerYPx": 149.78,
+        "topTag": "th",
+        "topClass": "",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Nouveau",
+        "centerXPx": 93.62,
+        "centerYPx": 197.78,
+        "topTag": "td",
+        "topClass": "",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Paramètres",
+        "centerXPx": 100.33,
+        "centerYPx": 245.78,
+        "topTag": "div",
+        "topClass": "panel library",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Capture (mock)",
+        "centerXPx": 111.36,
+        "centerYPx": 682,
+        "topTag": "main",
+        "topClass": "main",
+        "hitsSidebarTip": false
+      }
+    ],
+    "collapsedIconCenters": [
+      {
+        "id": "brand-mark",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "toggle",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Bibliothèque",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Nouveau",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Paramètres",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "meta:Capture (mock)",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      }
+    ],
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": false,
+      "collapsedIconsCentered": true,
+      "iconCenterById": {
+        "brand-mark": true,
+        "toggle": true,
+        "nav:Bibliothèque": true,
+        "nav:Nouveau": true,
+        "nav:Paramètres": true,
+        "meta:Capture (mock)": true
+      },
+      "tipsNeverCapturePointerAtRest": true
+    }
+  },
+  "tooltip_1280": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.349998525131042,
+      "foregroundCss": "rgb(239, 240, 251)",
+      "backgroundCss": "rgb(44, 38, 80)",
+      "source": "dom"
+    },
+    "tooltip": {
+      "widthPx": 92.81,
+      "heightPx": 31.19,
+      "leftPx": 58,
+      "topPx": 134.19,
+      "gapToTriggerPx": 8,
+      "opacity": 1,
+      "foregroundCss": "rgb(239, 240, 251)",
+      "backgroundCss": "rgb(32, 36, 58)",
+      "contrastRatio": 13.48
+    },
+    "collapsedTipPointerProbes": [
+      {
+        "label": "Développer le menu",
+        "centerXPx": 141.94,
+        "centerYPx": 85.59,
+        "topTag": "input",
+        "topClass": "search",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Bibliothèque",
+        "centerXPx": 104.41,
+        "centerYPx": 149.78,
+        "topTag": "span",
+        "topClass": "sidebar-tip",
+        "hitsSidebarTip": true
+      },
+      {
+        "label": "Nouveau",
+        "centerXPx": 93.62,
+        "centerYPx": 197.78,
+        "topTag": "button",
+        "topClass": "linkish",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Paramètres",
+        "centerXPx": 100.33,
+        "centerYPx": 245.78,
+        "topTag": "div",
+        "topClass": "panel library",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Capture (mock)",
+        "centerXPx": 111.36,
+        "centerYPx": 682,
+        "topTag": "main",
+        "topClass": "main",
+        "hitsSidebarTip": false
+      }
+    ],
+    "collapsedIconCenters": [
+      {
+        "id": "brand-mark",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "toggle",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Bibliothèque",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Nouveau",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Paramètres",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "meta:Capture (mock)",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      }
+    ],
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": true,
+      "collapsedIconsCentered": true,
+      "iconCenterById": {
+        "brand-mark": true,
+        "toggle": true,
+        "nav:Bibliothèque": true,
+        "nav:Nouveau": true,
+        "nav:Paramètres": true,
+        "meta:Capture (mock)": true
+      },
+      "tipsNeverCapturePointerAtRest": false
+    }
+  },
+  "tooltip_after_leave_1280": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": null,
+    "collapsedTipPointerProbes": [
+      {
+        "label": "Développer le menu",
+        "centerXPx": 141.94,
+        "centerYPx": 85.59,
+        "topTag": "input",
+        "topClass": "search",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Bibliothèque",
+        "centerXPx": 104.41,
+        "centerYPx": 149.78,
+        "topTag": "th",
+        "topClass": "",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Nouveau",
+        "centerXPx": 93.62,
+        "centerYPx": 197.78,
+        "topTag": "button",
+        "topClass": "linkish",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Paramètres",
+        "centerXPx": 100.33,
+        "centerYPx": 245.78,
+        "topTag": "div",
+        "topClass": "panel library",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Capture (mock)",
+        "centerXPx": 111.36,
+        "centerYPx": 682,
+        "topTag": "main",
+        "topClass": "main",
+        "hitsSidebarTip": false
+      }
+    ],
+    "collapsedIconCenters": [
+      {
+        "id": "brand-mark",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "toggle",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Bibliothèque",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Nouveau",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Paramètres",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "meta:Capture (mock)",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      }
+    ],
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": false,
+      "collapsedIconsCentered": true,
+      "iconCenterById": {
+        "brand-mark": true,
+        "toggle": true,
+        "nav:Bibliothèque": true,
+        "nav:Nouveau": true,
+        "nav:Paramètres": true,
+        "meta:Capture (mock)": true
+      },
+      "tipsNeverCapturePointerAtRest": true
+    }
+  },
+  "tooltip_bridge_1280": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.349998525131042,
+      "foregroundCss": "rgb(239, 240, 251)",
+      "backgroundCss": "rgb(44, 38, 80)",
+      "source": "dom"
+    },
+    "tooltip": {
+      "widthPx": 92.81,
+      "heightPx": 31.19,
+      "leftPx": 58,
+      "topPx": 134.19,
+      "gapToTriggerPx": 8,
+      "opacity": 1,
+      "foregroundCss": "rgb(239, 240, 251)",
+      "backgroundCss": "rgb(32, 36, 58)",
+      "contrastRatio": 13.48
+    },
+    "collapsedTipPointerProbes": [
+      {
+        "label": "Développer le menu",
+        "centerXPx": 141.94,
+        "centerYPx": 85.59,
+        "topTag": "input",
+        "topClass": "search",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Bibliothèque",
+        "centerXPx": 104.41,
+        "centerYPx": 149.78,
+        "topTag": "span",
+        "topClass": "sidebar-tip",
+        "hitsSidebarTip": true
+      },
+      {
+        "label": "Nouveau",
+        "centerXPx": 93.62,
+        "centerYPx": 197.78,
+        "topTag": "button",
+        "topClass": "linkish",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Paramètres",
+        "centerXPx": 100.33,
+        "centerYPx": 245.78,
+        "topTag": "div",
+        "topClass": "panel library",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Capture (mock)",
+        "centerXPx": 111.36,
+        "centerYPx": 682,
+        "topTag": "main",
+        "topClass": "main",
+        "hitsSidebarTip": false
+      }
+    ],
+    "collapsedIconCenters": [
+      {
+        "id": "brand-mark",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "toggle",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Bibliothèque",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Nouveau",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Paramètres",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "meta:Capture (mock)",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      }
+    ],
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": true,
+      "collapsedIconsCentered": true,
+      "iconCenterById": {
+        "brand-mark": true,
+        "toggle": true,
+        "nav:Bibliothèque": true,
+        "nav:Nouveau": true,
+        "nav:Paramètres": true,
+        "meta:Capture (mock)": true
+      },
+      "tipsNeverCapturePointerAtRest": false
+    }
+  },
+  "tooltip_escape_before": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.349998525131042,
+      "foregroundCss": "rgb(239, 240, 251)",
+      "backgroundCss": "rgb(44, 38, 80)",
+      "source": "dom"
+    },
+    "tooltip": {
+      "widthPx": 92.81,
+      "heightPx": 31.19,
+      "leftPx": 58,
+      "topPx": 134.19,
+      "gapToTriggerPx": 8,
+      "opacity": 1,
+      "foregroundCss": "rgb(239, 240, 251)",
+      "backgroundCss": "rgb(32, 36, 58)",
+      "contrastRatio": 13.48
+    },
+    "collapsedTipPointerProbes": [
+      {
+        "label": "Développer le menu",
+        "centerXPx": 141.94,
+        "centerYPx": 85.59,
+        "topTag": "input",
+        "topClass": "search",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Bibliothèque",
+        "centerXPx": 104.41,
+        "centerYPx": 149.78,
+        "topTag": "span",
+        "topClass": "sidebar-tip",
+        "hitsSidebarTip": true
+      },
+      {
+        "label": "Nouveau",
+        "centerXPx": 93.62,
+        "centerYPx": 197.78,
+        "topTag": "button",
+        "topClass": "linkish",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Paramètres",
+        "centerXPx": 100.33,
+        "centerYPx": 245.78,
+        "topTag": "div",
+        "topClass": "panel library",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Capture (mock)",
+        "centerXPx": 111.36,
+        "centerYPx": 682,
+        "topTag": "main",
+        "topClass": "main",
+        "hitsSidebarTip": false
+      }
+    ],
+    "collapsedIconCenters": [
+      {
+        "id": "brand-mark",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "toggle",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Bibliothèque",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Nouveau",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Paramètres",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "meta:Capture (mock)",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      }
+    ],
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": true,
+      "collapsedIconsCentered": true,
+      "iconCenterById": {
+        "brand-mark": true,
+        "toggle": true,
+        "nav:Bibliothèque": true,
+        "nav:Nouveau": true,
+        "nav:Paramètres": true,
+        "meta:Capture (mock)": true
+      },
+      "tipsNeverCapturePointerAtRest": false
+    }
+  },
+  "tooltip_escape_after": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.349998525131042,
+      "foregroundCss": "rgb(239, 240, 251)",
+      "backgroundCss": "rgb(44, 38, 80)",
+      "source": "dom"
+    },
+    "tooltip": null,
+    "collapsedTipPointerProbes": [
+      {
+        "label": "Développer le menu",
+        "centerXPx": 141.94,
+        "centerYPx": 85.59,
+        "topTag": "input",
+        "topClass": "search",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Bibliothèque",
+        "centerXPx": 104.41,
+        "centerYPx": 149.78,
+        "topTag": "th",
+        "topClass": "",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Nouveau",
+        "centerXPx": 93.62,
+        "centerYPx": 197.78,
+        "topTag": "button",
+        "topClass": "linkish",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Paramètres",
+        "centerXPx": 100.33,
+        "centerYPx": 245.78,
+        "topTag": "div",
+        "topClass": "panel library",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Capture (mock)",
+        "centerXPx": 111.36,
+        "centerYPx": 682,
+        "topTag": "main",
+        "topClass": "main",
+        "hitsSidebarTip": false
+      }
+    ],
+    "collapsedIconCenters": [
+      {
+        "id": "brand-mark",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "toggle",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Bibliothèque",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Nouveau",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Paramètres",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "meta:Capture (mock)",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      }
+    ],
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": false,
+      "collapsedIconsCentered": true,
+      "iconCenterById": {
+        "brand-mark": true,
+        "toggle": true,
+        "nav:Bibliothèque": true,
+        "nav:Nouveau": true,
+        "nav:Paramètres": true,
+        "meta:Capture (mock)": true
+      },
+      "tipsNeverCapturePointerAtRest": true
+    }
+  },
+  "focus_toggle": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 220,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "true",
+    "toggleAriaLabel": "Réduire le menu",
+    "toggleSizePx": [
+      199,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        199,
+        44
+      ],
+      [
+        199,
+        44
+      ],
+      [
+        199,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": null,
+    "collapsedTipPointerProbes": null,
+    "collapsedIconCenters": null,
+    "checks": {
+      "widthMatchesExpanded": true,
+      "widthMatchesCollapsed": false,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": false,
+      "collapsedIconsCentered": true,
+      "iconCenterById": {},
+      "tipsNeverCapturePointerAtRest": true
+    }
+  },
+  "tooltip_focus_before_1280": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": {
+      "widthPx": 167.88,
+      "heightPx": 31.19,
+      "leftPx": 58,
+      "topPx": 70,
+      "gapToTriggerPx": 8,
+      "opacity": 1,
+      "foregroundCss": "rgb(239, 240, 251)",
+      "backgroundCss": "rgb(32, 36, 58)",
+      "contrastRatio": 13.48
+    },
+    "collapsedTipPointerProbes": [
+      {
+        "label": "Développer le menu",
+        "centerXPx": 141.94,
+        "centerYPx": 85.59,
+        "topTag": "span",
+        "topClass": "sidebar-tip",
+        "hitsSidebarTip": true
+      },
+      {
+        "label": "Bibliothèque",
+        "centerXPx": 104.41,
+        "centerYPx": 149.78,
+        "topTag": "th",
+        "topClass": "",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Nouveau",
+        "centerXPx": 93.62,
+        "centerYPx": 197.78,
+        "topTag": "button",
+        "topClass": "linkish",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Paramètres",
+        "centerXPx": 100.33,
+        "centerYPx": 245.78,
+        "topTag": "div",
+        "topClass": "panel library",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Capture (mock)",
+        "centerXPx": 111.36,
+        "centerYPx": 682,
+        "topTag": "main",
+        "topClass": "main",
+        "hitsSidebarTip": false
+      }
+    ],
+    "collapsedIconCenters": [
+      {
+        "id": "brand-mark",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "toggle",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Bibliothèque",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Nouveau",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Paramètres",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "meta:Capture (mock)",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      }
+    ],
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": true,
+      "collapsedIconsCentered": true,
+      "iconCenterById": {
+        "brand-mark": true,
+        "toggle": true,
+        "nav:Bibliothèque": true,
+        "nav:Nouveau": true,
+        "nav:Paramètres": true,
+        "meta:Capture (mock)": true
+      },
+      "tipsNeverCapturePointerAtRest": false
+    }
+  },
+  "tooltip_focus_escape_1280": {
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": null,
+    "collapsedTipPointerProbes": [
+      {
+        "label": "Développer le menu",
+        "centerXPx": 141.94,
+        "centerYPx": 85.59,
+        "topTag": "input",
+        "topClass": "search",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Bibliothèque",
+        "centerXPx": 104.41,
+        "centerYPx": 149.78,
+        "topTag": "th",
+        "topClass": "",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Nouveau",
+        "centerXPx": 93.62,
+        "centerYPx": 197.78,
+        "topTag": "button",
+        "topClass": "linkish",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Paramètres",
+        "centerXPx": 100.33,
+        "centerYPx": 245.78,
+        "topTag": "div",
+        "topClass": "panel library",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Capture (mock)",
+        "centerXPx": 111.36,
+        "centerYPx": 682,
+        "topTag": "main",
+        "topClass": "main",
+        "hitsSidebarTip": false
+      }
+    ],
+    "collapsedIconCenters": [
+      {
+        "id": "brand-mark",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "toggle",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Bibliothèque",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Nouveau",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Paramètres",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "meta:Capture (mock)",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      }
+    ],
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": false,
+      "collapsedIconsCentered": true,
+      "iconCenterById": {
+        "brand-mark": true,
+        "toggle": true,
+        "nav:Bibliothèque": true,
+        "nav:Nouveau": true,
+        "nav:Paramètres": true,
+        "meta:Capture (mock)": true
+      },
+      "tipsNeverCapturePointerAtRest": true
+    }
+  },
+  "library_click_after_collapse_1280": {
+    "screen": "song",
+    "titleHitBeforeClick": {
+      "tag": "button",
+      "className": "linkish",
+      "hitsSidebarTip": false
+    },
+    "titleCenterPx": {
+      "x": 317.63,
+      "y": 209.27
+    }
+  },
+  "library_click_collapse_while_on_title_1280": {
+    "screen": "library",
+    "note": "souris fixe pendant Ctrl+B ; le clic peut rater si le titre a bougé — la sonde vérifie l’absence de .sidebar-tip au centre du titre replié",
+    "titleCenterAfterCollapsePx": {
+      "x": 181.35,
+      "y": 203.29
+    }
+  },
+  "auto_1024": {
+    "viewportWidth": 1024,
+    "viewportHeight": 700,
+    "sidebarWidthPx": 56,
+    "mockupSidebarExpandedPx": 220,
+    "mockupSidebarCollapsedPx": 56,
+    "toggleAriaExpanded": "false",
+    "toggleAriaLabel": "Développer le menu",
+    "toggleSizePx": [
+      45,
+      44
+    ],
+    "navTargetSizesPx": [
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ],
+      [
+        45,
+        44
+      ]
+    ],
+    "hoverContrast": {
+      "ratio": 12.277830571699933,
+      "foregroundCss": "#f3f0fa",
+      "backgroundCss": "#2f2a3d",
+      "source": "constants"
+    },
+    "tooltip": null,
+    "collapsedTipPointerProbes": [
+      {
+        "label": "Développer le menu",
+        "centerXPx": 141.94,
+        "centerYPx": 85.59,
+        "topTag": "input",
+        "topClass": "search",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Bibliothèque",
+        "centerXPx": 104.41,
+        "centerYPx": 149.78,
+        "topTag": "th",
+        "topClass": "",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Nouveau",
+        "centerXPx": 93.62,
+        "centerYPx": 197.78,
+        "topTag": "td",
+        "topClass": "",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Paramètres",
+        "centerXPx": 100.33,
+        "centerYPx": 245.78,
+        "topTag": "div",
+        "topClass": "panel library",
+        "hitsSidebarTip": false
+      },
+      {
+        "label": "Capture (mock)",
+        "centerXPx": 111.36,
+        "centerYPx": 662,
+        "topTag": "main",
+        "topClass": "main",
+        "hitsSidebarTip": false
+      }
+    ],
+    "collapsedIconCenters": [
+      {
+        "id": "brand-mark",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "toggle",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Bibliothèque",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Nouveau",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "nav:Paramètres",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      },
+      {
+        "id": "meta:Capture (mock)",
+        "centerXPx": 27.5,
+        "expectedCenterXPx": 28,
+        "deltaPx": -0.5,
+        "withinTolerance": true
+      }
+    ],
+    "checks": {
+      "widthMatchesExpanded": false,
+      "widthMatchesCollapsed": true,
+      "targetsAtLeast44Px": true,
+      "hoverContrastAa": true,
+      "tooltipVisible": false,
+      "collapsedIconsCentered": true,
+      "iconCenterById": {
+        "brand-mark": true,
+        "toggle": true,
+        "nav:Bibliothèque": true,
+        "nav:Nouveau": true,
+        "nav:Paramètres": true,
+        "meta:Capture (mock)": true
+      },
+      "tipsNeverCapturePointerAtRest": true
+    }
+  },
+  "tip_pointer_avant_1280": {
+    "source": "mesure pré-correctif #165 (repro Playwright)",
+    "checks": {
+      "tipsNeverCapturePointerAtRest": false
+    },
+    "collapsedTipPointerProbes": [
+      {
+        "label": "Développer le menu",
+        "hitsSidebarTip": true,
+        "note": "opacity 0 mais pointer-events auto avant correctif"
+      },
+      {
+        "label": "Bibliothèque",
+        "hitsSidebarTip": true
+      },
+      {
+        "label": "Nouveau",
+        "hitsSidebarTip": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,153 @@
+
+> song-maker@0.1.1 bench:score-tab /workspace
+> node --import tsx scripts/bench-score-tab.mts
+
+{
+  "capturedAt": "2026-09-29T10:55:20.777Z",
+  "microbenches": {
+    "stats": {
+      "noteCount": 1233,
+      "maxTick": 4978560,
+      "pianoRollWidthPx": 199142.4
+    },
+    "abcChars": 14171,
+    "withResize": [
+      {
+        "phase": "abcjs.renderAbc (legacy responsive: resize)",
+        "durationMs": 265.0999999999767,
+        "detail": {
+          "chars": 14171,
+          "tunes": 1
+        }
+      },
+      {
+        "phase": "reflow SVG (offsetWidth/Height)",
+        "durationMs": 58.70000000006985,
+        "detail": {
+          "nodes": 17932,
+          "paperWidth": 1280,
+          "paperHeight": 94422
+        }
+      }
+    ],
+    "withoutResize": [
+      {
+        "phase": "abcjs.renderAbc (responsive off)",
+        "durationMs": 235
+      },
+      {
+        "phase": "reflow SVG (responsive off)",
+        "durationMs": 76.10000000009313,
+        "detail": {
+          "nodes": 17932
+        }
+      }
+    ],
+    "abcStaffViewOnly": [
+      {
+        "phase": "AbcStaffView seul → SVG",
+        "durationMs": 75.59999999997672
+      }
+    ],
+    "pianoRoll": [
+      {
+        "phase": "PianoRoll mount (hidden tabpanel path)",
+        "durationMs": 0.5,
+        "detail": {
+          "noteButtons": 1233,
+          "gridWidthPx": 199142.4
+        }
+      }
+    ],
+    "resizeStorm": [
+      {
+        "phase": "resize storm (5×, responsive: resize)",
+        "durationMs": 220.5
+      }
+    ],
+    "viewportResizeLegacy": {
+      "phase": "layout après resize (viewportHorizontal + responsive: resize)",
+      "durationMs": 114,
+      "detail": {
+        "passes": 8
+      }
+    },
+    "viewportResizeFixed": {
+      "phase": "layout après resize (viewportHorizontal, responsive off)",
+      "durationMs": 64,
+      "detail": {
+        "passes": 8
+      }
+    }
+  },
+  "scorePanelOpen": {
+    "stats": {
+      "noteCount": 1233,
+      "maxTick": 4978560,
+      "pianoRollWidthPx": 199142.4
+    },
+    "abcChars": 14171,
+    "abcLines": 1312,
+    "phases": [
+      {
+        "phase": "ScorePanel mount (1 frame)",
+        "durationMs": 38.800000000046566
+      },
+      {
+        "phase": "attente rendu portée (abcjs useEffect)",
+        "durationMs": 51.199999999953434,
+        "detail": {
+          "hasSvg": true
+        }
+      },
+      {
+        "phase": "rafales resize après montage (post-ouverture)",
+        "durationMs": 126.80000000004657
+      },
+      {
+        "phase": "ouverture → portée visible (total)",
+        "durationMs": 216.80000000004657,
+        "detail": {
+          "hasSvg": true
+        }
+      }
+    ],
+    "longTasksMs": 0,
+    "longTaskCount": 0
+  },
+  "scorePanelOpenLong": {
+    "stats": {
+      "noteCount": 9857,
+      "maxTick": 5412480,
+      "pianoRollWidthPx": 216499.2
+    },
+    "abcChars": 28789,
+    "abcLines": 1428,
+    "phases": [
+      {
+        "phase": "ScorePanel mount (1 frame)",
+        "durationMs": 174.30000000004657
+      },
+      {
+        "phase": "attente rendu portée (abcjs useEffect)",
+        "durationMs": 43.79999999993015,
+        "detail": {
+          "hasSvg": true
+        }
+      },
+      {
+        "phase": "rafales resize après montage (post-ouverture)",
+        "durationMs": 115.30000000004657
+      },
+      {
+        "phase": "ouverture → portée visible (total)",
+        "durationMs": 333.4000000000233,
+        "detail": {
+          "hasSvg": true
+        }
+      }
+    ],
+    "longTasksMs": 172,
+    "longTaskCount": 2
+  }
+}

@@ -6,12 +6,33 @@ import { fileURLToPath } from "node:url";
 
 const host = process.env.TAURI_DEV_HOST;
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
+const captureMode = process.env.VITE_CAPTURE === "1";
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [react()],
   resolve: {
     alias: {
+      ...(captureMode
+        ? {
+            "@tauri-apps/api/core": path.resolve(
+              rootDir,
+              "src/dev/tauriInvokeMock.ts",
+            ),
+            "@tauri-apps/api/event": path.resolve(
+              rootDir,
+              "src/dev/tauriEventMock.ts",
+            ),
+            "@tauri-apps/plugin-updater": path.resolve(
+              rootDir,
+              "src/dev/tauriUpdaterMock.ts",
+            ),
+            "@tauri-apps/plugin-process": path.resolve(
+              rootDir,
+              "src/dev/tauriProcessMock.ts",
+            ),
+          }
+        : {}),
       "@song-maker/score-engine": path.resolve(
         rootDir,
         "packages/score-engine/src/index.ts",
@@ -28,6 +49,10 @@ export default defineConfig(() => ({
         rootDir,
         "packages/lora-packs/src/index.ts",
       ),
+      "@song-maker/lora-training": path.resolve(
+        rootDir,
+        "packages/lora-training/src/index.ts",
+      ),
       "@song-maker/partition-invariants": path.resolve(
         rootDir,
         "packages/partition-invariants/src/index.ts",
@@ -35,6 +60,14 @@ export default defineConfig(() => ({
       "@song-maker/remote-worker": path.resolve(
         rootDir,
         "packages/remote-worker/src/index.ts",
+      ),
+      "@song-maker/project-sync": path.resolve(
+        rootDir,
+        "packages/project-sync/src/index.ts",
+      ),
+      "@song-maker/sheetsage": path.resolve(
+        rootDir,
+        "packages/sheetsage/src/index.ts",
       ),
       "@song-maker/akasha-declui": path.resolve(
         rootDir,
@@ -49,9 +82,9 @@ export default defineConfig(() => ({
   clearScreen: false,
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {
-    port: 1420,
-    strictPort: true,
-    host: host || false,
+    port: captureMode ? 5179 : 1420,
+    strictPort: !captureMode,
+    host: captureMode ? true : host || false,
     hmr: host
       ? {
           protocol: "ws",

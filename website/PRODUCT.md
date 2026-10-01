@@ -14,6 +14,19 @@ Primary audience, inferred from the existing product specification and approved 
 
 Song Maker is a local desktop music-making application. A user enters a style and lyrics, generates a stereo song with YuE2 through audio.cpp, separates it into stems with HTDemucs, adjusts the mix, and exports audio.
 
+## Long-Term Product Vision
+
+Song Maker aims to grow into a multitrack music production workspace assisted by generative AI. Cubase is a reference for the broad DAW workflow, not a promise of feature parity or compatibility with its plugins.
+
+The same project should support two entry paths:
+
+- **Simple:** describe a style and provide lyrics; generate a song with YuE2, then edit the arrangement and tracks, mix, and export.
+- **Advanced:** bring an existing score, MIDI, audio tracks, or stems; use AI to create complementary instrumental parts and help work on the mix.
+
+AI-created tracks and mix changes should remain editable and reversible, with imported source material preserved. As a long-term goal, the project also intends to create a Song Maker audio transformation model, complementary to YuE2, for working with audio in existing projects. Its architecture and exact transformations are undecided.
+
+This is target direction, not a claim about current capabilities. The integrated YuE2 engine does not accept reference audio. Project-conditioned instrumental generation and the custom audio transformation model are not shipped capabilities.
+
 ## Positioning
 
 Song generation and basic production happen on the user's own compatible computer with local model files. Account creation and a required cloud generation service are not part of the core workflow.
@@ -24,11 +37,11 @@ The desktop application targets Windows and Linux with an NVIDIA CUDA GPU. Users
 
 ## Capabilities and Constraints
 
-- The current repository README and UI include local YuE2 generation from style and non-empty lyrics, MIDI import and score editing, sequential candidate generation and comparison, clip editing, stem separation, mixing, and WAV / FLAC / MP3 export.
-- The product specification still describes some score, candidate, and clip capabilities as later-phase work. Until this version discrepancy is resolved, the site must clearly state which capabilities are available in the current application and must not present roadmap items as shipped.
-- The standard HTDemucs path produces vocals, drums, bass, and other. An optional experimental ONNX 6-stem path also estimates guitar and piano; those estimates can leak, especially piano. Do not imply the 6-stem path is the default or its extra stems are cleanly isolated. BS-RoFormer remains a stub, not a ready second separator.
-- The remote-worker UI's current probe queues locally and makes no network request. Do not present remote generation as an available workflow.
-- YuE2 does not consume reference audio and does not guarantee the requested duration, language, tempo, or key. A style and non-empty lyrics are required for generation.
+- The root README is the source of truth for what ships on `main`. The desktop app includes local YuE2 generation (style + lyrics, or instrumental mode with optional empty lyrics), MIDI/score/ABC editing, SheetSage2 opt-in reprise, sequential candidates (N successive local calls), clip editing, stem separation (with separation history), mix/production tools, and WAV / FLAC / MP3 export. Desktop UI is French-only; the marketing site is FR/EN. Do not present deferred items (VST3, audio_input generation, UniverSR, embedded DeclUI host, SF2 banks) as available.
+- Prefer the current README over historical “phase N incomplete” wording in the product specification when writing site copy.
+- The standard HTDemucs path produces vocals, drums, bass, and other. An optional experimental ONNX 6-stem path also estimates guitar and piano; those estimates can leak, especially piano. Do not imply the 6-stem path is the default or its extra stems are cleanly isolated. BS-RoFormer is an optional second separator (opt-in GGUF download) that returns vocals + instrumental only; HTDemucs remains the default.
+- Remote generation and Akasha host discovery are **opt-in**. With remote disabled, the client makes no network request. A reference worker (`packages/remote-worker-server`) implements the HTTP contract; do not present remote as the default path.
+- YuE2 does not consume reference audio (`audio_input`) and does not guarantee the requested duration, language, tempo, or key. A style is required. Lyrics are required unless instrumental mode is enabled.
 - YuE2 / GGUF model weights are distributed under CC BY-NC 4.0. The site must not promise commercial use of those weights or outputs.
 
 ## Evidence on Hand

@@ -4,6 +4,7 @@ import {
   createCandidateComparer,
   createClipEditor,
   createStopAfterAbcClient,
+  GatedStopAfterAbcClient,
   STOP_AFTER_ABC_ENABLED,
   ScoreEngineError,
   type Clip,
@@ -118,23 +119,21 @@ describe("comparateur multi-candidats", () => {
   });
 });
 
-describe("stop_after=abc gate", () => {
-  it("reste gated hors épingle ≥ 0.8.2", async () => {
-    assert.equal(STOP_AFTER_ABC_ENABLED, false);
+describe("stop_after=abc", () => {
+  it("planifie les options quand le drapeau est actif", async () => {
+    assert.equal(STOP_AFTER_ABC_ENABLED, true);
     const client = createStopAfterAbcClient();
-    assert.equal(client.isEnabled(), false);
-    await assert.rejects(
-      () =>
-        client.run({
-          style: "pop",
-          lyrics: "[Verse]\nHi",
-          cot: "full",
-          seed: 1,
-          stopAfter: "abc",
-        }),
-      (err: unknown) =>
-        err instanceof ScoreEngineError && err.code === "not_implemented",
-    );
+    assert.equal(client.isEnabled(), true);
+    const result = await client.run({
+      style: "pop",
+      lyrics: "[Verse]\nHi",
+      cot: "full",
+      seed: 1,
+      stopAfter: "abc",
+    });
+    assert.equal(result.audioPath, null);
+    assert.equal(result.scoreAbcPath, "score.abc");
+    assert.deepEqual(result.taskOptions, { stop_after: "abc" });
   });
 
   it("refuse cot=off et ABC externe", async () => {
@@ -163,6 +162,22 @@ describe("stop_after=abc gate", () => {
         }),
       (err: unknown) =>
         err instanceof ScoreEngineError && err.code === "validation_failed",
+    );
+  });
+
+  it("reste not_implemented si le client est forcé gated", async () => {
+    const client = new GatedStopAfterAbcClient(false);
+    await assert.rejects(
+      () =>
+        client.run({
+          style: "pop",
+          lyrics: "[Verse]\nHi",
+          cot: "full",
+          seed: 1,
+          stopAfter: "abc",
+        }),
+      (err: unknown) =>
+        err instanceof ScoreEngineError && err.code === "not_implemented",
     );
   });
 });

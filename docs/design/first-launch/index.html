@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Song Maker — Maquette : configuration au premier lancement</title>
+<meta name="viewport" content="width=1280">
+<style>
+:root{
+  --bg:#141218; --bg2:#1b1723; --card:#221e2c; --card2:#2a2536; --line:#3d3654; --line2:#7a6ea1;
+  --text:#f3f0fa; --muted:#bdb6cf; --teal:#5ed8c9; --purple:#a58bff; --purple-btn:#805cdf; --purple-btn-h:#6a3fd9;
+  --warn:#ffb4a8; --warn-bg:#3a1f26; --warn-line:#ff6b6b; --ok:#7fe0a1; --focus:#ffd76a;
+  --serif:"Fraunces","Source Serif Pro","Noto Serif",Georgia,serif;
+  --sans:"Inter","Segoe UI",system-ui,-apple-system,"Noto Sans",Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html,body{background:#0b0a0e;color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+body{font-size:14px;line-height:1.4}
+.screen{position:relative;width:1280px;height:720px;overflow:hidden;display:none;
+  background:radial-gradient(900px 500px at 15% -10%,#2b2050 0%,transparent 60%),radial-gradient(800px 500px at 100% 110%,#1d2a3a 0%,transparent 55%),var(--bg);
+  padding:24px 80px}
+body[data-view="all"] .screen{display:block;margin-bottom:24px}
+body[data-view="a"] #a,body[data-view="b"] #b,body[data-view="c"] #c,body[data-view="d"] #d{display:block}
+.card{height:672px;background:linear-gradient(180deg,var(--card),#1e1a27);border:1px solid var(--line);border-radius:24px;
+  padding:26px 36px 22px;box-shadow:0 24px 60px rgba(0,0,0,.5);display:flex;flex-direction:column}
+.eyebrow{font-variant-caps:all-small-caps;letter-spacing:.14em;font-weight:600;font-size:15px;color:var(--teal)}
+h1{font-family:var(--serif);font-weight:600;font-size:34px;line-height:1.1;margin:2px 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);font-size:14.5px;max-width:860px}
+.head{display:flex;justify-content:space-between;align-items:flex-start}
+.mockbadge{font-size:11px;color:#e8e1ff;border:1px dashed var(--purple);border-radius:8px;padding:4px 8px;background:#2a2050;white-space:nowrap}
+.tag-ex{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1a1424;background:#e9c46a;border-radius:5px;padding:2px 6px;vertical-align:middle;margin-left:6px}
+.grid2{display:grid;grid-template-columns:1fr 1.15fr;gap:22px;margin-top:16px;flex:1;min-height:0}
+.panel{background:var(--card2);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.panel h2{font-size:12px;font-variant-caps:all-small-caps;letter-spacing:.12em;color:var(--muted);font-weight:600;margin-bottom:8px;font-size:13.5px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.detect{display:flex;gap:12px;align-items:center;border-color:#2f6b62;background:#1f2d2f}
+.ico{width:38px;height:38px;flex:none;border-radius:10px;display:grid;place-items:center;font-size:20px;background:#12332f;color:var(--teal);border:1px solid #2f6b62}
+.detect b{font-size:15px}.detect small{display:block;color:var(--muted);font-size:12.5px}
+.status{display:inline-flex;gap:6px;align-items:center;color:var(--ok);font-weight:600;font-size:12.5px;margin-bottom:2px}
+.reco{border-color:var(--purple);background:linear-gradient(180deg,#2d2650,#282243)}
+.reco .big{font-family:var(--serif);font-size:20px;font-weight:600}
+.reco p{color:#dcd5f0;font-size:13.5px;margin-top:2px}
+.sum{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13.5px}
+.sum dt{color:var(--muted)} .sum dd{font-weight:600;text-align:right}
+.models{display:flex;flex-direction:column;gap:12px}
+.model{position:relative;display:block;border:2px solid var(--line);background:var(--card2);border-radius:16px;padding:14px 16px 14px 48px;cursor:pointer}
+.model input{position:absolute;left:16px;top:18px;width:20px;height:20px;accent-color:#8f6bff}
+.model.sel{border-color:var(--purple);background:#2c2650}
+.model .t{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.model .t b{font-family:var(--serif);font-size:18px;font-weight:600}
+.model .size{font-weight:700;font-size:14px}
+.model p{color:var(--muted);font-size:13px;margin-top:2px}
+.model.sel p{color:#d6cdf0}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 9px;background:#3a2f70;color:#fff;border:1px solid var(--purple);margin-left:8px;vertical-align:middle}
+.chip.neutral{background:#2f2a3d;border-color:var(--line2);color:var(--muted)}
+.bars{margin-top:8px;font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.vram{flex:1;height:8px;border-radius:4px;background:#171320;border:1px solid var(--line);position:relative;overflow:hidden}
+.vram i{position:absolute;left:0;top:0;bottom:0;background:var(--teal)}
+.vram i.hi{background:#f0b45a}
+.foot{margin-top:14px;border-top:1px solid var(--line);padding-top:12px;display:flex;gap:24px;align-items:center;justify-content:space-between}
+.license{flex:1}
+.license p{font-size:13.5px;color:#e4def3;max-width:720px}
+.license .cb{display:flex;gap:10px;align-items:center;margin-top:0;min-height:44px;font-weight:600;font-size:14px;cursor:pointer}
+.license input{width:20px;height:20px;accent-color:#8f6bff}
+a{color:#c4b2ff;text-decoration:underline;text-underline-offset:3px}
+.btn{font:inherit;font-weight:700;font-size:15px;border-radius:12px;padding:12px 22px;border:2px solid transparent;cursor:pointer;color:#fff;background:var(--purple-btn);display:inline-flex;gap:8px;align-items:center;justify-content:center;white-space:nowrap}
+.btn:hover{background:var(--purple-btn-h)}
+.btn.sec{background:transparent;border-color:var(--line2);color:var(--text)}
+.btn.sec:hover{background:#2f2a3d}
+.btn.lg{font-size:16px;padding:14px 26px}
+.btn:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.btn.focus-demo{outline:3px solid var(--focus);outline-offset:3px}
+.actions{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.hint{font-size:12px;color:var(--muted)}
+.mock-note{position:absolute;right:88px;bottom:4px;font-size:10.5px;color:#8e86a6}
+
+/* State B */
+.alert{display:flex;gap:14px;border:2px solid var(--warn-line);background:var(--warn-bg);border-radius:14px;padding:14px 16px;margin-top:14px}
+.alert .ai{flex:none;width:34px;height:34px;border-radius:50%;background:#ff6b6b;color:#2a0d10;display:grid;place-items:center;font-weight:900;font-size:20px}
+.alert h2{font-size:16px;color:#ffd5cf;font-weight:700;margin-bottom:2px}
+.alert p{color:#f5dcd8;font-size:13.5px}
+.alts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px;flex:1;min-height:0}
+.alt{display:flex;flex-direction:column;background:var(--card2);border:1px solid var(--line);border-radius:16px;padding:16px}
+.alt.rec{border:2px solid var(--purple);background:#2c2650}
+.alt .num{font-family:var(--serif);font-size:13px;color:var(--muted)}
+.alt h3{font-family:var(--serif);font-size:18px;font-weight:600;margin:4px 0 6px;line-height:1.2}
+.alt p{color:var(--muted);font-size:13px}
+.alt.rec p{color:#d6cdf0}
+.alt ul{margin:8px 0 0 18px;color:var(--muted);font-size:12.5px}
+.alt .sp{flex:1}
+.alt .btn{width:100%;margin-top:12px}
+.toggle{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:12.5px;font-weight:600}
+.sw{width:40px;height:22px;border-radius:11px;background:#171320;border:2px solid var(--line2);position:relative;flex:none}
+.sw::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:var(--muted)}
+.note-b{font-size:12.5px;color:var(--muted);margin-top:12px;display:flex;justify-content:space-between;align-items:center}
+
+/* State C */
+.files{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.file{display:grid;grid-template-columns:230px 1fr 210px;gap:18px;align-items:center;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+.file.err{border:2px solid var(--warn-line);background:#2f2130}
+.file .n b{display:block;font-size:14.5px}.file .n span{color:var(--muted);font-size:12px}
+.pbar{height:12px;border-radius:6px;background:#171320;border:1px solid var(--line2);overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--teal)}
+.pbar.err i{background:repeating-linear-gradient(45deg,#ff8f8f 0 8px,#d95c5c 8px 16px)}
+.pbar.wait i{width:0}
+.pinfo{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:5px}
+.pinfo b{color:var(--text);font-weight:600}
+.st{font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;justify-content:flex-end;text-align:right}
+.st.ok{color:var(--ok)}.st.er{color:var(--warn)}.st.wt{color:var(--muted)}
+.st small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.global{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:12px}
+.errbox{display:flex;gap:14px;align-items:flex-start;border:2px solid var(--warn-line);background:var(--warn-bg);border-radius:14px;padding:14px 16px;margin-top:14px}
+.errbox h2{font-size:15.5px;color:#ffd5cf;margin-bottom:3px}
+.errbox p,.errbox li{font-size:13.5px;color:#f5dcd8}
+.errbox ol{margin:4px 0 0 18px}
+.errbox .ai{flex:none;width:32px;height:32px;border-radius:50%;background:#ff6b6b;color:#2a0d10;display:grid;place-items:center;font-weight:900;font-size:18px}
+.row-actions{display:flex;gap:12px;align-items:center;margin-top:auto;padding-top:12px}
+details{font-size:12.5px;color:var(--muted);margin-left:auto}
+summary{cursor:pointer;padding:4px 6px;border-radius:6px;display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box}
+.rot{margin-left:auto}
+
+/* Sheet D */
+.sheet{height:672px;border-radius:24px;border:1px solid var(--line);background:linear-gradient(180deg,#201b2b,#1a1623);padding:24px 36px}
+.sheet h1{font-size:30px}
+.pl{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px;margin-top:14px}
+.pt{display:grid;grid-template-columns:44px 1fr;gap:14px;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.pt:nth-child(5){grid-column:1 / span 2}
+.pt .k{width:36px;height:36px;border-radius:50%;background:var(--purple-btn);color:#fff;font-weight:800;display:grid;place-items:center;font-size:16px}
+.pt h3{font-size:15px;font-weight:700}
+.pt .src{font-size:11.5px;font-variant-caps:all-small-caps;letter-spacing:.1em;color:var(--teal);font-weight:600;font-size:13px}
+.pt p{font-size:13px;color:#d7d0e8;margin-top:2px}
+.pt p em{color:var(--muted);font-style:normal}
+.a11y{margin-top:12px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
+.a11y b{color:var(--text)}
+.sw-row{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.sw-row span{font-size:11.5px;padding:3px 8px;border-radius:6px;border:1px solid var(--line2)}
+.nav{position:fixed;top:6px;right:6px;z-index:9;font-size:12px;background:#000c;padding:4px 8px;border-radius:8px}
+body[data-view]:not([data-view="all"]) .nav{display:none}
+</style>
+</head>
+<body data-view="all">
+<nav class="nav" aria-label="Navigation de la maquette"><a href="#a">A</a> · <a href="#b">B</a> · <a href="#c">C</a> · <a href="#d">D</a> · <a href="#all">Tout</a></nav>
+
+<!-- ======================= A : GPU détecté ======================= -->
+<section class="screen" id="a" aria-label="État A : GPU détecté">
+ <main class="card">
+  <div class="head">
+   <div>
+    <div class="eyebrow">Première installation</div>
+    <h1>Préparons Song Maker</h1>
+    <p class="lead">Nous avons analysé votre ordinateur et choisi la meilleure configuration. Il vous suffit de vérifier, puis de lancer le téléchargement.</p>
+   </div>
+   <span class="mockbadge">Maquette · valeurs d’exemple</span>
+  </div>
+
+  <div class="grid2">
+   <div class="stack">
+    <div class="panel detect" role="status">
+     <div class="ico" aria-hidden="true">▣</div>
+     <div>
+      <span class="status"><span aria-hidden="true">✓</span> Carte graphique détectée <span class="tag-ex">Exemple</span></span>
+      <b>NVIDIA GeForce RTX 3060, 12 Go de VRAM</b>
+      <small>Compatible avec la génération de musique (CUDA)</small>
+     </div>
+    </div>
+
+    <div class="panel reco">
+     <h2>Recommandé pour cet ordinateur</h2>
+     <div class="big">Modèle Q4 <span class="chip">★ Recommandé</span></div>
+     <p>Pourquoi : il tient dans vos 12 Go de VRAM en gardant de la marge pour générer sans plantage.</p>
+    </div>
+
+    <div class="panel">
+     <h2>Ce qui sera téléchargé <span class="tag-ex">Exemple</span></h2>
+     <dl class="sum">
+      <dt>Moteur audio, VAE, HTDemucs</dt><dd>1,3 Go</dd>
+      <dt>Modèle YuE2 Q4</dt><dd>7,2 Go</dd>
+      <dt style="color:var(--text);font-weight:700">Total à télécharger</dt><dd>8,5 Go</dd>
+      <dt>Durée estimée à 50 Mo/s</dt><dd>≈ 3 min</dd>
+     </dl>
+    </div>
+   </div>
+
+   <div class="models" role="radiogroup" aria-label="Choix de la précision du modèle">
+    <label class="model sel">
+     <input type="radio" name="m" checked>
+     <div class="t"><b>Q4 · Rapide et léger <span class="chip">★ Recommandé</span></b><span class="size">7,2 Go</span></div>
+     <p>Bonne qualité, génération plus rapide. Fonctionne dès 8 Go de VRAM.</p>
+     <div class="bars"><span>VRAM utilisée ≈ 9 / 12 Go</span><div class="vram" aria-hidden="true"><i style="width:75%"></i></div></div>
+    </label>
+    <label class="model">
+     <input type="radio" name="m">
+     <div class="t"><b>Q8 · Qualité maximale <span class="chip neutral">Plus exigeant</span></b><span class="size">13,1 Go</span></div>
+     <p>Rendu un peu plus fin, mais plus lent et proche de la limite de votre carte.</p>
+     <div class="bars"><span>VRAM utilisée ≈ 11,5 / 12 Go</span><div class="vram" aria-hidden="true"><i class="hi" style="width:96%"></i></div></div>
+    </label>
+    <p class="hint">Vous pourrez changer de modèle plus tard dans Réglages › Modèles.</p>
+   </div>
+  </div>
+
+  <div class="foot">
+   <div class="license">
+    <p>YuE2 est sous licence <a href="#a">CC BY-NC 4.0</a> : usage personnel et non commercial uniquement, vous ne pouvez pas vendre ou monétiser les morceaux générés.</p>
+    <label class="cb"><input type="checkbox" checked> J’ai lu et j’accepte la licence</label>
+   </div>
+   <div class="actions">
+    <button class="btn lg focus-demo" type="button">Télécharger (8,5 Go)</button>
+    <span class="hint">Reprise automatique si la connexion est coupée</span>
+   </div>
+  </div>
+ </main>
+</section>
+
+<!-- ======================= B : Sans GPU ======================= -->
+<section class="screen" id="b" aria-label="État B : sans GPU">
+ <main class="card">
+  <div class="head">
+   <div>
+    <div class="eyebrow">Première installation</div>
+    <h1>Préparons Song Maker</h1>
+    <p class="lead">Choisissez comment vous souhaitez utiliser l’application sur cet ordinateur.</p>
+   </div>
+   <span class="mockbadge">Maquette · valeurs d’exemple</span>
+  </div>
+
+  <div class="alert" role="alert">
+   <div class="ai" aria-hidden="true">!</div>
+   <div>
+    <h2>Attention : aucune carte graphique compatible détectée</h2>
+    <p>La génération de musique demande une carte graphique <b>NVIDIA</b> (Windows ou Linux) ou une puce <b>Apple avec Metal</b> (Mac). Sans elle, le modèle YuE2 ne peut pas fonctionner : c’est pourquoi nous ne le téléchargeons pas.</p>
+   </div>
+  </div>
+
+  <div class="alts">
+   <section class="alt" aria-labelledby="b1">
+    <span class="num">Option 1 · Si vous avez une carte NVIDIA</span>
+    <h3 id="b1">Installer ou mettre à jour le pilote NVIDIA</h3>
+    <p>Un pilote absent ou trop ancien est la cause la plus fréquente. Après l’installation, relancez la détection.</p>
+    <ul><li>Ouvre le site officiel de NVIDIA</li><li>Redémarrage possible</li></ul>
+    <div class="sp"></div>
+    <a class="btn sec" href="#b" style="text-decoration:none">Ouvrir la page des pilotes ↗</a>
+    <button class="btn sec" type="button" style="margin-top:8px">↻ Relancer la détection</button>
+   </section>
+
+   <section class="alt" aria-labelledby="b2">
+    <span class="num">Option 2 · Facultatif</span>
+    <h3 id="b2">Utiliser un worker GPU distant</h3>
+    <p>Un autre ordinateur ou un serveur GPU que vous contrôlez génère la musique à votre place.</p>
+    <ul><li>Désactivé par défaut</li><li>Vos données audio quittent cet ordinateur</li></ul>
+    <label class="toggle"><span class="sw" aria-hidden="true"></span> Activer le worker distant (désactivé)</label>
+    <div class="sp"></div>
+    <button class="btn sec" type="button">Configurer un worker…</button>
+   </section>
+
+   <section class="alt rec" aria-labelledby="b3">
+    <span class="num">Option 3 · Disponible tout de suite</span>
+    <h3 id="b3">Continuer sans génération</h3>
+    <p>Utilisez la <b>séparation de stems</b> et le <b>mixage</b>. Seul HTDemucs (0,3 Go, exemple) sera téléchargé.</p>
+    <ul><li>La génération de musique sera désactivée</li><li>Modifiable plus tard dans les Réglages</li></ul>
+    <div class="sp"></div>
+    <button class="btn focus-demo" type="button">Continuer sans génération</button>
+   </section>
+  </div>
+  <p class="note-b"><span>Aucun modèle lourd ne sera téléchargé sans votre accord.</span><span>Détection : aucun GPU NVIDIA ni Apple Metal <span class="tag-ex">Exemple</span></span></p>
+ </main>
+</section>
+
+<!-- ======================= C : Téléchargement ======================= -->
+<section class="screen" id="c" aria-label="État C : téléchargement interrompu">
+ <main class="card">
+  <div class="head">
+   <div>
+    <div class="eyebrow">Première installation · Téléchargement</div>
+    <h1>Téléchargement interrompu</h1>
+    <p class="lead">Rien n’est perdu : les fichiers déjà reçus sont conservés et le téléchargement reprendra là où il s’est arrêté.</p>
+   </div>
+   <span class="mockbadge">Maquette · valeurs d’exemple</span>
+  </div>
+
+  <div class="files" role="list">
+   <div class="file" role="listitem">
+    <div class="n"><b>Moteur audio</b><span>Traitement du son</span></div>
+    <div><div class="pbar" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" aria-label="Moteur audio"><i style="width:100%"></i></div>
+     <div class="pinfo"><span><b>412 Mo</b> / 412 Mo</span><span>100 %</span></div></div>
+    <div class="st ok"><span aria-hidden="true">✓</span> Terminé</div>
+   </div>
+   <div class="file err" role="listitem">
+    <div class="n"><b>YuE2 (Q4)</b><span>Modèle de génération</span></div>
+    <div><div class="pbar err" role="progressbar" aria-valuenow="43" aria-valuemin="0" aria-valuemax="100" aria-label="YuE2"><i style="width:43%"></i></div>
+     <div class="pinfo"><span><b>3,1 Go</b> / 7,2 Go · 43 %</span><span>Vitesse : 0 Mo/s (avant coupure : 48 Mo/s)</span></div></div>
+    <div class="st er"><span aria-hidden="true">⚠</span><span>Interrompu<small>Reste ≈ 1 min 25 s après reprise</small></span></div>
+   </div>
+   <div class="file" role="listitem">
+    <div class="n"><b>VAE</b><span>Décodage audio</span></div>
+    <div><div class="pbar wait" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="VAE"><i></i></div>
+     <div class="pinfo"><span><b>0 Mo</b> / 620 Mo</span><span>0 %</span></div></div>
+    <div class="st wt"><span aria-hidden="true">◷</span><span>À télécharger</span></div>
+   </div>
+   <div class="file" role="listitem">
+    <div class="n"><b>HTDemucs</b><span>Séparation de stems</span></div>
+    <div><div class="pbar wait" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="HTDemucs"><i></i></div>
+     <div class="pinfo"><span><b>0 Mo</b> / 300 Mo</span><span>0 %</span></div></div>
+    <div class="st wt"><span aria-hidden="true">◷</span><span>À télécharger</span></div>
+   </div>
+  </div>
+  <div class="global"><span>Total : <b style="color:var(--text)">3,5 Go</b> reçus sur 8,5 Go (41 %)</span><span>Temps restant estimé après reprise : ≈ 1 min 40 s</span></div>
+
+  <div class="errbox" role="alert">
+   <div class="ai" aria-hidden="true">!</div>
+   <div>
+    <h2>La connexion Internet a été coupée pendant le téléchargement de YuE2</h2>
+    <p>Ce n’est pas grave, vos 3,1 Go déjà reçus sont sauvegardés. Que faire :</p>
+    <ol><li>Vérifiez que vous êtes connecté à Internet (Wi-Fi ou câble).</li><li>Cliquez sur « Reprendre ». Si cela échoue encore, essayez dans quelques minutes.</li></ol>
+   </div>
+  </div>
+
+  <div class="row-actions">
+   <button class="btn lg focus-demo" type="button">▶ Reprendre le téléchargement</button>
+   <button class="btn sec" type="button">Annuler et revenir au choix</button>
+   <details><summary>Détails techniques</summary></details>
+  </div>
+ </main>
+</section>
+
+<!-- ======================= D : Fiche de justification ======================= -->
+<section class="screen" id="d" aria-label="Fiche de justification du design">
+ <div class="sheet">
+  <div class="eyebrow">Fiche de conception</div>
+  <h1>Pourquoi cet écran est plus simple à utiliser</h1>
+  <div class="pl">
+   <div class="pt"><div class="k">1</div><div><span class="src">Norman · Retour d’information</span><h3>Le système dit toujours où il en est</h3>
+    <p>Détection du GPU, progression par fichier (octets, vitesse, temps restant) et état « Interrompu » avec icône <em>et</em> texte. <em>Écrans A et C.</em></p></div></div>
+   <div class="pt"><div class="k">2</div><div><span class="src">Norman · Affordances et contraintes</span><h3>Seule l’action possible est mise en avant</h3>
+    <p>Sans GPU, aucun bouton « Télécharger » : on ne peut pas s’engager dans une voie sans issue. Après coupure, « Reprendre » est le bouton principal. <em>Écrans B et C.</em></p></div></div>
+   <div class="pt"><div class="k">3</div><div><span class="src">Krug · Ne me faites pas réfléchir</span><h3>Une recommandation, pas un questionnaire</h3>
+    <p>Le modèle adapté est présélectionné et justifié en une ligne ; le bouton indique le coût réel : « Télécharger (8,5 Go) ». <em>Écran A.</em></p></div></div>
+   <div class="pt"><div class="k">4</div><div><span class="src">Divulgation progressive</span><h3>L’essentiel d’abord, le détail à la demande</h3>
+    <p>Q8, worker distant et détails techniques restent disponibles, mais ne surchargent pas le chemin principal. <em>Écrans A, B et C.</em></p></div></div>
+   <div class="pt"><div class="k">5</div><div><span class="src">Krug · Langage clair et confiance</span><h3>La licence est expliquée avant la case à cocher, en une phrase</h3>
+    <p>Usage personnel et non commercial : le consentement est éclairé, pas un « J’accepte » à l’aveugle. Les erreurs disent quoi faire (« vérifiez votre connexion, puis Reprendre ») et rassurent (« rien n’est perdu »). <em>Écrans A et C.</em></p></div></div>
+  </div>
+  <div class="a11y"><b>Accessibilité :</b> contrastes ≥ 4,5:1 (texte) sur fond sombre · anneau de focus jaune de 3 px visible au clavier · alertes signalées par une icône, un titre et du texte, jamais par la couleur seule · barres de progression avec valeurs textuelles et rôle <em>progressbar</em> · boutons ≥ 44 px de hauteur ; zone cliquable de la case de licence et de « Détails techniques » portée à 44 px (marge intérieure).
+   <div class="sw-row"><span style="background:#221e2c;color:#f3f0fa">Texte #F3F0FA / #221E2C</span><span style="background:#221e2c;color:#5ed8c9">Sur-titre #5ED8C9</span><span style="background:#805cdf;color:#fff">Bouton #FFF / #805CDF</span><span style="background:#3a1f26;color:#ffd5cf">Alerte #FFD5CF / #3A1F26</span><span style="background:#221e2c;color:#ffd76a">Focus #FFD76A</span></div>
+  </div>
+  <p class="hint" style="margin-top:8px">Toutes les valeurs (GPU, tailles, durées) sont des données d’exemple pour la maquette.</p>
+ </div>
+</section>
+
+<script>
+(function(){
+  function v(){var h=(location.hash||'#all').slice(1);document.body.dataset.view=['a','b','c','d'].includes(h)?h:'all';}
+  addEventListener('hashchange',v);v();
+})();
+</script>
+</body>
+</html>

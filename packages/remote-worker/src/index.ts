@@ -8,6 +8,7 @@ export type {
   RemoteJobStatus,
   RemoteJobHandle,
   RemoteGpuWorkerClient,
+  RemoteArtifactName,
   RetentionPolicy,
   RemoteWorkerPreferences,
 } from "./types.js";
@@ -25,4 +26,27 @@ export {
   createRemoteGpuWorkerClient,
   createEmptyAuthPlaceholder,
   createConsent,
+  type LocalFirstRemoteGpuWorkerClientOptions,
 } from "./client.js";
+export {
+  buildProjectPayload,
+  type ProjectPayloadInput,
+  type BuiltRemotePayload,
+} from "./payload.js";
+export {
+  encryptPayloadAesGcm,
+  decryptPayloadAesGcm,
+  sha256Hex,
+  bytesToBase64,
+  base64ToBytes,
+  type AesGcmCipherBundle,
+} from "./crypto.js";
+export { deriveAesKeyFromToken } from "./key-derive.js";
+export {
+  FetchRemoteHttpTransport,
+  createHttpTransport,
+  REMOTE_WORKER_PATHS,
+  type RemoteHttpTransport,
+  type HttpTransportResult,
+  type ArtifactDownloadResult,
+} from "./http-transport.js";

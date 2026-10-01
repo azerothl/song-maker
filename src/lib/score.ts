@@ -1,24 +1,46 @@
 import {
   applyQuantization,
   convertVocalToIns,
+  diffScoreDocuments,
+  exportScoreDocumentToMidi,
   exportToYuE2Abc,
+  importAbcToScoreDocument,
   importMidiToScoreDocument,
+  INTERNAL_PPQ,
+  mergeScoreDocuments,
+  transposeNotes,
+  transposeScore,
+  validateChordSymbol,
   validateForAbcExport,
+  type AbcImportResult,
+  type AbcVoiceTarget,
   type CotProfile,
+  type MergeConflictResolution,
   type MidiImportResult,
+  type ModeName,
   type ScoreDocument,
+  type ScoreDocumentDiff,
   type ScoreIssue,
-  type SongSection,
+  type ScoreVoiceRole,
   type SectionKind,
+  type SongSection,
+  type TransposeSelection,
 } from "@song-maker/score-engine";
 
 export type {
+  AbcImportResult,
   CotProfile,
+  MergeConflictResolution,
   MidiImportResult,
+  ModeName,
   ScoreDocument,
+  ScoreDocumentDiff,
   ScoreIssue,
+  ScoreVoiceRole,
   SongSection,
   SectionKind,
+  TransposeSelection,
+  AbcVoiceTarget,
 };
 
 export function importMidiBytes(
@@ -33,11 +55,182 @@ export function importMidiBytes(
   return importMidiToScoreDocument(bytes, options);
 }
 
+/** ABC (YuE2 / SheetSage2) → ScoreDocument draft for the piano roll. */
+export function importAbcText(
+  abc: string,
+  options?: {
+    id?: string;
+    branchName?: string | null;
+    sourceFileHash?: string;
+  },
+): AbcImportResult {
+  return importAbcToScoreDocument(abc, options);
+}
+
 export function quantizeScore(
   doc: ScoreDocument,
   quantizeTicks: number,
 ): ScoreDocument {
   return applyQuantization(doc, quantizeTicks);
+}
+
+export function exportScoreMidi(doc: ScoreDocument): Uint8Array {
+  return exportScoreDocumentToMidi(doc);
+}
+
+export function transposeScoreNotes(
+  doc: ScoreDocument,
+  semitones: number,
+  selection?: TransposeSelection,
+): ScoreDocument {
+  return transposeNotes(doc, semitones, selection);
+}
+
+export function transposeWholeScore(
+  doc: ScoreDocument,
+  semitones: number,
+): ScoreDocument {
+  return transposeScore(doc, semitones);
+}
+
+export function diffScores(
+  left: ScoreDocument,
+  right: ScoreDocument,
+): ScoreDocumentDiff {
+  return diffScoreDocuments(left, right);
+}
+
+export function mergeScores(
+  left: ScoreDocument,
+  right: ScoreDocument,
+  resolution: MergeConflictResolution,
+  options?: { id?: string; branchName?: string; parentScoreId?: string },
+): ScoreDocument {
+  return mergeScoreDocuments(left, right, resolution, options);
+}
+
+export function createEmptyScoreDocument(options?: {
+  id?: string;
+  tempoBpm?: number;
+  branchName?: string | null;
+  parentScoreId?: string | null;
+}): ScoreDocument {
+  const id =
+    options?.id ??
+    `score-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return {
+    id,
+    version: 1,
+    ppq: INTERNAL_PPQ,
+    tempoMap: [{ tick: 0, quarterBpm: options?.tempoBpm ?? 120 }],
+    timeSignatures: [{ tick: 0, numerator: 4, denominator: 4 }],
+    keySignatures: [{ tick: 0, tonic: "C", mode: "major" }],
+    sections: [],
+    voices: [
+      {
+        id: "voice-0",
+        name: "Vocal",
+        role: "vocal",
+        notes: [],
+        abcVoice: "Vocal",
+      },
+    ],
+    chordEvents: [],
+    lyricAnchors: [],
+    source: "manual",
+    parentScoreId: options?.parentScoreId ?? null,
+    branchName: options?.branchName ?? "main",
+  };
+}
+
+export function forkScoreBranch(
+  doc: ScoreDocument,
+  branchName: string,
+): ScoreDocument {
+  return {
+    ...doc,
+    id: `score-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    version: doc.version + 1,
+    parentScoreId: doc.id,
+    branchName: branchName.trim() || "branch",
+    source: "manual",
+  };
+}
+
+export function updateScoreKey(
+  doc: ScoreDocument,
+  tonic: string,
+  mode: ModeName,
+): ScoreDocument {
+  return {
+    ...doc,
+    version: doc.version + 1,
+    keySignatures: [{ tick: 0, tonic, mode }],
+  };
+}
+
+export function updateScoreMeter(
+  doc: ScoreDocument,
+  numerator: number,
+  denominator: number,
+): ScoreDocument {
+  return {
+    ...doc,
+    version: doc.version + 1,
+    timeSignatures: [
+      {
+        tick: 0,
+        numerator: Math.max(1, Math.round(numerator)),
+        denominator: Math.max(1, Math.round(denominator)),
+      },
+    ],
+  };
+}
+
+export function upsertChord(
+  doc: ScoreDocument,
+  tick: number,
+  symbol: string,
+): { doc: ScoreDocument; error: string | null } {
+  const refusal = validateChordSymbol(symbol);
+  if (refusal) return { doc, error: refusal };
+  const others = doc.chordEvents.filter((c) => c.tick !== tick);
+  return {
+    doc: {
+      ...doc,
+      version: doc.version + 1,
+      chordEvents: [...others, { tick, symbol }].sort((a, b) => a.tick - b.tick),
+    },
+    error: null,
+  };
+}
+
+export function removeChord(doc: ScoreDocument, tick: number): ScoreDocument {
+  return {
+    ...doc,
+    version: doc.version + 1,
+    chordEvents: doc.chordEvents.filter((c) => c.tick !== tick),
+  };
+}
+
+export function setVoiceAbcRole(
+  doc: ScoreDocument,
+  voiceId: string,
+  abcVoice: AbcVoiceTarget,
+  role?: ScoreVoiceRole,
+): ScoreDocument {
+  return {
+    ...doc,
+    version: doc.version + 1,
+    voices: doc.voices.map((v) => {
+      if (v.id !== voiceId) return v;
+      return {
+        ...v,
+        abcVoice,
+        ...(role ? { role } : {}),
+      };
+    }),
+  };
 }
 
 export function validateScoreForGeneration(
@@ -170,12 +363,19 @@ export function primaryVoiceId(doc: ScoreDocument): string | null {
   return vocal?.id ?? doc.voices[0]?.id ?? null;
 }
 
+/** Verdict de `prepareAbcForGeneration` : ABC prêt, ou motif de refus. */
+export type ScoreGate = {
+  abc: string | null;
+  error: string | null;
+  issues: ScoreIssue[];
+};
+
 /** Prepare ABC for generation, or null when no user score (phase 1 path). */
 export function prepareAbcForGeneration(
   document: ScoreDocument | null,
   cot: string,
   title: string,
-): { abc: string | null; error: string | null; issues: ScoreIssue[] } {
+): ScoreGate {
   if (!document) {
     return { abc: null, error: null, issues: [] };
   }
@@ -208,4 +408,3 @@ export function prepareAbcForGeneration(
     return { abc: null, error: String(e), issues: [] };
   }
 }
-

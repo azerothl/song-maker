@@ -7,9 +7,12 @@ import {
   buildTonightAwakeFixture,
   convertVocalToIns,
   createSemanticPrefixClient,
+  DesktopSemanticPrefixClient,
   dialectRefusal,
   isAcceptedChordSymbol,
+  planSemanticPrefixContinuation,
   ScoreEngineError,
+  SEMANTIC_PREFIX_ENABLED,
   validateForAbcExport,
 } from "../src/index.js";
 
@@ -59,24 +62,92 @@ describe("validation / dialecte", () => {
   });
 });
 
-describe("stubs phase 2", () => {
-  it("semantic_prefix stub not_implemented", async () => {
+describe("semantic_prefix continuation", () => {
+  const truncatedParent = {
+    generationId: "gen-001",
+    semanticTruncated: true,
+    semanticJsonPath: "/projects/p/generations/gen-001/semantic.json",
+    frameCount: 750,
+    hasScoreAbc: true,
+  };
+
+  it("planifie les options pour une génération tronquée", async () => {
+    assert.equal(SEMANTIC_PREFIX_ENABLED, true);
     const client = createSemanticPrefixClient();
+    assert.equal(client.isEnabled(), true);
+    const result = await client.continueFromPrefix({
+      style: "pop",
+      lyrics: "[Verse]\nSuite",
+      cot: "full",
+      seed: 1,
+      parent: truncatedParent,
+    });
+    assert.equal(result.jobKind, "continuation");
+    assert.equal(result.audioPath, null);
+    assert.equal(result.frameCount, 750);
+    assert.deepEqual(result.taskOptions, {
+      semantic_prefix_file: truncatedParent.semanticJsonPath,
+      export_semantic: true,
+    });
+  });
+
+  it("refuse si semantic.json manque", () => {
+    assert.throws(
+      () =>
+        planSemanticPrefixContinuation({
+          style: "pop",
+          lyrics: "[Verse]\nSuite",
+          cot: "full",
+          seed: 1,
+          parent: {
+            ...truncatedParent,
+            semanticJsonPath: null,
+            frameCount: 0,
+          },
+        }),
+      (err: unknown) =>
+        err instanceof ScoreEngineError &&
+        err.code === "validation_failed" &&
+        /artefact sémantique/.test(err.message),
+    );
+  });
+
+  it("refuse si la génération source n’est pas tronquée", () => {
+    assert.throws(
+      () =>
+        planSemanticPrefixContinuation({
+          style: "pop",
+          lyrics: "[Verse]\nSuite",
+          cot: "melody",
+          seed: 1,
+          parent: { ...truncatedParent, semanticTruncated: false },
+        }),
+      (err: unknown) =>
+        err instanceof ScoreEngineError &&
+        err.code === "validation_failed" &&
+        /tronquées/.test(err.message),
+    );
+  });
+
+  it("reste not_implemented si le client est forcé gated", async () => {
+    const client = new DesktopSemanticPrefixClient(false);
     await assert.rejects(
       () =>
         client.continueFromPrefix({
           style: "pop",
-          lyrics: "[Verse]\nHi",
+          lyrics: "[Verse]\nSuite",
           cot: "full",
           seed: 1,
-          semanticPrefix: { frames: [[1, 2]], sampleRateHintHz: 25 },
+          parent: truncatedParent,
         }),
       (err: unknown) =>
         err instanceof ScoreEngineError && err.code === "not_implemented",
     );
   });
+});
 
-  it("Vocal → Ins déplace les notes du fixture score", () => {
+describe("Vocal → Ins", () => {
+  it("déplace les notes du fixture score", () => {
     const abc = readFileSync(join(root, "fixtures/score.abc"), "utf8");
     const { abc: out, movedNoteCount } = convertVocalToIns(abc);
     assert.ok(movedNoteCount > 0);

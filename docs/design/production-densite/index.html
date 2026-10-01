@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Song Maker — Maquette : onglet Production (densité)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* Tokens repris de ../songmaker-mockup-creer/index.html */
+:root{
+  --bg:#141218; --bg2:#1b1723; --card:#221e2c; --card2:#2a2536; --line:#3d3654; --line2:#7a6ea1;
+  --text:#f3f0fa; --muted:#bdb6cf; --teal:#5ed8c9; --purple:#a58bff; --purple-btn:#805cdf; --purple-btn-h:#6a3fd9;
+  --ok:#7fe0a1; --focus:#ffd76a; --field:#171320; --amber:#ffb454;
+  --serif:"Fraunces","Source Serif Pro","Noto Serif",Georgia,serif;
+  --sans:"Inter","Segoe UI",system-ui,-apple-system,"Noto Sans",Arial,sans-serif;
+  /* densité : « Auto » par défaut (voir script) ; valeurs = exemples */
+  --row-h:44px; --knob:36px; --ms-btn:28px; --wave-h:36px; --name-fs:14px; --ms-fs:12px;
+}
+.prod[data-density="confortable"]{--row-h:72px;--knob:44px;--ms-btn:32px;--wave-h:58px;--name-fs:15px;--ms-fs:13px}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:#0b0a0e;color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+body{font-size:14px;line-height:1.4}
+
+/* ---------- Coquille applicative (identique à « Créer ») ---------- */
+.app{height:100vh;display:grid;grid-template-columns:184px minmax(0,1fr);
+  background:radial-gradient(900px 500px at 15% -10%,#2b2050 0%,transparent 60%),radial-gradient(800px 500px at 100% 110%,#1d2a3a 0%,transparent 55%),var(--bg)}
+.side{border-right:1px solid var(--line);background:rgba(27,23,35,.85);padding:14px 10px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 14px;font-family:var(--serif);font-weight:600;font-size:18px}
+.brand .logo{width:32px;height:32px;border-radius:9px;background:var(--purple-btn);display:grid;place-items:center;font-size:16px;flex:none}
+.side a.item{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;border:1px solid transparent}
+.side a.item:hover{background:#2f2a3d;color:var(--text)}
+.side a.item[aria-current="page"]{background:#2c2650;color:var(--text);border-color:var(--line2)}
+.side .ic{width:20px;text-align:center;flex:none}
+.side .sp{flex:1}
+.main{display:flex;flex-direction:column;min-width:0;min-height:0}
+header.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:6px 24px 0}
+.title{display:flex;align-items:baseline;gap:12px}
+.eyebrow{font-variant-caps:all-small-caps;letter-spacing:.14em;font-weight:600;font-size:14px;color:var(--teal)}
+h1{font-family:var(--serif);font-weight:600;font-size:22px;line-height:1.15;letter-spacing:-.01em}
+.hright{display:flex;align-items:center;gap:12px}
+.saved{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text)}
+.saved .ok{width:18px;height:18px;border-radius:50%;background:#12332f;border:1px solid #2f6b62;color:var(--ok);display:grid;place-items:center;font-weight:800;font-size:11px}
+.mockbadge{font-size:11px;color:#e8e1ff;border:1px dashed var(--purple);border-radius:8px;padding:4px 8px;background:#2a2050;white-space:nowrap}
+.tabs{display:flex;gap:4px;padding:2px 24px 0;border-bottom:1px solid var(--line)}
+.tab{font:inherit;font-weight:600;font-size:14.5px;color:var(--muted);background:transparent;border:0;border-bottom:3px solid transparent;
+  min-height:44px;padding:0 18px;cursor:pointer;border-radius:10px 10px 0 0;margin-bottom:-1px}
+.tab:hover{color:var(--text);background:#2f2a3d}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--purple-btn);background:rgba(128,92,223,.14)}
+.demo{display:inline-flex;align-items:center;gap:4px;border:1px dashed var(--purple);border-radius:8px;padding:2px 4px 2px 8px;background:#2a2050;font-size:12px;color:#e8e1ff;white-space:nowrap}
+.demo button{font:inherit;font-size:12px;font-weight:600;color:#e8e1ff;background:transparent;border:1px solid transparent;border-radius:6px;min-height:26px;padding:0 8px;cursor:pointer}
+.demo button:hover{background:#3a2f70}
+.demo button[aria-pressed="true"]{background:#4b3a99;border-color:#c9b6ff;color:#fff}
+.dnote{position:absolute;right:10px;top:0;height:24px;display:flex;align-items:center;z-index:2;font-size:12px;color:var(--muted);white-space:nowrap}
+.tag-ex{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1a1424;background:#e9c46a;border-radius:5px;padding:1px 6px;white-space:nowrap}
+
+/* ---------- Production ---------- */
+.content{flex:1;min-height:0;overflow:auto;padding:0 20px 6px;scrollbar-color:#5a4f80 #1b1723}
+.content::-webkit-scrollbar{width:12px}.content::-webkit-scrollbar-track{background:#1b1723}
+.content::-webkit-scrollbar-thumb{background:#5a4f80;border-radius:6px;border:2px solid #1b1723}
+.wrap{max-width:1200px;margin:0 auto}
+.sticky{position:sticky;top:0;z-index:20;padding:4px 0 4px;height:60px;background:var(--bg)}
+
+/* Bande master */
+.master{display:flex;align-items:center;gap:14px;height:52px;padding:0 10px;background:var(--card2);border:1px solid var(--line);border-radius:14px}
+.mlabel{font-variant-caps:all-small-caps;letter-spacing:.12em;font-weight:600;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:1px;align-items:flex-start;line-height:1.1}
+.btn{font:inherit;font-weight:700;font-size:14.5px;border-radius:12px;padding:0 14px;min-height:44px;border:2px solid transparent;cursor:pointer;color:#fff;background:var(--purple-btn);display:inline-flex;gap:8px;align-items:center;justify-content:center;white-space:nowrap}
+.btn:hover{background:var(--purple-btn-h)}
+.btn.sec{background:var(--field);color:var(--text);border-color:var(--line2);font-weight:600;font-size:13px;padding:0 9px;flex:none}
+.btn.sec:hover{background:#2f2a3d;border-color:var(--purple)}
+.btn.sec[aria-expanded="true"]{background:#2c2650;border-color:var(--purple)}
+.time{font-variant-numeric:tabular-nums;font-weight:600;font-size:15px;white-space:nowrap}
+.time span{color:var(--muted);font-weight:500}
+.mwave{flex:1;min-width:0;height:38px;border-radius:8px;background:var(--field);border:1px solid var(--line);position:relative;cursor:pointer;overflow:hidden}
+.mwave svg{display:block;width:100%;height:100%}
+.mwave .ph{position:absolute;left:0;top:0;bottom:0;width:2px;background:#fff}
+.mgain{display:flex;align-items:center;gap:8px}
+.mgain .t{display:flex;flex-direction:column;font-size:11.5px;color:var(--muted);line-height:1.2}
+.mgain .v{font-size:12.5px;color:var(--text);font-variant-numeric:tabular-nums;font-weight:600}
+
+/* Barre d'outils */
+.toolbar{display:flex;align-items:center;gap:6px;margin-top:0;min-height:46px;flex-wrap:nowrap;position:relative}
+.ttitle{display:flex;align-items:center;gap:8px;margin-right:2px;flex:none}
+.ttitle h2{font-family:var(--serif);font-size:17px;font-weight:600}
+.estime{font:inherit;font-size:12.5px;font-weight:700;color:#ffe9a8;background:#3a3016;border:1px solid #a58a2e;border-radius:8px;padding:0 8px;min-height:26px;cursor:help}
+.estime:hover{background:#4a3d1a}
+.seg{flex:none;display:inline-flex;border:1.5px solid var(--line2);border-radius:10px;overflow:hidden;background:var(--field)}
+.seg button{font:inherit;font-size:13px;padding:0 8px!important;font-weight:600;color:var(--muted);background:transparent;border:0;min-height:36px;padding:0 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.seg button+button{border-left:1.5px solid var(--line2)}
+.seg button:hover{background:#2f2a3d;color:var(--text)}
+.seg button[aria-pressed="true"]{background:#3a2f70;color:#fff}
+.seg button .chk{width:12px;text-align:center;font-weight:800;visibility:hidden}
+.seg button[aria-pressed="true"] .chk{visibility:visible}
+.spacer{flex:1}
+
+/* En-têtes de colonnes + lignes : grille commune */
+.grid{display:grid;grid-template-columns:192px 108px 92px 68px minmax(0,1fr);column-gap:12px;align-items:center;padding:0 10px}
+.colh{height:24px;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.04em;margin-top:0;border-bottom:1px solid var(--line)}
+.colh span:nth-child(1){padding-left:11px}
+.sticky2{position:sticky;top:60px;z-index:19;background:var(--bg);margin-top:0}
+.list{padding-top:0;padding-bottom:2px}
+
+.grp{height:24px;background:var(--card);border-bottom:1px solid var(--line);border-top:1px solid var(--line);margin-top:-1px}
+.grp .gname{grid-column:1 / 4;display:flex;align-items:center;min-width:0}
+.chevbtn{font:inherit;font-weight:700;font-size:13px;color:var(--text);background:transparent;border:0;height:22px;min-width:28px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;border-radius:6px;padding:0 6px 0 2px;position:relative}
+.chevbtn::after{content:"";position:absolute;inset:-2px 0}/* zone cliquable 26 px de haut, sans dépasser sur les lignes voisines */
+.chevbtn:focus-visible{outline-offset:-2px!important}
+.chevbtn:hover{background:#2f2a3d}
+.chevbtn .ch{display:inline-block;width:18px;font-size:16px;line-height:1;text-align:center;transition:transform .15s;color:var(--text)}
+.chevbtn[aria-expanded="true"] .ch{transform:rotate(90deg)}
+.gcount{font-weight:500;font-size:12px;color:var(--muted);margin-left:8px}
+.gsum{color:var(--muted);font-size:12px;padding-left:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.row{height:var(--row-h);box-shadow:inset 0 -1px 0 var(--line);position:relative}/* filet en ombre interne : la hauteur de ligne = hauteur exacte (44 / 72 px) */
+.row:hover{background:rgba(255,255,255,.03)}
+.row.ingroup .name{padding-left:14px}
+.name{display:flex;align-items:center;gap:8px;min-width:0}
+.strip{width:5px;height:62%;border-radius:3px;flex:none}
+.nm{font-weight:600;font-size:var(--name-fs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm i{font-style:normal;color:var(--muted);font-weight:500}
+.tagst{font-size:10.5px;font-weight:700;color:#1a1424;background:var(--amber);border-radius:4px;padding:0 5px;letter-spacing:.03em;text-transform:uppercase;flex:none}
+.kc{display:flex;align-items:center;gap:6px;min-width:0}
+.val{font-size:12px;font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+.kc.gain .val{min-width:50px}
+.knob{width:var(--knob);height:var(--knob);max-height:calc(var(--row-h) - 8px);flex:none;border-radius:50%;cursor:ns-resize;touch-action:none;display:block}
+.knob svg{width:100%;height:100%;display:block;overflow:visible}
+
+/* M / S côte à côte (flex, écart 4 px) : chaque bouton >= 28 x 28 (compact) / 32 x 32 (confortable) */
+.ms{display:flex;flex-direction:row;gap:4px;align-items:center;width:68px}
+.mb{font:800 var(--ms-fs)/1 var(--sans);letter-spacing:0;border:1px solid var(--line2);background:var(--field);color:var(--text);padding:0;cursor:pointer;display:grid;place-items:center;position:relative;flex:none;width:var(--ms-btn);height:var(--ms-btn);min-width:var(--ms-btn);min-height:var(--ms-btn);border-radius:8px}
+.mb:hover{background:#2f2a3d;border-color:var(--purple)}
+/* état enfoncé : inversion de luminosité + gras souligné + bordure blanche (pas seulement la couleur) */
+.mb[aria-pressed="true"]{color:#1a1424;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:2px;border-color:#fff}
+.mb.m[aria-pressed="true"]{background:var(--amber)}
+.mb.s[aria-pressed="true"]{background:var(--teal)}
+.mb:focus-visible{z-index:2}
+/* M/S de groupe : l'en-tête ne fait que 24 px -> bouton 28 x 22 visible, zone cliquable étendue à 28 x 24 au minimum (WCAG 2.2, cible 24 px) */
+.grp .ms{width:68px}
+.grp .mb{width:28px;min-width:28px;height:22px;min-height:22px;font-size:12px;border-radius:6px}
+.grp .mb::after{content:"";position:absolute;inset:-1px 0}/* 22 + 2 = 24 px de zone cliquable */
+
+/* Forme d'onde */
+.wave{height:var(--wave-h);border-radius:8px;background:var(--field);border:1px solid var(--line);overflow:hidden;position:relative;min-width:0}
+.wave svg{display:block;width:100%;height:100%}
+.wave .mid{position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(189,182,207,.25)}
+.row.muted .wave svg,.row.implicit .wave svg{opacity:.35}
+.row.muted .wave,.row.implicit .wave{background-image:repeating-linear-gradient(135deg,rgba(189,182,207,.16) 0 2px,transparent 2px 8px)}
+.wave .mtag{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:700;background:#0b0a0e;color:var(--text);border:1px solid var(--line2);border-radius:5px;padding:1px 7px;display:none}
+.row.muted .wave .mtag{display:block}
+
+/* Focus visible partout */
+.btn:focus-visible,a:focus-visible,summary:focus-visible,.tab:focus-visible,.chevbtn:focus-visible,.estime:focus-visible,.seg button:focus-visible,.mb:focus-visible,.knob:focus-visible,.mwave:focus-visible,.pop input:focus-visible,.chip:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.mb:focus-visible{outline-width:2px;outline-offset:0}
+.knob:focus-visible{outline-offset:1px!important}/* 3 px + 1 px = reste dans la marge de 4 px de la ligne compacte */
+.focus-demo{outline:3px solid var(--focus);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* Info-bulle « Estimé * » et popovers non bloquants */
+.tip{position:absolute;z-index:40;top:calc(100% + 6px);left:110px;width:380px;background:#0f0c16;border:1.5px solid var(--line2);border-radius:12px;padding:12px 14px;font-size:13.5px;line-height:1.5;box-shadow:0 12px 30px rgba(0,0,0,.55);display:none}
+.tip::before{content:"";position:absolute;top:-7px;left:26px;width:12px;height:12px;background:#0f0c16;border-left:1.5px solid var(--line2);border-top:1.5px solid var(--line2);transform:rotate(45deg)}
+.tip b{display:block;margin-bottom:4px;color:#ffe9a8}
+.tip ul{padding-left:18px;margin-top:4px}
+.tip.show{display:block}
+.pop{position:absolute;z-index:45;top:calc(100% + 8px);width:400px;background:#1d1828;border:1.5px solid var(--line2);border-radius:14px;padding:14px 16px 16px;box-shadow:0 16px 40px rgba(0,0,0,.6);display:none}
+.pop.show{display:block}
+.pop h3{font-family:var(--serif);font-size:17px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pop .x{position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:10px;font:inherit;font-size:18px;color:var(--text);background:transparent;border:1px solid transparent;cursor:pointer}
+.pop .x:hover{background:#2f2a3d;border-color:var(--line2)}
+.pop .x:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.pop p.lead{color:var(--muted);font-size:13px;margin:4px 0 10px}
+.sug{list-style:none;padding:0;display:flex;flex-direction:column;gap:8px}
+.sug li{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13.5px}
+.sug small{grid-column:1;color:var(--muted);font-size:12.5px}
+.sug .btn{min-height:36px;font-size:13px;padding:0 12px;grid-row:1 / span 2;grid-column:2}
+.pop .foot{margin-top:10px;font-size:12.5px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.pop input{font:inherit;font-size:14px;color:var(--text);background:var(--field);border:1.5px solid var(--line2);border-radius:10px;padding:0 12px;min-height:44px;width:100%;margin-bottom:8px}
+.chips{display:flex;flex-direction:column;gap:6px}
+.chip{font:inherit;font-size:13.5px;text-align:left;color:var(--text);background:var(--card2);border:1px solid var(--line);border-radius:10px;min-height:40px;padding:0 12px;cursor:pointer}
+.chip:hover{border-color:var(--purple);background:#2f2a3d}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+ <nav class="side" aria-label="Navigation principale">
+  <div class="brand"><span class="logo" aria-hidden="true">♪</span><span class="name">Song Maker</span></div>
+  <a class="item" href="#" aria-current="page" aria-label="Bibliothèque"><span class="ic" aria-hidden="true">☰</span><span class="txt">Bibliothèque</span></a>
+  <a class="item" href="#" aria-label="Nouveau"><span class="ic" aria-hidden="true">✎</span><span class="txt">Nouveau</span></a>
+  <a class="item" href="#" aria-label="Paramètres"><span class="ic" aria-hidden="true">▣</span><span class="txt">Paramètres</span></a>
+  <span class="sp"></span>
+ </nav>
+
+ <div class="main">
+  <header class="top">
+   <div class="title"><span class="eyebrow">Projet</span><h1>Production</h1></div>
+   <div class="hright">
+    <div class="demo" role="group" aria-label="Démo (maquette) : nombre de pistes"><span>Démo :</span><button type="button" data-n="6" aria-pressed="false">6 pistes</button><button type="button" data-n="12" aria-pressed="false">12 pistes</button><button type="button" data-n="16" aria-pressed="false">16 pistes</button></div>
+    <span class="saved" role="status"><span class="ok" aria-hidden="true">✓</span>Enregistré à 14:42</span>
+    <span class="mockbadge">Maquette · valeurs d’exemple</span>
+   </div>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Étapes du morceau">
+   <button class="tab" role="tab" id="t-creer" aria-selected="false" aria-controls="p-prod" tabindex="-1" type="button">Créer</button>
+   <button class="tab" role="tab" id="t-partition" aria-selected="false" aria-controls="p-prod" tabindex="-1" type="button">Partition</button>
+   <button class="tab" role="tab" id="t-prod" aria-selected="true" aria-controls="p-prod" type="button">Production</button>
+   <button class="tab" role="tab" id="t-versions" aria-selected="false" aria-controls="p-prod" tabindex="-1" type="button">Versions</button>
+  </div>
+
+  <main class="content" id="p-prod" role="tabpanel" aria-labelledby="t-prod">
+   <div class="prod wrap" id="prod" data-density="confortable">
+
+    <div class="sticky">
+     <!-- Bande master : la SEULE forme d'onde du morceau entier -->
+     <section class="master" aria-label="Lecture et niveau master">
+      <span class="mlabel">Master<span class="tag-ex">exemple</span></span>
+      <button class="btn" type="button" id="play" aria-keyshortcuts="Space"><span aria-hidden="true">▶</span>Lecture</button>
+      <span class="time" aria-label="Position 0 minute 0 seconde sur 7 minutes 24"><b>0:00</b> <span>/ 7:24</span></span>
+      <div class="mwave" id="mwave" role="slider" tabindex="0" aria-label="Position dans le morceau" aria-valuemin="0" aria-valuemax="444" aria-valuenow="0" aria-valuetext="0:00 sur 7:24"><span class="ph" aria-hidden="true"></span></div>
+      <div class="mgain"><span id="k-master"></span><span class="t">Gain master<span class="v" id="v-master">0,0 dB</span></span></div>
+     </section>
+
+    </div>
+     <!-- Barre d'outils (défile avec la liste) -->
+     <div class="toolbar" role="toolbar" aria-label="Outils de production">
+      <div class="ttitle">
+       <h2>Pistes</h2>
+       <button class="estime" id="estime" type="button" aria-describedby="tip">Estimé *</button>
+      </div>
+      <div class="seg" role="group" aria-label="Hauteur des lignes">
+       <button type="button" id="d-auto" aria-pressed="true"><span class="chk" aria-hidden="true">✓</span>Auto</button>
+       <button type="button" id="d-compact" aria-pressed="false"><span class="chk" aria-hidden="true">✓</span>Compact</button>
+       <button type="button" id="d-conf" aria-pressed="false"><span class="chk" aria-hidden="true">✓</span>Confortable</button>
+      </div>
+      <span class="spacer"></span>
+      <button class="btn sec" type="button" id="b-assist" aria-haspopup="dialog" aria-expanded="false" aria-controls="pop-assist">Assistant de mix</button>
+      <button class="btn sec" type="button" id="b-copil" aria-haspopup="dialog" aria-expanded="false" aria-controls="pop-copil">Copilote de production</button>
+      <button class="btn sec" type="button" id="b-resep">Séparer à nouveau…</button>
+      <button class="btn" type="button" id="b-export">Exporter les pistes</button>
+
+      <div class="tip" id="tip" role="tooltip">
+       <b>* Estimé</b>
+       Ces pistes sont une estimation issue de la séparation du morceau :
+       <ul><li>des <b style="display:inline;color:inherit">fuites</b> d’un instrument dans une autre piste sont possibles ;</li>
+       <li>des problèmes de <b style="display:inline;color:inherit">phase</b> peuvent apparaître quand on recombine les pistes ;</li>
+       <li>les stems <b style="display:inline;color:inherit">piano</b> et <b style="display:inline;color:inherit">guitare</b> sont expérimentaux (repérés par « * »).</li></ul>
+      </div>
+
+      <!-- Popovers non bloquants : pas de fond assombri, la liste reste utilisable -->
+      <div class="pop" id="pop-assist" role="dialog" aria-modal="false" aria-labelledby="h-assist" style="right:340px">
+       <button class="x" type="button" aria-label="Fermer l’assistant de mix" data-close>✕</button>
+       <h3 id="h-assist">Assistant de mix <span class="tag-ex">exemple</span></h3>
+       <p class="lead">3 suggestions d’exemple. Rien n’est appliqué sans votre accord ; vous pouvez continuer à régler les pistes pendant que ce panneau est ouvert.</p>
+       <ul class="sug">
+        <li><span><b>Guitare rythmique</b> couvre la voix</span><small>Baisser le gain de 2,0 dB (-5,0 dB)</small><button class="btn" type="button" data-apply="Guitare rythmique|gain|-5">Appliquer</button></li>
+        <li><span><b>Basse</b> trop présente dans le grave</span><small>Baisser le gain de 1,5 dB (-3,5 dB)</small><button class="btn" type="button" data-apply="Basse|gain|-3.5">Appliquer</button></li>
+        <li><span><b>Chœurs</b> trop centrés</span><small>Ouvrir le panoramique à G 30</small><button class="btn" type="button" data-apply="Chœurs|pan|-30">Appliquer</button></li>
+       </ul>
+       <div class="foot"><span aria-hidden="true">ⓘ</span>Échap ferme ce panneau. Annulation possible avec Ctrl+Z.</div>
+      </div>
+      <div class="pop" id="pop-copil" role="dialog" aria-modal="false" aria-labelledby="h-copil" style="right:170px">
+       <button class="x" type="button" aria-label="Fermer le copilote de production" data-close>✕</button>
+       <h3 id="h-copil">Copilote de production <span class="tag-ex">exemple</span></h3>
+       <p class="lead">Décrivez ce que vous voulez, ou choisissez une idée.</p>
+       <label class="sr-only" for="cp-in">Votre demande au copilote</label>
+       <input id="cp-in" type="text" placeholder="Ex. : « voix plus présente sur le refrain »" autocomplete="off">
+       <div class="chips">
+        <button class="chip" type="button">Rendre la voix plus présente</button>
+        <button class="chip" type="button">Plus de punch sur la batterie</button>
+        <button class="chip" type="button">Adoucir les aigus des synthés</button>
+       </div>
+      </div>
+     </div>
+
+    <div class="sticky2"><span class="dnote" id="dnote" aria-live="polite"></span><div class="grid colh" aria-hidden="true"><span>Piste</span><span>Gain</span><span>Pan</span><span>M/S</span><span>Forme d’onde</span></div></div>
+
+    <!-- Liste des pistes (défile sous la bande master) -->
+    <div class="list" id="list" role="list" aria-label="Pistes"></div>
+
+   </div>
+  </main>
+ </div>
+</div>
+
+<script>
+/* ---------- Données d'exemple ---------- */
+/* Démo : #6 (ou #six) = 6 pistes, #12 (défaut) = 12 pistes, #16 = 16 pistes ; ajouter ,compact ou ,confortable pour forcer la densité (sinon Auto) */
+const HASH=location.hash.replace('#','').split(',');
+const NTR=HASH.includes('16')?16:(HASH.includes('6')||HASH.includes('six'))?6:12;
+const FORCED=HASH.includes('compact')?'compact':HASH.includes('confortable')?'confortable':null;
+const T=(n,c,g,p,extra={})=>({n,c,g,p,...extra});
+const DATA12=[
+ {group:'Voix',tracks:[T('Voix lead','#ff8fb1',-3,0),T('Chœurs','#ffb3c8',-6,-20,{muted:true}),T('Voix gutturales','#ff9f7a',-4.5,10)]},
+ {group:'Rythmique',collapsed:true,tracks:[T('Batterie','#5ed8c9',-2,0),T('Basse','#7fe0a1',-4,0),T('Percussions','#6cc4ff',-8,25)]},
+ {group:'Harmonie',tracks:[T('Guitare rythmique','#b79cff',-7,-35,{exp:1}),T('Guitare lead','#d6b3ff',-5,30,{exp:1}),T('Piano','#ffd76a',-9,-10,{exp:1}),T('Cordes','#9ee06a',-8,15),T('Synthés','#6ee7ff',-10,-25),T('Accompagnement','#ff8ad8',-12,0)]}
+];
+const DATA6=[
+ {group:'Voix',tracks:[T('Voix lead','#ff8fb1',-3,0),T('Chœurs','#ffb3c8',-6,-20)]},
+ {group:'Instruments',tracks:[T('Batterie','#5ed8c9',-2,0),T('Basse','#7fe0a1',-4,0),T('Guitares','#b79cff',-7,-35,{exp:1}),T('Piano','#ffd76a',-9,-10,{exp:1})]}
+];
+const DATA16=[
+ {group:'Voix',tracks:[T('Voix lead','#ff8fb1',-3,0),T('Chœurs','#ffb3c8',-6,-20,{muted:true}),T('Voix gutturales','#ff9f7a',-4.5,10)]},
+ {group:'Rythmique',tracks:[T('Batterie','#5ed8c9',-2,0),T('Basse','#7fe0a1',-4,0),T('Percussions','#6cc4ff',-8,25),T('Grosse caisse','#8fe3ff',-6,0)]},
+ {group:'Harmonie',tracks:[T('Guitare rythmique','#b79cff',-7,-35,{exp:1}),T('Guitare lead','#d6b3ff',-5,30,{exp:1}),T('Piano','#ffd76a',-9,-10,{exp:1}),T('Cordes','#9ee06a',-8,15),T('Synthés','#6ee7ff',-10,-25),T('Nappes','#ff8ad8',-12,0)]},
+ {group:'Autres',tracks:[T('Accompagnement','#f4a6ff',-9,5),T('Effets','#ffcf9e',-14,-15),T('Ambiances','#a9e8c9',-15,20)]}
+];
+const DATA=NTR===6?DATA6:NTR===16?DATA16:DATA12;
+
+/* ---------- Utilitaires ---------- */
+const fr=v=>Math.abs(v).toFixed(1).replace('.',',');
+const fmtGain=v=>(v<0?'-':v>0?'+':'')+fr(v)+' dB';
+const fmtPan=v=>v===0?'C':(v<0?'G ':'D ')+Math.abs(Math.round(v));
+const txtGain=v=>(v<0?'moins ':v>0?'plus ':'')+fr(v)+' décibels';
+const txtPan=v=>v===0?'centre':(v<0?'gauche ':'droite ')+Math.abs(Math.round(v));
+function rng(seed){let s=seed>>>0;return()=>((s=(s*1664525+1013904223)>>>0)/4294967296)}
+function wavePath(seed,bars,kind){
+  const r=rng(seed*7919+13);let d='';const W=1000,H=100,bw=W/bars;
+  for(let i=0;i<bars;i++){
+    const t=i/bars;
+    const sect=t<.06?.25:t<.3?.55:t<.45?.85:t<.6?.6:t<.8?.95:t<.93?.7:.3;
+    const a=Math.min(1,(sect*(.55+.45*r()))*(kind==='master'?1:.95));
+    const h=Math.max(2.5,a*H/2*.95);
+    d+=`M${(i*bw).toFixed(1)} ${(H/2-h).toFixed(1)}h${(bw*.68).toFixed(1)}v${(2*h).toFixed(1)}h-${(bw*.68).toFixed(1)}z`;
+  }
+  return d;
+}
+const waveSVG=(seed,color,bars,kind)=>`<svg viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="${wavePath(seed,bars,kind)}" fill="${color}"/></svg>`;
+
+/* ---------- Boutons rotatifs (gain / pan) ---------- */
+const polar=(a,r,c=20)=>[c+r*Math.sin(a*Math.PI/180),c-r*Math.cos(a*Math.PI/180)];
+const arc=(a0,a1,r)=>{const [x0,y0]=polar(a0,r),[x1,y1]=polar(a1,r);return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 ${Math.abs(a1-a0)>180?1:0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`};
+const KN={gain:{min:-24,max:6,step:.5,big:3,def:0},pan:{min:-100,max:100,step:5,big:20,def:0}};
+function knobSVG(type,v,color){
+  const k=KN[type];const ang=-135+270*(v-k.min)/(k.max-k.min);
+  const from=type==='pan'?0:-135; const a0=type==='pan'?0:-135; const angFrom=type==='pan'?0:-135;
+  const [px,py]=polar(ang,15.5),[qx,qy]=polar(ang,6);
+  let val='';const s=Math.min(angFrom,ang),e=Math.max(angFrom,ang);
+  if(e-s>1)val=`<path d="${arc(s,e,17)}" fill="none" stroke="${color}" stroke-width="3.2" stroke-linecap="round"/>`;
+  const notch=type==='gain'?(()=>{const a=-135+270*(0-k.min)/(k.max-k.min);const [x1,y1]=polar(a,19.5),[x2,y2]=polar(a,15);return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#bdb6cf" stroke-width="1.5"/>`})():`<line x1="20" y1="1" x2="20" y2="4.5" stroke="#bdb6cf" stroke-width="1.5"/>`;
+  return `<svg viewBox="0 0 40 40" aria-hidden="true" focusable="false"><path d="${arc(-135,135,17)}" fill="none" stroke="#4a4266" stroke-width="3.2" stroke-linecap="round"/>${val}${notch}<circle cx="20" cy="20" r="12.5" fill="#2a2536" stroke="#7a6ea1" stroke-width="1.5"/><line x1="${qx.toFixed(2)}" y1="${qy.toFixed(2)}" x2="${px.toFixed(2)}" y2="${py.toFixed(2)}" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>`;
+}
+function makeKnob(host,type,value,color,label,onchange){
+  const k=KN[type];const el=document.createElement('span');el.className='knob';el.tabIndex=0;el.setAttribute('role','slider');
+  el.setAttribute('aria-label',label);el.setAttribute('aria-valuemin',k.min);el.setAttribute('aria-valuemax',k.max);
+  el.title=label+' — flèches : réglage, Maj : grand pas, double-clic : réinitialiser';
+  el.setAttribute('aria-orientation','vertical');
+  const set=(v,silent)=>{v=Math.max(k.min,Math.min(k.max,Math.round(v/k.step)*k.step));el._v=v;
+    el.setAttribute('aria-valuenow',v);el.setAttribute('aria-valuetext',type==='gain'?txtGain(v):txtPan(v));
+    el.innerHTML=knobSVG(type,v,color);if(!silent&&onchange)onchange(v)};
+  el.set=set;set(value,true);
+  el.addEventListener('keydown',e=>{const st=e.shiftKey?k.big:k.step;let v=el._v;
+    if(e.key==='ArrowUp'||e.key==='ArrowRight')v+=st;else if(e.key==='ArrowDown'||e.key==='ArrowLeft')v-=st;
+    else if(e.key==='Home')v=k.min;else if(e.key==='End')v=k.max;else if(e.key==='Delete'||e.key==='Backspace')v=k.def;else return;
+    e.preventDefault();set(v)});
+  el.addEventListener('dblclick',()=>set(k.def));
+  el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);const y0=e.clientY,v0=el._v;
+    const mv=ev=>set(v0+(y0-ev.clientY)*(k.max-k.min)/150);
+    const up=()=>{el.removeEventListener('pointermove',mv);el.removeEventListener('pointerup',up)};
+    el.addEventListener('pointermove',mv);el.addEventListener('pointerup',up)});
+  host.appendChild(el);return el;
+}
+
+/* ---------- Rendu ---------- */
+const list=document.getElementById('list');const prod=document.getElementById('prod');
+const rows=[];let seed=1;
+const byName={};
+function msPair(label,cls,onchange){
+  const w=document.createElement('div');w.className=cls;
+  w.innerHTML=`<button type="button" class="mb m" aria-pressed="false" aria-label="Muet : ${label}" title="Muet (M)">M</button><button type="button" class="mb s" aria-pressed="false" aria-label="Solo : ${label}" title="Solo (S)">S</button>`;
+  w.querySelectorAll('.mb').forEach(b=>b.addEventListener('click',()=>{b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true');onchange()}));
+  return w;
+}
+function refresh(){
+  const solo=rows.some(r=>r.s.getAttribute('aria-pressed')==='true');
+  rows.forEach(r=>{const m=r.m.getAttribute('aria-pressed')==='true'||r.grp&&r.grp.m.getAttribute('aria-pressed')==='true';
+    const s=r.s.getAttribute('aria-pressed')==='true'||(r.grp&&r.grp.s.getAttribute('aria-pressed')==='true');
+    r.el.classList.toggle('muted',m);r.el.classList.toggle('implicit',solo&&!s&&!m);});
+}
+DATA.forEach((g,gi)=>{
+  let box=list,grp=null;
+  if(g.group){
+    const id='g'+gi;const h=document.createElement('div');h.className='grid grp';h.setAttribute('role','listitem');
+    const n=g.tracks.length;
+    h.innerHTML=`<div class="gname"><button class="chevbtn" type="button" aria-expanded="${!g.collapsed}" aria-controls="${id}"><span class="ch" aria-hidden="true">›</span>${g.group}<span class="gcount">${n} pistes</span></button></div><span class="gms-cell"></span><span class="gsum"></span>`;
+    const pair=msPair('groupe '+g.group,'ms',refresh);
+    pair.querySelectorAll('.mb').forEach(b=>b.setAttribute('aria-label',b.getAttribute('aria-label').replace('Muet :','Muet :').replace('Solo :','Solo :')));
+    h.children[1].replaceWith(pair);
+    box=document.createElement('div');box.id=id;box.setAttribute('role','list');box.setAttribute('aria-label','Pistes du groupe '+g.group);
+    const sum=h.querySelector('.gsum');
+    const btn=h.querySelector('.chevbtn');
+    const sync=()=>{const open=btn.getAttribute('aria-expanded')==='true';box.hidden=!open;
+      sum.textContent=open?'':'Groupe replié — '+n+' pistes masquées ('+g.tracks.map(t=>t.n).join(', ')+')';};
+    btn.addEventListener('click',()=>{btn.setAttribute('aria-expanded',btn.getAttribute('aria-expanded')==='true'?'false':'true');sync();applyDensity()});
+    list.appendChild(h);list.appendChild(box);sync();
+    grp={m:pair.children[0],s:pair.children[1]};
+  }
+  g.tracks.forEach(t=>{
+    const el=document.createElement('div');el.className='grid row'+(g.group?' ingroup':'');el.setAttribute('role','listitem');
+    const nameSR=t.exp?' <span class="sr-only">(stem expérimental)</span>':'';
+    el.innerHTML=`<div class="name"><span class="strip" style="background:${t.c}" aria-hidden="true"></span><span class="nm">${t.n}${t.exp?' <i aria-hidden="true">*</i>':''}${nameSR}</span></div><div class="kc gain"></div><div class="kc pan"></div><span class="mscell"></span><div class="wave">${waveSVG(seed++,t.c,150)}<span class="mid"></span><span class="mtag">Muet</span></div>`;
+    const rec={el};
+    const kg=el.querySelector('.gain'),kp=el.querySelector('.pan');
+    const vg=document.createElement('span');vg.className='val';vg.textContent=fmtGain(t.g);
+    const vp=document.createElement('span');vp.className='val';vp.textContent=fmtPan(t.p);
+    rec.kg=makeKnob(kg,'gain',t.g,'#a58bff','Gain : '+t.n,v=>vg.textContent=fmtGain(v));kg.appendChild(vg);
+    rec.kp=makeKnob(kp,'pan',t.p,'#a58bff','Pan : '+t.n,v=>vp.textContent=fmtPan(v));kp.appendChild(vp);
+    const pair=msPair(t.n,'ms',refresh);el.querySelector('.mscell').replaceWith(pair);
+    rec.m=pair.children[0];rec.s=pair.children[1];rec.grp=grp;
+    if(t.muted)rec.m.setAttribute('aria-pressed','true');
+    box.appendChild(el);rows.push(rec);byName[t.n]=rec;
+  });
+});
+refresh();
+
+/* Bande master */
+document.getElementById('mwave').insertAdjacentHTML('afterbegin',waveSVG(99,'#c9b6ff',300,'master'));
+makeKnob(document.getElementById('k-master'),'gain',0,'#a58bff','Gain master',v=>document.getElementById('v-master').textContent=fmtGain(v));
+document.getElementById('k-master').firstChild.style.cssText='--knob:38px;width:38px;height:38px';
+const play=document.getElementById('play');
+play.addEventListener('click',()=>{const on=play.dataset.on!=='1';play.dataset.on=on?'1':'0';play.innerHTML=on?'<span aria-hidden="true">❚❚</span>Pause':'<span aria-hidden="true">▶</span>Lecture'});
+
+/* Densité : Auto (défaut) / Compact / Confortable.
+   Auto = confortable (72 px) tant que la liste tient dans la hauteur disponible ; compact (44 px) seulement si elle déborde.
+   Un choix manuel Compact / Confortable prend le pas sur Auto. */
+const dA=document.getElementById('d-auto'),dC=document.getElementById('d-compact'),dF=document.getElementById('d-conf'),dnote=document.getElementById('dnote');
+const contentEl=document.getElementById('p-prod');
+let mode=FORCED||'auto';
+function overflows(){return contentEl.scrollHeight>contentEl.clientHeight+1}
+function applyDensity(){
+  let d=mode;
+  if(mode==='auto'){prod.dataset.density='confortable';d=overflows()?'compact':'confortable'}
+  prod.dataset.density=d;prod.dataset.mode=mode;
+  dA.setAttribute('aria-pressed',mode==='auto');dC.setAttribute('aria-pressed',mode==='compact');dF.setAttribute('aria-pressed',mode==='confortable');
+  dnote.textContent=mode==='auto'?'Densité auto → '+d:'Densité forcée : '+d;
+  dA.title=mode==='auto'?'Auto : actuellement '+d+' ('+(d==='compact'?'la liste déborde':'la liste tient')+')':'Auto : confortable tant que la liste tient, compact si elle déborde';
+  titles();
+}
+/* info-bulle (title) uniquement quand le nom est réellement tronqué */
+function titles(){document.querySelectorAll('.nm').forEach(n=>{const full=n.textContent.replace(/\s*\*\s*$/,'').replace('(stem expérimental)','').trim();
+  if(n.scrollWidth>n.clientWidth+0.5)n.title=full;else n.removeAttribute('title')})}
+dA.onclick=()=>{mode='auto';applyDensity()};dC.onclick=()=>{mode='compact';applyDensity()};dF.onclick=()=>{mode='confortable';applyDensity()};
+window.addEventListener('resize',applyDensity);
+document.querySelectorAll('.demo button').forEach(b=>{b.setAttribute('aria-pressed',String(+b.dataset.n===NTR));
+  b.addEventListener('click',()=>{location.hash='#'+b.dataset.n;location.reload()})});
+applyDensity();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(applyDensity);
+
+/* Info-bulle : survol, focus, Échap (WCAG 1.4.13) */
+const est=document.getElementById('estime'),tip=document.getElementById('tip');
+const showTip=()=>tip.classList.add('show'),hideTip=()=>tip.classList.remove('show');
+est.addEventListener('mouseenter',showTip);est.addEventListener('focus',showTip);est.addEventListener('blur',hideTip);
+est.addEventListener('click',()=>tip.classList.toggle('show'));
+tip.addEventListener('mouseenter',showTip);
+[est,tip].forEach(x=>x.addEventListener('mouseleave',()=>{if(document.activeElement!==est)hideTip()}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')hideTip()});
+
+/* Popovers non bloquants */
+const pops=[['b-assist','pop-assist'],['b-copil','pop-copil']].map(([b,p])=>({b:document.getElementById(b),p:document.getElementById(p)}));
+function closePop(o,focus){o.p.classList.remove('show');o.b.setAttribute('aria-expanded','false');if(focus)o.b.focus()}
+pops.forEach(o=>{
+  o.b.addEventListener('click',()=>{const open=o.p.classList.contains('show');pops.forEach(x=>closePop(x));
+    if(!open){o.p.classList.add('show');o.b.setAttribute('aria-expanded','true');(o.p.querySelector('input,.btn')||o.p.querySelector('.x')).focus()}});
+  o.p.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();closePop(o,true)}});
+  o.p.querySelector('[data-close]').addEventListener('click',()=>closePop(o,true));
+});
+document.querySelectorAll('[data-apply]').forEach(b=>b.addEventListener('click',()=>{
+  const [n,t,v]=b.dataset.apply.split('|');const r=byName[n];if(r){(t==='gain'?r.kg:r.kp).set(parseFloat(v))}
+  b.textContent='Appliqué ✓';b.disabled=true;b.style.opacity=.85}));
+
+/* Onglets : flèches */
+const tabs=[...document.querySelectorAll('[role=tab]')];
+tabs.forEach((t,i)=>t.addEventListener('keydown',e=>{const d={ArrowRight:1,ArrowLeft:-1}[e.key];if(!d)return;
+  const nt=tabs[(i+d+tabs.length)%tabs.length];tabs.forEach(x=>{x.tabIndex=-1;x.setAttribute('aria-selected','false')});
+  nt.tabIndex=0;nt.setAttribute('aria-selected','true');nt.focus()}));
+</script>
+</body>
+</html>

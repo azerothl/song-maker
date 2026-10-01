@@ -13,6 +13,7 @@ import type {
   ProjectDoc,
   Screen,
 } from "../lib/types";
+import type { ProfilesState } from "../lib/profilesTypes";
 
 type AppStore = {
   screen: Screen;
@@ -31,6 +32,11 @@ type AppStore = {
   error: string | null;
   audioPath: string | null;
   playbackSources: PlaybackSources | null;
+  /** Song screen export / long operations — blocks profile switch (#201). */
+  profileOperationBusy: boolean;
+  setProfileOperationBusy: (busy: boolean) => void;
+  profilesState: ProfilesState | null;
+  refreshProfiles: () => Promise<void>;
   refreshHealth: () => Promise<void>;
   refreshSettings: () => Promise<void>;
   refreshJob: () => Promise<void>;
@@ -55,6 +61,7 @@ const emptyForm = (): FormInput => ({
   seed: null,
   targetDurationSec: 180,
   preferFullLyrics: true,
+  instrumentalMode: false,
   continuationGenerationId: null,
 });
 
@@ -88,6 +95,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
   error: null,
   audioPath: null,
   playbackSources: null,
+  profileOperationBusy: false,
+  setProfileOperationBusy: (profileOperationBusy) =>
+    set({ profileOperationBusy }),
+  profilesState: null,
+  refreshProfiles: async () => {
+    try {
+      const profilesState = await api.getProfilesState();
+      set({ profilesState });
+    } catch (e) {
+      set({ error: String(e) });
+    }
+  },
 
   refreshHealth: async () => {
     try {
@@ -156,6 +175,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         seed: null,
         targetDurationSec: normalizeDurationSec(project.targetDurationSec),
         preferFullLyrics: project.preferFullLyrics ?? true,
+        instrumentalMode: project.instrumentalMode ?? false,
         continuationGenerationId: null,
       },
       screen: "song",

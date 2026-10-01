@@ -2,6 +2,7 @@
   "name": "@song-maker/lora-packs",
   "version": "0.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "Phase 3–4 — optional YuE2 LoRA pack registry with CC BY-NC gate (no weights)",
   "exports": {

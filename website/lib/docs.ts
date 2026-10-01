@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
 import type { AppLocale } from "@/i18n/routing";
+import { APP_VERSION } from "@/lib/releases";
 
 const DOCS_ROOT = path.join(process.cwd(), "content/docs");
 
@@ -50,6 +51,7 @@ export function getDoc(locale: AppLocale, slug: string): DocPage | null {
     title: String(data.title ?? slug),
     description: String(data.description ?? ""),
     order: Number(data.order ?? 99),
-    content,
+    // Keep install download links aligned with root package.json / release assets.
+    content: content.replaceAll("__APP_VERSION__", APP_VERSION),
   };
 }

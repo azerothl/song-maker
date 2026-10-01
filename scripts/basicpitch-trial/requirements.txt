@@ -1,0 +1,19 @@
+# Essai interne BasicPitch (#169) — runtime ONNX sans TensorFlow.
+# Sur Python ≥ 3.11 / Linux, `pip install basic-pitch` tire TensorFlow par défaut.
+# Installer ainsi :
+#   python3 -m venv .venv && source .venv/bin/activate
+#   pip install -U 'pip' 'setuptools<81' wheel
+#   pip install basic-pitch==0.4.0 --no-deps
+#   pip install -r requirements.txt
+basic-pitch==0.4.0
+onnxruntime>=1.16
+librosa>=0.8.0
+mir-eval>=0.6
+numpy>=1.18
+pretty-midi>=0.2.9
+resampy>=0.2.2,<0.4.3
+scikit-learn
+scipy>=1.4.1
+typing-extensions
+soundfile
+setuptools<81

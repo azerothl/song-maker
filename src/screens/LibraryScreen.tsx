@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { ProjectSyncPanel } from "../components/ProjectSyncPanel";
 import { api } from "../lib/api";
 import { useAppStore } from "../store/appStore";
+import { ProfileKindBadge } from "../components/ProfileKindBadge";
 import { t } from "../ui/i18n";
 
 function formatDuration(ms?: number | null): string {
@@ -66,7 +68,10 @@ export function LibraryScreen() {
   return (
     <div className="panel library">
       <header className="panel-header">
-        <h1>{t("nav.library")}</h1>
+        <h1 className="song-title-with-badge">
+          {t("nav.library")}
+          <ProfileKindBadge />
+        </h1>
         <button type="button" className="btn primary" onClick={() => void onNew()}>
           {t("library.new")}
         </button>
@@ -152,6 +157,9 @@ export function LibraryScreen() {
             ))}
           </tbody>
         </table>
+      )}
+      {menuId && (
+        <ProjectSyncPanel projectId={menuId} />
       )}
     </div>
   );

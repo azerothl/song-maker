@@ -3,7 +3,8 @@
   "private": true,
   "version": "0.1.1",
   "type": "module",
-  "description": "Song Maker — desktop app (phases 0–2) and monorepo packages (phases 2–4)",
+  "description": "Song Maker — local Tauri desktop app (YuE2 / audio.cpp) and monorepo packages",
+  "license": "Apache-2.0",
   "packageManager": "pnpm@10.33.3",
   "scripts": {
     "dev": "vite",
@@ -11,26 +12,37 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "bench:score-tab": "node --import tsx scripts/bench-score-tab.mts",
+    "bench:partition": "node scripts/bench-partition-freeze.mjs",
     "packages:build": "pnpm -r --filter \"./packages/**\" run build",
     "packages:test": "pnpm -r --filter \"./packages/**\" run test",
     "packages:typecheck": "pnpm -r --filter \"./packages/**\" run typecheck",
+    "rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml",
+    "rust:fmt:check": "cargo fmt --manifest-path src-tauri/Cargo.toml --check",
+    "rust:clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
+    "rust:test": "cargo test --manifest-path src-tauri/Cargo.toml",
     "website:dev": "pnpm --filter website dev",
     "website:build": "pnpm --filter website build",
-    "website:start": "pnpm --filter website start"
+    "website:start": "pnpm --filter website start",
+    "website:lint": "pnpm --filter website lint"
   },
   "dependencies": {
     "@song-maker/akasha-declui": "workspace:*",
     "@song-maker/lora-packs": "workspace:*",
+    "@song-maker/lora-training": "workspace:*",
     "@song-maker/mix-production": "workspace:*",
     "@song-maker/partition-invariants": "workspace:*",
+    "@song-maker/project-sync": "workspace:*",
     "@song-maker/remote-worker": "workspace:*",
     "@song-maker/score-engine": "workspace:*",
+    "@song-maker/sheetsage": "workspace:*",
     "@song-maker/stem-providers": "workspace:*",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-process": "^2.3.1",
-    "@tauri-apps/plugin-updater": "^2.12.0",
+    "@tauri-apps/plugin-process": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.13.0",
+    "abcjs": "6.7.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zustand": "^5.0.8"
@@ -41,11 +53,20 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.3.4",
+    "playwright": "1.51.0",
     "tsx": "^4.19.3",
     "typescript": "~5.8.3",
     "vite": "^6.3.5"
   },
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "@swc/core",
+      "esbuild",
+      "unrs-resolver"
+    ]
   }
 }

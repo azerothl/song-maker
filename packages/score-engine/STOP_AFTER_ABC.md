@@ -1,21 +1,29 @@
-# Gate `stop_after=abc`
+# `stop_after=abc`
 
-**Statut :** gated — non activé  
-**Drapeau :** `STOP_AFTER_ABC_ENABLED = false` dans `src/generation/stop-after.ts`  
-**Épingle actuelle :** audio.cpp `v0.8.2` (`pins.rs`)
+**Statut :** activé  
+**Drapeau :** `STOP_AFTER_ABC_ENABLED = true` dans `src/generation/stop-after.ts`  
+**Épingle :** audio.cpp `v0.8.2` (`pins.rs`)
 
-## Pourquoi ce n’est pas activé
+## Contrat
 
-`stop_after=abc` (score sans WAV) est documenté à partir d’audio.cpp **≥ v0.8.2**. Cette version et ses archives CUDA sont maintenant épinglées et vérifiées.
-La fonction reste désactivée parce que la commande desktop attend une réponse audio et ne transmet pas encore `stop_after`.
-
-Pour l’activer, il reste à ajouter le chemin score seulement à la commande desktop, stocker son artefact sans WAV, puis tester avec CUDA. Le drapeau restera désactivé jusque-là.
-
-## Contrat produit (quand le drapeau passera)
-
+- `stop_after=abc` produit le score ABC **sans** WAV.
 - `cot` ∈ `melody|full` ; pas d’ABC externe.
-- UI FR : « Générer la partition seulement ».
-- Plusieurs rendus audio ultérieurs sur le même ABC (appels séquentiels, un GPU).
+- Le client score-engine (`planStopAfterAbc` / `GatedStopAfterAbcClient.run`) valide et renvoie le fragment d’options `{ stop_after: "abc" }` — l’appel GPU reste dans la commande desktop `start_generation`.
+- `StubStopAfterAbcClient` est un **alias déprécié** de `GatedStopAfterAbcClient`.
+- Incompatible avec une continuation `semantic_prefix` (voir `SEMANTIC_PREFIX.md`).
+- La commande desktop doit :
+  1. transmettre `stop_after` dans `options` de `POST /v1/tasks/run` ;
+  2. accepter un job réussi avec `score.abc` et `audio: null` (`state: "score_only"`) ;
+  3. ne pas exiger de WAV.
+
+## Multi-rendu
+
+Après une génération score-only, plusieurs rendus audio réutilisent le même `score.abc` via `render_from_generation` (ABC immuable + `parentGenerationId` = gen source). Pas de `stop_after` sur ces appels.
+
+## UI
+
+- « Générer la partition seulement »
+- « Rendre N fois depuis ce score »
 
 ## Sources
 

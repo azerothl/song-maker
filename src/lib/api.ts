@@ -1,28 +1,71 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { PortablePackagePlan } from "./projectPackage";
+import type { ProfilesState, ProfileSummary } from "./profilesTypes";
 import type {
   AppSettings,
   FormInput,
   GenerationSummary,
   HealthSnapshot,
+  InstallPlan,
   JobStatus,
   LibraryRow,
   LocalLoraAdapter,
   MixDoc,
+  MixVersionSummary,
   Phase3Status,
   PlaybackSources,
   ProjectDoc,
+  ScoreSummary,
+  SeparationInfo,
+  SeparationVersionSummary,
+  SetupGpuInfo,
 } from "./types";
 
 export const api = {
   getHealth: () => invoke<HealthSnapshot>("get_health"),
+  getSetupGpuInfo: () => invoke<SetupGpuInfo>("get_setup_gpu_info"),
+  getInstallPlan: (pack: "q4" | "q8", mixOnly?: boolean) =>
+    invoke<InstallPlan>("get_install_plan", { pack, mixOnly: mixOnly ?? null }),
   installRequiredAssets: (pack: "q4" | "q8", acceptedLicense: boolean) =>
     invoke<string>("install_required_assets", { pack, acceptedLicense }),
+  installMixOnlyAssets: () => invoke<string>("install_mix_only_assets"),
   getSettings: () => invoke<AppSettings>("get_settings"),
   updateSettings: (settings: AppSettings) =>
     invoke<AppSettings>("update_settings", { settings }),
   getPhase3Status: () => invoke<Phase3Status>("get_phase3_status"),
   installHtDemucs6sRuntime: () =>
     invoke<string>("install_htdemucs_6s_runtime"),
+  installBsRoFormer: () => invoke<string>("install_bs_roformer"),
+  cancelBsRoFormerInstall: () => invoke<string>("cancel_bs_roformer_install"),
+  bsRoFormerInstallInfo: () =>
+    invoke<{
+      gguf: string;
+      sha256: string;
+      bytes: number;
+      remotePath: string;
+      url: string;
+      licenseNoticeFr: string;
+      path: string;
+      available: boolean;
+      defaultSeparator: string;
+      stemLayoutFr: string;
+    }>("bs_roformer_install_info"),
+  installMelBandRoFormer: () => invoke<string>("install_mel_band_roformer"),
+  cancelMelBandRoFormerInstall: () =>
+    invoke<string>("cancel_mel_band_roformer_install"),
+  melBandRoFormerInstallInfo: () =>
+    invoke<{
+      gguf: string;
+      sha256: string;
+      bytes: number;
+      remotePath: string;
+      url: string;
+      licenseNoticeFr: string;
+      path: string;
+      available: boolean;
+      defaultSeparator: string;
+      stemLayoutFr: string;
+    }>("mel_band_roformer_install_info"),
   listLoraAdapters: () => invoke<LocalLoraAdapter[]>("list_lora_adapters"),
   importLoraAdapters: () =>
     invoke<LocalLoraAdapter[] | null>("import_lora_adapters"),
@@ -43,14 +86,57 @@ export const api = {
   revealProject: (id: string) => invoke<string>("reveal_project", { id }),
   getJobStatus: () => invoke<JobStatus>("get_job_status"),
   cancelJob: () => invoke<string>("cancel_job"),
-  startGeneration: (id: string, form: FormInput, abc?: string | null) =>
+  startGeneration: (
+    id: string,
+    form: FormInput,
+    abc?: string | null,
+    options?: {
+      stopAfter?: "abc" | null;
+      sourceGenerationId?: string | null;
+    },
+  ) =>
     invoke<ProjectDoc>("start_generation", {
       id,
       form,
       abc: abc ?? null,
+      stopAfter: options?.stopAfter ?? null,
+      sourceGenerationId: options?.sourceGenerationId ?? null,
+    }),
+  /** Render audio from an existing gen's immutable score.abc (parent = source). */
+  renderFromGeneration: (
+    id: string,
+    sourceGenId: string,
+    form: FormInput,
+  ) =>
+    invoke<ProjectDoc>("render_from_generation", {
+      id,
+      sourceGenId,
+      form,
     }),
   startSeparation: (id: string) => invoke<MixDoc>("start_separation", { id }),
   loadMix: (id: string) => invoke<MixDoc | null>("load_mix", { id }),
+  loadSeparationInfo: (id: string) =>
+    invoke<SeparationInfo | null>("load_separation_info", { id }),
+  listSeparationVersions: (id: string) =>
+    invoke<SeparationVersionSummary[]>("list_separation_versions_cmd", { id }),
+  activateSeparationVersion: (id: string, separationId: string) =>
+    invoke<MixDoc>("activate_separation_version", { id, separationId }),
+  exportSeparationStems: (
+    id: string,
+    req: {
+      trackIds: string[];
+      pack: "folder" | "zip";
+      destination: string | null;
+    },
+  ) =>
+    invoke<string | null>("export_separation_stems", {
+      id,
+      req: {
+        trackIds: req.trackIds,
+        pack: req.pack,
+        destination: req.destination,
+      },
+    }),
   updateMix: (
     id: string,
     update: {
@@ -63,16 +149,72 @@ export const api = {
         solo: boolean;
         clips?: MixDoc["tracks"][number]["clips"];
       }[];
+      tempoMap?: MixDoc["tempoMap"];
+      timeSignatures?: MixDoc["timeSignatures"];
+      markers?: MixDoc["markers"];
     },
   ) => invoke<MixDoc>("update_mix", { id, update }),
+  /** Native dialog → copy + normalize → append user MixTrack (#40). Null if cancelled. */
+  importUserAudioTrack: (id: string) =>
+    invoke<MixDoc | null>("import_user_audio_track", { id }),
+  beginUserAudioCapture: (id: string) =>
+    invoke<{ sessionId: string; relativePath: string }>(
+      "begin_user_audio_capture",
+      { id },
+    ),
+  appendUserAudioChunk: (id: string, sessionId: string, chunk: number[]) =>
+    invoke<void>("append_user_audio_chunk", { id, sessionId, chunk }),
+  discardUserAudioCapture: (id: string, sessionId: string) =>
+    invoke<void>("discard_user_audio_capture", { id, sessionId }),
+  finalizeUserAudioCapture: (
+    id: string,
+    sessionId: string,
+    displayName?: string | null,
+  ) =>
+    invoke<MixDoc>("finalize_user_audio_capture", {
+      id,
+      sessionId,
+      displayName: displayName ?? null,
+    }),
+  finalizeUserAudioCaptureTakes: (
+    id: string,
+    sessionIds: string[],
+    displayName?: string | null,
+    startMs?: number | null,
+  ) =>
+    invoke<MixDoc>("finalize_user_audio_capture_takes", {
+      id,
+      req: {
+        sessionIds,
+        displayName: displayName ?? null,
+        startMs: startMs ?? null,
+      },
+    }),
   saveMixVersion: (id: string) => invoke<MixDoc>("save_mix_version", { id }),
+  listMixVersions: (id: string) =>
+    invoke<MixVersionSummary[]>("list_mix_versions", { id }),
   renderPreview: (id: string) => invoke<string>("render_preview", { id }),
   playbackSources: (id: string) =>
     invoke<PlaybackSources>("playback_sources", { id }),
-  exportAudio: (id: string, format: "wav" | "flac" | "mp3") =>
+  exportAudio: (
+    id: string,
+    format: "wav" | "flac" | "mp3",
+    options?: {
+      bitDepth?: 16 | 24;
+      bitrateKbps?: 128 | 192 | 320;
+      pack?: "folder" | "zip";
+      destination?: string | null;
+    },
+  ) =>
     invoke<string>("export_audio", {
       id,
-      req: { format, destination: null },
+      req: {
+        format,
+        destination: options?.destination ?? null,
+        bitDepth: options?.bitDepth ?? null,
+        bitrateKbps: options?.bitrateKbps ?? null,
+        pack: options?.pack ?? null,
+      },
     }),
   exportPcmAudio: (
     id: string,
@@ -84,6 +226,10 @@ export const api = {
       peakTrimDb: number;
       renderPath: string;
       matchMode: string;
+      fileStem?: string;
+      bitDepth?: 16 | 24;
+      bitrateKbps?: 128 | 192 | 320;
+      pack?: "folder" | "zip";
     },
   ) =>
     invoke<string>("export_pcm_audio", {
@@ -97,11 +243,36 @@ export const api = {
         peakTrimDb: req.peakTrimDb,
         renderPath: req.renderPath,
         matchMode: req.matchMode,
+        fileStem: req.fileStem ?? null,
+        bitDepth: req.bitDepth ?? null,
+        bitrateKbps: req.bitrateKbps ?? null,
+        pack: req.pack ?? null,
       },
     }),
-  downloadCacheFile: (url: string, relativeCachePath: string) =>
+  saveProductionOverlay: (id: string, mixId: string, overlay: unknown) =>
+    invoke<void>("save_production_overlay", { id, mixId, overlay }),
+  loadProductionOverlayDisk: (id: string, mixId: string) =>
+    invoke<unknown | null>("load_production_overlay", { id, mixId }),
+  listProjectPackageInventory: (id: string) =>
+    invoke<
+      Array<{ relativePath: string; byteLength: number; exists: boolean }>
+    >("list_project_package_inventory", { id }),
+  exportProjectPackage: (id: string) =>
+    invoke<{ path: string; plan: PortablePackagePlan }>(
+      "export_project_package",
+      { id },
+    ),
+  downloadCacheFile: (
+    url: string,
+    relativeCachePath: string,
+    expectedSha256?: string,
+  ) =>
     invoke<string>("download_cache_file", {
-      req: { url, relativeCachePath },
+      req: {
+        url,
+        relativeCachePath,
+        expectedSha256: expectedSha256 ?? null,
+      },
     }),
   listGenerations: (id: string) =>
     invoke<GenerationSummary[]>("list_generations", { id }),
@@ -113,8 +284,63 @@ export const api = {
     ),
   loadScore: (id: string) => invoke<unknown | null>("load_score", { id }),
   clearScore: (id: string) => invoke<ProjectDoc>("clear_score", { id }),
+  listScores: (id: string) => invoke<ScoreSummary[]>("list_scores", { id }),
+  loadScoreVersion: (id: string, scoreId: string) =>
+    invoke<unknown | null>("load_score_version", { id, scoreId }),
+  setActiveScore: (id: string, scoreId: string) =>
+    invoke<ProjectDoc>("set_active_score", { id, scoreId }),
   useGeneration: (id: string, genId: string) =>
     invoke<ProjectDoc>("use_generation", { id, genId }),
+  renameGeneration: (id: string, genId: string, name: string) =>
+    invoke<ProjectDoc>("rename_generation", { id, genId, name }),
+  /** Import remote worker WAV/score into a local gen-* with provenance (#65). */
+  importRemoteGeneration: (
+    id: string,
+    payload: {
+      remoteJobId: string;
+      audioBase64: string;
+      audioSha256: string;
+      scoreAbc?: string | null;
+      scoreSha256?: string | null;
+      endpointBaseUrl: string;
+      payloadSha256: string;
+    },
+  ) =>
+    invoke<{ project: ProjectDoc; generationId: string }>(
+      "import_remote_generation",
+      {
+        id,
+        payload: {
+          remoteJobId: payload.remoteJobId,
+          audioBase64: payload.audioBase64,
+          audioSha256: payload.audioSha256,
+          scoreAbc: payload.scoreAbc ?? null,
+          scoreSha256: payload.scoreSha256 ?? null,
+          endpointBaseUrl: payload.endpointBaseUrl,
+          payloadSha256: payload.payloadSha256,
+        },
+      },
+    ),
   undoMix: (id: string) => invoke<MixDoc | null>("undo_mix", { id }),
   redoMix: (id: string) => invoke<MixDoc | null>("redo_mix", { id }),
+  getProfilesState: () => invoke<ProfilesState>("get_profiles_state"),
+  createProfile: (name: string, kind: "hobby" | "commercial") =>
+    invoke<ProfileSummary>("create_profile", { name, kind }),
+  renameProfile: (id: string, name: string) =>
+    invoke<void>("rename_profile", { id, name }),
+  activateProfile: (id: string) => invoke<void>("activate_profile", { id }),
+  dismissProfileMigrationBanner: () =>
+    invoke<void>("dismiss_profile_migration_banner"),
+  acceptEngineContract: (
+    profileId: string,
+    engineId: string,
+    textFingerprint: string,
+    textVersion: string,
+  ) =>
+    invoke<void>("accept_engine_contract", {
+      profileId,
+      engineId,
+      textFingerprint,
+      textVersion,
+    }),
 };

@@ -1,0 +1,188 @@
+
+> song-maker@0.1.1 bench:score-tab /workspace
+> node --import tsx scripts/bench-score-tab.mts
+
+{
+  "capturedAt": "2026-10-01T02:14:09.045Z",
+  "microbenches": {
+    "stats": {
+      "noteCount": 1233,
+      "maxTick": 4978560,
+      "pianoRollWidthPx": 199142.4
+    },
+    "abcChars": 14173,
+    "withResize": [
+      {
+        "phase": "abcjs.renderAbc (legacy responsive: resize)",
+        "durationMs": 248.20000000001164,
+        "detail": {
+          "chars": 14173,
+          "tunes": 1
+        }
+      },
+      {
+        "phase": "reflow SVG (offsetWidth/Height)",
+        "durationMs": 57.5,
+        "detail": {
+          "nodes": 17932,
+          "paperWidth": 1280,
+          "paperHeight": 94422
+        }
+      }
+    ],
+    "withoutResize": [
+      {
+        "phase": "abcjs.renderAbc (responsive off)",
+        "durationMs": 190.79999999998836
+      },
+      {
+        "phase": "reflow SVG (responsive off)",
+        "durationMs": 53,
+        "detail": {
+          "nodes": 17932
+        }
+      }
+    ],
+    "abcStaffViewOnly": [
+      {
+        "phase": "AbcStaffView seul → SVG",
+        "durationMs": 49.100000000034925
+      }
+    ],
+    "pianoRoll": [
+      {
+        "phase": "PianoRoll mount (hidden tabpanel path)",
+        "durationMs": 12.5,
+        "detail": {
+          "noteCount": 1233,
+          "noteButtonsDom": 85,
+          "gridWidthPx": 199142
+        }
+      },
+      {
+        "phase": "PianoRoll reflow grille",
+        "durationMs": 0,
+        "detail": {
+          "gridWidthPx": 199142,
+          "noteButtonsDom": 85
+        }
+      }
+    ],
+    "resizeStorm": [
+      {
+        "phase": "resize storm (5×, responsive: resize)",
+        "durationMs": 133.5
+      }
+    ],
+    "viewportResizeLegacy": {
+      "phase": "layout après resize (viewportHorizontal + responsive: resize)",
+      "durationMs": 47.5,
+      "detail": {
+        "passes": 8
+      }
+    },
+    "viewportResizeFixed": {
+      "phase": "layout après resize (viewportHorizontal, responsive off)",
+      "durationMs": 49.09999999997672,
+      "detail": {
+        "passes": 8
+      }
+    }
+  },
+  "scorePanelOpen": {
+    "stats": {
+      "noteCount": 1233,
+      "maxTick": 4978560,
+      "pianoRollWidthPx": 199142.4
+    },
+    "abcChars": 14173,
+    "abcLines": 1312,
+    "phases": [
+      {
+        "phase": "ScorePanel mount (1 frame)",
+        "durationMs": 31
+      },
+      {
+        "phase": "attente rendu portée (abcjs useEffect)",
+        "durationMs": 59.199999999953434,
+        "detail": {
+          "hasSvg": true
+        }
+      },
+      {
+        "phase": "rafales resize après montage (post-ouverture)",
+        "durationMs": 110.20000000001164
+      },
+      {
+        "phase": "ouverture → portée visible (total)",
+        "durationMs": 200.39999999996508,
+        "detail": {
+          "hasSvg": true
+        }
+      }
+    ],
+    "longTasksMs": 0,
+    "longTaskCount": 0
+  },
+  "scorePanelOpenLong": {
+    "stats": {
+      "noteCount": 9857,
+      "maxTick": 5412480,
+      "pianoRollWidthPx": 216499.2
+    },
+    "abcChars": 28791,
+    "abcLines": 1428,
+    "phases": [
+      {
+        "phase": "ScorePanel mount (1 frame)",
+        "durationMs": 77.09999999997672
+      },
+      {
+        "phase": "attente rendu portée (abcjs useEffect)",
+        "durationMs": 105.29999999998836,
+        "detail": {
+          "hasSvg": true
+        }
+      },
+      {
+        "phase": "rafales resize après montage (post-ouverture)",
+        "durationMs": 134
+      },
+      {
+        "phase": "ouverture → portée visible (total)",
+        "durationMs": 316.3999999999651,
+        "detail": {
+          "hasSvg": true
+        }
+      }
+    ],
+    "longTasksMs": 157,
+    "longTaskCount": 2
+  },
+  "staffToPiano": {
+    "stats": {
+      "noteCount": 1233,
+      "maxTick": 4978560,
+      "pianoRollWidthPx": 199142.4
+    },
+    "staffToPianoMs": 45.59999999997672,
+    "pianoNoteButtonsDom": 101,
+    "pianoGridWidthPx": 199142,
+    "pianoRollFocusable": true,
+    "longTasksMs": 0,
+    "longTaskCount": 0
+  },
+  "staffToPianoLong": {
+    "stats": {
+      "noteCount": 9857,
+      "maxTick": 5412480,
+      "pianoRollWidthPx": 216499.2
+    },
+    "staffToPianoMs": 28,
+    "pianoNoteButtonsDom": 101,
+    "pianoGridWidthPx": 216499,
+    "pianoRollFocusable": true,
+    "longTasksMs": 0,
+    "longTaskCount": 0
+  }
+}

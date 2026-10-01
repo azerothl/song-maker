@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildProjectPayload,
   createConsent,
   createEmptyAuthPlaceholder,
   createRemoteGpuWorkerClient,
@@ -103,10 +104,13 @@ describe("remote-worker client", () => {
   });
 
   it("queues a job when consent, retention, token, and TLS are present", async () => {
-    const client = createRemoteGpuWorkerClient({
-      localFirst: false,
-      remoteEnabled: true,
-    });
+    const client = createRemoteGpuWorkerClient(
+      {
+        localFirst: false,
+        remoteEnabled: true,
+      },
+      { useHttpTransport: false },
+    );
     const auth = await client.authenticate({
       scheme: "bearer_placeholder",
       accessToken: "test-token",
@@ -130,5 +134,38 @@ describe("remote-worker client", () => {
     expect(result.status).toBe("queued");
     expect(result.id).toMatch(/^remote-job-/);
     expect(DEFAULT_RETENTION_POLICY.maxRetentionHours).toBe(24);
+  });
+
+  it("makes zero network calls when remote is opted out", async () => {
+    const client = createRemoteGpuWorkerClient();
+    expect(client.isNetworkIdle()).toBe(true);
+    const probe = await client.probe();
+    expect(probe.status).toBe("rejected_local_only");
+  });
+
+  it("hashes a real project payload (not blob://probe)", async () => {
+    const built = await buildProjectPayload({
+      projectId: "proj-1",
+      kind: "yue2_generate",
+      request: { style: "pop", lyrics: "[Verse]\nHi", cot: "full" },
+      artifacts: { lyrics: "[Verse]\nHi" },
+    });
+    expect(built.plaintextSha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(built.blob.contentSha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(built.blob.cipherPath.startsWith("memory://")).toBe(true);
+    expect(built.blob.cipherPath.includes("blob://probe")).toBe(false);
+    expect(built.blob.byteLength).toBeGreaterThan(0);
+  });
+
+  it("attaches ciphertext when accessToken is provided", async () => {
+    const built = await buildProjectPayload({
+      projectId: "proj-2",
+      kind: "yue2_generate",
+      accessToken: "shared-token-for-hkdf",
+      request: { style: "x", lyrics: "y" },
+    });
+    expect(built.blob.encryption).toBe("aes-256-gcm");
+    expect(built.blob.ciphertextBase64).toBeTruthy();
+    expect(built.blob.ivBase64).toBeTruthy();
   });
 });

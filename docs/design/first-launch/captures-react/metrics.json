@@ -1,0 +1,232 @@
+{
+  "issue": 199,
+  "baseGitSha": "f6335287325f858bfcea6406036b18bea315df38",
+  "generatedAt": "2026-09-30T20:43:24.402Z",
+  "method": "Vite + App React réelle, Playwright Chromium/Chrome, getBoundingClientRect (pas pixels seuls)",
+  "fold": {
+    "fold-720": {
+      "file": "first-launch-gpu-fold-1280x720.png",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "mainScrollHeight": 720,
+      "mainClientHeight": 720,
+      "htdemucsCheckbox": {
+        "top": 645,
+        "bottom": 689,
+        "left": 113.8,
+        "right": 730.2,
+        "width": 616.4,
+        "height": 44,
+        "inViewport": true
+      },
+      "downloadButton": {
+        "top": 566.3,
+        "bottom": 620.3,
+        "left": 975.2,
+        "right": 1166.2,
+        "width": 191,
+        "height": 54,
+        "inViewport": true
+      },
+      "foot": {
+        "top": 457.5,
+        "bottom": 689,
+        "left": 113.8,
+        "right": 1166.2,
+        "width": 1052.4,
+        "height": 231.5,
+        "inViewport": true
+      },
+      "demucsLink": {
+        "top": 625.1,
+        "bottom": 645.1,
+        "left": 376.8,
+        "right": 455.8,
+        "width": 79,
+        "height": 20,
+        "inViewport": true
+      },
+      "checks": {
+        "htdemucsCheckboxAboveFold": true,
+        "downloadButtonAboveFold": true,
+        "pass": true
+      }
+    },
+    "fold-640": {
+      "file": "first-launch-gpu-fold-1280x640.png",
+      "viewport": {
+        "width": 1280,
+        "height": 640
+      },
+      "mainScrollHeight": 640,
+      "mainClientHeight": 640,
+      "htdemucsCheckbox": {
+        "top": 571,
+        "bottom": 615,
+        "left": 113.8,
+        "right": 738.2,
+        "width": 624.4,
+        "height": 44,
+        "inViewport": true
+      },
+      "downloadButton": {
+        "top": 492.3,
+        "bottom": 546.3,
+        "left": 975.2,
+        "right": 1166.2,
+        "width": 191,
+        "height": 54,
+        "inViewport": true
+      },
+      "foot": {
+        "top": 385.5,
+        "bottom": 615,
+        "left": 113.8,
+        "right": 1166.2,
+        "width": 1052.4,
+        "height": 229.5,
+        "inViewport": true
+      },
+      "demucsLink": {
+        "top": 551.1,
+        "bottom": 571.1,
+        "left": 356.8,
+        "right": 435.8,
+        "width": 79,
+        "height": 20,
+        "inViewport": true
+      },
+      "checks": {
+        "htdemucsCheckboxAboveFold": true,
+        "downloadButtonAboveFold": true,
+        "pass": true
+      }
+    }
+  },
+  "demucsFocus": {
+    "file": "first-launch-demucs-link-focus-1280x720.png",
+    "outlineStyle": "solid",
+    "outlineWidth": "2px",
+    "outlineColor": "rgb(94, 236, 248)",
+    "outlineOffset": "2px",
+    "matchesFocusVisible": true,
+    "isCyan2px": true,
+    "expected": "2px solid var(--accent-cyan) / rgb(94, 236, 248)",
+    "pass": true
+  },
+  "gridFocus": {
+    "grid-640": {
+      "file": "first-launch-grid-focus-1280x640.png",
+      "viewport": {
+        "width": 1280,
+        "height": 640
+      },
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgb(94, 236, 248)",
+      "outlineOffset": "2px",
+      "matchesFocusVisible": true,
+      "isCyan2px": true,
+      "pass": true
+    },
+    "grid-720": {
+      "file": "first-launch-grid-focus-1280x720.png",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgb(94, 236, 248)",
+      "outlineOffset": "2px",
+      "matchesFocusVisible": true,
+      "isCyan2px": true,
+      "pass": true
+    },
+    "grid-768": {
+      "file": "first-launch-grid-focus-1280x768.png",
+      "viewport": {
+        "width": 1280,
+        "height": 768
+      },
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgb(94, 236, 248)",
+      "outlineOffset": "2px",
+      "matchesFocusVisible": true,
+      "isCyan2px": true,
+      "pass": true
+    }
+  },
+  "interruptedErrbox": {
+    "interrupted-640": {
+      "file": "first-launch-interrupted-1280x640.png",
+      "viewport": {
+        "width": 1280,
+        "height": 640
+      },
+      "maskedErrboxTextNodes": 0,
+      "pass": true
+    },
+    "interrupted-720": {
+      "file": "first-launch-interrupted-1280x720.png",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "maskedErrboxTextNodes": 0,
+      "pass": true
+    },
+    "interrupted-768": {
+      "file": "first-launch-interrupted-1280x768.png",
+      "viewport": {
+        "width": 1280,
+        "height": 768
+      },
+      "maskedErrboxTextNodes": 0,
+      "pass": true
+    }
+  },
+  "files": {
+    "first-launch-gpu-fold-1280x720.png": {
+      "sha256": "584171c43da3ab3f2ccb59eec1182e5b7bd6a53020b684573b42eb81bf208f5c",
+      "bytes": 204946
+    },
+    "first-launch-gpu-fold-1280x640.png": {
+      "sha256": "a9a739489c59feb3de412b82c0e188b660f74a4a14c718c4d06a16887ce5c02d",
+      "bytes": 194464
+    },
+    "first-launch-demucs-link-focus-1280x720.png": {
+      "sha256": "f501d1f340655670eff3a9c5ea2095d70385727ff9493a52ca6464ee979ae9af",
+      "bytes": 1812
+    },
+    "first-launch-grid-focus-1280x640.png": {
+      "sha256": "2f76c09b0e6f9823039068f6f7f81cb8d04db8d8f9e2c298290d633e306d017f",
+      "bytes": 195834
+    },
+    "first-launch-grid-focus-1280x720.png": {
+      "sha256": "0ff071a99a06a15e0acb4b57ccde7f1a8bfb6cb0a5cc093d42434b79e6add712",
+      "bytes": 206347
+    },
+    "first-launch-grid-focus-1280x768.png": {
+      "sha256": "d98bc15f258d6545b3b58c80f0af1828262b529670ed9614644b5922e8faccc8",
+      "bytes": 210024
+    },
+    "first-launch-interrupted-1280x640.png": {
+      "sha256": "86e95b3f11960629f4f2508c48240748fb4043a1d303d5d7459dcc42a598dafb",
+      "bytes": 129460
+    },
+    "first-launch-interrupted-1280x720.png": {
+      "sha256": "d4976575ed283d313896defd93eb7cff8e6458d35be7233ca01fd64b86cfcc28",
+      "bytes": 136856
+    },
+    "first-launch-interrupted-1280x768.png": {
+      "sha256": "1462f21360cf63684997b2b843532863cee6515259d96beeadf99d149f978bb9",
+      "bytes": 141906
+    }
+  },
+  "pass": true,
+  "metricsSha256": "8335667af5fc24ed97e0db00172caa3d7e258b0311fd5b793d2219944cc4f8f7"
+}

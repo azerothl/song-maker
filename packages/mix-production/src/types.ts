@@ -1,11 +1,26 @@
 /**
  * Phase 3 mix-production contracts (§10.3).
- * Real subset: gain automation sampling, soft limiter / compressor process,
- * sidechain ducking, and offline loudness (true peak + integrated estimate).
+ * Real subset: gain automation sampling, soft limiter / compressor / gate /
+ * filter / shelf + parametric EQ / stereo reverb + tempo-sync delay process,
+ * optional registered custom DSP, sidechain ducking, and offline loudness
+ * (true peak + integrated estimate).
  * Phase 1 still uses constant gain/pan/mute/solo/masterGain only.
  */
 
-export type AutomationTarget = "volume" | "pan";
+import type { AutomationTarget } from "./automationTargets.js";
+
+export type { AutomationTarget } from "./automationTargets.js";
+export {
+  VOLUME_TARGET,
+  PAN_TARGET,
+  effectParamTarget,
+  sendGainTarget,
+  busVolumeTarget,
+  busPanTarget,
+  parseAutomationTarget,
+  isVolumeOrPanTarget,
+  type ParsedAutomationTarget,
+} from "./automationTargets.js";
 
 export type AutomationPoint = {
   /** Milliseconds from project start. */
@@ -20,7 +35,7 @@ export type AutomationLane = {
 };
 
 /**
- * Volume and pan automation over time. Phase 1 has constant gain/pan only.
+ * Automation over time: volume/pan plus FX params, send gain, bus faders (#98).
  */
 export interface MixAutomationEngine {
   listLanes(mixId: string): AutomationLane[];
@@ -36,25 +51,97 @@ export interface MixAutomationEngine {
   ): number;
 }
 
-export type EffectKind = "eq" | "compressor" | "reverb" | "limiter" | "custom";
+export type EffectKind =
+  | "eq"
+  | "parametricEq"
+  | "filter"
+  | "compressor"
+  | "gate"
+  | "reverb"
+  | "delay"
+  | "limiter"
+  | "pitch_correct"
+  | "custom";
+
+export type EffectProcessContext = {
+  /** Project tempo for synced delay; invalid/absent → free ms fallback. */
+  tempoBpm?: number | null;
+};
 
 export type TrackEffectSlot = {
   id: string;
   kind: EffectKind;
   enabled: boolean;
-  /** Opaque params; real schemas land with DSP. */
+  /**
+   * Effect params.
+   * - limiter: `ceilingDb`
+   * - compressor: `thresholdDb`, `ratio`, `makeupDb`, `attackMs`, `releaseMs`, `kneeDb`
+   * - gate: `thresholdDb`, `ratio`, `attackMs`, `releaseMs`, `rangeDb`
+   * - eq: `gainDb` (shelf stand-in)
+   * - parametricEq: `bandCount`, `band{N}Type|Freq|Gain|Q|Enabled`
+   * - filter: `mode` (`highpass`|`lowpass`), `frequencyHz`, `slopeDbPerOct` (12|24)
+   * - reverb: `mix`, `roomSize`, `damping`, `width` (all 0…1 except documented)
+   * - delay: `delayMs`, `sync`, `division`, `tempoBpm`, `feedback` (≤0.95), `mix`
+   * - pitch_correct: `mode` ("chromatic"|"scale"), `tonic` (0…11),
+   *   `scale` ("major"|"minor"), `intensity` (0…1), `speed` (0…1),
+   *   `formantPreserve` (boolean)
+   * - custom: **required** `processorId` (string) naming a registered extension
+   */
   params: Record<string, number | string | boolean>;
 };
 
+/**
+ * Host-registered DSP for `kind: "custom"`.
+ * `params.processorId` must match the id passed to `registerCustomProcessor`.
+ * Returning a longer buffer is allowed (same contract as reverb/delay tails).
+ */
+export type CustomEffectProcessor = (
+  pcm: Float32Array,
+  params: Record<string, number | string | boolean>,
+  sampleRate: number,
+) => Float32Array;
+
 export interface TrackEffectsRack {
   list(trackId: string): TrackEffectSlot[];
+  /**
+   * Insert an effect. Refuses enabled `custom` slots without a registered
+   * `processorId` — no silent no-op.
+   */
   insert(trackId: string, effect: TrackEffectSlot): void;
   remove(trackId: string, effectId: string): void;
+  /** Register a DSP extension for `kind: "custom"` + matching `processorId`. */
+  registerCustomProcessor(
+    processorId: string,
+    processor: CustomEffectProcessor,
+  ): void;
+  unregisterCustomProcessor(processorId: string): void;
+  listCustomProcessors(): string[];
+  /**
+   * Peak gain reduction (dB) from the last `process` for a compressor slot.
+   * `null` when unknown / never processed.
+   */
+  getGainReductionDb(trackId: string, effectId: string): number | null;
   /**
    * Apply enabled effects to interleaved stereo float32 PCM (−1…1).
-   * Real for compressor / limiter; EQ gain shelf and reverb remain light.
+   * Reverb / delay may extend the buffer by their documented decay tails.
+   * Enabled custom without a registered processor throws.
    */
-  process(trackId: string, pcm: Float32Array): Float32Array;
+  process(
+    trackId: string,
+    pcm: Float32Array,
+    sampleRate?: number,
+    context?: EffectProcessContext,
+  ): Float32Array;
+  /**
+   * Process an explicit slot list (used for FX-param automation blocks).
+   * Does not mutate the track rack.
+   */
+  processSlots(
+    slots: TrackEffectSlot[],
+    pcm: Float32Array,
+    sampleRate?: number,
+    context?: EffectProcessContext,
+  ): Float32Array;
 }
 
 export type SidechainRoute = {

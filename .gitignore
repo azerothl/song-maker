@@ -7,6 +7,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Lockfiles: this repo is pnpm-only. A stray npm/yarn lockfile silently
+# diverges from pnpm-lock.yaml and breaks `pnpm install --frozen-lockfile`.
+package-lock.json
+yarn.lock
+pnpm-lock.yaml.*.yaml
+
 node_modules/
 dist/
 dist-ssr
@@ -32,3 +38,12 @@ src-tauri/gen/
 
 # Phase 0 local cache (never commit models)
 .cache/
+
+# Local NAR LoRA training jobs (manifests, logs, adapters)
+training-jobs/*
+!training-jobs/.gitkeep
+__pycache__/
+artifacts/
+
+# BasicPitch trial: WAV excerpts are redundant with mp3 A/B (issue #169)
+docs/basicpitch-trial/excerpts/*.wav

@@ -16,8 +16,9 @@ import { reliabilityForRole } from "./types.js";
  * only `vocals` + derived `instrumental` — NOT drums/bass/guitar/piano.
  * Song Maker maps `instrumental` → role `other` (Accompagnement).
  *
- * Weights are optional (not in the first-build installer). The host must
- * only register this model in audiocpp-server.json when the GGUF exists.
+ * Weights are optional (not in the first-build installer). The host exposes an
+ * opt-in install (SHA-256, size, disk space, cancel) and only registers this
+ * model in audiocpp-server.json when the GGUF exists and matches the pin.
  */
 export const BS_ROFORMER_PACKAGE = {
   family: "bs_roformer",

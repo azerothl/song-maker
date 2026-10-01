@@ -2,8 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   BS_ROFORMER_CAPABILITIES,
   BS_ROFORMER_PACKAGE,
+  EXCLUDED_SEPARATOR_NOTES_FR,
+  HTDEMUCS_MAINTAINER_QUOTE_EN,
   HTDEMUCS_PACKAGE,
+  LICENSE_STATUS_ICON,
+  LICENSE_STATUS_LABEL_FR,
+  MEL_BAND_ROFORMER_PACKAGE,
   STEM_DISPLAY_NAMES,
+  buildQualityTimeOptions,
+  canDownloadSeparator,
   createStemSeparator,
   describeStemProvidersFr,
   isCoreStemRole,
@@ -12,13 +19,22 @@ import {
   mapBsRoFormerStemIds,
   mapHtDemucsStemIds,
   mapHtDemucs6sStemIds,
+  recommendSeparator,
+  recommendReasonFr,
+  separatorLicense,
+  timeLabelFr,
   reliabilityForRole,
   type AudiocppSepTransport,
 } from "./index.js";
 
 describe("stem-providers", () => {
   it("lists the supported providers without colliding ids", () => {
-    expect(listStemProviderIds()).toEqual(["htdemucs", "htdemucs_6s", "bs_roformer"]);
+    expect(listStemProviderIds()).toEqual([
+      "htdemucs",
+      "htdemucs_6s",
+      "bs_roformer",
+      "mel_band_roformer",
+    ]);
   });
 
   it("pins HTDemucs package hash from the first-build contract", () => {
@@ -146,5 +162,102 @@ describe("stem-providers", () => {
     ).toBe(true);
     const rows = describeStemProvidersFr({ bsRoFormerWeightsPresent: false });
     expect(rows.find((r) => r.id === "bs_roformer")?.runnable).toBe(false);
+  });
+
+  it("pins Mel-Band RoFormer package and recommends it for vocals", () => {
+    expect(MEL_BAND_ROFORMER_PACKAGE.gguf).toBe("mel-band-roformer-q8_0.gguf");
+    expect(MEL_BAND_ROFORMER_PACKAGE.sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(recommendSeparator("vocals")).toBe("mel_band_roformer");
+    expect(recommendSeparator("mix")).toBe("htdemucs");
+    expect(recommendSeparator("drums")).toBe("htdemucs");
+    expect(
+      isStemProviderRunnable("mel_band_roformer", {
+        bsRoFormerWeightsPresent: false,
+        melBandRoFormerWeightsPresent: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("shows measured time or exemple label without invented ms (#166)", () => {
+    const options = buildQualityTimeOptions({
+      focus: "vocals",
+      audioDurationSec: 180,
+    });
+    expect(options.length).toBeGreaterThanOrEqual(2);
+    for (const opt of options) {
+      expect(opt.estimatedMs).toBeNull();
+      expect(timeLabelFr(opt.kind)).toBe("exemple, non mesuré");
+    }
+    expect(recommendReasonFr("vocals")).toMatch(/Recommandation non mesurée/);
+    expect(options.find((o) => o.id === "mel_band_roformer")?.recommended).toBe(
+      true,
+    );
+    const measured = buildQualityTimeOptions({
+      focus: "mix",
+      audioDurationSec: 60,
+      measured: { htdemucs: { msPerAudioSec: 200, samples: 2 } },
+    });
+    const ht = measured.find((o) => o.id === "htdemucs");
+    expect(ht?.kind).toBe("mesure");
+    expect(ht?.estimatedMs).toBe(12_000);
+    expect(timeLabelFr("mesure")).toMatch(/chargement du modèle/i);
+  });
+
+  it("blocks download until license accepted (#167)", () => {
+    expect(canDownloadSeparator("bs_roformer", {})).toBe(false);
+    expect(canDownloadSeparator("bs_roformer", { bs_roformer: true })).toBe(
+      true,
+    );
+    expect(canDownloadSeparator("htdemucs", {})).toBe(false);
+    expect(canDownloadSeparator("htdemucs", { htdemucs: true })).toBe(true);
+    expect(canDownloadSeparator("mel_band_roformer", {})).toBe(false);
+  });
+
+  it("types license status with icons, read dates, and cold-review labels (#167)", () => {
+    const mel = separatorLicense("mel_band_roformer");
+    expect(mel?.status).toBe("unverified");
+    expect(mel?.badgeFr).toMatch(/source primaire/i);
+    expect(LICENSE_STATUS_LABEL_FR[mel!.status]).toBe("non vérifié");
+    expect(mel?.commercialOk).toBeUndefined();
+    expect(mel?.sourceUrl).not.toMatch(/mlx-community/);
+    expect(mel?.noticeFr).toMatch(/non vérifié/i);
+    expect(mel?.readDate).toBe("2026-09-29");
+
+    const bs = separatorLicense("bs_roformer");
+    expect(bs?.status).toBe("unverified");
+    expect(bs?.badgeFr).toMatch(/checkpoint/i);
+    expect(bs?.noticeFr).toMatch(/non vérifié/i);
+
+    const ht = separatorLicense("htdemucs");
+    expect(ht?.status).toBe("unverified");
+    expect(ht?.badgeFr).toMatch(/scientific purposes/i);
+    expect(ht?.noticeFr).toMatch(/only for scientific purposes/);
+    expect(ht?.noticeFr).toMatch(/Demucs #327/);
+    expect(ht?.noticeFr).toMatch(/2026-09-29|23 mai 2022/);
+    expect(ht?.sourceUrl).toBe(
+      "https://github.com/facebookresearch/demucs/issues/327",
+    );
+    expect(ht?.sourceUrl).not.toContain("issuecomment");
+    expect(ht?.noticeFr).toMatch(/MIT, usage commercial : oui/);
+    expect(ht?.noticeFr).toMatch(/audio\.cpp v0\.8\.2/);
+
+    const ht6 = separatorLicense("htdemucs_6s");
+    expect(ht6?.noticeFr).toMatch(/6 stems non vérifiée/);
+    expect(ht6?.noticeFr).not.toMatch(/jarredou/i);
+    expect(ht6?.noticeFr).not.toMatch(/ONNX/i);
+    expect(ht?.readDate).toBe("2026-09-29");
+
+    expect(EXCLUDED_SEPARATOR_NOTES_FR.some((n) => /jarredou/i.test(n))).toBe(
+      true,
+    );
+    expect(EXCLUDED_SEPARATOR_NOTES_FR.some((n) => /CC BY-NC/i.test(n))).toBe(
+      true,
+    );
+    expect(LICENSE_STATUS_ICON.unverified).toBeTruthy();
+    expect(LICENSE_STATUS_LABEL_FR.unverified).toBe("non vérifié");
+    expect(LICENSE_STATUS_LABEL_FR.non_commercial).toBe(
+      "usage non commercial",
+    );
+    expect(HTDEMUCS_MAINTAINER_QUOTE_EN).toBe("only for scientific purposes");
   });
 });

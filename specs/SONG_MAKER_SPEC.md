@@ -1,14 +1,16 @@
 # Song Maker — Spécification produit et technique
 
-**Version :** 1.0  
-**Statut :** contrat du premier build  
+**Version :** 1.1<br>
+**Statut :** contrat technique historique du premier build + vision cible §3.4<br>
 **Remplace :** la proposition 0.2 sur le périmètre de ce build. Les phases 2, 3 et 4 restent décrites ; elles ne sont pas des critères d’acceptation.  
 **Cible :** application desktop locale  
 **Famille de modèles :** YuE2-3B (upstream `m-a-p/YuE2-3B`)  
 **Moteur du premier build :** [audio.cpp](https://github.com/0xShug0/audio.cpp) `v0.8.2` + GGUF [`audio-cpp/Yue2-3B-GGUF`](https://huggingface.co/audio-cpp/Yue2-3B-GGUF)
 **Hors de ce build :** runtime Python YuE2, SheetSage2, service distant  
 **Principe du premier build :** saisir un style et des paroles, générer un WAV, séparer, mixer  
-**Direction ultérieure :** composer en symboles, puis régénérer et éditer
+**Direction ultérieure :** atelier de MAO multipiste assisté par l’IA générative, avec à terme un modèle de transformation audio propre à Song Maker
+
+La version 1.1 ajoute une vision produit cible au §3.4. Elle ne réécrit pas le contrat historique du premier build ni ses critères d’acceptation. Pour connaître les capacités livrées aujourd’hui, consulter le [README](../README.md).
 
 Les images de `specs/maquettes/` sont des références visuelles. Elles ne décrivent pas le produit.
 
@@ -28,7 +30,7 @@ Le morceau stéréo est ensuite séparé par HTDemucs, dans le même serveur, ap
 
 Contraintes d’intégration, lues sur audio.cpp `v0.8.2` et sur la famille YuE2 :
 
-- YuE2 génère un morceau complet à partir d’un `style` non vide et de paroles non vides, avec voix et accompagnement. Une chaîne de paroles vide est refusée.
+- YuE2 génère un morceau complet à partir d’un `style` non vide et de paroles (voix + accompagnement). Une chaîne de paroles vide est acceptée uniquement en **mode instrumental** explicite (audio.cpp `v0.8.2` : `lyrics` facultatif, « Leave empty for instrumental generation »). Hors ce mode, les paroles restent obligatoires (1–4000 caractères).
 - audio.cpp 0.8.2 expose des bornes de tokens sémantiques, pas une durée musicale exacte. Les genres et moods restent du texte dans `style` ; l’application traduit sa durée cible en bornes de tokens. La langue, le tempo et la tonalité restent des indications, pas des garanties du WAV rendu.
 - YuE2 peut écrire un artefact `score.abc` lorsque le modèle produit son propre plan (`cot=melody` ou `cot=full` sans ABC externe). Le premier build le conserve et l’affiche. Il ne l’édite pas.
 - Une partition ABC personnalisée peut être fournie en `cot=full` ou `cot=melody`. Ce n’est pas le chemin du premier build : `abcPath` reste `null`. Un ABC envoyé avec `cot=off` est une erreur, locale puis moteur.
@@ -92,9 +94,11 @@ Song Maker, dans ce build, transforme un style et des paroles en un WAV écoutab
 
 La phrase longue — composition éditable, puis production — décrit la direction des phases ultérieures. Elle n’est pas une tagline. L’écran d’ouverture affiche « Song Maker », rien d’autre.
 
-### 3.2 Ce que ce build ne promet pas encore
+### 3.2 Périmètre différé dans le contrat initial
 
-Plus tard, l’utilisateur pourra préparer la structure avant la génération, comparer plusieurs interprétations, et traiter la partition comme une source de vérité versionnée. Ce n’est pas le premier build. Le MIDI reste le format de travail prévu pour la phase 2. YuE2, lui, attend un ABC lorsqu’une composition symbolique est fournie. Le contrat de conversion est au §7. Il n’est pas exposé maintenant.
+Ce paragraphe conserve la frontière du premier build telle qu’elle avait été fixée ; il ne décrit pas les capacités livrées aujourd’hui. Pour l’état actuel, consulter le README.
+
+Dans ce contrat initial, préparer la structure avant génération, comparer plusieurs interprétations et traiter la partition comme une source de vérité versionnée étaient prévus pour les phases ultérieures. Le MIDI était le format de travail prévu pour la phase 2. YuE2 attend un ABC lorsqu’une composition symbolique est fournie ; le contrat de conversion est au §7. Ces mentions de phase décrivent le périmètre historique, pas une disponibilité actuelle.
 
 ### 3.3 Public cible
 
@@ -103,7 +107,22 @@ Plus tard, l’utilisateur pourra préparer la structure avant la génération, 
 - créateurs de contenus ayant besoin de musique originale ;
 - utilisateurs qui veulent un premier morceau sans apprendre un piano roll.
 
-Le public qui édite une partition ou pilote un agent arrive avec la phase 2 et la phase 4.
+Dans le contrat initial, l’édition de partition et le pilotage d’un agent arrivaient avec les phases 2 et 4. Ce découpage est historique ; l’état actuel est décrit dans le README.
+
+### 3.4 Vision cible — atelier de MAO assisté par l’IA
+
+À terme, Song Maker vise un atelier de production musicale multipiste, dans la famille d’usage d’un logiciel de MAO comme Cubase : l’utilisateur peut construire et retravailler un même projet à partir de pistes, éditer son arrangement, mixer et exporter. Cette référence décrit une direction produit, pas un objectif de parité avec Cubase ni une promesse de compatibilité avec ses fonctions ou ses plugins.
+
+Le logiciel proposera deux portes d’entrée vers ce même espace de production :
+
+1. **Parcours simple — partir d’une idée.** L’utilisateur décrit le style souhaité et fournit ses paroles. YuE2 génère une première chanson ; l’utilisateur peut ensuite travailler les pistes et l’arrangement, mixer et exporter.
+2. **Parcours avancé — partir d’un projet existant.** L’utilisateur apporte une partition, du MIDI, des pistes audio ou des stems. L’IA l’aide à créer des parties instrumentales complémentaires et à travailler le mix du projet.
+
+Dans les deux parcours, les résultats de l’IA doivent rester éditables et réversibles dans le projet ; les sources importées sont préservées.
+
+À long terme, le projet prévoit de créer un modèle de transformation audio propre à Song Maker, complémentaire à YuE2. Il aidera à transformer le contenu audio des projets existants et s’inscrira dans le parcours avancé. Son architecture, ses données et les transformations précises restent à définir.
+
+Cette vision ne décrit pas les capacités actuelles de YuE2 : le moteur intégré ne prend pas d’audio de référence en entrée. La création de pistes instrumentales conditionnée par un projet existant et le modèle de transformation audio dédié sont des objectifs futurs, pas des fonctions livrées garanties. Les fonctions déjà disponibles sont décrites dans le README.
 
 ## 4. Objectifs et périmètre
 
@@ -128,7 +147,6 @@ Cette section, le §22 et le §23 disent la même coupe. Le premier build est le
 |---|---|---|
 | Import MIDI, piano roll, édition de notes, sections, accords, export ABC utilisateur | 2 | Le validateur n’a pas à bloquer le premier morceau. Le contrat ABC est au §7. |
 | Fondus, déplacement, découpe, trim, duplication de clips | 2 | Le type `Clip` existe (§10). Le premier build n’a qu’un clip par piste, calé à 0, longueur du fichier. |
-| MP3 | 2 | Le guide YuE dit que le MP3 est une conversion de livraison, pas la sortie native. |
 | Plusieurs candidats et comparateur | 2 | Un appel = un candidat. |
 | Graphe de versions, branches, merge | 2 | Le §12.2 le dessine. Le premier build n’a qu’une liste. |
 | Invariants du §11.3 | 4 | Conservation demandée avant une régénération. |
@@ -142,7 +160,7 @@ Cette section, le §22 et le §23 disent la même coupe. Le premier build est le
 Ces retraits ne se rouvrent pas. Les moteurs lus ne les produisent pas, ou les refusent :
 
 - sélecteur de durée cible, et toute consigne de durée envoyée au modèle ;
-- paroles vides, ou paroles marquées facultatives ;
+- paroles marquées facultatives **hors** du mode instrumental explicite (case à cocher) — le mode instrumental envoie une chaîne vide à YuE2 et n’est pas un contournement par balise `[Instrumental]` seule ;
 - piste nommée Synths comme stem du séparateur (`other` n’est pas renommé) ;
 - tagline comme fonction, y compris un geste « je fais entendre un son, le moteur le recrée » ;
 - tempo ou tonalité comme réglages de l’audio déjà rendu ;
@@ -179,7 +197,7 @@ flowchart LR
 5. Il écoute le stéréo. S’il existe un `score.abc`, il peut déplier le texte. Il ne l’édite pas.
 6. Il lance la séparation.
 7. Quatre pistes apparaissent. Il ajuste gain, panoramique, mute, solo, gain master.
-8. Il exporte un WAV ou un FLAC. Pas de MP3.
+8. Il exporte un WAV PCM 24 bits, un FLAC 24 bits, ou un MP3 de livraison (conversion depuis le WAV, 320 kbit/s).
 
 **Plus tard — phase 2.** Le parcours symbolique reprend ici : import MIDI ou piano roll, validation ABC, envoi de `abc_file`, comparaison de candidats, graphe de versions. Il n’est pas un détour obligatoire du premier morceau.
 
@@ -257,7 +275,7 @@ L’interface `StemSeparatorProvider` peut rester dans le code pour un remplacem
 
 Le fichier écouté et le fichier exporté sont le même WAV, produit par la formule du §10.5 dans le process Tauri. Web Audio ne fait que jouer ce WAV. Un changement de gain, de panoramique, de mute, de solo ou de gain master relance le rendu offline, avec 200 ms de délai. Le premier build n’exige pas l’égalité bit à bit avec un graphe live.
 
-Pas de pré-écoute MIDI. Pas de fondus dans l’interface. Pas de graphe Web Audio parallèle qui mixerait autrement.
+Pas de fondus dans l’interface phase 1. Pas de graphe Web Audio parallèle qui mixerait autrement que la formule offline pour les stems. La **préécoute MIDI** par instrument logiciel intégré (oscillateurs Web Audio, sans SF2) et l’enregistrement Web MIDI sont documentés dans `docs/midi-instrument.md` (#96) ; ils ne remplacent pas les données symboliques.
 
 ## 7. Modèle musical interne — contrat de la phase 2
 
@@ -468,7 +486,8 @@ audio.cpp accepte, pour YuE2, `style`, les paroles, `cot`, `abc` / `abc_file`, `
 |---|---|---|
 | Titre | Obligatoire. 1 à 120 caractères. Interdits : `/ \ : * ? " < > \|` et le point final. | `project.json` `title`. Pas envoyé au modèle. |
 | Style | Obligatoire. 1 à 1000 caractères, après assemblage. | `style` de la requête. |
-| Paroles | Obligatoire, non vides après trim. 1 à 4000 caractères. | fichier `lyrics.txt`, envoyé comme paroles. |
+| Mode instrumental | Case à cocher, désactivée par défaut. Persistée dans `project.json` (`instrumentalMode`) et `request.json`. | Si activé : paroles facultatives ; chaîne vide après trim acceptée. |
+| Paroles | Hors mode instrumental : obligatoire, non vides après trim, 1 à 4000 caractères. En mode instrumental : 0 à 4000 caractères. | fichier `lyrics.txt`, envoyé comme paroles (peut être vide). |
 | `cot` | Obligatoire. Défaut `full`. Valeurs `full`, `melody`, `off`. | `cot` de la requête. |
 | Langue du chant | Facultative. Texte libre, 1 à 40 caractères si présente. Pas de liste de codes. | Préfixée au style : `"{langue}, {style}"`. Jamais un champ `lang`. |
 | Tempo | Facultatif. Entier 40 à 220. | Suffixé au style : `", {n} BPM"`. Stocké dans `project.json`. Pas un contrôle du WAV. |
@@ -495,7 +514,7 @@ Le bouton Générer est inactif tant que le titre, le style et les paroles ne pa
 
 Balises autorisées dans le texte envoyé : `[Intro]`, `[Verse]`, `[Verse 2]`, `[Pre-Chorus]`, `[Chorus]`, `[Bridge]`, `[Outro]`, `[Instrumental]`. Toute autre ligne entre crochets est refusée avant l’appel, avec la ligne citée.
 
-`[Instrumental]` est une balise de section. Ce n’est pas un mode paroles vides, et ce n’est pas le LoRA instrumental.
+`[Instrumental]` est une balise de section. Ce n’est pas le mode instrumental (case à cocher) et ce n’est pas le LoRA instrumental. Le mode instrumental envoie une chaîne de paroles vide (ou des balises de structure sans texte chanté) ; la balise seule n’active pas ce mode.
 
 Les notes d’implémentation ne doivent jamais être mélangées aux paroles envoyées.
 
@@ -785,7 +804,7 @@ CREATE TABLE project (
 );
 ```
 
-`duration_ms` est la durée mesurée du WAV du mix actif, ou du WAV de génération s’il n’y a pas de mix, ou `NULL`. `status` ∈ `empty|queued|running|ready|failed|cancelled`.
+`duration_ms` est la durée mesurée du WAV du mix actif, ou du WAV de génération s’il n’y a pas de mix, ou `NULL`. `status` ∈ `empty|generated|stems_ready|queued|running|ready|failed|cancelled`. La bibliothèque dérive `generated` / `stems_ready` / `empty` des artefacts actifs du projet.
 
 ### 13.4 `request.json` et `result.json`
 
@@ -895,6 +914,9 @@ Sur Linux, `binary.archive` et `binary.sha256` sont ceux de l’archive `cuda12.
   "sampleRate": 48000,
   "masterGainDb": 0,
   "peakCeilingDb": -1.0,
+  "tempoMap": [{ "startMs": 0, "quarterBpm": 120 }],
+  "timeSignatures": [{ "startMs": 0, "numerator": 4, "denominator": 4 }],
+  "markers": [],
   "tracks": [
     {
       "id": "trk-vocals",
@@ -913,6 +935,8 @@ Sur Linux, `binary.archive` et `binary.sha256` sont ceux de l’archive `cuda12.
 ```
 
 Quatre pistes dans `tracks`. `clips` contient le clip unique du §10.5 dès que le stem est importé. L’exemple ci-dessus montre la forme ; un mix prêt à lire n’a pas un tableau `clips` vide.
+
+`tempoMap`, `timeSignatures` et `markers` forment la **grille musicale d’arrangement** (#94). Les clips restent stockés en millisecondes. Un mix legacy sans ces champs s’ouvre avec le défaut documenté **120 BPM / 4/4 à 0 ms** (ou les hints `tempoBpm` / `meter` du projet) **sans réécrire** `startMs` / `offsetMs`. Les changements de tempo n’altèrent pas les fichiers source. Lecture et export partagent la même timeline ms.
 
 ### 13.6 Intégrité
 
@@ -1248,6 +1272,7 @@ La sauvegarde automatique d’une partition est la phase 2. Il n’y a pas de pa
 - quatre noms de stems, comparaison insensible à la casse ; un cinquième nom échoue et s’affiche ;
 - `other` n’est pas renommé ;
 - mute, solo (y compris mute qui gagne sur son solo), gain, panoramique, plafond −1,0 dBFS sans remonter un mix faible ;
+- export WAV PCM 24 bits, FLAC 24 bits, et MP3 de livraison (conversion depuis le WAV, 320 kbit/s) ;
 - une nouvelle génération crée `gen-NNN` ; l’undo ne le crée pas ;
 - annulation dans la file : l’appel ne part pas ; annulation après départ : artefacts gardés, non importés ;
 - écran des licences sans badge de monétisation ;
@@ -1266,7 +1291,6 @@ La sauvegarde automatique d’une partition est la phase 2. Il n’y a pas de pa
 
 - fondus, déplacement, découpe, trim, duplication ;
 - plusieurs candidats, séquentiels, sans gagnant automatique ;
-- export MP3 comme conversion de livraison, à partir du WAV ;
 - branche et merge du graphe, pas comme effet de bord de l’undo.
 
 ### 21.4 Plus tard
@@ -1287,7 +1311,7 @@ Le premier build est accepté lorsque :
 6. une nouvelle génération crée un nouveau dossier ; l’undo n’en crée pas ;
 7. le morceau peut être séparé en quatre stems nommés, après rééchantillonnage, et `other` n’est pas affiché comme Synths ;
 8. les stems arrivent dans le mix, un clip chacun, calés à 0 ;
-9. l’utilisateur lit, règle gain, panoramique, mute, solo et gain master, et exporte un WAV PCM 24 bits et un FLAC 24 bits, 48 kHz stéréo, sans MP3 ;
+9. l’utilisateur lit, règle gain, panoramique, mute, solo et gain master, et exporte un WAV PCM 24 bits, un FLAC 24 bits et un MP3 de livraison (conversion depuis le WAV, 320 kbit/s), 48 kHz stéréo ;
 10. un redémarrage ne détruit ni les dossiers ni l’état de job déjà écrit ;
 11. les erreurs de GPU, de mémoire, de hash, de licence et de fichier disent ce que le §16.3 demande ;
 12. l’application indique que les stems sont une séparation estimée ;
@@ -1303,7 +1327,7 @@ Ces trois critères ne sont pas ceux du premier build :
 2. modifier une note, le tempo de la partition et une section ;
 3. exporter un ABC validé selon le §7 et en montrer l’aperçu avant génération.
 
-S’y ajoutent, pour la même phase : fondus et édition de clips, MP3, plusieurs candidats, graphe de versions.
+S’y ajoutent, pour la même phase : fondus et édition de clips, plusieurs candidats, graphe de versions.
 
 ## 23. Roadmap
 
@@ -1330,7 +1354,7 @@ Le §4.1, rien de plus :
 - formulaire ;
 - un appel YuE2, seed écrit, pack confirmé ;
 - séparation quatre stems ;
-- mix et export WAV / FLAC ;
+- mix et export WAV / FLAC / MP3 de livraison ;
 - dossiers de versions, undo en mémoire.
 
 Pas d’import MIDI. Pas de piano roll.
@@ -1341,7 +1365,6 @@ Pas d’import MIDI. Pas de piano roll.
 - export ABC utilisateur selon le §7, validé avant génération ;
 - les trois critères du §22.2 ;
 - fondus, déplacement, découpe, trim, duplication de clips ;
-- MP3 ;
 - plusieurs candidats et comparateur ;
 - graphe, branches, merge ;
 - dossier `scores/` ;

@@ -1,4 +1,4 @@
-# Intégration Akasha / DeclUI — notes (§18.5)
+# Intégration Akasha / DeclUI — notes (§18.5 / #66)
 
 ## Contexte
 
@@ -8,21 +8,41 @@ Akasha, DeclUI, le catalogue de packs et une API musique distincte du TTS sont l
 Le piano roll n’entre pas dans ce contrat d’hôte : il appartient à la phase 2.  
 **SheetSage2** n’est pas dans l’installeur et n’est pas branché ici.
 
+## Capacités réellement supportées
+
+| Capacité | Desktop local | Hôte Akasha connecté |
+|---|---|---|
+| `generate_yue2` | oui (chemin Tauri) | invocation via `/v1/host/invoke` si l’hôte l’expose |
+| `separate_stems` | oui | idem |
+| `export_mix` | oui | idem |
+| `list_projects` | oui | idem |
+| `apply_style_lora` | oui (catalogue + settings) | idem |
+| TTS | **non** — API musique distincte | doit rester séparée côté hôte |
+
+Sans hôte joignable : le mode est **`unavailable`** (message clair), jamais un faux « activé / connecté ».
+
 ## Mode hôte (Paramètres)
 
-L’écran Paramètres expose « Mode hôte (Akasha / DeclUI) » :
-
-1. Défaut : **desktop** — génération phase 1 inchangée, 100 % locale.
-2. Opt-in : `getSharedAkashaHostBridge().enableHostMode()` active un **adaptateur local** qui expose `describe()` / `AKASHA_HOST_REGISTRATION` pour découverte.
-3. Aucun processus Akasha distant n’est démarré. Aucun socket. Désactiver revient au desktop.
+1. Défaut : **desktop** — génération phase 1 inchangée, **zéro** appel réseau.
+2. Opt-in + URL (`SONG_MAKER_AKASHA_HOST_URL` ou champ Paramètres) → `enableHostMode({ hostOptIn: true, hostUrl })` appelle `GET /v1/host/discover`.
+3. Succès → mode **`connected`** ; échec / URL absente → **`unavailable`**.
+4. `disableHostMode()` revient au desktop. `resumeHostMode()` redispatche la découverte.
+5. Aucun processus distant sans opt-in explicite.
 
 ```ts
 import { getSharedAkashaHostBridge } from "@song-maker/akasha-declui";
 
 const bridge = getSharedAkashaHostBridge();
-const result = await bridge.enableHostMode();
-// result.messageFr → statut UI
+const result = await bridge.enableHostMode({
+  hostOptIn: true,
+  hostUrl: "https://akasha.example",
+});
+// result.mode → "connected" | "unavailable" | "desktop"
 ```
+
+## Protocole hôte
+
+Voir [`host-protocol.md`](./host-protocol.md) pour les schémas, permissions et erreurs typées.
 
 ## Surfaces DeclUI
 
@@ -31,17 +51,12 @@ const result = await bridge.enableHostMode();
 | `library`, `song_form`, `mix_transport`, `licenses` | 1 (déjà dans le desktop) |
 | `agent_panel` | 4 |
 
-## API musique
-
-Descripteur `song-maker-music` (`kind: "music"`), capacités : génération YuE2, séparation, export mix, liste projets, application LoRA de style.
-
-Ce n’est **pas** une API TTS. Même hôte éventuel → surface séparée.
-
 ## Catalogue de packs
 
 Réutilise `@song-maker/lora-packs` (CC BY-NC, hors installeur premier build).  
 Les packs de **style** (ex. chanson française) sont listés dans Paramètres → catalogue phase 4.
 
-## Suite éventuelle
+## SDK
 
-Remplacer l’adaptateur local par le SDK Akasha réel quand l’hôte existe, sans changer `MusicApiDescriptor` ni casser le chemin desktop.
+Il n’existe pas de SDK Akasha/DeclUI publié pour Song Maker dans ce dépôt.  
+L’intégration passe par le protocole HTTP ci-dessus. Tant qu’aucun hôte réel n’est déployé, l’UI doit afficher **intégration indisponible**, pas un adaptateur « activé ».

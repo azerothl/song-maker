@@ -17,6 +17,151 @@ const TRACK_ROLES: &[(&str, &str)] = &[
     ("piano", "Piano"),
 ];
 
+/// Empty mix used when the first user track is imported/recorded before separation.
+pub fn empty_mix(mix_id: &str) -> MixDoc {
+    MixDoc {
+        schema: crate::pins::SCHEMA_MIX.into(),
+        schema_version: crate::pins::SCHEMA_VERSION,
+        id: mix_id.into(),
+        separation_id: String::new(),
+        sample_rate: SAMPLE_RATE,
+        master_gain_db: 0.0,
+        peak_ceiling_db: -1.0,
+        tracks: Vec::new(),
+        tempo_map: Vec::new(),
+        time_signatures: Vec::new(),
+        markers: Vec::new(),
+    }
+}
+
+/// Append a user/custom track (never touches AI stems). Role is `user`.
+pub fn append_user_audio_track(
+    mix: &mut MixDoc,
+    relative_wav: &str,
+    sha256: &str,
+    duration_ms: i64,
+    display_name: &str,
+) -> MixTrack {
+    append_user_audio_takes(
+        mix,
+        &[(relative_wav, sha256, duration_ms, "Prise 1")],
+        display_name,
+        0,
+        None,
+    )
+}
+
+fn unique_user_track_name(mix: &MixDoc, display_name: &str) -> String {
+    let base = display_name.trim();
+    let base = if base.is_empty() {
+        "Piste personnalisée"
+    } else {
+        base
+    };
+    let mut candidate = base.to_string();
+    let mut n = 2;
+    while mix.tracks.iter().any(|t| t.name == candidate) {
+        candidate = format!("{base} ({n})");
+        n += 1;
+    }
+    candidate
+}
+
+/// Valeurs par défaut des champs optionnels d'un `Clip` importé.
+#[derive(Clone)]
+struct DefaultClipFields {
+    source_tempo_bpm: Option<f32>,
+    follow_project_tempo: bool,
+    time_stretch_ratio: f32,
+    pitch_semitones: f32,
+    processing_enabled: bool,
+    transient_markers_ms: Option<Vec<i64>>,
+}
+
+impl DefaultClipFields {
+    fn new() -> Self {
+        Self {
+            source_tempo_bpm: None,
+            follow_project_tempo: false,
+            time_stretch_ratio: 1.0,
+            pitch_semitones: 0.0,
+            processing_enabled: true,
+            transient_markers_ms: None,
+        }
+    }
+}
+
+/// Append one user track with one or more takes (same start, take lane).
+/// `takes`: (relative_wav, sha256, duration_ms, take_label).
+pub fn append_user_audio_takes(
+    mix: &mut MixDoc,
+    takes: &[(&str, &str, i64, &str)],
+    display_name: &str,
+    start_ms: i64,
+    take_group_id: Option<&str>,
+) -> MixTrack {
+    assert!(!takes.is_empty(), "au moins une prise");
+    let track_id = format!("trk-user-{}", Uuid::new_v4());
+    let name = unique_user_track_name(mix, display_name);
+    let group = take_group_id.map(|s| s.to_string()).or_else(|| {
+        if takes.len() > 1 {
+            Some(format!("takes-{}", Uuid::new_v4()))
+        } else {
+            None
+        }
+    });
+    let mut clips = Vec::with_capacity(takes.len());
+    for (i, (rel, sha, dur, label)) in takes.iter().enumerate() {
+        let fields = DefaultClipFields::new();
+        clips.push(Clip {
+            id: format!("clip-{}", Uuid::new_v4()),
+            track_id: track_id.clone(),
+            source_path: (*rel).to_string(),
+            source_sha256: (*sha).to_string(),
+            start_ms: start_ms.max(0),
+            offset_ms: 0,
+            duration_ms: (*dur).max(0),
+            gain_db: 0.0,
+            fade_in_ms: 0,
+            fade_out_ms: 0,
+            source_tempo_bpm: fields.source_tempo_bpm,
+            follow_project_tempo: fields.follow_project_tempo,
+            time_stretch_ratio: fields.time_stretch_ratio,
+            pitch_semitones: fields.pitch_semitones,
+            processing_enabled: fields.processing_enabled,
+            transient_markers_ms: fields.transient_markers_ms,
+            take_group_id: group.clone(),
+            take_index: Some(i as i32),
+            take_label: Some((*label).to_string()),
+            // Last take active by default (most recent loop pass).
+            take_active: i + 1 == takes.len(),
+        });
+    }
+    // Single take without a group: always audible.
+    if takes.len() == 1 {
+        if let Some(c) = clips.first_mut() {
+            c.take_group_id = None;
+            c.take_index = None;
+            c.take_label = None;
+            c.take_active = true;
+        }
+    }
+    let track = MixTrack {
+        id: track_id,
+        role: "user".into(),
+        name,
+        gain_db: 0.0,
+        pan: 0.0,
+        mute: false,
+        solo: false,
+        locked: false,
+        ai_separated: false,
+        clips,
+    };
+    mix.tracks.push(track.clone());
+    track
+}
+
 pub fn new_mix_from_separation(
     mix_id: &str,
     sep_id: &str,
@@ -34,6 +179,20 @@ pub fn new_mix_from_separation(
             .map(|(_, n)| (*n).to_string())
             .unwrap_or_else(|| role.clone());
         let track_id = format!("trk-{role}");
+        let (
+            source_tempo_bpm,
+            follow_project_tempo,
+            time_stretch_ratio,
+            pitch_semitones,
+            processing_enabled,
+            transient_markers_ms,
+            take_group_id,
+            take_index,
+            take_label,
+            take_active,
+        ) = (
+            None, false, 1.0_f32, 0.0_f32, true, None, None, None, None, true,
+        );
         let clip = Clip {
             id: format!("clip-{}", Uuid::new_v4()),
             track_id: track_id.clone(),
@@ -45,6 +204,16 @@ pub fn new_mix_from_separation(
             gain_db: 0.0,
             fade_in_ms: 0,
             fade_out_ms: 0,
+            source_tempo_bpm,
+            follow_project_tempo,
+            time_stretch_ratio,
+            pitch_semitones,
+            processing_enabled,
+            transient_markers_ms,
+            take_group_id,
+            take_index,
+            take_label,
+            take_active,
         };
         tracks.push(MixTrack {
             id: track_id,
@@ -68,6 +237,9 @@ pub fn new_mix_from_separation(
         master_gain_db: 0.0,
         peak_ceiling_db: -1.0,
         tracks,
+        tempo_map: Vec::new(),
+        time_signatures: Vec::new(),
+        markers: Vec::new(),
     }
 }
 
@@ -85,7 +257,7 @@ fn ms_to_samples(ms: i64) -> usize {
     if ms <= 0 {
         return 0;
     }
-    ((ms as i64) * SAMPLE_RATE as i64 / 1000) as usize
+    (ms * SAMPLE_RATE as i64 / 1000) as usize
 }
 
 fn fade_gain(pos_in_clip: usize, duration_samples: usize, fade_in: usize, fade_out: usize) -> f32 {
@@ -153,6 +325,14 @@ fn read_stereo_f32(path: &Path) -> Result<(Vec<f32>, Vec<f32>, u32), String> {
     Ok((left, right, spec.sample_rate))
 }
 
+/// Niveaux de gain et de panoramique appliqués à un clip lors du rendu.
+struct ClipLevels {
+    track_lin: f32,
+    pan_l: f32,
+    pan_r: f32,
+    master: f32,
+}
+
 /// Place un clip sur la timeline (start / offset / durée / fondus).
 fn render_clip_onto(
     out_l: &mut [f32],
@@ -160,10 +340,7 @@ fn render_clip_onto(
     src_l: &[f32],
     src_r: &[f32],
     clip: &Clip,
-    track_lin: f32,
-    pan_l: f32,
-    pan_r: f32,
-    master: f32,
+    levels: ClipLevels,
 ) {
     let start = ms_to_samples(clip.start_ms);
     let offset = ms_to_samples(clip.offset_ms);
@@ -171,7 +348,7 @@ fn render_clip_onto(
     let fade_in = ms_to_samples(clip.fade_in_ms).min(dur);
     let fade_out = ms_to_samples(clip.fade_out_ms).min(dur.saturating_sub(fade_in));
     let clip_lin = db_to_linear(clip.gain_db);
-    let lin = master * track_lin * clip_lin;
+    let lin = levels.master * levels.track_lin * clip_lin;
 
     for i in 0..dur {
         let out_idx = start + i;
@@ -182,8 +359,8 @@ fn render_clip_onto(
         let l = src_l.get(src_idx).copied().unwrap_or(0.0);
         let r = src_r.get(src_idx).copied().unwrap_or(0.0);
         let fade = fade_gain(i, dur, fade_in, fade_out);
-        out_l[out_idx] += lin * pan_l * l * fade;
-        out_r[out_idx] += lin * pan_r * r * fade;
+        out_l[out_idx] += lin * levels.pan_l * l * fade;
+        out_r[out_idx] += lin * levels.pan_r * r * fade;
     }
 }
 
@@ -231,10 +408,12 @@ pub fn render_mix(mix: &MixDoc, project_root: &Path, out_wav: &Path) -> Result<f
                 &src_l,
                 &src_r,
                 clip,
-                track_lin,
-                pan_l,
-                pan_r,
-                master,
+                ClipLevels {
+                    track_lin,
+                    pan_l,
+                    pan_r,
+                    master,
+                },
             );
         }
     }
@@ -275,25 +454,90 @@ pub fn render_mix(mix: &MixDoc, project_root: &Path, out_wav: &Path) -> Result<f
     Ok(peak_trim_db)
 }
 
-pub fn export_flac(wav_path: &Path, flac_path: &Path) -> Result<(), String> {
-    crate::resample::run_ffmpeg(&[
+/// TPDF (triangular) dither — mastering practice for 16-bit delivery (#168).
+/// Applied only when quantizing to 16 bits; never on 24-bit paths.
+pub const TPDF_DITHER_FILTER: &str = "aresample=dither_method=triangular";
+
+/// True only for the 16-bit delivery path (never 24-bit).
+pub fn bit_depth_uses_tpdf_dither(bit_depth: u16) -> bool {
+    bit_depth == 16
+}
+
+/// FFmpeg argv for 16-bit WAV with TPDF dither (no process spawn — unit-testable).
+pub fn wav_16bit_tpdf_ffmpeg_args<'a>(src: &'a str, dest: &'a str) -> Vec<&'a str> {
+    vec![
         "-y",
         "-hide_banner",
         "-loglevel",
         "error",
         "-i",
-        &wav_path.display().to_string(),
+        src,
+        "-af",
+        TPDF_DITHER_FILTER,
         "-c:a",
-        "flac",
-        "-sample_fmt",
-        "s32",
-        &flac_path.display().to_string(),
-    ])
-    .map_err(|e| format!("Export FLAC échoué ({e})."))
+        "pcm_s16le",
+        dest,
+    ]
 }
 
-/// Conversion de livraison MP3 (320 kbps CBR) à partir du WAV primaire.
-pub fn export_mp3(wav_path: &Path, mp3_path: &Path) -> Result<(), String> {
+/// FFmpeg argv for FLAC at `bit_depth`. Includes TPDF dither only for 16 bits.
+pub fn flac_bit_depth_ffmpeg_args<'a>(wav: &'a str, flac: &'a str, bit_depth: u16) -> Vec<&'a str> {
+    let sample_fmt = if bit_depth == 16 { "s16" } else { "s32" };
+    if bit_depth_uses_tpdf_dither(bit_depth) {
+        vec![
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            wav,
+            "-af",
+            TPDF_DITHER_FILTER,
+            "-c:a",
+            "flac",
+            "-sample_fmt",
+            sample_fmt,
+            flac,
+        ]
+    } else {
+        vec![
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            wav,
+            "-c:a",
+            "flac",
+            "-sample_fmt",
+            sample_fmt,
+            flac,
+        ]
+    }
+}
+
+pub fn export_flac_with_bit_depth(
+    wav_path: &Path,
+    flac_path: &Path,
+    bit_depth: u16,
+) -> Result<(), String> {
+    let wav = wav_path.display().to_string();
+    let flac = flac_path.display().to_string();
+    let args = flac_bit_depth_ffmpeg_args(&wav, &flac, bit_depth);
+    crate::resample::run_ffmpeg(&args).map_err(|e| format!("Export FLAC échoué ({e})."))
+}
+
+/// Conversion de livraison MP3 (bitrate CBR configurable) à partir du WAV primaire.
+pub fn export_mp3_with_bitrate(
+    wav_path: &Path,
+    mp3_path: &Path,
+    bitrate_kbps: u16,
+) -> Result<(), String> {
+    let rate = match bitrate_kbps {
+        128 | 192 | 320 => bitrate_kbps,
+        _ => 320,
+    };
+    let bitrate = format!("{rate}k");
     crate::resample::run_ffmpeg(&[
         "-y",
         "-hide_banner",
@@ -304,25 +548,63 @@ pub fn export_mp3(wav_path: &Path, mp3_path: &Path) -> Result<(), String> {
         "-codec:a",
         "libmp3lame",
         "-b:a",
-        "320k",
+        &bitrate,
         &mp3_path.display().to_string(),
     ])
     .map_err(|e| format!("Export MP3 échoué ({e}). Conversion de livraison uniquement."))
 }
 
-pub fn write_export_json_ex(
+/// Re-encode a 24-bit WAV to 16-bit PCM when the user picks profondeur 16 (#168).
+/// Uses triangular (TPDF) dither — never applied when keeping 24 bits.
+pub fn downsample_wav_bit_depth(src: &Path, dest: &Path, bit_depth: u16) -> Result<(), String> {
+    if bit_depth == 24 || bit_depth == 0 {
+        if src != dest {
+            std::fs::copy(src, dest).map_err(|e| e.to_string())?;
+        }
+        return Ok(());
+    }
+    if bit_depth != 16 {
+        return Err("Profondeur de bits : 16 ou 24.".into());
+    }
+    let src_s = src.display().to_string();
+    let dest_s = dest.display().to_string();
+    let args = wav_16bit_tpdf_ffmpeg_args(&src_s, &dest_s);
+    crate::resample::run_ffmpeg(&args).map_err(|e| format!("Conversion 16 bits échouée ({e})."))
+}
+
+/// Naive 24→16 without dither (test oracle / contrast with TPDF).
+#[cfg(test)]
+fn downsample_wav_bit_depth_naive(src: &Path, dest: &Path) -> Result<(), String> {
+    crate::resample::run_ffmpeg(&[
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        &src.display().to_string(),
+        "-c:a",
+        "pcm_s16le",
+        &dest.display().to_string(),
+    ])
+    .map_err(|e| format!("Conversion 16 bits naïve échouée ({e})."))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn write_export_json_with_warnings(
     path: &Path,
     format: &str,
     audio_path: &Path,
     peak_trim_db: f32,
+    bit_depth: u16,
     render_path: Option<&str>,
     match_mode: Option<&str>,
+    warnings: &[String],
 ) -> Result<(), String> {
     let sha = sha256_file(audio_path)?;
-    let bit_depth = if format == "mp3" {
+    let bit_depth_json = if format == "mp3" {
         serde_json::Value::Null
     } else {
-        serde_json::json!(BIT_DEPTH)
+        serde_json::json!(bit_depth)
     };
     let mut doc = serde_json::json!({
         "schema": "songmaker.export",
@@ -331,7 +613,7 @@ pub fn write_export_json_ex(
         "path": audio_path.file_name().and_then(|s| s.to_str()).unwrap_or(""),
         "sampleRate": SAMPLE_RATE,
         "channels": CHANNELS,
-        "bitDepth": bit_depth,
+        "bitDepth": bit_depth_json,
         "peakTrimDb": peak_trim_db,
         "sha256": sha,
         "role": if format == "mp3" { "delivery" } else { "primary" }
@@ -341,6 +623,9 @@ pub fn write_export_json_ex(
     }
     if let Some(mm) = match_mode {
         doc["matchMode"] = serde_json::json!(mm);
+    }
+    if !warnings.is_empty() {
+        doc["warnings"] = serde_json::json!(warnings);
     }
     atomic_write_json(path, &doc)
 }
@@ -352,7 +637,7 @@ pub fn write_interleaved_f32_wav(
     channels: u16,
     out_wav: &Path,
 ) -> Result<(), String> {
-    if channels == 0 || pcm_le.len() % (4 * channels as usize) != 0 {
+    if channels == 0 || !pcm_le.len().is_multiple_of(4 * channels as usize) {
         return Err("Tampon PCM invalide (attendu f32 LE entrelacé).".into());
     }
     if sample_rate != SAMPLE_RATE {
@@ -376,15 +661,14 @@ pub fn write_interleaved_f32_wav(
     for i in 0..frames {
         let base = i * frame_bytes;
         let mut samples = [0f32; 2];
-        for ch in 0..channels.min(2) as usize {
+        for (ch, slot) in samples
+            .iter_mut()
+            .enumerate()
+            .take(channels.min(2) as usize)
+        {
             let o = base + ch * 4;
-            let bits = u32::from_le_bytes([
-                pcm_le[o],
-                pcm_le[o + 1],
-                pcm_le[o + 2],
-                pcm_le[o + 3],
-            ]);
-            samples[ch] = f32::from_bits(bits);
+            let bits = u32::from_le_bytes([pcm_le[o], pcm_le[o + 1], pcm_le[o + 2], pcm_le[o + 3]]);
+            *slot = f32::from_bits(bits);
         }
         if channels == 1 {
             samples[1] = samples[0];
@@ -418,5 +702,178 @@ mod tests {
         assert!((fade_gain(50, 1000, 100, 100) - 0.5).abs() < 1e-5);
         assert!((fade_gain(500, 1000, 100, 100) - 1.0).abs() < 1e-5);
         assert!((fade_gain(950, 1000, 100, 100) - 0.5).abs() < 1e-5);
+    }
+
+    #[test]
+    fn append_user_track_does_not_touch_ai_stems() {
+        let mut mix = new_mix_from_separation(
+            "mix-v1",
+            "sep-1",
+            &[(
+                "vocals".into(),
+                PathBuf::from("stems/vocals.wav"),
+                "abc".into(),
+                1000,
+            )],
+        );
+        assert_eq!(mix.tracks.len(), 1);
+        assert!(mix.tracks[0].ai_separated);
+        let user = append_user_audio_track(
+            &mut mix,
+            "user-audio/normalized/u1.wav",
+            "def",
+            2000,
+            "Ma voix",
+        );
+        assert_eq!(mix.tracks.len(), 2);
+        assert!(!user.ai_separated);
+        assert_eq!(user.role, "user");
+        assert_eq!(user.clips[0].start_ms, 0);
+        assert_eq!(user.clips[0].duration_ms, 2000);
+        assert!(mix.tracks[0].ai_separated);
+        assert_eq!(mix.tracks[0].role, "vocals");
+    }
+
+    #[test]
+    fn append_user_track_dedupes_names() {
+        let mut mix = empty_mix("mix-v1");
+        append_user_audio_track(&mut mix, "a.wav", "1", 100, "Custom");
+        append_user_audio_track(&mut mix, "b.wav", "2", 100, "Custom");
+        assert_eq!(mix.tracks[0].name, "Custom");
+        assert_eq!(mix.tracks[1].name, "Custom (2)");
+    }
+
+    /// Very quiet stereo 24-bit WAV: amplitude sits between 16-bit LSB levels so
+    /// TPDF dither must differ from simple truncation (#168).
+    fn write_quiet_24bit_wav(path: &Path) -> Result<(), String> {
+        let spec = WavSpec {
+            channels: CHANNELS,
+            sample_rate: SAMPLE_RATE,
+            bits_per_sample: BIT_DEPTH,
+            sample_format: SampleFormat::Int,
+        };
+        let mut writer = WavWriter::create(path, spec).map_err(|e| e.to_string())?;
+        let max_i = (1i32 << 23) - 1;
+        let frames = (SAMPLE_RATE / 10) as usize; // 100 ms
+        for i in 0..frames {
+            let phase = std::f32::consts::TAU * 440.0 * (i as f32) / SAMPLE_RATE as f32;
+            // ~1.5 / 32768 full-scale → below one 16-bit LSB after naive round.
+            let sample = (1.5 / 32768.0) * phase.sin();
+            let q = (sample.clamp(-1.0, 1.0) * max_i as f32).round() as i32;
+            writer.write_sample(q).map_err(|e| e.to_string())?;
+            writer.write_sample(q).map_err(|e| e.to_string())?;
+        }
+        writer.finalize().map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    fn read_pcm16_payload(path: &Path) -> Result<Vec<u8>, String> {
+        let reader = WavReader::open(path).map_err(|e| e.to_string())?;
+        assert_eq!(reader.spec().bits_per_sample, 16);
+        let mut out = Vec::new();
+        for sample in reader.into_samples::<i16>() {
+            let s = sample.map_err(|e| e.to_string())?;
+            out.extend_from_slice(&s.to_le_bytes());
+        }
+        Ok(out)
+    }
+
+    #[test]
+    fn tpdf_dither_args_are_16bit_only_without_ffmpeg() {
+        assert!(bit_depth_uses_tpdf_dither(16));
+        assert!(!bit_depth_uses_tpdf_dither(24));
+        assert_eq!(TPDF_DITHER_FILTER, "aresample=dither_method=triangular");
+        let wav_args = wav_16bit_tpdf_ffmpeg_args("in.wav", "out.wav");
+        assert!(wav_args.contains(&"-af"));
+        assert!(wav_args.contains(&TPDF_DITHER_FILTER));
+        assert!(wav_args.contains(&"pcm_s16le"));
+        let flac16 = flac_bit_depth_ffmpeg_args("in.wav", "out.flac", 16);
+        assert!(flac16.contains(&TPDF_DITHER_FILTER));
+        let flac24 = flac_bit_depth_ffmpeg_args("in.wav", "out.flac", 24);
+        assert!(!flac24.contains(&TPDF_DITHER_FILTER));
+        assert!(!flac24.contains(&"-af"));
+    }
+
+    #[test]
+    fn tpdf_16bit_differs_from_naive_round_on_quiet_signal() {
+        if crate::resample::resolve_ffmpeg().is_err() {
+            eprintln!(
+                "skip tpdf_16bit_differs_from_naive_round_on_quiet_signal: ffmpeg introuvable"
+            );
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!(
+            "song-maker-dither-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let src = dir.join("quiet24.wav");
+        let dithered = dir.join("out16-tpdf.wav");
+        let naive = dir.join("out16-naive.wav");
+        write_quiet_24bit_wav(&src).expect("write quiet wav");
+        downsample_wav_bit_depth(&src, &dithered, 16).expect("tpdf 16-bit");
+        downsample_wav_bit_depth_naive(&src, &naive).expect("naive 16-bit");
+        let a = read_pcm16_payload(&dithered).unwrap();
+        let b = read_pcm16_payload(&naive).unwrap();
+        assert_eq!(a.len(), b.len());
+        assert_ne!(
+            a, b,
+            "TPDF dither output must differ from simple truncation on a sub-LSB signal"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn downsample_24bit_leaves_wav_unchanged() {
+        // 24-bit path is a filesystem copy — no ffmpeg required.
+        let dir = std::env::temp_dir().join(format!(
+            "song-maker-bit24-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let src = dir.join("in24.wav");
+        let dest = dir.join("out24.wav");
+        write_quiet_24bit_wav(&src).unwrap();
+        downsample_wav_bit_depth(&src, &dest, 24).unwrap();
+        let a = std::fs::read(&src).unwrap();
+        let b = std::fs::read(&dest).unwrap();
+        assert_eq!(a, b, "24-bit path must not alter samples (no dither)");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn export_json_records_requested_bit_depth() {
+        let dir = std::env::temp_dir().join(format!(
+            "song-maker-export-json-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let wav = dir.join("x.wav");
+        write_quiet_24bit_wav(&wav).unwrap();
+        let json_path = dir.join("x.json");
+        write_export_json_with_warnings(
+            &json_path,
+            "wav",
+            &wav,
+            0.0,
+            16,
+            Some("test"),
+            Some("approximate"),
+            &[],
+        )
+        .unwrap();
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&json_path).unwrap()).unwrap();
+        assert_eq!(v["bitDepth"], 16);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

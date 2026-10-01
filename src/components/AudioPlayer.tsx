@@ -17,13 +17,20 @@ export type PlaybackView = {
   duration: number;
   mode: PlaybackSnapshot["mode"];
   peaksByTrack: Record<string, Float32Array>;
+  mixPeaks: Float32Array | null;
   seek: (seconds: number) => void;
+  toggle: () => Promise<void>;
+  playing: boolean;
+  loading: boolean;
+  ready: boolean;
 };
 
 type Props = {
   projectId: string;
   sources: PlaybackSources | null;
   mix: MixDoc | null;
+  /** Vue split : le master porte lecture et temps (#132). */
+  delegateTransport?: boolean;
   onError?: (message: string) => void;
   onPlaybackChange?: (view: PlaybackView | null) => void;
 };
@@ -52,6 +59,7 @@ export function AudioPlayer({
   projectId,
   sources,
   mix,
+  delegateTransport = false,
   onError,
   onPlaybackChange,
 }: Props) {
@@ -75,17 +83,18 @@ export function AudioPlayer({
       for (const tp of next.peaks) {
         peaksByTrack[tp.trackId] = tp.peaks;
       }
-      onPlaybackChangeRef.current?.(
-        next.ready
-          ? {
-              current: next.current,
-              duration: next.duration,
-              mode: next.mode,
-              peaksByTrack,
-              seek: (seconds: number) => engine.seek(seconds),
-            }
-          : null,
-      );
+      onPlaybackChangeRef.current?.({
+        current: next.current,
+        duration: next.duration,
+        mode: next.mode,
+        peaksByTrack,
+        mixPeaks: next.mixPeaks,
+        seek: (seconds: number) => engine.seek(seconds),
+        toggle: () => engine.toggle(),
+        playing: next.playing,
+        loading: next.loading,
+        ready: next.ready,
+      });
     });
   }, [engine]);
 
@@ -137,11 +146,23 @@ export function AudioPlayer({
     return () => window.removeEventListener("keydown", onKey);
   }, [engine, onError]);
 
-  const showMixWave = snap.mode === "stems" && snap.mixPeaks;
-  const showStereoWave = snap.mode === "generation" && snap.mixPeaks;
+  const showMixWave = snap.mode === "stems" && !delegateTransport;
+  const showStereoWave = snap.mode === "generation";
+  const mainWaveStatus =
+    snap.loading || !snap.ready
+      ? "loading"
+      : snap.mixPeaks && snap.mixPeaks.length > 0
+        ? "ready"
+        : "empty";
 
   return (
-    <div className="player-block">
+    <div
+      className={
+        delegateTransport
+          ? "player-block player-block-delegated"
+          : "player-block"
+      }
+    >
       {(showMixWave || showStereoWave) && (
         <Waveform
           peaks={snap.mixPeaks}
@@ -153,34 +174,37 @@ export function AudioPlayer({
               ? t("player.mixWave")
               : t("player.stereoWave")
           }
+          status={mainWaveStatus}
           onSeek={(s) => engine.seek(s)}
         />
       )}
 
-      <div className="player">
-        <button
-          type="button"
-          className="btn"
-          onClick={() =>
-            void engine.toggle().catch((err) => onError?.(String(err)))
-          }
-          disabled={!snap.ready || snap.loading}
-        >
-          {snap.loading
-            ? "…"
-            : snap.playing
-              ? t("player.pause")
-              : t("player.play")}
-        </button>
-        <div className="player-times" aria-label={t("player.seek")}>
-          <span className="player-time">{formatTime(snap.current)}</span>
-          <span className="player-time-sep">/</span>
-          <span className="player-time">{formatTime(snap.duration)}</span>
+      {!delegateTransport && (
+        <div className="player">
+          <button
+            type="button"
+            className="btn"
+            onClick={() =>
+              void engine.toggle().catch((err) => onError?.(String(err)))
+            }
+            disabled={!snap.ready || snap.loading}
+          >
+            {snap.loading
+              ? "…"
+              : snap.playing
+                ? t("player.pause")
+                : t("player.play")}
+          </button>
+          <div className="player-times" aria-label={t("player.seek")}>
+            <span className="player-time">{formatTime(snap.current)}</span>
+            <span className="player-time-sep">/</span>
+            <span className="player-time">{formatTime(snap.duration)}</span>
+          </div>
+          <span className="path" title={snap.label}>
+            {snap.label || t("library.dash")}
+          </span>
         </div>
-        <span className="path" title={snap.label}>
-          {snap.label || t("library.dash")}
-        </span>
-      </div>
+      )}
     </div>
   );
 }

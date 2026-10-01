@@ -268,7 +268,7 @@
     "toc": "Contents"
   },
   "downloads": {
-    "eyebrow": "Song Maker v0.1.0",
+    "eyebrow": "Song Maker v{version}",
     "title": "Download Song Maker",
     "intro": "Choose the version for your system. The audio engine and models download separately during setup.",
     "windows": {

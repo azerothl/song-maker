@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  AKASHA_HOST_TOKEN_ENV,
+  AKASHA_HOST_URL_ENV,
   getSharedAkashaHostBridge,
   type HostModeResult,
 } from "@song-maker/akasha-declui";
@@ -7,11 +9,14 @@ import {
   listStyleLoraPacks,
   gateLoraPackAccess,
   planOptionalLoraDownload,
+  requestOptionalLoraDownload,
+  activateLoraPackSettings,
+  compatibilityLabelFr,
   type LoraPack,
 } from "@song-maker/lora-packs";
 import {
   DEFAULT_RETENTION_POLICY,
-  createConsent,
+  buildProjectPayload,
   createRemoteGpuWorkerClient,
   resolveAuthPlaceholder,
   REMOTE_WORKER_TOKEN_ENV,
@@ -19,10 +24,11 @@ import {
 } from "@song-maker/remote-worker";
 import { useAppStore } from "../store/appStore";
 import { api } from "../lib/api";
+import { REMOTE_PREFS_KEY } from "../lib/remoteGenerate";
 import type { LocalLoraAdapter } from "../lib/types";
 import { t } from "../ui/i18n";
 
-const PREFS_KEY = "song-maker.remote-worker.prefs";
+const PREFS_KEY = REMOTE_PREFS_KEY;
 
 function loadPrefs(): RemoteWorkerPreferences {
   try {
@@ -61,7 +67,10 @@ export function Phase4SettingsPanel({
   const [prefs, setPrefs] = useState<RemoteWorkerPreferences>(loadPrefs);
   const [probeMsg, setProbeMsg] = useState<string | null>(null);
   const [hostResult, setHostResult] = useState<HostModeResult | null>(null);
+  const [hostUrl, setHostUrl] = useState("");
+  const [hostToken, setHostToken] = useState("");
   const [styleNotice, setStyleNotice] = useState<string | null>(null);
+  const [styleBusyId, setStyleBusyId] = useState<string | null>(null);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
   const [arLora, setArLora] = useState("");
   const [narLora, setNarLora] = useState("");
@@ -75,14 +84,18 @@ export function Phase4SettingsPanel({
   const stylePacks = useMemo(() => listStyleLoraPacks(), []);
 
   useEffect(() => {
+    const mode = bridge.getMode();
     setHostResult({
-      ok: true,
-      mode: bridge.getMode(),
+      ok: mode === "connected",
+      mode,
       messageFr:
-        bridge.getMode() === "desktop"
+        mode === "desktop"
           ? t("phase4.host.desktop")
-          : t("phase4.host.enabled"),
+          : mode === "connected"
+            ? t("phase4.host.connected")
+            : t("phase4.host.unavailable"),
       registration: bridge.describe(),
+      hostUrl: bridge.getHostUrl(),
     });
   }, [bridge]);
 
@@ -143,47 +156,70 @@ export function Phase4SettingsPanel({
     const client = createRemoteGpuWorkerClient({
       localFirst: true,
       remoteEnabled: prefs.remoteEnabled,
+      endpointBaseUrl: prefs.endpointBaseUrl,
       accessToken: auth.accessToken,
       retentionAcknowledged: prefs.retentionAcknowledged,
     });
-    const result = await client.submit({
+    // Real hashed probe payload (not blob://probe zeros).
+    const built = await buildProjectPayload({
+      projectId: "settings-probe",
       kind: "yue2_generate",
-      endpoint: {
-        baseUrl: prefs.endpointBaseUrl || "https://worker.example.invalid",
-        requireTls: true,
-      },
-      auth,
-      consent: createConsent({
-        userConsented: prefs.remoteEnabled,
-        scope: "generation",
-        retentionAcknowledged: prefs.retentionAcknowledged,
-      }),
-      payload: {
-        cipherPath: "blob://probe",
-        contentSha256: "0".repeat(64),
-        encryption: "aes-256-gcm-placeholder",
-      },
+      accessToken: auth.accessToken,
+      request: { probe: true, style: "probe", lyrics: "[Probe]\n" },
     });
+    const health = await client.probe();
+    if (health.status === "succeeded") {
+      setProbeMsg(
+        t("phase4.remote.probeOk", {
+          sha: built.plaintextSha256.slice(0, 16),
+          enc: built.blob.encryption,
+        }),
+      );
+      return;
+    }
     setProbeMsg(
-      result.status === "queued"
-        ? t("phase4.remote.probeQueued", { id: result.id })
-        : `${result.status}: ${result.error ?? ""}`,
+      `${health.status}: ${health.error ?? ""}\n` +
+        t("phase4.remote.probeContract") +
+        `\npayload sha=${built.plaintextSha256.slice(0, 16)}… (${built.blob.byteLength ?? 0} o)`,
     );
   };
 
   const onToggleHost = async (enable: boolean) => {
     if (enable) {
-      setHostResult(await bridge.enableHostMode());
+      setHostResult(
+        await bridge.enableHostMode({
+          hostOptIn: true,
+          hostUrl: hostUrl.trim(),
+          accessToken: hostToken.trim() || null,
+        }),
+      );
     } else {
       setHostResult(bridge.disableHostMode());
     }
   };
 
+  const styleAcceptance = () => ({
+    ccByNcAccepted: Boolean(settings?.ccByNcAccepted),
+    allowCommercialRedistribution: false,
+  });
+
+  const toggleCcByNc = async (accepted: boolean) => {
+    if (!settings) return;
+    try {
+      await api.updateSettings({ ...settings, ccByNcAccepted: accepted });
+      await refreshSettings();
+      setStyleNotice(
+        accepted
+          ? t("phase4.styleLora.ccAccepted")
+          : t("phase4.styleLora.ccCleared"),
+      );
+    } catch (e) {
+      setStyleNotice(String(e));
+    }
+  };
+
   const onPlanStyle = (pack: LoraPack) => {
-    const acceptance = {
-      ccByNcAccepted: Boolean(settings?.ccByNcAccepted),
-      allowCommercialRedistribution: false,
-    };
+    const acceptance = styleAcceptance();
     const gated = gateLoraPackAccess(pack.id, acceptance);
     if (!gated.ok) {
       setStyleNotice(gated.message);
@@ -195,11 +231,109 @@ export function Phase4SettingsPanel({
       return;
     }
     const lines = planned.plan.files
-      .map((f) => `• ${f.filename}\n  ${f.url}`)
+      .map(
+        (f) =>
+          `• ${f.filename}${f.sha256 ? ` (sha256 ${f.sha256.slice(0, 12)}…)` : ""}\n  ${f.url}\n  → cache/${f.relativeCachePath}`,
+      )
       .join("\n");
     setStyleNotice(
       `${planned.plan.noticeFr}\n\n${lines}\n\n${t("phase3.lora.manualDownload")}`,
     );
+  };
+
+  const onDownloadStyle = async (pack: LoraPack) => {
+    setStyleBusyId(pack.id);
+    setStyleNotice(null);
+    try {
+      const result = await requestOptionalLoraDownload(
+        pack.id,
+        styleAcceptance(),
+        (url, relativeCachePath, expectedSha256) =>
+          api.downloadCacheFile(url, relativeCachePath, expectedSha256),
+      );
+      if (!result.ok) {
+        setStyleNotice(result.message);
+        return;
+      }
+      const paths = result.savedPaths?.join("\n") ?? "";
+      setStyleNotice(
+        `${t("phase3.lora.downloadOk")}\n${paths}\n\n${result.plan?.noticeFr ?? ""}\n\n${t("phase4.styleLora.downloadHintActivate")}`,
+      );
+      const adapters = await api.listLoraAdapters();
+      setLocalLoras(adapters);
+    } catch (e) {
+      setStyleNotice(String(e));
+    } finally {
+      setStyleBusyId(null);
+    }
+  };
+
+  const onActivateStyle = async (pack: LoraPack) => {
+    if (!settings) return;
+    setStyleBusyId(pack.id);
+    setStyleNotice(null);
+    try {
+      const gated = gateLoraPackAccess(pack.id, styleAcceptance());
+      if (!gated.ok) {
+        setStyleNotice(gated.message);
+        return;
+      }
+      const cacheRoot = settings.cacheDir.replace(/[/\\]+$/, "");
+      const localPaths: Partial<Record<"ar" | "nar", string>> = {};
+      for (const file of pack.files) {
+        const abs = `${cacheRoot}/models/lora/${pack.id}/${file.filename}`;
+        localPaths[file.slot] = abs;
+      }
+      const patch = activateLoraPackSettings(pack, localPaths, {
+        ar: arScale,
+        nar: narScale,
+      });
+      if (!patch.yue2ArLora && !patch.yue2NarLora) {
+        setStyleNotice(t("phase4.styleLora.activateMissing"));
+        return;
+      }
+      await api.updateSettings({
+        ...settings,
+        ...patch,
+      });
+      await refreshSettings();
+      setArLora(patch.yue2ArLora ?? "");
+      setNarLora(patch.yue2NarLora ?? "");
+      setArScale(patch.yue2ArLoraScale);
+      setNarScale(patch.yue2NarLoraScale);
+      const adapters = await api.listLoraAdapters();
+      setLocalLoras(adapters);
+      setStyleNotice(
+        t("phase4.styleLora.activated", { name: pack.displayName }),
+      );
+    } catch (e) {
+      setStyleNotice(
+        `${String(e)}\n${t("phase4.styleLora.activateFailed")}`,
+      );
+    } finally {
+      setStyleBusyId(null);
+    }
+  };
+
+  const onDeactivateStyle = async () => {
+    if (!settings) return;
+    try {
+      await api.updateSettings({
+        ...settings,
+        yue2ArLora: null,
+        yue2NarLora: null,
+        yue2ArLoraScale: 1,
+        yue2NarLoraScale: 1,
+      });
+      await refreshSettings();
+      setArLora("");
+      setNarLora("");
+      setArScale(1);
+      setNarScale(1);
+      setStyleNotice(t("phase4.styleLora.deactivated"));
+    } catch (e) {
+      setStyleNotice(String(e));
+    }
   };
 
   return (
@@ -219,6 +353,7 @@ export function Phase4SettingsPanel({
       {view === "remote" && (
         <div className="settings-page-content">
       <p className="hint">{DEFAULT_RETENTION_POLICY.messageFr}</p>
+      <p className="hint">{t("phase4.remote.contractHint")}</p>
       <label className="phase3-check">
         <input
           type="checkbox"
@@ -281,6 +416,31 @@ export function Phase4SettingsPanel({
       {view === "host" && (
         <div className="settings-page-content">
       <p className="hint">{t("phase4.host.intro")}</p>
+      <label className="invariant-level">
+        {t("phase4.host.endpoint")}
+        <input
+          type="url"
+          value={hostUrl}
+          placeholder="https://…"
+          onChange={(e) => setHostUrl(e.target.value)}
+        />
+      </label>
+      <label className="invariant-level">
+        {t("phase4.host.token")}
+        <input
+          type="password"
+          autoComplete="off"
+          value={hostToken}
+          placeholder={AKASHA_HOST_TOKEN_ENV}
+          onChange={(e) => setHostToken(e.target.value)}
+        />
+      </label>
+      <p className="hint">
+        {t("phase4.host.envHint", {
+          urlEnv: AKASHA_HOST_URL_ENV,
+          tokenEnv: AKASHA_HOST_TOKEN_ENV,
+        })}
+      </p>
       <div className="btn-row">
         <button
           type="button"
@@ -297,7 +457,11 @@ export function Phase4SettingsPanel({
           {t("phase4.host.disable")}
         </button>
       </div>
-      {hostResult && <p className="hint ok">{hostResult.messageFr}</p>}
+      {hostResult && (
+        <p className={`hint ${hostResult.ok ? "ok" : ""}`}>
+          {hostResult.messageFr}
+        </p>
+      )}
       <details>
         <summary>{t("phase4.host.describe")}</summary>
         <pre className="phase3-download-notice">
@@ -310,6 +474,24 @@ export function Phase4SettingsPanel({
       {view === "lora" && (
         <div className="settings-page-content">
       <p className="hint">{t("phase4.styleLora.intro")}</p>
+      <p className="hint">
+        {t("phase4.styleLora.licenseNotice")}{" "}
+        <span className="nc-model-badge" data-testid="style-lora-nc-badge">
+          <span className="sep-license-icon" aria-hidden="true">
+            ⊘
+          </span>
+          {t("phase4.styleLora.ncBadge")}
+        </span>
+      </p>
+      <label className="phase3-check" htmlFor="phase4-lora-cc-gate">
+        <input
+          id="phase4-lora-cc-gate"
+          type="checkbox"
+          checked={Boolean(settings?.ccByNcAccepted)}
+          onChange={(e) => void toggleCcByNc(e.target.checked)}
+        />
+        {t("phase3.lora.ccGate")}
+      </label>
       <div className="phase4-lora-active">
         <h4>{t("phase4.lora.activeTitle")}</h4>
         <p className="hint">{t("phase4.lora.localHint")}</p>
@@ -342,6 +524,9 @@ export function Phase4SettingsPanel({
             {importingLoras ? t("phase4.lora.importing") : t("phase4.lora.import")}
           </button>
           <button type="button" className="btn ghost" disabled={importingLoras} onClick={() => void api.listLoraAdapters().then(setLocalLoras).catch((e) => setLoraNotice(String(e)))}>{t("phase4.lora.reload")}</button>
+          <button type="button" className="btn ghost" onClick={() => void onDeactivateStyle()}>
+            {t("phase4.styleLora.deactivate")}
+          </button>
           <span className="hint">{t("phase4.lora.count", { count: String(localLoras.length) })}</span>
         </div>
         <p className="hint">{t("phase4.lora.importHint")}</p>
@@ -349,13 +534,16 @@ export function Phase4SettingsPanel({
         {loraNotice && <p className="hint" role="status">{loraNotice}</p>}
       </div>
       <ul className="phase3-lora-list">
-        {stylePacks.map((pack) => (
+        {stylePacks.map((pack) => {
+          const installable = pack.compatibilityStatus === "verified";
+          const busy = styleBusyId === pack.id;
+          return (
           <li key={pack.id}>
             <div>
               <strong>{pack.displayName}</strong>
               <span className="hint">
                 {" "}
-                · {pack.license} · {pack.repo}
+                · {compatibilityLabelFr(pack.compatibilityStatus)} · {pack.license} · {pack.repo}
               </span>
               {pack.trigger && (
                 <span className="hint"> · trigger « {pack.trigger} »</span>
@@ -363,15 +551,45 @@ export function Phase4SettingsPanel({
               <br />
               <span className="hint">{pack.notes}</span>
             </div>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => onPlanStyle(pack)}
-            >
-              {t("phase3.lora.planDownload")}
-            </button>
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn"
+                disabled={busy || !installable}
+                onClick={() => onPlanStyle(pack)}
+              >
+                {t("phase3.lora.planDownload")}
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={
+                  busy ||
+                  !installable ||
+                  !settings?.ccByNcAccepted
+                }
+                onClick={() => void onDownloadStyle(pack)}
+              >
+                {busy
+                  ? t("phase3.lora.downloading")
+                  : t("phase3.lora.download")}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={
+                  busy ||
+                  !installable ||
+                  !settings?.ccByNcAccepted
+                }
+                onClick={() => void onActivateStyle(pack)}
+              >
+                {t("phase4.styleLora.activate")}
+              </button>
+            </div>
           </li>
-        ))}
+          );
+        })}
       </ul>
       {styleNotice && (
         <pre className="phase3-download-notice">{styleNotice}</pre>

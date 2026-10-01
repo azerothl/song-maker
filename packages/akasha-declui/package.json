@@ -2,6 +2,7 @@
   "name": "@song-maker/akasha-declui",
   "version": "0.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "Phase 4 — Akasha / DeclUI desktop-first host adapter (§18.5)",
   "exports": {

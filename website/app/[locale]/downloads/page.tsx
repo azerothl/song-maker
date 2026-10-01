@@ -1,10 +1,9 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
+import { APP_VERSION, RELEASE_LATEST_PAGE, releaseAssets } from "@/lib/releases";
 import styles from "./downloads.module.css";
 
 type Props = { params: Promise<{ locale: string }> };
-
-const RELEASE_ASSET = "https://github.com/azerothl/song-maker/releases/latest/download";
 
 export default async function DownloadsPage({ params }: Props) {
   const { locale } = await params;
@@ -14,7 +13,7 @@ export default async function DownloadsPage({ params }: Props) {
   return (
     <div className={styles.page}>
       <div className={styles.content}>
-        <p className={styles.eyebrow}>{t("eyebrow")}</p>
+        <p className={styles.eyebrow}>{t("eyebrow", { version: APP_VERSION })}</p>
         <h1 className={styles.title}>{t("title")}</h1>
         <p className={styles.intro}>{t("intro")}</p>
 
@@ -24,10 +23,10 @@ export default async function DownloadsPage({ params }: Props) {
             <h2 id="windows-title">{t("windows.title")}</h2>
             <p className={styles.description}>{t("windows.description")}</p>
             <div className={styles.links}>
-              <a href={`${RELEASE_ASSET}/Song.Maker_0.1.0_x64-setup.exe`}>
+              <a href={releaseAssets.windowsSetup}>
                 <span>{t("windows.setup")}</span><span aria-hidden="true">↓</span>
               </a>
-              <a href={`${RELEASE_ASSET}/Song.Maker_0.1.0_x64_en-US.msi`}>
+              <a href={releaseAssets.windowsMsi}>
                 <span>{t("windows.msi")}</span><span aria-hidden="true">↓</span>
               </a>
             </div>
@@ -38,10 +37,10 @@ export default async function DownloadsPage({ params }: Props) {
             <h2 id="macos-title">{t("macos.title")}</h2>
             <p className={styles.description}>{t("macos.description")}</p>
             <div className={styles.links}>
-              <a href={`${RELEASE_ASSET}/Song.Maker_0.1.0_aarch64.dmg`}>
+              <a href={releaseAssets.macAppleSilicon}>
                 <span>{t("macos.appleSilicon")}</span><span aria-hidden="true">↓</span>
               </a>
-              <a href={`${RELEASE_ASSET}/Song.Maker_0.1.0_x64.dmg`}>
+              <a href={releaseAssets.macIntel}>
                 <span>{t("macos.intel")}</span><span aria-hidden="true">↓</span>
               </a>
             </div>
@@ -52,13 +51,13 @@ export default async function DownloadsPage({ params }: Props) {
             <h2 id="linux-title">{t("linux.title")}</h2>
             <p className={styles.description}>{t("linux.description")}</p>
             <div className={styles.links}>
-              <a href={`${RELEASE_ASSET}/Song.Maker_0.1.0_amd64.AppImage`}>
+              <a href={releaseAssets.linuxAppImage}>
                 <span>{t("linux.appimage")}</span><span aria-hidden="true">↓</span>
               </a>
-              <a href={`${RELEASE_ASSET}/Song.Maker_0.1.0_amd64.deb`}>
+              <a href={releaseAssets.linuxDeb}>
                 <span>{t("linux.deb")}</span><span aria-hidden="true">↓</span>
               </a>
-              <a href={`${RELEASE_ASSET}/Song.Maker-0.1.0-1.x86_64.rpm`}>
+              <a href={releaseAssets.linuxRpm}>
                 <span>{t("linux.rpm")}</span><span aria-hidden="true">↓</span>
               </a>
             </div>
@@ -69,7 +68,7 @@ export default async function DownloadsPage({ params }: Props) {
           <p>{t("firstRun")}</p>
           <div>
             <Link className="btn btn-primary" href="/docs/install">{t("guide")}</Link>
-            <a className="btn btn-ghost" href="https://github.com/azerothl/song-maker/releases/latest">
+            <a className="btn btn-ghost" href={RELEASE_LATEST_PAGE}>
               {t("github")}
             </a>
           </div>

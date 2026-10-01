@@ -26,6 +26,14 @@ impl Default for AudioCppServer {
 }
 
 impl AudioCppServer {
+    /// A panic while a guard is held poisons the mutex. Recover the data so the
+    /// next start does not panic on `unwrap`.
+    fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+        mutex
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
     pub fn write_config(settings: &AppSettings) -> Result<PathBuf, String> {
         let cache = PathBuf::from(&settings.cache_dir);
         let bin_dir = binaries_dir(&cache);
@@ -43,14 +51,22 @@ impl AudioCppServer {
         let mut session_options = serde_json::Map::new();
         if let Some(path) = settings.yue2_ar_lora.as_deref() {
             session_options.insert("yue2.ar_lora".into(), json!(path));
-            session_options.insert("yue2.ar_lora_scale".into(), json!(settings.yue2_ar_lora_scale));
+            session_options.insert(
+                "yue2.ar_lora_scale".into(),
+                json!(settings.yue2_ar_lora_scale),
+            );
         }
         if let Some(path) = settings.yue2_nar_lora.as_deref() {
             session_options.insert("yue2.nar_lora".into(), json!(path));
-            session_options.insert("yue2.nar_lora_scale".into(), json!(settings.yue2_nar_lora_scale));
+            session_options.insert(
+                "yue2.nar_lora_scale".into(),
+                json!(settings.yue2_nar_lora_scale),
+            );
         }
         if !session_options.is_empty() {
-            yue2.as_object_mut().unwrap().insert("session_options".into(), json!(session_options));
+            yue2.as_object_mut()
+                .unwrap()
+                .insert("session_options".into(), json!(session_options));
         }
         let mut models = vec![
             yue2,
@@ -73,6 +89,30 @@ impl AudioCppServer {
                 "task": "sep",
                 "mode": "offline",
                 "busy_timeout_ms": HTDEMUCS_BUSY_TIMEOUT_MS
+            }));
+        }
+        // Mel-Band RoFormer only when the optional GGUF is on disk (hors installeur).
+        let mel_path = crate::paths::mel_band_roformer_path(&cache);
+        if mel_path.is_file() {
+            models.push(json!({
+                "id": "mel_band_roformer",
+                "family": "mel_band_roformer",
+                "path": mel_path.display().to_string(),
+                "task": "sep",
+                "mode": "offline",
+                "busy_timeout_ms": HTDEMUCS_BUSY_TIMEOUT_MS
+            }));
+        }
+        // SheetSage2 only when the optional GGUF is on disk (hors installeur, CC BY-NC).
+        let sheetsage_path = crate::paths::sheetsage2_weights_path(&cache);
+        if sheetsage_path.is_file() {
+            models.push(json!({
+                "id": "sheetsage2",
+                "family": "sheetsage2",
+                "path": sheetsage_path.display().to_string(),
+                "task": "midi",
+                "mode": "offline",
+                "busy_timeout_ms": YUE2_BUSY_TIMEOUT_MS
             }));
         }
         let cfg = json!({
@@ -151,15 +191,16 @@ impl AudioCppServer {
         use std::net::TcpStream;
         let addr = format!("{host}:{port}");
         let Ok(mut stream) = TcpStream::connect_timeout(
-            &addr.parse().unwrap_or_else(|_| std::net::SocketAddr::from(([127, 0, 0, 1], port))),
+            &addr
+                .parse()
+                .unwrap_or_else(|_| std::net::SocketAddr::from(([127, 0, 0, 1], port))),
             Duration::from_millis(400),
         ) else {
             return false;
         };
         let _ = stream.set_read_timeout(Some(Duration::from_millis(400)));
-        let req = format!(
-            "GET /health HTTP/1.1\r\nHost: {host}:{port}\r\nConnection: close\r\n\r\n"
-        );
+        let req =
+            format!("GET /health HTTP/1.1\r\nHost: {host}:{port}\r\nConnection: close\r\n\r\n");
         if stream.write_all(req.as_bytes()).is_err() {
             return false;
         }
@@ -175,11 +216,11 @@ impl AudioCppServer {
 
     pub fn ensure_started(&self, settings: &AppSettings) -> Result<String, String> {
         {
-            let child = self.child.lock().unwrap();
+            let child = Self::lock(&self.child);
             if child.is_some() {
-                let port = *self.port.lock().unwrap();
+                let port = *Self::lock(&self.port);
                 if Self::tcp_health(&settings.server_host, port) {
-                    return Ok(self.base_url.lock().unwrap().clone());
+                    return Ok(Self::lock(&self.base_url).clone());
                 }
             }
         }
@@ -207,9 +248,9 @@ impl AudioCppServer {
                     std::thread::sleep(Duration::from_millis(600));
                     if Self::tcp_health(&settings.server_host, port) {
                         let url = format!("http://{}:{}", settings.server_host, port);
-                        *self.child.lock().unwrap() = Some(child);
-                        *self.base_url.lock().unwrap() = url.clone();
-                        *self.port.lock().unwrap() = port;
+                        *Self::lock(&self.child) = Some(child);
+                        *Self::lock(&self.base_url) = url.clone();
+                        *Self::lock(&self.port) = port;
                         return Ok(url);
                     }
                     let _ = child.kill();
@@ -268,9 +309,7 @@ impl AudioCppServer {
                     .and_then(|v| v.as_str())
                     .filter(|s| !s.is_empty())
             })
-            .ok_or_else(|| {
-                "Réponse audio.cpp sans champ audio (WAV base64 absent).".to_string()
-            })?;
+            .ok_or_else(|| "Réponse audio.cpp sans champ audio (WAV base64 absent).".to_string())?;
         base64::engine::general_purpose::STANDARD
             .decode(b64)
             .map_err(|e| format!("Décodage WAV base64: {e}"))
@@ -382,16 +421,35 @@ impl AudioCppServer {
             return Ok(false);
         };
         for artifact in artifacts {
-            let id = artifact.get("id").and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
+            let id = artifact
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase();
             let meta = artifact.get("meta");
-            let format = meta.and_then(|m| m.get("format")).and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
-            let ext = meta.and_then(|m| m.get("extension")).and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
-            if !(id.contains("semantic") || format.contains("semantic") || ext.contains("semantic")) { continue; }
-            let payload = artifact.get("payload").and_then(Value::as_str).ok_or("Artefact sémantique sans payload.")?;
+            let format = meta
+                .and_then(|m| m.get("format"))
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            let ext = meta
+                .and_then(|m| m.get("extension"))
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            if !(id.contains("semantic") || format.contains("semantic") || ext.contains("semantic"))
+            {
+                continue;
+            }
+            let payload = artifact
+                .get("payload")
+                .and_then(Value::as_str)
+                .ok_or("Artefact sémantique sans payload.")?;
             let raw = if payload.trim_start().starts_with('[') {
                 payload.as_bytes().to_vec()
             } else {
-                base64::engine::general_purpose::STANDARD.decode(payload)
+                base64::engine::general_purpose::STANDARD
+                    .decode(payload)
                     .map_err(|e| format!("Décodage artefact sémantique: {e}"))?
             };
             let frames: Vec<u32> = serde_json::from_slice(&raw)
@@ -399,9 +457,14 @@ impl AudioCppServer {
             if frames.is_empty() || frames.iter().any(|&frame| frame >= 32768) {
                 return Err("Artefact sémantique vide ou contenant un token hors plage.".into());
             }
-            if let Some(parent) = path.parent() { crate::paths::ensure_dir(parent).map_err(|e| e.to_string())?; }
-            std::fs::write(path, serde_json::to_vec(&frames).map_err(|e| e.to_string())?)
-                .map_err(|e| e.to_string())?;
+            if let Some(parent) = path.parent() {
+                crate::paths::ensure_dir(parent).map_err(|e| e.to_string())?;
+            }
+            std::fs::write(
+                path,
+                serde_json::to_vec(&frames).map_err(|e| e.to_string())?,
+            )
+            .map_err(|e| e.to_string())?;
             return Ok(true);
         }
         Ok(false)
@@ -420,19 +483,25 @@ impl AudioCppServer {
     }
 
     pub fn shutdown(&self) {
-        if let Ok(url) = self.base_url.lock() {
-            let url = url.clone();
-            if let Ok(rt) = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-            {
-                let _ = rt.block_on(Self::unload_all(&url));
-            }
+        let url = Self::lock(&self.base_url).clone();
+        if !url.is_empty() {
+            // Called from async Tauri commands, which already run on a Tokio
+            // worker. `Runtime::block_on` on that thread panics
+            // ("Cannot start a runtime from within a runtime") and poisons
+            // the mutexes held across the call. Unload on a dedicated thread.
+            let (tx, rx) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let result = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|e| e.to_string())
+                    .and_then(|rt| rt.block_on(Self::unload_all(&url)));
+                let _ = tx.send(result);
+            });
+            let _ = rx.recv_timeout(Duration::from_secs(5));
         }
-        if let Ok(mut child) = self.child.lock() {
-            if let Some(mut c) = child.take() {
-                let _ = c.kill();
-            }
+        if let Some(mut child) = Self::lock(&self.child).take() {
+            let _ = child.kill();
         }
     }
 }
@@ -441,7 +510,6 @@ impl AudioCppServer {
 mod semantic_metadata_tests {
     use super::AudioCppServer;
     use serde_json::json;
-    use std::path::PathBuf;
 
     #[test]
     fn reads_v082_string_encoded_truncation_flag() {
@@ -454,7 +522,8 @@ mod semantic_metadata_tests {
     #[test]
     fn writes_semantic_artifact_as_valid_json_prefix() {
         use base64::Engine;
-        let path = std::env::temp_dir().join(format!("song-maker-semantic-{}.json", uuid::Uuid::new_v4()));
+        let path =
+            std::env::temp_dir().join(format!("song-maker-semantic-{}.json", uuid::Uuid::new_v4()));
         let encoded = base64::engine::general_purpose::STANDARD.encode(b"[12,34,56]");
         let response = json!({ "artifacts": [{
             "id": "semantic",
@@ -464,6 +533,23 @@ mod semantic_metadata_tests {
         assert!(AudioCppServer::write_semantic_artifact(&response, &path).unwrap());
         let frames: Vec<u32> = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         assert_eq!(frames, vec![12, 34, 56]);
-        let _ = std::fs::remove_file(PathBuf::from(path));
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn shutdown_from_inside_a_runtime_does_not_panic() {
+        let server = AudioCppServer::default();
+        *AudioCppServer::lock(&server.base_url) = "http://127.0.0.1:1".into();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async {
+            server.shutdown();
+        });
+        assert_eq!(
+            AudioCppServer::lock(&server.base_url).as_str(),
+            "http://127.0.0.1:1"
+        );
     }
 }

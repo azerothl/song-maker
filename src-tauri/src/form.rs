@@ -32,15 +32,23 @@ pub fn validate_title(title: &str) -> Result<(), FormError> {
     Ok(())
 }
 
-pub fn validate_lyrics(lyrics: &str) -> Result<(), FormError> {
+pub fn validate_lyrics(lyrics: &str, instrumental_mode: bool) -> Result<(), FormError> {
     let t = lyrics.trim();
-    if t.is_empty() || t.chars().count() > 4000 {
+    if t.chars().count() > 4000 {
+        return Err(FormError::Message(if instrumental_mode {
+            "Les paroles sont limitées à 4000 caractères.".into()
+        } else {
+            "Les paroles sont obligatoires (1 à 4000 caractères).".into()
+        }));
+    }
+    if t.is_empty() && !instrumental_mode {
         return Err(FormError::Message(
             "Les paroles sont obligatoires (1 à 4000 caractères).".into(),
         ));
     }
     // YuE2 n’impose pas de liste fermée de balises : [Verse], [Solo], [Breakdown]…
-    // sont envoyés tels quels dans `lyrics`.
+    // sont envoyés tels quels dans `lyrics`. En mode instrumental, une chaîne vide
+    // est acceptée (audio.cpp v0.8.2+ : paroles facultatives pour l’instrumental).
     Ok(())
 }
 
@@ -77,7 +85,9 @@ pub fn validate_draft_form(input: &FormInput) -> Result<(), FormError> {
 }
 
 pub fn validate_target_duration(sec: u32) -> Result<u32, FormError> {
-    if !(DURATION_SEC_MIN..=DURATION_SEC_MAX).contains(&sec) || sec % DURATION_SEC_STEP != 0 {
+    if !(DURATION_SEC_MIN..=DURATION_SEC_MAX).contains(&sec)
+        || !sec.is_multiple_of(DURATION_SEC_STEP)
+    {
         return Err(FormError::Message(format!(
             "Durée cible : {DURATION_SEC_MIN} à {DURATION_SEC_MAX} s, par pas de {DURATION_SEC_STEP}."
         )));
@@ -158,8 +168,8 @@ pub fn assemble_style_sent(input: &FormInput) -> Result<String, FormError> {
     let style_lower = style.to_lowercase();
     let push_unique = |parts: &mut Vec<String>, fragment: String| {
         let lower = fragment.to_lowercase();
-        let already = parts.iter().any(|p| p.eq_ignore_ascii_case(&fragment))
-            || style_lower.contains(&lower);
+        let already =
+            parts.iter().any(|p| p.eq_ignore_ascii_case(&fragment)) || style_lower.contains(&lower);
         if !already && !fragment.is_empty() {
             parts.push(fragment);
         }
@@ -187,11 +197,7 @@ pub fn assemble_style_sent(input: &FormInput) -> Result<String, FormError> {
     }
 
     let joined = parts.join(", ");
-    let cleaned = joined
-        .trim()
-        .trim_matches(',')
-        .trim()
-        .to_string();
+    let cleaned = joined.trim().trim_matches(',').trim().to_string();
     if cleaned.is_empty() || cleaned.chars().count() > 1000 {
         return Err(FormError::Message(
             "Style assemblé invalide (1 à 1000 caractères).".into(),
@@ -202,7 +208,7 @@ pub fn assemble_style_sent(input: &FormInput) -> Result<String, FormError> {
 
 pub fn validate_form(input: &FormInput) -> Result<String, FormError> {
     validate_title(&input.title)?;
-    validate_lyrics(&input.lyrics)?;
+    validate_lyrics(&input.lyrics, input.instrumental_mode)?;
     validate_cot(&input.cot)?;
     validate_target_duration(input.target_duration_sec)?;
     assemble_style_sent(input)
@@ -240,6 +246,7 @@ mod tests {
             seed: None,
             target_duration_sec: 180,
             prefer_full_lyrics: true,
+            instrumental_mode: false,
             continuation_generation_id: None,
         };
         let s = assemble_style_sent(&input).unwrap();
@@ -253,8 +260,38 @@ mod tests {
     fn accepts_freeform_section_tags() {
         validate_lyrics(
             "[Verse]\nHi\n[Breakdown]\nRiff\n[Solo]\nLead\n[Acapella]\nVoice\n[chorus 2]\nHook",
+            false,
         )
         .unwrap();
+    }
+
+    #[test]
+    fn rejects_empty_lyrics_outside_instrumental_mode() {
+        assert!(validate_lyrics("", false).is_err());
+        assert!(validate_lyrics("   ", false).is_err());
+    }
+
+    #[test]
+    fn accepts_empty_lyrics_in_instrumental_mode() {
+        validate_lyrics("", true).unwrap();
+        validate_lyrics("   ", true).unwrap();
+        let input = FormInput {
+            title: "Night Drive".into(),
+            style: "synthwave instrumental, no vocals".into(),
+            lyrics: String::new(),
+            cot: "full".into(),
+            singing_language: None,
+            tempo_bpm: None,
+            key: None,
+            meter: None,
+            seed: None,
+            target_duration_sec: 180,
+            prefer_full_lyrics: true,
+            instrumental_mode: true,
+            continuation_generation_id: None,
+        };
+        assemble_style_sent(&input).unwrap();
+        validate_form(&input).unwrap();
     }
 
     #[test]
@@ -271,6 +308,7 @@ mod tests {
             seed: None,
             target_duration_sec: 180,
             prefer_full_lyrics: true,
+            instrumental_mode: false,
             continuation_generation_id: None,
         };
         validate_draft_form(&input).unwrap();

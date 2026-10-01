@@ -1,11 +1,13 @@
 ---
 title: Où s’effectue la génération ?
-description: La génération de morceaux s’effectue sur votre ordinateur.
+description: La génération de morceaux s’effectue sur votre ordinateur ; un worker distant optionnel existe.
 order: 5
 ---
 
-# Génération locale
+# Génération locale (défaut)
 
-Le contrôle de génération distante est un prototype : il place le travail dans la file locale et n’envoie aucune requête réseau. La génération et le traitement audio du parcours principal s’effectuent sur votre ordinateur, avec les modèles installés localement.
+La génération et le traitement audio du parcours principal s’effectuent sur votre ordinateur, avec les modèles installés localement.
 
-Pour commencer, installez le moteur audio et les modèles en suivant le guide d’installation.
+Un **worker GPU distant** est disponible en opt-in (phase 4) : il faut une URL qui implémente le [contrat HTTP](https://github.com/azerothl/song-maker/blob/main/docs/remote-worker-contract.md) et un jeton partagé. Le dépôt livre un worker de référence (`packages/remote-worker-server`). Sans opt-in, **aucun** appel réseau n’est émis. Un échec distant ne démarre pas automatiquement une génération locale.
+
+Pour commencer en local, installez le moteur audio et les modèles en suivant le guide d’installation.

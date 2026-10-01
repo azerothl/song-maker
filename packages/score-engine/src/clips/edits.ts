@@ -110,6 +110,16 @@ export class DefaultClipEditor implements ClipEditor {
         }
         const leftDur = atMs - clip.startMs;
         const rightDur = clip.durationMs - leftDur;
+        // durationMs is timeline length; with stretch, source offset advances by timeline/ratio.
+        const stretch =
+          typeof clip.timeStretchRatio === "number" &&
+          Number.isFinite(clip.timeStretchRatio) &&
+          clip.timeStretchRatio > 0 &&
+          clip.processingEnabled !== false &&
+          !clip.followProjectTempo
+            ? clip.timeStretchRatio
+            : 1;
+        const sourceAdvance = Math.round(leftDur / stretch);
         const left: Clip = {
           ...clip,
           durationMs: leftDur,
@@ -120,7 +130,7 @@ export class DefaultClipEditor implements ClipEditor {
           ...clip,
           id: newClipId(),
           startMs: atMs,
-          offsetMs: clip.offsetMs + leftDur,
+          offsetMs: clip.offsetMs + sourceAdvance,
           durationMs: rightDur,
           fadeInMs: Math.min(clip.fadeInMs, rightDur),
           fadeOutMs: Math.min(clip.fadeOutMs, rightDur),

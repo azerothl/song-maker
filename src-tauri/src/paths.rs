@@ -7,18 +7,37 @@ use dirs::{cache_dir, document_dir, home_dir};
 use std::path::{Path, PathBuf};
 
 pub fn song_maker_documents() -> PathBuf {
+    if let Ok(dir) = std::env::var("SONG_MAKER_DOCUMENTS_DIR") {
+        return PathBuf::from(dir);
+    }
     let base = document_dir()
         .or_else(home_dir)
         .unwrap_or_else(|| PathBuf::from("."));
     base.join("Song Maker")
 }
 
-pub fn projects_root() -> PathBuf {
+pub fn legacy_projects_root() -> PathBuf {
     song_maker_documents().join("projects")
 }
 
-pub fn library_db_path() -> PathBuf {
+pub fn legacy_library_db_path() -> PathBuf {
     song_maker_documents().join("library.sqlite")
+}
+
+pub fn projects_root() -> PathBuf {
+    if crate::profiles::try_active_projects_root().is_some() {
+        crate::profiles::active_projects_root()
+    } else {
+        legacy_projects_root()
+    }
+}
+
+pub fn library_db_path() -> PathBuf {
+    if crate::profiles::try_active_projects_root().is_some() {
+        crate::profiles::active_library_db_path()
+    } else {
+        legacy_library_db_path()
+    }
 }
 
 pub fn settings_path() -> PathBuf {
@@ -27,7 +46,11 @@ pub fn settings_path() -> PathBuf {
 
 pub fn default_cache_dir() -> PathBuf {
     cache_dir()
-        .unwrap_or_else(|| home_dir().unwrap_or_else(|| PathBuf::from(".")).join(".cache"))
+        .unwrap_or_else(|| {
+            home_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(".cache")
+        })
         .join("song-maker")
 }
 
@@ -53,6 +76,39 @@ pub fn bs_roformer_path(cache: &Path) -> PathBuf {
         .join(crate::pins::BS_ROFORMER_GGUF)
 }
 
+pub fn mel_band_roformer_path(cache: &Path) -> PathBuf {
+    cache
+        .join("models")
+        .join("mel_band_roformer")
+        .join(crate::pins::MEL_BAND_ROFORMER_GGUF)
+}
+
+/// Opt-in SheetSage2 GGUF (hors installeur) — `sheetsage2-orig.gguf`.
+pub fn sheetsage2_weights_path(cache: &Path) -> PathBuf {
+    cache
+        .join("models")
+        .join("SheetSage2-GGUF")
+        .join(crate::pins::SHEETSAGE2_GGUF)
+}
+
+pub fn sheetsage2_weights_present(cache: &Path) -> bool {
+    let path = sheetsage2_weights_path(cache);
+    path.is_file()
+        && std::fs::metadata(&path)
+            .map(|m| m.len() == crate::pins::SHEETSAGE2_BYTES)
+            .unwrap_or(false)
+}
+
+/// Persistent NAR LoRA training jobs (Documents/Song Maker/training-jobs).
+pub fn training_jobs_root() -> PathBuf {
+    song_maker_documents().join("training-jobs")
+}
+
+/// Optional project-sync filesystem root (Documents/Song Maker/sync).
+pub fn project_sync_fs_root() -> PathBuf {
+    song_maker_documents().join("sync")
+}
+
 pub fn demucs_onnx_venv(cache: &Path) -> PathBuf {
     cache.join("tools").join("demucs-onnx")
 }
@@ -60,7 +116,9 @@ pub fn demucs_onnx_venv(cache: &Path) -> PathBuf {
 pub fn demucs_onnx_cli(cache: &Path) -> PathBuf {
     #[cfg(target_os = "windows")]
     {
-        demucs_onnx_venv(cache).join("Scripts").join("demucs-onnx.exe")
+        demucs_onnx_venv(cache)
+            .join("Scripts")
+            .join("demucs-onnx.exe")
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -84,7 +142,13 @@ pub fn demucs_onnx_model_cache(cache: &Path) -> PathBuf {
 }
 
 pub fn bs_roformer_weights_present(cache: &Path) -> bool {
-    bs_roformer_path(cache).is_file()
+    let path = bs_roformer_path(cache);
+    matches!(std::fs::metadata(&path), Ok(meta) if meta.is_file() && meta.len() == crate::pins::BS_ROFORMER_BYTES)
+}
+
+pub fn mel_band_roformer_weights_present(cache: &Path) -> bool {
+    let path = mel_band_roformer_path(cache);
+    matches!(std::fs::metadata(&path), Ok(meta) if meta.is_file() && meta.len() == crate::pins::MEL_BAND_ROFORMER_BYTES)
 }
 
 pub fn pinned_archive_name() -> &'static str {
@@ -141,6 +205,13 @@ pub fn atomic_write_json<T: serde::Serialize>(path: &Path, value: &T) -> Result<
 
 pub fn now_iso() -> String {
     chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
+}
+
+/// Best-effort ISO timestamp from filesystem mtime (Versions timeline, #133).
+pub fn file_mtime_iso(path: &Path) -> Option<String> {
+    let modified = path.metadata().ok()?.modified().ok()?;
+    let datetime: chrono::DateTime<chrono::Utc> = modified.into();
+    Some(datetime.format("%Y-%m-%dT%H:%M:%SZ").to_string())
 }
 
 pub fn next_folder_id(parent: &Path, prefix: &str) -> Result<String, String> {

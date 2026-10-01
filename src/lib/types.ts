@@ -21,10 +21,14 @@ export type ProjectDoc = {
   /** Durée cible demandée à YuE2 (secondes). */
   targetDurationSec?: number;
   preferFullLyrics?: boolean;
+  /** Mode instrumental : paroles facultatives (YuE2 / audio.cpp). */
+  instrumentalMode?: boolean;
   activeGenerationId?: string | null;
   activeSeparationId?: string | null;
   activeMixId?: string | null;
   activeScoreId?: string | null;
+  /** Noms parlants des prises (clé = id gen-*). */
+  generationNames?: Record<string, string>;
 };
 
 export type LibraryRow = {
@@ -53,6 +57,11 @@ export type FormInput = {
   targetDurationSec: number;
   /** Let YuE exceed the target when the lyric token budget requires it. */
   preferFullLyrics: boolean;
+  /**
+   * Mode instrumental : paroles facultatives.
+   * Chaîne vide autorisée ; audio.cpp YuE2 génère alors sans texte vocal.
+   */
+  instrumentalMode: boolean;
   continuationGenerationId?: string | null;
 };
 
@@ -67,6 +76,24 @@ export type MixClip = {
   gainDb: number;
   fadeInMs: number;
   fadeOutMs: number;
+  /** Source material tempo (BPM) for follow-project stretch (#95). */
+  sourceTempoBpm?: number | null;
+  /** Stretch so source tempo matches project tempo (pitch preserved). */
+  followProjectTempo?: boolean;
+  /** Explicit timeline/source ratio when not following project tempo. */
+  timeStretchRatio?: number | null;
+  /** Independent transpose in semitones (0 = none). */
+  pitchSemitones?: number | null;
+  /** Bypass stretch/pitch; original region used as-is. Default true when set. */
+  processingEnabled?: boolean;
+  /** Manual transient / beat markers in source milliseconds. */
+  transientMarkersMs?: number[];
+  /** Loop-capture take group id (#93). */
+  takeGroupId?: string | null;
+  takeIndex?: number | null;
+  takeLabel?: string | null;
+  /** When false inside a take group, clip is kept but silent. */
+  takeActive?: boolean;
 };
 
 export type MixTrack = {
@@ -82,6 +109,37 @@ export type MixTrack = {
   clips: MixClip[];
 };
 
+/** Arrangement tempo change (ms timeline). Clip storage stays in ms (#94). */
+export type MixTempoEvent = {
+  startMs: number;
+  quarterBpm: number;
+};
+
+/** Arrangement meter change (ms timeline). */
+export type MixMeterEvent = {
+  startMs: number;
+  numerator: number;
+  denominator: number;
+};
+
+export type MixMarkerKind =
+  | "intro"
+  | "verse"
+  | "prechorus"
+  | "chorus"
+  | "bridge"
+  | "interlude"
+  | "outro"
+  | "other";
+
+/** Named section marker on the mix arrangement timeline. */
+export type MixMarker = {
+  id: string;
+  name: string;
+  kind: MixMarkerKind;
+  startMs: number;
+};
+
 export type MixDoc = {
   schema: string;
   schemaVersion: number;
@@ -91,6 +149,15 @@ export type MixDoc = {
   masterGainDb: number;
   peakCeilingDb: number;
   tracks: MixTrack[];
+  /**
+   * Musical grid tempo map. Absent/empty on legacy mixes → default 120 BPM at 0 ms
+   * (see `ensureMixArrangement`); clip positions are never rewritten on load.
+   */
+  tempoMap?: MixTempoEvent[];
+  /** Meter changes for the musical grid. Absent → 4/4 at 0 ms. */
+  timeSignatures?: MixMeterEvent[];
+  /** Named section markers (intro, couplet, …). */
+  markers?: MixMarker[];
 };
 
 export type PlaybackStem = {
@@ -108,6 +175,21 @@ export type PlaybackSources = {
   label: string;
 };
 
+export type SeparationInfo = {
+  id: string;
+  family: string;
+  warnings: string[];
+};
+
+export type SeparationVersionSummary = {
+  separationId: string;
+  mixId: string;
+  createdAt: string;
+  isActive: boolean;
+  /** Generation that was active when this separation ran (from job.json). */
+  generationId?: string | null;
+};
+
 export type AppSettings = {
   projectsDir: string;
   cacheDir: string;
@@ -120,12 +202,23 @@ export type AppSettings = {
   serverHost: string;
   serverPort: number;
   outputDevice?: string | null;
-  /** Phase 3: `htdemucs` (default) | `htdemucs_6s` (optional ONNX) | `bs_roformer` */
+  /**
+   * Soft-synth / MIDI monitoring lookahead (ms). Default 20.
+   * Documented latency budget for Windows + other platforms (#96).
+   */
+  audioLatencyMs?: number;
+  /** Phase 3: `htdemucs` (default) | `htdemucs_6s` | `bs_roformer` | `mel_band_roformer` */
   stemSeparator?: string;
   /** CC BY-NC gate for optional LoRA packs */
   ccByNcAccepted?: boolean;
   /** Consentement distinct au modèle principal YuE2 CC BY-NC 4.0. */
   yue2LicenseAccepted?: boolean;
+  /** Per-model license checkbox (#167). */
+  acceptedSeparatorLicenses?: Record<string, boolean>;
+  /** Measured separation rates (#166). */
+  separatorTimeStats?: Record<string, { msPerAudioSec: number; samples: number }>;
+  /** Génération YuE2 locale (false si « continuer sans génération »). */
+  localYue2Enabled?: boolean;
   yue2ArLora?: string | null;
   yue2NarLora?: string | null;
   yue2ArLoraScale?: number;
@@ -137,18 +230,71 @@ export type Phase3Status = {
   htdemucsAvailable: boolean;
   bsRoformerAvailable: boolean;
   bsRoformerPath: string;
+  melBandRoformerAvailable: boolean;
+  melBandRoformerPath: string;
   htdemucs6sRuntimeAvailable: boolean;
   ccByNcAccepted: boolean;
+  acceptedSeparatorLicenses: Record<string, boolean>;
+  separatorTimeStats: Record<string, { msPerAudioSec: number; samples: number }>;
   guitarPianoAvailable: boolean;
   honestyFr: string;
 };
 
-export type HealthSnapshot = {
-  cudaAvailable: boolean;
+/** `nvidiaCuda` | `appleMetal` | `none` — contrat `get_setup_gpu_info` (#116). */
+export type AccelerationKind = "nvidiaCuda" | "appleMetal" | "none" | string;
+
+export type SetupGpuInfo = {
+  accelerationKind: AccelerationKind;
   gpuName?: string | null;
   driverVersion?: string | null;
   vramMib?: number | null;
   suggestedPack: string;
+  suggestedPackReasonFr: string;
+  accelerationAvailable: boolean;
+};
+
+export type InstallFileStatus = "complete" | "partial" | "missing" | string;
+
+export type InstallFilePlan = {
+  name: string;
+  status: InstallFileStatus;
+  totalBytes?: number | null;
+  receivedBytes: number;
+  remainingBytes: number;
+};
+
+export type InstallPlan = {
+  pack: string;
+  fileCount: number;
+  bytesToDownload: number;
+  bytesKnown: boolean;
+  hasPartialDownloads: boolean;
+  files: InstallFilePlan[];
+};
+
+export type InstallErrorCause =
+  | "network"
+  | "diskFull"
+  | "hashInvalid"
+  | "http"
+  | "other"
+  | string;
+
+export type InstallErrorInfo = {
+  message: string;
+  cause: InstallErrorCause;
+  fileName?: string | null;
+};
+
+export type HealthSnapshot = {
+  cudaAvailable: boolean;
+  accelerationKind?: AccelerationKind;
+  gpuName?: string | null;
+  driverVersion?: string | null;
+  vramMib?: number | null;
+  suggestedPack: string;
+  suggestedPackReasonFr?: string;
+  localYue2Enabled: boolean;
   modelsOk: boolean;
   binaryOk: boolean;
   serverHealthy: boolean;
@@ -163,6 +309,16 @@ export type InstallProgress = {
   fileCount: number;
   receivedBytes: number;
   totalBytes?: number | null;
+  fileName?: string | null;
+  bytesPerSec?: number | null;
+  etaSeconds?: number | null;
+  etaIsEstimate?: boolean;
+  overallReceivedBytes?: number | null;
+  overallTotalBytes?: number | null;
+  overallBytesPerSec?: number | null;
+  overallEtaSeconds?: number | null;
+  overallEtaIsEstimate?: boolean;
+  error?: InstallErrorInfo | null;
 };
 
 export type JobStatus = {
@@ -186,6 +342,29 @@ export type GenerationSummary = {
   canContinue: boolean;
 };
 
+export type ScoreSummary = {
+  id: string;
+  parentScoreId?: string | null;
+  branchName?: string | null;
+  version: number;
+  source: string;
+  noteCount: number;
+  createdAt?: string | null;
+};
+
+export type MixVersionSummary = {
+  id: string;
+  separationId: string;
+  createdAt: string;
+  isActive: boolean;
+};
+
 export type LocalLoraAdapter = { name: string; path: string; sizeBytes: number };
 
-export type Screen = "splash" | "library" | "song" | "settings" | "licenses";
+export type Screen =
+  | "profiles"
+  | "splash"
+  | "library"
+  | "song"
+  | "settings"
+  | "licenses";
