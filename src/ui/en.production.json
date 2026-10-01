@@ -182,6 +182,8 @@
   "qwen.mix.stale": "The mix changed after this analysis. Analyse again before confirming.",
   "qwen.mix.serviceMissing": "Open Ollama on this computer and try again.",
   "qwen.mix.invalid": "The model returned invalid settings. No settings were applied.",
+  "qwen.mix.diagnostic": "Diagnostic detail",
+  "qwen.mix.totalMeasured": "Complete analysis, including track decoding: {time} s.",
   "qwen.mix.objective": "Mix objective",
   "qwen.mix.confirmApply": "Confirm settings",
   "qwen.mix.busy": "Analysing…",

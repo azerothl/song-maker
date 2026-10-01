@@ -43,6 +43,7 @@ it("Qwen settings require confirmation and can be undone; manual functions remai
   assert.ok(initialVisibility.titleTop>=initialVisibility.panelTop && initialVisibility.actionBottom<=initialVisibility.panelBottom && initialVisibility.panelBottom<=initialVisibility.vh,JSON.stringify(initialVisibility));
   await panel.getByRole("button",{name:"Propose settings with Qwen",exact:true}).click();
   await panel.getByRole("button",{name:"Review and apply",exact:true}).waitFor();
+  assert.match(await panel.innerText(),/Complete analysis, including track decoding: [\d.,]+ s\./);
   assert.equal(await gain.innerText(),before);
   await panel.getByRole("button",{name:"Review and apply",exact:true}).click();
   assert.equal(await gain.innerText(),before);
@@ -52,5 +53,31 @@ it("Qwen settings require confirmation and can be undone; manual functions remai
   assert.equal(await gain.innerText(),before);
   await page.locator(".mix-assistant-manual > summary").click();
   assert.equal(await page.locator(".production-copilot").isVisible(),true);
+ } finally {await page.close();}
+});
+it("invalid local answers leave gains unchanged and disclose only a closed diagnostic code",async()=>{
+ const page=await browser.newPage({viewport:{width:1280,height:830}});
+ try {
+  await page.route("**/dev/null/*.wav",route=>route.fulfill({status:200,contentType:"audio/wav",body:wav}));
+  await page.addInitScript(()=>{
+    localStorage.setItem("song-maker.locale","en");
+    (window as unknown as {__captureQwenMix:()=>never}).__captureQwenMix=()=>{
+      throw new Error("INVALID_RESPONSE:GAIN_DELTA private model text");
+    };
+  });
+  await page.goto("http://127.0.0.1:5231/production-capture.html#confortable-12",{waitUntil:"networkidle"});
+  const gain=page.locator(".track-gain-knob .mix-knob-value").first();
+  const before=await gain.innerText();
+  await page.getByTestId("production-mix-settings-trigger").click();
+  await page.getByRole("button",{name:"Mix assistant",exact:true}).click();
+  const panel=page.locator(".qwen-mix-assistant");
+  await panel.getByRole("button",{name:"Propose settings with Qwen",exact:true}).click();
+  await panel.getByText("The model returned invalid settings. No settings were applied.",{exact:true}).waitFor();
+  assert.equal(await gain.innerText(),before);
+  assert.equal(await panel.getByRole("button",{name:"Review and apply",exact:true}).count(),0);
+  const detail=panel.locator("details");
+  assert.equal(await detail.getAttribute("open"),null);
+  assert.equal(await detail.locator("code").textContent(),"INVALID_RESPONSE:GAIN_DELTA");
+  assert.equal((await panel.innerText()).includes("private model text"),false);
  } finally {await page.close();}
 });
