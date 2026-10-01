@@ -901,6 +901,8 @@ export function ProductionWorkspace({
               sourceDurationMsByTrack={sourceDurationMsByTrack}
               projectTempoBpm={project.tempoBpm}
               projectMeter={project.meter ?? null}
+              currentTimeMs={(playback?.current ?? 0)*1000}
+              onSeek={playback?.seek}
               clipViewPrefs={clipViewPrefs}
               onClipViewPrefsChange={patchClipViewPrefs}
               headerActions={mixSettingsTrigger(

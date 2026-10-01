@@ -29,6 +29,7 @@ import {
   type MusicalSubdivision,
 } from "../lib/musicalTime";
 import { setProductionClipSelection } from "../lib/productionClipSelection";
+import { createdClipId } from "../lib/createdClipSelection";
 import { roleWaveColor, withAlpha } from "../lib/trackRoleColors";
 import { listTakesInGroup, selectActiveTake } from "../lib/takes";
 import type {
@@ -39,7 +40,7 @@ import type {
   MixTrack,
   Meter,
 } from "../lib/types";
-import { t } from "../ui/i18n";
+import { t, profileLocale } from "../ui/i18n";
 import type { ProductionClipViewPrefs } from "../lib/productionClipViewPrefs";
 import { DEFAULT_PRODUCTION_CLIP_VIEW_PREFS } from "../lib/productionClipViewPrefs";
 
@@ -74,6 +75,8 @@ type Props = {
   hideHeaderTools?: boolean;
   /** Actions in the clips header (#225 — Réglages du mix). */
   headerActions?: ReactNode;
+  currentTimeMs?: number;
+  onSeek?: (seconds: number) => void;
 };
 
 type DragKind = "move" | "trim-left" | "trim-right" | "fade-in" | "fade-out";
@@ -98,7 +101,9 @@ function fromEngine(clip: EngineClip): MixClip {
 function formatMs(ms: number): string {
   const s = Math.max(0, ms) / 1000;
   const m = Math.floor(s / 60);
-  const rest = (s % 60).toFixed(1);
+  const rest = new Intl.NumberFormat(profileLocale(), {
+    minimumIntegerDigits: 2, minimumFractionDigits: 1, maximumFractionDigits: 1,
+  }).format(s % 60);
   return `${m}:${rest.padStart(4, "0")}`;
 }
 
@@ -246,6 +251,8 @@ export function ClipTimeline({
   onClipViewPrefsChange,
   hideHeaderTools = false,
   headerActions,
+  currentTimeMs = 0,
+  onSeek,
 }: Props) {
   const mix = useMemo(
     () => ensureMixArrangement(rawMix, projectTempoBpm, projectMeter),
@@ -473,9 +480,9 @@ export function ClipTimeline({
           lastReq &&
           (lastReq.kind === "duplicate" || lastReq.kind === "cut")
         ) {
-          const last = next[next.length - 1];
-          if (last && last.id !== lastReq.clipId) {
-            setSelected({ trackId: track.id, clipId: last.id });
+          const id = createdClipId(track.clips,next,lastReq);
+          if (id) {
+            setSelected({ trackId: track.id, clipId: id });
           }
         }
       } catch (e) {
@@ -1330,9 +1337,31 @@ export function ClipTimeline({
         onKeyDown={onTimelineKeyDown}
       >
         <div className="clip-lanes" style={{ width: railWidthPct }}>
-          <div className="clip-ruler" aria-hidden="true">
+          <div className="clip-ruler" role="slider" tabIndex={onSeek ? 0 : -1}
+            aria-disabled={!onSeek || undefined}
+            aria-label={t("production.rulerNamed")}
+            aria-valuemin={0} aria-valuemax={timelineMs}
+            aria-valuenow={Math.min(timelineMs,Math.max(0,Math.round(currentTimeMs)))}
+            aria-valuetext={t("production.ruler.value", {time:new Intl.NumberFormat(profileLocale()).format(Math.min(timelineMs, Math.max(0, Math.round(currentTimeMs))))})}
+            onPointerDown={event => {
+              const rail=event.currentTarget.querySelector(".clip-ruler-marks-abs");
+              if (!rail || !onSeek) return;
+              event.currentTarget.focus();
+              const rect=rail.getBoundingClientRect();
+              if (rect.width <= 0) return;
+              onSeek(Math.min(timelineMs,Math.max(0,snap((event.clientX-rect.left)/rect.width*timelineMs)))/1000);
+            }}
+            onKeyDown={event => {
+              if (!onSeek || !["ArrowLeft","ArrowRight","PageUp","PageDown","Home","End"].includes(event.key)) return;
+              event.preventDefault();event.stopPropagation();
+              const step=event.shiftKey?50:nudgeStep;
+              const next=event.key === "Home" ? 0 : event.key === "End" ? timelineMs
+                : currentTimeMs + (event.key === "ArrowLeft" || event.key === "PageUp" ? -1:1)
+                  * step * (event.key.startsWith("Page")?4:1);
+              onSeek(Math.min(timelineMs,Math.max(0,next))/1000);
+            }}>
             <span className="clip-lane-label" />
-            <div className="clip-ruler-marks-abs">
+            <div className="clip-ruler-marks-abs" aria-hidden="true">
               {rulerMarks.map((mark, i) => (
                 <span
                   key={`${mark.ms}-${i}`}

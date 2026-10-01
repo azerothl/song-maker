@@ -1386,5 +1386,7 @@
   "qwen.mix.empty": "Aucun changement proposé.",
   "qwen.mix.title": "Assistant de mix local",
   "firstLaunch.error.details": "Détails du diagnostic (langue du serveur)",
-  "firstLaunch.error.network.demoMessage": "La connexion a été interrompue."
+  "firstLaunch.error.network.demoMessage": "La connexion a été interrompue.",
+  "production.ruler.value": "{time} ms",
+  "production.rulerNamed": "Position de lecture, règle temporelle"
 }

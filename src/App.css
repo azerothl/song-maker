@@ -6032,6 +6032,12 @@ details[open] > summary {
   padding: 0 0.15rem;
 }
 
+.clip-ruler[role="slider"] { min-height: 44px; cursor: pointer; }
+.clip-ruler[role="slider"]:focus-visible {
+  outline: 2px solid rgb(94, 236, 248);
+  outline-offset: -2px;
+}
+
 .clip-ruler-marks-abs {
   position: relative;
   height: 1.35rem;
