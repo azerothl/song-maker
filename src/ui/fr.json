@@ -1,7 +1,6 @@
 {
   "production.tempo.flagNamed": "Tempo {bpm} BPM, {time}",
   "production.arrangement.close": "Fermer",
-
   "production.edit.title": "Édition des clips",
   "production.edit.select": "Sélection",
   "production.edit.cut": "Découper",
@@ -1406,5 +1405,18 @@
   "firstLaunch.error.details": "Détails du diagnostic (langue du serveur)",
   "firstLaunch.error.network.demoMessage": "La connexion a été interrompue.",
   "production.ruler.value": "{time} ms",
-  "production.rulerNamed": "Position de lecture, règle temporelle"
+  "production.rulerNamed": "Position de lecture, règle temporelle",
+  "midi.output.title": "Sortie MIDI",
+  "midi.output.voice": "Voix de la partition",
+  "midi.output.hint": "Envoyez la voix sélectionnée de la partition vers un synthétiseur ou un port MIDI virtuel. Canal et programme sont numérotés à partir de 1.",
+  "midi.output.refresh": "Rechercher les sorties MIDI",
+  "midi.output.port": "Sortie",
+  "midi.output.none": "Aucune sortie sélectionnée",
+  "midi.output.channel": "Canal (1–16)",
+  "midi.output.program": "Programme (1–128)",
+  "midi.output.play": "Lire sur la sortie MIDI",
+  "midi.output.panic": "Tout arrêter",
+  "midi.output.error": "La sortie MIDI ne répond pas. Recherchez les sorties et reconnectez le port.",
+  "midi.output.playing": "Lecture sur la sortie MIDI…",
+  "midi.output.empty": "Recherchez les sorties après avoir connecté votre synthétiseur ou votre port virtuel."
 }

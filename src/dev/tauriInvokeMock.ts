@@ -112,6 +112,18 @@ export async function invoke<T>(
   args?: Record<string, unknown>,
 ): Promise<T> {
   switch (cmd) {
+    case "list_midi_outputs":
+    case "connect_midi_output":
+    case "disconnect_midi_output":
+    case "play_midi_output":
+    case "panic_midi_output": {
+      const hook = (globalThis as typeof globalThis & {
+        __captureMidiOutput?: (cmd:string,args?:Record<string,unknown>)=>unknown;
+      }).__captureMidiOutput;
+      if(hook)return await hook(cmd,args) as T;
+      if(cmd==="list_midi_outputs")return [] as T;
+      return undefined as T;
+    }
     case "propose_qwen_mix": {
       const hook = (globalThis as typeof globalThis & {
         __captureQwenMix?: (args?: Record<string, unknown>) => unknown;
