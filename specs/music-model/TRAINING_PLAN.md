@@ -1,15 +1,17 @@
 # Données, entraînement et ressources
 
-**Version :** 0.1 — plan de recherche proposé, 1er octobre 2026.<br>
+**Version :** 0.2 — plan de recherche, pilote à adaptateurs confirmé, 1er octobre 2026.<br>
 **Contrat associé :** [MODEL_SPEC.md](MODEL_SPEC.md). Instrumental et chant font partie de la V1 complète.
 
 ## 1. Stratégie de départ
 
-Développer un système composé d'un planificateur musical/vocal et d'un générateur audio multipiste conditionnel. Commencer par réutiliser des encodeurs et codecs évalués ; comparer l'adaptation d'un générateur existant à l'entraînement d'un générateur multipiste dédié.
+Développer un système composé d'un planificateur musical/vocal et d'un générateur audio multipiste conditionnel. Le pilote retient un **générateur latent partagé de type Diffusion Transformer avec 2 à 4 petits adaptateurs spécialisés**. Réutiliser des encodeurs, un codec et des poids évalués, geler initialement codec/base et entraîner les adaptateurs et les nouveaux conditionnements nécessaires. Un générateur multipiste dédié reste une expérience ultérieure si l'adaptation ne satisfait pas le contrat.
 
 Un LoRA de style ne suffit pas à créer une nouvelle capacité d'entrée MIDI, une topologie multipiste ou une garantie d'inpainting. Ces capacités exigent une représentation, des données, des interfaces de conditionnement et des objectifs d'entraînement adaptés.
 
 La décision entre adaptation et entraînement dédié dépend de trois preuves : fidélité aux événements symboliques, génération vocale intelligible et génération de parties isolées cohérentes. Un excellent mix stéréo seul ne répond pas à ces preuves.
+
+La première campagne est plafonnée à moins de 500 €, avec une enveloppe proposée de 470 € hors développement, et conserve la possibilité commerciale. Le [plan de coût](LOW_COST_PLAN.md) précise données, calcul et stockage. Le MoE complet n'est pas financé comme un livrable garanti de cette campagne : son étude est conditionnée au résultat du pilote.
 
 ## 2. Corpus nécessaires
 
@@ -28,7 +30,9 @@ Chaque exemple contient un masque de disponibilité des annotations. Une note ab
 | Source | Ce qu'elle peut apporter | Action avant inclusion |
 |---|---|---|
 | [Slakh2100-redux, publication des auteurs](https://zenodo.org/records/4599666) | Parties synthétiques et MIDI aligné ; démarrage instrumental reproductible | Utiliser la version dédupliquée, exclure `omitted`, vérifier les œuvres apparentées et consigner la version |
-| [GTSinger, dépôt des auteurs](https://github.com/AaronZ345/GTSinger) | Chant, annotations temporelles et MusicXML ; français/anglais présents | Relever les conditions exactes, vérifier alignements, couverture linguistique et séparation des chanteurs/œuvres |
+| [GTSinger, dépôt des auteurs](https://github.com/AaronZ345/GTSinger) | Référence technique de chant annoté et MusicXML ; français/anglais présents | Licence CC BY-NC-SA 4.0 : exclu de la campagne commerciale sans accord distinct, selon la [licence officielle](https://github.com/AaronZ345/GTSinger/blob/main/dataset_license.md) |
+| Banques VCSL / VSCO 2 CE et compositions originales | Rendus par instrument, MIDI et notation alignés | Inventaire CC0, banques/recettes versionnées, diversité et qualité vérifiées ; protocole dans [LOW_COST_PLAN.md](LOW_COST_PLAN.md) |
+| VocalSet et prises vocales originales | Timbre, F0, techniques et petit corpus de paroles chantées | Vérifier attribution CC BY 4.0 de VocalSet et autorisations des prises ; les vocalises ne valent pas un corpus complet de paroles FR/EN |
 | Sessions de musiciens partenaires | Pistes de studio réelles, prises, partitions, paroles et variations d'interprétation | Collecter les sources et les autorisations d'usage prévues pour données, voix, paroles et publication |
 | Rendus de compositions maîtrisées | Notes et pistes isolées à grande échelle, différents instruments et tempi | Contrôler les droits des compositions, banques sonores, rendus et redistribution |
 | Corpus audio/textuels réutilisables | Couverture des styles et du timbre | Qualifier chaque source ; ne pas assimiler accès public et autorisation d'entraînement/publication |
@@ -45,7 +49,7 @@ Les conditions de réutilisation sont enregistrées séparément pour code, poid
 
 ### 2.4 Corpus pilote proposé
 
-Les volumes suivants sont des objectifs de préparation, à réviser après inventaire ; ils ne décrivent pas des données déjà possédées.
+Les volumes suivants sont des objectifs de préparation, à réviser après inventaire ; ils ne décrivent pas des données déjà possédées. La campagne économique commence par 500 compositions de 90 s et quatre rendus, soit 12,5 h de compositions indépendantes et 50 h de rendus. Les 20–50 h vocales visées dans cette campagne incluent du synthétique filtré/pseudo-annoté ; seules les annotations vérifiées activent les pertes correspondantes. Le [plan de coût](LOW_COST_PLAN.md) distingue cette première disponibilité des cibles de supervision ci-dessous.
 
 | Ensemble | Cible initiale | Finalité |
 |---|---|---|
@@ -150,6 +154,8 @@ Reporter les résultats séparément FR/EN, instrumental/chant, notes fournies/e
 | Conditions audio + symboles vs chacune seule | La multimodalité améliore-t-elle le résultat sur des tâches appariées ? |
 | Vrai multipiste vs pseudo-stems séparés | Quel effet sur l'isolation, le timbre et les fuites instrumentales ? |
 | Adaptation préentraînée vs générateur dédié | Quel investissement est nécessaire pour satisfaire le contrat ? |
+| Adaptateur unique vs 2 puis 4 adaptateurs routés | La spécialisation améliore-t-elle chant et instruments à coût comparable ? |
+| Routage explicite vs routage appris, après le pilote | Le routeur apporte-t-il un gain sans instabilité de timbre ni expert délaissé ? |
 | Plan vocal explicite vs paroles seules | Quel effet sur intelligibilité, notes, mélismes et placement ? |
 | Contexte global vs fenêtres indépendantes | Les motifs, sections et voix restent-ils cohérents sur 240 s ? |
 
@@ -159,13 +165,35 @@ Avant tout usage de poids externes, fixer leur révision, le codec, la liste de 
 
 Utiliser plusieurs seeds d'entraînement lorsque le budget le permet, au minimum trois seeds d'échantillonnage pour la validation comparative, mêmes cas et écoute aveugle. Rapporter dispersion et intervalles de confiance ; une démo réussie ne suffit pas à choisir l'architecture.
 
+### 7.1 Pilote à adaptateurs et décision MoE
+
+Ordre des expériences : base préentraînée sans adaptation, adaptateur unique, deux adaptateurs spécialisés, puis quatre uniquement si données et budget le permettent. Le pilote vise 20–30 s avec chant FR/EN et instrumental. Il réutilise les tâches réellement supportées par le checkpoint ; les nouvelles entrées symboliques et pistes sont prototypées et évaluées séparément, sans les attribuer à la seule spécialisation des adaptateurs.
+
+Pour les variantes adaptées, fixer la même base, le même codec, les mêmes conditions, tâches, groupes de données et distributions de durée/pistes. Ajuster les rangs pour rapprocher le budget total de paramètres entraînables, puis comparer sous une enveloppe de calcul identique, préparation et évaluations comprises. Déclarer les différences résiduelles de paramètres, données effectivement parcourues et mises à jour ; un même nombre d'époques ne suffit pas à établir un coût comparable.
+
+Le routage initial sélectionne au maximum un adaptateur spécialisé par unité disponible, selon le rôle musical, avec chemin commun pour les rôles non couverts. La sélection est fixe pendant les étapes de génération de l'unité ; la politique et les éventuels changements entre fenêtres sont enregistrés. Les données vocales ne sont pas noyées dans les rendus instrumentaux : reporter exemples et heures indépendantes par rôle, tâches et qualité d'annotation, et équilibrer les lots sur ces dimensions. Une spécialisation sans données suffisantes est regroupée ou laissée au chemin commun.
+
+Les branches gardent plan musical/vocal, chronologie, attention entre pistes et garanties de masque communs. L'entraînement sur des pistes natives est distingué de celui sur des estimations séparées. Le rôle utilisé pour router doit être disponible à l'inférence et ne provient pas d'une cible réservée au test.
+
+Le rapport compare fidélité aux notes, paroles FR/EN, isolation, cohérence entre pistes, timbre et frontières d'inpainting. Il inclut temps par mise à jour, RTF, pic VRAM/RAM, paramètres totaux/entraînables/actifs, stockage des adaptateurs et coût réel. Les distributions d'utilisation sont publiées par rôle/tâche ; une répartition uniforme entre experts n'est pas supposée optimale.
+
+Le passage au routage appris, puis au remplacement de blocs internes par un **MoE complet**, exige :
+
+1. Un gain de qualité sur un critère primaire fixé avant comparaison, à coût comparable, avec dispersion et écoute aveugle ; un résultat indécidable impose de conserver la référence.
+2. Aucune régression au-delà des tolérances fixées sur validation pour chant, notes, isolation, cohérence et raccords ; les invariants techniques restent intégralement bloquants.
+3. Des ressources mesurées compatibles avec le profil visé et des données suffisantes pour les experts retenus.
+
+Un routeur appris sera comparé au routage explicite avant extension : surveiller concentration excessive des sélections, experts jamais entraînés et changements audibles entre fenêtres. La spécialisation par tâche ou niveau de bruit est une ablation ultérieure ; elle n'est pas activée d'avance dans le pilote. Un échec de ce passage ne bloque pas la V1 si la base partagée satisfait son contrat.
+
+Les articles [DiT-MoE](https://arxiv.org/abs/2407.11633) et [Diff-MoE](https://proceedings.mlr.press/v267/cheng25d.html) motivent les experts internes sur images ; [UniMoE-Audio](https://arxiv.org/abs/2510.13344) motive l'étude des conflits parole/musique. Aucun de ces résultats ne remplace l'évaluation musicale multipiste de ce protocole.
+
 ## 8. Ressources et budget à mesurer
 
 ### 8.1 Profils de modèles candidats
 
 Hypothèse de recherche : planificateur compact de quelques centaines de millions de paramètres ; générateur audio entre environ 0,6 et 2 milliards. La taille du codec et d'une éventuelle branche vocale doit être comptée séparément. Ces valeurs servent à établir une matrice d'expériences ; elles ne sont pas une exigence finale.
 
-Un système plus grand déjà préentraîné peut servir de baseline et un système plus petit peut satisfaire des tâches ciblées. Publier le nombre total de paramètres et le nombre entraînable ; « LoRA » ne décrit pas la mémoire d'inférence de son modèle de base.
+Un système plus grand déjà préentraîné peut servir de baseline et un système plus petit peut satisfaire des tâches ciblées. Publier le nombre total de paramètres, le nombre entraînable et le nombre actif par unité ; « LoRA » ne décrit pas la mémoire d'inférence de son modèle de base. Pour le pilote à 2–4 adaptateurs, compter tous les adaptateurs résidents, leur chargement et le routage. Pour un MoE complet, compter tous les experts, les états d'optimisation et les échanges : peu de paramètres actifs ne garantit pas moins de mémoire ni moins d'étapes de diffusion.
 
 ### 8.2 Entraînement
 
@@ -201,15 +229,16 @@ La compression et quantification des poids sont étudiées après validation de 
 |---|---|---|
 | J0 — contrats et corpus | Représentation, convertisseurs, masques, données pilotes | Round-trip musical, provenance et splits contrôlés |
 | J1 — codecs et baselines | Reconstructions instrumentales/vocales, modèles de référence | Rapport de qualité, délais et limites de représentation |
+| J1A — adaptation partagée | Adaptateur unique puis 2–4 spécialisés, routage explicite, base/codec initialement gelés | Comparaison qualité/coût et ressources ; choix documenté, décision sur la suite MoE selon §7.1 |
 | J2 — preuve instrumentale et vocale | Extraits de 20–30 s avec notes/paroles, plusieurs pistes | Mix, pistes isolées, MusicXML/MIDI et mesures alignées sur les mêmes résultats |
 | J3 — éditions | Inpainting voix/instruments, cover, variante, accompagnement | Conservation exacte, invariants vérifiés, modifications perceptibles |
 | J4 — V1 complète | Généralisation, FR/EN, 10–240 s, jusqu'à 8 pistes | Passage des critères [ACCEPTANCE_TESTS.md](ACCEPTANCE_TESTS.md) sur jeux réservés |
 | J5 — intégration | Provider Song Maker, versions, imports/exports réels | Parcours desktop complet, restauration et export réimporté |
 
-J2 doit inclure du chant ; le repousser après J4 contredirait le périmètre confirmé. Un échec vocal, une mauvaise isolation ou des exports symboliques incohérents bloque le passage plutôt que d'être masqué par la qualité du mix.
+J1A et J2 doivent inclure du chant ; le repousser après J4 contredirait le périmètre confirmé. J1A peut évaluer des capacités partielles du checkpoint réutilisé ; il ne valide pas à lui seul le contrat multipiste de J2. Un échec vocal, une mauvaise isolation ou des exports symboliques incohérents bloque le passage plutôt que d'être masqué par la qualité du mix.
 
 ## 10. Livrables de recherche
 
-Inventaire des données, conditions de réutilisation, rapport de déduplication, schéma d'alignement, configurations d'expérience, checkpoints, métriques par tâche, cas d'échec, extraits écoutables, ablations et fiche de ressources.
+Inventaire des données, conditions de réutilisation, rapport de déduplication, schéma d'alignement, configurations d'expérience, checkpoints/adaptateurs et politique de routage, métriques par tâche, cas d'échec, extraits écoutables, ablations et fiche de ressources. Inclure la comparaison adaptateur unique / 2–4 adaptateurs, leurs heures indépendantes par rôle et la décision motivée sur le MoE.
 
 La model card finale expose les langues, instruments, durées et modes évalués, les écarts de fidélité, les limites de transcription, le matériel testé, les conditions de réutilisation et les références de formation. Le résultat de chaque jalon doit être reproductible sans dépendre d'un exemple choisi à la main.

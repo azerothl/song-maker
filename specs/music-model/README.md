@@ -1,6 +1,6 @@
 # Modèle musical multimodal — dossier de spécifications
 
-**Version :** 0.1 — proposition de conception<br>
+**Version :** 0.2 — proposition de conception, choix du pilote confirmé<br>
 **Date :** 1er octobre 2026<br>
 **Périmètre confirmé :** instrumental et chant dès la première version.
 
@@ -16,6 +16,7 @@ Ce dossier décrit un **nouveau modèle à développer**. Il ne décrit pas des 
 |---|---|
 | [MODEL_SPEC.md](MODEL_SPEC.md) | Usages, formats, modes, représentation musicale, architecture, API et intégration Song Maker |
 | [TRAINING_PLAN.md](TRAINING_PLAN.md) | Corpus, alignement, entraînement instrumental et vocal, choix de modèles, calcul et jalons |
+| [LOW_COST_PLAN.md](LOW_COST_PLAN.md) | Première campagne sous 500 €, données compatibles avec la possibilité commerciale, calcul et stockage |
 | [ACCEPTANCE_TESTS.md](ACCEPTANCE_TESTS.md) | Critères de livraison, mesures musicales et audio, scénarios de validation réelle |
 | [Exemple de génération](examples/generate.request.json) | Texte + paroles → chanson, pistes, partition et MIDI |
 | [Exemple d'inpainting](examples/inpaint.request.json) | Remplacer une région d'une piste sans modifier les régions protégées |
@@ -30,6 +31,10 @@ Ce dossier décrit un **nouveau modèle à développer**. Il ne décrit pas des 
 5. **Retouches avec protection explicite.** Le masque indique les pistes et intervalles modifiables. La conservation exacte hors masque est assurée sur le PCM de référence par l'assemblage final, puis vérifiée.
 6. **Cover et variante définies par des invariants.** L'utilisateur choisit ce qui doit rester identique et ce qui peut changer.
 7. **Entraînement et inférence séparés.** Une exécution locale est une cible ; le matériel d'entraînement et les ressources nécessaires seront déterminés par profilage.
+8. **Diffusion partagée pour le pilote.** Réutiliser un générateur latent de type Diffusion Transformer, avec un objectif de diffusion ou de flow matching fixé par expérience, et tester **2 à 4 petits adaptateurs spécialisés**. Le plan musical/vocal et l'attention entre pistes restent communs ; cette décision ne suppose pas que le checkpoint réutilisé génère déjà des pistes natives.
+9. **Routage explicite avant routage appris.** Au maximum un adaptateur spécialisé est sélectionné par unité de génération, selon le rôle musical. Le choix reste stable pendant la génération de cette unité ; un rôle sans spécialisation utilise le chemin commun documenté. La granularité piste/fenêtre dépend des capacités réellement implémentées.
+10. **MoE complet conditionnel.** Le remplacement de blocs internes par des experts routés n'est pas requis pour le pilote ni pour la V1. Il est étudié après comparaison avec un adaptateur unique, si un gain de qualité à coût comparable est mesuré sans régression sur chant, notes, isolation ou inpainting.
+11. **Première campagne inférieure à 500 €.** L'enveloppe proposée est de 470 €, hors développement ; données et poids de départ doivent conserver la possibilité d'un usage commercial. Elle couvre un pilote et ses adaptations, sans garantir l'entraînement de la V1 complète.
 
 ## Périmètre V1 proposé
 
@@ -68,10 +73,12 @@ Sources primaires consultées le 1er octobre 2026. Elles motivent les options de
 | [SongGen — dépôt des auteurs](https://github.com/LiuZH-19/SongGen) | Génération chantée et modes mix/voix-accompagnement séparés | Deux pistes voix/accompagnement ne suffisent pas aux pistes par instrument |
 | [ACE-Step 1.5 — dépôt officiel](https://github.com/ace-step/ACE-Step-1.5), [releases](https://github.com/ace-step/ACE-Step-1.5/releases) | Référence à comparer pour chant, cover, repaint et variantes ; fonctionnalités dépendantes du checkpoint | Le checkpoint et sa liste réelle de tâches doivent être fixés avant comparaison ; les exports cohérents partition/MIDI font l'objet de notre contrat propre |
 | [Slakh2100-redux — dépôt des auteurs sur Zenodo](https://zenodo.org/records/4599666) | Audio multipiste synthétique et MIDI aligné ; attention explicite aux doublons entre splits | Les rendus synthétiques ne couvrent pas le chant ni le réalisme des enregistrements de studio |
-| [GTSinger — dépôt des auteurs](https://github.com/AaronZ345/GTSinger) | Corpus de chant avec audio, annotations temporelles et MusicXML, incluant français et anglais | Corpus spécialisé de chant ; conditions de réutilisation à relever avant inclusion |
+| [GTSinger — dépôt des auteurs](https://github.com/AaronZ345/GTSinger) | Référence de chant avec annotations temporelles et MusicXML, incluant français et anglais | CC BY-NC-SA 4.0 ; exclu de la campagne visant la possibilité commerciale sans accord distinct |
+| [DiT-MoE — article](https://arxiv.org/abs/2407.11633), [Diff-MoE — article ICML](https://proceedings.mlr.press/v267/cheng25d.html) | Experts internes et spécialisation selon les étapes de génération | Résultats sur images ; aucune preuve directe du contrat musical multipiste ni d'une économie sur notre matériel |
+| [UniMoE-Audio — article](https://arxiv.org/abs/2510.13344) | Experts partagés/spécialisés et entraînement équilibré parole/musique | Parole et musique ne valident pas à elles seules chant FR/EN, pistes natives, partitions et inpainting exact |
 
 ## Points à trancher après les premières expériences
 
-Le budget GPU, le volume de données réellement accessible, les poids réutilisables, la licence des futurs poids, le moteur de rendu de partition et les seuils musicaux définitifs restent à choisir. Le dossier fixe les contrats pour que ces choix puissent être comparés sur les mêmes tâches.
+Le budget de première campagne et le choix du pilote sont fixés ci-dessus. Le volume réellement accessible, les révisions de poids, la licence exacte des futurs poids permettant l'usage commercial, le moteur de rendu de partition, les seuils musicaux et l'intérêt d'un routage appris restent à établir. Le dossier fixe les contrats pour comparer ces choix sur les mêmes tâches.
 
 Le premier travail concret est un corpus pilote aligné **audio multipiste + notes + paroles**, suivi d'une expérience instrumentale et vocale de 20 à 30 secondes. L'objectif est de vérifier la faisabilité des sorties cohérentes avant d'investir dans un entraînement long.
