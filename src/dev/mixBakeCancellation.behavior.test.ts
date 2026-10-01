@@ -1,16 +1,12 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { startCaptureViteServer, stopCaptureViteServer } from "./captureViteServer";
 import { it } from "node:test";
 import { chromium } from "playwright";
 
 it("real browser workers: superseded renders abort and the final PCM matches sync DSP (#256)",
   { timeout: 60000 }, async () => {
-    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
     const base = "http://127.0.0.1:5226";
-    const server = spawn(process.execPath, [path.join(root, "node_modules/vite/bin/vite.js"),
-      "--host", "127.0.0.1", "--port", "5226", "--strictPort"], { cwd: root, stdio: "ignore" });
+    const server = await startCaptureViteServer(5226);
     const browser = await chromium.launch();
     try {
       const deadline = Date.now() + 20000;
@@ -50,5 +46,5 @@ it("real browser workers: superseded renders abort and the final PCM matches syn
       assert.deepEqual(result.aborted, Array(6).fill("AbortError"));
       assert.equal(result.equal, true);
       assert.ok(result.frames > 0);
-    } finally { await browser.close(); server.kill(); }
+    } finally { await browser.close(); await stopCaptureViteServer(server); }
   });

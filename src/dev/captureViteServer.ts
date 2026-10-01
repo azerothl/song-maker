@@ -12,6 +12,8 @@ export async function startCaptureViteServer(
   process.env.VITE_CAPTURE = "1";
   const server = await createServer({
     configFile: path.join(ROOT, "vite.config.ts"),
+    // Concurrent test servers must not invalidate each other's optimized deps.
+    cacheDir: path.join(ROOT, "node_modules/.vite", `capture-${port}`),
     server: { host: "127.0.0.1", port, strictPort: true },
     env: { ...process.env, VITE_CAPTURE: "1" },
     logLevel: "error",

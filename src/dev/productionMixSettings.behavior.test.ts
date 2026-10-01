@@ -2,19 +2,17 @@
  * #225 — Échap imbriqué, entrée Clips, clic clip non bloquant.
  */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { startCaptureViteServer, stopCaptureViteServer } from "./captureViteServer";
+import type { ViteDevServer } from "vite";
 import { after, before, describe, it } from "node:test";
 import { chromium, type Browser } from "playwright";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const PORT = 5196;
 const BASE = `http://127.0.0.1:${PORT}/production-capture.html`;
 
 const IT_TIMEOUT_MS = 120_000;
 
-let vite: ReturnType<typeof spawn> | undefined;
+let vite: ViteDevServer | undefined;
 let browser: Browser;
 
 async function waitServer(url: string): Promise<void> {
@@ -31,32 +29,29 @@ async function waitServer(url: string): Promise<void> {
 }
 
 before(async () => {
-  vite = spawn(
-    process.execPath,
-    [path.join(ROOT, "node_modules/vite/bin/vite.js"), "--host", "127.0.0.1", "--port", String(PORT), "--strictPort"],
-    {
-      cwd: ROOT,
-      stdio: "ignore",
-      env: { ...process.env, VITE_CAPTURE: "1" },
-    },
-  );
+  vite = await startCaptureViteServer(PORT);
   await waitServer(BASE);
   browser = await chromium.launch();
 });
 
 after(async () => {
   await browser?.close();
-  vite?.kill("SIGTERM");
+  if (vite) await stopCaptureViteServer(vite);
 });
 
 describe("production mix settings comportement (#225)", () => {
   it("EN: mounted popover and Clips controls expose translated accessible names (#255)",
     { timeout: IT_TIMEOUT_MS }, async () => {
       const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+      const pageErrors: string[] = [];
+      page.on("pageerror", error => pageErrors.push(error.message));
       try {
         await page.addInitScript(() => localStorage.setItem("song-maker.locale", "en"));
         await page.goto(`${BASE}#view-clips-16`, { waitUntil: "networkidle" });
         const trigger = page.getByTestId("production-mix-settings-trigger-clips");
+        await trigger.waitFor({ timeout: 10000 }).catch(error => {
+          assert.fail(`${String(error)}; page errors: ${pageErrors.join("; ")}`);
+        });
         assert.equal(await trigger.textContent(), "Mix settings");
         const bar = page.locator(".clip-timeline-tools");
         assert.equal(await bar.getByRole("checkbox", { name: "Snap to musical grid", exact: true }).count(), 1);
