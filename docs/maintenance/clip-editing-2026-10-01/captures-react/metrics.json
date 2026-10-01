@@ -1,0 +1,458 @@
+[
+  {
+    "filename": "palette-select-fr-1280.png",
+    "locale": "fr",
+    "width": 1280,
+    "height": 720,
+    "tool": "select",
+    "states": [
+      {
+        "label": "✓Sélection",
+        "pressed": "true",
+        "width": 113.421875,
+        "height": 44,
+        "tabIndex": "0",
+        "check": "✓",
+        "decoration": "underline"
+      },
+      {
+        "label": "Découper",
+        "pressed": "false",
+        "width": 117.9375,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "Fondu",
+        "pressed": "false",
+        "width": 93.90625,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      }
+    ],
+    "sha256": "8a368b3c6da06a5ed73a796170375ab0ba7eff083c81d9dfeaa1e366e77c2e30",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "palette-split-fr-1280.png",
+    "locale": "fr",
+    "width": 1280,
+    "height": 720,
+    "tool": "split",
+    "states": [
+      {
+        "label": "Sélection",
+        "pressed": "false",
+        "width": 113.421875,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "✓Découper",
+        "pressed": "true",
+        "width": 117.9375,
+        "height": 44,
+        "tabIndex": "0",
+        "check": "✓",
+        "decoration": "underline"
+      },
+      {
+        "label": "Fondu",
+        "pressed": "false",
+        "width": 93.90625,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      }
+    ],
+    "sha256": "a4f693b2cafd2e141b076fd55b24591e45591848b1e5dbb63dcd2083f11f79e9",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "palette-fade-fr-1280.png",
+    "locale": "fr",
+    "width": 1280,
+    "height": 720,
+    "tool": "fade",
+    "states": [
+      {
+        "label": "Sélection",
+        "pressed": "false",
+        "width": 113.421875,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "Découper",
+        "pressed": "false",
+        "width": 117.9375,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "✓Fondu",
+        "pressed": "true",
+        "width": 93.90625,
+        "height": 44,
+        "tabIndex": "0",
+        "check": "✓",
+        "decoration": "underline"
+      }
+    ],
+    "sha256": "6dd8eb28106818e71b3d0057cc7c235e8c5199a2730dbfd4ce7c3f3c07bf15f4",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "palette-select-fr-640.png",
+    "locale": "fr",
+    "width": 640,
+    "height": 720,
+    "tool": "select",
+    "states": [
+      {
+        "label": "✓Sélection",
+        "pressed": "true",
+        "width": 113.421875,
+        "height": 44,
+        "tabIndex": "0",
+        "check": "✓",
+        "decoration": "underline"
+      },
+      {
+        "label": "Découper",
+        "pressed": "false",
+        "width": 117.9375,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "Fondu",
+        "pressed": "false",
+        "width": 93.90625,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      }
+    ],
+    "sha256": "dde6a0128bafc58b2e5069b81de8247456951f050dae63c96dd472981cbabc2a",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "palette-split-fr-640.png",
+    "locale": "fr",
+    "width": 640,
+    "height": 720,
+    "tool": "split",
+    "states": [
+      {
+        "label": "Sélection",
+        "pressed": "false",
+        "width": 113.421875,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "✓Découper",
+        "pressed": "true",
+        "width": 117.9375,
+        "height": 44,
+        "tabIndex": "0",
+        "check": "✓",
+        "decoration": "underline"
+      },
+      {
+        "label": "Fondu",
+        "pressed": "false",
+        "width": 93.90625,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      }
+    ],
+    "sha256": "fbed2de803deb9e4becfdceb25256d2ed520e1d7cb4ee18be77b8c11b66d4f31",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "palette-fade-fr-640.png",
+    "locale": "fr",
+    "width": 640,
+    "height": 720,
+    "tool": "fade",
+    "states": [
+      {
+        "label": "Sélection",
+        "pressed": "false",
+        "width": 113.421875,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "Découper",
+        "pressed": "false",
+        "width": 117.9375,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "✓Fondu",
+        "pressed": "true",
+        "width": 93.90625,
+        "height": 44,
+        "tabIndex": "0",
+        "check": "✓",
+        "decoration": "underline"
+      }
+    ],
+    "sha256": "7eceba96301f4f157e228c898f150b2e77c9c22e8b51b239f4d813f2d2a979cb",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "palette-select-en-1280.png",
+    "locale": "en",
+    "width": 1280,
+    "height": 720,
+    "tool": "select",
+    "states": [
+      {
+        "label": "✓Select",
+        "pressed": "true",
+        "width": 91.109375,
+        "height": 44,
+        "tabIndex": "0",
+        "check": "✓",
+        "decoration": "underline"
+      },
+      {
+        "label": "Split",
+        "pressed": "false",
+        "width": 80.265625,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "Fade",
+        "pressed": "false",
+        "width": 82.390625,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      }
+    ],
+    "sha256": "d542503a82bccac2ddf817a24dee36cbb61a4a57181c4b5050ffbefbb61be1e3",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "palette-split-en-1280.png",
+    "locale": "en",
+    "width": 1280,
+    "height": 720,
+    "tool": "split",
+    "states": [
+      {
+        "label": "Select",
+        "pressed": "false",
+        "width": 91.109375,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "✓Split",
+        "pressed": "true",
+        "width": 80.265625,
+        "height": 44,
+        "tabIndex": "0",
+        "check": "✓",
+        "decoration": "underline"
+      },
+      {
+        "label": "Fade",
+        "pressed": "false",
+        "width": 82.390625,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      }
+    ],
+    "sha256": "aaebc9388e4e85b0411d79d9af4d6a5fdedd3f1dfd863558e3b05e296e1a538e",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "palette-fade-en-1280.png",
+    "locale": "en",
+    "width": 1280,
+    "height": 720,
+    "tool": "fade",
+    "states": [
+      {
+        "label": "Select",
+        "pressed": "false",
+        "width": 91.109375,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "Split",
+        "pressed": "false",
+        "width": 80.265625,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "✓Fade",
+        "pressed": "true",
+        "width": 82.390625,
+        "height": 44,
+        "tabIndex": "0",
+        "check": "✓",
+        "decoration": "underline"
+      }
+    ],
+    "sha256": "3bb5fb5d007d9292684c566b3ebda7db64895b4259c1d3b662613c52b92214b5",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "palette-select-en-640.png",
+    "locale": "en",
+    "width": 640,
+    "height": 720,
+    "tool": "select",
+    "states": [
+      {
+        "label": "✓Select",
+        "pressed": "true",
+        "width": 91.109375,
+        "height": 44,
+        "tabIndex": "0",
+        "check": "✓",
+        "decoration": "underline"
+      },
+      {
+        "label": "Split",
+        "pressed": "false",
+        "width": 80.265625,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "Fade",
+        "pressed": "false",
+        "width": 82.390625,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      }
+    ],
+    "sha256": "4ab275e37b8347c763f27fa8dda43edd822082ab116dc876601d82fd8b8856b3",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "palette-split-en-640.png",
+    "locale": "en",
+    "width": 640,
+    "height": 720,
+    "tool": "split",
+    "states": [
+      {
+        "label": "Select",
+        "pressed": "false",
+        "width": 91.109375,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "✓Split",
+        "pressed": "true",
+        "width": 80.265625,
+        "height": 44,
+        "tabIndex": "0",
+        "check": "✓",
+        "decoration": "underline"
+      },
+      {
+        "label": "Fade",
+        "pressed": "false",
+        "width": 82.390625,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      }
+    ],
+    "sha256": "17359ae57f75f3fcd49c9dc4d8c503270174f945369bafdf6b5cf0f85314fb60",
+    "evidence": "React Chromium fixture; not native Tauri"
+  },
+  {
+    "filename": "palette-fade-en-640.png",
+    "locale": "en",
+    "width": 640,
+    "height": 720,
+    "tool": "fade",
+    "states": [
+      {
+        "label": "Select",
+        "pressed": "false",
+        "width": 91.109375,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "Split",
+        "pressed": "false",
+        "width": 80.265625,
+        "height": 44,
+        "tabIndex": "-1",
+        "check": "",
+        "decoration": "none"
+      },
+      {
+        "label": "✓Fade",
+        "pressed": "true",
+        "width": 82.390625,
+        "height": 44,
+        "tabIndex": "0",
+        "check": "✓",
+        "decoration": "underline"
+      }
+    ],
+    "sha256": "bd9a008bae6f4dddf741c6fb9ab33b048c2f14e5c48b974fee541156b5882606",
+    "evidence": "React Chromium fixture; not native Tauri"
+  }
+]

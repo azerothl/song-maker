@@ -93,9 +93,10 @@ describe("Production commune (#223, #230)", () => {
       assert.ok(Number(await page.locator(".clip-ruler").getAttribute("aria-valuenow")) > 0);
     } finally { await page.close(); }
   });
-  it("editing tools switch by keyboard and Cut selects the created clip", async () => {
+  it("editing tools switch by keyboard and Split selects the created clip", async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     try {
+      await page.addInitScript(()=>localStorage.setItem("song-maker.locale","en"));
       await page.goto(BASE, { waitUntil: "networkidle" });
       await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
       const toolbar = page.locator(".clip-edit-toolbar");
@@ -103,6 +104,12 @@ describe("Production commune (#223, #230)", () => {
       await buttons.first().focus();
       await page.keyboard.press("ArrowRight");
       assert.equal(await buttons.nth(1).getAttribute("aria-pressed"), "true");
+      assert.equal(await buttons.nth(1).locator("span").last().innerText(),"Split");
+      assert.equal(await buttons.nth(1).locator(".clip-edit-tool-check").innerText(),"✓");
+      assert.equal(await buttons.nth(1).getAttribute("tabindex"),"0");
+      assert.equal(await buttons.first().getAttribute("tabindex"),"-1");
+      assert.equal(await buttons.first().locator(".clip-edit-tool-check").innerText(),"");
+      assert.match(await buttons.nth(1).evaluate(el=>getComputedStyle(el).textDecorationLine),/underline/);
       assert.equal(await buttons.nth(1).evaluate(el => el === document.activeElement), true);
       const count = await page.locator(".clip-block").count();
       await page.locator(".clip-block").first().click();
