@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AceStepModelSettings } from "../components/AceStepModelSettings";
 import { LoraTrainingPanel } from "../components/LoraTrainingPanel";
 import { Phase3SettingsPanel } from "../components/Phase3SettingsPanel";
 import { Phase4SettingsPanel } from "../components/Phase4SettingsPanel";
@@ -265,6 +266,7 @@ export function SettingsScreen() {
             </div>
           </div>
           <p className="hint">{t("settings.pack.confirm")}</p>
+          <AceStepModelSettings />
         </section>
       )}
 

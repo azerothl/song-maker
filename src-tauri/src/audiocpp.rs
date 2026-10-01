@@ -1,7 +1,9 @@
 //! Client HTTP du serveur audio.cpp (process Tauri, pas la webview).
 
 use crate::models::AppSettings;
-use crate::paths::{binaries_dir, htdemucs_path, pinned_archive_name, yue2_dir};
+use crate::paths::{
+    ace_step_weights_path, binaries_dir, htdemucs_path, pinned_archive_name, yue2_dir,
+};
 use crate::pins::*;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -111,6 +113,18 @@ impl AudioCppServer {
                 "family": "sheetsage2",
                 "path": sheetsage_path.display().to_string(),
                 "task": "midi",
+                "mode": "offline",
+                "busy_timeout_ms": YUE2_BUSY_TIMEOUT_MS
+            }));
+        }
+        // ACE-Step Turbo BF16 is opt-in and only registered after the pinned file is present.
+        if crate::paths::ace_step_weights_present(&cache) {
+            let ace_step_path = ace_step_weights_path(&cache);
+            models.push(json!({
+                "id": "ace_step",
+                "family": "ace_step",
+                "path": ace_step_path.display().to_string(),
+                "task": "gen",
                 "mode": "offline",
                 "busy_timeout_ms": YUE2_BUSY_TIMEOUT_MS
             }));

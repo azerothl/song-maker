@@ -118,6 +118,16 @@ pub const SHEETSAGE2_REMOTE: &str = "sheetsage2-orig.gguf";
 /// Exact on-disk size of the pinned GGUF (bytes). Spec §19 / packages/sheetsage.
 pub const SHEETSAGE2_BYTES: u64 = 2_708_224_512;
 
+/// ACE-Step 1.5 Turbo BF16 — opt-in generation model (not in first-build installer).
+pub const ACE_STEP_REPO: &str = "audio-cpp/audio.cpp-gguf";
+pub const ACE_STEP_REVISION: &str = "7bf52723f5a95b6cec53ea905fd10eca1c8b942e";
+pub const ACE_STEP_ORIGIN_REPO: &str = "ACE-Step/Ace-Step1.5";
+pub const ACE_STEP_ORIGIN_REVISION: &str = "19671f406d603126926c1b7e2adc169acbcade22";
+pub const ACE_STEP_GGUF: &str = "ace-step-1.5-turbo-bf16.gguf";
+pub const ACE_STEP_REMOTE: &str = "ACE-Step1.5-GGUF/turbo/ace-step-1.5-turbo-bf16.gguf";
+pub const ACE_STEP_SHA: &str = "93974239a29a1a821b3cc1b1ca7e1c6229b1a900a0e44a1a9770bb2271d2be5f";
+pub const ACE_STEP_BYTES: u64 = 10_090_398_272;
+
 pub const DEFAULT_STEM_SEPARATOR: &str = "htdemucs";
 
 pub const DEFAULT_HOST: &str = "127.0.0.1";

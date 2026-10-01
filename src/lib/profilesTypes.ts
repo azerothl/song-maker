@@ -6,6 +6,7 @@ export type ProfileSummary = {
   kind: ProfileKind;
   projectCount: number;
   acceptedContractCount: number;
+  acceptedEngineContractIds?: string[];
   isLastUsed: boolean;
   isActive: boolean;
 };

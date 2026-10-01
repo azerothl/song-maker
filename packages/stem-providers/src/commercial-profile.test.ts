@@ -39,19 +39,23 @@ function commercialCopyFrEn(): string[] {
 }
 
 describe("commercial profile availability (#201)", () => {
-  it("lists wired engines from catalog but Commercial stays off without reserved statut", () => {
+  it("lists wired engines and enables Commercial only for the dated ACE-Step reservation", () => {
     const wired = listProductionWiredCommercialEngines();
     expect(wired.length).toBeGreaterThan(0);
     expect(wired.some((w) => w.engineId === "yue2_3b")).toBe(true);
-    expect(isCommercialProfileAvailable()).toBe(false);
+    expect(wired.some((w) => w.engineId === "ace_step_1_5")).toBe(true);
+    expect(isCommercialProfileAvailable()).toBe(true);
+    const ace = buildCommercialEngineList().find((entry) => entry.engine.id === "ace_step_1_5");
+    expect(ace?.availability).toBe("reserved");
+    expect(ace?.licenseRow?.statut).toBe("Disponible avec réserve");
   });
 
   it("presentation fallback defaults to visible (not hidden)", () => {
     expect(COMMERCIAL_CREATION_UI_MODE).toBe("disabled");
   });
 
-  it("shows unavailable reason in production until a wired engine has a dated license row", () => {
-    const state = resolveCommercialCreationState();
+  it("shows unavailable reason when no wired engine has a dated reserved row", () => {
+    const state = resolveCommercialCreationState([], new Map());
     expect(state.activatable).toBe(false);
     expect(state.showUnavailableReason).toBe(true);
   });
@@ -121,7 +125,7 @@ describe("commercial profile availability (#201)", () => {
 
   it("never shows reserved without disponible avec réserve statut", () => {
     const list = buildCommercialEngineList();
-    expect(list.every((e) => e.availability === "grayed")).toBe(true);
+    expect(list.find((e) => e.engine.id === "ace_step_1_5")?.availability).toBe("reserved");
     const fixtureWired: WiredCommercialEngine[] = [
       { engineId: "yue2_3b", licenseDataId: "yue2_3b" },
     ];
@@ -210,8 +214,11 @@ describe("commercial profile availability (#201)", () => {
     expect(s?.grayReason).toBe("weights_unverified");
   });
 
-  it("returns no Commercial create confirm dialog in production (no wired dated engines)", () => {
-    expect(buildCommercialProfileCreationConfirm()).toBeNull();
+  it("discloses the reserved ACE-Step row in the Commercial create confirmation", () => {
+    const dialog = buildCommercialProfileCreationConfirm();
+    expect(dialog).not.toBeNull();
+    expect(dialog!.engineLinesFr.join(" ")).toMatch(/ACE-Step 1\.5 Turbo BF16/);
+    expect(dialog!.engineLinesFr.join(" ")).toMatch(/Disponible avec réserve/);
   });
 
   it("builds engine lines from licence rows when wired with reserved statut", () => {
@@ -244,9 +251,9 @@ describe("commercial profile availability (#201)", () => {
     expect(dialog!.engineLinesFr.join(" ")).not.toMatch(/ACE-Step/i);
   });
 
-  it("catalog excludes ACE-Step", () => {
+  it("catalog includes ACE-Step as an optional reserved generation engine", () => {
     const ids = APP_ENGINE_CATALOG.map((e) => e.id);
-    expect(ids.some((id) => id.toLowerCase().includes("ace"))).toBe(false);
+    expect(ids).toContain("ace_step_1_5");
   });
 
   it("forbidden words absent from commercial profile copy (fr/en)", () => {

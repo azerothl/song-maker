@@ -199,6 +199,7 @@ export type AppSettings = {
   modelPack: string;
   modelGguf: string;
   modelSha256: string;
+  generationEngine?: "yue2" | "ace_step" | string;
   serverHost: string;
   serverPort: number;
   outputDevice?: string | null;
@@ -213,6 +214,8 @@ export type AppSettings = {
   ccByNcAccepted?: boolean;
   /** Consentement distinct au modèle principal YuE2 CC BY-NC 4.0. */
   yue2LicenseAccepted?: boolean;
+  /** Consentement au téléchargement ACE-Step 1.5 optionnel. */
+  aceStepLicenseAccepted?: boolean;
   /** Per-model license checkbox (#167). */
   acceptedSeparatorLicenses?: Record<string, boolean>;
   /** Measured separation rates (#166). */
