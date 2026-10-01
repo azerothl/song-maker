@@ -71,6 +71,7 @@ describe("production mix settings structure (#225)", () => {
       t("mix.density.compact"),
       t("mix.density.confortable"),
       t("production.settings.master"),
+      t("phase3.mix.runLimiterMeter"),
       t("separate.again"),
       t("mix.assist.drawer"),
     ]);

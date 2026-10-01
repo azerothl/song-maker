@@ -13,13 +13,21 @@ type Props = {
   busy: boolean;
   onBusy: (busy: boolean) => void;
   onError: (message: string | null) => void;
+  /** When true, omit outer title (hosted inside ExportDialog package mode). */
+  embedded?: boolean;
 };
 
 /**
- * Portable project package only (#99). Mix / stems export lives in ExportDialog (#168)
- * so there is no second export screen.
+ * Portable project package UI (#99 / #230 p9). Mix / stems stay in ExportDialog;
+ * this panel is the package mode body.
  */
-export function ExportWizard({ project, busy, onBusy, onError }: Props) {
+export function ExportWizard({
+  project,
+  busy,
+  onBusy,
+  onError,
+  embedded = false,
+}: Props) {
   const [plan, setPlan] = useState<PortablePackagePlan | null>(null);
   const [resultPaths, setResultPaths] = useState<string[]>([]);
 
@@ -52,14 +60,19 @@ export function ExportWizard({ project, busy, onBusy, onError }: Props) {
 
   return (
     <section
-      className="export-wizard"
+      className={
+        embedded ? "export-wizard export-wizard-embedded" : "export-wizard"
+      }
       aria-label={t("export.package.title")}
       data-testid="portable-package-panel"
     >
-      <header>
-        <h3>{t("export.package.title")}</h3>
-        <p className="hint">{t("export.package.hint")}</p>
-      </header>
+      {!embedded && (
+        <header>
+          <h3>{t("export.package.title")}</h3>
+          <p className="hint">{t("export.package.hint")}</p>
+        </header>
+      )}
+      {embedded && <p className="hint">{t("export.package.hint")}</p>}
 
       <fieldset disabled={busy}>
         <legend className="sr-only">{t("export.package.title")}</legend>

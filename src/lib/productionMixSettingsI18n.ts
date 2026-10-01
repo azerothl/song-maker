@@ -23,6 +23,7 @@ export function productionMixSettingsUiEnKeys(
     "production.mixSettings.toolsMenu",
     "production.settings.master",
     "production.settings.snap",
+    "phase3.mix.runLimiterMeter",
     "production.separate.disabledBusy",
     "production.separate.disabledNoGeneration",
     "mix.density.group",

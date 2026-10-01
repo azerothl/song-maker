@@ -3,6 +3,7 @@ import { AnchoredPopin } from "../AnchoredPopin";
 import { ProductionTrackSettingsPopin } from "./ProductionTrackSettingsPopin";
 import { ProductionTrackFxLinePopin } from "./ProductionTrackFxLinePopin";
 import { ProductionParametricEqPopin } from "./ProductionParametricEqPopin";
+import { ProductionTrackRoutingPopin } from "./ProductionTrackRoutingPopin";
 import { isPitchCorrectEligibleTrack } from "../../lib/productionState";
 import {
   isTrackAutomationVisible,
@@ -11,7 +12,7 @@ import {
 import type { MixDoc, MixTrack } from "../../lib/types";
 import { t } from "../../ui/i18n";
 
-type TrackTab = "eq" | "fx" | "automation" | "settings";
+type TrackTab = "eq" | "fx" | "automation" | "routing" | "settings";
 
 type Props = {
   track: MixTrack;
@@ -58,8 +59,14 @@ export function ProductionTrackTools({
     { id: "eq", label: t("production.track.tab.eq") },
     { id: "fx", label: t("production.track.tab.fx") },
     { id: "automation", label: t("production.track.tab.automation") },
+    { id: "routing", label: t("production.track.tab.routing") },
     { id: "settings", label: t("production.track.tab.settings") },
   ];
+
+  const title =
+    tab === "routing"
+      ? t("production.routing.popover", { track: track.name })
+      : t("production.track.popover", { track: track.name });
 
   return (
     <>
@@ -86,9 +93,7 @@ export function ProductionTrackTools({
         className="production-track-detail-popin"
       >
         <header className="anchored-popin-header">
-          <h3 id={titleId}>
-            {t("production.track.popover", { track: track.name })}
-          </h3>
+          <h3 id={titleId}>{title}</h3>
           <button type="button" className="btn" onClick={closeAll}>
             {t("production.track.close")}
           </button>
@@ -184,6 +189,16 @@ export function ProductionTrackTools({
               )}
               <p className="hint">{t("production.track.auto.hint")}</p>
             </div>
+          ) : null}
+        </div>
+        <div
+          role="tabpanel"
+          className="production-track-tabpanel"
+          aria-labelledby={`${tablistId}-routing`}
+          hidden={tab !== "routing"}
+        >
+          {tab === "routing" ? (
+            <ProductionTrackRoutingPopin track={track} mix={mix} />
           ) : null}
         </div>
         <div

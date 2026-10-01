@@ -11,7 +11,6 @@ import {
 } from "react";
 import { TruncatedTrackLabel } from "../../components/TruncatedTrackLabel";
 import { ClipTimeline } from "../../components/ClipTimeline";
-import { ExportWizard } from "../../components/ExportWizard";
 import { ExportDialog } from "../../components/ExportDialog";
 import { SeparationRecommendDialog } from "../../components/SeparationRecommendDialog";
 import { EstimatedSeparationMarker } from "../../components/EstimatedSeparationMarker";
@@ -25,7 +24,6 @@ import {
   type ClipEditTool,
 } from "../../components/ClipEditToolbar";
 import { ProductionClipViewControls } from "../../components/ProductionClipViewControls";
-import { Phase3MixPanel } from "../../components/Phase3MixPanel";
 import { ProductionAssistPanel } from "../../components/ProductionAssistPanel";
 import { QwenMixAssistant } from "../../components/QwenMixAssistant";
 import { RecordTrackPanel } from "../../components/RecordTrackPanel";
@@ -890,33 +888,6 @@ export function ProductionWorkspace({
         )}
       </div>
 
-      <details id="production-panel-tools" className="advanced-production production-advanced-disclosure">
-        <summary>{t("production.common.advanced")}</summary>
-        <div
-          className="production-subview-scroll production-tools-scroll"
-          role="region"
-          aria-label={t("production.common.advanced")}
-          tabIndex={0}
-          data-testid="production-tools-scroll"
-        >
-          <Phase3MixPanel
-            mix={mix}
-            sources={playbackSources}
-            tempoBpm={form.tempoBpm}
-            durationMs={
-              form.targetDurationSec != null
-                ? form.targetDurationSec * 1000
-                : (project.targetDurationSec ?? 180) * 1000
-            }
-          />
-          <ExportWizard
-            project={project}
-            busy={busy}
-            onBusy={setBusy}
-            onError={setError}
-          />
-        </div>
-      </details>
       {mix && (
         <>
           <ProductionMixSettingsPopin
@@ -937,6 +908,8 @@ export function ProductionWorkspace({
             }
             onDensityPreference={setDensityPreferencePersist}
             mix={mix}
+            sources={playbackSources}
+            tempoBpm={form.tempoBpm}
             onMasterGainChange={(gainDb, persist) =>
               scheduleMixUpdate(
                 { ...mix, masterGainDb: gainDb },

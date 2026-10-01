@@ -2048,6 +2048,33 @@ option {
   min-width: 0;
 }
 
+.production-track-routing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.production-track-routing-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.production-track-routing-bus-actions {
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.production-mix-settings-loudness {
+  width: 100%;
+  margin-top: 0.65rem;
+}
+
+.production-mix-settings-loudness-result {
+  margin: 0.45rem 0 0;
+  font-size: 0.9rem;
+}
+
 .production-fx-line-row {
   flex-wrap: wrap;
   gap: 4px;
@@ -6563,6 +6590,39 @@ details[open] > summary {
 
 .clip-fade-handle-out {
   transform: translateX(50%);
+}
+
+.clip-selection-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.35rem 0 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg1) 80%, transparent);
+}
+
+.clip-takes-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.clip-takes-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-inline-end: 0.15rem;
+}
+
+.clip-stretch-popin .clip-stretch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.35rem 0.15rem 0.5rem;
 }
 
 .clip-inspector {

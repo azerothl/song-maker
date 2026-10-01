@@ -15,6 +15,7 @@ import {
 } from "../lib/exportOptions";
 import { t } from "../ui/i18n";
 import { AnchoredPopin } from "./AnchoredPopin";
+import { ExportWizard } from "./ExportWizard";
 
 type Props = {
   project: ProjectDoc;
@@ -30,8 +31,7 @@ type Props = {
 };
 
 /**
- * Unified export screen (#168 / #187): format-aware options, sticky footer,
- * sole audio export UI — portable package stays on the Tools panel.
+ * Unified export screen (#168 / #187 / #230 p9): mix, stems, and portable package.
  */
 export function ExportDialog({
   project,
@@ -104,6 +104,7 @@ export function ExportDialog({
   const exportBlockedNotBusy = Boolean(exportDisabledReason) && !busy;
   const showAlignedStems =
     opts.mode === "mix" && mix && sources && opts.format !== "mp3";
+  const isPackageMode = opts.mode === "package";
 
   const onExport = async () => {
     if (stemsExportBlocked) return;
@@ -226,7 +227,26 @@ export function ExportDialog({
               />
               {t("export.dialog.mode.stems")}
             </label>
+            <label>
+              <input
+                type="radio"
+                name="export-mode"
+                checked={opts.mode === "package"}
+                onChange={() => setOpts((o) => ({ ...o, mode: "package" }))}
+              />
+              {t("export.dialog.mode.package")}
+            </label>
           </fieldset>
+
+          {isPackageMode && (
+            <ExportWizard
+              project={project}
+              busy={busy}
+              onBusy={onBusy}
+              onError={onError}
+              embedded
+            />
+          )}
 
           {opts.mode === "mix" && (
             <fieldset disabled={busy} data-testid="export-format-family">
@@ -325,81 +345,98 @@ export function ExportDialog({
             </>
           )}
 
-          <label data-testid="export-pack">
-            {t("export.tracks.pack")}
-            <select
-              value={opts.pack}
-              onChange={(e) =>
-                setOpts((o) => ({
-                  ...o,
-                  pack: e.target.value as ExportPack,
-                }))
-              }
-            >
-              <option value="folder">{t("export.tracks.packFolder")}</option>
-              <option value="zip">{t("export.tracks.packZip")}</option>
-            </select>
-          </label>
+          {!isPackageMode && (
+            <label data-testid="export-pack">
+              {t("export.tracks.pack")}
+              <select
+                value={opts.pack}
+                onChange={(e) =>
+                  setOpts((o) => ({
+                    ...o,
+                    pack: e.target.value as ExportPack,
+                  }))
+                }
+              >
+                <option value="folder">{t("export.tracks.packFolder")}</option>
+                <option value="zip">{t("export.tracks.packZip")}</option>
+              </select>
+            </label>
+          )}
         </div>
 
-        <div className="anchored-popin-footer" data-testid="export-dialog-footer">
-          {exportDisabledReason && (
-            <p
-              id={exportDisabledId}
-              className="hint export-dialog-disabled-reason"
-              role="status"
-              data-testid="export-disabled-reason"
-            >
-              {exportDisabledReason}
-            </p>
-          )}
-          {resultMessage && (
-            <p
-              className="export-dialog-result"
-              role="status"
-              data-testid="export-result"
-            >
-              {resultMessage}
-            </p>
-          )}
-          <div className="export-dialog-actions">
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => setOpen(false)}
-            >
-              {t("export.tracks.cancel")}
-            </button>
-            <div className="export-dialog-actions-end">
-              {showAlignedStems && (
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={busy}
-                  onClick={() => void onExportAligned()}
-                >
-                  {t("export.stems.run")}
-                </button>
-              )}
+        {!isPackageMode && (
+          <div className="anchored-popin-footer" data-testid="export-dialog-footer">
+            {exportDisabledReason && (
+              <p
+                id={exportDisabledId}
+                className="hint export-dialog-disabled-reason"
+                role="status"
+                data-testid="export-disabled-reason"
+              >
+                {exportDisabledReason}
+              </p>
+            )}
+            {resultMessage && (
+              <p
+                className="export-dialog-result"
+                role="status"
+                data-testid="export-result"
+              >
+                {resultMessage}
+              </p>
+            )}
+            <div className="export-dialog-actions">
               <button
                 type="button"
-                className="btn primary"
-                data-testid="export-run"
-                disabled={busy}
-                aria-disabled={exportBlockedNotBusy || undefined}
-                aria-describedby={
-                  exportDisabledReason ? exportDisabledId : undefined
-                }
-                onClick={() => {
-                  if (exportBlockedNotBusy || stemsExportBlocked) return;
-                  void onExport();
-                }}
+                className="btn ghost"
+                onClick={() => setOpen(false)}
               >
-                {t("export.tracks.run")}
+                {t("export.tracks.cancel")}
+              </button>
+              <div className="export-dialog-actions-end">
+                {showAlignedStems && (
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={busy}
+                    onClick={() => void onExportAligned()}
+                  >
+                    {t("export.stems.run")}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn primary"
+                  data-testid="export-run"
+                  disabled={busy}
+                  aria-disabled={exportBlockedNotBusy || undefined}
+                  aria-describedby={
+                    exportDisabledReason ? exportDisabledId : undefined
+                  }
+                  onClick={() => {
+                    if (exportBlockedNotBusy || stemsExportBlocked) return;
+                    void onExport();
+                  }}
+                >
+                  {t("export.tracks.run")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {isPackageMode && (
+          <div className="anchored-popin-footer" data-testid="export-dialog-footer">
+            <div className="export-dialog-actions">
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => setOpen(false)}
+              >
+                {t("export.tracks.cancel")}
               </button>
             </div>
           </div>
-        </div>
+        )}
       </AnchoredPopin>
     </>
   );

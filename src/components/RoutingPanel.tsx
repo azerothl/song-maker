@@ -111,7 +111,10 @@ export function RoutingPanel({ mix }: Props) {
           type="button"
           className="btn"
           onClick={() => {
-            const bus = defaultBus("group", `Groupe ${groups.length + 1}`);
+            const bus = defaultBus(
+              "group",
+              t("production.routing.defaultGroup", { n: groups.length + 1 }),
+            );
             commit([...buses, bus], sends, trackGroupIds);
           }}
         >
@@ -121,7 +124,10 @@ export function RoutingPanel({ mix }: Props) {
           type="button"
           className="btn"
           onClick={() => {
-            const bus = defaultBus("aux", `Aux ${auxes.length + 1}`);
+            const bus = defaultBus(
+              "aux",
+              t("production.routing.defaultAux", { n: auxes.length + 1 }),
+            );
             commit([...buses, bus], sends, trackGroupIds);
           }}
         >
