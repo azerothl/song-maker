@@ -9,8 +9,10 @@ import {
   type PointerEvent,
 } from "react";
 import {
-  filterNotesInPianoViewport,
+  filterNotesInPianoViewportIndexed,
   filterSectionMarkersInPianoViewport,
+  buildPianoNotesIndex,
+  shouldSyncPianoScrollViewport,
 } from "../lib/pianoRollViewport";
 import type { AbcVoiceTarget, ModeName, ScoreDocument, SectionKind } from "../lib/score";
 import {
@@ -93,6 +95,7 @@ export function PianoRoll({ document, onChange, onError }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const scrollRafRef = useRef<number | null>(null);
+  const hScrollRef = useRef({ left: 0, width: 900 });
   const [hScroll, setHScroll] = useState({ left: 0, width: 900 });
 
   const clearFocusedNote = useCallback(() => {
@@ -112,7 +115,16 @@ export function PianoRoll({ document, onChange, onError }: Props) {
     ) {
       focusedNoteIdRef.current = active.dataset.noteId;
     }
-    setHScroll({ left: el.scrollLeft, width: el.clientWidth || 900 });
+    const nextLeft = el.scrollLeft;
+    const nextWidth = el.clientWidth || 900;
+    if (
+      !shouldSyncPianoScrollViewport(hScrollRef.current, nextLeft, nextWidth)
+    ) {
+      return;
+    }
+    const next = { left: nextLeft, width: nextWidth };
+    hScrollRef.current = next;
+    setHScroll(next);
   }, []);
 
   useEffect(() => {
@@ -225,19 +237,18 @@ export function PianoRoll({ document, onChange, onError }: Props) {
   const width = Math.max(640, maxTick * PX_PER_TICK);
   const height = (PITCH_MAX - PITCH_MIN + 1) * ROW_H;
 
+  const notesIndex = useMemo(
+    () => buildPianoNotesIndex(voice?.notes ?? [], PX_PER_TICK),
+    [voice?.notes],
+  );
+
   const visibleNotes = useMemo(
     () =>
-      filterNotesInPianoViewport(
-        voice?.notes ?? [],
-        hScroll.left,
-        hScroll.width,
-        PX_PER_TICK,
-        {
-          selectedId,
-          focusedId: focusedNoteIdRef.current ?? focusedNoteId,
-        },
-      ),
-    [voice?.notes, hScroll.left, hScroll.width, selectedId, focusedNoteId],
+      filterNotesInPianoViewportIndexed(notesIndex, hScroll.left, hScroll.width, {
+        selectedId,
+        focusedId: focusedNoteIdRef.current ?? focusedNoteId,
+      }),
+    [notesIndex, hScroll.left, hScroll.width, selectedId, focusedNoteId],
   );
 
   const visibleSections = useMemo(
