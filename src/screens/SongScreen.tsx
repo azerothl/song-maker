@@ -30,7 +30,6 @@ import {
   workspaceLabel,
   WORKSPACES,
   type AdvancedSettingsPage,
-  type ProductionView,
   type ScoreMode,
   type SongWorkspace,
 } from "./song/shared";
@@ -73,7 +72,6 @@ export function SongScreen() {
   const [advancedSettingsPage, setAdvancedSettingsPage] =
     useState<AdvancedSettingsPage>(null);
   const [workspace, setWorkspace] = useState<SongWorkspace>("create");
-  const [productionView, setProductionView] = useState<ProductionView>("mix");
   const [productionClipViewPrefs, setProductionClipViewPrefs] =
     useState<ProductionClipViewPrefs>(() => DEFAULT_PRODUCTION_CLIP_VIEW_PREFS);
   const patchProductionClipViewPrefs = (patch: Partial<ProductionClipViewPrefs>) => {
@@ -162,7 +160,6 @@ export function SongScreen() {
     setRegenBaselineDoc(null);
     setWorkspace("create");
     setAdvancedSettingsPage(null);
-    setProductionView("mix");
     setScoreMode("edit");
   }, [project?.id]);
 
@@ -758,7 +755,6 @@ export function SongScreen() {
             onUserTrackAdded={onUserTrackAdded}
             playback={playback}
             playbackSources={playbackSources}
-            productionView={productionView}
             project={project}
             recordOpen={recordOpen}
             roleByTrack={roleByTrack}
@@ -769,7 +765,6 @@ export function SongScreen() {
             setBusy={setBusy}
             setError={setError}
             setMixPreview={setMixPreview}
-            setProductionView={setProductionView}
             setRecordOpen={setRecordOpen}
             showMixAssist={showMixAssist}
             showProductionCopilot={showProductionCopilot}
