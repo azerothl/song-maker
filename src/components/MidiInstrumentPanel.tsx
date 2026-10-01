@@ -17,6 +17,7 @@ import {
 } from "../lib/midiScorePlayer";
 import { addNote, type ScoreDocument } from "../lib/score";
 import { t } from "../ui/i18n";
+import { MidiOutputPanel } from "./MidiOutputPanel";
 
 const DEFAULT_NOTE_TICKS = 240;
 const QUANTIZE_TICKS = 120;
@@ -447,6 +448,7 @@ export function MidiInstrumentPanel({
         <p className="hint">{t("midi.recordHint")}</p>
       </div>
 
+      <MidiOutputPanel document={document} voiceId={resolvedVoiceId} />
       {status && <p className="hint">{status}</p>}
     </div>
   );

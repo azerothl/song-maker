@@ -13,6 +13,7 @@ pub mod capture;
 pub mod generation;
 pub mod jobs;
 pub mod lora_training;
+pub mod midi_output;
 pub mod mix;
 pub mod mix_assistant;
 pub mod package;

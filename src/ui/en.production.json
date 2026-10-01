@@ -1,7 +1,6 @@
 {
   "production.tempo.flagNamed": "Tempo {bpm} BPM, {time}",
   "production.arrangement.close": "Close",
-
   "production.edit.title": "Clip editing",
   "production.edit.select": "Select",
   "production.edit.cut": "Cut",
@@ -204,5 +203,17 @@
   "qwen.mix.empty": "No changes proposed.",
   "qwen.mix.title": "Local mix assistant",
   "production.ruler.value": "{time} ms",
-  "production.rulerNamed": "Playback position, timeline ruler"
+  "production.rulerNamed": "Playback position, timeline ruler",
+  "midi.output.title": "MIDI output",
+  "midi.output.hint": "Send the selected score voice to a synthesizer or virtual MIDI port. Channel and program numbers start at 1.",
+  "midi.output.refresh": "Find MIDI outputs",
+  "midi.output.port": "Output",
+  "midi.output.none": "No output selected",
+  "midi.output.channel": "Channel (1–16)",
+  "midi.output.program": "Program (1–128)",
+  "midi.output.play": "Play through MIDI output",
+  "midi.output.panic": "Stop all notes",
+  "midi.output.error": "The MIDI output is unavailable. Find outputs and reconnect the port.",
+  "midi.output.playing": "Playing through MIDI output…",
+  "midi.output.empty": "Find outputs after connecting your synthesizer or virtual port."
 }
