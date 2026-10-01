@@ -42,7 +42,6 @@ import {
   saveProductionDensityPreference,
   shouldUseCompactForAutoDensity,
   shouldUseProductionTightLayout,
-  waveHeightForDensity,
   type ProductionDensityPreference,
   type ProductionTrackDensity,
   type TrackFamilyId,
@@ -287,7 +286,6 @@ export function ProductionWorkspace({
     () => (mix ? buildTrackFamilyGroups(mix.tracks) : []),
     [mix],
   );
-  const waveHeight = waveHeightForDensity(effectiveDensity);
   const tightMixLayout = shouldUseProductionTightLayout("mix", effectiveDensity);
   const masterWaveHeight = 56;
 
@@ -602,18 +600,24 @@ export function ProductionWorkspace({
               )}
 
               <div className="production-mix-list" role="list" aria-label={t("mix.tracksTitle")}>
-                {(() => {
+                <div id="production-panel-clips" role="region" aria-label={t("production.common.clips")} className="production-common-timeline">
+                <ClipTimeline
+                  mix={mix} onChange={scheduleMixUpdate}
+                  peaksByTrack={playback?.peaksByTrack} roleByTrack={roleByTrack}
+                  sourceDurationMsByTrack={sourceDurationMsByTrack}
+                  projectTempoBpm={project.tempoBpm} projectMeter={project.meter ?? null}
+                  currentTimeMs={(playback?.current ?? 0)*1000} onSeek={playback?.seek}
+                  clipViewPrefs={clipViewPrefs} onClipViewPrefsChange={patchClipViewPrefs}
+                  headerActions={mixSettingsTrigger(
+                    mixSettingsClipsBtnRef,
+                    "production-mix-settings-trigger-clips",
+                    true,
+                  )}
+                  renderTracks={(renderLane,timelineMs)=>{
                   const anySolo = mix.tracks.some((x) => x.solo);
                   const renderTrack = (tr: MixTrack, inGroup: boolean) => {
                     const muted = tr.mute || (anySolo && !tr.solo);
                     const implicit = anySolo && !tr.solo && !tr.mute;
-                    const peaks = playback?.peaksByTrack[tr.id] ?? null;
-                    const waveStatus =
-                      !playback || playback.loading || !playback.ready
-                        ? "loading"
-                        : peaks && peaks.length > 0
-                          ? "ready"
-                          : "empty";
                     const experimental = isExperimentalStemTrack(tr);
                     const rowClass = [
                       "production-mix-grid",
@@ -744,23 +748,12 @@ export function ProductionWorkspace({
                           />
                         </div>
                         <div className="track-wave production-mix-wave">
-                          <Waveform
-                            peaks={peaks}
-                            progress={playback?.current ?? 0}
-                            duration={playback?.duration ?? 0}
-                            height={waveHeight}
-                            muted={muted}
-                            status={waveStatus}
-                            role={tr.role}
-                            ariaLabel={tr.name}
-                            onSeek={playback?.seek}
-                          />
+                          {renderLane(tr)}
                         </div>
                       </div>
                       <ProductionTrackAutomation
                         mixId={mix.id} trackId={tr.id} trackName={tr.name}
-                        durationMs={Math.max((playback?.duration ?? 0) * 1000,
-                          ...mix.tracks.flatMap(track => track.clips.map(clip => clip.startMs + clip.durationMs)), 5000)}
+                        durationMs={timelineMs}
                         currentMs={(playback?.current ?? 0) * 1000}
                         locked={tr.locked}
                         nudgeMs={!clipViewPrefs.snapEnabled || clipViewPrefs.gridMode==="time"?50:Math.max(1,Math.round(60000/(mix.tempoMap?.[0]?.quarterBpm??form.tempoBpm??120)/clipViewPrefs.subdivision))}
@@ -881,43 +874,10 @@ export function ProductionWorkspace({
                       </div>
                     );
                   });
-                })()}
+                  }} />
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <p className="hint">{t("mix.needSeparation")}</p>
-        )}
-      </div>
-
-      <div
-        id="production-panel-clips"
-        role="region"
-        aria-label={t("production.common.clips")}
-      >
-        {mix ? (
-          <div
-            className="production-clips"
-            data-testid="production-clips-panel"
-          >
-            <ClipTimeline
-              mix={mix}
-              onChange={scheduleMixUpdate}
-              peaksByTrack={playback?.peaksByTrack}
-              roleByTrack={roleByTrack}
-              sourceDurationMsByTrack={sourceDurationMsByTrack}
-              projectTempoBpm={project.tempoBpm}
-              projectMeter={project.meter ?? null}
-              currentTimeMs={(playback?.current ?? 0)*1000}
-              onSeek={playback?.seek}
-              clipViewPrefs={clipViewPrefs}
-              onClipViewPrefsChange={patchClipViewPrefs}
-              headerActions={mixSettingsTrigger(
-                mixSettingsClipsBtnRef,
-                "production-mix-settings-trigger-clips",
-                true,
-              )}
-            />
           </div>
         ) : (
           <p className="hint">{t("mix.needSeparation")}</p>

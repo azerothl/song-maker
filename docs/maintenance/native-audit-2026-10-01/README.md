@@ -35,4 +35,14 @@ Ces deux observations fournissent une référence sur cette machine, pas un seui
 
 Les tests ciblés couvrent le contrat par piste, le rejet d'identifiants et de gains invalides, la confirmation/annulation, la géométrie native reproduite, la parité FR/EN et le diagnostic fermé qui ne révèle que le code autorisé. TypeScript, compilation de production et Clippy passent.
 
-Le recalcul à l'ouverture du projet retarde la navigation ; le temps exact n'a pas été instrumenté dans ce lot. L'écoute comparative, les lecteurs d'écran, le tactile, les captures natives à 640 px et la campagne complète sur les autres fonctions restent à faire. #235 conserve ces réserves ; #223–#230 conservent leurs critères restant à livrer, notamment la fusion de l'axe graphique des pistes et des clips. Les dépendances de #209, #170 et #164 ne sont pas déclarées résolues par cet audit.
+Le recalcul à l'ouverture du projet retarde la navigation ; le temps exact n'a pas été instrumenté dans ce lot. L'écoute comparative, les lecteurs d'écran, le tactile, les captures natives à 640 px et la campagne complète sur les autres fonctions restent à faire. #235 conserve ces réserves ; #223–#230 conservent leurs critères restant à livrer, la section suivante apporte ensuite la fusion de l'axe graphique des pistes et des clips. Les dépendances de #209, #170 et #164 ne sont pas déclarées résolues par cet audit.
+
+## Une liste de pistes et une règle lisible
+
+La vérification native du 1er octobre s'est poursuivie sur un mix réel de 6 min 54 s, à zoom 1. Une seule ligne porte désormais le clip et les commandes gain/pan/Muet/Solo/outils. Les sept pistes du projet sont accessibles dans leurs groupes. Le popover de la piste Voix a été ouvert, sa bascule d'automation atteinte par défilement, la courbe dépliée, le popover fermé avec Échap, puis la courbe repliée. Aucun point n'a été ajouté ni aucune valeur modifiée pendant cette séquence. Le SHA-256 du mix JSON est resté `a240af3e659d96847175f0418a83cea5425a7b57ea22325fc6c6554571b86b39`.
+
+Le chevauchement des numéros de mesures sur les morceaux longs a été observé dans la fenêtre maximisée et consigné dans #271. Après correction, les libellés sont espacés dans la fenêtre restaurée à environ 1280×830. La capture enregistrée du défaut initial était un fragment annexe et a été écartée. Seule la capture native après correction est conservée ; aucune comparaison pixel à pixel avant/après n'est revendiquée.
+
+- `shared-axis-native-after.jpg` : règle lisible, clip réel et courbe vide sous sa piste sur le même axe.
+
+L'alignement à 1 px et le maintien vertical des trois lignes pendant le défilement sont mesurés par les tests React à 1280×720 et 640×720, distincts de l'inspection native. Les tests vérifient aussi le changement de gain au clavier sans déplacer le clip sélectionné. La séquence native ne prouve pas l'édition de points ni la qualité audio. L'écoute comparative et les autres systèmes d'exploitation restent non testés.

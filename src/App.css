@@ -1282,6 +1282,45 @@ option {
 .production-auto-curve { width: 100%; height: 96px; background: #101523; touch-action: none; }
 .production-auto-curve polyline { fill: none; stroke: #5eecf8; stroke-width: 2px; vector-effect: non-scaling-stroke; }
 .production-auto-curve ellipse { fill: #eff0fb; }
+.production-common-timeline {
+  --production-controls-width: calc(264px + 10.5rem + 96px + 3.25rem);
+}
+.production-common-timeline .common-track-lane { display: block; min-width: 0; }
+.production-playback-line { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent-cyan); z-index: 4; pointer-events: none; }
+.production-auto-playback-line { stroke: var(--accent-cyan); stroke-width: 1px; vector-effect: non-scaling-stroke; pointer-events: none; }
+.production-common-timeline .clip-ruler,
+.production-common-timeline .clip-tempo-lane,
+.production-common-timeline .clip-marker-lane {
+  grid-template-columns: var(--production-controls-width) minmax(0, 1fr);
+  gap: 0;
+  padding: 0 0.35rem;
+}
+.production-common-timeline .clip-ruler-marks-abs,
+.production-common-timeline .clip-tempo-lane > .clip-lane-rail,
+.production-common-timeline .clip-marker-lane > .clip-lane-rail { grid-column: 2; }
+.production-common-timeline .production-auto-curve {
+  margin-left: calc(var(--production-controls-width) + 0.35rem);
+  width: calc(100% - var(--production-controls-width) - 0.7rem);
+}
+.production-common-timeline .clip-timeline-lanes-pane {
+  overflow: auto;
+  max-height: min(640px, 75vh);
+  flex: none;
+}
+.production-common-timeline .clip-tempo-lane { top: calc(44px + 0.4rem); }
+.production-common-timeline .clip-marker-lane:not(.clip-tempo-lane) { top: calc(88px + 0.8rem); }
+.production-workspace-common:has(.production-common-timeline) .production-mix-scroll {
+  max-height: none;
+  overflow: visible;
+}
+.production-common-timeline .production-track-automation { padding-inline: 0; }
+.production-common-timeline .production-auto-controls { margin-inline: 0; }
+@media (max-width: 640px), (pointer: coarse) {
+  .production-common-timeline { --production-controls-width: 0px; }
+  .production-common-timeline .clip-ruler > .clip-lane-label,
+  .production-common-timeline .clip-tempo-lane > .clip-lane-label,
+  .production-common-timeline .clip-marker-lane > .clip-lane-label { display: none; }
+}
 .production-auto-zero { stroke: #747d96; stroke-width: 1px; vector-effect: non-scaling-stroke; }
 
 .qwen-mix-assistant textarea { display: block; width: 100%; min-height: 72px; margin-block: 0.5rem; }
