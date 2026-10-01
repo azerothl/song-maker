@@ -17,6 +17,7 @@ it("opens export for imported audio without an AI generation, retaining empty an
   for(const variant of ["empty","no-source","zero-duration","busy"]){
    await page.goto(`http://127.0.0.1:5241/export-import-capture.html?variant=${variant}`);
    assert.equal(await trigger.isDisabled(),true,variant);
+   assert.match((await trigger.getAttribute("title"))??"",variant==="busy"?/en cours/:/Importez ou générez/);
   }
   await page.goto("http://127.0.0.1:5241/export-import-capture.html?variant=generation");
   assert.equal(await trigger.isEnabled(),true);

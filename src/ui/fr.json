@@ -249,6 +249,8 @@
   "export.tracks.disabledNoStems": "Séparez les pistes ou attendez la fin de la séparation.",
   "export.tracks.disabledNoneSelected": "Cochez au moins une piste à exporter.",
   "export.button": "Exporter",
+  "export.button.disabledNoAudio": "Importez ou générez de l’audio avant d’exporter.",
+  "export.button.disabledBusy": "Export ou autre tâche en cours.",
   "export.group": "Exporter",
   "export.wav": "WAV 24 bits",
   "export.flac": "FLAC 24 bits",

@@ -50,6 +50,7 @@ export function ExportDialog({
   const formatId = useId();
   const formatLiveId = useId();
   const exportDisabledId = useId();
+  const triggerDisabledId = useId();
   const [opts, setOpts] = useState<ExportOptionsState>(() => ({
     ...defaultExportOptions(),
     mode: initialMode,
@@ -79,8 +80,11 @@ export function ExportDialog({
   const controls = visibleExportControls(opts.format);
   const hasExportAudio = Boolean(project.activeGenerationId) || Boolean(
     project.activeMixId && mix?.tracks.some(track =>
-      track.clips.some(clip => clip.sourcePath && clip.durationMs > 0)),
+      track.clips.some(clip => clip.sourcePath && Number.isFinite(clip.durationMs) && clip.durationMs > 0)),
   );
+  const triggerDisabledReason = !hasExportAudio
+    ? t("export.button.disabledNoAudio")
+    : busy ? t("export.button.disabledBusy") : null;
 
   const toggle = (id: string) => {
     setSelected((prev) =>
@@ -182,10 +186,13 @@ export function ExportDialog({
         className="btn primary"
         data-capture-export-trigger="1"
         disabled={!hasExportAudio || busy}
+        aria-describedby={triggerDisabledReason ? triggerDisabledId : undefined}
+        title={triggerDisabledReason ?? undefined}
         onClick={() => setOpen(true)}
       >
         {t("export.button")}
       </button>
+      {triggerDisabledReason && <span id={triggerDisabledId} className="sr-only">{triggerDisabledReason}</span>}
       <AnchoredPopin
         open={open}
         onClose={() => setOpen(false)}

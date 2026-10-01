@@ -1,4 +1,6 @@
 {
+  "export.button.disabledNoAudio": "Import or generate audio before exporting.",
+  "export.button.disabledBusy": "Export or another task is in progress.",
   "production.tempo.flagNamed": "Tempo {bpm} BPM, {time}",
   "production.marker.flagNamed": "Marker: {name}, {time}",
   "production.status.markerAdded": "Marker “{name}” added at {time}.",
