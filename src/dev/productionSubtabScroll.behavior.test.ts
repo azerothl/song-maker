@@ -40,8 +40,79 @@ describe("Production commune (#223, #230)", () => {
         assert.ok(intersections.length>0,`no overlapping zones at ${width}`);
         for(const overlap of intersections)assert.equal(overlap.dialogOnTop,true,`${width}: ${overlap.row}`);
         await page.keyboard.press("Escape");
-        assert.equal(await page.locator(".production-mix-sticky-master").evaluate(el=>getComputedStyle(el).zIndex),"4");
+        assert.equal(await page.locator(".production-mix-sticky-master").evaluate(el=>getComputedStyle(el).zIndex),"6");
       }finally{await page.close();}
+    }
+  });
+  it("master banner stays above sticky ruler and tempo zones while Production scrolls", async () => {
+    for (const width of [1280, 640]) {
+      const page = await browser.newPage({ viewport: { width, height: 720 } });
+      try {
+        await page.goto(BASE, { waitUntil: "networkidle" });
+        await page.locator(".production-track-tools-btn").first().click();
+        await page.locator(".production-track-auto-toggle").click();
+        await page.keyboard.press("Escape");
+        const editor = page.locator(".production-track-automation").first();
+        await editor.waitFor();
+        await editor
+          .getByRole("button", {
+            name: /Ajouter à la position de lecture|Add at playback position/,
+            exact: true,
+          })
+          .click();
+        await editor.locator(".production-auto-point").first().waitFor();
+        const workspace = page.locator(".production-workspace-common");
+        await workspace.evaluate((el) => {
+          el.scrollTop = el.scrollHeight;
+        });
+        assert.ok(await workspace.evaluate((el) => el.scrollTop) > 0);
+        assert.equal(
+          await page
+            .locator(".production-mix-sticky-master")
+            .evaluate((el) => getComputedStyle(el).zIndex),
+          "6",
+        );
+        const overlaps = await page.evaluate(() => {
+          const sticky = document.querySelector(".production-mix-sticky-master")!;
+          const master = sticky.querySelector(".production-mix-master.mix-master-banner")!;
+          const m = sticky.getBoundingClientRect();
+          return Array.from(
+            document.querySelectorAll(".clip-ruler, .clip-tempo-lane, .clip-marker-lane"),
+          ).flatMap((row) => {
+            const r = row.getBoundingClientRect();
+            const left = Math.max(m.left, r.left);
+            const right = Math.min(m.right, r.right);
+            const top = Math.max(m.top, r.top);
+            const bottom = Math.min(m.bottom, r.bottom);
+            if (right <= left || bottom <= top) return [];
+            const hit = document.elementFromPoint((left + right) / 2, (top + bottom) / 2);
+            return [
+              {
+                row: row.className,
+                masterOnTop: Boolean(hit && sticky.contains(hit)),
+                bannerVisible: master.getBoundingClientRect().bottom > m.top,
+              },
+            ];
+          });
+        });
+        assert.ok(overlaps.length > 0, `no overlapping sticky zones at ${width}`);
+        for (const overlap of overlaps) {
+          assert.equal(overlap.masterOnTop, true, `${width}: ${overlap.row}`);
+        }
+        const play = page.locator(".mix-master-play");
+        const playBox = await play.boundingBox();
+        assert.ok(playBox);
+        const playHit = await page.evaluate(
+          ({ x, y }) => {
+            const hit = document.elementFromPoint(x, y);
+            return Boolean(hit?.closest(".production-mix-sticky-master"));
+          },
+          { x: playBox.x + playBox.width / 2, y: playBox.y + playBox.height / 2 },
+        );
+        assert.equal(playHit, true, `${width}: play control must remain hit-testable`);
+      } finally {
+        await page.close();
+      }
     }
   });
   it("PageDown scrolls from a toolbar button and Tab leaves the timeline", async () => {

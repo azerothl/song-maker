@@ -12,7 +12,7 @@ Le parcours natif a été poursuivi jusqu'au choix du dossier local de destinati
 
 ## Superposition du dialogue
 
-Ce parcours a révélé #282 : la règle sticky dessinait ses zones au-dessus des options d'export. Le dialogue était enfermé dans le contexte de superposition du bandeau master (niveau 4), sous la règle (niveau 5). Lorsque ce bandeau contient un dialogue ouvert, son niveau passe à 6 ; il revient à 4 à la fermeture.
+Ce parcours a révélé #282 : la règle sticky dessinait ses zones au-dessus des options d'export. Le dialogue était enfermé dans le contexte de superposition du bandeau master (alors niveau 4), sous la règle (niveau 5). Le bandeau master est depuis passé au niveau 6 en permanence (#289), ce qui couvre aussi le dialogue d'export.
 
 `native-overlay-before.jpg` et `native-overlay-after.jpg` montrent le même dialogue dans le même projet, à 1282×832. Après correction, Format, Profondeur et Destination sont visibles. Un test du vrai composant de Production vérifie par hit-testing que le dialogue couvre les zones sticky à 1280 et 640 px et que le niveau normal revient après fermeture. Ces deux dimensions sont des vérifications Chromium ; la capture native est à 1282×832.
 
