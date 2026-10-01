@@ -72,7 +72,7 @@ describe("Production commune (#223, #230)", () => {
       } finally {await page.close();}
     }
   });
-  it("PageDown scrolls from a toolbar button and Tab leaves the timeline", async () => {
+  it("PageDown scrolls from a toolbar button and placements remain reachable", async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 768 } });
     try {
       await page.goto(BASE, { waitUntil: "networkidle" });
@@ -83,13 +83,14 @@ describe("Production commune (#223, #230)", () => {
       await page.locator(".production-main-toolbar .clip-edit-toolbar button").first().focus();
       await page.keyboard.press("PageDown");
       assert.ok(await top.evaluate(el => el.scrollTop) > 0);
-      let reachedAdvanced = false;
-      for (let i = 0; i < 220; i++) {
-        await page.keyboard.press("Tab");
-        reachedAdvanced = await page.locator(".production-advanced-disclosure > summary").evaluate(el => el === document.activeElement);
-        if (reachedAdvanced) break;
-      }
-      assert.equal(reachedAdvanced, true);
+      assert.equal(await page.locator(".production-advanced-disclosure").count(), 0);
+      await page.getByTestId("production-mix-settings-trigger").click();
+      await page.getByTestId("production-mix-settings-loudness").waitFor();
+      await page.keyboard.press("Escape");
+      await page.locator(".production-track-tools-btn").first().click();
+      await page.getByRole("tab", { name: "Routage", exact: true }).click();
+      await page.getByTestId("production-track-routing").waitFor();
+      await page.keyboard.press("Escape");
     } finally { await page.close(); }
   });
   it("tempo and marker panels close with Escape and return focus", async () => {
@@ -177,7 +178,7 @@ describe("Production commune (#223, #230)", () => {
     } finally { await page.close(); }
   });
   for (const width of [1280, 640]) {
-    it(`${width}px: tracks, clips and advanced functions share one page`, async () => {
+    it(`${width}px: tracks, clips and placed tools share one page`, async () => {
       const page = await browser.newPage({ viewport: { width, height: 720 } });
       const errors: string[] = [];
       page.on("pageerror", error => errors.push(error.message));
@@ -185,6 +186,7 @@ describe("Production commune (#223, #230)", () => {
         await page.goto(BASE, { waitUntil: "networkidle" });
         await page.locator(".production-mix-scroll").waitFor();
         assert.equal(await page.locator(".production-subnav").count(), 0);
+        assert.equal(await page.locator(".production-advanced-disclosure").count(), 0);
         assert.equal(await page.locator("#production-panel-mix").isVisible(), true);
         assert.equal(await page.locator("#production-panel-clips").isVisible(), true);
         assert.equal(await page.locator(".clip-lane-label").filter({hasText:/Voix|Batterie/}).count(),0);
@@ -204,6 +206,8 @@ describe("Production commune (#223, #230)", () => {
         assert.ok(Math.abs(railBox.x-rulerBox.x)<=1,JSON.stringify({railBox,rulerBox}));
         assert.ok(Math.abs(railBox.width-rulerBox.width)<=1,JSON.stringify({railBox,rulerBox}));
         await page.locator(".production-track-tools-btn").first().click();
+        await page.getByRole("tab", { name: "Routage", exact: true }).click();
+        await page.getByTestId("production-track-routing").waitFor();
         await page.getByRole("tab", { name: "Automation", exact: true }).click();
         await page.locator(".production-track-auto-toggle").click();
         await page.keyboard.press("Escape");
@@ -234,19 +238,24 @@ describe("Production commune (#223, #230)", () => {
         assert.ok(Math.abs(zoomCurve.x-zoomRuler.x)<=1);
         assert.ok(Math.abs(zoomRail.width-zoomRuler.width)<=1);
         assert.ok(Math.abs(zoomCurve.width-zoomRuler.width)<=1);
-        const advanced = page.locator(".production-advanced-disclosure");
-        assert.equal(await advanced.getAttribute("open"), null);
-        assert.equal(await page.locator(".phase3-mix").isVisible(), false);
-        const summary = advanced.locator("summary");
-        await summary.focus();
-        await page.keyboard.press("Enter");
-        await page.locator(".phase3-mix").waitFor();
-        assert.equal(await page.locator(".phase3-mix select").count() > 1, true);
-        assert.equal(await page.locator(".export-wizard").count() > 0, true);
-        await summary.focus();
-        await page.keyboard.press("Enter");
-        assert.equal(await advanced.getAttribute("open"), null);
-        assert.equal(await summary.evaluate(el => document.activeElement === el), true);
+
+        await page.getByTestId("production-mix-settings-trigger").click();
+        await page.getByTestId("production-mix-settings-loudness").waitFor();
+        await page.keyboard.press("Escape");
+
+        await page.locator(".production-main-toolbar [data-capture-export-trigger]").click();
+        const exportDialog = page.getByRole("dialog");
+        await exportDialog.waitFor();
+        await exportDialog.getByText("Paquet de projet portable (ZIP)").click();
+        await page.getByTestId("portable-package-panel").waitFor();
+        await page.keyboard.press("Escape");
+
+        await page.locator(".clip-block").first().click();
+        await page.getByTestId("clip-selection-bar").waitFor();
+        await page.getByTestId("clip-stretch-open").click();
+        await page.getByTestId("clip-stretch-panel").waitFor();
+        await page.keyboard.press("Escape");
+
         const overflow = await page.locator(".production-workspace-common").evaluate(el => ({
           client: el.clientWidth, scroll: el.scrollWidth,
         }));
