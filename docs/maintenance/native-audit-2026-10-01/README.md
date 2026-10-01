@@ -43,7 +43,6 @@ La vérification native du 1er octobre s'est poursuivie sur un mix réel de 6 mi
 
 Le chevauchement des numéros de mesures sur les morceaux longs a été observé dans la fenêtre maximisée et consigné dans #271. Après correction, les libellés sont espacés dans la fenêtre restaurée à environ 1280×830. La capture enregistrée du défaut initial était un fragment annexe et a été écartée. Seule la capture native après correction est conservée ; aucune comparaison pixel à pixel avant/après n'est revendiquée.
 
-- `shared-axis-dense-ruler-before.jpg` : chevauchement des graduations avant correction.
 - `shared-axis-native-after.jpg` : règle lisible, clip réel et courbe vide sous sa piste sur le même axe.
 
 L'alignement à 1 px et le maintien vertical des trois lignes pendant le défilement sont mesurés par les tests React à 1280×720 et 640×720, distincts de l'inspection native. Les tests vérifient aussi le changement de gain au clavier sans déplacer le clip sélectionné. La séquence native ne prouve pas l'édition de points ni la qualité audio. L'écoute comparative et les autres systèmes d'exploitation restent non testés.
