@@ -803,7 +803,7 @@ export function PianoRoll({ document, onChange, onError }: Props) {
                   startTick: n.startTick,
                   durationTick: n.durationTick,
                 })}
-                aria-selected={selected}
+                aria-pressed={selected}
                 style={{
                   left: n.startTick * PX_PER_TICK,
                   top: pitchToY(n.pitch) - (NOTE_HIT_PX - ROW_H) / 2,
