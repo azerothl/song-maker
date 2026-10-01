@@ -32,6 +32,11 @@ function profileStrings(): string[] {
 }
 
 describe("profiles commercial copy forbidden words (#201)", () => {
+  it("rejects accented plurals and legal overclaims (#237)", () => {
+    for (const word of ["sûr", "sûrs", "sûre", "sûres", "conforme", "conformes", "légal", "légales"]) {
+      assert.equal(FORBIDDEN.test(`Résultats ${word}.`), true, word);
+    }
+  });
   it("no sûr / garanti / libre de droits / conforme / légal in profile UI strings", () => {
     for (const text of profileStrings()) {
       assert.equal(FORBIDDEN.test(text), false, `forbidden word in: ${text}`);

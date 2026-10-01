@@ -87,3 +87,12 @@ it("a structured-clone failure releases the worker and rejects the render", asyn
   await assert.rejects(job.result, /clone failed/);
   assert.equal(ControlledWorker.instances[0].terminated, true);
 });
+
+it("a worker startup failure rejects asynchronously instead of stranding playback pending", async () => {
+  Object.defineProperty(globalThis, "Worker", {
+    value: class { constructor() { throw new Error("worker blocked"); } }, configurable: true,
+  });
+  const job = start();
+  await assert.rejects(job.result, /worker blocked/);
+  job.cancel();
+});

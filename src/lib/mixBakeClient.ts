@@ -53,9 +53,15 @@ function bakeMixPcmAsyncImpl(
   const id = nextJobId++;
   // Each job owns its worker: terminating a superseded render must not cancel
   // an independent render, or leave synchronous DSP queued ahead of the next mix.
-  const w = new Worker(new URL("./mixBake.worker.ts", import.meta.url), {
-    type: "module",
-  });
+  let w: Worker;
+  try {
+    w = new Worker(new URL("./mixBake.worker.ts", import.meta.url), {
+      type: "module",
+    });
+  } catch (error) {
+    // Keep the async contract so playback clears its pending state on failure.
+    return { cancel: () => {}, result: Promise.reject(error) };
+  }
   let cancel = () => {};
 
   const result = new Promise<MixRenderResult>((resolve, reject) => {

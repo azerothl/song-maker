@@ -15,6 +15,12 @@ type Props = {
   labelId: string;
   children: ReactNode;
   className?: string;
+  /** Stable id for aria-controls on the trigger (#225). */
+  panelId?: string;
+  /** When true, Escape is left to nested dialogs (#225 B2). */
+  deferEscapeClose?: boolean;
+  /** Prefer opening above the anchor (Clips header #225). */
+  preferAboveAnchor?: boolean;
 };
 
 const FOCUSABLE =
@@ -55,11 +61,15 @@ export function AnchoredPopin({
   labelId,
   children,
   className,
+  panelId,
+  deferEscapeClose = false,
+  preferAboveAnchor = false,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const positionedOnceRef = useRef(false);
-  const popinId = useId();
+  const generatedPopinId = useId();
+  const popinId = panelId ?? generatedPopinId;
 
   const positionPanel = useCallback(() => {
     const panel = panelRef.current;
@@ -90,7 +100,12 @@ export function AnchoredPopin({
     let top = belowTop;
     let maxPanelH = Math.min(capH, maxBelow, window.innerHeight * 0.8);
 
-    if (maxPanelH < 96 && maxAbove > maxBelow) {
+    if (preferAboveAnchor && maxAbove >= 120) {
+      maxPanelH = Math.min(capH, maxAbove, window.innerHeight * 0.8);
+      panel.style.maxHeight = `${maxPanelH}px`;
+      const height = Math.min(panel.getBoundingClientRect().height, maxPanelH);
+      top = Math.max(margin, rect.top - margin - height);
+    } else if (maxPanelH < 96 && maxAbove > maxBelow) {
       maxPanelH = Math.min(capH, maxAbove, window.innerHeight * 0.8);
       panel.style.maxHeight = `${maxPanelH}px`;
       const height = Math.min(panel.getBoundingClientRect().height, maxPanelH);
@@ -101,7 +116,7 @@ export function AnchoredPopin({
 
     panel.style.top = `${top}px`;
     panel.style.left = `${left}px`;
-  }, [anchorRef, className]);
+  }, [anchorRef, className, preferAboveAnchor]);
 
   useLayoutEffect(() => {
     if (!open) {
@@ -138,15 +153,15 @@ export function AnchoredPopin({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-      }
+      if (e.key !== "Escape") return;
+      if (deferEscapeClose) return;
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [open, onClose]);
+  }, [open, onClose, deferEscapeClose]);
 
   useEffect(() => {
     if (open) return;

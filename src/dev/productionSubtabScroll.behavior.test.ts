@@ -12,6 +12,7 @@ import {
   PRODUCTION_CLIPS_TOP_MIN_HEIGHT_PX,
   type ProductionSubtabScrollMetrics,
 } from "./productionSubtabScrollMetrics";
+import { t } from "../ui/i18n";
 
 const ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -159,6 +160,7 @@ describe("production subtab scroll (#203)", () => {
       width: 1280,
       height: 720,
     });
+    await page.waitForSelector('[data-testid="production-mix-settings-trigger"]');
     await page.close();
     assert.ok(m.mixToolbar);
     assert.ok(
@@ -229,24 +231,37 @@ describe("production subtab scroll (#203)", () => {
     );
   });
 
-  it("Clips : champs bande haute — grille, BPM et Home natifs (inField)", async () => {
+  it("Clips : grille/aimantation dans l’en-tête + Réglages du mix (#225)", async () => {
     const page = await browser.newPage();
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto(`${BASE}#view-clips-16`, { waitUntil: "networkidle" });
-    await page.waitForSelector(".clip-timeline-tools select");
-
-    const gridSelect = page
-      .locator(".clip-timeline-tools .clip-tool-select")
-      .first()
-      .locator("select");
-    assert.equal(await gridSelect.inputValue(), "musical");
-    await gridSelect.focus();
-    await page.keyboard.press("ArrowDown");
-    assert.equal(
-      await gridSelect.inputValue(),
-      "time",
-      "ArrowDown dans la liste grille doit changer l'option (musical→time)",
+    await page.waitForSelector('[data-testid="production-mix-settings-trigger-clips"]');
+    const selects = await page.locator(".clip-timeline-tools select").count();
+    assert.ok(selects >= 1, "contrôles de grille visibles dans Clips");
+    await page.goto(`${BASE}#confortable-12`, { waitUntil: "networkidle" });
+    await page.click('[data-testid="production-mix-settings-trigger"]');
+    await page.waitForSelector('[data-testid="production-mix-settings-popin"]');
+    const timeBtn = page.locator(
+      '.production-mix-settings-popin button[aria-pressed="false"]',
+      { hasText: t("clips.gridTime") },
     );
+    await timeBtn.click();
+    assert.equal(
+      await page
+        .locator(
+          `.production-mix-settings-popin button[aria-pressed="true"]`,
+        )
+        .filter({ hasText: t("clips.gridTime") })
+        .count(),
+      1,
+    );
+    await page.close();
+  });
+
+  it("Clips : champs bande haute — BPM et Home natifs (inField)", async () => {
+    const page = await browser.newPage();
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto(`${BASE}#view-clips-16`, { waitUntil: "networkidle" });
 
     const bpmInput = page
       .locator(".clip-tempo-editor input[type='number']")

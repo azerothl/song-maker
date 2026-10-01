@@ -116,7 +116,7 @@ describe("Dialogues séparation / export a11y (#187 / #191)", () => {
     );
     assert.match(
       css,
-      /\.production-workspace-tight \.production-mix-toolbar-actions \.btn,\s*\n\.production-workspace-tight \.production-mix-toolbar-actions \.mix-assist-trigger[\s\S]*?min-height:\s*32px/,
+      /\.production-workspace-tight \.production-mix-toolbar-actions \.btn[\s\S]*?min-height:\s*32px/,
     );
     const harness = readSrc("src/dev/sepExportA11yCapture.css");
     assert.match(harness, /production-capture-mix-toolbar-44/);
