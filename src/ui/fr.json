@@ -1382,6 +1382,8 @@
   "qwen.mix.stale": "Le mix a changé depuis cette analyse. Relancez avant de confirmer.",
   "qwen.mix.serviceMissing": "Ouvrez Ollama sur cet ordinateur puis relancez.",
   "qwen.mix.invalid": "La réponse du modèle contient des réglages invalides. Aucun réglage appliqué.",
+  "qwen.mix.diagnostic": "Détail du diagnostic",
+  "qwen.mix.totalMeasured": "Analyse complète, lecture des pistes comprise : {time} s.",
   "qwen.mix.objective": "Objectif du mix",
   "qwen.mix.confirmApply": "Confirmer les réglages",
   "qwen.mix.busy": "Analyse en cours…",

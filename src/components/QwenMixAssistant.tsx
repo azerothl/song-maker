@@ -15,7 +15,8 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
   const [objective,setObjective]=useState("");
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState<string|null>(null);
-  const [proposal,setProposal]=useState<{result:QwenMixResponse;fingerprint:string}|null>(null);
+  const [diagnostic,setDiagnostic]=useState<string|null>(null);
+  const [proposal,setProposal]=useState<{result:QwenMixResponse;fingerprint:string;totalElapsedMs:number}|null>(null);
   const [confirm,setConfirm]=useState(false);
   const [undo,setUndo]=useState<MixDoc|null>(null);
   const current=useRef(mix); current.current=mix;
@@ -24,9 +25,10 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
   const hasStems=sources?.mode === "stems" && sources.stems.length > 0;
   const run=async () => {
     if (!sources || !hasStems || busy) return;
-    setBusy(true);setError(null);setProposal(null);setConfirm(false);
+    setBusy(true);setError(null);setDiagnostic(null);setProposal(null);setConfirm(false);
     const startedMix=mix;
     const startedFingerprint=fingerprint;
+    const startedAt=performance.now();
     try {
       const {stems}=await decodeMixStems(sources,startedMix);
       const tracks=startedMix.tracks.map(track => {
@@ -36,13 +38,14 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
       });
       const result=await proposeQwenMix(tracks,objective,profileLocale());
       applyQwenAdjustments(startedMix,result.adjustments);
-      if(current.current.id===startedMix.id) setProposal({result,fingerprint:startedFingerprint});
+      if(current.current.id===startedMix.id) setProposal({result,fingerprint:startedFingerprint,totalElapsedMs:performance.now()-startedAt});
     } catch (e) {
       const code=String(e instanceof Error?e.message:e);
       const key=code.includes("MODEL_MISSING") ? "qwen.mix.modelMissing"
         : code.includes("SERVICE_UNAVAILABLE") ? "qwen.mix.serviceMissing"
         : code.includes("INVALID_RESPONSE") ? "qwen.mix.invalid" : "qwen.mix.failed";
       setError(t(key));
+      setDiagnostic(code.match(/INVALID_RESPONSE(?::[A-Z_]+)?/)?.[0]??null);
     } finally {setBusy(false);}
   };
   const nf=new Intl.NumberFormat(profileLocale(),{maximumFractionDigits:2});
@@ -52,8 +55,10 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
     <button type="button" className="btn" disabled={busy||!hasStems} onClick={()=>void run()}>{t(busy?"qwen.mix.busy":"qwen.mix.analyze")}</button>
     {!hasStems && <p className="hint">{t("qwen.mix.needStems")}</p>}
     <div role="status" aria-live="polite">{error && <p className="hint error">{error}</p>}</div>
+    {diagnostic && <details><summary>{t("qwen.mix.diagnostic")}</summary><code>{diagnostic}</code></details>}
     {proposal && <>
       <p className="hint">{t("qwen.mix.measured",{model:proposal.result.model,time:nf.format(proposal.result.elapsedMs/1000)})}</p>
+      {Number.isFinite(proposal.totalElapsedMs) && <p className="hint">{t("qwen.mix.totalMeasured",{time:nf.format(proposal.totalElapsedMs/1000)})}</p>}
       <p>{COMMERCIAL_COPY_FORBIDDEN.test(proposal.result.explanation)?t("qwen.mix.rationale"):proposal.result.explanation}</p>
       <ul>{proposal.result.adjustments.map(adjustment=>{
         const track=mix.tracks.find(track=>track.id===adjustment.trackId);
