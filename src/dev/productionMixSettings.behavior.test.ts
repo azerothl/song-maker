@@ -32,8 +32,8 @@ async function waitServer(url: string): Promise<void> {
 
 before(async () => {
   vite = spawn(
-    "pnpm",
-    ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],
+    process.execPath,
+    [path.join(ROOT, "node_modules/vite/bin/vite.js"), "--host", "127.0.0.1", "--port", String(PORT), "--strictPort"],
     {
       cwd: ROOT,
       stdio: "ignore",
@@ -50,6 +50,31 @@ after(async () => {
 });
 
 describe("production mix settings comportement (#225)", () => {
+  it("EN: mounted popover and Clips controls expose translated accessible names (#255)",
+    { timeout: IT_TIMEOUT_MS }, async () => {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+      try {
+        await page.addInitScript(() => localStorage.setItem("song-maker.locale", "en"));
+        await page.goto(`${BASE}#view-clips-16`, { waitUntil: "networkidle" });
+        const trigger = page.getByTestId("production-mix-settings-trigger-clips");
+        assert.equal(await trigger.textContent(), "Mix settings");
+        const bar = page.locator(".clip-timeline-tools");
+        assert.equal(await bar.getByRole("checkbox", { name: "Snap to musical grid", exact: true }).count(), 1);
+        assert.equal(await bar.getByRole("slider", { name: "Zoom", exact: true }).count(), 1);
+        await trigger.click();
+        const popin = page.getByTestId("production-mix-settings-popin");
+        await popin.waitFor();
+        assert.equal(await popin.getByRole("slider", { name: "Master", exact: true }).count(), 1);
+        assert.equal(await popin.locator(".production-mix-settings-density").getAttribute("aria-label"), "Line height");
+        assert.equal(await popin.getByRole("group", { name: "Grid", exact: true }).count(), 1);
+        assert.equal(await popin.getByRole("button", { name: "Musical (bars)", exact: true }).count(), 1);
+        assert.equal(await popin.getByRole("button", { name: "Time (ms)", exact: true }).count(), 1);
+        const zoom = popin.getByRole("slider", { name: "Zoom", exact: true });
+        await zoom.fill("1.25");
+        assert.equal(await zoom.getAttribute("aria-valuetext"), "×1.25");
+        assert.doesNotMatch(await popin.innerText(), /Réglages|Aimantation|Hauteur|production\.|mix\.density/);
+      } finally { await page.close(); }
+    });
   it(
     "Clips : bouton Réglages du mix visible",
     { timeout: IT_TIMEOUT_MS },

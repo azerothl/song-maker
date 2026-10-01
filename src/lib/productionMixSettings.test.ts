@@ -123,9 +123,9 @@ describe("production mix settings i18n (#225)", () => {
 describe("mix group track count plural (#225)", () => {
   it("FR: track count labels and collapsed summary plural rules", () => {
     localStorage.setItem(LOCALE_KEY, "fr");
-    assert.equal(formatMixGroupTrackCount(0), "0 pistes");
+    assert.equal(formatMixGroupTrackCount(0), "0 piste");
     assert.equal(formatMixGroupTrackCount(1), "1 piste");
-    assert.match(formatMixGroupCollapsedSummary(0, "A"), /0 pistes masquées/);
+    assert.match(formatMixGroupCollapsedSummary(0, "A"), /0 piste masquée/);
     assert.match(formatMixGroupCollapsedSummary(1, "A"), /1 piste masquée/);
   });
 
