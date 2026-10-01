@@ -11,6 +11,7 @@ export type CaptureHashPrefs = {
   productionView: "mix" | "clips" | "tools";
   recordOpen: boolean;
   actionsDrawerOpen: boolean;
+  trackToolsOpen: boolean;
   mixToolbar44Variant: boolean;
 };
 
@@ -51,6 +52,7 @@ export function parseCaptureHash(hashRaw: string): CaptureHashPrefs {
   const recordOpen = hash.includes("record-open");
   const actionsDrawerOpen =
     hash.includes("actions-open") || hash.includes("i6-drawer");
+  const trackToolsOpen = hash.includes("tools-open");
   const mixToolbar44Variant = hash.includes("mix-toolbar-44");
 
   return {
@@ -62,6 +64,7 @@ export function parseCaptureHash(hashRaw: string): CaptureHashPrefs {
     productionView,
     recordOpen,
     actionsDrawerOpen,
+    trackToolsOpen,
     mixToolbar44Variant,
   };
 }
