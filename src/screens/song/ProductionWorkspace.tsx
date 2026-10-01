@@ -21,6 +21,7 @@ import { Phase3MixPanel } from "../../components/Phase3MixPanel";
 import { ProductionAssistPanel } from "../../components/ProductionAssistPanel";
 import { RecordTrackPanel } from "../../components/RecordTrackPanel";
 import { MixBakeStatusIndicator } from "../../components/MixBakeStatusIndicator";
+import { PlaybackTime } from "../../components/PlaybackTime";
 import { Waveform } from "../../components/Waveform";
 import { t } from "../../ui/i18n";
 import {
@@ -469,7 +470,10 @@ export function ProductionWorkspace({
                     aria-label={t("player.seek")}
                   >
                     <span className="player-time">
-                      {formatPlaybackTime(playback?.current ?? 0)}
+                      <PlaybackTime
+                        seconds={playback?.current ?? 0}
+                        className="player-time"
+                      />
                     </span>
                     <span className="player-time-sep">/</span>
                     <span className="player-time">

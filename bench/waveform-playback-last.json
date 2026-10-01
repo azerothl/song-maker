@@ -1,0 +1,72 @@
+{
+  "command": "pnpm bench:waveform-playback",
+  "viewport": "1280×720",
+  "chromium": "playwright headless",
+  "generatedAt": "2026-10-01T02:13:49.997Z",
+  "scenarios": [
+    {
+      "scenario": {
+        "trackCount": 12,
+        "durationSec": 180,
+        "frames": 120
+      },
+      "mode": "legacy-react",
+      "canvasCount": 12,
+      "framesObserved": 120,
+      "fillRectCalls": 1309500,
+      "fillRectPerFrame": 10912.5,
+      "longTasksMs": 0,
+      "longTaskCount": 0,
+      "meanFrameMs": 16.482500000000194,
+      "p95FrameMs": 17
+    },
+    {
+      "scenario": {
+        "trackCount": 12,
+        "durationSec": 180,
+        "frames": 120
+      },
+      "mode": "optimized-bus",
+      "canvasCount": 12,
+      "framesObserved": 120,
+      "fillRectCalls": 15876,
+      "fillRectPerFrame": 132.3,
+      "longTasksMs": 0,
+      "longTaskCount": 0,
+      "meanFrameMs": 16.5625,
+      "p95FrameMs": 16.900000000023283
+    },
+    {
+      "scenario": {
+        "trackCount": 16,
+        "durationSec": 180,
+        "frames": 120
+      },
+      "mode": "legacy-react",
+      "canvasCount": 16,
+      "framesObserved": 120,
+      "fillRectCalls": 1746000,
+      "fillRectPerFrame": 14550,
+      "longTasksMs": 0,
+      "longTaskCount": 0,
+      "meanFrameMs": 16.604166666666668,
+      "p95FrameMs": 16.900000000023283
+    },
+    {
+      "scenario": {
+        "trackCount": 16,
+        "durationSec": 180,
+        "frames": 120
+      },
+      "mode": "optimized-bus",
+      "canvasCount": 16,
+      "framesObserved": 120,
+      "fillRectCalls": 21168,
+      "fillRectPerFrame": 176.4,
+      "longTasksMs": 0,
+      "longTaskCount": 0,
+      "meanFrameMs": 16.571666666666474,
+      "p95FrameMs": 16.900000000023283
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import {
   getProductionTempoBpm,
   productionIsActive,
 } from "./productionState";
+import { emitPlaybackPosition } from "./playbackPosition";
 import type { MixDoc, PlaybackSources } from "./types";
 
 export type TrackPeaks = {
@@ -132,6 +133,7 @@ export class MixPlaybackEngine {
   }
 
   private notify() {
+    emitPlaybackPosition(this.getCurrentTime());
     for (const fn of this.listeners) fn();
   }
 
@@ -626,7 +628,7 @@ export class MixPlaybackEngine {
   private startRaf() {
     this.stopRaf();
     const tick = () => {
-      this.notify();
+      emitPlaybackPosition(this.getCurrentTime());
       if (this.playing) this.raf = requestAnimationFrame(tick);
     };
     this.raf = requestAnimationFrame(tick);

@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "bench:score-tab": "node --import tsx scripts/bench-score-tab.mts",
+    "bench:waveform-playback": "node --import tsx scripts/bench-waveform-playback.mts",
     "bench:partition": "node scripts/bench-partition-freeze.mjs",
     "bench:mix-bake": "node --import tsx scripts/bench-mix-bake.mts",
     "capture:mix-bake-indicator": "node --import tsx scripts/capture-mix-bake-indicator.mts",

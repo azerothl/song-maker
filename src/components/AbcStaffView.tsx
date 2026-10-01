@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import * as abcjs from "abcjs";
+import { subscribePlaybackPosition } from "../lib/playbackPosition";
 import type { NoteTimingEvent, TimingCallbacks } from "abcjs";
 import {
   abcBarDurationSeconds,
@@ -23,7 +24,7 @@ import {
   playbackBarIndex,
 } from "../lib/staffWindow";
 import {
-  shouldResumeFollowOnPlaybackRestart,
+  followPlaybackAfterPositionTick,
   staffScrollTopTo,
 } from "../lib/staffScroll";
 import { t } from "../ui/i18n";
@@ -136,7 +137,32 @@ export function AbcStaffView({
 
   onSeekRef.current = onSeek;
   playbackReadyRef.current = playbackReady;
-  playbackSecondsRef.current = playbackSeconds;
+
+  const [livePlaybackSeconds, setLivePlaybackSeconds] = useState(playbackSeconds);
+
+  useEffect(() => {
+    setLivePlaybackSeconds(playbackSeconds);
+    playbackSecondsRef.current = playbackSeconds;
+    setFollowPlayback((f) =>
+      followPlaybackAfterPositionTick(
+        prevPlaybackSecondsRef.current,
+        playbackSeconds,
+        f,
+      ),
+    );
+    prevPlaybackSecondsRef.current = playbackSeconds;
+  }, [playbackSeconds]);
+
+  useEffect(() => {
+    return subscribePlaybackPosition((t) => {
+      playbackSecondsRef.current = t;
+      setLivePlaybackSeconds(t);
+      setFollowPlayback((f) =>
+        followPlaybackAfterPositionTick(prevPlaybackSecondsRef.current, t, f),
+      );
+      prevPlaybackSecondsRef.current = t;
+    });
+  }, []);
 
   const deferredAbc = useDeferredValue(abc);
   const isStale = deferredAbc !== abc;
@@ -241,14 +267,6 @@ export function AbcStaffView({
     return () => media.removeEventListener("change", sync);
   }, []);
 
-  useEffect(() => {
-    const prev = prevPlaybackSecondsRef.current;
-    prevPlaybackSecondsRef.current = playbackSeconds;
-    if (shouldResumeFollowOnPlaybackRestart(prev, playbackSeconds)) {
-      setFollowPlayback(true);
-    }
-  }, [playbackSeconds]);
-
   const pauseFollowOnUserScroll = useCallback(() => {
     if (programmaticScrollRef.current) return;
     setFollowPlayback(false);
@@ -310,7 +328,7 @@ export function AbcStaffView({
     if (!followPlayback || !windowing || barSeconds == null) return;
     const scroll = scrollRef.current;
     if (!scroll) return;
-    const bar = playbackBarIndex(playbackSeconds, barSeconds);
+    const bar = playbackBarIndex(livePlaybackSeconds, barSeconds);
     const targetY = bar * pxPerBarRef.current;
     const margin = scroll.clientHeight * 0.2;
     const top = scroll.scrollTop;
@@ -328,7 +346,7 @@ export function AbcStaffView({
       programmaticScrollRef.current = false;
     });
   }, [
-    playbackSeconds,
+    livePlaybackSeconds,
     windowing,
     barSeconds,
     applyScrollWindow,
@@ -452,10 +470,10 @@ export function AbcStaffView({
     const timing = timingRef.current;
     if (!timing) return;
     timing.setProgress(
-      Math.max(0, playbackSeconds - windowOffsetSeconds),
+      Math.max(0, livePlaybackSeconds - windowOffsetSeconds),
       "seconds",
     );
-  }, [playbackSeconds, windowOffsetSeconds]);
+  }, [livePlaybackSeconds, windowOffsetSeconds]);
 
   const allWarnings = [...warnings, ...renderWarnings];
   const warningSummary = useMemo(
