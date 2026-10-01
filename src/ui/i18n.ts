@@ -1,6 +1,12 @@
 import type { ReactNode } from "react";
 import fr from "./fr.json";
 import enProfiles from "./en.profiles.json";
+import enProduction from "./en.production.json";
+
+const enStrings: Record<string, string> = {
+  ...enProfiles,
+  ...enProduction,
+};
 
 type Keys = keyof typeof fr;
 
@@ -12,8 +18,8 @@ export function profileLocale(): "fr" | "en" {
 export function t(key: Keys, vars?: Record<string, string | number>): string {
   const loc = profileLocale();
   let s: string =
-    loc === "en" && key in enProfiles
-      ? (enProfiles as Record<string, string>)[key]
+    loc === "en" && key in enStrings
+      ? enStrings[key]
       : (fr[key] ?? String(key));
   if (vars) {
     for (const [k, v] of Object.entries(vars)) {

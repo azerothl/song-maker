@@ -134,7 +134,7 @@ export function measureProductionSubtabScroll(): ProductionSubtabScrollMetrics {
     ".production-mix-toolbar-sticky",
   ) as HTMLElement | null;
   const mixBtn = document.querySelector(
-    ".production-mix-toolbar-actions .btn",
+    '[data-testid="production-mix-settings-trigger"]',
   ) as HTMLElement | null;
 
   let tools: ProductionSubtabScrollMetrics["tools"] = null;
