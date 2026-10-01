@@ -77,6 +77,10 @@ export function ExportDialog({
   }, [mix?.id, opts.mode, aiTracks]);
 
   const controls = visibleExportControls(opts.format);
+  const hasExportAudio = Boolean(project.activeGenerationId) || Boolean(
+    project.activeMixId && mix?.tracks.some(track =>
+      track.clips.some(clip => clip.sourcePath && clip.durationMs > 0)),
+  );
 
   const toggle = (id: string) => {
     setSelected((prev) =>
@@ -177,7 +181,7 @@ export function ExportDialog({
         type="button"
         className="btn primary"
         data-capture-export-trigger="1"
-        disabled={!project.activeGenerationId || busy}
+        disabled={!hasExportAudio || busy}
         onClick={() => setOpen(true)}
       >
         {t("export.button")}

@@ -1,0 +1,13 @@
+import {createRoot} from "react-dom/client";
+import {ExportDialog} from "../components/ExportDialog";
+import {buildCaptureDemoMix,buildCapturePlaybackSources,buildCaptureProject} from "./captureDemoMix";
+import "../App.css";
+const variant=new URLSearchParams(location.search).get("variant");
+const project=buildCaptureProject(),mix=buildCaptureDemoMix(1);
+project.activeGenerationId=null;project.activeSeparationId=null;
+mix.tracks[0].aiSeparated=false;
+if(variant==="empty")mix.tracks=[];
+if(variant==="no-source")mix.tracks[0].clips[0].sourcePath="";
+if(variant==="zero-duration")mix.tracks[0].clips[0].durationMs=0;
+if(variant==="generation")project.activeGenerationId="generation-fixture";
+createRoot(document.getElementById("root")!).render(<main className="main"><ExportDialog project={project} mix={mix} sources={buildCapturePlaybackSources(mix)} busy={variant==="busy"} onBusy={()=>{}} onError={()=>{}}/></main>);

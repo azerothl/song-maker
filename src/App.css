@@ -1348,6 +1348,12 @@ option {
   background: color-mix(in srgb, var(--bg0) 94%, transparent);
 }
 
+/* A fixed popin remains inside its ancestor's stacking context. Lift that
+   context above the sticky ruler while a master-toolbar popin is open. */
+.production-mix-sticky-master:has(.anchored-popin-layer) {
+  z-index: 6;
+}
+
 .production-mix-master.mix-master-banner {
   min-height: 52px;
 }
