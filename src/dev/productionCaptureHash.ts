@@ -12,6 +12,10 @@ export type CaptureHashPrefs = {
   recordOpen: boolean;
   actionsDrawerOpen: boolean;
   mixToolbar44Variant: boolean;
+  /** Affiche l’indicateur de rebake mix (captures #234). */
+  mixBakeIndicator: boolean;
+  /** Cycle pending → done pour tests comportement. */
+  mixBakeIndicatorCycle: boolean;
 };
 
 export function parseCaptureHash(hashRaw: string): CaptureHashPrefs {
@@ -52,6 +56,9 @@ export function parseCaptureHash(hashRaw: string): CaptureHashPrefs {
   const actionsDrawerOpen =
     hash.includes("actions-open") || hash.includes("i6-drawer");
   const mixToolbar44Variant = hash.includes("mix-toolbar-44");
+  const mixBakeIndicator =
+    hash.includes("mixbake-indicator") || hash.includes("mixbake=1");
+  const mixBakeIndicatorCycle = hash.includes("mixbake-cycle");
 
   return {
     trackCount,
@@ -63,5 +70,7 @@ export function parseCaptureHash(hashRaw: string): CaptureHashPrefs {
     recordOpen,
     actionsDrawerOpen,
     mixToolbar44Variant,
+    mixBakeIndicator,
+    mixBakeIndicatorCycle,
   };
 }

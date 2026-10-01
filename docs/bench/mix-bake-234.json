@@ -1,0 +1,46 @@
+{
+  "issue": 234,
+  "generatedAt": "2026-10-01T02:23:23.893Z",
+  "command": "pnpm bench:mix-bake",
+  "env": {
+    "DURATION_SEC": 90,
+    "STEM_COUNT": 12,
+    "SAMPLE_RATE": 48000,
+    "RUNS": 3
+  },
+  "measured": {
+    "syncMainThreadMs_median_eqChange": 6110.024502999993,
+    "syncMainThreadMs_median_stretchChange": 43942.45358999999,
+    "workerHandoffMs_median_eqChange": 214.9089119999844,
+    "workerCpuMs_median_eqChange": 6521.294021000009
+  },
+  "calculated": {
+    "syncVsWorkerHandoffRatio_eq": 28.430763741433097
+  },
+  "notTested": [
+    "Glitch audible pendant lecture (nécessite session Tauri manuelle).",
+    "Quota Vercel / déploiement preview."
+  ],
+  "runs": {
+    "eqSync": [
+      6364.229535,
+      6062.328086000001,
+      6110.024502999993
+    ],
+    "stretchSync": [
+      45004.540725,
+      43942.45358999999,
+      42864.419234000015
+    ],
+    "eqHandoff": [
+      367.8885219999938,
+      214.9089119999844,
+      210.86087000000407
+    ],
+    "eqWorkerCpu": [
+      6758.49172000002,
+      6392.816462000017,
+      6521.294021000009
+    ]
+  }
+}

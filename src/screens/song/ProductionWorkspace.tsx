@@ -21,6 +21,7 @@ import { MixKnob } from "../../components/MixKnob";
 import { Phase3MixPanel } from "../../components/Phase3MixPanel";
 import { ProductionAssistPanel } from "../../components/ProductionAssistPanel";
 import { RecordTrackPanel } from "../../components/RecordTrackPanel";
+import { MixBakeStatusIndicator } from "../../components/MixBakeStatusIndicator";
 import { PlaybackTime } from "../../components/PlaybackTime";
 import { Waveform } from "../../components/Waveform";
 import { t } from "../../ui/i18n";
@@ -397,6 +398,12 @@ export function ProductionWorkspace({
         <p className="hint song-subview-intro production-subview-intro">
           {productionViewIntro(productionView)}
         </p>
+
+        <MixBakeStatusIndicator
+          pending={playback?.mixBakePending ?? false}
+          failed={playback?.mixBakeFailed ?? false}
+          className="production-mix-bake-chrome"
+        />
 
         <details className="production-actions-drawer" data-default-closed>
         <summary>{t("mix.actions.toggle")}</summary>

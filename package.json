@@ -17,6 +17,8 @@
     "bench:score-open": "node --import tsx scripts/probe-ui-perf.mts",
     "bench:waveform-playback": "node --import tsx scripts/bench-waveform-playback.mts",
     "bench:partition": "node scripts/bench-partition-freeze.mjs",
+    "bench:mix-bake": "node --import tsx scripts/bench-mix-bake.mts",
+    "capture:mix-bake-indicator": "node --import tsx scripts/capture-mix-bake-indicator.mts",
     "packages:build": "pnpm -r --filter \"./packages/**\" run build",
     "packages:test": "pnpm -r --filter \"./packages/**\" run test",
     "packages:typecheck": "pnpm -r --filter \"./packages/**\" run typecheck",

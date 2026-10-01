@@ -1,7 +1,9 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { bakeMixPcm, mixNeedsClipProcessingBake, type DecodedStem } from "./mixBridge";
+import { mixNeedsClipProcessingBake, type DecodedStem } from "./mixBridge";
+import { bakeMixPcmAsync, disposeMixBakeWorker } from "./mixBakeClient";
 import {
-  getProductionToolkit,
+  getProductionOverlay,
+  getProductionTempoBpm,
   productionIsActive,
 } from "./productionState";
 import { emitPlaybackPosition } from "./playbackPosition";
@@ -26,6 +28,10 @@ export type PlaybackSnapshot = {
   mixPeaks: Float32Array | null;
   /** True when playing a buffer baked by mix-production (matches export bake). */
   productionBake: boolean;
+  /** Rebake production en cours (Worker) — afficher un statut à l’utilisateur. */
+  productionMixBakePending: boolean;
+  /** Dernier rebake production échoué (sans détail technique Worker). */
+  productionMixBakeFailed: boolean;
 };
 
 type TrackNodes = {
@@ -103,6 +109,8 @@ export class MixPlaybackEngine {
   private decodedStems: DecodedStem[] = [];
   private lastMix: MixDoc | null = null;
   private productionBake = false;
+  private productionMixBakePending = false;
+  private productionMixBakeFailed = false;
   private startedAt = 0;
   private offset = 0;
   private playing = false;
@@ -116,6 +124,8 @@ export class MixPlaybackEngine {
   private listeners = new Set<() => void>();
   private raf = 0;
   private bakeTimer: ReturnType<typeof setTimeout> | null = null;
+  private bakeGeneration = 0;
+  private activeBakeJob: { cancel: () => void } | null = null;
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
@@ -139,6 +149,8 @@ export class MixPlaybackEngine {
       peaks: this.peaks,
       mixPeaks: this.mixPeaks,
       productionBake: this.productionBake,
+      productionMixBakePending: this.productionMixBakePending,
+      productionMixBakeFailed: this.productionMixBakeFailed,
     };
   }
 
@@ -179,6 +191,8 @@ export class MixPlaybackEngine {
     this.bakedBuffer = null;
     this.decodedStems = [];
     this.productionBake = false;
+    this.productionMixBakePending = false;
+    this.productionMixBakeFailed = false;
     this.lastMix = mix;
     this.peaks = [];
     this.mixPeaks = null;
@@ -287,7 +301,7 @@ export class MixPlaybackEngine {
       } else {
         throw new Error("Aucune source audio.");
       }
-      this.applyMix(mix);
+      await this.applyMix(mix);
       this.ready = true;
     } catch (e) {
       this.ready = false;
@@ -299,18 +313,71 @@ export class MixPlaybackEngine {
     }
   }
 
-  private rebuildBakedBuffer(mix: MixDoc): void {
-    if (!this.ctx || this.decodedStems.length === 0) return;
-    const result = bakeMixPcm(mix, this.decodedStems, getProductionToolkit());
-    const buf = this.ctx.createBuffer(2, result.frameCount, mix.sampleRate || 48000);
-    buf.copyToChannel(result.left, 0);
-    buf.copyToChannel(result.right, 1);
+  private applyBakedRenderResult(
+    mix: MixDoc,
+    left: Float32Array,
+    right: Float32Array,
+    frameCount: number,
+  ): void {
+    if (!this.ctx) return;
+    const buf = this.ctx.createBuffer(
+      2,
+      frameCount,
+      mix.sampleRate || 48000,
+    );
+    buf.copyToChannel(left, 0);
+    buf.copyToChannel(right, 1);
     this.bakedBuffer = buf;
     this.duration = buf.duration;
     this.mixPeaks = extractPeaks(buf);
     this.productionBake = true;
     if (this.master) this.master.gain.value = 1;
     if (this.ceiling) this.ceiling.gain.value = 1;
+  }
+
+  private requestProductionBakeAsync(mix: MixDoc): Promise<void> {
+    if (!this.ctx || this.decodedStems.length === 0) return Promise.resolve();
+    this.activeBakeJob?.cancel();
+    const gen = ++this.bakeGeneration;
+    this.productionMixBakePending = true;
+    this.productionMixBakeFailed = false;
+    this.notify();
+    const job = bakeMixPcmAsync(
+      mix,
+      this.decodedStems,
+      getProductionOverlay(),
+      getProductionTempoBpm(),
+    );
+    this.activeBakeJob = job;
+    return job.result
+      .then((result) => {
+        if (gen !== this.bakeGeneration) return;
+        this.activeBakeJob = null;
+        const wasPlaying = this.playing;
+        const t = this.getCurrentTime();
+        if (wasPlaying) this.stopSources(false);
+        this.applyBakedRenderResult(
+          mix,
+          result.left,
+          result.right,
+          result.frameCount,
+        );
+        if (wasPlaying) {
+          this.startSources(t);
+          this.playing = true;
+          this.startRaf();
+        }
+        this.productionMixBakeFailed = false;
+        this.productionMixBakePending = false;
+        this.notify();
+      })
+      .catch(() => {
+        if (gen !== this.bakeGeneration) return;
+        this.activeBakeJob = null;
+        this.productionMixBakePending = false;
+        this.productionMixBakeFailed = true;
+        this.notify();
+      });
   }
 
   private applyCeilingFromBuffers() {
@@ -336,33 +403,34 @@ export class MixPlaybackEngine {
     this.ceiling.gain.value = peak > ceiling && peak > 0 ? ceiling / peak : 1;
   }
 
-  applyMix(mix: MixDoc | null) {
+  async applyMix(mix: MixDoc | null): Promise<void> {
     if (!this.master) return;
     this.lastMix = mix;
     if (this.mode === "generation" || !mix) {
+      this.activeBakeJob?.cancel();
+      this.bakeGeneration++;
+      this.productionMixBakePending = false;
+      this.productionMixBakeFailed = false;
       this.master.gain.value = 1;
       this.productionBake = false;
       this.bakedBuffer = null;
+      this.notify();
       return;
     }
 
-    // Production overlay or clip stretch/takes → same bake as export.
+    // Production overlay or clip stretch/takes → same bake as export (hors thread UI).
     if (
       (productionIsActive() || mixNeedsClipProcessingBake(mix)) &&
       this.decodedStems.length > 0
     ) {
-      const wasPlaying = this.playing;
-      const t = this.getCurrentTime();
-      this.stopSources(false);
-      this.rebuildBakedBuffer(mix);
-      if (wasPlaying) {
-        this.startSources(t);
-        this.playing = true;
-        this.startRaf();
-      }
-      this.notify();
+      await this.requestProductionBakeAsync(mix);
       return;
     }
+
+    this.activeBakeJob?.cancel();
+    this.bakeGeneration++;
+    this.productionMixBakePending = false;
+    this.productionMixBakeFailed = false;
 
     this.productionBake = false;
     this.bakedBuffer = null;
@@ -574,6 +642,8 @@ export class MixPlaybackEngine {
   dispose() {
     this.pause();
     this.stopRaf();
+    this.activeBakeJob?.cancel();
+    this.bakeGeneration++;
     if (this.bakeTimer) clearTimeout(this.bakeTimer);
     if (this.ctx) {
       void this.ctx.close();
@@ -585,5 +655,6 @@ export class MixPlaybackEngine {
     this.decodedStems = [];
     this.bakedBuffer = null;
     this.listeners.clear();
+    disposeMixBakeWorker();
   }
 }
