@@ -32,7 +32,11 @@ import {
   upsertSection,
 } from "../lib/score";
 import { SoftSynth } from "../lib/midiInstrument";
+import { midiPitchName } from "../lib/midiPitchName";
 import { t } from "../ui/i18n";
+
+/** Cible tactile minimale (WCAG / #246). */
+const NOTE_HIT_PX = 44;
 
 const SECTION_KINDS: SectionKind[] = [
   "intro",
@@ -63,7 +67,8 @@ const TONICS = [
 const PITCH_MIN = 48;
 const PITCH_MAX = 84;
 const PX_PER_TICK = 0.04;
-const ROW_H = 14;
+/** Aligné sur NOTE_HIT_PX pour éviter le chevauchement vertical des cibles 44 px. */
+const ROW_H = NOTE_HIT_PX;
 const QUANTIZE_TICKS = 120;
 
 type Props = {
@@ -296,6 +301,11 @@ export function PianoRoll({ document, onChange, onError }: Props) {
     setSelectedId(null);
   }
 
+  function selectNote(noteId: string, pitch: number) {
+    setSelectedId(noteId);
+    audition(pitch);
+  }
+
   function onNotePointerDown(
     e: PointerEvent,
     noteId: string,
@@ -304,8 +314,7 @@ export function PianoRoll({ document, onChange, onError }: Props) {
   ) {
     e.stopPropagation();
     if (!voiceId) return;
-    setSelectedId(noteId);
-    audition(pitch);
+    selectNote(noteId, pitch);
     const target = e.currentTarget as HTMLElement;
     target.setPointerCapture(e.pointerId);
     const originX = e.clientX;
@@ -334,6 +343,17 @@ export function PianoRoll({ document, onChange, onError }: Props) {
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+  }
+
+  function onNoteKeyDown(
+    e: KeyboardEvent<HTMLButtonElement>,
+    noteId: string,
+    pitch: number,
+  ) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    e.stopPropagation();
+    selectNote(noteId, pitch);
   }
 
   function deleteSelected() {
@@ -768,28 +788,41 @@ export function PianoRoll({ document, onChange, onError }: Props) {
               title={`% ${s.kind}`}
             />
           ))}
-          {visibleNotes.map((n) => (
-            <button
-              type="button"
-              key={n.id}
-              data-note-id={n.id}
-              className={
-                n.id === selectedId ? "piano-note selected" : "piano-note"
-              }
-              style={{
-                left: n.startTick * PX_PER_TICK,
-                top: pitchToY(n.pitch),
-                width: Math.max(6, n.durationTick * PX_PER_TICK),
-                height: ROW_H - 2,
-                opacity: 0.55 + (n.velocity / 127) * 0.45,
-              }}
-              onFocus={() => handleNoteFocus(n.id)}
-              onPointerDown={(e) =>
-                onNotePointerDown(e, n.id, n.startTick, n.pitch)
-              }
-              onClick={(e) => e.stopPropagation()}
-            />
-          ))}
+          {visibleNotes.map((n) => {
+            const selected = n.id === selectedId;
+            const pitchName = midiPitchName(n.pitch);
+            return (
+              <button
+                type="button"
+                key={n.id}
+                data-note-id={n.id}
+                data-piano-note-id={n.id}
+                className={selected ? "piano-note selected" : "piano-note"}
+                aria-label={t("score.piano.noteAria", {
+                  pitchName,
+                  startTick: n.startTick,
+                  durationTick: n.durationTick,
+                })}
+                aria-pressed={selected}
+                style={{
+                  left: n.startTick * PX_PER_TICK,
+                  top: pitchToY(n.pitch) - (NOTE_HIT_PX - ROW_H) / 2,
+                  width: Math.max(NOTE_HIT_PX, n.durationTick * PX_PER_TICK),
+                  height: NOTE_HIT_PX,
+                  opacity: 0.55 + (n.velocity / 127) * 0.45,
+                }}
+                onFocus={() => handleNoteFocus(n.id)}
+                onPointerDown={(e) =>
+                  onNotePointerDown(e, n.id, n.startTick, n.pitch)
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  selectNote(n.id, n.pitch);
+                }}
+                onKeyDown={(e) => onNoteKeyDown(e, n.id, n.pitch)}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

@@ -64,6 +64,9 @@ describe("piano roll focus (virtualisation)", () => {
         assert.equal(probe.focusKeptOnNote, true, JSON.stringify(probe));
         assert.equal(probe.activeElementIsBody, false, JSON.stringify(probe));
         assert.equal(probe.activeNoteId, probe.focusedNoteId);
+        assert.ok(probe.accessibleName);
+        assert.match(probe.pressed ?? "", /^(true|false)$/);
+        assert.equal(probe.selectedAttribute, null);
       });
     },
   );
