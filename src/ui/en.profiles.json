@@ -57,6 +57,7 @@
   "profiles.selector.collapsedAria": "Active profile: {name} — {kind}. Switch profile.",
   "profiles.engines.whySheetsage2AudioCpp": "Per audio.cpp (docs/model_licenses.md, sheetsage2 entry, CC-BY-NC-4.0, reviewed {date}; original Hugging Face card not re-read)",
   "profiles.projects.none": "no songs",
+  "profiles.contracts.count": "{count} accepted agreements",
   "profiles.contracts.one": "1 accepted agreement",
   "profiles.contracts.many": "{count} accepted agreements",
   "profiles.contracts.none": "no accepted agreements",

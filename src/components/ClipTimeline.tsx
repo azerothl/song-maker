@@ -28,6 +28,7 @@ import {
   type GridMode,
   type MusicalSubdivision,
 } from "../lib/musicalTime";
+import { setProductionClipSelection } from "../lib/productionClipSelection";
 import { roleWaveColor, withAlpha } from "../lib/trackRoleColors";
 import { listTakesInGroup, selectActiveTake } from "../lib/takes";
 import type {
@@ -319,6 +320,10 @@ export function ClipTimeline({
     const track = mix.tracks.find((tr) => tr.id === selected.trackId);
     return track?.clips.find((c) => c.id === selected.clipId) ?? null;
   }, [mix, selected]);
+
+  useEffect(() => {
+    setProductionClipSelection(selected);
+  }, [selected]);
 
   function patchSelectedClip(patch: Partial<MixClip>) {
     if (!selected || !selectedClip) return;

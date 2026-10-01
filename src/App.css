@@ -1546,7 +1546,7 @@ option {
 
 .production-mix-grid {
   display: grid;
-  grid-template-columns: 192px 5.5rem 5rem 60px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 264px) 5.5rem 5rem 60px 36px minmax(0, 1fr);
   min-width: 640px;
   column-gap: 0.65rem;
   align-items: center;
@@ -1580,7 +1580,7 @@ option {
   --production-row-h: 44px;
   --production-group-h: 24px;
   --mix-knob-size: 36px;
-  --mix-ms-size: 28px;
+  --mix-ms-size: 32px;
   --production-name-fs: 0.88rem;
 }
 
@@ -1705,15 +1705,163 @@ option {
 
 .mixer-density .track-ms-btn:focus-visible,
 .mixer-density .mix-knob-dial:focus-visible,
+.mixer-density .production-track-tools-btn:focus-visible,
 .production-mix-group-toggle:focus-visible,
-.production-density-btn:focus-visible {
-  outline: 3px solid #ffd76a;
+.production-density-btn:focus-visible,
+.production-add-track-btn:focus-visible,
+.anchored-popin .btn:focus-visible,
+.anchored-popin input:focus-visible,
+.anchored-popin select:focus-visible {
+  outline: 2px solid rgb(94, 236, 248);
   outline-offset: 2px;
 }
 
-.mixer-density .track-ms-btn:focus-visible {
-  outline-width: 2px;
-  outline-offset: 0;
+.mixer-density .track-ms-btn-m.pressed::after,
+.mixer-density .track-ms-btn-m[aria-pressed="true"]::after,
+.mixer-density .track-ms-btn-s.pressed::after,
+.mixer-density .track-ms-btn-s[aria-pressed="true"]::after {
+  content: "✓";
+  position: absolute;
+  right: 1px;
+  top: 0;
+  font-size: 0.55rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.mixer-density .track-ms-btn {
+  position: relative;
+}
+
+.mixer-density .track-ms-btn-m.pressed,
+.mixer-density .track-ms-btn-m[aria-pressed="true"],
+.mixer-density .track-ms-btn-s.pressed,
+.mixer-density .track-ms-btn-s[aria-pressed="true"] {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.production-mix-track-tools {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.production-track-tools-btn {
+  min-width: 32px;
+  min-height: 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  line-height: 1;
+}
+
+.production-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.production-add-track-wrap {
+  position: relative;
+}
+
+.production-add-track-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  width: min(200px, calc(100vw - 16px));
+  padding: 0.35rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.production-add-track-item {
+  width: 100%;
+  min-height: 32px;
+  justify-content: flex-start;
+  margin-bottom: 0.25rem;
+}
+
+.production-add-track-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+}
+
+.production-track-settings-popin,
+.production-fx-line-popin,
+.production-eq-popin {
+  overflow-y: auto;
+  max-height: calc(100vh - 16px);
+}
+
+.production-fx-line-row {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+@media (max-width: 640px), (pointer: coarse) {
+  .mixer-density .track-ms-btn,
+  .production-track-tools-btn,
+  .production-add-track-item {
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .production-add-track-item {
+    width: 100%;
+    height: auto;
+    min-height: 44px;
+  }
+
+  .production-mix-grid {
+    grid-template-columns: minmax(0, 1fr) 5.5rem 5rem;
+    grid-template-areas:
+      "name name name"
+      "gain pan ms"
+      "tools tools wave";
+    row-gap: 4px;
+    min-height: 92px;
+    height: auto;
+  }
+
+  .production-mix-row {
+    height: auto;
+    min-height: 92px;
+    align-items: center;
+  }
+
+  .production-mix-name {
+    grid-column: 1 / -1;
+  }
+
+  .track-gain-knob {
+    grid-column: 1;
+  }
+
+  .track-pan-knob {
+    grid-column: 2;
+  }
+
+  .track-ms {
+    grid-column: 3;
+  }
+
+  .production-mix-track-tools {
+    grid-column: 1 / span 2;
+  }
+
+  .production-mix-wave {
+    grid-column: 3;
+    grid-row: 2 / span 2;
+  }
 }
 
 .production-mix-wave .waveform-frame {
@@ -1831,7 +1979,7 @@ option {
 
 .production-mix-group-summary,
 .production-mix-group-wave-pad {
-  grid-column: 5;
+  grid-column: 6;
   min-width: 0;
 }
 

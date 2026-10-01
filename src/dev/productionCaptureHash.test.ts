@@ -13,6 +13,7 @@ describe("parseCaptureHash", () => {
       productionView: "mix",
       recordOpen: false,
       actionsDrawerOpen: false,
+      trackToolsOpen: false,
       mixToolbar44Variant: false,
       mixBakeIndicator: false,
       mixBakeIndicatorCycle: false,
@@ -26,6 +27,7 @@ describe("parseCaptureHash", () => {
       productionView: "mix",
       recordOpen: false,
       actionsDrawerOpen: false,
+      trackToolsOpen: false,
       mixToolbar44Variant: false,
       mixBakeIndicator: false,
       mixBakeIndicatorCycle: false,
@@ -39,6 +41,7 @@ describe("parseCaptureHash", () => {
       productionView: "mix",
       recordOpen: false,
       actionsDrawerOpen: false,
+      trackToolsOpen: false,
       mixToolbar44Variant: false,
       mixBakeIndicator: false,
       mixBakeIndicatorCycle: false,
@@ -68,6 +71,7 @@ describe("parseCaptureHash", () => {
       parseCaptureHash("6,auto,actions-open,mix-toolbar-44").mixToolbar44Variant,
       true,
     );
+    assert.equal(parseCaptureHash("12,auto,tools-open").trackToolsOpen, true);
   });
 
   it("résout l’indicateur rebake mix pour captures (#234)", () => {

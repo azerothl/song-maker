@@ -21,6 +21,8 @@ import { MixKnob } from "../../components/MixKnob";
 import { Phase3MixPanel } from "../../components/Phase3MixPanel";
 import { ProductionAssistPanel } from "../../components/ProductionAssistPanel";
 import { RecordTrackPanel } from "../../components/RecordTrackPanel";
+import { ProductionAddTrackMenu } from "../../components/production/ProductionAddTrackMenu";
+import { ProductionTrackTools } from "../../components/production/ProductionTrackTools";
 import { MixBakeStatusIndicator } from "../../components/MixBakeStatusIndicator";
 import { PlaybackTime } from "../../components/PlaybackTime";
 import { Waveform } from "../../components/Waveform";
@@ -197,7 +199,6 @@ export function ProductionWorkspace({
 
   const mixAssistBtnRef = useRef<HTMLButtonElement>(null);
   const copilotBtnRef = useRef<HTMLButtonElement>(null);
-  const drawerSeparateBtnRef = useRef<HTMLButtonElement>(null);
   const separateAnchorRef = useRef<HTMLButtonElement | null>(null);
   const mixSettingsAnchorRef = useRef<HTMLButtonElement | null>(null);
   const [mixSettingsPreferAbove, setMixSettingsPreferAbove] = useState(false);
@@ -234,6 +235,7 @@ export function ProductionWorkspace({
   );
   const mixAssistTitleId = useId();
   const copilotTitleId = useId();
+  const [openTrackToolsId, setOpenTrackToolsId] = useState<string | null>(null);
   const mixSettingsLabelId = useId();
   const mixSettingsPanelId = useId();
 
@@ -404,61 +406,14 @@ export function ProductionWorkspace({
           failed={playback?.mixBakeFailed ?? false}
           className="production-mix-bake-chrome"
         />
-
-        <details className="production-actions-drawer" data-default-closed>
-        <summary>{t("mix.actions.toggle")}</summary>
-        <div className="production-global-actions">
-          <div className="song-actions">
-            <div className="btn-row song-actions-primary">
-              <button
-                ref={drawerSeparateBtnRef}
-                type="button"
-                className={hasAiStems ? "btn" : "btn primary"}
-                data-testid="sep-recommend-trigger"
-                disabled={!project.activeGenerationId || busy}
-                onClick={() => openSeparateFrom(drawerSeparateBtnRef.current)}
-              >
-                {hasAiStems ? t("separate.again") : t("separate.button")}
-              </button>
-            </div>
-            <div
-              className="btn-row song-actions-export"
-              role="group"
-              aria-label={t("export.group")}
-            >
-              <span className="song-actions-label">{t("export.group")}</span>
-              <ExportDialog
-                project={project}
-                mix={mix}
-                sources={playbackSources}
-                busy={busy}
-                onBusy={setBusy}
-                onError={setError}
-              />
-            </div>
-          </div>
-
-          <div className="mix-user-actions">
-            <button
-              type="button"
-              className="btn"
-              disabled={busy || importingAudio}
-              onClick={() => void onImportUserAudio()}
-            >
-              {importingAudio ? t("mix.importing") : t("mix.importAudio")}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => setRecordOpen((v) => !v)}
-              aria-expanded={recordOpen}
-            >
-              {t("mix.recordAudio")}
-            </button>
-            <p className="hint">{t("mix.importHint")}</p>
-          </div>
-
+        <div className="production-page-actions">
+          <ProductionAddTrackMenu
+            busy={busy}
+            importingAudio={importingAudio}
+            recordOpen={recordOpen}
+            onImport={() => void onImportUserAudio()}
+            onToggleRecord={() => setRecordOpen((v) => !v)}
+          />
           <RecordTrackPanel
             projectId={project.id}
             open={recordOpen}
@@ -467,7 +422,6 @@ export function ProductionWorkspace({
             onError={setError}
           />
         </div>
-        </details>
       </div>
 
       <div
@@ -678,6 +632,7 @@ export function ProductionWorkspace({
                   <span>{t("mix.columns.gain")}</span>
                   <span>{t("mix.columns.pan")}</span>
                   <span>{t("mix.columns.ms")}</span>
+                  <span>{t("mix.columns.tools")}</span>
                   <span>{t("mix.columns.waveform")}</span>
                 </div>
               )}
@@ -807,6 +762,21 @@ export function ProductionWorkspace({
                               {t("mix.solo")}
                             </span>
                           </button>
+                        </div>
+                        <div className="production-mix-track-tools">
+                          <ProductionTrackTools
+                            track={tr}
+                            mix={mix}
+                            scheduleMixUpdate={scheduleMixUpdate}
+                            isOpen={openTrackToolsId === tr.id}
+                            onOpenChange={(open) => {
+                              if (open) setOpenTrackToolsId(tr.id);
+                              else if (openTrackToolsId === tr.id) {
+                                setOpenTrackToolsId(null);
+                              }
+                            }}
+                            tempoBpm={form.tempoBpm}
+                          />
                         </div>
                         <div className="track-wave production-mix-wave">
                           <Waveform

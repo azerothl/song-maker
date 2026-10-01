@@ -87,13 +87,14 @@ function ProductionCaptureApp() {
   useEffect(() => {
     if (!capturePrefs.actionsDrawerOpen) return;
     const timer = window.setTimeout(() => {
-      const drawer = document.querySelector<HTMLDetailsElement>(
-        ".production-actions-drawer",
+      const addBtn = document.querySelector<HTMLButtonElement>(
+        ".production-add-track-btn",
       );
-      if (drawer) drawer.open = true;
+      addBtn?.click();
     }, 350);
     return () => window.clearTimeout(timer);
   }, [capturePrefs.actionsDrawerOpen]);
+
   const mix = useMemo(
     () => buildCaptureDemoMix(capturePrefs.trackCount),
     [capturePrefs.trackCount],
@@ -108,6 +109,18 @@ function ProductionCaptureApp() {
   useEffect(() => {
     setMixState(mix);
   }, [mix]);
+
+  useEffect(() => {
+    if (!capturePrefs.trackToolsOpen) return;
+    const timer = window.setTimeout(() => {
+      const btn = document.querySelector<HTMLButtonElement>(
+        ".production-track-tools-btn",
+      );
+      btn?.click();
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [capturePrefs.trackToolsOpen, mixState.tracks.length]);
+
   /** Heure figée « 08:02 » pour captures Mix (suivi #203 — indépendant de l’horloge machine). */
   const [mixSavedAt] = useState(() => new Date(2026, 0, 1, 8, 2, 0));
   const playbackDuration = 444;
