@@ -66,7 +66,7 @@ describe("profiles English path (#212 R13)", () => {
     );
     assert.match(
       formatCommercialCreationEngineLineEn("HTDemucs", "disponible avec réserve"),
-      /Available with reservation/,
+      /Available with conditions/,
     );
     assert.doesNotMatch(
       formatCommercialCreationEngineLineEn("HTDemucs", "disponible avec réserve"),

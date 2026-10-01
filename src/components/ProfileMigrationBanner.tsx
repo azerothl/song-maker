@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { ProfileRenameDialog } from "./ProfileRenameDialog";
 import { api } from "../lib/api";
+import { formatProfileRenameInvokeError } from "../lib/profileRenameErrors";
 import {
   formatProfileMigrationBannerEn,
   formatProfileMigrationBannerFr,
@@ -79,7 +80,7 @@ export function ProfileMigrationBanner() {
           void api
             .renameProfile(migrated.id, next)
             .then(() => refreshProfiles())
-            .catch((e) => setError(String(e)));
+            .catch((e) => setError(formatProfileRenameInvokeError(e)));
         }}
       />
     </>

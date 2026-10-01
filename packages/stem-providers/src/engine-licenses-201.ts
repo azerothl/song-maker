@@ -175,7 +175,7 @@ export function listProductionWiredCommercialEngines(): readonly WiredCommercial
 export const COMMERCIAL_RESERVED_STATUT_FR = "disponible avec réserve";
 
 export const COMMERCIAL_RESERVED_BADGE_FR = "Disponible avec réserve";
-export const COMMERCIAL_RESERVED_BADGE_EN = "Available with reservation";
+export const COMMERCIAL_RESERVED_BADGE_EN = "Available with conditions";
 
 /** Display badge from license-row `statut` (localized; no hardcoded prod UI copy). */
 export function formatCommercialReservedBadge(

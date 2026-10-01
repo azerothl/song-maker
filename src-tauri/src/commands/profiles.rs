@@ -77,12 +77,7 @@ pub(crate) fn create_profile_inner(
         .load(std::sync::atomic::Ordering::SeqCst);
     ensure_profile_creation_allowed(&job, export_busy)?;
     let trimmed = name.trim();
-    if trimmed.is_empty() {
-        return Err("Le nom du profil est obligatoire.".into());
-    }
-    if trimmed.len() > 80 {
-        return Err("Nom de profil trop long (80 caractères max).".into());
-    }
+    profiles::validate_profile_name_trimmed(trimmed)?;
     let kind_norm = kind.trim().to_ascii_lowercase();
     if kind_norm != "hobby" && kind_norm != "commercial" {
         return Err("Type de profil inconnu.".into());
@@ -125,19 +120,14 @@ pub fn create_profile(
 #[tauri::command]
 pub fn rename_profile(id: String, name: String) -> Result<(), String> {
     let trimmed = name.trim();
-    if trimmed.is_empty() {
-        return Err("Le nom du profil est obligatoire.".into());
-    }
-    if trimmed.len() > 80 {
-        return Err("Nom de profil trop long (80 caractères max).".into());
-    }
+    profiles::validate_profile_name_trimmed(trimmed)?;
     let mut manifest = load_manifest()?;
     let duplicate = manifest
         .profiles
         .iter()
-        .any(|p| p.id != id && p.name.eq_ignore_ascii_case(trimmed));
+        .any(|p| p.id != id && profiles::profile_names_collide(&p.name, trimmed));
     if duplicate {
-        return Err("Ce nom est déjà utilisé par un autre profil.".into());
+        return Err(profiles::PROFILE_RENAME_ERROR_DUPLICATE.into());
     }
     let row = manifest
         .profiles
@@ -392,5 +382,34 @@ mod tests {
         let err = activate_profile_inner(&state, target).unwrap_err();
         assert!(err.contains("export"), "{err}");
         assert!(!load_manifest().unwrap().onboarding_complete);
+    }
+
+    #[test]
+    fn rename_accepts_long_accented_name_by_char_count() {
+        let _docs = TempDocs::new("rename-long");
+        let (_a, id_b) = seed_two_profiles();
+        let name = "é".repeat(41);
+        assert_eq!(profiles::profile_name_char_count(&name), 41);
+        assert!(name.len() > profiles::PROFILE_NAME_MAX_CHARS);
+        rename_profile(id_b.clone(), name.clone()).unwrap();
+        let manifest = load_manifest().unwrap();
+        let row = manifest.profiles.iter().find(|p| p.id == id_b).unwrap();
+        assert_eq!(row.name, name);
+    }
+
+    #[test]
+    fn rename_rejects_duplicate_with_unicode_case() {
+        let _docs = TempDocs::new("rename-dup");
+        let (id_a, id_b) = seed_two_profiles();
+        let mut manifest = load_manifest().unwrap();
+        manifest
+            .profiles
+            .iter_mut()
+            .find(|p| p.id == id_a)
+            .unwrap()
+            .name = "Été".into();
+        save_manifest(&manifest).unwrap();
+        let err = rename_profile(id_b, "ÉTÉ".into()).unwrap_err();
+        assert_eq!(err, profiles::PROFILE_RENAME_ERROR_DUPLICATE);
     }
 }

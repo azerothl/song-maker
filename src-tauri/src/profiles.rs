@@ -11,7 +11,33 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 pub const MAX_PROFILES: usize = 6;
+pub const PROFILE_NAME_MAX_CHARS: usize = 80;
+
+/// i18n keys returned to the frontend (`profiles.rename.error.*`).
+pub const PROFILE_RENAME_ERROR_EMPTY: &str = "profiles.rename.error.empty";
+pub const PROFILE_RENAME_ERROR_TOO_LONG: &str = "profiles.rename.error.tooLong";
+pub const PROFILE_RENAME_ERROR_DUPLICATE: &str = "profiles.rename.error.duplicate";
+
 pub const MIGRATION_DEFAULT_NAME: &str = "Profil Hobby (vos projets existants)";
+
+pub fn profile_name_char_count(name: &str) -> usize {
+    name.chars().count()
+}
+
+/// True when two profile names differ only by Unicode case (or surrounding space).
+pub fn profile_names_collide(a: &str, b: &str) -> bool {
+    a.trim().to_lowercase() == b.trim().to_lowercase()
+}
+
+pub fn validate_profile_name_trimmed(trimmed: &str) -> Result<(), String> {
+    if trimmed.is_empty() {
+        return Err(PROFILE_RENAME_ERROR_EMPTY.into());
+    }
+    if profile_name_char_count(trimmed) > PROFILE_NAME_MAX_CHARS {
+        return Err(PROFILE_RENAME_ERROR_TOO_LONG.into());
+    }
+    Ok(())
+}
 
 static ACTIVE_PROFILE_ID: OnceLock<RwLock<Option<String>>> = OnceLock::new();
 

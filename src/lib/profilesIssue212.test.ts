@@ -44,7 +44,7 @@ describe("profiles a11y/data debt (#212)", () => {
     );
     assert.equal(
       formatCommercialReservedBadge("disponible avec réserve", "en"),
-      "Available with reservation",
+      "Available with conditions",
     );
     const ui = readFileSync(path.join(root, "src/lib/commercialEnginesUi.ts"), "utf8");
     assert.match(ui, /formatCommercialReservedBadge/);

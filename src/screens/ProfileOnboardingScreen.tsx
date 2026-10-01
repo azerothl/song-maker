@@ -7,6 +7,7 @@ import { api } from "../lib/api";
 import { resolveCommercialCreationState } from "../lib/profileCommercialCreation";
 import type { ProfileKind, ProfileSummary } from "../lib/profilesTypes";
 import { setupComplete } from "../lib/firstLaunch";
+import { formatProfileRenameInvokeError } from "../lib/profileRenameErrors";
 import { formatProfileProjectCount } from "../lib/profileProjectCount";
 import { profileSwitchBlockReason } from "../lib/profileSwitchBlock";
 import { useAppStore } from "../store/appStore";
@@ -91,7 +92,7 @@ export function ProfileOnboardingScreen() {
     void api
       .renameProfile(target.id, nextName)
       .then(() => refreshProfiles())
-      .catch((e) => setError(String(e)));
+      .catch((e) => setError(formatProfileRenameInvokeError(e)));
   };
 
   const performCreate = async () => {

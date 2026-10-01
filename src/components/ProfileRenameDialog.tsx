@@ -3,9 +3,14 @@ import {
   focusProfileElement,
   handleProfileOverlayKeydown,
 } from "../lib/profileDialogA11y";
+import {
+  PROFILE_NAME_MAX_LENGTH,
+  profileNameCharCount,
+  profileNamesCollide,
+} from "../lib/profileRenameValidation";
 import { t } from "../ui/i18n";
 
-export const PROFILE_NAME_MAX_LENGTH = 80;
+export { PROFILE_NAME_MAX_LENGTH };
 
 type Props = {
   open: boolean;
@@ -18,10 +23,6 @@ type Props = {
   onConfirm: (nextName: string) => void;
   onCancel: () => void;
 };
-
-function normalizeNameKey(name: string): string {
-  return name.trim().toLocaleLowerCase("fr");
-}
 
 /** Accessible rename dialog — replaces `window.prompt` (#212 polish). */
 export function ProfileRenameDialog({
@@ -82,12 +83,11 @@ export function ProfileRenameDialog({
   if (!open) return null;
 
   const trimmed = draft.trim();
-  const tooLong = trimmed.length > PROFILE_NAME_MAX_LENGTH;
+  const tooLong = profileNameCharCount(trimmed) > PROFILE_NAME_MAX_LENGTH;
   const empty = trimmed.length === 0;
   const duplicate = existingNames.some(
     (n) =>
-      normalizeNameKey(n) === normalizeNameKey(trimmed) &&
-      normalizeNameKey(n) !== normalizeNameKey(currentName),
+      profileNamesCollide(n, trimmed) && !profileNamesCollide(n, currentName),
   );
   const unchanged = trimmed === currentName;
   const errorMessage = empty
