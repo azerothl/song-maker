@@ -172,6 +172,7 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
 export class RemoteGpuWorkerServer {
   readonly config: WorkerConfig;
   private readonly jobs = new Map<string, StoredJob>();
+  private readonly runningJobs = new Set<Promise<void>>();
   private server: Server | null = null;
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -222,6 +223,7 @@ export class RemoteGpuWorkerServer {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
     }
+    await Promise.allSettled([...this.runningJobs]);
     await new Promise<void>((resolve) => {
       if (!this.server) {
         resolve();
@@ -249,7 +251,7 @@ export class RemoteGpuWorkerServer {
 
   private async deleteJobFiles(job: StoredJob): Promise<void> {
     const dir = join(this.config.dataDir, job.id);
-    await rm(dir, { recursive: true, force: true });
+    await rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 25 });
   }
 
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -441,11 +443,15 @@ export class RemoteGpuWorkerServer {
     log(this.config, `job ${id} queued kind=${body.kind} project=${envelope.projectId ?? "?"}`);
     sendJson(res, 202, { id, status: "queued" });
 
-    void this.runJob(job, envelope).catch((e) => {
+    const running = this.runJob(job, envelope).catch((e) => {
       job.status = "failed";
       job.error = e instanceof Error ? e.message : String(e);
       job.updatedAt = Date.now();
       log(this.config, `job ${id} failed: ${job.error}`);
+    });
+    this.runningJobs.add(running);
+    void running.finally(() => {
+      this.runningJobs.delete(running);
     });
   }
 

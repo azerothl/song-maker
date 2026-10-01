@@ -40,7 +40,8 @@ describe("remote-worker-server", () => {
       server = null;
     }
     if (dataDir) {
-      await rm(dataDir, { recursive: true, force: true });
+      // Race: cancel can finish while runJob still writes under job-*/ — retry rmdir.
+      await rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 25 });
       dataDir = "";
     }
   });
