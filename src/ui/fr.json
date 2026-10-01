@@ -1,4 +1,6 @@
 {
+  "production.tempo.addNamed": "Ajouter un tempo à la position de lecture",
+  "production.marker.addNamed": "Ajouter ou modifier un marqueur",
   "production.tempo.flagNamed": "Tempo {bpm} BPM, {time}",
   "production.marker.flagNamed": "Marqueur : {name}, {time}",
   "production.status.markerAdded": "Marqueur « {name} » ajouté à {time}.",

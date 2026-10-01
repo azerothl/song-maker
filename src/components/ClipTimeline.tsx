@@ -269,6 +269,7 @@ export function ClipTimeline({
   const tempoAnchor = useRef<HTMLElement | null>(null);
   const markerAnchor = useRef<HTMLElement | null>(null);
   const markerOpenButton = useRef<HTMLButtonElement | null>(null);
+  const tempoOpenButton = useRef<HTMLButtonElement | null>(null);
   const arrangementId = useId();
   const [arrangementStatus,setArrangementStatus]=useState("");
   const [selected, setSelected] = useState<{
@@ -823,7 +824,7 @@ export function ClipTimeline({
     if (!selected || !selectedClip) return;
     const track = mix.tracks.find((tr) => tr.id === selected.trackId);
     if (!track) return;
-    if (target.closest(".clip-marker-flag, .clip-tempo-flag, .clip-arrangement-bar, .clip-edit-toolbar")) return;
+    if (target.closest(".clip-marker-flag, .clip-tempo-flag, .clip-arrangement-popins, .clip-edit-toolbar")) return;
     const step = nudgeStep;
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       e.preventDefault();
@@ -1139,17 +1140,7 @@ export function ClipTimeline({
         </div>
       </div>
 
-      <div className="clip-arrangement-bar">
-        <button type="button" className="btn" ref={tempoAnchor as React.RefObject<HTMLButtonElement | null>}
-          aria-haspopup="dialog" aria-expanded={arrangementOpen === "tempo"}
-          onClick={event => { tempoAnchor.current = event.currentTarget; setArrangementOpen("tempo"); }}>
-          {t("clips.tempoMap")}
-        </button>
-        <button type="button" className="btn" ref={markerOpenButton}
-          aria-haspopup="dialog" aria-expanded={arrangementOpen === "markers"}
-          onClick={event => { markerAnchor.current = event.currentTarget; setArrangementOpen("markers"); }}>
-          {t("clips.markers")}
-        </button>
+      <div className="clip-arrangement-popins">
         <AnchoredPopin open={arrangementOpen === "tempo"} onClose={() => setArrangementOpen(null)}
           anchorRef={tempoAnchor} labelId={`${arrangementId}-tempo`}>
         <div className="clip-tempo-editor">
@@ -1608,21 +1599,43 @@ export function ClipTimeline({
           </div>
           <div className="clip-marker-lane clip-tempo-lane" role="group" aria-label={t("clips.tempoMap")}>
             <span className="clip-lane-label">{t("clips.tempoMap")}</span>
+              <button type="button" className="btn clip-tempo-add" ref={tempoOpenButton}
+                aria-label={t("production.tempo.addNamed")} aria-haspopup="dialog" aria-expanded={arrangementOpen === "tempo"}
+                onClick={event=>{tempoAnchor.current=event.currentTarget;setTempoAtDraft(Math.min(timelineMs,Math.max(0,currentTimeMs)));setArrangementOpen("tempo");}}>+</button>
             <div className="clip-lane-rail clip-marker-rail">
               {tempoMap.map(ev => (
                 <button type="button" key={ev.startMs} className="clip-tempo-flag"
+                  data-tempo-ms={ev.startMs}
                   style={{ left: `${(ev.startMs / timelineMs) * 100}%`, transform: ev.startMs === 0 ? "none" : undefined }}
                   aria-pressed={arrangementOpen === "tempo" && tempoAtDraft === ev.startMs}
                   aria-label={t("production.tempo.flagNamed", { bpm: ev.quarterBpm, time: formatMs(ev.startMs) })}
+                  onKeyDown={event=>{
+                    if(!["ArrowLeft","ArrowRight","Delete","Backspace"].includes(event.key))return;
+                    event.preventDefault();event.stopPropagation();
+                    if(ev.startMs===0)return;
+                    if(event.key==="Delete"||event.key==="Backspace"){
+                      patchMix(removeTempoEvent(mix,ev.startMs));
+                      setArrangementStatus(t("production.status.tempoDeleted",{time:formatMs(ev.startMs)}));
+                      requestAnimationFrame(()=>tempoOpenButton.current?.focus());return;
+                    }
+                    const proposed=ev.startMs+(event.key==="ArrowLeft"?-1:1)*(event.shiftKey?50:nudgeStep);
+                    const startMs=Math.min(timelineMs,Math.max(1,event.shiftKey?Math.round(proposed):snap(proposed)));
+                    patchMix(upsertTempoEvent(removeTempoEvent(mix,ev.startMs),{...ev,startMs}));
+                    setArrangementStatus(t("production.status.tempoSet",{bpm:ev.quarterBpm,time:formatMs(startMs)}));
+                    requestAnimationFrame(()=>railScrollRef.current?.querySelector<HTMLButtonElement>(`[data-tempo-ms="${startMs}"]`)?.focus());
+                  }}
                   onClick={event => {
                     tempoAnchor.current = event.currentTarget;
                     setTempoAtDraft(ev.startMs); setTempoBpmDraft(ev.quarterBpm); setArrangementOpen("tempo");
-                  }}>♩ {ev.quarterBpm}</button>
+                  }}><span aria-hidden="true">♩ </span>{ev.quarterBpm}</button>
               ))}
             </div>
           </div>
           <div className="clip-marker-lane" role="group" aria-label={t("clips.markers")}>
             <span className="clip-lane-label">{t("clips.markers")}</span>
+              <button type="button" className="btn clip-marker-add" ref={markerOpenButton}
+                aria-label={t("production.marker.addNamed")} aria-haspopup="dialog" aria-expanded={arrangementOpen === "markers"}
+                onClick={event=>{markerAnchor.current=event.currentTarget;setArrangementOpen("markers");}}>+</button>
             <div className="clip-lane-rail clip-marker-rail">
               {markers.map((m) => (
                 <button

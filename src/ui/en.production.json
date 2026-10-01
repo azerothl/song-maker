@@ -1,4 +1,6 @@
 {
+  "production.tempo.addNamed": "Add tempo at the playback position",
+  "production.marker.addNamed": "Add or edit a marker",
   "export.button.disabledNoAudio": "Import or generate audio before exporting.",
   "export.button.disabledBusy": "Export or another task is in progress.",
   "production.tempo.flagNamed": "Tempo {bpm} BPM, {time}",

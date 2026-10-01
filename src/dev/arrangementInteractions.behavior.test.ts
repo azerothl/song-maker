@@ -6,6 +6,33 @@ import {startCaptureViteServer,stopCaptureViteServer} from "./captureViteServer"
 let server:ViteDevServer,browser:Browser;
 before(async()=>{server=await startCaptureViteServer(5239);browser=await chromium.launch();});
 after(async()=>{await browser?.close();if(server)await stopCaptureViteServer(server);});
+it("tempo zone replaces the old bar and keyboard movement protects the first tempo",async()=>{
+ const page=await browser.newPage({viewport:{width:640,height:720}});
+ try{
+  await page.addInitScript(()=>localStorage.setItem("song-maker.locale","en"));
+  await page.goto("http://127.0.0.1:5239/arrangement-capture.html");
+  assert.equal(await page.locator(".clip-arrangement-bar").count(),0);
+  const before=await page.evaluate(()=>(window as unknown as {__arrangementMix:{tracks:unknown}}).__arrangementMix.tracks);
+  await page.locator('.clip-tempo-flag[data-tempo-ms="0"]').focus();
+  await page.keyboard.press("Shift+ArrowRight");
+  await page.keyboard.press("Delete");
+  assert.equal(await page.locator('.clip-tempo-flag[data-tempo-ms="0"]').count(),1);
+  await page.locator(".clip-tempo-add").click();
+  await page.getByLabel("At (ms)",{exact:true}).fill("8000");
+  await page.getByLabel("BPM",{exact:true}).fill("150");
+  await page.getByRole("button",{name:"Add / update",exact:true}).click();
+  await page.keyboard.press("Escape");
+  await page.locator('.clip-tempo-flag[data-tempo-ms="8000"]').focus();
+  await page.keyboard.press("Shift+ArrowRight");
+  const moved=page.locator('.clip-tempo-flag[data-tempo-ms="8050"]');
+  assert.equal(await moved.count(),1);
+  await page.waitForFunction(()=>document.activeElement?.getAttribute("data-tempo-ms")==="8050");
+  await page.keyboard.press("Delete");
+  assert.equal(await page.locator(".clip-tempo-flag").count(),1);
+  await page.waitForFunction(()=>document.activeElement?.classList.contains("clip-tempo-add"));
+  assert.deepEqual(await page.evaluate(()=>(window as unknown as {__arrangementMix:{tracks:unknown}}).__arrangementMix.tracks),before);
+ }finally{await page.close();}
+});
 it("marker position stays within the ruler duration instead of extending it",async()=>{
  const page=await browser.newPage();
  try {
@@ -30,7 +57,7 @@ it("tempo updates clamp BPM, avoid duplicates and preserve every clip",async()=>
   await page.addInitScript(()=>localStorage.setItem("song-maker.locale","en"));
   await page.goto("http://127.0.0.1:5239/arrangement-capture.html");
   const before=await page.evaluate(()=>(window as unknown as {__arrangementMix:{tracks:unknown}}).__arrangementMix.tracks);
-  await page.locator(".clip-arrangement-bar > button").first().click();
+  await page.locator(".clip-tempo-add").click();
   for(const[input,expected]of [["0",1],["401",400],["120.4",120]] as const){
    await page.getByLabel("BPM",{exact:true}).fill(input);
    await page.getByRole("button",{name:"Add / update",exact:true}).click();
@@ -68,7 +95,7 @@ it("marker keyboard boundaries, fine steps and deletion keep clips unchanged",as
   await page.keyboard.press("Delete");
   assert.equal(await flag.count(),0);
   assert.match(await page.getByTestId("arrangement-status").innerText(),/My chorus.*deleted/);
-  assert.equal(await page.locator(".clip-arrangement-bar > button").nth(1).evaluate(el=>el===document.activeElement),true);
+  assert.equal(await page.locator(".clip-marker-add").evaluate(el=>el===document.activeElement),true);
   assert.deepEqual(await page.evaluate(()=>(window as unknown as {__arrangementMix:{tracks:unknown}}).__arrangementMix.tracks),before);
  }finally{await page.close();}
 });

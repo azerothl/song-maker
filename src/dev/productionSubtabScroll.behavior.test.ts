@@ -96,13 +96,13 @@ describe("Production commune (#223, #230)", () => {
     try {
       await page.goto(BASE, { waitUntil: "networkidle" });
       await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
-      const tempo = page.locator(".clip-arrangement-bar > button").first();
+      const tempo = page.locator(".clip-tempo-add");
       await tempo.click();
       await page.locator(".clip-tempo-editor input").first().waitFor();
       assert.equal(await page.locator(".clip-tempo-editor input").first().evaluate(el => el === document.activeElement), true);
       await page.keyboard.press("Escape");
       assert.equal(await tempo.evaluate(el => el === document.activeElement), true);
-      const markers = page.locator(".clip-arrangement-bar > button").nth(1);
+      const markers = page.locator(".clip-marker-add");
       await markers.click();
       await page.locator(".clip-marker-editor select").waitFor();
       await page.locator(".clip-marker-editor input[type=checkbox]").uncheck();
