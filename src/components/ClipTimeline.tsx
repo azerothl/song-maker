@@ -1065,7 +1065,10 @@ export function ClipTimeline({
         {(["select", "cut", "fade"] as const).map((tool, index) => (
           <button key={tool} type="button" className="btn" aria-pressed={editTool === tool}
             tabIndex={editTool === tool ? 0 : -1} aria-keyshortcuts={String(index + 1)}
-            onClick={() => setEditTool(tool)}>{t(`production.edit.${tool}`)}</button>
+            onClick={() => setEditTool(tool)}>
+            <span className="clip-edit-tool-check" aria-hidden="true">{editTool === tool ? "✓" : ""}</span>
+            <span>{t(`production.edit.${tool}`)}</span>
+          </button>
         ))}
       </div>
       <p className="hint" role="status">{t(`production.edit.${editTool}.hint`)}</p>

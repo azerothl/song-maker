@@ -1,0 +1,52 @@
+{
+  "actions": [
+    "move to 2000 ms",
+    "fade in 500 ms",
+    "fade out 750 ms",
+    "trim duration to 10000 ms",
+    "duplicate",
+    "split duplicate at midpoint",
+    "undo split: two clips confirmed",
+    "redo split: three clips confirmed"
+  ],
+  "sourceSha256": "D5E1AF5B3E1F5CD92821C6C4DA5A5B7541E62AA099DCC444ED78132B4A9F5BD8",
+  "evidence": "Native Tauri UI actions followed by reading the saved synthetic audit mix",
+  "clips": [
+    {
+      "durationMs": 10000,
+      "fadeInMs": 500,
+      "fadeOutMs": 750,
+      "gainDb": 0.0,
+      "id": "clip-116fff25-30f5-4ceb-9167-f4d730ed3596",
+      "offsetMs": 0,
+      "sourcePath": "user-audio/normalized/fd78199c-67b5-4032-9e1d-b2908736aae0.wav",
+      "sourceSha256": "d5e1af5b3e1f5cd92821c6c4da5a5b7541e62aa099dcc444ed78132b4a9f5bd8",
+      "startMs": 2000,
+      "trackId": "trk-user-2fd78e93-062d-4d15-8ac3-5cfaf9e11983"
+    },
+    {
+      "durationMs": 5000,
+      "fadeInMs": 500,
+      "fadeOutMs": 750,
+      "gainDb": 0.0,
+      "id": "2a25e427-40b6-4b86-8e5a-7e861c3ef649",
+      "offsetMs": 0,
+      "sourcePath": "user-audio/normalized/fd78199c-67b5-4032-9e1d-b2908736aae0.wav",
+      "sourceSha256": "d5e1af5b3e1f5cd92821c6c4da5a5b7541e62aa099dcc444ed78132b4a9f5bd8",
+      "startMs": 12000,
+      "trackId": "trk-user-2fd78e93-062d-4d15-8ac3-5cfaf9e11983"
+    },
+    {
+      "durationMs": 5000,
+      "fadeInMs": 500,
+      "fadeOutMs": 750,
+      "gainDb": 0.0,
+      "id": "9ff199cf-cdda-47b7-afee-fb1f06cf4128",
+      "offsetMs": 5000,
+      "sourcePath": "user-audio/normalized/fd78199c-67b5-4032-9e1d-b2908736aae0.wav",
+      "sourceSha256": "d5e1af5b3e1f5cd92821c6c4da5a5b7541e62aa099dcc444ed78132b4a9f5bd8",
+      "startMs": 17000,
+      "trackId": "trk-user-2fd78e93-062d-4d15-8ac3-5cfaf9e11983"
+    }
+  ]
+}
