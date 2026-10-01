@@ -3,7 +3,7 @@ import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
 import { buildGenerationPayload, loadRemotePrefs, runRemoteGenerationToProject } from "../lib/remoteGenerate";
 import { CreateWorkspace } from "./song/CreateWorkspace";
 import { matchesGenerateShortcut } from "./song/createWorkspaceLayout";
-import { ensureProductionOverlay, normalizeProductionOverlay, setProductionDiskPersist, setProductionOverlay, setProductionTempoBpm, undoProductionOverlay, redoProductionOverlay } from "../lib/productionState";
+import { ensureProductionOverlay, normalizeProductionOverlay, setProductionDiskPersist, setProductionOverlay, setProductionProjectScope, setProductionTempoBpm, undoProductionOverlay, redoProductionOverlay } from "../lib/productionState";
 import { exportProjectAudio } from "../lib/exportMix";
 import { generateScoreOnly, renderNFromScore } from "../lib/scoreOnlyApi";
 import { importAbcText, prepareAbcForGeneration, type ScoreDocument } from "../lib/score";
@@ -19,7 +19,7 @@ import { RemoteGenerateConfirm } from "../components/RemoteGenerateConfirm";
 import { ScoreWorkspace } from "./song/ScoreWorkspace";
 import { t } from "../ui/i18n";
 import { useAppStore } from "../store/appStore";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { VersionsWorkspace } from "./song/VersionsWorkspace";
 import type { BuiltRemotePayload, RemoteWorkerPreferences } from "@song-maker/remote-worker";
 import type { FormInput, MixDoc, MixTrack, SeparationInfo } from "../lib/types";
@@ -171,6 +171,11 @@ export function SongScreen() {
   useEffect(() => {
     if (!project?.id) return;
     loadInvariantBaseline(project.id);
+  }, [project?.id]);
+
+  useLayoutEffect(() => {
+    setProductionProjectScope(project?.id ?? null);
+    return () => setProductionProjectScope(null);
   }, [project?.id]);
 
   useEffect(() => {
