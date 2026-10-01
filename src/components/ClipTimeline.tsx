@@ -268,7 +268,9 @@ export function ClipTimeline({
   const [arrangementOpen, setArrangementOpen] = useState<"tempo" | "markers" | null>(null);
   const tempoAnchor = useRef<HTMLElement | null>(null);
   const markerAnchor = useRef<HTMLElement | null>(null);
+  const markerOpenButton = useRef<HTMLButtonElement | null>(null);
   const arrangementId = useId();
+  const [arrangementStatus,setArrangementStatus]=useState("");
   const [selected, setSelected] = useState<{
     trackId: string;
     clipId: string;
@@ -322,7 +324,9 @@ export function ClipTimeline({
 
   useEffect(() => {
     setTempoBpmDraft(mix.tempoMap?.[0]?.quarterBpm ?? 120);
-  }, [mix.tempoMap]);
+    setTempoAtDraft(0);
+    // Switching projects resets the draft; editing the same tempo map does not.
+  }, [mix.id]);
 
   // Persist defaults once so markers/tempo survive reopen (clips unchanged).
   useEffect(() => {
@@ -430,10 +434,10 @@ export function ClipTimeline({
       }
     }
     for (const m of markers) {
-      max = Math.max(max, m.startMs + 1000);
+      max = Math.max(max, m.startMs);
     }
     for (const e of tempoMap) {
-      max = Math.max(max, e.startMs + 1000);
+      max = Math.max(max, e.startMs);
     }
     return Math.max(max, 30_000);
   }, [mix, markers, tempoMap]);
@@ -853,7 +857,7 @@ export function ClipTimeline({
   }
 
   function addMarkerAt(ms: number) {
-    const startMs = snap(ms);
+    const startMs = Math.min(timelineMs,Math.max(0,snap(ms)));
     const kind = newMarkerKind;
     const name =
       newMarkerName.trim() || markerKindLabel(kind);
@@ -866,6 +870,8 @@ export function ClipTimeline({
     patchMix(upsertMixMarker(mix, marker));
     setSelectedMarkerId(marker.id);
     setNewMarkerName("");
+    setArrangementStatus(t("production.status.markerAdded",{name,time:formatMs(startMs)}));
+    requestAnimationFrame(()=>railScrollRef.current?.querySelector<HTMLButtonElement>(`[data-marker-id="${marker.id}"]`)?.focus());
   }
 
   function jumpToMarker(marker: MixMarker) {
@@ -881,20 +887,32 @@ export function ClipTimeline({
 
   function updateSelectedMarker(patch: Partial<MixMarker>) {
     if (!selectedMarker) return;
-    const next: MixMarker = { ...selectedMarker, ...patch };
+    const position=patch.startMs==null?selectedMarker.startMs:Math.min(timelineMs,Math.max(0,Math.round(Number.isFinite(patch.startMs)?patch.startMs:0)));
+    const next: MixMarker = { ...selectedMarker, ...patch, startMs:position };
     patchMix(
       upsertMixMarker(mix, next, {
         shiftClips: shiftClipsWithMarker && patch.startMs != null,
         previousStartMs: selectedMarker.startMs,
       }),
     );
+    setArrangementStatus(t(patch.startMs!=null&&position!==patch.startMs?"production.status.markerBounded":"production.status.markerUpdated",{name:next.name,time:formatMs(next.startMs)}));
+  }
+
+  function deleteMarker(marker: MixMarker) {
+    patchMix(removeMixMarker(mix,marker.id));
+    setSelectedMarkerId(null);
+    setArrangementOpen(null);
+    setArrangementStatus(t("production.status.markerDeleted",{name:marker.name}));
+    requestAnimationFrame(()=>markerOpenButton.current?.focus());
   }
 
   function commitTempoChange() {
-    const bpm = Math.max(1, Math.min(400, Math.round(tempoBpmDraft)));
-    const startMs = snap(Math.max(0, tempoAtDraft));
+    const bpm = Math.max(1, Math.min(400, Math.round(Number.isFinite(tempoBpmDraft)?tempoBpmDraft:120)));
+    const startMs = Math.min(timelineMs,snap(Math.max(0, Number.isFinite(tempoAtDraft)?tempoAtDraft:0)));
     // Tempo map is display/snap only — never rewrite clip ms or source offsets.
     patchMix(upsertTempoEvent(mix, { startMs, quarterBpm: bpm }));
+    setTempoBpmDraft(bpm);setTempoAtDraft(startMs);
+    setArrangementStatus(t("production.status.tempoSet",{bpm,time:formatMs(startMs)}));
   }
 
   const railWidthPct = `${Math.max(100, zoom * 100)}%`;
@@ -1124,7 +1142,7 @@ export function ClipTimeline({
           onClick={event => { tempoAnchor.current = event.currentTarget; setArrangementOpen("tempo"); }}>
           {t("clips.tempoMap")}
         </button>
-        <button type="button" className="btn" ref={markerAnchor as React.RefObject<HTMLButtonElement | null>}
+        <button type="button" className="btn" ref={markerOpenButton}
           aria-haspopup="dialog" aria-expanded={arrangementOpen === "markers"}
           onClick={event => { markerAnchor.current = event.currentTarget; setArrangementOpen("markers"); }}>
           {t("clips.markers")}
@@ -1137,7 +1155,7 @@ export function ClipTimeline({
             <span>{t("clips.tempoBpm")}</span>
             <input
               type="number"
-              min={40}
+              min={1}
               max={400}
               value={tempoBpmDraft}
               onChange={(e) => setTempoBpmDraft(Number(e.target.value))}
@@ -1173,9 +1191,11 @@ export function ClipTimeline({
                   <button
                     type="button"
                     className="btn btn-ghost"
-                    onClick={() =>
-                      patchMix(removeTempoEvent(mix, ev.startMs))
-                    }
+                    aria-label={t("production.tempo.deleteNamed",{bpm:ev.quarterBpm,time:formatMs(ev.startMs)})}
+                    onClick={() => {
+                      patchMix(removeTempoEvent(mix,ev.startMs));
+                      setArrangementStatus(t("production.status.tempoDeleted",{time:formatMs(ev.startMs)}));
+                    }}
                   >
                     ×
                   </button>
@@ -1265,6 +1285,7 @@ export function ClipTimeline({
                 <input
                   type="number"
                   min={0}
+                  max={timelineMs}
                   step={stepForInputs}
                   value={selectedMarker.startMs}
                   onChange={(e) =>
@@ -1278,8 +1299,7 @@ export function ClipTimeline({
                 type="button"
                 className="btn"
                 onClick={() => {
-                  patchMix(removeMixMarker(mix, selectedMarker.id));
-                  setSelectedMarkerId(null);
+                  deleteMarker(selectedMarker);
                 }}
               >
                 {t("clips.markerDelete")}
@@ -1542,7 +1562,7 @@ export function ClipTimeline({
             aria-label={t("production.rulerNamed")}
             aria-valuemin={0} aria-valuemax={timelineMs}
             aria-valuenow={Math.min(timelineMs,Math.max(0,Math.round(currentTimeMs)))}
-            aria-valuetext={t("production.ruler.value", {time:new Intl.NumberFormat(profileLocale()).format(Math.min(timelineMs, Math.max(0, Math.round(currentTimeMs))))})}
+            aria-valuetext={t("production.ruler.value", {time:new Intl.NumberFormat(profileLocale()).format(Math.min(timelineMs, Math.max(0, Math.round(currentTimeMs)))),bar:msToMusical(Math.min(timelineMs,Math.max(0,currentTimeMs)),tempoMap,meterMap,subdivision).bar})}
             onPointerDown={event => {
               const rail=event.currentTarget.querySelector(".clip-ruler-marks-abs");
               if (!rail || !onSeek) return;
@@ -1610,16 +1630,23 @@ export function ClipTimeline({
                       ? "clip-marker-flag active"
                       : "clip-marker-flag"
                   }
-                  style={{ left: `${(m.startMs / timelineMs) * 100}%`, transform: m.startMs === 0 ? "none" : undefined }}
+                  data-marker-id={m.id}
+                  style={{ left: `${(m.startMs / timelineMs) * 100}%`, transform: m.startMs === 0 ? "none" : m.startMs>=timelineMs ? "translateX(-100%)" : undefined }}
                   title={`${m.name} · ${formatMs(m.startMs)}`}
+                  aria-label={t("production.marker.flagNamed",{name:m.name,time:formatMs(m.startMs)})}
                   aria-pressed={selectedMarkerId === m.id}
                   onKeyDown={event => {
-                    if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+                    if (["Delete","Backspace"].includes(event.key)) {
+                      event.preventDefault();event.stopPropagation();deleteMarker(m);return;
+                    }
+                    if (!["ArrowLeft", "ArrowRight","Home","End"].includes(event.key)) return;
                     event.preventDefault(); event.stopPropagation();
-                    const startMs = snap(Math.max(0, m.startMs + (event.key === "ArrowLeft" ? -1 : 1) * nudgeStep));
+                    const proposed=event.key==="Home"?0:event.key==="End"?timelineMs:m.startMs+(event.key==="ArrowLeft"?-1:1)*(event.shiftKey?50:nudgeStep);
+                    const startMs = Math.min(timelineMs,Math.max(0,event.shiftKey||event.key==="Home"||event.key==="End"?Math.round(proposed):snap(proposed)));
                     patchMix(upsertMixMarker(mix, { ...m, startMs }, {
                       shiftClips: shiftClipsWithMarker, previousStartMs: m.startMs,
                     }));
+                    setArrangementStatus(t("production.status.markerUpdated",{name:m.name,time:formatMs(startMs)}));
                   }}
                   onClick={event => {
                     jumpToMarker(m); markerAnchor.current = event.currentTarget; setArrangementOpen("markers");
@@ -1633,6 +1660,7 @@ export function ClipTimeline({
           {renderTracks ? renderTracks(renderLane,timelineMs) : mix.tracks.map(renderLane)}
         </div>
       </div>
+      <div data-testid="arrangement-status" role="status" aria-live="polite" className={arrangementStatus?"hint production-arrangement-status":"sr-only"}>{arrangementStatus}</div>
     </div>
   );
 }
