@@ -184,5 +184,7 @@
   "qwen.mix.cancel": "Cancel",
   "qwen.mix.analyze": "Propose settings with Qwen",
   "qwen.mix.empty": "No changes proposed.",
-  "qwen.mix.title": "Local mix assistant"
+  "qwen.mix.title": "Local mix assistant",
+  "production.ruler.value": "{time} ms",
+  "production.rulerNamed": "Playback position, timeline ruler"
 }

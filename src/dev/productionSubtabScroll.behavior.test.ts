@@ -19,6 +19,26 @@ after(async () => {
 });
 
 describe("Production commune (#223, #230)", () => {
+  it("the ruler seeks by keyboard without moving the selected clip", async () => {
+    const page = await browser.newPage({ viewport: { width: 640, height: 720 } });
+    try {
+      await page.goto(BASE, { waitUntil: "networkidle" });
+      await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
+      await page.locator(".clip-block").first().click();
+      const start = page.locator(".clip-inspector .clip-field input").first();
+      const oldValue = await start.inputValue();
+      const ruler = page.locator(".clip-ruler");
+      await ruler.focus();
+      await page.keyboard.press("Home");
+      assert.equal(await ruler.getAttribute("aria-valuenow"), "0");
+      await page.keyboard.press("Shift+ArrowRight");
+      assert.equal(await ruler.getAttribute("aria-valuenow"), "50");
+      await page.keyboard.press("End");
+      assert.equal(await ruler.getAttribute("aria-valuenow"), await ruler.getAttribute("aria-valuemax"));
+      assert.equal(await start.inputValue(), oldValue);
+      assert.ok((await ruler.boundingBox())!.height >= 44);
+    } finally { await page.close(); }
+  });
   for (const width of [1280, 640]) {
     it(`${width}px: tracks, clips and advanced functions share one page`, async () => {
       const page = await browser.newPage({ viewport: { width, height: 720 } });

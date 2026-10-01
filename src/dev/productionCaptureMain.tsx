@@ -118,6 +118,8 @@ function ProductionCaptureApp() {
   /** Heure figée « 08:02 » pour captures Mix (suivi #203 — indépendant de l’horloge machine). */
   const [mixSavedAt] = useState(() => new Date(2026, 0, 1, 8, 2, 0));
   const playbackDuration = 444;
+  const [seekSeconds, setSeekSeconds] = useState<number | null>(null);
+  useEffect(() => { setSeekSeconds(null); }, [capturePrefs.progressRatio]);
   const [mixBakeCyclePending, setMixBakeCyclePending] = useState(
     () =>
       capturePrefs.mixBakeIndicator || capturePrefs.mixBakeIndicatorCycle,
@@ -136,12 +138,12 @@ function ProductionCaptureApp() {
       peaksByTrack[tr.id] = syntheticPeaks(seed++);
     }
     return {
-      current: playbackDuration * capturePrefs.progressRatio,
+      current: seekSeconds ?? playbackDuration * capturePrefs.progressRatio,
       duration: playbackDuration,
       mode: "stems",
       peaksByTrack,
       mixPeaks: syntheticPeaks(99, 200),
-      seek: () => {},
+      seek: setSeekSeconds,
       toggle: async () => {},
       playing: capturePrefs.midPlayback,
       loading: false,
@@ -156,6 +158,7 @@ function ProductionCaptureApp() {
     capturePrefs.mixBakeIndicator,
     capturePrefs.mixBakeIndicatorCycle,
     mixBakeCyclePending,
+    seekSeconds,
   ]);
 
   return (
