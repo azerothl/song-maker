@@ -1,4 +1,6 @@
 {
+  "production.common.intro": "Mix tracks, edit clips and open advanced settings on this page.",
+  "production.common.timelineNamed": "Tracks, tempo and markers on the shared ruler",
   "production.tempo.addNamed": "Add tempo at the playback position",
   "production.marker.addNamed": "Add or edit a marker",
   "export.button.disabledNoAudio": "Import or generate audio before exporting.",

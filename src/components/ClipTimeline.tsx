@@ -1095,7 +1095,7 @@ export function ClipTimeline({
         ref={topScrollRef}
         className="clip-timeline-scroll production-subview-scroll clip-timeline-scroll-chrome"
         role="region"
-        aria-label={t("workspace.production.clips.scroll")}
+        aria-label={t("production.common.clips")}
         tabIndex={0}
         data-testid="production-clips-scroll"
       >
@@ -1593,7 +1593,7 @@ export function ClipTimeline({
         ref={railScrollRef}
         data-testid="clip-timeline-lanes"
         role="region"
-        aria-label={t("workspace.production.clips.timeline")}
+        aria-label={t("production.common.timelineNamed")}
         tabIndex={0}
         onKeyDown={onTimelineKeyDown}
       >
