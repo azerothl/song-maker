@@ -1,0 +1,74 @@
+{
+  "schema_version": "music-generation/v1",
+  "request_id": "example-cover-fr-001",
+  "mode": "cover",
+  "prompt": "Réinterpréter cet extrait en ballade piano, cordes et basse, avec une nouvelle voix douce. Garder la mélodie, les paroles et les seize mesures ; descendre de deux demi-tons et passer de 120 à 96 BPM.",
+  "vocal_mode": "singing",
+  "lyrics": {
+    "policy": "provided",
+    "language": "fr",
+    "sections": [
+      {
+        "section_id": "verse-1",
+        "text": "Le matin revient\nSur les chemins clairs\nJe garde ta main\nDans la lumière"
+      },
+      {
+        "section_id": "chorus-1",
+        "text": "On ira plus loin\nAu-delà des pierres\nEn suivant demain\nLe cœur grand ouvert"
+      }
+    ]
+  },
+  "conditions": [
+    {
+      "kind": "audio",
+      "asset_id": "asset-source-32s-120bpm",
+      "role": "content",
+      "target_track_ids": ["voice-lead"],
+      "strength": 0.7
+    },
+    {
+      "kind": "score",
+      "asset_id": "asset-source-confirmed-musicxml",
+      "role": "content",
+      "target_track_ids": ["voice-lead"],
+      "strength": 1,
+      "confirmed": true
+    }
+  ],
+  "constraints": {
+    "duration_seconds": 40,
+    "bar_count": 16,
+    "tempo_map": [{ "tick": 0, "quarter_bpm": 96 }],
+    "time_signatures": [{ "tick": 0, "numerator": 4, "denominator": 4 }],
+    "key_signatures": [{ "tick": 0, "tonic": "F", "mode": "major" }],
+    "sections": [
+      { "id": "verse-1", "start_tick": 0, "end_tick": 30720 },
+      { "id": "chorus-1", "start_tick": 30720, "end_tick": 61440 }
+    ],
+    "tracks": [
+      { "id": "voice-lead", "instrument": "voice", "role": "lead_vocal" },
+      { "id": "piano-1", "instrument": "piano", "role": "harmony" },
+      { "id": "strings-1", "instrument": "strings", "role": "harmony" },
+      { "id": "bass-1", "instrument": "electric_bass", "role": "bass" }
+    ]
+  },
+  "preserve": {
+    "audio_track_ids": [],
+    "symbolic_track_ids": [],
+    "musical_features": ["melody", "lyrics", "structure", "harmony"]
+  },
+  "transform": {
+    "transpose_semitones": -2,
+    "target_quarter_bpm": 96,
+    "change_dimensions": ["style", "instrumentation", "vocal_timbre", "tempo", "key"]
+  },
+  "render": {
+    "sample_rate_hz": 48000,
+    "audio_format": "wav_pcm24",
+    "tail_policy": "within_duration",
+    "mix_policy": "from_stems"
+  },
+  "outputs": ["mix", "stems", "score", "midi"],
+  "sampling": { "seed": 123, "candidates": 2, "preset": "quality-v1" },
+  "constraint_policy": "strict"
+}

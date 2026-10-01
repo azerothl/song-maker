@@ -1,0 +1,54 @@
+{
+  "schema_version": "music-generation/v1",
+  "request_id": "example-generate-fr-001",
+  "mode": "generate",
+  "prompt": "Chanson folk française chaleureuse, voix douce, guitare acoustique, piano discret, basse et batterie légère. Couplet intime puis refrain ouvert.",
+  "vocal_mode": "singing",
+  "lyrics": {
+    "policy": "provided",
+    "language": "fr",
+    "sections": [
+      {
+        "section_id": "verse-1",
+        "text": "Le matin revient\nSur les chemins clairs\nJe garde ta main\nDans la lumière"
+      },
+      {
+        "section_id": "chorus-1",
+        "text": "On ira plus loin\nAu-delà des pierres\nEn suivant demain\nLe cœur grand ouvert"
+      }
+    ]
+  },
+  "conditions": [],
+  "constraints": {
+    "duration_seconds": 32,
+    "bar_count": 16,
+    "tempo_map": [{ "tick": 0, "quarter_bpm": 120 }],
+    "time_signatures": [{ "tick": 0, "numerator": 4, "denominator": 4 }],
+    "key_signatures": [{ "tick": 0, "tonic": "G", "mode": "major" }],
+    "sections": [
+      { "id": "verse-1", "start_tick": 0, "end_tick": 30720 },
+      { "id": "chorus-1", "start_tick": 30720, "end_tick": 61440 }
+    ],
+    "tracks": [
+      { "id": "voice-lead", "instrument": "voice", "role": "lead_vocal" },
+      { "id": "guitar-1", "instrument": "acoustic_guitar", "role": "harmony" },
+      { "id": "piano-1", "instrument": "piano", "role": "harmony" },
+      { "id": "bass-1", "instrument": "electric_bass", "role": "bass" },
+      { "id": "drums-1", "instrument": "drum_kit", "role": "rhythm" }
+    ]
+  },
+  "preserve": {
+    "audio_track_ids": [],
+    "symbolic_track_ids": [],
+    "musical_features": ["lyrics", "structure", "tempo", "key"]
+  },
+  "render": {
+    "sample_rate_hz": 48000,
+    "audio_format": "wav_pcm24",
+    "tail_policy": "within_duration",
+    "mix_policy": "from_stems"
+  },
+  "outputs": ["mix", "stems", "score", "midi"],
+  "sampling": { "seed": 42, "candidates": 2, "preset": "quality-v1" },
+  "constraint_policy": "strict"
+}
