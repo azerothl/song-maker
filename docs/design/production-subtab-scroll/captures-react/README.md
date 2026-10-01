@@ -1,5 +1,9 @@
 # Captures React — défilement sous-onglets Production (#203)
 
+> Archive du fonctionnement antérieur à la page commune (#258, 01/10/2026). Les PNG et chiffres ci-dessous décrivent les anciens sous-onglets ; ils ne décrivent plus l’interface actuelle. Les anciennes valeurs de hauteur ne sont plus un contrat du produit. Le script historique ne doit pas être utilisé pour publier des preuves de la page commune.
+
+Les preuves actuelles sont dans [`production-common-page`](../../production-common-page/README.md) et [`production-editing`](../../production-editing/README.md). Les tests `productionSubtabScroll.behavior.test.ts` couvrent la page commune, PageDown depuis un bouton, la sortie de la timeline par Tab, les réglages avancés repliables et l’absence de débordement horizontal à 1280 et 640 px. L’heure du harnais reste fixée à 08:02. Les mesures dépendent de la machine et des polices ; aucune comparaison pixel-exacte n’est annoncée.
+
 Harness : Vite + `production-capture.html`, Chromium (channel `chrome` si dispo), PNG réels.
 
 ## Variance machine / police

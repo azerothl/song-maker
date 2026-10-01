@@ -19,6 +19,25 @@ after(async () => {
 });
 
 describe("Production commune (#223, #230)", () => {
+  it("PageDown scrolls from a toolbar button and Tab leaves the timeline", async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 768 } });
+    try {
+      await page.goto(BASE, { waitUntil: "networkidle" });
+      await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
+      const top = page.getByTestId("production-clips-scroll");
+      await top.evaluate(el => { el.scrollTop = 0; });
+      await page.locator(".clip-edit-toolbar button").first().focus();
+      await page.keyboard.press("PageDown");
+      assert.ok(await top.evaluate(el => el.scrollTop) > 0);
+      let reachedAdvanced = false;
+      for (let i = 0; i < 60; i++) {
+        await page.keyboard.press("Tab");
+        reachedAdvanced = await page.locator(".production-advanced-disclosure > summary").evaluate(el => el === document.activeElement);
+        if (reachedAdvanced) break;
+      }
+      assert.equal(reachedAdvanced, true);
+    } finally { await page.close(); }
+  });
   it("tempo and marker panels close with Escape and return focus", async () => {
     const page = await browser.newPage({ viewport: { width: 640, height: 720 } });
     try {
