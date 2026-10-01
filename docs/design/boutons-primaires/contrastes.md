@@ -1,12 +1,12 @@
 # Contrastes — boutons primaires (#186)
 
-Généré le 2026-09-30T19:54:30.826Z — commit des captures : `d00d3ff5bf125da1bc45a59175143628c498a703`.
+Généré le 2026-10-01T09:11:53.816Z — commit des captures : `222f18f3c61526c6006686c1728ba9a7cdbb567a`.
 
 Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` résolu) composé sur `--bg0`.
 - États actifs : seuil WCAG 2.2 AA **4.5:1**.
 - Désactivé : texte **#848ba0** (~**5,36:1** sur **#12151f**), seuil lisibilité **3:1**.
 - Focus : Tab + souris hors bouton ; contraste anneau mesuré contre le **fond** derrière l’outline (pas la face du bouton).
-- Champs `manualReviewAlphonse` dans `metrics.json` : publication **revue manuelle Alphonse** (les mesures DOM restent dans `screens`).
+- Aucune nouvelle revue manuelle : les résultats de cette exécution sont les mesures DOM dans `screens`. Les valeurs historiques ne sont pas réattribuées aux nouvelles captures.
 
 ## Synthèse
 
@@ -39,7 +39,7 @@ Mesures DOM : `getComputedStyle` (dégradé / fond plat, `color(srgb …/α)` r�
 | focus | #151827 | top | #c4a8ff | 8.72:1 | OK |
 | focus | #151827 | bottom | #a78bfa | 6.47:1 | OK |
 
-Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **10,0–11,7:1** (53 fonds, min 10,00, max 11,69, médiane 10,92:1) ; **712 px** (pixels cyan qui diffèrent du PNG normal (passe 2, revue Alphonse)) ; **730 px** (tous les pixels cyan du clip bouton (passe 3, revue Alphonse)) ; fond derrière l’anneau = dégradé panneau #131f31 → #192c43.
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**.
 
 ### Captures
 
@@ -60,7 +60,7 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
 | disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
-Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #111221, contraste anneau/fond **13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13,65:1** sur #0c0d18. Anneau rogné visible dans `creer-primary-focus-*` (bouton ~243 px, colonne main ~220 px).
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #111221, contraste anneau/fond **13.58:1**.
 
 ### Captures
 
@@ -82,7 +82,7 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
 | disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
-Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #141725, contraste anneau/fond **12.58:1**. Publication (**revue manuelle Alphonse**) : anneau **12,68:1**.
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**.
 
 ### Captures
 
@@ -91,7 +91,7 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 - [`production-armer-primary-focus-clip.png`](captures-react/production-armer-primary-focus-clip.png)
 - [`production-armer-primary-disabled-clip.png`](captures-react/production-armer-primary-disabled-clip.png)
 
-## Production — Exporter (déclencheur) — `.song-actions-export button.btn.primary`
+## Production — Exporter (déclencheur) — `.production-mix-toolbar-actions [data-capture-export-trigger]`
 
 | État | Texte | Arrêt | Fond | Ratio | OK |
 |------|-------|-------|------|-------|----|
@@ -104,7 +104,7 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
 | disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
-Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #141725, contraste anneau/fond **12.58:1**. Publication (**revue manuelle Alphonse**) : anneau **12,68:1**.
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #10111f, contraste anneau/fond **13.58:1**.
 
 ### Captures
 
@@ -173,7 +173,7 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
 | disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
-Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** uniforme sur fond #0c0e18 (la mesure DOM peut afficher une plage min–max).
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**.
 
 ### Captures
 
@@ -195,7 +195,7 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
 | disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
-Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** uniforme sur fond #0c0e18 (la mesure DOM peut afficher une plage min–max).
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**.
 
 ### Captures
 
@@ -217,7 +217,7 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
 | disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
-Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** uniforme sur fond #0c0e18 (la mesure DOM peut afficher une plage min–max).
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**.
 
 ### Captures
 
@@ -254,8 +254,6 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 
 Mesure script — ΔE00 face primaire / secondaire actif : **7.66** ; ΔE00 bordure : **21.68** ; bordure tirets / fond page : **4.12:1** ; bordure / fond popin : **3.77:1**.
 
-Publication (**revue manuelle Alphonse**) — ΔE00 face vs fond modale **#151827** : **25.44** / **22.68** ; ~**20.9** vs `--bg2` **#20243a**.
-
 | État | Texte | Arrêt | Fond | Ratio | OK |
 |------|-------|-------|------|-------|----|
 | normal | #848ba0 | top | #12151f | 5.36:1 | OK |
@@ -265,7 +263,7 @@ Publication (**revue manuelle Alphonse**) — ΔE00 face vs fond modale **#15182
 | focus | #848ba0 | top | #12151f | 5.36:1 | OK |
 | focus | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
-Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **12.6:1**. Publication (**revue manuelle Alphonse**) : anneau **3.51:1** (742 px, outline à 0,45 sur #151827). ΔE00 face primaire vs fond modale #151827 : **25.44** (haut) / **22.68** (bas). ΔE00 face ~**20.9** vs `--bg2` #20243a.
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #151827, contraste anneau/fond **12.6:1**.
 
 ### Captures
 
@@ -286,7 +284,7 @@ Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248)
 | disabled | #848ba0 | top | #12151f | 5.36:1 | OK |
 | disabled | #848ba0 | bottom | #12151f | 5.36:1 | OK |
 
-Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**. Publication (**revue manuelle Alphonse**) : anneau **13.58:1** uniforme sur fond #0c0e18 (la mesure DOM peut afficher une plage min–max).
+Mesure script (DOM) : `:focus-visible`=true, outline 2px solid rgb(94, 236, 248), fond anneau #1c1934, contraste anneau/fond min–max **10.05–13.58:1**.
 
 ### Captures
 

@@ -4,7 +4,7 @@
   "disabledTextHex": "#848ba0",
   "disabledFaceHex": "#12151f",
   "disabledTextRatioOnFace": 5.36,
-  "captureGitSha": "d00d3ff5bf125da1bc45a59175143628c498a703",
+  "captureGitSha": "222f18f3c61526c6006686c1728ba9a7cdbb567a",
   "viewport": {
     "width": 1280,
     "height": 720
@@ -13,60 +13,7 @@
   "outlineMeasuredAgainst": "backdrop-behind-outline-not-button-face",
   "clipPaddingPx": 14,
   "clipPaddingFocusPx": 22,
-  "manualReviewAlphonse": {
-    "source": "revue manuelle Alphonse",
-    "bibliotheque": {
-      "focusRingRatioMin": 10,
-      "focusRingRatioMax": 11.69,
-      "medianRatio": 10.92,
-      "distinctBackgrounds": 53,
-      "backdropNote": "dégradé panneau #131f31 → #192c43",
-      "ringPixelCountDiffVsNormal": {
-        "count": 712,
-        "method": "pixels cyan qui diffèrent du PNG normal (passe 2, revue Alphonse)"
-      },
-      "ringPixelCountInButtonClip": {
-        "count": 730,
-        "method": "tous les pixels cyan du clip bouton (passe 3, revue Alphonse)"
-      }
-    },
-    "creer": {
-      "focusRingRatio": 13.65,
-      "backdropHex": "#0c0d18",
-      "note": "Anneau rogné visible dans `creer-primary-focus-*` (bouton ~243 px, colonne main ~220 px)."
-    },
-    "production-armer": {
-      "focusRingRatio": 12.68
-    },
-    "production-exporter": {
-      "focusRingRatio": 12.68
-    },
-    "production-mesurer": {
-      "focusRingRatio": 13.58,
-      "backdropHex": "#0c0e18"
-    },
-    "production-zip": {
-      "focusRingRatio": 13.58,
-      "backdropHex": "#0c0e18"
-    },
-    "reglages-lora": {
-      "focusRingRatio": 13.58,
-      "backdropHex": "#0c0e18"
-    },
-    "confirmation-invariant-panel": {
-      "focusRingRatio": 13.58,
-      "backdropHex": "#0c0e18"
-    },
-    "regeneration-gate-blocked": {
-      "focusRingRatio": 3.51,
-      "focusRingPixelCount": 742,
-      "popinBackdropHex": "#151827",
-      "deltaE00FaceVsPopin151827Top": 25.44,
-      "deltaE00FaceVsPopin151827Bottom": 22.68,
-      "deltaE00FaceVsBg2Approx": 20.9,
-      "bg2Hex": "#20243a"
-    }
-  },
+  "manualReviewAlphonse": {},
   "screens": [
     {
       "id": "bibliotheque",
@@ -389,9 +336,9 @@
             "outlineOffset": "2px",
             "cursor": "pointer",
             "mouseAway": true,
-            "backdropHex": "#141725",
-            "outlineContrastRatio": 12.58,
-            "outlineContrastRatioMax": 12.58,
+            "backdropHex": "#1c1934",
+            "outlineContrastRatio": 10.05,
+            "outlineContrastRatioMax": 13.58,
             "outlineContrastOnFaceMin": 1.43,
             "focusRingInsetSepContrast": 12.44,
             "focusInsetSepVsFace": 8.72
@@ -431,7 +378,7 @@
     {
       "id": "production-exporter",
       "screen": "Production — Exporter (déclencheur)",
-      "selector": ".song-actions-export button.btn.primary",
+      "selector": ".production-mix-toolbar-actions [data-capture-export-trigger]",
       "label": "Exporter",
       "captureFiles": [
         "production-exporter-primary-normal-clip.png",
@@ -517,13 +464,13 @@
             "outlineStyle": "solid",
             "outlineWidth": "2px",
             "outlineColor": "rgb(94, 236, 248)",
-            "outlineOffset": "2px",
+            "outlineOffset": "-2px",
             "cursor": "pointer",
             "mouseAway": true,
-            "backdropHex": "#141725",
-            "outlineContrastRatio": 12.58,
-            "outlineContrastRatioMax": 12.58,
-            "outlineContrastOnFaceMin": 1.43,
+            "backdropHex": "#10111f",
+            "outlineContrastRatio": 13.58,
+            "outlineContrastRatioMax": 13.58,
+            "outlineContrastOnFaceMin": 8.72,
             "focusRingInsetSepContrast": 12.44,
             "focusInsetSepVsFace": 8.72
           }
