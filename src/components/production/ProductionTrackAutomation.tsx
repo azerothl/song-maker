@@ -129,6 +129,7 @@ export function ProductionTrackAutomation({ mixId, trackId, trackName, durationM
         dragTime.current = null;dragBefore.current=null;
       }}>
       <line x1="0" x2="100" y1={hi/(hi-lo)*100} y2={hi/(hi-lo)*100} className="production-auto-zero" />
+      <line x1={clamp(currentMs/maxMs*100,0,100)} x2={clamp(currentMs/maxMs*100,0,100)} y1="0" y2="100" className="production-auto-playback-line" />
       <polyline points={points.map(p => `${p.timeMs/maxMs*100},${(hi-p.value)/(hi-lo)*100}`).join(" ")} />
       {points.map((p,i) => <ellipse key={i} cx={p.timeMs/maxMs*100} cy={(hi-p.value)/(hi-lo)*100} rx="0.7" ry="4" />)}
     </svg>

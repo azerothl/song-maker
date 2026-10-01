@@ -31,6 +31,7 @@ import {
 } from "../lib/musicalTime";
 import { setProductionClipSelection } from "../lib/productionClipSelection";
 import { createdClipId } from "../lib/createdClipSelection";
+import { rulerDisplayMarks } from "../lib/rulerDisplayMarks";
 import { roleWaveColor, withAlpha } from "../lib/trackRoleColors";
 import { listTakesInGroup, selectActiveTake } from "../lib/takes";
 import type {
@@ -79,6 +80,7 @@ type Props = {
   headerActions?: ReactNode;
   currentTimeMs?: number;
   onSeek?: (seconds: number) => void;
+  renderTracks?: (renderLane: (track: MixTrack) => ReactNode, durationMs: number) => ReactNode;
 };
 
 type DragKind = "move" | "trim-left" | "trim-right" | "fade-in" | "fade-out";
@@ -255,6 +257,7 @@ export function ClipTimeline({
   headerActions,
   currentTimeMs = 0,
   onSeek,
+  renderTracks,
 }: Props) {
   const mix = useMemo(
     () => ensureMixArrangement(rawMix, projectTempoBpm, projectMeter),
@@ -300,6 +303,17 @@ export function ClipTimeline({
   const [tempoAtDraft, setTempoAtDraft] = useState(0);
   const dragRef = useRef<DragState | null>(null);
   const railScrollRef = useRef<HTMLDivElement | null>(null);
+  const rulerRailRef = useRef<HTMLDivElement | null>(null);
+  const [rulerWidth,setRulerWidth] = useState(0);
+  useEffect(()=>{
+    const rail=rulerRailRef.current;
+    if(!rail)return;
+    const measure=()=>setRulerWidth(rail.getBoundingClientRect().width);
+    measure();
+    const observer=new ResizeObserver(measure);
+    observer.observe(rail);
+    return ()=>observer.disconnect();
+  },[]);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
 
   const tempoMap = mix.tempoMap ?? [];
@@ -749,6 +763,7 @@ export function ClipTimeline({
   }
 
   function onTimelineKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
+    if(e.defaultPrevented) return;
     const target = e.target as HTMLElement;
     const inField =
       target.tagName === "INPUT" ||
@@ -774,6 +789,17 @@ export function ClipTimeline({
     if (scrollKeys.has(e.key)) {
       const lanes = railScrollRef.current;
       const top = topScrollRef.current;
+      const common = renderTracks ? target.closest<HTMLElement>(".production-workspace-common") : null;
+      if (target.closest('[data-testid="clip-timeline-lanes"]') && lanes && lanes.scrollHeight>lanes.clientHeight) {
+        e.preventDefault();
+        scrollRegionByKey(lanes,e.key);
+        return;
+      }
+      if(common) {
+        e.preventDefault();
+        scrollRegionByKey(common,e.key);
+        return;
+      }
       if (target.closest('[data-testid="clip-timeline-lanes"]') && lanes) {
         e.preventDefault();
         scrollRegionByKey(lanes, e.key);
@@ -875,6 +901,128 @@ export function ClipTimeline({
   const stepForInputs =
     gridMode === "musical" && snapEnabled ? nudgeStep : snapEnabled ? TIME_SNAP_MS : 100;
 
+  const renderLane = (tr: MixTrack) => {
+
+            const role =
+              roleByTrack?.[tr.id] ?? tr.role?.toLowerCase() ?? "other";
+            const color = roleWaveColor(role);
+            const sourceMs = estimateSourceMs(tr, sourceDurationMsByTrack);
+            return (
+              <div
+                key={tr.id}
+                className={renderTracks ? "clip-lane common-track-lane" : "clip-lane"}
+                data-role={role}
+                style={{ "--track-wave": color } as CSSProperties}
+              >
+                {!renderTracks && <span className="clip-lane-label">{tr.name}</span>}
+                <div className="clip-lane-rail">
+                  <span aria-hidden="true" className="production-playback-line" style={{left:`${Math.min(100,Math.max(0,currentTimeMs/timelineMs*100))}%`}} />
+                  {tr.clips.map((clip) => {
+                    const left = (clip.startMs / timelineMs) * 100;
+                    const width = Math.max(
+                      0.8,
+                      (clip.durationMs / timelineMs) * 100,
+                    );
+                    const active =
+                      selected?.trackId === tr.id &&
+                      selected.clipId === clip.id;
+                    const takeMuted = clip.takeActive === false;
+                    const peaks = slicePeaksForClip(
+                      peaksByTrack?.[tr.id],
+                      clip,
+                      sourceMs,
+                    );
+                    const musical = msToMusical(
+                      clip.startMs,
+                      tempoMap,
+                      meterMap,
+                      subdivision,
+                    );
+                    return (
+                      <div
+                        key={clip.id}
+                        role="button"
+                        aria-pressed={active}
+                        tabIndex={0}
+                        className={[
+                          "clip-block",
+                          active ? "active" : "",
+                          takeMuted ? "take-muted" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        style={{
+                          left: `${left}%`,
+                          width: `${width}%`,
+                          background: withAlpha(color, takeMuted ? 0.12 : 0.28),
+                        }}
+                        title={`${tr.name} · ${formatMs(clip.startMs)} (${formatMusical(musical)}) → ${formatMs(clip.startMs + clip.durationMs)}${
+                          clip.takeLabel ? ` · ${clip.takeLabel}` : ""
+                        }`}
+                        aria-label={`${tr.name}, ${formatMs(clip.startMs)}, ${formatMs(clip.durationMs)}`}
+                        onPointerDown={(e) => onClipPointerDown(e, tr, clip)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setSelected({ trackId: tr.id, clipId: clip.id });
+                          }
+                        }}
+                      >
+                        <ClipWaveCanvas peaks={peaks} color={color} />
+                        <span className="clip-block-label">
+                          {gridMode === "musical"
+                            ? formatMusical(musical)
+                            : formatMs(clip.startMs)}
+                        </span>
+                        <span
+                          className="clip-fade-in"
+                          style={{
+                            width: `${
+                              clip.durationMs > 0
+                                ? (clip.fadeInMs / clip.durationMs) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                        <span
+                          className="clip-fade-out"
+                          style={{
+                            width: `${
+                              clip.durationMs > 0
+                                ? (clip.fadeOutMs / clip.durationMs) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                        <span className="clip-handle clip-handle-left" />
+                        <span className="clip-handle clip-handle-right" />
+                        <span
+                          className="clip-fade-handle clip-fade-handle-in"
+                          style={{
+                            left: `${
+                              clip.durationMs > 0
+                                ? (clip.fadeInMs / clip.durationMs) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                        <span
+                          className="clip-fade-handle clip-fade-handle-out"
+                          style={{
+                            right: `${
+                              clip.durationMs > 0
+                                ? (clip.fadeOutMs / clip.durationMs) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+  };
   return (
     <div className="clip-timeline" onKeyDown={onTimelineKeyDown}>
       <div
@@ -1413,8 +1561,9 @@ export function ClipTimeline({
               onSeek(Math.min(timelineMs,Math.max(0,next))/1000);
             }}>
             <span className="clip-lane-label" />
-            <div className="clip-ruler-marks-abs" aria-hidden="true">
-              {rulerMarks.map((mark, i) => (
+            <div ref={rulerRailRef} className="clip-ruler-marks-abs" aria-hidden="true">
+              <span className="production-playback-line" style={{left:`${Math.min(100,Math.max(0,currentTimeMs/timelineMs*100))}%`}} />
+              {rulerDisplayMarks(rulerMarks,timelineMs,rulerWidth).map((mark, i) => (
                 <span
                   key={`${mark.ms}-${i}`}
                   className={
@@ -1481,126 +1630,7 @@ export function ClipTimeline({
               ))}
             </div>
           </div>
-          {mix.tracks.map((tr) => {
-            const role =
-              roleByTrack?.[tr.id] ?? tr.role?.toLowerCase() ?? "other";
-            const color = roleWaveColor(role);
-            const sourceMs = estimateSourceMs(tr, sourceDurationMsByTrack);
-            return (
-              <div
-                key={tr.id}
-                className="clip-lane"
-                data-role={role}
-                style={{ "--track-wave": color } as CSSProperties}
-              >
-                <span className="clip-lane-label">{tr.name}</span>
-                <div className="clip-lane-rail">
-                  {tr.clips.map((clip) => {
-                    const left = (clip.startMs / timelineMs) * 100;
-                    const width = Math.max(
-                      0.8,
-                      (clip.durationMs / timelineMs) * 100,
-                    );
-                    const active =
-                      selected?.trackId === tr.id &&
-                      selected.clipId === clip.id;
-                    const takeMuted = clip.takeActive === false;
-                    const peaks = slicePeaksForClip(
-                      peaksByTrack?.[tr.id],
-                      clip,
-                      sourceMs,
-                    );
-                    const musical = msToMusical(
-                      clip.startMs,
-                      tempoMap,
-                      meterMap,
-                      subdivision,
-                    );
-                    return (
-                      <div
-                        key={clip.id}
-                        role="button"
-                        aria-pressed={active}
-                        tabIndex={0}
-                        className={[
-                          "clip-block",
-                          active ? "active" : "",
-                          takeMuted ? "take-muted" : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        style={{
-                          left: `${left}%`,
-                          width: `${width}%`,
-                          background: withAlpha(color, takeMuted ? 0.12 : 0.28),
-                        }}
-                        title={`${tr.name} · ${formatMs(clip.startMs)} (${formatMusical(musical)}) → ${formatMs(clip.startMs + clip.durationMs)}${
-                          clip.takeLabel ? ` · ${clip.takeLabel}` : ""
-                        }`}
-                        aria-label={`${tr.name}, ${formatMs(clip.startMs)}, ${formatMs(clip.durationMs)}`}
-                        onPointerDown={(e) => onClipPointerDown(e, tr, clip)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setSelected({ trackId: tr.id, clipId: clip.id });
-                          }
-                        }}
-                      >
-                        <ClipWaveCanvas peaks={peaks} color={color} />
-                        <span className="clip-block-label">
-                          {gridMode === "musical"
-                            ? formatMusical(musical)
-                            : formatMs(clip.startMs)}
-                        </span>
-                        <span
-                          className="clip-fade-in"
-                          style={{
-                            width: `${
-                              clip.durationMs > 0
-                                ? (clip.fadeInMs / clip.durationMs) * 100
-                                : 0
-                            }%`,
-                          }}
-                        />
-                        <span
-                          className="clip-fade-out"
-                          style={{
-                            width: `${
-                              clip.durationMs > 0
-                                ? (clip.fadeOutMs / clip.durationMs) * 100
-                                : 0
-                            }%`,
-                          }}
-                        />
-                        <span className="clip-handle clip-handle-left" />
-                        <span className="clip-handle clip-handle-right" />
-                        <span
-                          className="clip-fade-handle clip-fade-handle-in"
-                          style={{
-                            left: `${
-                              clip.durationMs > 0
-                                ? (clip.fadeInMs / clip.durationMs) * 100
-                                : 0
-                            }%`,
-                          }}
-                        />
-                        <span
-                          className="clip-fade-handle clip-fade-handle-out"
-                          style={{
-                            right: `${
-                              clip.durationMs > 0
-                                ? (clip.fadeOutMs / clip.durationMs) * 100
-                                : 0
-                            }%`,
-                          }}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+          {renderTracks ? renderTracks(renderLane,timelineMs) : mix.tracks.map(renderLane)}
         </div>
       </div>
     </div>
