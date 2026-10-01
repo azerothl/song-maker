@@ -612,7 +612,7 @@ export function installErrorCopy(error: InstallErrorInfo | null | undefined): In
       return {
         title: t("firstLaunch.error.http.title"),
         body: t("firstLaunch.error.http.body", {
-          message: error?.message ?? t("firstLaunch.error.http.messageFallback"),
+          message: t("firstLaunch.error.http.messageFallback"),
           receivedHint,
         }),
         steps: [
@@ -624,7 +624,7 @@ export function installErrorCopy(error: InstallErrorInfo | null | undefined): In
       return {
         title: t("firstLaunch.error.other.title"),
         body: t("firstLaunch.error.other.body", {
-          message: error?.message ?? t("firstLaunch.error.other.messageFallback"),
+          message: t("firstLaunch.error.other.messageFallback"),
           receivedHint,
         }),
         steps: [
@@ -637,6 +637,11 @@ export function installErrorCopy(error: InstallErrorInfo | null | undefined): In
       return _exhaustive;
     }
   }
+}
+
+export function formatDownloadPercent(percent: number): string {
+  return new Intl.NumberFormat(profileLocale(), { style: "percent", maximumFractionDigits: 0 })
+    .format(Math.min(100, Math.max(0, percent)) / 100);
 }
 
 /** Libellé secondaire « À reprendre » (même assemblage que `FileStatusLabel`). */
@@ -948,7 +953,7 @@ export function demoProgressError(): InstallProgress {
     overallTotalBytes: YUE2_Q4_BYTES + 65_293_844 + 265_218_656 + 61_940_768,
     overallEtaIsEstimate: true,
     error: {
-      message: "La connexion a été interrompue.",
+      message: t("firstLaunch.error.network.demoMessage"),
       cause: "network",
       fileName,
     },
@@ -979,7 +984,7 @@ export function demoProgressPartialResumeLabel(): InstallProgress {
     etaSeconds: 85,
     etaIsEstimate: true,
     error: {
-      message: "La connexion a été interrompue.",
+      message: t("firstLaunch.error.network.demoMessage"),
       cause: "network",
     },
   };

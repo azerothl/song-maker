@@ -27,6 +27,7 @@ import {
   downloadSequentialLead,
   fileRowNeedsRetry,
   formatBytesFr,
+  formatDownloadPercent,
   formatEtaFr,
   formatRateFr,
   formatVramGo,
@@ -852,7 +853,7 @@ export function FirstLaunchScreen() {
                         <span>
                           <b>{formatBytesFr(row.receivedBytes)}</b>
                           {row.totalBytes != null ? ` / ${formatBytesFr(row.totalBytes)}` : ""}
-                          {row.percent ? ` · ${row.percent} %` : ""}
+                          {row.percent ? ` · ${formatDownloadPercent(row.percent)}` : ""}
                         </span>
                         <span>
                           {row.bytesPerSec
@@ -861,7 +862,7 @@ export function FirstLaunchScreen() {
                               })
                             : row.status === "error"
                               ? t("firstLaunch.download.speedZero")
-                              : `${row.percent} %`}
+                              : formatDownloadPercent(row.percent)}
                         </span>
                       </div>
                     </div>
@@ -938,6 +939,12 @@ export function FirstLaunchScreen() {
                   <div>
                     <h2>{errorCopy.title}</h2>
                     <p>{errorCopy.body}</p>
+                    {(progress?.error?.message ?? error) && (
+                      <details className="fl-error-details">
+                        <summary>{t("firstLaunch.error.details")}</summary>
+                        <p>{progress?.error?.message ?? error}</p>
+                      </details>
+                    )}
                     <ol>
                       {errorCopy.steps.map((step) => (
                         <li key={step}>{step}</li>

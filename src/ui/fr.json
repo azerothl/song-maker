@@ -1384,5 +1384,7 @@
   "qwen.mix.cancel": "Annuler",
   "qwen.mix.analyze": "Proposer des réglages avec Qwen",
   "qwen.mix.empty": "Aucun changement proposé.",
-  "qwen.mix.title": "Assistant de mix local"
+  "qwen.mix.title": "Assistant de mix local",
+  "firstLaunch.error.details": "Détails du diagnostic (langue du serveur)",
+  "firstLaunch.error.network.demoMessage": "La connexion a été interrompue."
 }

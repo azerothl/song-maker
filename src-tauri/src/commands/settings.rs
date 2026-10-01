@@ -310,7 +310,7 @@ pub fn mel_band_roformer_install_info() -> Result<serde_json::Value, String> {
         "path": crate::paths::mel_band_roformer_path(&cache).display().to_string(),
         "available": present,
         "defaultSeparator": "htdemucs",
-        "stemLayoutFr": "Voix + instrumental seulement (Kim Vocal). HTDemucs reste le chemin stable par défaut.",
+        "stemLayoutFr": "Voix + instrumental seulement (Mel-Band RoFormer « Kim Vocal »). HTDemucs reste le chemin stable par défaut.",
     }))
 }
 
