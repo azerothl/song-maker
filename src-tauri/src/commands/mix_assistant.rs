@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 const MODEL: &str = "qwen3.5:2b";
 const BASE: &str = "http://127.0.0.1:11434";
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrackSummary {
     id: String,
@@ -26,15 +26,16 @@ pub struct MixAssistantRequest {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct Adjustment {
+    /// Models may echo the prompt field `id` instead of `trackId`.
+    #[serde(alias = "id")]
     track_id: String,
     gain_db: f64,
     pan: f64,
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Deserialize)]
 struct Answer {
     adjustments: Vec<Adjustment>,
     explanation: String,
@@ -47,6 +48,71 @@ pub struct MixAssistantResponse {
     adjustments: Vec<Adjustment>,
     explanation: String,
     elapsed_ms: u128,
+}
+
+fn prompt_tracks(tracks: &[TrackSummary]) -> serde_json::Value {
+    serde_json::Value::Array(
+        tracks
+            .iter()
+            .map(|track| {
+                json!({
+                    "trackId": track.id,
+                    "name": track.name,
+                    "role": track.role,
+                    "gainDb": track.gain_db,
+                    "pan": track.pan,
+                    "rmsDb": track.rms_db,
+                    "peakDb": track.peak_db,
+                })
+            })
+            .collect(),
+    )
+}
+
+fn predict_budget(track_count: usize) -> u64 {
+    // Seven-track French explanations were truncating under a fixed 512 budget.
+    512u64
+        .saturating_add((track_count as u64).saturating_mul(96))
+        .clamp(768, 2048)
+}
+
+fn json_payload(text: &str) -> Result<&str, String> {
+    let trimmed = text.trim();
+    let body = if let Some(rest) = trimmed.strip_prefix("```") {
+        let rest = rest
+            .strip_prefix("json")
+            .or_else(|| rest.strip_prefix("JSON"))
+            .unwrap_or(rest)
+            .trim_start();
+        rest.rsplit_once("```")
+            .map(|(inner, _)| inner)
+            .unwrap_or(rest)
+            .trim()
+    } else {
+        trimmed
+    };
+    let start = body
+        .find('{')
+        .ok_or_else(|| "INVALID_RESPONSE".to_string())?;
+    let end = body
+        .rfind('}')
+        .ok_or_else(|| "INVALID_RESPONSE".to_string())?;
+    if end < start {
+        return Err("INVALID_RESPONSE".into());
+    }
+    Ok(&body[start..=end])
+}
+
+fn decode_answer(content: &serde_json::Value) -> Result<Answer, String> {
+    match content {
+        serde_json::Value::Object(_) => {
+            serde_json::from_value(content.clone()).map_err(|_| "INVALID_RESPONSE".into())
+        }
+        serde_json::Value::String(text) => {
+            serde_json::from_str(json_payload(text)?).map_err(|_| "INVALID_RESPONSE".into())
+        }
+        _ => Err("INVALID_RESPONSE".into()),
+    }
 }
 
 fn validate(answer: &Answer, tracks: &[TrackSummary]) -> Result<(), String> {
@@ -121,18 +187,14 @@ pub async fn propose_qwen_mix(req: MixAssistantRequest) -> Result<MixAssistantRe
         "explanation":{"type":"string"},"adjustments":{"type":"array","items":{"type":"object","additionalProperties":false,
         "required":["trackId","gainDb","pan"],"properties":{"trackId":{"type":"string"},"gainDb":{"type":"number"},"pan":{"type":"number"}}}}}});
     let start = Instant::now();
+    let num_predict = predict_budget(req.tracks.len());
     let response: serde_json::Value = client.post(format!("{BASE}/api/chat")).json(&json!({
         "model":MODEL,"stream":false,"think":false,"format":schema,"keep_alive":"2m",
-        "options":{"temperature":0,"num_predict":512,"num_ctx":4096},
-        "messages":[{"role":"system","content":prompt},{"role":"user","content":serde_json::to_string(&json!({"objective":req.objective,"tracks":req.tracks})).map_err(|_| "INVALID_INPUT")?}]
+        "options":{"temperature":0,"num_predict":num_predict,"num_ctx":4096},
+        "messages":[{"role":"system","content":prompt},{"role":"user","content":serde_json::to_string(&json!({"objective":req.objective,"tracks":prompt_tracks(&req.tracks)})).map_err(|_| "INVALID_INPUT")?}]
     })).send().await.map_err(|_| "INFERENCE_FAILED")?.error_for_status().map_err(|_| "INFERENCE_FAILED")?
         .json().await.map_err(|_| "INVALID_RESPONSE")?;
-    let mut answer: Answer = serde_json::from_str(
-        response["message"]["content"]
-            .as_str()
-            .ok_or("INVALID_RESPONSE")?,
-    )
-    .map_err(|_| "INVALID_RESPONSE")?;
+    let mut answer = decode_answer(&response["message"]["content"])?;
     validate(&answer, &req.tracks)?;
     answer.adjustments.retain(|adjustment| {
         req.tracks.iter().any(|track| {
@@ -152,49 +214,44 @@ pub async fn propose_qwen_mix(req: MixAssistantRequest) -> Result<MixAssistantRe
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sample_track(id: &str, gain_db: f64) -> TrackSummary {
+        TrackSummary {
+            id: id.into(),
+            name: id.into(),
+            role: "vocals".into(),
+            gain_db,
+            pan: 0.0,
+            rms_db: -18.0,
+            peak_db: -3.0,
+        }
+    }
+
     #[tokio::test]
     #[ignore = "requires an installed local Qwen model and running Ollama"]
     async fn qwen_local_live() {
         let tracks = vec![
-            TrackSummary {
-                id: "vocal".into(),
-                name: "Voice".into(),
-                role: "vocals".into(),
-                gain_db: -3.0,
-                pan: 0.0,
-                rms_db: -18.0,
-                peak_db: -3.0,
-            },
-            TrackSummary {
-                id: "drums".into(),
-                name: "Drums".into(),
-                role: "drums".into(),
-                gain_db: 0.0,
-                pan: 0.0,
-                rms_db: -10.0,
-                peak_db: -1.0,
-            },
+            sample_track("trk-vocals", -3.0),
+            sample_track("trk-drums", 0.0),
+            sample_track("trk-bass", -2.0),
+            sample_track("trk-other", -4.0),
+            sample_track("trk-guitar", -5.0),
+            sample_track("trk-piano", -6.0),
+            sample_track("trk-user", -1.0),
         ];
         let response = propose_qwen_mix(MixAssistantRequest {
             tracks,
             objective: "Make the vocals more audible while keeping peak headroom.".into(),
-            locale: "en".into(),
+            locale: "fr".into(),
         })
         .await
         .unwrap();
         println!("{}", serde_json::to_string(&response).unwrap());
     }
+
     #[test]
     fn rejects_unknown_duplicate_and_excessive_changes() {
-        let track = TrackSummary {
-            id: "vocal".into(),
-            name: "Voice".into(),
-            role: "vocals".into(),
-            gain_db: 0.0,
-            pan: 0.0,
-            rms_db: -20.0,
-            peak_db: -6.0,
-        };
+        let track = sample_track("vocal", 0.0);
         for (id, gain, pan) in [
             ("unknown", 0.0, 0.0),
             ("vocal", 7.0, 0.0),
@@ -219,5 +276,48 @@ mod tests {
             explanation: String::new(),
         };
         assert!(validate(&answer, &[track]).is_ok());
+    }
+
+    #[test]
+    fn decodes_string_object_fenced_and_id_alias_for_seven_tracks() {
+        let tracks: Vec<_> = (0..7)
+            .map(|i| sample_track(&format!("trk-{i}"), -(i as f64)))
+            .collect();
+        let adjustments: Vec<_> = tracks
+            .iter()
+            .take(3)
+            .map(|track| {
+                json!({
+                    "id": track.id,
+                    "gainDb": track.gain_db - 1.5,
+                    "pan": 0.1,
+                    "note": "ignored"
+                })
+            })
+            .collect();
+        let payload = json!({
+            "adjustments": adjustments,
+            "explanation": "Équilibre mesuré sur sept pistes.",
+            "extra": true
+        });
+        let as_string = decode_answer(&json!(payload.to_string())).unwrap();
+        validate(&as_string, &tracks).unwrap();
+        assert_eq!(as_string.adjustments.len(), 3);
+        assert_eq!(as_string.adjustments[0].track_id, "trk-0");
+
+        let as_object = decode_answer(&payload).unwrap();
+        validate(&as_object, &tracks).unwrap();
+
+        let fenced = format!("```json\n{payload}\n```");
+        let as_fence = decode_answer(&json!(fenced)).unwrap();
+        validate(&as_fence, &tracks).unwrap();
+        assert_eq!(predict_budget(7), 1184);
+    }
+
+    #[test]
+    fn prompt_tracks_use_track_id_key() {
+        let encoded = prompt_tracks(&[sample_track("trk-vocals", -3.0)]);
+        assert_eq!(encoded[0]["trackId"], "trk-vocals");
+        assert!(encoded[0].get("id").is_none());
     }
 }
