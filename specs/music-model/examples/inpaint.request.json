@@ -1,0 +1,56 @@
+{
+  "schema_version": "music-generation/v1",
+  "request_id": "example-inpaint-piano-001",
+  "mode": "inpaint",
+  "source_version_id": "version-demo-180s",
+  "prompt": "Remplacer le piano entre 45 et 53 secondes par un motif plus lumineux, dans les accords existants. Conserver le chant et tous les autres instruments.",
+  "vocal_mode": "preserve",
+  "conditions": [
+    {
+      "kind": "audio",
+      "asset_id": "asset-demo-native-stems",
+      "role": "context",
+      "target_track_ids": ["voice-lead", "piano-1", "bass-1", "drums-1"],
+      "strength": 1
+    },
+    {
+      "kind": "score",
+      "asset_id": "asset-demo-composition",
+      "role": "content",
+      "target_track_ids": ["voice-lead", "piano-1", "bass-1", "drums-1"],
+      "strength": 1,
+      "confirmed": true
+    }
+  ],
+  "constraints": {
+    "duration_seconds": 180,
+    "tempo_map": [{ "tick": 0, "quarter_bpm": 120 }],
+    "time_signatures": [{ "tick": 0, "numerator": 4, "denominator": 4 }],
+    "tracks": [
+      { "id": "voice-lead", "instrument": "voice", "role": "lead_vocal" },
+      { "id": "piano-1", "instrument": "piano", "role": "harmony" },
+      { "id": "bass-1", "instrument": "electric_bass", "role": "bass" },
+      { "id": "drums-1", "instrument": "drum_kit", "role": "rhythm" }
+    ]
+  },
+  "preserve": {
+    "audio_track_ids": ["voice-lead", "bass-1", "drums-1"],
+    "symbolic_track_ids": ["voice-lead", "bass-1", "drums-1"],
+    "musical_features": ["lyrics", "harmony", "structure", "tempo", "key"],
+    "outside_edit_regions": "audio_exact"
+  },
+  "edit_regions": [
+    { "track_id": "piano-1", "start_sample": 2160000, "end_sample": 2544000 }
+  ],
+  "render": {
+    "sample_rate_hz": 48000,
+    "audio_format": "wav_pcm24",
+    "boundary_policy": "inside_mask",
+    "crossfade_samples": 720,
+    "tail_policy": "within_duration",
+    "mix_policy": "preserve_outside_edit_regions"
+  },
+  "outputs": ["mix", "stems", "score", "midi"],
+  "sampling": { "seed": 73, "candidates": 1, "preset": "quality-v1" },
+  "constraint_policy": "strict"
+}
