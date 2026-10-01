@@ -521,7 +521,7 @@ export function ProductionWorkspace({
                   .filter(Boolean)
                   .join(" ")}
                 role="toolbar"
-                aria-label={t("workspace.production.mix")}
+                aria-label={t("production.common.mix")}
               >
                 <div className="production-mix-toolbar-title">
                   <h3 className="mixer-tracks-title">{t("mix.tracksTitle")}</h3>
@@ -889,7 +889,7 @@ export function ProductionWorkspace({
         <div
           className="production-subview-scroll production-tools-scroll"
           role="region"
-          aria-label={t("workspace.production.tools.scroll")}
+          aria-label={t("production.common.advanced")}
           tabIndex={0}
           data-testid="production-tools-scroll"
         >
