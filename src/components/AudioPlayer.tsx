@@ -3,6 +3,7 @@ import type { MixDoc, PlaybackSources } from "../lib/types";
 import { MixPlaybackEngine, type PlaybackSnapshot } from "../lib/playback";
 import { subscribeProduction } from "../lib/productionState";
 import { t } from "../ui/i18n";
+import { PlaybackTime } from "./PlaybackTime";
 import { Waveform } from "./Waveform";
 
 function formatTime(seconds: number): string {
@@ -196,7 +197,7 @@ export function AudioPlayer({
                 : t("player.play")}
           </button>
           <div className="player-times" aria-label={t("player.seek")}>
-            <span className="player-time">{formatTime(snap.current)}</span>
+            <PlaybackTime seconds={snap.current} className="player-time" />
             <span className="player-time-sep">/</span>
             <span className="player-time">{formatTime(snap.duration)}</span>
           </div>
