@@ -30,6 +30,12 @@ describe("Dialogues séparation / export a11y (#187 / #191)", () => {
     assert.match(src, /resize/);
   });
 
+  it("porte AnchoredPopin sur document.body pour sortir des contextes sticky (#282)", () => {
+    const src = readSrc("src/components/AnchoredPopin.tsx");
+    assert.match(src, /createPortal/);
+    assert.match(src, /document\.body/);
+  });
+
   it("bloque Lancer la séparation si modèle non installé (I7)", () => {
     const sep = readSrc("src/components/SeparationRecommendDialog.tsx");
     assert.match(sep, /selectedRunnable/);

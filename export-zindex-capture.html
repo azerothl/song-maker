@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Song Maker — export z-index fixture</title>
+    <style>
+      html, body, #root { height: 100%; margin: 0; }
+      .fixture-shell { position: relative; height: 100%; background: #1b1723; color: #eee; }
+      .production-mix-sticky-master {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        padding: 1rem;
+        background: #241f2e;
+      }
+      .blocking-ruler {
+        position: sticky;
+        top: 64px;
+        z-index: 5;
+        height: 280px;
+        background: rgba(255, 80, 80, 0.55);
+        pointer-events: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/dev/exportZIndexCaptureMain.tsx"></script>
+  </body>
+</html>

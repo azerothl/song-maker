@@ -7,6 +7,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 
 type Props = {
   open: boolean;
@@ -174,7 +175,9 @@ export function AnchoredPopin({
 
   if (!open) return null;
 
-  return (
+  // Portal to body so fixed z-index escapes sticky stacking contexts
+  // (e.g. production-mix-sticky-master z-index 4 vs clip-ruler z-index 5, #282).
+  return createPortal(
     <div className="anchored-popin-layer" role="presentation">
       <div
         ref={panelRef}
@@ -186,6 +189,7 @@ export function AnchoredPopin({
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
