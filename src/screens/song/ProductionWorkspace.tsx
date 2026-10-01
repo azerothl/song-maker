@@ -630,6 +630,7 @@ export function ProductionWorkspace({
                       <div
                         className={rowClass}
                         data-role={tr.role.toLowerCase()}
+                        data-track-id={tr.id}
                         role="listitem"
                       >
                         <div className="production-mix-name">
@@ -761,6 +762,12 @@ export function ProductionWorkspace({
                         durationMs={Math.max((playback?.duration ?? 0) * 1000,
                           ...mix.tracks.flatMap(track => track.clips.map(clip => clip.startMs + clip.durationMs)), 5000)}
                         currentMs={(playback?.current ?? 0) * 1000}
+                        locked={tr.locked}
+                        nudgeMs={!clipViewPrefs.snapEnabled || clipViewPrefs.gridMode==="time"?50:Math.max(1,Math.round(60000/(mix.tempoMap?.[0]?.quarterBpm??form.tempoBpm??120)/clipViewPrefs.subdivision))}
+                        onCollapse={()=>requestAnimationFrame(()=>{
+                          const row=Array.from(document.querySelectorAll<HTMLElement>(".production-mix-row")).find(el=>el.dataset.trackId===tr.id);
+                          row?.querySelector<HTMLButtonElement>(".production-track-tools-btn")?.focus();
+                        })}
                       />
                       </Fragment>
                     );

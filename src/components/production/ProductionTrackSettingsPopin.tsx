@@ -238,10 +238,15 @@ export function ProductionTrackSettingsPopin({
         type="button"
         className="btn production-track-auto-toggle"
         aria-pressed={autoVisible}
+        aria-expanded={autoVisible}
+        aria-controls={`production-auto-${encodeURIComponent(track.id)}`}
+        disabled={track.locked}
+        title={track.locked?t("production.auto.locked"):undefined}
         onClick={toggleAuto}
       >
-        {t("production.track.showAuto")}
-      </button>
+          {t("production.track.showAuto")}
+        </button>
+        {track.locked && <p className="hint">{t("production.auto.locked")}</p>}
     </AnchoredPopin>
   );
 }
