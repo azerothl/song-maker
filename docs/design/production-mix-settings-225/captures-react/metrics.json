@@ -1,0 +1,86 @@
+{
+  "method": "production-capture.html #confortable-12, Playwright",
+  "shots": [
+    {
+      "name": "mix-settings-closed-1280x720.png",
+      "file": "mix-settings-closed-1280x720.png",
+      "viewport": {
+        "width": 1280,
+        "height": 720,
+        "tag": "1280x720"
+      },
+      "sha256": "300532e3765cb3323eb1fb39c4b775f151f186171b7d961af43bd7b6c55c0213"
+    },
+    {
+      "name": "mix-settings-open-1280x720.png",
+      "file": "mix-settings-open-1280x720.png",
+      "viewport": {
+        "width": 1280,
+        "height": 720,
+        "tag": "1280x720"
+      },
+      "sha256": "222de0121a0c1ca8141f46ed0f20243d56ccb79cfd2593d1fcf7463f7ef7167e"
+    },
+    {
+      "name": "mix-settings-esc-focus-1280x720.png",
+      "file": "mix-settings-esc-focus-1280x720.png",
+      "viewport": {
+        "width": 1280,
+        "height": 720,
+        "tag": "1280x720"
+      },
+      "sha256": "17f36e27508347a86157ce62ac756677ffd62b8cb0260b6110507387882baa45"
+    },
+    {
+      "name": "mix-settings-sep-open-1280x720.png",
+      "file": "mix-settings-sep-open-1280x720.png",
+      "viewport": {
+        "width": 1280,
+        "height": 720,
+        "tag": "1280x720"
+      },
+      "sha256": "d68dd8e2dfd55ddd061725b2a7c6d1ae48fa43a20c5e03426c256c5a161884ad"
+    },
+    {
+      "name": "mix-settings-closed-640x720.png",
+      "file": "mix-settings-closed-640x720.png",
+      "viewport": {
+        "width": 640,
+        "height": 720,
+        "tag": "640x720"
+      },
+      "sha256": "b9103f0306dc0d8775aaed4369299b54e29e6f0b0c06da9a6b197242eac14c30"
+    },
+    {
+      "name": "mix-settings-open-640x720.png",
+      "file": "mix-settings-open-640x720.png",
+      "viewport": {
+        "width": 640,
+        "height": 720,
+        "tag": "640x720"
+      },
+      "sha256": "afa059eceb2ca8d2ef0a822afdcd74fb0bbfb4683122bd1e6d948094a8a64b1e"
+    },
+    {
+      "name": "mix-settings-esc-focus-640x720.png",
+      "file": "mix-settings-esc-focus-640x720.png",
+      "viewport": {
+        "width": 640,
+        "height": 720,
+        "tag": "640x720"
+      },
+      "sha256": "bdf24140e4a64d3947c86339bf091ee166da5db72f75a3029fd568d75e3e637a"
+    },
+    {
+      "name": "mix-settings-sep-open-640x720.png",
+      "file": "mix-settings-sep-open-640x720.png",
+      "viewport": {
+        "width": 640,
+        "height": 720,
+        "tag": "640x720"
+      },
+      "sha256": "18bd3244bbe64c81d1066a2ad8687aabb5d9a29001bc624c4be3de9bb26e3abe"
+    }
+  ],
+  "metricsSha256": "4e12c363573a9e1a4e0d405e854600e869fa7b26d97e742acdbc8c141c7989c5"
+}

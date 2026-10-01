@@ -4,17 +4,23 @@ import { COMMERCIAL_COPY_FORBIDDEN } from "@song-maker/stem-providers";
 import fr from "../ui/fr.json";
 import enProfiles from "../ui/en.profiles.json";
 import { t } from "../ui/i18n.ts";
+import { HTDEMUCS_NOTICE_FR } from "@song-maker/stem-providers";
 import {
   browserDemoFromHash,
   buildFileRows,
+  demoSetupGpu,
+  detectHeadline,
   downloadLiveAnnouncementText,
   downloadSequentialLead,
   fileMeta,
   formatBytesFr,
   formatEtaFr,
   formatRateFr,
+  formatVramGo,
+  gpuDetailLine,
   installErrorCopy,
   remainingAfterResumeLabel,
+  suggestedPackReasonCopy,
 } from "./firstLaunch.ts";
 
 const LOCALE_KEY = "song-maker.locale";
@@ -94,7 +100,8 @@ describe("firstLaunch i18n (#202 / #221)", () => {
   it("English remainingAfterResume with invalid ETA (#221)", () => {
     localStorage.setItem(LOCALE_KEY, "en");
     const line = remainingAfterResumeLabel(null, true);
-    assert.match(line, /left after resume/);
+    assert.equal(line, "Estimated once download speed is known");
+    assert.doesNotMatch(line, /left after resume/);
     assert.match(line, /Estimated once download speed is known/);
     assert.doesNotMatch(line, /Reste|après reprise|Estimation|dès que/i);
   });
@@ -146,5 +153,39 @@ describe("firstLaunch i18n (#202 / #221)", () => {
     assert.equal(t("firstLaunch.download.cancelBack"), "Cancel and go back to choices");
     assert.equal(t("firstLaunch.download.techDetails"), "Technical details");
     assert.equal(t("firstLaunch.download.eyebrow"), "First install · Download");
+  });
+
+  it("English GPU / no-GPU headlines and units (#221)", () => {
+    localStorage.setItem(LOCALE_KEY, "en");
+    const metal = detectHeadline("appleMetal");
+    assert.equal(metal.status, "Apple Metal detected");
+    assert.doesNotMatch(metal.status, /détecté|Carte graphique|Aucune/i);
+    const nvidia = detectHeadline("nvidiaCuda");
+    assert.equal(nvidia.status, "Graphics card detected");
+    const none = detectHeadline("none");
+    assert.match(none.status, /No compatible graphics card/i);
+    assert.doesNotMatch(none.sub, /n’est pas proposée|La génération YuE2/i);
+
+    const gpu = demoSetupGpu("nvidiaCuda");
+    assert.match(gpuDetailLine(gpu), /VRAM/);
+    assert.doesNotMatch(gpuDetailLine(gpu), /de VRAM/);
+    assert.equal(formatVramGo(8192), "8 GB");
+    const reason = suggestedPackReasonCopy(gpu);
+    assert.match(reason, /Detected VRAM|below|Q4 recommended/i);
+    assert.doesNotMatch(reason, /détectée|en dessous|recommandé/i);
+  });
+
+  it("English no-GPU and GPU chrome strings (#221)", () => {
+    localStorage.setItem(LOCALE_KEY, "en");
+    assert.equal(t("firstLaunch.eyebrow"), "First install");
+    assert.equal(t("firstLaunch.gpu.title"), "Let’s set up Song Maker");
+    assert.equal(t("firstLaunch.noGpu.opt3.cta"), "Continue without generation");
+    assert.equal(t("firstLaunch.noGpu.opt1.drivers"), "Open the drivers page ↗");
+    assert.doesNotMatch(t("firstLaunch.gpu.lead"), /ordinateur|téléchargement/i);
+    assert.doesNotMatch(t("firstLaunch.noGpu.alertTitle"), /Attention|carte graphique/i);
+  });
+
+  it("FR HTDemucs notice key matches stem-providers constant", () => {
+    assert.equal(String(fr["firstLaunch.license.htdemucsNotice"]), HTDEMUCS_NOTICE_FR);
   });
 });

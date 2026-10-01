@@ -17,6 +17,18 @@ export function shouldResumeFollowOnPlaybackRestart(
   );
 }
 
+/** Applique la reprise du suivi après un tick de position (bus RAF ou prop). */
+export function followPlaybackAfterPositionTick(
+  previousSeconds: number,
+  nextSeconds: number,
+  followPlayback: boolean,
+): boolean {
+  if (shouldResumeFollowOnPlaybackRestart(previousSeconds, nextSeconds)) {
+    return true;
+  }
+  return followPlayback;
+}
+
 /** Défile la portée ; instantané si l'utilisateur préfère moins d'animation. */
 export function staffScrollTopTo(
   scrollEl: HTMLElement,

@@ -37,6 +37,9 @@ export const YUE2_Q8_PEAK_MIB = 8867;
 export const LICENSE_REQUIRED_FR = "Acceptez la licence pour continuer.";
 export const Q8_VRAM_FAILURE_RISK_FR = "Risque d'échec sur cette carte";
 
+/** Seuil VRAM Q8 (pins / health.rs) — utilisé pour le libellé i18n de recommandation. */
+export const VRAM_Q8_THRESHOLD_MIB = 12_288;
+
 export type ModelPack = "q4" | "q8";
 export type FirstLaunchView = "loading" | "gpu" | "noGpu" | "download" | "interrupted";
 
@@ -496,21 +499,21 @@ export function detectHeadline(kind: AccelerationKind | undefined): {
   switch (accel) {
     case "appleMetal":
       return {
-        status: "Apple Metal détecté",
-        detail: "Apple Metal",
-        sub: "Compatible avec la génération de musique (Metal)",
+        status: t("firstLaunch.gpu.headline.metal.status"),
+        detail: t("firstLaunch.gpu.headline.metal.detail"),
+        sub: t("firstLaunch.gpu.headline.metal.sub"),
       };
     case "nvidiaCuda":
       return {
-        status: "Carte graphique détectée",
-        detail: "GPU NVIDIA",
-        sub: "Compatible avec la génération de musique (CUDA)",
+        status: t("firstLaunch.gpu.headline.nvidia.status"),
+        detail: t("firstLaunch.gpu.headline.nvidia.detail"),
+        sub: t("firstLaunch.gpu.headline.nvidia.sub"),
       };
     case "none":
       return {
-        status: "Aucune carte graphique compatible",
-        detail: "Aucun GPU NVIDIA ni Apple Metal",
-        sub: "La génération YuE2 n’est pas proposée sur cet ordinateur.",
+        status: t("firstLaunch.gpu.headline.none.status"),
+        detail: t("firstLaunch.gpu.headline.none.detail"),
+        sub: t("firstLaunch.gpu.headline.none.sub"),
       };
     default: {
       const _exhaustive: never = accel;
@@ -526,7 +529,39 @@ export function gpuDetailLine(gpu: SetupGpuInfo): string {
   }
   const name = gpu.gpuName?.trim() || headline.detail;
   const vram = formatVramGo(gpu.vramMib);
-  return vram ? `${name}, ${vram} de VRAM` : name;
+  return vram ? t("firstLaunch.gpu.detailWithVram", { name, vram }) : name;
+}
+
+/** Libellé de recommandation pack — dérivé des champs GPU (i18n), pas du FR backend. */
+export function suggestedPackReasonCopy(gpu: SetupGpuInfo): string {
+  const accel = normalizeAcceleration(gpu.accelerationKind);
+  const threshold = String(VRAM_Q8_THRESHOLD_MIB / 1024);
+  switch (accel) {
+    case "appleMetal":
+      return t("firstLaunch.gpu.reason.metal");
+    case "nvidiaCuda": {
+      const vramMib = gpu.vramMib;
+      if (vramMib != null && vramMib >= VRAM_Q8_THRESHOLD_MIB) {
+        return t("firstLaunch.gpu.reason.q8", {
+          vram: String(Math.floor(vramMib / 1024)),
+          threshold,
+        });
+      }
+      if (vramMib != null && vramMib > 0) {
+        return t("firstLaunch.gpu.reason.q4Below", {
+          vram: String(Math.floor(vramMib / 1024)),
+          threshold,
+        });
+      }
+      return t("firstLaunch.gpu.reason.nvidiaNoVram");
+    }
+    case "none":
+      return t("firstLaunch.gpu.reason.none");
+    default: {
+      const _exhaustive: never = accel;
+      return _exhaustive;
+    }
+  }
 }
 
 export function normalizeInstallCause(
@@ -609,6 +644,9 @@ export function remainingAfterResumeLabel(
   etaSeconds: number | null | undefined,
   etaIsEstimate: boolean,
 ): string {
+  if (etaSeconds == null || !Number.isFinite(etaSeconds) || etaSeconds < 0) {
+    return formatEtaFr(etaSeconds, etaIsEstimate);
+  }
   return t("firstLaunch.status.remainingAfterResume", {
     eta: formatEtaFr(etaSeconds, etaIsEstimate),
   });

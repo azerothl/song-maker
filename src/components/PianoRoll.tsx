@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -7,6 +8,10 @@ import {
   type MouseEvent,
   type PointerEvent,
 } from "react";
+import {
+  filterNotesInPianoViewport,
+  filterSectionMarkersInPianoViewport,
+} from "../lib/pianoRollViewport";
 import type { AbcVoiceTarget, ModeName, ScoreDocument, SectionKind } from "../lib/score";
 import {
   addNote,
@@ -70,6 +75,8 @@ export function PianoRoll({ document, onChange, onError }: Props) {
   const [voiceId, setVoiceId] = useState<string | null>(defaultVoice);
   const voice = document.voices.find((v) => v.id === voiceId) ?? null;
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [focusedNoteId, setFocusedNoteId] = useState<string | null>(null);
+  const focusedNoteIdRef = useRef<string | null>(null);
   const [sectionKind, setSectionKind] = useState<SectionKind>("verse");
   const [pendingQuantize, setPendingQuantize] = useState(false);
   const [chordSymbol, setChordSymbol] = useState("C");
@@ -83,6 +90,30 @@ export function PianoRoll({ document, onChange, onError }: Props) {
   };
   const selectedNote = voice?.notes.find((n) => n.id === selectedId) ?? null;
   const auditionRef = useRef<SoftSynth | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const scrollRafRef = useRef<number | null>(null);
+  const [hScroll, setHScroll] = useState({ left: 0, width: 900 });
+
+  const clearFocusedNote = useCallback(() => {
+    focusedNoteIdRef.current = null;
+    setFocusedNoteId(null);
+  }, []);
+
+  const syncScrollViewport = useCallback(() => {
+    scrollRafRef.current = null;
+    const el = scrollRef.current;
+    if (!el) return;
+    const active = globalThis.document.activeElement;
+    if (
+      active instanceof HTMLButtonElement &&
+      active.classList.contains("piano-note") &&
+      active.dataset.noteId
+    ) {
+      focusedNoteIdRef.current = active.dataset.noteId;
+    }
+    setHScroll({ left: el.scrollLeft, width: el.clientWidth || 900 });
+  }, []);
 
   useEffect(() => {
     const synth = new SoftSynth({ latencySec: 0.01 });
@@ -107,6 +138,79 @@ export function PianoRoll({ document, onChange, onError }: Props) {
     }
   }, [document, voiceId]);
 
+  useEffect(() => {
+    clearFocusedNote();
+  }, [voiceId, clearFocusedNote]);
+
+  const handleNoteFocus = useCallback((noteId: string) => {
+    focusedNoteIdRef.current = noteId;
+    setFocusedNoteId(noteId);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    syncScrollViewport();
+
+    const onFocusIn = (e: Event) => {
+      const target = e.target;
+      if (
+        target instanceof HTMLButtonElement &&
+        target.classList.contains("piano-note") &&
+        target.dataset.noteId
+      ) {
+        focusedNoteIdRef.current = target.dataset.noteId;
+        setFocusedNoteId(target.dataset.noteId);
+      }
+    };
+
+    const onFocusOut = (e: Event) => {
+      const focusEvent = e as FocusEvent;
+      const leaving = focusEvent.target;
+      if (
+        !(leaving instanceof HTMLButtonElement) ||
+        !leaving.classList.contains("piano-note")
+      ) {
+        return;
+      }
+      const next = focusEvent.relatedTarget;
+      if (
+        next instanceof HTMLButtonElement &&
+        next.classList.contains("piano-note") &&
+        el.contains(next)
+      ) {
+        return;
+      }
+      clearFocusedNote();
+    };
+
+    const onScroll = () => {
+      if (scrollRafRef.current != null) return;
+      scrollRafRef.current = requestAnimationFrame(syncScrollViewport);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("focusin", onFocusIn, true);
+    el.addEventListener("focusout", onFocusOut, true);
+    const ro = new ResizeObserver(() => {
+      if (scrollRafRef.current != null) {
+        cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
+      }
+      syncScrollViewport();
+    });
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("focusin", onFocusIn, true);
+      el.removeEventListener("focusout", onFocusOut, true);
+      ro.disconnect();
+      if (scrollRafRef.current != null) {
+        cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
+      }
+    };
+  }, [clearFocusedNote, syncScrollViewport]);
+
   const maxTick = useMemo(() => {
     let m = 3840;
     for (const n of voice?.notes ?? []) {
@@ -120,6 +224,32 @@ export function PianoRoll({ document, onChange, onError }: Props) {
 
   const width = Math.max(640, maxTick * PX_PER_TICK);
   const height = (PITCH_MAX - PITCH_MIN + 1) * ROW_H;
+
+  const visibleNotes = useMemo(
+    () =>
+      filterNotesInPianoViewport(
+        voice?.notes ?? [],
+        hScroll.left,
+        hScroll.width,
+        PX_PER_TICK,
+        {
+          selectedId,
+          focusedId: focusedNoteIdRef.current ?? focusedNoteId,
+        },
+      ),
+    [voice?.notes, hScroll.left, hScroll.width, selectedId, focusedNoteId],
+  );
+
+  const visibleSections = useMemo(
+    () =>
+      filterSectionMarkersInPianoViewport(
+        document.sections,
+        hScroll.left,
+        hScroll.width,
+        PX_PER_TICK,
+      ),
+    [document.sections, hScroll.left, hScroll.width],
+  );
 
   function pitchToY(pitch: number): number {
     return (PITCH_MAX - pitch) * ROW_H;
@@ -598,8 +728,16 @@ export function PianoRoll({ document, onChange, onError }: Props) {
         </ul>
       )}
 
-      <div className="piano-scroll" onClick={onCanvasClick}>
-        <div className="piano-grid" style={{ width, height }}>
+      <div
+        ref={scrollRef}
+        className="piano-scroll"
+        onClick={onCanvasClick}
+      >
+        <div
+          ref={gridRef}
+          className="piano-grid"
+          style={{ width, height }}
+        >
           {Array.from({ length: PITCH_MAX - PITCH_MIN + 1 }, (_, i) => {
             const pitch = PITCH_MAX - i;
             const black = [1, 3, 6, 8, 10].includes(pitch % 12);
@@ -611,7 +749,7 @@ export function PianoRoll({ document, onChange, onError }: Props) {
               />
             );
           })}
-          {document.sections.map((s) => (
+          {visibleSections.map((s) => (
             <div
               key={s.id}
               className="section-marker"
@@ -619,10 +757,11 @@ export function PianoRoll({ document, onChange, onError }: Props) {
               title={`% ${s.kind}`}
             />
           ))}
-          {(voice?.notes ?? []).map((n) => (
+          {visibleNotes.map((n) => (
             <button
               type="button"
               key={n.id}
+              data-note-id={n.id}
               className={
                 n.id === selectedId ? "piano-note selected" : "piano-note"
               }
@@ -633,6 +772,7 @@ export function PianoRoll({ document, onChange, onError }: Props) {
                 height: ROW_H - 2,
                 opacity: 0.55 + (n.velocity / 127) * 0.45,
               }}
+              onFocus={() => handleNoteFocus(n.id)}
               onPointerDown={(e) =>
                 onNotePointerDown(e, n.id, n.startTick, n.pitch)
               }

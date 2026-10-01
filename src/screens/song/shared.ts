@@ -1,6 +1,11 @@
 import type { FormInput } from "../../lib/types";
 import { t } from "../../ui/i18n";
 
+function formatDecimalOneFraction(n: number): string {
+  const dec = t("production.num.decimal");
+  return Math.abs(n).toFixed(1).replace(".", dec);
+}
+
 // Constantes, libellés et validations purs de l'écran chanson.
 // Aucun état React ici : ces fonctions sont directement testables.
 export const TONICS = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
@@ -188,13 +193,22 @@ export function snapDurationSec(raw: number): number {
   return Math.round(clamped / DURATION_SEC_STEP) * DURATION_SEC_STEP;
 }
 
-/** French gain label for knobs: « −3,0 dB », « +1,5 dB », « 0,0 dB ». */
+/** Gain label for knobs using `production.num.decimal` and `production.unit.db`. */
 export function formatGainDb(db: number): string {
   const rounded = Math.round(db * 10) / 10;
-  const abs = Math.abs(rounded).toFixed(1).replace(".", ",");
-  if (rounded > 0) return `+${abs} dB`;
-  if (rounded < 0) return `−${abs} dB`;
-  return `${abs} dB`;
+  const unit = t("production.unit.db");
+  const abs = formatDecimalOneFraction(rounded);
+  if (rounded > 0) return `+${abs} ${unit}`;
+  if (rounded < 0) return `−${abs} ${unit}`;
+  return `${abs} ${unit}`;
+}
+
+/** Zoom readout, e.g. « ×2 » / « ×2.5 » (#225). */
+export function formatClipZoomValue(zoom: number): string {
+  const dec = t("production.num.decimal");
+  const unit = t("production.unit.zoom");
+  const raw = Number.isInteger(zoom) ? String(zoom) : zoom.toFixed(2).replace(/0+$/, "").replace(/\.$/, "").replace(".", dec);
+  return `${unit}${raw}`;
 }
 
 /** Compact pan for knobs: « C », « G 20 », « D 35 » (−1…1 → 0…100). */

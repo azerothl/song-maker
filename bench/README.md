@@ -17,7 +17,8 @@ La sortie JSON est écrite dans `bench/score-tab-last.json` et affichée sur std
 3. Mesures :
    - **Long Tasks** (`PerformanceObserver`, seuil navigateur 50 ms)
    - **ouverture → portée visible** : jusqu’à la présence du SVG abcjs (référence + partition longue ~8×)
-   - Micro-bancs : `abcjs.renderAbc` avec / sans `responsive: "resize"`, reflow SVG forcé, rafales `resize` post-ouverture
+   - **bascule portée → piano roll** : clic `#score-view-piano` après rendu portée ; temps jusqu’à grille focusable + nombre de boutons `.piano-note` dans le DOM
+   - Micro-bancs : `abcjs.renderAbc` avec / sans `responsive: "resize"`, reflow SVG forcé, montage `PianoRoll` (reflow grille), rafales `resize` post-ouverture
 
 ## Interprétation (profil attributif)
 
@@ -28,3 +29,17 @@ La sortie JSON est écrite dans `bench/score-tab-last.json` et affichée sur std
 | `rafales resize après montage` | `responsive: "resize"` + `viewportHorizontal` enregistrent la portée dans `resizeDivs` ; chaque `resize` fenêtre ajuste la largeur et force une mise en page coûteuse |
 
 Le rendu piano-roll en onglet caché n’est plus monté à l’ouverture (voir correctif dans `ScorePanel`).
+
+## Bench — waveforms en lecture (#232)
+
+```bash
+pnpm bench:waveform-playback
+```
+
+Chromium headless, harness `waveform-playback-bench.html` : pour 12 et 16 pistes, 120 frames RAF, compare le chemin **legacy** (2× boucle `peaks` + `setState` React) au chemin **optimisé** (bus `emitPlaybackPosition` + calques `drawImage`).
+
+Sorties :
+
+- `bench/waveform-playback-last.json` — rapport complet
+- `bench/waveform-playback-before.json` — baseline legacy (figée au premier run)
+- `bench/waveform-playback-after.json` — dernier run optimisé

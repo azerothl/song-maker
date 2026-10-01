@@ -12,6 +12,7 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 import {
   buildRulerMarks,
@@ -39,6 +40,8 @@ import type {
   Meter,
 } from "../lib/types";
 import { t } from "../ui/i18n";
+import type { ProductionClipViewPrefs } from "../lib/productionClipViewPrefs";
+import { DEFAULT_PRODUCTION_CLIP_VIEW_PREFS } from "../lib/productionClipViewPrefs";
 
 const TIME_SNAP_MS = 50;
 const EDGE_PX = 6;
@@ -66,6 +69,11 @@ type Props = {
   /** Project form tempo — fallback when mix has no tempo map; also #95 follow-tempo. */
   projectTempoBpm?: number | null;
   projectMeter?: Meter | null;
+  clipViewPrefs?: ProductionClipViewPrefs;
+  onClipViewPrefsChange?: (patch: Partial<ProductionClipViewPrefs>) => void;
+  hideHeaderTools?: boolean;
+  /** Actions in the clips header (#225 — Réglages du mix). */
+  headerActions?: ReactNode;
 };
 
 type DragKind = "move" | "trim-left" | "trim-right" | "fade-in" | "fade-out";
@@ -234,6 +242,10 @@ export function ClipTimeline({
   sourceDurationMsByTrack,
   projectTempoBpm,
   projectMeter,
+  clipViewPrefs: clipViewPrefsProp,
+  onClipViewPrefsChange,
+  hideHeaderTools = false,
+  headerActions,
 }: Props) {
   const mix = useMemo(
     () => ensureMixArrangement(rawMix, projectTempoBpm, projectMeter),
@@ -245,10 +257,24 @@ export function ClipTimeline({
     clipId: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [snapEnabled, setSnapEnabled] = useState(true);
-  const [gridMode, setGridMode] = useState<GridMode>("musical");
-  const [subdivision, setSubdivision] = useState<MusicalSubdivision>(4);
-  const [zoom, setZoom] = useState(1);
+  const [localClipView, setLocalClipView] = useState<ProductionClipViewPrefs>(
+    () => DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
+  );
+  const clipView = clipViewPrefsProp ?? localClipView;
+  const patchClipView = useCallback(
+    (patch: Partial<ProductionClipViewPrefs>) => {
+      if (clipViewPrefsProp && onClipViewPrefsChange) {
+        onClipViewPrefsChange(patch);
+        return;
+      }
+      setLocalClipView((prev) => ({ ...prev, ...patch }));
+    },
+    [clipViewPrefsProp, onClipViewPrefsChange],
+  );
+  const snapEnabled = clipView.snapEnabled;
+  const gridMode = clipView.gridMode;
+  const subdivision = clipView.subdivision;
+  const zoom = clipView.zoom;
   const [cutAtMs, setCutAtMs] = useState<number | null>(null);
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
   const [newMarkerKind, setNewMarkerKind] = useState<MixMarkerKind>("verse");
@@ -839,12 +865,17 @@ export function ClipTimeline({
       <div className="clip-timeline-header">
         <h3>{t("clips.title")}</h3>
         <span className="hint">{t("clips.hint")}</span>
+        {headerActions ? (
+          <div className="clip-timeline-header-actions">{headerActions}</div>
+        ) : null}
         <div className="clip-timeline-tools">
+          {!hideHeaderTools && (
+            <>
           <label className="clip-tool-check">
             <input
               type="checkbox"
               checked={snapEnabled}
-              onChange={(e) => setSnapEnabled(e.target.checked)}
+              onChange={(e) => patchClipView({ snapEnabled: e.target.checked })}
             />
             <span>
               {gridMode === "musical"
@@ -856,7 +887,9 @@ export function ClipTimeline({
             <span>{t("clips.gridMode")}</span>
             <select
               value={gridMode}
-              onChange={(e) => setGridMode(e.target.value as GridMode)}
+              onChange={(e) =>
+                patchClipView({ gridMode: e.target.value as GridMode })
+              }
             >
               <option value="musical">{t("clips.gridMusical")}</option>
               <option value="time">{t("clips.gridTime")}</option>
@@ -868,7 +901,9 @@ export function ClipTimeline({
               <select
                 value={subdivision}
                 onChange={(e) =>
-                  setSubdivision(Number(e.target.value) as MusicalSubdivision)
+                  patchClipView({
+                    subdivision: Number(e.target.value) as MusicalSubdivision,
+                  })
                 }
               >
                 <option value={1}>{t("clips.sub.quarter")}</option>
@@ -886,9 +921,11 @@ export function ClipTimeline({
               max={4}
               step={0.25}
               value={zoom}
-              onChange={(e) => setZoom(Number(e.target.value))}
+              onChange={(e) => patchClipView({ zoom: Number(e.target.value) })}
             />
           </label>
+            </>
+          )}
         </div>
       </div>
 

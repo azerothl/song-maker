@@ -7,6 +7,7 @@ import {
   useState,
   type Dispatch,
   SetStateAction,
+  type RefObject,
 } from "react";
 import { TruncatedTrackLabel } from "../../components/TruncatedTrackLabel";
 import { ClipTimeline } from "../../components/ClipTimeline";
@@ -15,13 +16,14 @@ import { ExportDialog } from "../../components/ExportDialog";
 import { SeparationRecommendDialog } from "../../components/SeparationRecommendDialog";
 import { EstimatedSeparationMarker } from "../../components/EstimatedSeparationMarker";
 import { AnchoredPopin } from "../../components/AnchoredPopin";
-import { MixAssistPanel } from "../../components/MixAssistPanel";
+import { ProductionMixSettingsPopin } from "../../components/ProductionMixSettingsPopin";
 import { MixKnob } from "../../components/MixKnob";
 import { Phase3MixPanel } from "../../components/Phase3MixPanel";
 import { ProductionAssistPanel } from "../../components/ProductionAssistPanel";
 import { RecordTrackPanel } from "../../components/RecordTrackPanel";
 import { ProductionAddTrackMenu } from "../../components/production/ProductionAddTrackMenu";
 import { ProductionTrackTools } from "../../components/production/ProductionTrackTools";
+import { PlaybackTime } from "../../components/PlaybackTime";
 import { Waveform } from "../../components/Waveform";
 import { t } from "../../ui/i18n";
 import {
@@ -49,6 +51,16 @@ import type {
   ProjectDoc,
   SeparationInfo,
 } from "../../lib/types";
+import {
+  formatMixGroupCollapsedSummary,
+  formatMixGroupTrackCount,
+} from "../../lib/mixGroupTrackCount";
+import {
+  DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
+  useProductionMixLayoutNarrow,
+  type ProductionClipViewPrefs,
+} from "../../lib/productionClipViewPrefs";
+import { MixAssistPanel } from "../../components/MixAssistPanel";
 import type { ScoreGate } from "../../lib/score";
 import type { PlaybackView } from "../../components/AudioPlayer";
 import { separationAudioDurationSec } from "../../lib/separationDuration";
@@ -99,6 +111,8 @@ type ProductionWorkspaceProps = {
   sourceDurationMsByTrack: Record<string, number>;
   /** Harness capture : pistes de groupes repliés peintes hors écran pour métriques canvas (#159). */
   capturePaintCollapsedTracks?: boolean;
+  clipViewPrefs?: ProductionClipViewPrefs;
+  onClipViewPrefsChange?: (patch: Partial<ProductionClipViewPrefs>) => void;
 };
 
 function formatSavedClock(at: Date): string {
@@ -167,6 +181,8 @@ export function ProductionWorkspace({
   showProductionCopilot,
   sourceDurationMsByTrack,
   capturePaintCollapsedTracks = false,
+  clipViewPrefs: clipViewPrefsProp,
+  onClipViewPrefsChange,
 }: ProductionWorkspaceProps) {
   const hasAiStems = mix?.tracks.some((tr) => tr.aiSeparated) ?? false;
   const separationAudioSec = useMemo(
@@ -182,7 +198,24 @@ export function ProductionWorkspace({
 
   const mixAssistBtnRef = useRef<HTMLButtonElement>(null);
   const copilotBtnRef = useRef<HTMLButtonElement>(null);
-  const separateBtnRef = useRef<HTMLButtonElement>(null);
+  const separateAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const mixSettingsAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const [mixSettingsPreferAbove, setMixSettingsPreferAbove] = useState(false);
+  const mixSettingsMixBtnRef = useRef<HTMLButtonElement>(null);
+  const mixSettingsClipsBtnRef = useRef<HTMLButtonElement>(null);
+  const [mixSettingsOpen, setMixSettingsOpen] = useState(false);
+  const mixLayoutNarrow = useProductionMixLayoutNarrow();
+  const [localClipViewPrefs, setLocalClipViewPrefs] = useState<ProductionClipViewPrefs>(
+    () => DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
+  );
+  const clipViewPrefs = clipViewPrefsProp ?? localClipViewPrefs;
+  const patchClipViewPrefs = (patch: Partial<ProductionClipViewPrefs>) => {
+    if (clipViewPrefsProp && onClipViewPrefsChange) {
+      onClipViewPrefsChange(patch);
+      return;
+    }
+    setLocalClipViewPrefs((prev) => ({ ...prev, ...patch }));
+  };
   const [separateOpen, setSeparateOpen] = useState(false);
   const mixScrollRef = useRef<HTMLDivElement>(null);
   const [mixAssistOpen, setMixAssistOpen] = useState(false);
@@ -202,6 +235,65 @@ export function ProductionWorkspace({
   const mixAssistTitleId = useId();
   const copilotTitleId = useId();
   const [openTrackToolsId, setOpenTrackToolsId] = useState<string | null>(null);
+  const mixSettingsLabelId = useId();
+  const mixSettingsPanelId = useId();
+
+  const openSeparateFrom = (button: HTMLButtonElement | null) => {
+    if (!button) return;
+    separateAnchorRef.current = button;
+    setSeparateOpen(true);
+  };
+
+  const openMixAssistFrom = (button: HTMLButtonElement | null) => {
+    if (!button) return;
+    mixAssistBtnRef.current = button;
+    setMixAssistOpen(true);
+  };
+
+  const openCopilotFrom = (button: HTMLButtonElement | null) => {
+    if (!button) return;
+    copilotBtnRef.current = button;
+    setCopilotOpen(true);
+  };
+
+  const toggleMixSettingsFrom = (
+    button: HTMLButtonElement | null,
+    preferAbove: boolean,
+  ) => {
+    if (!button) return;
+    mixSettingsAnchorRef.current = button;
+    setMixSettingsPreferAbove(preferAbove);
+    setMixSettingsOpen((open) => !open);
+  };
+
+  const mixSettingsTrigger = (
+    ref: RefObject<HTMLButtonElement | null>,
+    testId: string,
+    preferAbove: boolean,
+  ) => (
+    <button
+      ref={ref}
+      type="button"
+      className="btn production-mix-settings-trigger"
+      data-testid={testId}
+      aria-haspopup="dialog"
+      aria-expanded={mixSettingsOpen}
+      aria-controls={mixSettingsPanelId}
+      onClick={() => toggleMixSettingsFrom(ref.current, preferAbove)}
+    >
+      {t("production.mixSettings")}
+    </button>
+  );
+
+  const separateDisabled = !project.activeGenerationId || busy;
+  const separateDisabledReason = busy
+    ? t("production.separate.disabledBusy")
+    : !project.activeGenerationId
+      ? t("production.separate.disabledNoGeneration")
+      : undefined;
+
+  const mixSettingsDeferEscape =
+    mixAssistOpen || copilotOpen || separateOpen;
 
   const trackGroups = useMemo(
     () => (mix ? buildTrackFamilyGroups(mix.tracks) : []),
@@ -407,7 +499,10 @@ export function ProductionWorkspace({
                     aria-label={t("player.seek")}
                   >
                     <span className="player-time">
-                      {formatPlaybackTime(playback?.current ?? 0)}
+                      <PlaybackTime
+                        seconds={playback?.current ?? 0}
+                        className="player-time"
+                      />
                     </span>
                     <span className="player-time-sep">/</span>
                     <span className="player-time">
@@ -432,27 +527,31 @@ export function ProductionWorkspace({
                     onSeek={playback?.seek}
                   />
                 </div>
-                <MixKnob
-                  className="mix-master-knob"
-                  value={mix.masterGainDb}
-                  min={-24}
-                  max={12}
-                  step={0.5}
-                  defaultValue={0}
-                  ariaLabel={t("mix.master")}
-                  valueText={formatGainDb(mix.masterGainDb)}
-                  displayValue={formatGainDb(mix.masterGainDb)}
-                  parseDisplay={parseGainDb}
-                  onChange={(gainDb) =>
-                    scheduleMixUpdate({ ...mix, masterGainDb: gainDb }, { persist: false })
-                  }
-                  onCommit={(gainDb) =>
-                    scheduleMixUpdate({ ...mix, masterGainDb: gainDb })
-                  }
-                />
+                <div inert className="mix-master-knob-spacer-host">
+                  <MixKnob
+                    className="mix-master-knob mix-master-knob-spacer"
+                    value={mix.masterGainDb}
+                    min={-24}
+                    max={12}
+                    step={0.5}
+                    defaultValue={0}
+                    ariaLabel={t("production.settings.master")}
+                    valueText={formatGainDb(mix.masterGainDb)}
+                    displayValue={formatGainDb(mix.masterGainDb)}
+                    parseDisplay={parseGainDb}
+                    onChange={() => {}}
+                    onCommit={() => {}}
+                  />
+                </div>
               </div>
               <div
-                className="production-mix-toolbar production-mix-toolbar-sticky"
+                className={[
+                  "production-mix-toolbar",
+                  "production-mix-toolbar-sticky",
+                  mixLayoutNarrow ? "production-mix-toolbar-narrow" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 role="toolbar"
                 aria-label={t("workspace.production.mix")}
               >
@@ -467,39 +566,20 @@ export function ProductionWorkspace({
                   role="group"
                   aria-label={t("mix.density.group")}
                 >
-                  <button
-                    type="button"
-                    className="production-density-btn"
-                    aria-pressed={densityPreference === "auto"}
-                    onClick={() => setDensityPreferencePersist("auto")}
-                  >
-                    <span className="production-density-check" aria-hidden>
-                      ✓
-                    </span>
-                    {t("mix.density.auto")}
-                  </button>
-                  <button
-                    type="button"
-                    className="production-density-btn"
-                    aria-pressed={densityPreference === "compact"}
-                    onClick={() => setDensityPreferencePersist("compact")}
-                  >
-                    <span className="production-density-check" aria-hidden>
-                      ✓
-                    </span>
-                    {t("mix.density.compact")}
-                  </button>
-                  <button
-                    type="button"
-                    className="production-density-btn"
-                    aria-pressed={densityPreference === "confortable"}
-                    onClick={() => setDensityPreferencePersist("confortable")}
-                  >
-                    <span className="production-density-check" aria-hidden>
-                      ✓
-                    </span>
-                    {t("mix.density.confortable")}
-                  </button>
+                  {(["auto", "compact", "confortable"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      className="production-density-btn"
+                      aria-pressed={densityPreference === mode}
+                      onClick={() => setDensityPreferencePersist(mode)}
+                    >
+                      <span className="production-density-check" aria-hidden>
+                        ✓
+                      </span>
+                      {t(`mix.density.${mode}`)}
+                    </button>
+                  ))}
                 </div>
                 {densityPreference === "auto" && (
                   <p className="production-density-auto-hint" role="status">
@@ -513,92 +593,6 @@ export function ProductionWorkspace({
                   </p>
                 )}
                 <div className="production-mix-toolbar-actions">
-                  {showMixAssist && (
-                    <>
-                      <button
-                        ref={mixAssistBtnRef}
-                        type="button"
-                        className="btn mix-assist-trigger"
-                        aria-expanded={mixAssistOpen}
-                        aria-controls="mix-assist-popin"
-                        aria-haspopup="dialog"
-                        onClick={() => setMixAssistOpen((v) => !v)}
-                      >
-                        {t("mix.assist.drawer")}
-                      </button>
-                      <AnchoredPopin
-                        open={mixAssistOpen}
-                        onClose={() => setMixAssistOpen(false)}
-                        anchorRef={mixAssistBtnRef}
-                        labelId={mixAssistTitleId}
-                        className="mix-assist-popin"
-                      >
-                        <header className="anchored-popin-header">
-                          <h3 id={mixAssistTitleId}>{t("mix.assist.title")}</h3>
-                        </header>
-                        <MixAssistPanel
-                          mix={mix}
-                          sources={playbackSources}
-                          listeningMix={listeningMix ?? mix}
-                          onCommitMix={(next) => scheduleMixUpdate(next)}
-                          onPreviewMix={setMixPreview}
-                        />
-                      </AnchoredPopin>
-                    </>
-                  )}
-                  {showProductionCopilot && (
-                    <>
-                      <button
-                        ref={copilotBtnRef}
-                        type="button"
-                        className="btn mix-assist-trigger"
-                        aria-expanded={copilotOpen}
-                        aria-haspopup="dialog"
-                        onClick={() => setCopilotOpen((v) => !v)}
-                      >
-                        {t("copilot.title")}
-                      </button>
-                      <AnchoredPopin
-                        open={copilotOpen}
-                        onClose={() => setCopilotOpen(false)}
-                        anchorRef={copilotBtnRef}
-                        labelId={copilotTitleId}
-                        className="mix-copilot-popin"
-                      >
-                        <header className="anchored-popin-header">
-                          <h3 id={copilotTitleId}>{t("copilot.title")}</h3>
-                        </header>
-                        <ProductionAssistPanel
-                          mix={mix}
-                          sources={playbackSources}
-                          scoreIssues={scoreGate.issues}
-                          listeningMix={listeningMix ?? mix}
-                          onCommitMix={(next) => scheduleMixUpdate(next)}
-                          onPreviewMix={setMixPreview}
-                        />
-                      </AnchoredPopin>
-                    </>
-                  )}
-                  <button
-                    ref={separateBtnRef}
-                    type="button"
-                    className="btn"
-                    disabled={!project.activeGenerationId || busy}
-                    onClick={() => setSeparateOpen(true)}
-                  >
-                    {hasAiStems ? t("separate.again") : t("separate.button")}
-                  </button>
-                  <SeparationRecommendDialog
-                    open={separateOpen}
-                    onClose={() => setSeparateOpen(false)}
-                    anchorRef={separateBtnRef}
-                    audioDurationSec={separationAudioSec}
-                    busy={busy}
-                    onConfirm={() => {
-                      setSeparateOpen(false);
-                      void onSeparate();
-                    }}
-                  />
                   <ExportDialog
                     project={project}
                     mix={mix}
@@ -608,6 +602,11 @@ export function ProductionWorkspace({
                     onError={setError}
                     initialMode="stems"
                   />
+                  {mixSettingsTrigger(
+                    mixSettingsMixBtnRef,
+                    "production-mix-settings-trigger",
+                    false,
+                  )}
                 </div>
                 <p className="mix-autosave production-mix-saved" role="status">
                   {mixSavedAt
@@ -819,9 +818,7 @@ export function ProductionWorkspace({
                               </span>
                               {groupName}
                               <span className="production-mix-group-count">
-                                {t("mix.group.trackCount", {
-                                  count: group.tracks.length,
-                                })}
+                                {formatMixGroupTrackCount(group.tracks.length)}
                               </span>
                             </button>
                           </div>
@@ -871,10 +868,10 @@ export function ProductionWorkspace({
                           </div>
                           {collapsed ? (
                             <p className="production-mix-group-summary">
-                              {t("mix.group.collapsedSummary", {
-                                count: group.tracks.length,
-                                names: collapsedNames,
-                              })}
+                              {formatMixGroupCollapsedSummary(
+                                group.tracks.length,
+                                collapsedNames,
+                              )}
                             </p>
                           ) : (
                             <span
@@ -928,6 +925,13 @@ export function ProductionWorkspace({
               sourceDurationMsByTrack={sourceDurationMsByTrack}
               projectTempoBpm={project.tempoBpm}
               projectMeter={project.meter ?? null}
+              clipViewPrefs={clipViewPrefs}
+              onClipViewPrefsChange={patchClipViewPrefs}
+              headerActions={mixSettingsTrigger(
+                mixSettingsClipsBtnRef,
+                "production-mix-settings-trigger-clips",
+                true,
+              )}
             />
           </div>
         ) : (
@@ -967,6 +971,91 @@ export function ProductionWorkspace({
           />
         </div>
       </div>
+      {mix && (
+        <>
+          <ProductionMixSettingsPopin
+            open={mixSettingsOpen}
+            onClose={() => setMixSettingsOpen(false)}
+            anchorRef={mixSettingsAnchorRef}
+            panelId={mixSettingsPanelId}
+            labelId={mixSettingsLabelId}
+            deferEscapeClose={mixSettingsDeferEscape}
+            preferAboveAnchor={mixSettingsPreferAbove}
+            clipView={clipViewPrefs}
+            onClipViewChange={patchClipViewPrefs}
+            densityPreference={densityPreference}
+            effectiveDensityLabelKey={
+              effectiveDensity === "compact"
+                ? "mix.density.compact"
+                : "mix.density.confortable"
+            }
+            onDensityPreference={setDensityPreferencePersist}
+            mix={mix}
+            onMasterGainChange={(gainDb, persist) =>
+              scheduleMixUpdate(
+                { ...mix, masterGainDb: gainDb },
+                persist ? undefined : { persist: false },
+              )
+            }
+            hasAiStems={hasAiStems}
+            separateDisabled={separateDisabled}
+            separateDisabledReason={separateDisabledReason}
+            onSeparateClick={(el) => openSeparateFrom(el)}
+            showMixAssist={showMixAssist}
+            showProductionCopilot={showProductionCopilot}
+            onOpenMixAssist={(el) => openMixAssistFrom(el)}
+            onOpenCopilot={(el) => openCopilotFrom(el)}
+          />
+          <AnchoredPopin
+            open={mixAssistOpen}
+            onClose={() => setMixAssistOpen(false)}
+            anchorRef={mixAssistBtnRef}
+            labelId={mixAssistTitleId}
+            className="mix-assist-popin"
+          >
+            <header className="anchored-popin-header">
+              <h3 id={mixAssistTitleId}>{t("mix.assist.title")}</h3>
+            </header>
+            <MixAssistPanel
+              mix={mix}
+              sources={playbackSources}
+              listeningMix={listeningMix ?? mix}
+              onCommitMix={(next) => scheduleMixUpdate(next)}
+              onPreviewMix={setMixPreview}
+            />
+          </AnchoredPopin>
+          <AnchoredPopin
+            open={copilotOpen}
+            onClose={() => setCopilotOpen(false)}
+            anchorRef={copilotBtnRef}
+            labelId={copilotTitleId}
+            className="mix-copilot-popin"
+          >
+            <header className="anchored-popin-header">
+              <h3 id={copilotTitleId}>{t("copilot.title")}</h3>
+            </header>
+            <ProductionAssistPanel
+              mix={mix}
+              sources={playbackSources}
+              scoreIssues={scoreGate.issues}
+              listeningMix={listeningMix ?? mix}
+              onCommitMix={(next) => scheduleMixUpdate(next)}
+              onPreviewMix={setMixPreview}
+            />
+          </AnchoredPopin>
+        </>
+      )}
+      <SeparationRecommendDialog
+        open={separateOpen}
+        onClose={() => setSeparateOpen(false)}
+        anchorRef={separateAnchorRef}
+        audioDurationSec={separationAudioSec}
+        busy={busy}
+        onConfirm={() => {
+          setSeparateOpen(false);
+          void onSeparate();
+        }}
+      />
     </section>
   );
 }

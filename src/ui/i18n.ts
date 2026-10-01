@@ -3,7 +3,7 @@ import fr from "./fr.json";
 import enProfiles from "./en.profiles.json";
 import enProduction from "./en.production.json";
 
-const enCatalog: Record<string, string> = {
+const enStrings: Record<string, string> = {
   ...enProfiles,
   ...enProduction,
 };
@@ -18,8 +18,8 @@ export function profileLocale(): "fr" | "en" {
 export function t(key: Keys, vars?: Record<string, string | number>): string {
   const loc = profileLocale();
   let s: string =
-    loc === "en" && key in enCatalog
-      ? enCatalog[key]
+    loc === "en" && key in enStrings
+      ? enStrings[key]
       : (fr[key] ?? String(key));
   if (vars) {
     for (const [k, v] of Object.entries(vars)) {

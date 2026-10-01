@@ -16,7 +16,7 @@ export function formatProductionDb(db: number, fractionDigits = 1): string {
   const abs = formatProductionDecimal(Math.abs(rounded), fractionDigits);
   const body =
     rounded > 0 ? `+${abs}` : rounded < 0 ? `−${abs}` : abs;
-  return t("production.unit.db", { value: body });
+  return t("production.unit.dbValue", { value: body });
 }
 
 export function formatProductionDbPerOct(slope: 12 | 24): string {
