@@ -4650,6 +4650,112 @@ details[open] > summary {
   min-width: 13rem;
 }
 
+.ace-step-model-settings {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.settings-engine-options,
+.settings-engine-contract {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 0.85rem 1rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+}
+
+.settings-engine-options legend,
+.settings-engine-contract legend {
+  padding: 0 0.35rem;
+  color: var(--text);
+  font-weight: 650;
+}
+
+.settings-engine-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.65rem;
+  padding: 0.6rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.settings-engine-option:hover {
+  background: color-mix(in srgb, var(--bg2) 72%, transparent);
+}
+
+.settings-engine-option input,
+.settings-license-accept input {
+  margin-top: 0.25rem;
+  accent-color: var(--accent);
+}
+
+.settings-engine-option span,
+.settings-engine-option small {
+  display: block;
+}
+
+.settings-engine-option small,
+.ace-step-download > p,
+.settings-engine-contract > p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.ace-step-download {
+  display: grid;
+  gap: 0.65rem;
+  max-width: 62ch;
+}
+
+.ace-step-download h3 {
+  margin: 0;
+}
+
+.settings-license-accept {
+  display: flex;
+  align-items: start;
+  gap: 0.6rem;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.settings-engine-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.settings-engine-progress {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--muted);
+}
+
+.settings-engine-progress progress {
+  width: min(100%, 32rem);
+  accent-color: var(--accent);
+}
+
+.ace-step-download details {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+
+.settings-engine-contract blockquote {
+  margin: 0;
+  padding-left: 0.8rem;
+  border-left: 2px solid var(--accent);
+  color: var(--muted);
+}
+
+.settings-engine-error {
+  color: var(--danger);
+}
+
 .settings-lora-pages {
   display: grid;
   gap: 1.75rem;
@@ -7494,6 +7600,40 @@ details[open] > summary {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.commercial-engines-list.reserved {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.commercial-engines-list.reserved > li {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  list-style-position: inside;
+}
+
+.engine-reservation-note {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.engine-source-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.9rem;
+  margin: 0.2rem 0 0;
+}
+
+.engine-source-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  font-size: 0.85rem;
 }
 
 .commercial-engines-gray-title {

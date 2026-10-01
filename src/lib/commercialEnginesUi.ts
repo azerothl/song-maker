@@ -22,6 +22,8 @@ export type CommercialEngineRowUi = {
   availability: "reserved" | "grayed";
   reservedBadge: string | null;
   reservedStatusLine: string | null;
+  reservationNote: string | null;
+  sourceLinks: { href: string; label: string }[];
 };
 
 function categoryLabelFr(category: string): string {
@@ -73,6 +75,15 @@ export function buildCommercialEngineRowsUi(
   entries: CommercialEngineListEntry[] = buildCommercialEngineList(),
 ): CommercialEngineRowUi[] {
   const locale = profileLocale();
+  const aceStepSourceLabels = [
+    t("profiles.engines.aceStepSource.original"),
+    t("profiles.engines.aceStepSource.converted"),
+    t("profiles.engines.aceStepSource.code"),
+    t("profiles.engines.aceStepSource.runtime"),
+    t("profiles.engines.aceStepSource.qwenEmbedding"),
+    t("profiles.engines.aceStepSource.qwenLm"),
+    t("profiles.engines.aceStepSource.vae"),
+  ];
   return entries.map((entry) => {
     const row = entry.licenseRow;
     const whyHref = primarySourceUrlForLicenseRow(row);
@@ -98,6 +109,21 @@ export function buildCommercialEngineRowsUi(
             )
           : null,
       reservedStatusLine: null,
+      reservationNote:
+        entry.availability === "reserved" && entry.engine.id === "ace_step_1_5"
+          ? t("profiles.engines.aceStepReservation")
+          : null,
+      sourceLinks:
+        entry.availability === "reserved" && entry.engine.id === "ace_step_1_5"
+          ? (row?.source_url
+              .split(";")
+              .map((url) => url.trim())
+              .filter((url) => /^https?:\/\//i.test(url))
+              .map((href, index) => ({
+                href,
+                label: aceStepSourceLabels[index] ?? t("profiles.engines.why"),
+              })) ?? [])
+          : [],
     };
   });
 }

@@ -209,6 +209,9 @@ pub struct AppSettings {
     pub model_pack: String,
     pub model_gguf: String,
     pub model_sha256: String,
+    /// Local music generation engine: `yue2` (default) or opt-in `ace_step`.
+    #[serde(default = "default_generation_engine")]
+    pub generation_engine: String,
     pub server_host: String,
     pub server_port: u16,
     pub output_device: Option<String>,
@@ -224,6 +227,9 @@ pub struct AppSettings {
     /// Consentement distinct pour le modèle YuE2 principal sous CC BY-NC 4.0.
     #[serde(default)]
     pub yue2_license_accepted: bool,
+    /// Consentement explicite avant le téléchargement optionnel ACE-Step 1.5.
+    #[serde(default)]
+    pub ace_step_license_accepted: bool,
     /// Per-separator « J'ai lu la licence » (once per model id) before opt-in download (#167).
     #[serde(default)]
     pub accepted_separator_licenses: std::collections::BTreeMap<String, bool>,
@@ -250,6 +256,10 @@ fn default_lora_scale() -> f32 {
 
 fn default_local_yue2_enabled() -> bool {
     true
+}
+
+pub fn default_generation_engine() -> String {
+    "yue2".into()
 }
 
 fn default_audio_latency_ms() -> u32 {

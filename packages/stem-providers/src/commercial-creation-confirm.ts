@@ -44,8 +44,7 @@ export type CommercialProfileCreationConfirm = {
 };
 
 /**
- * Lot futur (#209) : null tant qu'aucun moteur branché n'a une entrée datée.
- * Aucun texte moteur en dur (pas d'ACE-Step).
+ * Builds a dated, wired-engine disclosure from the shared license catalog.
  */
 export function buildCommercialProfileCreationConfirm(
   wired: readonly WiredCommercialEngine[] = listProductionWiredCommercialEngines(),

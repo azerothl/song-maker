@@ -66,8 +66,8 @@ describe("profiles a11y/data debt (#212)", () => {
     }
   });
 
-  it("polish: catalog has 9 engines; Mel-Band ≠ Kim Vocal 2 label; why-links ≥44px; no window.prompt rename", () => {
-    assert.equal(APP_ENGINE_CATALOG.length, 9);
+  it("polish: catalog has 10 engines; Mel-Band ≠ Kim Vocal 2 label; why-links ≥44px; no window.prompt rename", () => {
+    assert.equal(APP_ENGINE_CATALOG.length, 10);
     assert.ok(APP_ENGINE_CATALOG.some((e) => e.id === "kim_vocal_2"));
     const mel = APP_ENGINE_CATALOG.find((e) => e.id === "mel_band_roformer");
     assert.ok(mel);

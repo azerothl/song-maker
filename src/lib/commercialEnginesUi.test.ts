@@ -43,4 +43,16 @@ describe("commercial engines UI (#210 B3)", () => {
       "JSON reason must not appear",
     );
   });
+
+  it("shows the reserved ACE-Step caveat and links both pinned model sources", () => {
+    const rows = buildCommercialEngineRowsUi();
+    const ace = rows.find((row) => row.id === "ace_step_1_5");
+    assert.ok(ace);
+    assert.equal(ace!.availability, "reserved");
+    assert.match(ace!.reservationNote ?? "", /conversion distribuée par audio\.cpp/i);
+    assert.equal(ace!.sourceLinks.length, 7);
+    const html = renderToStaticMarkup(React.createElement(CommercialEnginesPanel));
+    assert.ok(html.includes("Carte ACE-Step"));
+    assert.ok(html.includes("Conversion GGUF audio.cpp"));
+  });
 });

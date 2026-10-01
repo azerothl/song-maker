@@ -9,6 +9,7 @@ use crate::queue::JobQueue;
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
+pub mod ace_step_cmds;
 pub mod capture;
 pub mod generation;
 pub mod jobs;
@@ -38,6 +39,8 @@ pub struct AppState {
     pub mel_band_roformer_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub sheetsage_installing: std::sync::atomic::AtomicBool,
     pub sheetsage_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub ace_step_installing: std::sync::atomic::AtomicBool,
+    pub ace_step_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub sheetsage_jobs: crate::sheetsage::SheetsageJobs,
     pub lora_train_jobs: crate::lora_train::LoraTrainJobs,
     pub profile_export_busy: std::sync::atomic::AtomicBool,
@@ -75,6 +78,8 @@ impl Default for AppState {
             )),
             sheetsage_installing: std::sync::atomic::AtomicBool::new(false),
             sheetsage_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            ace_step_installing: std::sync::atomic::AtomicBool::new(false),
+            ace_step_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             sheetsage_jobs: crate::sheetsage::SheetsageJobs::default(),
             lora_train_jobs: crate::lora_train::LoraTrainJobs::default(),
             profile_export_busy: std::sync::atomic::AtomicBool::new(false),

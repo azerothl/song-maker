@@ -28,10 +28,10 @@ function fixtureRows(): Map<string, EngineLicenseRow201> {
 }
 
 describe("ProfileCommercialTypeOption (#201)", () => {
-  it("production: visible, non-activatable, focusable, reason in DOM", () => {
+  it("production: ACE-Step reserved row makes Commercial visible and activatable", () => {
     const state = resolveCommercialCreationState();
-    assert.equal(state.showUnavailableReason, true);
-    assert.equal(state.activatable, false);
+    assert.equal(state.showUnavailableReason, false);
+    assert.equal(state.activatable, true);
     const html = renderToStaticMarkup(
       React.createElement(ProfileCommercialTypeOption, {
         state,
@@ -40,12 +40,9 @@ describe("ProfileCommercialTypeOption (#201)", () => {
         name: "Commercial",
       }),
     );
-    assert.match(html, /data-testid="profile-commercial-unavailable-reason"/);
-    assert.ok(html.includes("profile-commercial-unavailable-reason"));
-    assert.ok(html.includes("Indisponible pour l"));
-    assert.ok(html.includes("usage commercial"));
+    assert.doesNotMatch(html, /profile-commercial-unavailable-reason/);
     assert.match(html, /data-testid="profile-type-commercial"/);
-    assert.match(html, /aria-disabled="true"/);
+    assert.doesNotMatch(html, /aria-disabled/);
     assert.match(html, /tabindex="0"/i);
     assert.doesNotMatch(html, /(?<!aria-)disabled=/);
   });

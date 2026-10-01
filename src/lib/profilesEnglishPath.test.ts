@@ -48,7 +48,7 @@ describe("profiles English path (#212 R13)", () => {
   it("commercial engine rows use EN gray reasons and EN display names", () => {
     localStorage.setItem(LOCALE_KEY, "en");
     const rows = buildCommercialEngineRowsUi();
-    assert.equal(rows.length, 9);
+    assert.equal(rows.length, 10);
     for (const row of rows.filter((r) => r.availability === "grayed")) {
       assert.equal(row.reasonLabel, COMMERCIAL_GRAY_REASONS_EN[row.grayReason], row.id);
     }
@@ -57,6 +57,10 @@ describe("profiles English path (#212 R13)", () => {
     assert.equal(sheetsage!.name, "SheetSage2");
     assert.match(sheetsage!.whyLabel, /2026-09-21/);
     assert.doesNotMatch(sheetsage!.whyLabel, /21\/09\/2026/);
+    const ace = rows.find((r) => r.id === "ace_step_1_5");
+    assert.ok(ace);
+    assert.match(ace!.reservationNote ?? "", /declares "other"/);
+    assert.equal(ace!.sourceLinks.length, 7);
   });
 
   it("EN reserved badge and creation confirm line stay English", () => {

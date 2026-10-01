@@ -62,6 +62,24 @@ pub fn update_settings(
     let mut s = settings;
     let cache = PathBuf::from(&s.cache_dir);
     s.stem_separator = normalize_stem_separator(&s.stem_separator).to_string();
+    match s.generation_engine.as_str() {
+        "yue2" => {}
+        "ace_step" => {
+            if !s.ace_step_license_accepted {
+                return Err(
+                    "Lisez et acceptez l’information de licence ACE-Step avant de le sélectionner."
+                        .into(),
+                );
+            }
+            if !crate::ace_step::weights_valid(&cache) {
+                return Err(
+                    "Téléchargez d’abord ACE-Step 1.5 Turbo BF16 depuis Paramètres → Modèle."
+                        .into(),
+                );
+            }
+        }
+        _ => return Err("Moteur de génération inconnu (yue2|ace_step).".into()),
+    }
     if s.stem_separator == "bs_roformer" && !crate::paths::bs_roformer_weights_present(&cache) {
         return Err(
             "Impossible d’activer BS-RoFormer : GGUF absent ou invalide. \
@@ -113,7 +131,8 @@ pub fn update_settings(
     let old = load_settings().ok();
     save_settings(&s)?;
     if old.as_ref().is_some_and(|o| {
-        o.yue2_ar_lora != s.yue2_ar_lora
+        o.generation_engine != s.generation_engine
+            || o.yue2_ar_lora != s.yue2_ar_lora
             || o.yue2_nar_lora != s.yue2_nar_lora
             || o.yue2_ar_lora_scale != s.yue2_ar_lora_scale
             || o.yue2_nar_lora_scale != s.yue2_nar_lora_scale

@@ -7,6 +7,7 @@ use crate::paths::{
 };
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -108,6 +109,51 @@ pub struct EngineContractAcceptance {
     pub text_version: String,
 }
 
+pub const ACE_STEP_ENGINE_ID: &str = "ace_step_1_5";
+pub const ACE_STEP_CONTRACT_VERSION: &str = "2026-10-01-v1";
+
+fn ace_step_contract_fingerprint() -> String {
+    let payload = [
+        ACE_STEP_CONTRACT_VERSION,
+        "Avant d'utiliser ACE-Step dans ce profil",
+        "Before using ACE-Step in this profile",
+        "Licence des poids : MIT selon la carte du modèle d'origine ; la conversion distribuée par audio.cpp déclare \"other\" et renvoie à l'original ; sortie non vérifiée. Song Maker n'a pas vérifié les droits d'usage commercial des poids ACE-Step ni des morceaux générés. Les auteurs formulent cet avertissement :",
+        "Weight license: MIT according to the original model card; the conversion distributed by audio.cpp declares \"other\" and points back to the original; output rights are unverified. Song Maker has not verified commercial rights for ACE-Step weights or generated tracks. The authors publish this notice:",
+        "The authors are not responsible for any misuse of the model",
+        "J’ai lu l’avertissement des auteurs et je l’accepte pour ce profil.",
+        "I have read the authors’ notice and accept it for this profile.",
+    ]
+    .join("\n");
+    hex::encode(Sha256::digest(payload.as_bytes()))
+}
+
+pub fn ace_step_contract_acceptance_is_current(
+    accepted: Option<&EngineContractAcceptance>,
+) -> bool {
+    accepted.is_some_and(|accepted| {
+        accepted.text_version == ACE_STEP_CONTRACT_VERSION
+            && accepted.text_fingerprint == ace_step_contract_fingerprint()
+    })
+}
+
+/// Commercial ACE-Step inference requires the current, explicitly accepted notice.
+pub fn ace_step_contract_accepted_for_active_profile() -> Result<bool, String> {
+    let manifest = load_manifest()?;
+    let Some(profile_id) = manifest.active_profile_id else {
+        return Ok(true);
+    };
+    let Some(profile) = manifest.profiles.iter().find(|p| p.id == profile_id) else {
+        return Err("Profil actif introuvable.".into());
+    };
+    if profile.kind != "commercial" {
+        return Ok(true);
+    }
+    let settings = load_profile_settings(&profile_id)?;
+    Ok(ace_step_contract_acceptance_is_current(
+        settings.engine_contract_acceptances.get(ACE_STEP_ENGINE_ID),
+    ))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileSettings {
@@ -118,6 +164,10 @@ pub struct ProfileSettings {
     pub cc_by_nc_accepted: bool,
     #[serde(default)]
     pub yue2_license_accepted: bool,
+    #[serde(default)]
+    pub ace_step_license_accepted: bool,
+    #[serde(default = "crate::models::default_generation_engine")]
+    pub generation_engine: String,
     #[serde(default)]
     pub accepted_separator_licenses: std::collections::BTreeMap<String, bool>,
     #[serde(default)]
@@ -155,6 +205,8 @@ impl Default for ProfileSettings {
             stem_separator: default_stem_separator(),
             cc_by_nc_accepted: false,
             yue2_license_accepted: false,
+            ace_step_license_accepted: false,
+            generation_engine: crate::models::default_generation_engine(),
             accepted_separator_licenses: Default::default(),
             separator_time_stats: Default::default(),
             local_yue2_enabled: true,
@@ -294,6 +346,8 @@ fn extract_profile_fields(settings: &AppSettings) -> ProfileSettings {
         stem_separator: settings.stem_separator.clone(),
         cc_by_nc_accepted: settings.cc_by_nc_accepted,
         yue2_license_accepted: settings.yue2_license_accepted,
+        ace_step_license_accepted: settings.ace_step_license_accepted,
+        generation_engine: settings.generation_engine.clone(),
         accepted_separator_licenses: settings.accepted_separator_licenses.clone(),
         separator_time_stats: settings.separator_time_stats.clone(),
         local_yue2_enabled: settings.local_yue2_enabled,
@@ -310,6 +364,8 @@ fn apply_profile_to_settings(settings: &mut AppSettings, profile: &ProfileSettin
     settings.stem_separator = profile.stem_separator.clone();
     settings.cc_by_nc_accepted = profile.cc_by_nc_accepted;
     settings.yue2_license_accepted = profile.yue2_license_accepted;
+    settings.ace_step_license_accepted = profile.ace_step_license_accepted;
+    settings.generation_engine = profile.generation_engine.clone();
     settings.accepted_separator_licenses = profile.accepted_separator_licenses.clone();
     settings.separator_time_stats = profile.separator_time_stats.clone();
     settings.local_yue2_enabled = profile.local_yue2_enabled;
@@ -340,6 +396,8 @@ pub fn split_and_save_settings(active_id: &str, merged: &AppSettings) -> Result<
         stem_separator: merged.stem_separator.clone(),
         cc_by_nc_accepted: merged.cc_by_nc_accepted,
         yue2_license_accepted: merged.yue2_license_accepted,
+        ace_step_license_accepted: merged.ace_step_license_accepted,
+        generation_engine: merged.generation_engine.clone(),
         accepted_separator_licenses: merged.accepted_separator_licenses.clone(),
         separator_time_stats: merged.separator_time_stats.clone(),
         local_yue2_enabled: merged.local_yue2_enabled,
@@ -496,6 +554,7 @@ pub fn merged_settings_from_disk() -> Result<AppSettings, String> {
                 model_pack: global.model_pack,
                 model_gguf: global.model_gguf,
                 model_sha256: global.model_sha256,
+                generation_engine: defaults.generation_engine.clone(),
                 server_host: global.server_host,
                 server_port: global.server_port,
                 output_device: global.output_device,
@@ -503,6 +562,7 @@ pub fn merged_settings_from_disk() -> Result<AppSettings, String> {
                 stem_separator: defaults.stem_separator.clone(),
                 cc_by_nc_accepted: false,
                 yue2_license_accepted: false,
+                ace_step_license_accepted: false,
                 accepted_separator_licenses: Default::default(),
                 separator_time_stats: Default::default(),
                 local_yue2_enabled: defaults.local_yue2_enabled,
@@ -613,8 +673,9 @@ mod tests {
     }
 
     #[test]
-    fn commercial_creation_disallowed_on_production_license_rows() {
-        assert!(!commercial_creation_allowed());
+    fn commercial_creation_allowed_by_dated_ace_step_reserved_row() {
+        assert!(commercial_creation_allowed());
+        assert!(wired_commercial_license_ids().contains(&"ace_step_1_5_turbo_bf16".to_string()));
     }
 
     #[test]
@@ -634,6 +695,23 @@ mod tests {
     }
 
     #[test]
+    fn ace_step_contract_acceptance_is_bound_to_current_notice_text() {
+        let current = EngineContractAcceptance {
+            text_fingerprint: ace_step_contract_fingerprint(),
+            accepted_at: "2026-10-01T00:00:00Z".into(),
+            text_version: ACE_STEP_CONTRACT_VERSION.into(),
+        };
+        assert!(ace_step_contract_acceptance_is_current(Some(&current)));
+        let stale = EngineContractAcceptance {
+            text_fingerprint: current.text_fingerprint.clone(),
+            accepted_at: current.accepted_at,
+            text_version: "older-notice".into(),
+        };
+        assert!(!ace_step_contract_acceptance_is_current(Some(&stale)));
+        assert!(!ace_step_contract_acceptance_is_current(None));
+    }
+
+    #[test]
     fn migration_moves_legacy_projects_and_keeps_contracts() {
         let docs = TempDocs::new("migration");
         let legacy_projects = docs.root.join("projects");
@@ -643,11 +721,27 @@ mod tests {
             r#"{"schema":"song-maker.project","schemaVersion":1,"id":"proj-a","title":"A","createdAt":"2020","updatedAt":"2020","sampleRate":48000,"channels":2,"bitDepth":16,"style":"","lyrics":"","cot":"full"}"#,
         )
         .unwrap();
-        let settings = format!(
-            r#"{{"projectsDir":"{}","cacheDir":"/tmp/cache","binaryTag":"t","binaryArchive":"a","binarySha256":"s","modelPack":"q4","modelGguf":"m","modelSha256":"x","serverHost":"127.0.0.1","serverPort":8787,"yue2LicenseAccepted":true,"ccByNcAccepted":true,"acceptedSeparatorLicenses":{{"htdemucs":true}}}}"#,
-            legacy_projects.display()
-        );
-        fs::write(docs.root.join("settings.json"), settings).unwrap();
+        let settings = serde_json::json!({
+            "projectsDir": legacy_projects.display().to_string(),
+            "cacheDir": "/tmp/cache",
+            "binaryTag": "t",
+            "binaryArchive": "a",
+            "binarySha256": "s",
+            "modelPack": "q4",
+            "modelGguf": "m",
+            "modelSha256": "x",
+            "serverHost": "127.0.0.1",
+            "serverPort": 8787,
+            "yue2LicenseAccepted": true,
+            "ccByNcAccepted": true,
+            "acceptedSeparatorLicenses": { "htdemucs": true }
+        });
+        fs::write(docs.root.join("settings.json"), settings.to_string()).unwrap();
+
+        let legacy_text = fs::read_to_string(docs.root.join("settings.json")).unwrap();
+        let legacy: AppSettings =
+            serde_json::from_str(&legacy_text).expect("legacy settings parse");
+        assert!(legacy.yue2_license_accepted);
 
         let manifest = migrate_legacy_if_needed().expect("migrate");
         assert_eq!(manifest.profiles.len(), 1);

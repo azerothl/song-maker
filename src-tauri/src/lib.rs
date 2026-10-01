@@ -1,6 +1,7 @@
 use tauri::Manager;
 
 mod abc_metadata;
+mod ace_step;
 mod audiocpp;
 mod bs_roformer;
 mod commands;
@@ -63,6 +64,9 @@ pub fn run() {
             commands::settings::install_mel_band_roformer,
             commands::settings::cancel_mel_band_roformer_install,
             commands::settings::mel_band_roformer_install_info,
+            commands::ace_step_cmds::install_ace_step,
+            commands::ace_step_cmds::cancel_ace_step_install,
+            commands::ace_step_cmds::ace_step_install_info,
             commands::settings::list_lora_adapters,
             commands::settings::import_lora_adapters,
             commands::settings::confirm_model_pack,

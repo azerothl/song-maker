@@ -91,6 +91,20 @@ pub fn sheetsage2_weights_path(cache: &Path) -> PathBuf {
         .join(crate::pins::SHEETSAGE2_GGUF)
 }
 
+/// Opt-in ACE-Step 1.5 Turbo BF16 weights (hors installeur).
+pub fn ace_step_weights_path(cache: &Path) -> PathBuf {
+    cache
+        .join("models")
+        .join("ACE-Step1.5-GGUF")
+        .join("turbo")
+        .join(crate::pins::ACE_STEP_GGUF)
+}
+
+pub fn ace_step_weights_present(cache: &Path) -> bool {
+    let path = ace_step_weights_path(cache);
+    matches!(std::fs::metadata(path), Ok(meta) if meta.is_file() && meta.len() == crate::pins::ACE_STEP_BYTES)
+}
+
 pub fn sheetsage2_weights_present(cache: &Path) -> bool {
     let path = sheetsage2_weights_path(cache);
     path.is_file()

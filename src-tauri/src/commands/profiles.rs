@@ -15,6 +15,7 @@ pub struct ProfileSummary {
     pub kind: String,
     pub project_count: u32,
     pub accepted_contract_count: u32,
+    pub accepted_engine_contract_ids: Vec<String>,
     pub is_last_used: bool,
     pub is_active: bool,
 }
@@ -41,6 +42,25 @@ fn summarize(manifest: &ProfilesManifest) -> Vec<ProfileSummary> {
             kind: p.kind.clone(),
             project_count: count_projects(&p.id),
             accepted_contract_count: count_accepted_contracts(&p.id),
+            accepted_engine_contract_ids: profiles::load_profile_settings(&p.id)
+                .map(|settings| {
+                    settings
+                        .engine_contract_acceptances
+                        .into_iter()
+                        .filter_map(|(id, acceptance)| {
+                            if id == profiles::ACE_STEP_ENGINE_ID
+                                && !profiles::ace_step_contract_acceptance_is_current(Some(
+                                    &acceptance,
+                                ))
+                            {
+                                None
+                            } else {
+                                Some(id)
+                            }
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
             is_last_used: manifest.last_used_profile_id.as_deref() == Some(p.id.as_str()),
             is_active: manifest.active_profile_id.as_deref() == Some(p.id.as_str()),
         })

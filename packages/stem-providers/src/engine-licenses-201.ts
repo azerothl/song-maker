@@ -33,6 +33,7 @@ export type AppEngineCategory = "generation" | "separation" | "transcription";
 
 /** Engines exposed in Song Maker product surfaces (#201). */
 export type AppEngineId =
+  | "ace_step_1_5"
   | "yue2_3b"
   | "htdemucs"
   | "htdemucs_6s"
@@ -56,8 +57,16 @@ const LICENSE_BY_ID = new Map(
   ENGINE_LICENSE_ROWS_201.map((row) => [row.id, row] as const),
 );
 
-/** Catalog of engines the app can surface (no ACE-Step — not wired on main). */
+/** Catalog of engines the app can surface. */
 export const APP_ENGINE_CATALOG: readonly AppEngineDescriptor[] = [
+  {
+    id: "ace_step_1_5",
+    licenseDataId: "ace_step_1_5_turbo_bf16",
+    category: "generation",
+    displayNameFr: "ACE-Step 1.5 Turbo BF16",
+    displayNameEn: "ACE-Step 1.5 Turbo BF16",
+    grayReason: "weights_unverified",
+  },
   {
     id: "yue2_3b",
     licenseDataId: "yue2_3b",

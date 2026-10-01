@@ -15,6 +15,54 @@ use crate::pins::*;
 use serde_json::json;
 use std::path::{Path, PathBuf};
 
+struct AceStepTaskOptions<'a> {
+    tempo_bpm: Option<u32>,
+    key: Option<&'a KeySig>,
+    meter: Option<&'a Meter>,
+    language: Option<&'a str>,
+}
+
+fn ace_step_task_request(
+    text: &str,
+    lyrics: &str,
+    seed: u64,
+    duration_seconds: u32,
+    task_options: AceStepTaskOptions<'_>,
+) -> serde_json::Value {
+    let mut request = json!({
+        "task_route": "text2music",
+        "text": text,
+        "lyrics": lyrics,
+        "seed": seed,
+        "duration_seconds": duration_seconds,
+        "num_inference_steps": 8,
+        "guidance_scale": 1.0
+    });
+    let options = request.as_object_mut().expect("JSON object");
+    if let Some(bpm) = task_options.tempo_bpm {
+        options.insert("bpm".into(), json!(bpm));
+    }
+    if let Some(key) = task_options.key {
+        options.insert(
+            "keyscale".into(),
+            json!(format!("{} {}", key.tonic, key.mode)),
+        );
+    }
+    if let Some(meter) = task_options.meter {
+        options.insert(
+            "timesignature".into(),
+            json!(format!("{}/{}", meter.numerator, meter.denominator)),
+        );
+    }
+    if let Some(language) = task_options
+        .language
+        .filter(|value| !value.trim().is_empty())
+    {
+        options.insert("language".into(), json!(language));
+    }
+    request
+}
+
 #[tauri::command]
 pub async fn start_generation(
     state: tauri::State<'_, AppState>,
@@ -46,6 +94,22 @@ pub async fn start_generation(
         .as_ref()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
+    let mut settings = load_settings()?;
+    if settings.generation_engine != "yue2" && settings.generation_engine != "ace_step" {
+        return Err("Moteur de génération inconnu (yue2|ace_step).".into());
+    }
+    let use_ace_step = settings.generation_engine == "ace_step";
+    if use_ace_step {
+        if !settings.ace_step_license_accepted {
+            return Err(
+                "Lisez et acceptez l’information de licence ACE-Step avant de l’utiliser.".into(),
+            );
+        }
+        let cache = PathBuf::from(&settings.cache_dir);
+        if !crate::ace_step::weights_valid(&cache) {
+            return Err("Les poids ACE-Step sont absents ou incomplets; réinstallez-les depuis Paramètres → Modèle.".into());
+        }
+    }
     if abc_trimmed.is_some() && form.cot == "off" {
         return Err("Un ABC avec cot=off est interdit (erreur locale, avant l'appel).".into());
     }
@@ -72,6 +136,19 @@ pub async fn start_generation(
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string());
+    let continuation = form.continuation_generation_id.as_deref();
+    if use_ace_step {
+        if stop_after_abc
+            || continuation.is_some()
+            || source_gen_id.is_some()
+            || abc_trimmed.is_some()
+        {
+            return Err("ACE-Step génère l’audio depuis un prompt; la génération de partition, la continuation YuE2 et le rendu depuis un score restent disponibles avec YuE2.".into());
+        }
+        if !crate::profiles::ace_step_contract_accepted_for_active_profile()? {
+            return Err("Avant une génération ACE-Step dans le profil Commercial, lisez et acceptez l’avertissement dans Paramètres → Modèle.".into());
+        }
+    }
     if let Some(ref src_id) = source_gen_id {
         let score_path = folder.join("generations").join(src_id).join("score.abc");
         if !score_path.is_file() {
@@ -83,7 +160,6 @@ pub async fn start_generation(
             abc_trimmed = Some(std::fs::read_to_string(&score_path).map_err(|e| e.to_string())?);
         }
     }
-    let continuation = form.continuation_generation_id.as_deref();
     let semantic_prefix_path = if let Some(parent_id) = continuation {
         let parent_dir = folder.join("generations").join(parent_id);
         let resolved = resolve_semantic_prefix_for_continuation(
@@ -120,8 +196,11 @@ pub async fn start_generation(
     doc.prefer_full_lyrics = form.prefer_full_lyrics;
     doc.instrumental_mode = form.instrumental_mode;
     doc.updated_at = now_iso();
-    let mut settings = load_settings()?;
-    let (lora_provenance, lora_warnings) = resolve_lora_provenance_for_generation(&mut settings);
+    let (lora_provenance, lora_warnings) = if use_ace_step {
+        (json!({}), Vec::new())
+    } else {
+        resolve_lora_provenance_for_generation(&mut settings)
+    };
     let seed = normalize_seed(form.seed.unwrap_or_else(random_seed));
     let gen_id = next_folder_id(&folder.join("generations"), "gen-")?;
     let gen_dir = folder.join("generations").join(&gen_id);
@@ -146,6 +225,29 @@ pub async fn start_generation(
     let parent_generation_id = continuation
         .or(source_gen_id.as_deref())
         .or(doc.active_generation_id.as_deref());
+    let model_metadata = if use_ace_step {
+        json!({
+            "engineId": "ace_step_1_5",
+            "repo": ACE_STEP_REPO,
+            "revision": ACE_STEP_REVISION,
+            "gguf": ACE_STEP_GGUF,
+            "sha256": ACE_STEP_SHA,
+            "originRepo": ACE_STEP_ORIGIN_REPO,
+            "originRevision": ACE_STEP_ORIGIN_REVISION,
+            "weightLicense": "MIT per original card; conversion metadata: other",
+            "outputVerified": false
+        })
+    } else {
+        json!({
+            "engineId": "yue2_3b",
+            "repo": YUE2_REPO,
+            "revision": YUE2_REVISION,
+            "gguf": settings.model_gguf,
+            "sha256": settings.model_sha256,
+            "vae": YUE2_VAE,
+            "vaeSha256": YUE2_VAE_SHA
+        })
+    };
     let job_kind = if continuation.is_some() {
         "continuation"
     } else if stop_after_abc {
@@ -166,20 +268,14 @@ pub async fn start_generation(
         "stopAfter": if stop_after_abc { Some("abc") } else { None::<&str> },
         "createdAt": now_iso(),
         "provider": "audiocpp",
+        "generationEngine": settings.generation_engine,
         "binary": {
             "tag": AUDIOCPP_TAG,
             "commit": AUDIOCPP_COMMIT,
             "archive": archive,
             "sha256": archive_sha
         },
-        "model": {
-            "repo": YUE2_REPO,
-            "revision": YUE2_REVISION,
-            "gguf": settings.model_gguf,
-            "sha256": settings.model_sha256,
-            "vae": YUE2_VAE,
-            "vaeSha256": YUE2_VAE_SHA
-        },
+        "model": model_metadata,
         "backend": "cuda",
         "styleSent": style_sent,
         "lyricsPath": "lyrics.txt",
@@ -218,6 +314,20 @@ pub async fn start_generation(
     let out_wav = gen_dir.join("audio.wav");
     let cot = form.cot.clone();
     let lyrics_for_req = form.lyrics.clone();
+    let ace_request_for_job = use_ace_step.then(|| {
+        ace_step_task_request(
+            &style_sent,
+            &form.lyrics,
+            seed,
+            target_duration_sec,
+            AceStepTaskOptions {
+                tempo_bpm: form.tempo_bpm,
+                key: form.key.as_ref(),
+                meter: form.meter.as_ref(),
+                language: form.singing_language.as_deref(),
+            },
+        )
+    });
     let abc_for_req = abc_trimmed.clone();
     let gen_id_for_job = gen_id.clone();
     let gen_dir_for_job = gen_dir.clone();
@@ -275,14 +385,18 @@ pub async fn start_generation(
                         .ok_or_else(|| "options invalides".to_string())?
                         .insert("abc".into(), json!(abc_text));
                 }
-                let body = json!({
-                    "model": "yue2",
-                    "request": {
-                        "lyrics": lyrics_for_req,
-                        "seed": seed,
-                        "options": options
-                    }
-                });
+                let body = if let Some(request) = ace_request_for_job {
+                    json!({ "model": "ace_step", "request": request })
+                } else {
+                    json!({
+                        "model": "yue2",
+                        "request": {
+                            "lyrics": lyrics_for_req,
+                            "seed": seed,
+                            "options": options
+                        }
+                    })
+                };
                 let started = now_iso();
                 let api_result = AudioCppServer::run_task(&server_url, body).await;
                 let finished = now_iso();
@@ -868,6 +982,28 @@ mod continuation_tests {
         ));
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn ace_step_task_request_uses_pinned_text2music_fields() {
+        let request = ace_step_task_request(
+            "warm pop rock",
+            "[Instrumental]",
+            1234,
+            20,
+            AceStepTaskOptions {
+                tempo_bpm: Some(120),
+                key: None,
+                meter: None,
+                language: None,
+            },
+        );
+        assert_eq!(request["task_route"], "text2music");
+        assert_eq!(request["duration_seconds"], 20);
+        assert_eq!(request["num_inference_steps"], 8);
+        assert_eq!(request["guidance_scale"], 1.0);
+        assert_eq!(request["bpm"], 120);
+        assert!(request.get("keyscale").is_none());
     }
 
     fn write_parent_gen(

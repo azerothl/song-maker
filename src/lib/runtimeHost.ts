@@ -32,6 +32,22 @@ export type SheetsageHostTranscribeOutcome = {
   outAbcPath: string | null;
 };
 
+export type AceStepInstallInfo = {
+  gguf: string;
+  sha256: string;
+  bytes: number;
+  repo: string;
+  revision: string;
+  remotePath: string;
+  url: string;
+  licenseNoticeFr: string;
+  licenseNoticeEn: string;
+  path: string;
+  available: boolean;
+  licenseAccepted: boolean;
+  selected: boolean;
+};
+
 export type LoraTrainerProbe = {
   trainerExists: boolean;
   trainerScriptPath: string | null;
@@ -83,6 +99,11 @@ export const runtimeApi = {
       path: string;
       available: boolean;
     }>("sheetsage2_install_info"),
+  aceStepInstallInfo: () =>
+    invoke<AceStepInstallInfo>("ace_step_install_info"),
+  installAceStep: (licenseAccepted: boolean) =>
+    invoke<string>("install_ace_step", { licenseAccepted }),
+  cancelAceStepInstall: () => invoke<string>("cancel_ace_step_install"),
 
   loraTrainProbe: () => invoke<LoraTrainerProbe>("lora_train_probe"),
   loraTrainProbeAudio: (path: string) =>

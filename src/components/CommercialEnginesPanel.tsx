@@ -28,6 +28,18 @@ export function CommercialEnginesPanel() {
                   <span className="engine-badge reserved">{row.reservedBadge}</span>
                 ) : null}
               </div>
+              {row.reservationNote ? (
+                <p className="engine-reservation-note">{row.reservationNote}</p>
+              ) : null}
+              {row.sourceLinks.length > 0 ? (
+                <p className="engine-source-links">
+                  {row.sourceLinks.map((source) => (
+                    <a key={source.href} href={source.href} target="_blank" rel="noopener noreferrer">
+                      {source.label}
+                    </a>
+                  ))}
+                </p>
+              ) : null}
             </li>
           ))}
         </ul>
