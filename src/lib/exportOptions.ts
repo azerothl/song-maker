@@ -2,7 +2,7 @@ import type { StemProviderId } from "@song-maker/stem-providers";
 
 export type ExportFormat = "wav" | "flac" | "mp3";
 export type ExportPack = "folder" | "zip";
-export type ExportMode = "mix" | "stems";
+export type ExportMode = "mix" | "stems" | "package";
 
 export type ExportOptionsState = {
   mode: ExportMode;

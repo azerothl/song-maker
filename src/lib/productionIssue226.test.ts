@@ -29,6 +29,7 @@ const PRODUCTION_KEYS = [
   "production.track.tab.eq",
   "production.track.tab.fx",
   "production.track.tab.automation",
+  "production.track.tab.routing",
   "production.track.tab.settings",
   "production.fx.line.title",
   "production.strip.invalid",

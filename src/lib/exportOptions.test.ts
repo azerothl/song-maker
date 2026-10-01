@@ -48,19 +48,21 @@ describe("export UI surface (#168 / #187)", () => {
     await assert.rejects(() => fs.access(popin), /ENOENT/);
   });
 
-  it("keeps ExportWizard as portable package only (no mix/stems path)", async () => {
+  it("keeps ExportWizard as portable package body (no mix/stems path)", async () => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
     const wizard = await fs.readFile(
       path.resolve(import.meta.dirname, "../components/ExportWizard.tsx"),
       "utf8",
     );
-    assert.match(wizard, /Portable project package only/);
+    assert.match(wizard, /Portable project package UI/);
     assert.doesNotMatch(wizard, /exportAlignedStems|ExportFormat|mode === "stems"/);
     const dialog = await fs.readFile(
       path.resolve(import.meta.dirname, "../components/ExportDialog.tsx"),
       "utf8",
     );
+    assert.match(dialog, /export\.dialog\.mode\.package/);
+    assert.match(dialog, /mode === "package"/);
     assert.doesNotMatch(dialog, /Maquette Alphonse|mockupMissing/);
     assert.doesNotMatch(dialog, /window\.alert/);
   });

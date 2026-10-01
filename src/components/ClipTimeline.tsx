@@ -291,6 +291,9 @@ export function ClipTimeline({
   const markerAnchor = useRef<HTMLElement | null>(null);
   const markerOpenButton = useRef<HTMLButtonElement | null>(null);
   const tempoOpenButton = useRef<HTMLButtonElement | null>(null);
+  const stretchAnchor = useRef<HTMLButtonElement | null>(null);
+  const stretchTitleId = useId();
+  const [stretchOpen, setStretchOpen] = useState(false);
   const arrangementId = useId();
   const [arrangementStatus,setArrangementStatus]=useState("");
   const suppressArrangementClick = useRef(false);
@@ -300,6 +303,9 @@ export function ClipTimeline({
     trackId: string;
     clipId: string;
   } | null>(null);
+  useEffect(() => {
+    if (!selected) setStretchOpen(false);
+  }, [selected]);
   const [error, setError] = useState<string | null>(null);
   const [localClipView, setLocalClipView] = useState<ProductionClipViewPrefs>(
     () => DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
@@ -1396,6 +1402,165 @@ export function ClipTimeline({
       </div>
 
       {selected && selectedClip && (
+        <div
+          className="clip-selection-bar"
+          data-testid="clip-selection-bar"
+          role="toolbar"
+          aria-label={t("clips.selected", { id: selectedClip.id.slice(0, 8) })}
+        >
+          <button
+            ref={stretchAnchor}
+            type="button"
+            className="btn"
+            aria-haspopup="dialog"
+            aria-expanded={stretchOpen}
+            data-testid="clip-stretch-open"
+            onClick={() => setStretchOpen((v) => !v)}
+          >
+            {t("clips.stretch.open")}
+          </button>
+          {takesInGroup.length > 1 && selectedTakeGroup && selected && (
+            <div
+              className="clip-takes clip-takes-bar"
+              role="group"
+              aria-label={t("clips.takes")}
+            >
+              <span className="clip-takes-label">{t("clips.takes")}</span>
+              {takesInGroup.map((take) => (
+                <button
+                  key={take.id}
+                  type="button"
+                  className={
+                    take.takeActive !== false ? "btn primary" : "btn"
+                  }
+                  aria-pressed={take.takeActive !== false}
+                  onClick={() =>
+                    activateTake(selected.trackId, selectedTakeGroup, take.id)
+                  }
+                >
+                  <span className="clip-edit-tool-check" aria-hidden="true">
+                    {take.takeActive !== false ? "✓" : ""}
+                  </span>
+                  {take.takeLabel ??
+                    t("record.takeLabel", {
+                      n: String((take.takeIndex ?? 0) + 1),
+                    })}
+                </button>
+              ))}
+            </div>
+          )}
+          <AnchoredPopin
+            open={stretchOpen}
+            onClose={() => setStretchOpen(false)}
+            anchorRef={stretchAnchor}
+            labelId={stretchTitleId}
+            className="clip-stretch-popin"
+          >
+            <header className="anchored-popin-header">
+              <h3 id={stretchTitleId}>{t("clips.stretch.title")}</h3>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setStretchOpen(false)}
+              >
+                {t("production.track.close")}
+              </button>
+            </header>
+            <p className="hint">
+              {t("clips.selected", { id: selectedClip.id.slice(0, 8) })}
+            </p>
+            <div className="clip-stretch" data-testid="clip-stretch-panel">
+              <label className="record-monitor">
+                <input
+                  type="checkbox"
+                  checked={selectedClip.processingEnabled !== false}
+                  onChange={(e) =>
+                    patchSelectedClip({ processingEnabled: e.target.checked })
+                  }
+                />
+                <span>{t("clips.stretch.enabled")}</span>
+              </label>
+              <label className="record-monitor">
+                <input
+                  type="checkbox"
+                  checked={!!selectedClip.followProjectTempo}
+                  onChange={(e) =>
+                    patchSelectedClip({ followProjectTempo: e.target.checked })
+                  }
+                />
+                <span>{t("clips.stretch.followTempo")}</span>
+              </label>
+              <div className="clip-fields">
+                <label className="clip-field">
+                  <span>{t("clips.stretch.sourceBpm")}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={selectedClip.sourceTempoBpm ?? ""}
+                    placeholder={
+                      arrangementTempoBpm != null
+                        ? String(arrangementTempoBpm)
+                        : ""
+                    }
+                    onChange={(e) =>
+                      patchSelectedClip({
+                        sourceTempoBpm: e.target.value
+                          ? Number(e.target.value)
+                          : null,
+                      })
+                    }
+                  />
+                </label>
+                <label className="clip-field">
+                  <span>{t("clips.stretch.ratio")}</span>
+                  <input
+                    type="number"
+                    min={0.25}
+                    max={4}
+                    step={0.01}
+                    disabled={!!selectedClip.followProjectTempo}
+                    value={selectedClip.timeStretchRatio ?? 1}
+                    onChange={(e) =>
+                      patchSelectedClip({
+                        timeStretchRatio: Number(e.target.value) || 1,
+                      })
+                    }
+                  />
+                </label>
+                <label className="clip-field">
+                  <span>{t("clips.stretch.pitch")}</span>
+                  <input
+                    type="number"
+                    min={-12}
+                    max={12}
+                    step={1}
+                    value={selectedClip.pitchSemitones ?? 0}
+                    onChange={(e) =>
+                      patchSelectedClip({
+                        pitchSemitones: Number(e.target.value) || 0,
+                      })
+                    }
+                  />
+                </label>
+              </div>
+              <p className="hint">
+                {t("clips.stretch.effective", {
+                  ratio: stretchPreview.toFixed(3),
+                })}
+              </p>
+              {qualityHint !== "ok" && qualityHint !== "voice_ok" && (
+                <p className="hint warn">
+                  {t(`clips.stretch.quality.${qualityHint}`)}
+                </p>
+              )}
+              <p className="hint">{t("clips.stretch.ab")}</p>
+            </div>
+          </AnchoredPopin>
+        </div>
+      )}
+
+      {selected && selectedClip && (
         <div className="clip-inspector">
           <p className="clip-inspector-title">
             {t("clips.selected", { id: selectedClip.id.slice(0, 8) })}
@@ -1477,121 +1642,6 @@ export function ClipTimeline({
                 }
               />
             </label>
-          </div>
-
-          {takesInGroup.length > 1 && selectedTakeGroup && selected && (
-            <div className="clip-takes">
-              <p className="clip-inspector-title">{t("clips.takes")}</p>
-              <p className="hint">{t("clips.takes.hint")}</p>
-              <div className="btn-row">
-                {takesInGroup.map((take) => (
-                  <button
-                    key={take.id}
-                    type="button"
-                    className={
-                      take.takeActive !== false ? "btn primary" : "btn"
-                    }
-                    onClick={() =>
-                      activateTake(selected.trackId, selectedTakeGroup, take.id)
-                    }
-                  >
-                    {take.takeLabel ??
-                      t("record.takeLabel", {
-                        n: String((take.takeIndex ?? 0) + 1),
-                      })}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="clip-stretch">
-            <p className="clip-inspector-title">{t("clips.stretch.title")}</p>
-            <label className="record-monitor">
-              <input
-                type="checkbox"
-                checked={selectedClip.processingEnabled !== false}
-                onChange={(e) =>
-                  patchSelectedClip({ processingEnabled: e.target.checked })
-                }
-              />
-              <span>{t("clips.stretch.enabled")}</span>
-            </label>
-            <label className="record-monitor">
-              <input
-                type="checkbox"
-                checked={!!selectedClip.followProjectTempo}
-                onChange={(e) =>
-                  patchSelectedClip({ followProjectTempo: e.target.checked })
-                }
-              />
-              <span>{t("clips.stretch.followTempo")}</span>
-            </label>
-            <div className="clip-fields">
-              <label className="clip-field">
-                <span>{t("clips.stretch.sourceBpm")}</span>
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={selectedClip.sourceTempoBpm ?? ""}
-                  placeholder={
-                    arrangementTempoBpm != null
-                      ? String(arrangementTempoBpm)
-                      : ""
-                  }
-                  onChange={(e) =>
-                    patchSelectedClip({
-                      sourceTempoBpm: e.target.value
-                        ? Number(e.target.value)
-                        : null,
-                    })
-                  }
-                />
-              </label>
-              <label className="clip-field">
-                <span>{t("clips.stretch.ratio")}</span>
-                <input
-                  type="number"
-                  min={0.25}
-                  max={4}
-                  step={0.01}
-                  disabled={!!selectedClip.followProjectTempo}
-                  value={selectedClip.timeStretchRatio ?? 1}
-                  onChange={(e) =>
-                    patchSelectedClip({
-                      timeStretchRatio: Number(e.target.value) || 1,
-                    })
-                  }
-                />
-              </label>
-              <label className="clip-field">
-                <span>{t("clips.stretch.pitch")}</span>
-                <input
-                  type="number"
-                  min={-12}
-                  max={12}
-                  step={1}
-                  value={selectedClip.pitchSemitones ?? 0}
-                  onChange={(e) =>
-                    patchSelectedClip({
-                      pitchSemitones: Number(e.target.value) || 0,
-                    })
-                  }
-                />
-              </label>
-            </div>
-            <p className="hint">
-              {t("clips.stretch.effective", {
-                ratio: stretchPreview.toFixed(3),
-              })}
-            </p>
-            {qualityHint !== "ok" && qualityHint !== "voice_ok" && (
-              <p className="hint warn">
-                {t(`clips.stretch.quality.${qualityHint}`)}
-              </p>
-            )}
-            <p className="hint">{t("clips.stretch.ab")}</p>
           </div>
 
           <div className="btn-row">

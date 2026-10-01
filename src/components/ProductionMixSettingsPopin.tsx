@@ -1,4 +1,11 @@
-import { useId, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import {
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type RefObject,
+} from "react";
+import type { LoudnessReport } from "@song-maker/mix-production";
 import { AnchoredPopin } from "./AnchoredPopin";
 import { MixKnob } from "./MixKnob";
 import {
@@ -7,7 +14,9 @@ import {
 } from "./ProductionClipViewControls";
 import type { ProductionClipViewPrefs } from "../lib/productionClipViewPrefs";
 import type { ProductionDensityPreference } from "../lib/productionTrackLayout";
-import type { MixDoc } from "../lib/types";
+import { bakeMixPcm, decodeMixStems } from "../lib/mixBridge";
+import { getProductionToolkit } from "../lib/productionState";
+import type { MixDoc, PlaybackSources } from "../lib/types";
 import {
   formatGainDb,
   parseGainDb,
@@ -25,6 +34,8 @@ export type ProductionMixSettingsPopinProps = {
   onDensityPreference: (next: ProductionDensityPreference) => void;
   mix: MixDoc;
   onMasterGainChange: (gainDb: number, persist: boolean) => void;
+  sources: PlaybackSources | null;
+  tempoBpm?: number | null;
   hasAiStems: boolean;
   separateDisabled: boolean;
   separateDisabledReason?: string;
@@ -56,6 +67,7 @@ export function productionMixSettingsFieldAccessibleNames(
     t("mix.density.compact"),
     t("mix.density.confortable"),
     t("production.settings.master"),
+    t("phase3.mix.runLimiterMeter"),
     opts.hasAiStems ? t("separate.again") : t("separate.button"),
   ];
   if (opts.showMixAssist || opts.showProductionCopilot) {
@@ -75,6 +87,8 @@ export function ProductionMixSettingsPopin({
   onDensityPreference,
   mix,
   onMasterGainChange,
+  sources,
+  tempoBpm = null,
   hasAiStems,
   separateDisabled,
   separateDisabledReason,
@@ -93,6 +107,13 @@ export function ProductionMixSettingsPopin({
   const separateReasonId = useId();
   const toolsMenuId = useId();
   const [mixToolsMenuOpen, setMixToolsMenuOpen] = useState(false);
+  const [loudness, setLoudness] = useState<LoudnessReport | null>(null);
+  const [loudnessDurationSec, setLoudnessDurationSec] = useState<number | null>(
+    null,
+  );
+  const [measuring, setMeasuring] = useState(false);
+  const [measureError, setMeasureError] = useState<string | null>(null);
+  const measureGen = useRef(0);
 
   const showMixToolsEntry = showMixAssist || showProductionCopilot;
   const dualMixTools = showMixAssist && showProductionCopilot;
@@ -103,6 +124,38 @@ export function ProductionMixSettingsPopin({
   };
 
   const separateReason = separateDisabled ? separateDisabledReason : undefined;
+
+  const measureLoudness = async () => {
+    const gen = ++measureGen.current;
+    setMeasuring(true);
+    setMeasureError(null);
+    try {
+      if (!sources || sources.mode !== "stems" || sources.stems.length === 0) {
+        throw new Error(t("phase3.mix.loudnessNeedStems"));
+      }
+      const { stems, sampleRate } = await decodeMixStems(sources, mix);
+      if (gen !== measureGen.current) return;
+      const baked = bakeMixPcm(mix, stems, getProductionToolkit(), {
+        tempoBpm,
+      });
+      const sr = sampleRate || mix.sampleRate || 48000;
+      const report = getProductionToolkit().loudness.measurePcm(
+        baked.pcm,
+        sr,
+        "ebu_r128",
+      );
+      if (gen !== measureGen.current) return;
+      setLoudness(report);
+      setLoudnessDurationSec(baked.frameCount / sr);
+    } catch (e) {
+      if (gen !== measureGen.current) return;
+      setLoudness(null);
+      setLoudnessDurationSec(null);
+      setMeasureError(e instanceof Error ? e.message : String(e));
+    } finally {
+      if (gen === measureGen.current) setMeasuring(false);
+    }
+  };
 
   const onToolsMenuKeyDown = (e: KeyboardEvent<HTMLUListElement>) => {
     const items = Array.from(
@@ -198,6 +251,42 @@ export function ProductionMixSettingsPopin({
             onChange={(gainDb) => onMasterGainChange(gainDb, false)}
             onCommit={(gainDb) => onMasterGainChange(gainDb, true)}
           />
+          <button
+            type="button"
+            className="btn primary production-mix-settings-loudness"
+            data-testid="production-mix-settings-loudness"
+            disabled={measuring}
+            onClick={() => void measureLoudness()}
+          >
+            {measuring
+              ? t("phase3.mix.loudnessMeasuring")
+              : t("phase3.mix.runLimiterMeter")}
+          </button>
+          {measureError && (
+            <p className="hint error" role="alert">
+              {measureError}
+            </p>
+          )}
+          {loudness && (
+            <p
+              className="production-mix-settings-loudness-result"
+              role="status"
+              data-testid="production-mix-settings-loudness-result"
+            >
+              {t("phase3.mix.loudness")}:{" "}
+              {loudness.integratedLufs?.toFixed(1) ?? "—"} LUFS ·{" "}
+              {t("phase3.mix.truePeak")}:{" "}
+              {loudness.truePeakDbfs?.toFixed(1) ?? "—"} dBFS
+              {loudnessDurationSec != null && (
+                <>
+                  {" "}
+                  · {t("phase3.mix.loudnessDuration")}:{" "}
+                  {loudnessDurationSec.toFixed(2)} s
+                </>
+              )}
+            </p>
+          )}
+          <p className="hint">{t("phase3.mix.loudnessNote")}</p>
         </fieldset>
 
         <fieldset className="production-mix-settings-field">
