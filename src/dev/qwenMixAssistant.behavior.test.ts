@@ -9,6 +9,26 @@ wav.write("RIFF",0);wav.writeUInt32LE(wav.length-8,4);wav.write("WAVEfmt ",8);wa
 for(let i=0;i<480;i++)wav.writeInt16LE(Math.round(Math.sin(i/10)*1000),44+i*2);
 before(async()=>{server=await startCaptureViteServer(5231);browser=await chromium.launch();});
 after(async()=>{await browser?.close();if(server)await stopCaptureViteServer(server);});
+for (const locale of ["fr", "en"] as const) it(`missing Qwen model has a readable ${locale} state without changing the mix`,async()=>{
+ const page=await browser.newPage({viewport:{width:1280,height:830}});
+ try {
+  await page.route("**/dev/null/*.wav",route=>route.fulfill({status:200,contentType:"audio/wav",body:wav}));
+  await page.addInitScript(locale=>{
+   localStorage.setItem("song-maker.locale",locale);
+   (window as unknown as {__captureQwenMix:()=>never}).__captureQwenMix=()=>{throw new Error("MODEL_MISSING private diagnostic");};
+  },locale);
+  await page.goto("http://127.0.0.1:5231/production-capture.html#confortable-12",{waitUntil:"networkidle"});
+  const gain=page.locator(".track-gain-knob .mix-knob-value").first();
+  const initial=await gain.innerText();
+  await page.getByTestId("production-mix-settings-trigger").click();
+  await page.getByRole("button",{name:locale==="fr"?"Assistant de mix":"Mix assistant",exact:true}).click();
+  const panel=page.locator(".qwen-mix-assistant");
+  await panel.getByRole("button",{name:locale==="fr"?"Proposer des réglages avec Qwen":"Propose settings with Qwen",exact:true}).click();
+  await panel.getByText(locale==="fr"?"Le modèle Qwen 3.5 2B est absent. Installez qwen3.5:2b dans Ollama puis relancez.":"Qwen 3.5 2B is missing. Install qwen3.5:2b in Ollama and try again.",{exact:true}).waitFor();
+  assert.equal(await gain.innerText(),initial);
+  assert.doesNotMatch(await panel.innerText(),/MODEL_MISSING|private diagnostic|qwen\.mix\./);
+ } finally {await page.close();}
+});
 it("Qwen settings require confirmation and can be undone; manual functions remain",async()=>{
  const page=await browser.newPage({viewport:{width:1280,height:830}});
  try {
@@ -33,6 +53,11 @@ it("Qwen settings require confirmation and can be undone; manual functions remai
   assert.equal(await page.getByRole("menuitem").count(),0);
   const panel=page.locator(".qwen-mix-assistant");
   await panel.waitFor();
+  const license=panel.locator(".qwen-mix-license");
+  await license.locator("summary").click();
+  assert.match(await license.locator("pre").innerText(),/Copyright 2026 Alibaba Cloud/);
+  assert.match(await license.locator("pre").innerText(),/Apache License/);
+  await license.locator("summary").click();
   await page.waitForTimeout(250);
   const initialVisibility=await page.locator(".mix-assist-popin").evaluate(el=>{
     const title=el.querySelector("h3")!.getBoundingClientRect();
@@ -75,7 +100,7 @@ it("invalid local answers leave gains unchanged and disclose only a closed diagn
   await panel.getByText("The model returned invalid settings. No settings were applied.",{exact:true}).waitFor();
   assert.equal(await gain.innerText(),before);
   assert.equal(await panel.getByRole("button",{name:"Review and apply",exact:true}).count(),0);
-  const detail=panel.locator("details");
+  const detail=panel.locator("details").filter({has:page.locator("code")});
   assert.equal(await detail.getAttribute("open"),null);
   assert.equal(await detail.locator("code").textContent(),"INVALID_RESPONSE:GAIN_DELTA");
   assert.equal((await panel.innerText()).includes("private model text"),false);

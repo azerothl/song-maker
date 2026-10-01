@@ -1397,6 +1397,8 @@
   "qwen.mix.rationale": "Réglages proposés à partir des niveaux mesurés.",
   "qwen.mix.apply": "Examiner et appliquer",
   "qwen.mix.local": "Qwen 3.5 2B analyse les niveaux mesurés des pistes sur cet ordinateur. Aucun audio ni résumé ne quitte cet ordinateur. Le modèle doit être installé dans Ollama.",
+  "qwen.mix.license": "Licence du modèle Qwen 3.5 2B",
+  "qwen.mix.licenseNotice": "Apache-2.0 · Copyright 2026 Alibaba Cloud. Les poids sont installés séparément dans Ollama. Le texte de la licence est disponible ici, hors ligne.",
   "qwen.mix.cancel": "Annuler",
   "qwen.mix.analyze": "Proposer des réglages avec Qwen",
   "qwen.mix.empty": "Aucun changement proposé.",

@@ -197,6 +197,8 @@
   "qwen.mix.rationale": "Settings proposed from measured track levels.",
   "qwen.mix.apply": "Review and apply",
   "qwen.mix.local": "Qwen 3.5 2B analyses measured track levels on this computer. Audio and summaries stay on this computer. The model must be installed in Ollama.",
+  "qwen.mix.license": "Qwen 3.5 2B model license",
+  "qwen.mix.licenseNotice": "Apache-2.0 · Copyright 2026 Alibaba Cloud. The weights are installed separately in Ollama. The license text is available here, offline.",
   "qwen.mix.cancel": "Cancel",
   "qwen.mix.analyze": "Propose settings with Qwen",
   "qwen.mix.empty": "No changes proposed.",

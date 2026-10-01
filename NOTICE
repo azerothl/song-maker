@@ -2,9 +2,9 @@ Song Maker
 Copyright 2026 Loïc Peaudecerf
 
 This product includes software developed by third parties. The sections below
-list components that require attribution or special license terms. Model weight
-files (GGUF and related) are not listed here; each weight carries its own
-license, surfaced in the application per product policy.
+list components that require attribution or special license terms. Optional
+model notices identify their separate license. Model weights are
+installed separately and their licenses are surfaced in the application.
 
 ================================================================================
 Song Maker application code
@@ -118,3 +118,13 @@ Excluded from this NOTICE
   - CUDA/cudart redistributables shipped with audio.cpp Windows archives:
     governed by NVIDIA's license for those binaries (see audio.cpp release
     artifacts).
+
+================================================================================
+Qwen 3.5 2B (optional local model, separate Ollama process)
+================================================================================
+
+Copyright 2026 Alibaba Cloud.
+License: Apache License, Version 2.0.
+Model weights are installed separately in Ollama. Song Maker includes the model
+license text for offline viewing: docs/model-licenses/Qwen3.5-2B-LICENSE.txt.
+Source and reviewed revision are recorded in docs/model-licenses/README.md.

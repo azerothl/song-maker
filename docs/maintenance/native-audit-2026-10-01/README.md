@@ -46,3 +46,9 @@ Le chevauchement des numéros de mesures sur les morceaux longs a été observé
 - `shared-axis-native-after.jpg` : règle lisible, clip réel et courbe vide sous sa piste sur le même axe.
 
 L'alignement à 1 px et le maintien vertical des trois lignes pendant le défilement sont mesurés par les tests React à 1280×720 et 640×720, distincts de l'inspection native. Les tests vérifient aussi le changement de gain au clavier sans déplacer le clip sélectionné. La séquence native ne prouve pas l'édition de points ni la qualité audio. L'écoute comparative et les autres systèmes d'exploitation restent non testés.
+
+## Nouvelle mesure Qwen à froid et budget de surveillance
+
+Le modèle était absent de `/api/ps` avant le clic natif « Proposer des réglages avec Qwen ». La proposition s’est affichée avec **6,8 s** de réponse modèle et **13,17 s** d’analyse complète, lecture des pistes comprise. Aucun réglage n’a été appliqué ; le SHA-256 du mix est resté identique. La licence Qwen est disponible dans un panneau repliable hors ligne.
+
+Après la première mesure complète de 14,3 s, le budget de surveillance initial est fixé à **28,6 s**, deux fois cette référence, pour ce même projet, modèle et matériel. La seconde mesure reste sous ce seuil. Ce budget sert à signaler une régression lors des audits suivants ; il ne constitue pas une limite portable ni le timeout de transport.

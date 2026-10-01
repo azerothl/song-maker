@@ -7,6 +7,7 @@ import { getProductionOverlay, subscribeProduction } from "../lib/productionStat
 import { applyQwenAdjustments, proposeQwenMix, type QwenMixResponse } from "../lib/qwenMixAssistant";
 import type { MixDoc, PlaybackSources } from "../lib/types";
 import { profileLocale, t } from "../ui/i18n";
+import qwenLicense from "../../docs/model-licenses/Qwen3.5-2B-LICENSE.txt?raw";
 
 export function QwenMixAssistant({mix,sources,onCommitMix}: {
   mix: MixDoc; sources: PlaybackSources | null; onCommitMix: (mix:MixDoc)=>void;
@@ -51,6 +52,11 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
   const nf=new Intl.NumberFormat(profileLocale(),{maximumFractionDigits:2});
   return <section className="qwen-mix-assistant" aria-label={t("qwen.mix.title")}>
     <p className="hint">{t("qwen.mix.local")}</p>
+    <details className="qwen-mix-license">
+      <summary>{t("qwen.mix.license")}</summary>
+      <p>{t("qwen.mix.licenseNotice")}</p>
+      <pre>{qwenLicense}</pre>
+    </details>
     <label>{t("qwen.mix.objective")}<textarea maxLength={1000} value={objective} onChange={e=>setObjective(e.target.value)} /></label>
     <button type="button" className="btn" disabled={busy||!hasStems} onClick={()=>void run()}>{t(busy?"qwen.mix.busy":"qwen.mix.analyze")}</button>
     {!hasStems && <p className="hint">{t("qwen.mix.needStems")}</p>}
