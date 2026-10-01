@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -7,6 +8,10 @@ import {
   type MouseEvent,
   type PointerEvent,
 } from "react";
+import {
+  filterNotesInPianoViewport,
+  filterSectionMarkersInPianoViewport,
+} from "../lib/pianoRollViewport";
 import type { AbcVoiceTarget, ModeName, ScoreDocument, SectionKind } from "../lib/score";
 import {
   addNote,
@@ -83,6 +88,14 @@ export function PianoRoll({ document, onChange, onError }: Props) {
   };
   const selectedNote = voice?.notes.find((n) => n.id === selectedId) ?? null;
   const auditionRef = useRef<SoftSynth | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [hScroll, setHScroll] = useState({ left: 0, width: 900 });
+
+  const syncScrollViewport = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setHScroll({ left: el.scrollLeft, width: el.clientWidth || 900 });
+  }, []);
 
   useEffect(() => {
     const synth = new SoftSynth({ latencySec: 0.01 });
@@ -107,6 +120,22 @@ export function PianoRoll({ document, onChange, onError }: Props) {
     }
   }, [document, voiceId]);
 
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    syncScrollViewport();
+    const onScroll = () => {
+      requestAnimationFrame(syncScrollViewport);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    const ro = new ResizeObserver(() => syncScrollViewport());
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      ro.disconnect();
+    };
+  }, [syncScrollViewport]);
+
   const maxTick = useMemo(() => {
     let m = 3840;
     for (const n of voice?.notes ?? []) {
@@ -120,6 +149,29 @@ export function PianoRoll({ document, onChange, onError }: Props) {
 
   const width = Math.max(640, maxTick * PX_PER_TICK);
   const height = (PITCH_MAX - PITCH_MIN + 1) * ROW_H;
+
+  const visibleNotes = useMemo(
+    () =>
+      filterNotesInPianoViewport(
+        voice?.notes ?? [],
+        hScroll.left,
+        hScroll.width,
+        PX_PER_TICK,
+        { selectedId },
+      ),
+    [voice?.notes, hScroll.left, hScroll.width, selectedId],
+  );
+
+  const visibleSections = useMemo(
+    () =>
+      filterSectionMarkersInPianoViewport(
+        document.sections,
+        hScroll.left,
+        hScroll.width,
+        PX_PER_TICK,
+      ),
+    [document.sections, hScroll.left, hScroll.width],
+  );
 
   function pitchToY(pitch: number): number {
     return (PITCH_MAX - pitch) * ROW_H;
@@ -598,8 +650,17 @@ export function PianoRoll({ document, onChange, onError }: Props) {
         </ul>
       )}
 
-      <div className="piano-scroll" onClick={onCanvasClick}>
-        <div className="piano-grid" style={{ width, height }}>
+      <div
+        ref={scrollRef}
+        className="piano-scroll"
+        onClick={onCanvasClick}
+      >
+        <div
+          className="piano-grid"
+          style={{ width, height }}
+          data-piano-visible-notes={visibleNotes.length}
+          data-piano-total-notes={voice?.notes.length ?? 0}
+        >
           {Array.from({ length: PITCH_MAX - PITCH_MIN + 1 }, (_, i) => {
             const pitch = PITCH_MAX - i;
             const black = [1, 3, 6, 8, 10].includes(pitch % 12);
@@ -611,7 +672,7 @@ export function PianoRoll({ document, onChange, onError }: Props) {
               />
             );
           })}
-          {document.sections.map((s) => (
+          {visibleSections.map((s) => (
             <div
               key={s.id}
               className="section-marker"
@@ -619,7 +680,7 @@ export function PianoRoll({ document, onChange, onError }: Props) {
               title={`% ${s.kind}`}
             />
           ))}
-          {(voice?.notes ?? []).map((n) => (
+          {visibleNotes.map((n) => (
             <button
               type="button"
               key={n.id}

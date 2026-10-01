@@ -28,6 +28,16 @@ export type BenchRunResult = {
   longTaskCount: number;
 };
 
+export type StaffToPianoBenchResult = {
+  stats: ReturnType<typeof referenceScoreStats>;
+  staffToPianoMs: number;
+  pianoNoteButtonsDom: number;
+  pianoGridWidthPx: number;
+  pianoRollFocusable: boolean;
+  longTasksMs: number;
+  longTaskCount: number;
+};
+
 const referenceDoc = buildReferenceScoreDocument();
 const longReferenceDoc = buildLongReferenceScoreDocument();
 const referenceStats = referenceScoreStats(referenceDoc);
@@ -240,6 +250,7 @@ function BenchShell() {
       </button>
       <pre data-bench-long-stats>{JSON.stringify(longReferenceStats, null, 2)}</pre>
       <div id="bench-score-panel-root" />
+      <div id="bench-staff-piano-root" />
       {result && (
         <pre id="bench-result" data-testid="bench-result">
           {JSON.stringify(result, null, 2)}
@@ -294,6 +305,7 @@ async function benchAbcStaffViewOnly(): Promise<BenchPhaseResult[]> {
 async function benchPianoRollMount(): Promise<BenchPhaseResult[]> {
   const phases: BenchPhaseResult[] = [];
   const container = document.createElement("div");
+  container.style.width = "900px";
   document.body.appendChild(container);
   const root: Root = createRoot(container);
   const start = performance.now();
@@ -304,14 +316,104 @@ async function benchPianoRollMount(): Promise<BenchPhaseResult[]> {
       onError={() => {}}
     />,
   );
-  await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+  for (let i = 0; i < 60; i++) {
+    const grid = container.querySelector(".piano-grid") as HTMLElement | null;
+    const notes = container.querySelectorAll(".piano-note").length;
+    if (grid && grid.offsetWidth > 1000 && notes > 0) break;
+    await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+  }
+  const layoutStart = performance.now();
+  const grid = container.querySelector(".piano-grid") as HTMLElement | null;
+  const gridWidthPx = grid?.offsetWidth ?? 0;
+  const noteButtonsDom = container.querySelectorAll(".piano-note").length;
   pushPhase(phases, "PianoRoll mount (hidden tabpanel path)", start, {
-    noteButtons: referenceStats.noteCount,
-    gridWidthPx: referenceStats.pianoRollWidthPx,
+    noteCount: referenceStats.noteCount,
+    noteButtonsDom,
+    gridWidthPx,
+  });
+  pushPhase(phases, "PianoRoll reflow grille", layoutStart, {
+    gridWidthPx,
+    noteButtonsDom,
   });
   root.unmount();
   container.remove();
   return phases;
+}
+
+async function measureStaffToPianoSwitch(
+  scoreDoc: ScoreDocument,
+  title: string,
+): Promise<StaffToPianoBenchResult> {
+  const stats = referenceScoreStats(scoreDoc);
+  const container = document.getElementById("bench-staff-piano-root");
+  if (!container) {
+    throw new Error("bench-staff-piano-root missing");
+  }
+  container.replaceChildren();
+
+  const root = createRoot(container);
+  root.render(
+    <ScorePanel
+      projectId="bench"
+      document={scoreDoc}
+      cot="full"
+      title={title}
+      onDocumentChange={() => {}}
+      onProjectRefresh={async () => {}}
+      onError={() => {}}
+      defaultOpen
+    />,
+  );
+
+  for (let i = 0; i < 300; i++) {
+    if (container.querySelector(".abc-staff-paper svg")) break;
+    await new Promise((r) => setTimeout(r, 16));
+  }
+
+  const pianoTab = container.querySelector(
+    "#score-view-piano",
+  ) as HTMLButtonElement | null;
+  if (!pianoTab) {
+    throw new Error("score-view-piano tab missing");
+  }
+
+  const switchStart = performance.now();
+  pianoTab.click();
+
+  for (let i = 0; i < 300; i++) {
+    const roll = container.querySelector(".piano-roll");
+    const grid = container.querySelector(".piano-grid");
+    if (roll && grid) break;
+    await new Promise((r) => setTimeout(r, 16));
+  }
+  await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+  await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+
+  const staffToPianoMs = performance.now() - switchStart;
+  const grid = container.querySelector(".piano-grid") as HTMLElement | null;
+  const pianoGridWidthPx = grid?.offsetWidth ?? 0;
+  const pianoNoteButtonsDom = container.querySelectorAll(".piano-note").length;
+  const pianoRollFocusable = Boolean(
+    container.querySelector(".piano-roll[tabindex='0']"),
+  );
+
+  const longTasks = (
+    window as Window & { __benchLongTasks?: { duration: number }[] }
+  ).__benchLongTasks ?? [];
+  const longTasksMs = longTasks.reduce((s, t) => s + t.duration, 0);
+
+  root.unmount();
+  container.replaceChildren();
+
+  return {
+    stats,
+    staffToPianoMs,
+    pianoNoteButtonsDom,
+    pianoGridWidthPx,
+    pianoRollFocusable,
+    longTasksMs,
+    longTaskCount: longTasks.length,
+  };
 }
 
 function benchViewportResizeLayout(
@@ -382,6 +484,7 @@ const api = {
   longReferenceStats,
   staffAbcText: staffAbc.ok ? staffAbc.abc : "",
   measureScorePanelOpen,
+  measureStaffToPianoSwitch,
   benchAbcStaffOnly,
   benchAbcStaffNoResize,
   benchPianoRollMount,
