@@ -1,3 +1,7 @@
+
+> song-maker@0.1.1 bench:score-tab /workspace
+> node --import tsx scripts/bench-score-tab.mts
+
 {
   "capturedAt": "2026-10-01T02:14:09.045Z",
   "microbenches": {

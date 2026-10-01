@@ -17,7 +17,8 @@ La sortie JSON est écrite dans `bench/score-tab-last.json` et affichée sur std
 3. Mesures :
    - **Long Tasks** (`PerformanceObserver`, seuil navigateur 50 ms)
    - **ouverture → portée visible** : jusqu’à la présence du SVG abcjs (référence + partition longue ~8×)
-   - Micro-bancs : `abcjs.renderAbc` avec / sans `responsive: "resize"`, reflow SVG forcé, rafales `resize` post-ouverture
+   - **bascule portée → piano roll** : clic `#score-view-piano` après rendu portée ; temps jusqu’à grille focusable + nombre de boutons `.piano-note` dans le DOM
+   - Micro-bancs : `abcjs.renderAbc` avec / sans `responsive: "resize"`, reflow SVG forcé, montage `PianoRoll` (reflow grille), rafales `resize` post-ouverture
 
 ## Interprétation (profil attributif)
 

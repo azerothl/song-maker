@@ -103,6 +103,32 @@ async function main() {
       return el ? JSON.parse(el.textContent ?? "{}") : null;
     });
 
+    await page.evaluate(() => {
+      const w = window as Window & { __benchLongTasks?: { duration: number }[] };
+      w.__benchLongTasks = [];
+    });
+    const staffToPianoRef = await page.evaluate(async () => {
+      const api = window.__scoreTabBench;
+      if (!api) throw new Error("bench API missing");
+      return await api.measureStaffToPianoSwitch(
+        api.referenceDoc,
+        "Bench reference",
+      );
+    });
+
+    await page.evaluate(() => {
+      const w = window as Window & { __benchLongTasks?: { duration: number }[] };
+      w.__benchLongTasks = [];
+    });
+    const staffToPianoLong = await page.evaluate(async () => {
+      const api = window.__scoreTabBench;
+      if (!api) throw new Error("bench API missing");
+      return await api.measureStaffToPianoSwitch(
+        api.longReferenceDoc,
+        "Bench long reference",
+      );
+    });
+
     await browser.close();
 
     const report = {
@@ -110,6 +136,8 @@ async function main() {
       microbenches: micro,
       scorePanelOpen: full,
       scorePanelOpenLong: longOpen,
+      staffToPiano: staffToPianoRef,
+      staffToPianoLong: staffToPianoLong,
     };
 
     mkdirSync(outDir, { recursive: true });
