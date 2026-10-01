@@ -75,6 +75,8 @@ export function PianoRoll({ document, onChange, onError }: Props) {
   const [voiceId, setVoiceId] = useState<string | null>(defaultVoice);
   const voice = document.voices.find((v) => v.id === voiceId) ?? null;
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [focusedNoteId, setFocusedNoteId] = useState<string | null>(null);
+  const focusedNoteIdRef = useRef<string | null>(null);
   const [sectionKind, setSectionKind] = useState<SectionKind>("verse");
   const [pendingQuantize, setPendingQuantize] = useState(false);
   const [chordSymbol, setChordSymbol] = useState("C");
@@ -89,11 +91,20 @@ export function PianoRoll({ document, onChange, onError }: Props) {
   const selectedNote = voice?.notes.find((n) => n.id === selectedId) ?? null;
   const auditionRef = useRef<SoftSynth | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const [hScroll, setHScroll] = useState({ left: 0, width: 900 });
 
   const syncScrollViewport = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
+    const active = globalThis.document.activeElement;
+    if (
+      active instanceof HTMLButtonElement &&
+      active.classList.contains("piano-note") &&
+      active.dataset.noteId
+    ) {
+      focusedNoteIdRef.current = active.dataset.noteId;
+    }
     setHScroll({ left: el.scrollLeft, width: el.clientWidth || 900 });
   }, []);
 
@@ -121,17 +132,42 @@ export function PianoRoll({ document, onChange, onError }: Props) {
   }, [document, voiceId]);
 
   useEffect(() => {
+    focusedNoteIdRef.current = null;
+    setFocusedNoteId(null);
+  }, [voiceId]);
+
+  const handleNoteFocus = useCallback((noteId: string) => {
+    focusedNoteIdRef.current = noteId;
+    setFocusedNoteId(noteId);
+  }, []);
+
+  useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     syncScrollViewport();
+
+    const onFocusIn = (e: Event) => {
+      const target = e.target;
+      if (
+        target instanceof HTMLButtonElement &&
+        target.classList.contains("piano-note") &&
+        target.dataset.noteId
+      ) {
+        focusedNoteIdRef.current = target.dataset.noteId;
+        setFocusedNoteId(target.dataset.noteId);
+      }
+    };
+
     const onScroll = () => {
       requestAnimationFrame(syncScrollViewport);
     };
     el.addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("focusin", onFocusIn, true);
     const ro = new ResizeObserver(() => syncScrollViewport());
     ro.observe(el);
     return () => {
       el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("focusin", onFocusIn, true);
       ro.disconnect();
     };
   }, [syncScrollViewport]);
@@ -157,9 +193,12 @@ export function PianoRoll({ document, onChange, onError }: Props) {
         hScroll.left,
         hScroll.width,
         PX_PER_TICK,
-        { selectedId },
+        {
+          selectedId,
+          focusedId: focusedNoteIdRef.current ?? focusedNoteId,
+        },
       ),
-    [voice?.notes, hScroll.left, hScroll.width, selectedId],
+    [voice?.notes, hScroll.left, hScroll.width, selectedId, focusedNoteId],
   );
 
   const visibleSections = useMemo(
@@ -656,10 +695,12 @@ export function PianoRoll({ document, onChange, onError }: Props) {
         onClick={onCanvasClick}
       >
         <div
+          ref={gridRef}
           className="piano-grid"
           style={{ width, height }}
           data-piano-visible-notes={visibleNotes.length}
           data-piano-total-notes={voice?.notes.length ?? 0}
+          data-piano-focused-pin={focusedNoteId ?? ""}
         >
           {Array.from({ length: PITCH_MAX - PITCH_MIN + 1 }, (_, i) => {
             const pitch = PITCH_MAX - i;
@@ -684,6 +725,7 @@ export function PianoRoll({ document, onChange, onError }: Props) {
             <button
               type="button"
               key={n.id}
+              data-note-id={n.id}
               className={
                 n.id === selectedId ? "piano-note selected" : "piano-note"
               }
@@ -694,6 +736,7 @@ export function PianoRoll({ document, onChange, onError }: Props) {
                 height: ROW_H - 2,
                 opacity: 0.55 + (n.velocity / 127) * 0.45,
               }}
+              onFocus={() => handleNoteFocus(n.id)}
               onPointerDown={(e) =>
                 onNotePointerDown(e, n.id, n.startTick, n.pitch)
               }

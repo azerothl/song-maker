@@ -26,6 +26,19 @@ describe("pianoRollViewport", () => {
     assert.deepEqual(visible.map((n) => n.id), ["near", "far"]);
   });
 
+  it("filterNotesInPianoViewport garde la note au focus hors fenêtre", () => {
+    const notes = [
+      { id: "near", startTick: 10_000, durationTick: 480 },
+      { id: "far", startTick: 4_000_000, durationTick: 480 },
+    ];
+    const scrollLeft = 10_000 * 0.04;
+    const visible = filterNotesInPianoViewport(notes, scrollLeft, 800, 0.04, {
+      focusedId: "far",
+      overscanPx: 0,
+    });
+    assert.deepEqual(visible.map((n) => n.id).sort(), ["far", "near"]);
+  });
+
   it("filterNotesInPianoViewport fenêtre horizontale avec overscan", () => {
     const notes = [
       { id: "in", startTick: 1000, durationTick: 480 },

@@ -477,6 +477,139 @@ function benchAbcResizeStorm(abc: string, passes = 5): BenchPhaseResult[] {
   return phases;
 }
 
+export type PianoFocusScrollProbe = {
+  partition: string;
+  focusedNoteId: string;
+  activeNoteId: string | null;
+  activeElementIsBody: boolean;
+  focusKeptOnNote: boolean;
+  activeBeforeScroll: boolean;
+  noteStillMounted: boolean;
+};
+
+export type PianoRollFocusStealProbe = {
+  focusOnRoll: boolean;
+  activeElementTag: string;
+};
+
+async function waitPianoRollNotes(container: ParentNode): Promise<void> {
+  for (let i = 0; i < 120; i++) {
+    if (container.querySelectorAll(".piano-note").length > 0) return;
+    await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+  }
+  throw new Error("piano notes not mounted");
+}
+
+async function waitAnimationFrames(count: number): Promise<void> {
+  for (let i = 0; i < count; i++) {
+    await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+  }
+}
+
+async function probePianoNoteFocusAfterScroll(
+  scoreDoc: ScoreDocument,
+  partition: string,
+): Promise<PianoFocusScrollProbe> {
+  document
+    .querySelectorAll("#bench-piano-focus-root, #bench-staff-piano-root")
+    .forEach((el) => el.remove());
+  const container = document.createElement("div");
+  container.id = "bench-piano-focus-root";
+  container.style.width = "900px";
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  root.render(
+    <PianoRoll document={scoreDoc} onChange={() => {}} onError={() => {}} />,
+  );
+  await waitPianoRollNotes(container);
+
+  const scrollEl = container.querySelector(".piano-scroll") as HTMLElement;
+  const firstNote = container.querySelector(
+    ".piano-note",
+  ) as HTMLButtonElement | null;
+  if (!scrollEl || !firstNote) {
+    root.unmount();
+    container.remove();
+    throw new Error("piano roll scroll or note missing");
+  }
+
+  const focusedNoteId = firstNote.dataset.noteId ?? "";
+  firstNote.focus();
+  await waitAnimationFrames(8);
+  scrollEl.dispatchEvent(new Event("scroll", { bubbles: true }));
+  await waitAnimationFrames(8);
+  const activeBeforeScroll = document.activeElement === firstNote;
+  scrollEl.scrollLeft = scrollEl.scrollWidth;
+  scrollEl.dispatchEvent(new Event("scroll", { bubbles: true }));
+  for (let i = 0; i < 180; i++) {
+    const active = document.activeElement as HTMLElement | null;
+    if (active?.dataset?.noteId === focusedNoteId) break;
+    await waitAnimationFrames(1);
+  }
+
+  const active = document.activeElement as HTMLElement | null;
+  const activeNoteId =
+    active instanceof HTMLButtonElement && active.classList.contains("piano-note")
+      ? active.dataset.noteId ?? null
+      : null;
+  const noteStillMounted = Boolean(
+    container.querySelector(`button.piano-note[data-note-id="${focusedNoteId}"]`),
+  );
+  const result: PianoFocusScrollProbe = {
+    partition,
+    focusedNoteId,
+    activeNoteId,
+    activeElementIsBody: active === document.body,
+    focusKeptOnNote: activeNoteId === focusedNoteId,
+    activeBeforeScroll,
+    noteStillMounted,
+  };
+
+  root.unmount();
+  container.remove();
+  return result;
+}
+
+async function probePianoRollFocusNotStolenOnScroll(
+  scoreDoc: ScoreDocument,
+): Promise<PianoRollFocusStealProbe> {
+  document
+    .querySelectorAll("#bench-piano-focus-root, #bench-staff-piano-root")
+    .forEach((el) => el.remove());
+  const container = document.createElement("div");
+  container.id = "bench-piano-focus-root";
+  container.style.width = "900px";
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  root.render(
+    <PianoRoll document={scoreDoc} onChange={() => {}} onError={() => {}} />,
+  );
+  await waitPianoRollNotes(container);
+
+  const scrollEl = container.querySelector(".piano-scroll") as HTMLElement;
+  const roll = container.querySelector(".piano-roll") as HTMLElement | null;
+  if (!scrollEl || !roll) {
+    root.unmount();
+    container.remove();
+    throw new Error("piano roll missing");
+  }
+
+  roll.focus();
+  await waitAnimationFrames(4);
+  scrollEl.scrollLeft = 12_000;
+  scrollEl.dispatchEvent(new Event("scroll", { bubbles: true }));
+  await waitAnimationFrames(30);
+
+  const result: PianoRollFocusStealProbe = {
+    focusOnRoll: document.activeElement === roll,
+    activeElementTag: document.activeElement?.tagName ?? "",
+  };
+
+  root.unmount();
+  container.remove();
+  return result;
+}
+
 const api = {
   referenceDoc,
   longReferenceDoc,
@@ -485,6 +618,8 @@ const api = {
   staffAbcText: staffAbc.ok ? staffAbc.abc : "",
   measureScorePanelOpen,
   measureStaffToPianoSwitch,
+  probePianoNoteFocusAfterScroll,
+  probePianoRollFocusNotStolenOnScroll,
   benchAbcStaffOnly,
   benchAbcStaffNoResize,
   benchPianoRollMount,

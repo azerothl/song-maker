@@ -21,15 +21,21 @@ export function filterNotesInPianoViewport<T extends PianoNoteLike>(
   scrollLeft: number,
   viewportWidth: number,
   pxPerTick: number,
-  opts?: { selectedId?: string | null; overscanPx?: number },
+  opts?: {
+    selectedId?: string | null;
+    focusedId?: string | null;
+    overscanPx?: number;
+  },
 ): T[] {
   const overscanPx = opts?.overscanPx ?? PIANO_ROLL_NOTE_OVERSCAN_PX;
   const winLeft = scrollLeft - overscanPx;
   const winRight = scrollLeft + viewportWidth + overscanPx;
   const selectedId = opts?.selectedId ?? null;
+  const focusedId = opts?.focusedId ?? null;
 
   return notes.filter((n) => {
     if (selectedId && n.id === selectedId) return true;
+    if (focusedId && n.id === focusedId) return true;
     const { left, right } = noteHorizontalSpanPx(
       n.startTick,
       n.durationTick,
