@@ -8,7 +8,8 @@ import {
 } from "../dev/captureViteServer.ts";
 import type { ViteDevServer } from "vite";
 
-const PORT = 5198;
+/** Port distinct de `profileSelectorCollapsed.behavior` (5198) et du bench score-tab (5199). */
+const PORT = 5201;
 const BASE = captureBaseUrl(PORT, "score-tab-bench.html");
 const IT_TIMEOUT_MS = 120_000;
 

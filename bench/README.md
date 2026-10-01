@@ -8,7 +8,7 @@ pnpm bench:score-tab
 
 Prérequis : Chromium Playwright (`pnpm exec playwright install chromium` une fois).
 
-La sortie JSON est écrite dans `bench/score-tab-last.json` et affichée sur stdout.
+La sortie JSON est écrite dans `bench/score-tab-last.json` (gitignoré) et affichée sur stdout. Ne pas committer les JSON de bench.
 
 ## Scénario
 

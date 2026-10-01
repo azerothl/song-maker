@@ -145,6 +145,7 @@ export function PianoRoll({ document, onChange, onError }: Props) {
     const el = scrollRef.current;
     if (!el) return;
     syncScrollViewport();
+    let scrollRaf = 0;
 
     const onFocusIn = (e: Event) => {
       const target = e.target;
@@ -158,16 +159,42 @@ export function PianoRoll({ document, onChange, onError }: Props) {
       }
     };
 
+    const onFocusOut = (e: FocusEvent) => {
+      const leaving = e.target;
+      if (
+        !(leaving instanceof HTMLButtonElement) ||
+        !leaving.classList.contains("piano-note")
+      ) {
+        return;
+      }
+      const next = e.relatedTarget;
+      if (
+        next instanceof HTMLElement &&
+        next.classList.contains("piano-note")
+      ) {
+        return;
+      }
+      focusedNoteIdRef.current = null;
+      setFocusedNoteId(null);
+    };
+
     const onScroll = () => {
-      requestAnimationFrame(syncScrollViewport);
+      if (scrollRaf !== 0) return;
+      scrollRaf = requestAnimationFrame(() => {
+        scrollRaf = 0;
+        syncScrollViewport();
+      });
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     el.addEventListener("focusin", onFocusIn, true);
+    el.addEventListener("focusout", onFocusOut, true);
     const ro = new ResizeObserver(() => syncScrollViewport());
     ro.observe(el);
     return () => {
+      if (scrollRaf !== 0) cancelAnimationFrame(scrollRaf);
       el.removeEventListener("scroll", onScroll);
       el.removeEventListener("focusin", onFocusIn, true);
+      el.removeEventListener("focusout", onFocusOut, true);
       ro.disconnect();
     };
   }, [syncScrollViewport]);
@@ -698,9 +725,6 @@ export function PianoRoll({ document, onChange, onError }: Props) {
           ref={gridRef}
           className="piano-grid"
           style={{ width, height }}
-          data-piano-visible-notes={visibleNotes.length}
-          data-piano-total-notes={voice?.notes.length ?? 0}
-          data-piano-focused-pin={focusedNoteId ?? ""}
         >
           {Array.from({ length: PITCH_MAX - PITCH_MIN + 1 }, (_, i) => {
             const pitch = PITCH_MAX - i;
