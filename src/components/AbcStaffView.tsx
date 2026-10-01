@@ -55,6 +55,10 @@ export type AbcStaffViewProps = {
   /** Optional warnings from export / abcjs. */
   warnings?: string[];
   compact?: boolean;
+  /** When the ABC header omits M:/Q:, derive bar length from the score tempo. */
+  fallbackBarDurationSeconds?: number;
+  /** ABC already sanitized by `buildStaffAbc` (skip duplicate pass). */
+  abcPrepared?: boolean;
 };
 
 function clearHighlights(root: HTMLElement | null) {
@@ -119,6 +123,8 @@ export function AbcStaffView({
   onSeek,
   warnings = [],
   compact = false,
+  fallbackBarDurationSeconds,
+  abcPrepared = false,
 }: AbcStaffViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const paperRef = useRef<HTMLDivElement>(null);
@@ -167,8 +173,9 @@ export function AbcStaffView({
   const deferredAbc = useDeferredValue(abc);
   const isStale = deferredAbc !== abc;
   const staffAbc = useMemo(
-    () => sanitizeAbcForStaffRender(deferredAbc),
-    [deferredAbc],
+    () =>
+      abcPrepared ? deferredAbc : sanitizeAbcForStaffRender(deferredAbc),
+    [deferredAbc, abcPrepared],
   );
 
   const [scale, setScale] = useState(1);
@@ -186,10 +193,18 @@ export function AbcStaffView({
   });
 
   const split = useMemo(() => splitAbcMeasures(staffAbc), [staffAbc]);
-  const barSeconds = useMemo(
-    () => abcBarDurationSeconds(split.header),
-    [split.header],
-  );
+  const barSeconds = useMemo(() => {
+    const fromHeader = abcBarDurationSeconds(split.header);
+    if (fromHeader != null) return fromHeader;
+    if (
+      fallbackBarDurationSeconds != null &&
+      Number.isFinite(fallbackBarDurationSeconds) &&
+      fallbackBarDurationSeconds > 0
+    ) {
+      return fallbackBarDurationSeconds;
+    }
+    return null;
+  }, [split.header, fallbackBarDurationSeconds]);
 
   const windowing =
     split.windowable &&
@@ -232,8 +247,8 @@ export function AbcStaffView({
             minRenderBars: compact ? 12 : 20,
             maxRenderBars: compact ? 40 : 56,
           });
-    return sliceAbcMeasures(staffAbc, renderStart, renderCount);
-  }, [staffAbc, windowing, scrollWindow, split.barCount, compact]);
+    return sliceAbcMeasures(staffAbc, renderStart, renderCount, split);
+  }, [staffAbc, windowing, scrollWindow, split, compact]);
 
   const windowOffsetSeconds =
     windowing && barSeconds != null
@@ -292,7 +307,7 @@ export function AbcStaffView({
     if (scroll) scroll.scrollTop = 0;
   }, [staffAbc, scale]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!windowing) return;
     applyScrollWindow();
   }, [windowing, applyScrollWindow]);

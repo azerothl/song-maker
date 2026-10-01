@@ -23,6 +23,7 @@ import { ProductionAssistPanel } from "../../components/ProductionAssistPanel";
 import { RecordTrackPanel } from "../../components/RecordTrackPanel";
 import { ProductionAddTrackMenu } from "../../components/production/ProductionAddTrackMenu";
 import { ProductionTrackTools } from "../../components/production/ProductionTrackTools";
+import { MixBakeStatusIndicator } from "../../components/MixBakeStatusIndicator";
 import { PlaybackTime } from "../../components/PlaybackTime";
 import { Waveform } from "../../components/Waveform";
 import { t } from "../../ui/i18n";
@@ -400,6 +401,11 @@ export function ProductionWorkspace({
           {productionViewIntro(productionView)}
         </p>
 
+        <MixBakeStatusIndicator
+          pending={playback?.mixBakePending ?? false}
+          failed={playback?.mixBakeFailed ?? false}
+          className="production-mix-bake-chrome"
+        />
         <div className="production-page-actions">
           <ProductionAddTrackMenu
             busy={busy}

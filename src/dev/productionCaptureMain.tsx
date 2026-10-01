@@ -124,6 +124,16 @@ function ProductionCaptureApp() {
   /** Heure figée « 08:02 » pour captures Mix (suivi #203 — indépendant de l’horloge machine). */
   const [mixSavedAt] = useState(() => new Date(2026, 0, 1, 8, 2, 0));
   const playbackDuration = 444;
+  const [mixBakeCyclePending, setMixBakeCyclePending] = useState(
+    () =>
+      capturePrefs.mixBakeIndicator || capturePrefs.mixBakeIndicatorCycle,
+  );
+  useEffect(() => {
+    if (!capturePrefs.mixBakeIndicatorCycle) return;
+    setMixBakeCyclePending(true);
+    const endPending = window.setTimeout(() => setMixBakeCyclePending(false), 400);
+    return () => window.clearTimeout(endPending);
+  }, [capturePrefs.mixBakeIndicatorCycle]);
 
   const playback = useMemo((): PlaybackView => {
     const peaksByTrack: Record<string, Float32Array> = {};
@@ -142,8 +152,17 @@ function ProductionCaptureApp() {
       playing: capturePrefs.midPlayback,
       loading: false,
       ready: true,
+      mixBakePending: capturePrefs.mixBakeIndicator || mixBakeCyclePending,
+      mixBakeFailed: false,
     };
-  }, [mix, capturePrefs.midPlayback, capturePrefs.progressRatio]);
+  }, [
+    mix,
+    capturePrefs.midPlayback,
+    capturePrefs.progressRatio,
+    capturePrefs.mixBakeIndicator,
+    capturePrefs.mixBakeIndicatorCycle,
+    mixBakeCyclePending,
+  ]);
 
   return (
     <div

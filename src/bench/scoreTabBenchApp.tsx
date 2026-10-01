@@ -5,6 +5,10 @@ import { ScorePanel } from "../components/ScorePanel";
 import { PianoRoll } from "../components/PianoRoll";
 import { AbcStaffView } from "../components/AbcStaffView";
 import { buildStaffAbc } from "../lib/staffAbc";
+import {
+  buildPianoNotesIndex,
+  filterNotesInPianoViewportIndexed,
+} from "../lib/pianoRollViewport";
 import type { ScoreDocument } from "@song-maker/score-engine";
 import {
   buildLongReferenceScoreDocument,
@@ -123,9 +127,9 @@ async function measureScorePanelOpen(
   title: string,
 ): Promise<BenchRunResult> {
   const phases: BenchPhaseResult[] = [];
-  const openStart = performance.now();
-  const staffBuilt = buildStaffAbc(scoreDoc, title);
   const stats = referenceScoreStats(scoreDoc);
+  const staffBuilt = buildStaffAbc(scoreDoc, title);
+  const openStart = performance.now();
 
   const container = document.getElementById("bench-score-panel-root");
   if (!container) {
@@ -492,6 +496,19 @@ export type PianoRollFocusStealProbe = {
   activeElementTag: string;
 };
 
+export type PianoScrollCostProbe = {
+  partition: string;
+  noteCount: number;
+  frames: number;
+  totalScriptMs: number;
+  meanScriptMs: number;
+  maxScriptMs: number;
+  visibleNoteCounts: number[];
+  visibleDomChanges: number;
+  indexedFilterTotalMs: number;
+  indexedFilterMeanMs: number;
+};
+
 export type PianoFocusBlurReleaseProbe = {
   focusedNoteId: string;
   noteStillMountedAfterBlurScroll: boolean;
@@ -510,6 +527,94 @@ async function waitAnimationFrames(count: number): Promise<void> {
   for (let i = 0; i < count; i++) {
     await new Promise((r) => requestAnimationFrame(() => r(undefined)));
   }
+}
+
+async function measurePianoScrollCost(
+  scoreDoc: ScoreDocument,
+  partition: string,
+  frames = 240,
+): Promise<PianoScrollCostProbe> {
+  document
+    .querySelectorAll("#bench-piano-focus-root, #bench-staff-piano-root")
+    .forEach((el) => el.remove());
+  const container = document.createElement("div");
+  container.id = "bench-piano-focus-root";
+  container.style.width = "900px";
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  root.render(
+    <PianoRoll document={scoreDoc} onChange={() => {}} onError={() => {}} />,
+  );
+  await waitPianoRollNotes(container);
+
+  const scrollEl = container.querySelector(".piano-scroll") as HTMLElement | null;
+  if (!scrollEl) {
+    root.unmount();
+    container.remove();
+    throw new Error("piano scroll missing");
+  }
+
+  const maxLeft = Math.max(0, scrollEl.scrollWidth - scrollEl.clientWidth);
+  /** Pas réaliste (~60 px) : le bench Alphonse mesurait le coût script, pas un seek plein-écran. */
+  const stepPx = 60;
+  const samples: number[] = [];
+  const visibleNoteCounts: number[] = [];
+  let left = 0;
+  let visibleChanges = 0;
+  let lastVisible = -1;
+
+  for (let i = 0; i < frames; i++) {
+    left = Math.min(maxLeft, left + stepPx);
+    const t0 = performance.now();
+    scrollEl.scrollLeft = left;
+    scrollEl.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        samples.push(performance.now() - t0);
+        resolve();
+      });
+    });
+    await waitAnimationFrames(1);
+    const count = container.querySelectorAll(".piano-note").length;
+    if (count !== lastVisible) {
+      visibleChanges += 1;
+      lastVisible = count;
+    }
+    visibleNoteCounts.push(count);
+  }
+
+  // Microbench filtre indexé (sans React) — même fenêtres que le scroll.
+  const notes = scoreDoc.voices.flatMap((v) => v.notes);
+  const index = buildPianoNotesIndex(notes, 0.04);
+  let filterMs = 0;
+  for (let i = 0; i < frames; i++) {
+    const sl = Math.min(maxLeft, i * stepPx);
+    const t1 = performance.now();
+    filterNotesInPianoViewportIndexed(index, sl, scrollEl.clientWidth || 900);
+    filterMs += performance.now() - t1;
+  }
+
+  const totalScriptMs = samples.reduce((a, b) => a + b, 0);
+  const result: PianoScrollCostProbe = {
+    partition,
+    noteCount: notes.length,
+    frames,
+    totalScriptMs,
+    meanScriptMs: totalScriptMs / frames,
+    maxScriptMs: Math.max(...samples),
+    visibleNoteCounts: [
+      visibleNoteCounts[0] ?? 0,
+      visibleNoteCounts[Math.floor(frames / 2)] ?? 0,
+      visibleNoteCounts[frames - 1] ?? 0,
+    ],
+    visibleDomChanges: visibleChanges,
+    indexedFilterTotalMs: filterMs,
+    indexedFilterMeanMs: filterMs / frames,
+  };
+
+  root.unmount();
+  container.remove();
+  return result;
 }
 
 async function probePianoNoteFocusAfterScroll(
@@ -679,6 +784,7 @@ const api = {
   measureStaffToPianoSwitch,
   probePianoNoteFocusAfterScroll,
   probePianoRollFocusNotStolenOnScroll,
+  measurePianoScrollCost,
   probePianoFocusedNoteReleasedOnBlur,
   benchAbcStaffOnly,
   benchAbcStaffNoResize,

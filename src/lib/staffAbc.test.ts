@@ -4,10 +4,13 @@ import {
   buildMinimalMidi,
   importMidiToScoreDocument,
 } from "@song-maker/score-engine";
+import { buildTonightAwakeFixture } from "../../packages/score-engine/src/fixtures/tonight-awake.ts";
+import type { ScoreDocument } from "./score.ts";
 import { createEmptyScoreDocument } from "./score.ts";
 import {
   abcBarDurationSeconds,
   buildStaffAbc,
+  clearStaffAbcCache,
   sanitizeAbcBarContent,
   sanitizeAbcForStaffRender,
   sliceAbcMeasures,
@@ -16,6 +19,55 @@ import {
 } from "./staffAbc.ts";
 
 describe("buildStaffAbc", () => {
+  it("met en cache le résultat pour le même objet document", () => {
+    clearStaffAbcCache();
+    const document = buildTonightAwakeFixture({ withChords: true });
+    const first = buildStaffAbc(document, "Cache");
+    const second = buildStaffAbc(document, "Cache");
+    assert.equal(first, second);
+    clearStaffAbcCache();
+  });
+
+  it("ne réutilise pas le cache entre deux documents de même id et version (glissé piano)", () => {
+    clearStaffAbcCache();
+    const captured = buildTonightAwakeFixture({ withChords: true });
+    const staleBase: ScoreDocument = { ...captured, version: 5 };
+    const vocal = staleBase.voices[0];
+    const note = vocal?.notes[0];
+    assert.ok(vocal && note);
+
+    const bumpPitch = (semitones: number): ScoreDocument => ({
+      ...staleBase,
+      version: 6,
+      voices: [
+        {
+          ...vocal,
+          notes: vocal.notes.map((n) =>
+            n.id === note.id ? { ...n, pitch: note.pitch + semitones } : n,
+          ),
+        },
+        ...staleBase.voices.slice(1),
+      ],
+    });
+
+    const afterMove1 = bumpPitch(2);
+    const afterMove2 = bumpPitch(5);
+    assert.equal(afterMove1.version, afterMove2.version);
+    assert.equal(afterMove1.id, afterMove2.id);
+
+    const abcMove1 = buildStaffAbc(afterMove1, "Glissé");
+    const abcMove2 = buildStaffAbc(afterMove2, "Glissé");
+    assert.equal(abcMove1.ok, true);
+    assert.equal(abcMove2.ok, true);
+    if (!abcMove1.ok || !abcMove2.ok) return;
+    assert.notEqual(
+      abcMove1.abc,
+      abcMove2.abc,
+      "même clé id+version renverrait l'ABC du premier glissé",
+    );
+    clearStaffAbcCache();
+  });
+
   it("exporte une portée depuis un MIDI minimal", () => {
     const midi = buildMinimalMidi({
       ppq: 960,

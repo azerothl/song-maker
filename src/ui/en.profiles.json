@@ -142,6 +142,9 @@
   "firstLaunch.error.other.messageFallback": "An error occurred.",
   "firstLaunch.error.other.step1": "Check the connection and disk space.",
   "firstLaunch.error.other.step2": "Click “Resume download”.",
+  "player.mixBakePending": "Rendering mix…",
+  "player.mixBakeDone": "Mix updated",
+  "player.mixBakeFailed": "Mix rendering failed.",
   "firstLaunch.eyebrow": "First install",
   "firstLaunch.loading.lead": "Checking required components…",
   "firstLaunch.gpu.title": "Let’s set up Song Maker",
@@ -215,5 +218,7 @@
   "firstLaunch.noGpu.opt3.li2": "Can be changed later in Settings",
   "firstLaunch.noGpu.opt3.cta": "Continue without generation",
   "firstLaunch.noGpu.noteNoModel": "No large model will be downloaded without your consent.",
-  "firstLaunch.noGpu.noteDetect": "Detection: {detail}"
+  "firstLaunch.noGpu.noteDetect": "Detection: {detail}",
+  "score.staff.loading": "Loading the staff…",
+  "score.staff.loadingRegion": "Staff loading"
 }

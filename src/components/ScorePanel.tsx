@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CotProfile, ScoreDocument, ScoreIssue } from "../lib/score";
 import {
   createEmptyScoreDocument,
@@ -55,6 +55,41 @@ function scoreViewLabel(mode: ScoreViewMode): string {
   }
 }
 
+/** Squelette réservé (CLS 0) + annonce lecteurs d’écran pendant le gel d’ouverture (#249). */
+function ScoreStaffSkeleton() {
+  return (
+    <div
+      className="abc-staff-view score-staff-skeleton"
+      aria-busy="true"
+      aria-label={t("score.staff.loadingRegion")}
+      data-score-staff-skeleton=""
+    >
+      <p className="sr-only" role="status" aria-live="polite">
+        {t("score.staff.loading")}
+      </p>
+      <div
+        className="abc-staff-toolbar score-staff-skeleton-toolbar"
+        aria-hidden="true"
+      >
+        <span className="score-staff-skeleton-chip" />
+        <span className="score-staff-skeleton-chip" />
+        <span className="score-staff-skeleton-chip wide" />
+      </div>
+      <div
+        className="abc-staff-scroll score-staff-skeleton-scroll"
+        aria-hidden="true"
+      >
+        <div className="score-staff-skeleton-bars">
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ScorePanel({
   projectId,
   document,
@@ -80,9 +115,18 @@ export function ScorePanel({
 
   const [status, setStatus] = useState<string | null>(null);
   const [branchRefresh, setBranchRefresh] = useState(0);
+  /** Après 2 rAF : laisse peindre le squelette avant buildStaffAbc / abcjs (#249). */
+  const [staffHeavyReady, setStaffHeavyReady] = useState(false);
+  const forceStaffSkeleton =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("staffSkeleton");
   const settings = useAppStore((s) => s.settings);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
   const latencyMs = settings?.audioLatencyMs ?? 20;
+  const needsStaffAbc = viewMode === "staff" || viewMode === "abc";
+  const documentKey = document
+    ? `${document.id}:${document.version}`
+    : null;
 
   async function persistLatency(ms: number) {
     if (!settings) return;
@@ -115,10 +159,38 @@ export function ScorePanel({
     return validateScoreForGeneration(document, cot);
   }, [document, cot]);
 
+  useEffect(() => {
+    if (forceStaffSkeleton || !document || !needsStaffAbc) {
+      setStaffHeavyReady(false);
+      return;
+    }
+    setStaffHeavyReady(false);
+    let cancelled = false;
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        if (!cancelled) setStaffHeavyReady(true);
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf1);
+      if (raf2 !== 0) cancelAnimationFrame(raf2);
+    };
+  }, [document, documentKey, needsStaffAbc, forceStaffSkeleton]);
+
   const staffAbc = useMemo(() => {
-    if (!document) return null;
+    if (!document || !staffHeavyReady || forceStaffSkeleton) return null;
     return buildStaffAbc(document, title || undefined);
-  }, [document, title]);
+  }, [document, title, staffHeavyReady, forceStaffSkeleton]);
+
+  const staffBarDurationSeconds = useMemo(() => {
+    if (!document) return undefined;
+    const quarterBpm = document.tempoMap[0]?.quarterBpm;
+    const ts = document.timeSignatures[0];
+    if (!quarterBpm || !ts?.numerator || !ts.denominator) return undefined;
+    return ((ts.numerator * 4) / ts.denominator) * (60 / quarterBpm);
+  }, [document]);
 
   async function persist(doc: ScoreDocument) {
     setBusy(true);
@@ -404,18 +476,22 @@ export function ScorePanel({
           >
             {/* Mount staff only when visible: abcjs SVG work is the open-tab cost. */}
             {viewMode === "staff" &&
-              (staffAbc?.ok ? (
+              (!staffHeavyReady || !staffAbc ? (
+                <ScoreStaffSkeleton />
+              ) : staffAbc.ok ? (
                 <AbcStaffView
                   abc={staffAbc.abc}
                   warnings={staffAbc.warnings}
                   playbackSeconds={playbackSeconds}
                   playbackReady={playbackReady}
                   onSeek={onSeekPlayback}
+                  fallbackBarDurationSeconds={staffBarDurationSeconds}
+                  abcPrepared
                 />
               ) : (
                 <div className="score-staff-fallback">
                   <p className="hint" role="alert">
-                    {staffAbc?.error ?? t("score.staff.unavailable")}
+                    {staffAbc.error ?? t("score.staff.unavailable")}
                   </p>
                   <p className="hint">{t("score.staff.switchPiano")}</p>
                   <button
@@ -467,7 +543,11 @@ export function ScorePanel({
             hidden={viewMode !== "abc"}
           >
             {viewMode === "abc" &&
-              (staffAbc?.ok ? (
+              (!staffHeavyReady || !staffAbc ? (
+                <p className="hint" role="status" aria-live="polite">
+                  {t("score.staff.loading")}
+                </p>
+              ) : staffAbc.ok ? (
                 <AbcRawPreview abc={staffAbc.abc} />
               ) : abcPreview ? (
                 <AbcRawPreview abc={abcPreview} />
