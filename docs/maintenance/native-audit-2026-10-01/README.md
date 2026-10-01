@@ -41,7 +41,7 @@ Le recalcul à l'ouverture du projet retarde la navigation ; le temps exact n'a 
 
 La vérification native du 1er octobre s'est poursuivie sur un mix réel de 6 min 54 s, à zoom 1. Une seule ligne porte désormais le clip et les commandes gain/pan/Muet/Solo/outils. Les sept pistes du projet sont accessibles dans leurs groupes. Le popover de la piste Voix a été ouvert, sa bascule d'automation atteinte par défilement, la courbe dépliée, le popover fermé avec Échap, puis la courbe repliée. Aucun point n'a été ajouté ni aucune valeur modifiée pendant cette séquence. Le SHA-256 du mix JSON est resté `a240af3e659d96847175f0418a83cea5425a7b57ea22325fc6c6554571b86b39`.
 
-Le chevauchement des numéros de mesures sur les morceaux longs a été observé dans la fenêtre maximisée et consigné dans #271. Après correction, les libellés sont espacés dans la fenêtre restaurée à environ 1280×830. Les captures avant/après ont donc des dimensions différentes : elles documentent l'utilisation native, sans constituer une comparaison pixel à pixel.
+Le chevauchement des numéros de mesures sur les morceaux longs a été observé dans la fenêtre maximisée et consigné dans #271. Après correction, les libellés sont espacés dans la fenêtre restaurée à environ 1280×830. La capture enregistrée du défaut initial était un fragment annexe et a été écartée. Seule la capture native après correction est conservée ; aucune comparaison pixel à pixel avant/après n'est revendiquée.
 
 - `shared-axis-dense-ruler-before.jpg` : chevauchement des graduations avant correction.
 - `shared-axis-native-after.jpg` : règle lisible, clip réel et courbe vide sous sa piste sur le même axe.
