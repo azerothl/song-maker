@@ -7,6 +7,10 @@ import { ensureProductionOverlay, normalizeProductionOverlay, setProductionDiskP
 import { exportProjectAudio } from "../lib/exportMix";
 import { generateScoreOnly, renderNFromScore } from "../lib/scoreOnlyApi";
 import { importAbcText, prepareAbcForGeneration, type ScoreDocument } from "../lib/score";
+import {
+  DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
+  type ProductionClipViewPrefs,
+} from "../lib/productionClipViewPrefs";
 import { loadInvariantBaseline } from "../lib/invariants";
 import { ProductionWorkspace } from "./song/ProductionWorkspace";
 import { ProfileKindBadge } from "../components/ProfileKindBadge";
@@ -70,6 +74,11 @@ export function SongScreen() {
     useState<AdvancedSettingsPage>(null);
   const [workspace, setWorkspace] = useState<SongWorkspace>("create");
   const [productionView, setProductionView] = useState<ProductionView>("mix");
+  const [productionClipViewPrefs, setProductionClipViewPrefs] =
+    useState<ProductionClipViewPrefs>(() => DEFAULT_PRODUCTION_CLIP_VIEW_PREFS);
+  const patchProductionClipViewPrefs = (patch: Partial<ProductionClipViewPrefs>) => {
+    setProductionClipViewPrefs((prev) => ({ ...prev, ...patch }));
+  };
   const [scoreMode, setScoreMode] = useState<ScoreMode>("edit");
   const [separationInfo, setSeparationInfo] = useState<SeparationInfo | null>(
     null,
@@ -764,6 +773,8 @@ export function SongScreen() {
             showMixAssist={showMixAssist}
             showProductionCopilot={showProductionCopilot}
             sourceDurationMsByTrack={sourceDurationMsByTrack}
+            clipViewPrefs={productionClipViewPrefs}
+            onClipViewPrefsChange={patchProductionClipViewPrefs}
           />
         )}
 

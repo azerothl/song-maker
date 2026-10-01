@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useId,
   useRef,
   useState,
   type KeyboardEvent,
@@ -65,7 +64,6 @@ export function MixKnob({
   onCommit,
   className,
 }: MixKnobProps) {
-  const labelId = useId();
   const knobRef = useRef<HTMLDivElement>(null);
   const liveRef = useRef(value);
   const [editing, setEditing] = useState(false);
@@ -200,7 +198,6 @@ export function MixKnob({
         className="mix-knob-dial"
         role="slider"
         tabIndex={0}
-        aria-labelledby={labelId}
         aria-label={ariaLabel}
         aria-valuemin={min}
         aria-valuemax={max}
@@ -241,7 +238,6 @@ export function MixKnob({
       ) : (
         <button
           type="button"
-          id={labelId}
           className="mix-knob-value"
           onClick={() => {
             setDraft(displayValue);
