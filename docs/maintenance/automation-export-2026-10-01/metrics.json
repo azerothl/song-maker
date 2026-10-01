@@ -1,0 +1,28 @@
+{
+  "evidence": "Two exports triggered in native Tauri UI, same synthetic 22 second mix; only automation volume changed from -6 to 0 dB",
+  "minus6": {
+    "name": "export-20261001T105219Z.wav",
+    "channels": 2,
+    "sampleRate": 48000,
+    "bits": 24,
+    "frames": 1056000,
+    "durationSec": 22,
+    "rms": 0.02046187015573674,
+    "peak": 0.032445669174194336,
+    "sha256": "31749d86b20cadd70b9041e2c51a31917ae222423b1e0470b68e9e168c3e81c1"
+  },
+  "zero": {
+    "name": "export-20261001T105402Z.wav",
+    "channels": 2,
+    "sampleRate": 48000,
+    "bits": 24,
+    "frames": 1056000,
+    "durationSec": 22,
+    "rms": 0.04082679864030406,
+    "peak": 0.06473755836486816,
+    "sha256": "087dc54ee848a314c7ac97e68514b20e2e709227b3ec841c3462b413efb5f5f2"
+  },
+  "expectedAmplitudeRatio": 0.5011872336272722,
+  "measuredRmsRatio": 0.5011872308679344,
+  "maxSampleError": 8.928395328546435e-8
+}
