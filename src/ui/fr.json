@@ -1,4 +1,14 @@
 {
+  "production.tempo.flagNamed": "Tempo {bpm} BPM, {time}",
+  "production.arrangement.close": "Fermer",
+
+  "production.edit.title": "Édition des clips",
+  "production.edit.select": "Sélection",
+  "production.edit.cut": "Découper",
+  "production.edit.fade": "Fondu",
+  "production.edit.select.hint": "1 : sélectionner et déplacer. Les bords rognent le clip ; les champs ci-dessous permettent une saisie en ms.",
+  "production.edit.cut.hint": "2 : cliquer pour découper. Le bouton de découpe utilise la position de lecture si elle est dans le clip, sinon son milieu.",
+  "production.edit.fade.hint": "3 : glisser dans la moitié gauche ou droite pour régler le fondu. Les champs de fondu permettent aussi une saisie en ms.",
   "app.name": "Song Maker",
   "splash.skip": "Passer",
   "nav.sidebar": "Menu principal",

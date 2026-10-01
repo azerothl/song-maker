@@ -19,6 +19,50 @@ after(async () => {
 });
 
 describe("Production commune (#223, #230)", () => {
+  it("tempo and marker panels close with Escape and return focus", async () => {
+    const page = await browser.newPage({ viewport: { width: 640, height: 720 } });
+    try {
+      await page.goto(BASE, { waitUntil: "networkidle" });
+      await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
+      const tempo = page.locator(".clip-arrangement-bar > button").first();
+      await tempo.click();
+      await page.locator(".clip-tempo-editor input").first().waitFor();
+      assert.equal(await page.locator(".clip-tempo-editor input").first().evaluate(el => el === document.activeElement), true);
+      await page.keyboard.press("Escape");
+      assert.equal(await tempo.evaluate(el => el === document.activeElement), true);
+      const markers = page.locator(".clip-arrangement-bar > button").nth(1);
+      await markers.click();
+      await page.locator(".clip-marker-editor select").waitFor();
+      await page.keyboard.press("Escape");
+      assert.equal(await markers.evaluate(el => el === document.activeElement), true);
+      assert.equal(await page.locator(".clip-tempo-lane .clip-tempo-flag").count() > 0, true);
+    } finally { await page.close(); }
+  });
+  it("editing tools switch by keyboard and Cut selects the created clip", async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    try {
+      await page.goto(BASE, { waitUntil: "networkidle" });
+      await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
+      const toolbar = page.locator(".clip-edit-toolbar");
+      const buttons = toolbar.locator("button");
+      await buttons.first().focus();
+      await page.keyboard.press("ArrowRight");
+      assert.equal(await buttons.nth(1).getAttribute("aria-pressed"), "true");
+      assert.equal(await buttons.nth(1).evaluate(el => el === document.activeElement), true);
+      const count = await page.locator(".clip-block").count();
+      await page.locator(".clip-block").first().click();
+      assert.equal(await page.locator(".clip-block").count(), count + 1);
+      assert.equal(await page.locator('.clip-block[aria-pressed="true"]').count(), 1);
+      await toolbar.scrollIntoViewIfNeeded();
+      await buttons.nth(1).focus();
+      await page.keyboard.press("End");
+      assert.equal(await buttons.nth(2).getAttribute("aria-pressed"), "true");
+      const fade = page.locator(".clip-inspector input[type=number]").nth(3);
+      await fade.fill("50");
+      await fade.press("Tab");
+      assert.equal(await fade.inputValue(), "50");
+    } finally { await page.close(); }
+  });
   it("the ruler seeks by keyboard without moving the selected clip", async () => {
     const page = await browser.newPage({ viewport: { width: 640, height: 720 } });
     try {

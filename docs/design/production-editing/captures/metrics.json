@@ -1,0 +1,180 @@
+[
+  {
+    "width": 1280,
+    "images": [
+      {
+        "path": "docs/design/production-editing/captures/editing-1280.png",
+        "sha256": "f809e0d7fd82a768e8eee96f37136d82c15dee698f8bb996be29448c77ec7928"
+      },
+      {
+        "path": "docs/design/production-editing/captures/tempo-1280.png",
+        "sha256": "761c77a870670fd410924e1695c9496c7c1eddaf82bd1e6dcc13c8b4e1901e3f"
+      },
+      {
+        "path": "docs/design/production-editing/captures/markers-1280.png",
+        "sha256": "3bcb3b178d1be9e20406d5dc17b7c1180e2effd623919ec76f12481e6a4de3b8"
+      }
+    ],
+    "geometry": [
+      {
+        "role": null,
+        "text": "Sélection",
+        "rect": {
+          "x": 208,
+          "y": 142.515625,
+          "width": 93.421875,
+          "height": 44,
+          "top": 142.515625,
+          "right": 301.421875,
+          "bottom": 186.515625,
+          "left": 208
+        }
+      },
+      {
+        "role": null,
+        "text": "Découper",
+        "rect": {
+          "x": 309.421875,
+          "y": 142.515625,
+          "width": 97.9375,
+          "height": 44,
+          "top": 142.515625,
+          "right": 407.359375,
+          "bottom": 186.515625,
+          "left": 309.421875
+        }
+      },
+      {
+        "role": null,
+        "text": "Fondu",
+        "rect": {
+          "x": 415.359375,
+          "y": 142.515625,
+          "width": 73.90625,
+          "height": 44,
+          "top": 142.515625,
+          "right": 489.265625,
+          "bottom": 186.515625,
+          "left": 415.359375
+        }
+      },
+      {
+        "role": "slider",
+        "text": "12345678910111213141516",
+        "rect": {
+          "x": 208,
+          "y": 409.90625,
+          "width": 1048,
+          "height": 44,
+          "top": 409.90625,
+          "right": 1256,
+          "bottom": 453.90625,
+          "left": 208
+        }
+      },
+      {
+        "role": null,
+        "text": "♩ 120",
+        "rect": {
+          "x": 327,
+          "y": 461.296875,
+          "width": 44.15625,
+          "height": 44,
+          "top": 461.296875,
+          "right": 371.15625,
+          "bottom": 505.296875,
+          "left": 327
+        }
+      }
+    ]
+  },
+  {
+    "width": 640,
+    "images": [
+      {
+        "path": "docs/design/production-editing/captures/editing-640.png",
+        "sha256": "f8572d50a7f7c4c62aecdeaf1211b0551ae61d5bc85bc78af6dc7c77b2fdf5da"
+      },
+      {
+        "path": "docs/design/production-editing/captures/tempo-640.png",
+        "sha256": "cff0fb68e0faec5ea6443739e3317dd76254b6d71d0369e392efccfb32d5b8fa"
+      },
+      {
+        "path": "docs/design/production-editing/captures/markers-640.png",
+        "sha256": "544c7bb1050ca3ebdf799ec5c922c460a3851e9e9f2cb0784d7097390cf62e4c"
+      }
+    ],
+    "geometry": [
+      {
+        "role": null,
+        "text": "Sélection",
+        "rect": {
+          "x": 72,
+          "y": -28.328125,
+          "width": 93.421875,
+          "height": 44,
+          "top": -28.328125,
+          "right": 165.421875,
+          "bottom": 15.671875,
+          "left": 72
+        }
+      },
+      {
+        "role": null,
+        "text": "Découper",
+        "rect": {
+          "x": 173.421875,
+          "y": -28.328125,
+          "width": 97.9375,
+          "height": 44,
+          "top": -28.328125,
+          "right": 271.359375,
+          "bottom": 15.671875,
+          "left": 173.421875
+        }
+      },
+      {
+        "role": null,
+        "text": "Fondu",
+        "rect": {
+          "x": 279.359375,
+          "y": -28.328125,
+          "width": 73.90625,
+          "height": 44,
+          "top": -28.328125,
+          "right": 353.265625,
+          "bottom": 15.671875,
+          "left": 279.359375
+        }
+      },
+      {
+        "role": "slider",
+        "text": "12345678910111213141516",
+        "rect": {
+          "x": 72,
+          "y": 410.0625,
+          "width": 552,
+          "height": 44,
+          "top": 410.0625,
+          "right": 624,
+          "bottom": 454.0625,
+          "left": 72
+        }
+      },
+      {
+        "role": null,
+        "text": "♩ 120",
+        "rect": {
+          "x": 191,
+          "y": 461.453125,
+          "width": 44.15625,
+          "height": 44,
+          "top": 461.453125,
+          "right": 235.15625,
+          "bottom": 505.453125,
+          "left": 191
+        }
+      }
+    ]
+  }
+]
