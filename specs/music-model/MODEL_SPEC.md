@@ -1,6 +1,6 @@
 # Spécification fonctionnelle et technique du modèle musical
 
-**Version :** 0.1 — conception proposée, 1er octobre 2026.<br>
+**Version :** 0.2 — conception proposée, pilote à adaptateurs confirmé, 1er octobre 2026.<br>
 **Portée :** instrumental et chant dès la V1 ; décisions générales dans [README.md](README.md).
 
 Les mots **DOIT**, **DEVRAIT** et **PEUT** indiquent respectivement une exigence de livraison, une recommandation et une option. Les chiffres de qualité et de ressources sont des cibles tant qu'un rapport d'expérience ne les confirme pas.
@@ -220,8 +220,11 @@ flowchart TD
   E --> C
   N --> C
   C --> P[Plan musical et vocal commun]
-  P --> G[Générateur audio multipiste avec masques]
+  P --> G[Diffusion partagée avec masques]
   E --> G
+  P --> Q[Routage explicite par rôle]
+  Q --> L[2 à 4 petits adaptateurs spécialisés]
+  L --> G
   G --> D[Décodage et assemblage des pistes]
   D --> V[Vérification audio et événements]
   P --> V
@@ -248,13 +251,33 @@ La voix est planifiée dès la V1 : tessiture, durée des syllabes, mélismes, z
 
 ### 7.4 Générateur audio multipiste
 
-Option principale de recherche : **Diffusion Transformer / flow matching en espace latent**, conditionné par le plan, le texte, les phonèmes et les pistes connues. Les latents sont indexés par **temps × piste × dimension**.
+**Choix confirmé pour le pilote : générateur partagé de type Diffusion Transformer en espace latent, avec 2 à 4 petits adaptateurs spécialisés**, conditionné par le plan, le texte, les phonèmes et les pistes connues. Le checkpoint, les points d'insertion des adaptateurs et l'objectif exact de diffusion ou de flow matching sont fixés dans chaque expérience. Les latents du générateur multipiste cible sont indexés par **temps × piste × dimension** ; cette représentation reste une extension à développer si le checkpoint de départ ne la possède pas.
 
 Utiliser une attention temporelle et une interaction entre pistes pour apprendre rythme, harmonie, équilibre et dépendances vocales/instrumentales. Les identifiants d'instrument et de rôle distinguent les parties ; un masque de présence permet un nombre variable de pistes.
 
 Une branche vocale spécialisée dans le même système peut recevoir phonèmes, notes, durées et expression. Elle doit participer aux conditions musicales communes et aux entraînements multipistes ; un assemblage sans alignement de systèmes indépendants ne suffit pas.
 
 Référence comparative : génération de tokens de codec avec Transformer multi-flux autorégressif ou masqué. Le choix final dépend des expériences de fidélité aux notes, isolation, inpainting, chant et coût, pas d'une préférence de vocabulaire.
+
+#### 7.4.1 Adaptateurs et routage du pilote
+
+Le générateur et le codec préentraînés sont partagés et initialement gelés. Les petits adaptateurs, par exemple LoRA, sont entraînés sur des rôles compatibles avec les données disponibles. Hypothèses de regroupement : chant, percussions, instruments harmoniques et parties mélodiques/basse ; leur nombre et leurs frontières sont ablatés. Les nouveaux encodeurs/conditionnements nécessaires aux notes et pistes restent des composants distincts à développer.
+
+Un **adaptateur spécialisé au maximum** est actif par unité de génération. Le routage initial est déterministe et explicite à partir du rôle déclaré ou de métadonnées d'analyse disponibles à l'inférence. Il ne lit aucune cible audio ou annotation réservée à l'évaluation. Pour un rôle non couvert, le chemin commun utilise la base partagée et les conditionnements communs, sans expert spécialisé ; il est annoncé et évalué comme tel.
+
+La sélection reste fixe pour cette unité pendant les étapes de diffusion et ses recouvrements. Commencer par la piste ou une fenêtre de piste lorsque cette unité existe ; un checkpoint limité au mix utilise une unité de mix documentée. Un adaptateur sélectionné pour un mix ne constitue pas une génération native par instrument. Tout changement de sélection entre fenêtres adjacentes est tracé et évalué pour les raccords et la stabilité du timbre.
+
+Les adaptateurs partagent plan, chronologie, masques et attention musicale. Le pilote ne lance pas un générateur indépendant par instrument sans contexte des autres parties. Le routage n'augmente pas implicitement la région modifiable et n'altère pas les garanties PCM de la section 5.3.
+
+Le nombre d'adaptateurs, leurs rangs, leurs points d'insertion et leur mémoire sont des paramètres mesurés ; « 2 à 4 » ne promet ni quatre instruments seulement ni une division du temps de calcul par quatre. Les entrées texte/audio/partition/MIDI restent encodées séparément, et les sorties symboliques proviennent du plan musical commun.
+
+#### 7.4.2 Évolution éventuelle vers un MoE complet
+
+Un véritable MoE interne peut remplacer certains blocs de calcul par des experts routés, avec des composants communs et l'attention entre pistes conservés. La spécialisation peut dépendre du rôle, de la tâche ou du niveau de bruit ; elle n'est pas supposée émerger automatiquement. Cette conversion est une expérience ultérieure, distincte d'un ensemble de petits adaptateurs sur une base dense.
+
+Le passage à un routage appris, puis à un MoE complet, exige le protocole comparatif du [plan d'entraînement](TRAINING_PLAN.md#71-pilote-à-adaptateurs-et-décision-moe) : gain mesuré à coût comparable, sans régression au-delà des tolérances fixées sur validation, avec ressources compatibles. Le MoE n'est pas une condition de livraison de la V1 ; conserver la base partagée est une décision valide si ce passage échoue.
+
+Le bilan inclut paramètres totaux, entraînables et actifs, tous les experts résidents, mémoire des optimisateurs, routage et nombre d'étapes de génération. Un petit nombre de paramètres actifs ne garantit ni un faible pic VRAM ni une inférence plus rapide.
 
 ### 7.5 Longue durée
 
@@ -333,7 +356,7 @@ Le résultat DOIT contenir `job_id`, `version_id`, `parent_version_id`, `model_r
 
 `constraint_report` contient pour chaque exigence : cible, mesure, tolérance, statut `passed|failed|unverified` et méthode. `unverified` ne peut pas satisfaire une contrainte stricte. Les artefacts comportent type, piste, format, hash et origine. `completed` exige tous les exports demandés, lisibles et conformes au contrat choisi.
 
-Le manifeste conserve paramètres, entrées normalisées, verrous, masques, transforms, seeds, version codec, checkpoint, runtime et précision numérique. Une seed est reproductible dans un environnement déterministe fixé ; elle ne promet pas l'identité des samples entre matériels et kernels différents.
+Le manifeste conserve paramètres, entrées normalisées, verrous, masques, transforms, seeds, version codec, checkpoint, runtime et précision numérique. Pour les variantes à adaptateurs/experts, il ajoute révisions et empreintes des adaptateurs, rangs et points d'insertion, politique de routage versionnée, correspondance rôles/adaptateurs, unités sélectionnées et recours au chemin commun. Une seed est reproductible dans un environnement déterministe fixé ; elle ne promet pas l'identité des samples entre matériels et kernels différents.
 
 ### 8.5 Erreurs prévues
 
@@ -356,6 +379,6 @@ Parcours attendu : importer/créer → choisir le mode et les invariants → lan
 
 ## 10. Livrables du modèle
 
-Poids et adaptateurs versionnés, configurations d'encodage/décodage, code d'entraînement et d'inférence, schémas de requête/résultat, convertisseurs de formats, modèle de manifeste, corpus de validation redistribuable ou recettes d'accès, model card, dataset cards et rapports d'évaluation.
+Poids et adaptateurs versionnés, configurations d'encodage/décodage et de routage, code d'entraînement et d'inférence, schémas de requête/résultat, convertisseurs de formats, modèle de manifeste, corpus de validation redistribuable ou recettes d'accès, model card, dataset cards et rapports d'évaluation. Le rapport du pilote inclut la comparaison adaptateur unique / 2 à 4 adaptateurs et la décision motivée sur la suite MoE.
 
 Chaque checkpoint annonce les tâches réellement évaluées. Un poids performant en génération libre n'est pas annoncé compatible inpainting ou cover sans validation correspondante. Les critères mesurables sont dans [ACCEPTANCE_TESTS.md](ACCEPTANCE_TESTS.md).

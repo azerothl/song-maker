@@ -1,6 +1,6 @@
 # Critères d'acceptation et validation
 
-**Version :** 0.1 — protocole proposé, 1er octobre 2026.<br>
+**Version :** 0.2 — protocole proposé, pilote à adaptateurs inclus, 1er octobre 2026.<br>
 **Statut :** aucun résultat du nouveau modèle n'a encore été mesuré.
 
 Les invariants techniques ci-dessous sont des exigences. Les seuils de qualité musicale sont des **cibles initiales à calibrer sur validation**, puis à figer avant le test final. Ils ne sont pas des performances annoncées.
@@ -32,6 +32,10 @@ La réussite d'une compilation, d'un validateur JSON ou d'un test d'export ne pr
 | T10 | Échec / annulation sans corruption | Source intacte, aucun remplacement de prise, aucun manifeste final annonçant des artefacts invalides |
 | T11 | Sorties sélectionnées sans effet sur la composition | Même génération avec mix seul puis mix+stems+score+MIDI en environnement fixé ; composition et audio identiques |
 | T12 | Zéro ambiguïté sur les capacités | Mode/checkpoint/format incompatible refusé avant génération ; statut `unverified` ne valide pas une contrainte stricte |
+| T13 | Adaptateurs et routage reproductibles | Révisions/empreintes, rangs, points d'insertion, politique et unités sélectionnées présents ; même sélection en environnement fixé, chemin commun explicite pour un rôle non couvert |
+| T14 | Routage du pilote conforme | Au maximum un adaptateur spécialisé par unité, stable pendant ses étapes de génération ; aucun accès à une cible de test, changement entre fenêtres tracé et évalué |
+
+T13 s'applique aux variantes qui utilisent des adaptateurs ou experts. T14 porte sur la politique explicite du pilote ; une future variante à routage appris ou MoE annonce et valide sa propre politique. Les invariants T01–T12 restent obligatoires pour la V1, quelle que soit l'architecture.
 
 T07 est mesuré **avant export avec perte de précision**. Pour WAV/FLAC 24 bits, comparer les échantillons protégés à une exportation de la source avec les mêmes règles de quantification. Aucun nouveau dither indépendant n'est appliqué aux zones protégées. La conservation exacte ne s'applique pas à un réencodage MP3.
 
@@ -66,6 +70,26 @@ Prévoir au moins 24 scénarios équilibrés, dont les cas ci-dessous, avec troi
 L'écoute A/B randomise les noms et l'ordre, harmonise le niveau de présentation sans modifier les artefacts et utilise des consignes identiques. Réserver des séances pour stems isolés et chansons complètes. Les extraits de contrôle et la fatigue d'écoute sont documentés.
 
 Le test final inclut compositions et voix absentes de l'entraînement, sources simples et complexes, passages disjoints, silences et difficultés de timing. Les cas hors capacités déclarées vérifient le refus, pas la qualité musicale.
+
+### 4.1 Comparaison du pilote et passage au MoE
+
+Comparer base non adaptée, adaptateur unique et 2–4 adaptateurs spécialisés selon [TRAINING_PLAN.md §7.1](TRAINING_PLAN.md#71-pilote-à-adaptateurs-et-décision-moe). Garder la base, le codec, les jeux réservés, les conditions et les seeds comparables ; rapprocher les paramètres entraînables et fixer la même enveloppe de calcul. Déclarer nombre de mises à jour, heures de données réellement utilisées, durée, pistes, précision, étapes de génération, matériel et coût.
+
+Évaluer séparément instrumental, chant FR/EN, rôles spécialisés et chemin commun. Mesurer notes, paroles, isolation, cohérence des pistes, timbre et raccords, ainsi que RTF, temps d'entraînement, VRAM/RAM et taille totale des poids/adaptateurs. Une sélection rare n'est pas automatiquement un échec ; vérifier si elle correspond aux données et si la partie concernée est correctement réalisée.
+
+Pour justifier le routage appris ou le MoE complet, fixer avant comparaison le critère primaire, l'enveloppe de coût et les tolérances de non-régression sur validation. Exiger un gain mesuré avec dispersion et écoute aveugle, sans violation d'invariant technique et avec un profil matériel compatible. En cas de résultat indécidable ou de ressources incompatibles, conserver la référence partagée. Ne pas utiliser le test final pour choisir les experts.
+
+Cas supplémentaires du pilote :
+
+| ID | Cas | Preuve attendue |
+|---|---|---|
+| A01 | Rôles couverts, chant FR/EN et instruments | Sélections conformes à la politique ; qualité comparée à l'adaptateur unique |
+| A02 | Rôle sans adaptateur spécialisé | Chemin commun documenté, rendu évalué, aucune nouvelle capacité annoncée sans preuve |
+| A03 | Raccord entre fenêtres avec sélections différentes | Changements tracés, timbre/cohérence et frontières évalués en écoute aveugle |
+| A04 | Inpainting vocal et instrumental avec adaptateurs actifs | T06/T07 conservés, autres pistes intactes, fidélité et raccords mesurés |
+| A05 | Rechargement du checkpoint et de sa politique | Révisions/rangs/sélections identiques ; résultats reproductibles dans l'environnement fixé |
+
+A03 prépare une extension éventuelle du routage ; si le pilote ne permet aucun changement entre fenêtres, vérifier cette interdiction et indiquer l'écoute de changement comme non réalisée. Une baseline limitée au mix ne satisfait pas les preuves d'isolation de la V1 ; les scénarios de recherche ne remplacent pas les 24 scénarios obligatoires.
 
 ## 5. Scénarios obligatoires
 
