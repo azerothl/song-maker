@@ -8,6 +8,7 @@ import { resolveCommercialCreationState } from "../lib/profileCommercialCreation
 import type { ProfileKind, ProfileSummary } from "../lib/profilesTypes";
 import { setupComplete } from "../lib/firstLaunch";
 import { formatProfileRenameInvokeError } from "../lib/profileRenameErrors";
+import { PROFILE_NAME_MAX_LENGTH } from "../lib/profileRenameValidation";
 import { formatProfileProjectCount } from "../lib/profileProjectCount";
 import { profileSwitchBlockReason } from "../lib/profileSwitchBlock";
 import { useAppStore } from "../store/appStore";
@@ -106,7 +107,7 @@ export function ProfileOnboardingScreen() {
       await refreshSettings();
       setScreen(setupComplete(health) ? "library" : "splash");
     } catch (e) {
-      setError(String(e));
+      setError(formatProfileRenameInvokeError(e));
     } finally {
       setBusy(false);
       setCommercialConfirmOpen(false);
@@ -230,6 +231,7 @@ export function ProfileOnboardingScreen() {
               className="profile-focusable"
               type="text"
               value={name}
+              maxLength={PROFILE_NAME_MAX_LENGTH}
               disabled={!canCreateMore}
               onChange={(e) => setName(e.target.value)}
               placeholder={t("profiles.onboarding.name.placeholder")}
@@ -294,21 +296,19 @@ export function ProfileOnboardingScreen() {
           onCancel={() => setCommercialConfirmOpen(false)}
         />
       ) : null}
-      {renaming ? (
-        <ProfileRenameDialog
-          open
-          currentName={renaming.name}
-          typeLabel={
-            renaming.kind === "commercial"
-              ? t("profiles.onboarding.type.commercial")
-              : t("profiles.onboarding.type.hobby")
-          }
-          existingNames={profiles.map((p) => p.name)}
-          returnFocusRef={renameTriggerRef}
-          onConfirm={submitRename}
-          onCancel={() => setRenaming(null)}
-        />
-      ) : null}
+      <ProfileRenameDialog
+        open={renaming !== null}
+        currentName={renaming?.name ?? ""}
+        typeLabel={
+          renaming?.kind === "commercial"
+            ? t("profiles.onboarding.type.commercial")
+            : t("profiles.onboarding.type.hobby")
+        }
+        existingNames={profiles.map((p) => p.name)}
+        returnFocusRef={renameTriggerRef}
+        onConfirm={submitRename}
+        onCancel={() => setRenaming(null)}
+      />
     </div>
   );
 }

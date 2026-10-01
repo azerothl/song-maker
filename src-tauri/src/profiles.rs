@@ -598,54 +598,10 @@ pub fn commercial_creation_allowed() -> bool {
 
 /// Serializes tests that mutate `SONG_MAKER_DOCUMENTS_DIR` (process-global env).
 #[cfg(test)]
-pub fn documents_env_lock() -> std::sync::MutexGuard<'static, ()> {
-    use std::sync::{Mutex, OnceLock};
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_docs_env::guard::TempDocs;
     use std::fs;
-    use std::sync::MutexGuard;
-
-    /// Holds the documents-dir env lock and restores the variable on drop.
-    struct TempDocs {
-        root: PathBuf,
-        _guard: MutexGuard<'static, ()>,
-    }
-
-    impl TempDocs {
-        fn new(label: &str) -> Self {
-            let guard = documents_env_lock();
-            let root = std::env::temp_dir().join(format!(
-                "song-maker-profiles-{label}-{}",
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos()
-            ));
-            fs::create_dir_all(&root).unwrap();
-            unsafe {
-                std::env::set_var("SONG_MAKER_DOCUMENTS_DIR", root.as_os_str());
-            }
-            Self {
-                root,
-                _guard: guard,
-            }
-        }
-    }
-
-    impl Drop for TempDocs {
-        fn drop(&mut self) {
-            unsafe {
-                std::env::remove_var("SONG_MAKER_DOCUMENTS_DIR");
-            }
-            let _ = fs::remove_dir_all(&self.root);
-        }
-    }
-
     #[test]
     fn wired_commercial_license_ids_non_empty() {
         let ids = wired_commercial_license_ids();
@@ -679,7 +635,7 @@ mod tests {
 
     #[test]
     fn migration_moves_legacy_projects_and_keeps_contracts() {
-        let docs = TempDocs::new("migrate");
+        let docs = TempDocs::new("migration");
         let legacy_projects = docs.root.join("projects");
         fs::create_dir_all(legacy_projects.join("proj-a")).unwrap();
         fs::write(

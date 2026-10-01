@@ -5,7 +5,7 @@ export const PROFILE_RENAME_ERROR_EMPTY = "profiles.rename.error.empty";
 export const PROFILE_RENAME_ERROR_TOO_LONG = "profiles.rename.error.tooLong";
 export const PROFILE_RENAME_ERROR_DUPLICATE = "profiles.rename.error.duplicate";
 
-/** Map Tauri `rename_profile` error codes to localized UI copy. */
+/** Map Tauri `rename_profile` / `create_profile` error codes to localized UI copy. */
 export function formatProfileRenameInvokeError(raw: unknown): string {
   const msg = String(raw);
   switch (msg) {

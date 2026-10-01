@@ -12,3 +12,7 @@ export function profileNameKey(name: string): string {
 export function profileNamesCollide(a: string, b: string): boolean {
   return profileNameKey(a) === profileNameKey(b);
 }
+
+export function isProfileNameTooLong(trimmed: string): boolean {
+  return profileNameCharCount(trimmed) > PROFILE_NAME_MAX_LENGTH;
+}

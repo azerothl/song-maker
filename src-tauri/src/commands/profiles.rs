@@ -191,45 +191,7 @@ pub fn accept_engine_contract(
 mod tests {
     use super::*;
     use crate::commands::AppState;
-    use std::fs;
-    use std::path::PathBuf;
-    use std::sync::MutexGuard;
-
-    struct TempDocs {
-        root: PathBuf,
-        _guard: MutexGuard<'static, ()>,
-    }
-
-    impl TempDocs {
-        fn new(label: &str) -> Self {
-            // Share the lock with `profiles::tests` — both mutate process-global env.
-            let guard = profiles::documents_env_lock();
-            let root = std::env::temp_dir().join(format!(
-                "song-maker-cmd-profiles-{label}-{}",
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos()
-            ));
-            fs::create_dir_all(&root).unwrap();
-            unsafe {
-                std::env::set_var("SONG_MAKER_DOCUMENTS_DIR", root.as_os_str());
-            }
-            Self {
-                root,
-                _guard: guard,
-            }
-        }
-    }
-
-    impl Drop for TempDocs {
-        fn drop(&mut self) {
-            unsafe {
-                std::env::remove_var("SONG_MAKER_DOCUMENTS_DIR");
-            }
-            let _ = fs::remove_dir_all(&self.root);
-        }
-    }
+    use crate::test_docs_env::guard::TempDocs;
 
     fn seed_two_profiles() -> (String, String) {
         let a = ProfileMeta {
@@ -407,5 +369,39 @@ mod tests {
         save_manifest(&manifest).unwrap();
         let err = rename_profile(id_b, "ÉTÉ".into()).unwrap_err();
         assert_eq!(err, profiles::PROFILE_RENAME_ERROR_DUPLICATE);
+    }
+
+    #[test]
+    fn profile_name_length_boundary_rename() {
+        let _docs = TempDocs::new("rename-boundary");
+        let (_a, id_b) = seed_two_profiles();
+        let ok = "a".repeat(profiles::PROFILE_NAME_MAX_CHARS);
+        rename_profile(id_b.clone(), ok.clone()).unwrap();
+        assert_eq!(
+            load_manifest()
+                .unwrap()
+                .profiles
+                .iter()
+                .find(|p| p.id == id_b)
+                .unwrap()
+                .name,
+            ok
+        );
+        let too_long = "a".repeat(profiles::PROFILE_NAME_MAX_CHARS + 1);
+        let err = rename_profile(id_b, too_long).unwrap_err();
+        assert_eq!(err, profiles::PROFILE_RENAME_ERROR_TOO_LONG);
+    }
+
+    #[test]
+    fn profile_name_length_boundary_create() {
+        let _docs = TempDocs::new("create-boundary");
+        seed_empty_onboarding();
+        let state = AppState::default();
+        let ok = "b".repeat(profiles::PROFILE_NAME_MAX_CHARS);
+        let created = create_profile_inner(&state, ok.clone(), "hobby".into()).unwrap();
+        assert_eq!(created.name, ok);
+        let too_long = "b".repeat(profiles::PROFILE_NAME_MAX_CHARS + 1);
+        let err = create_profile_inner(&state, too_long, "hobby".into()).unwrap_err();
+        assert_eq!(err, profiles::PROFILE_RENAME_ERROR_TOO_LONG);
     }
 }

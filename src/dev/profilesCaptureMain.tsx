@@ -61,6 +61,21 @@ if (
   );
 }
 
+function CaptureErrorBanner() {
+  const error = useAppStore((s) => s.error);
+  if (!error) return null;
+  return (
+    <div
+      className="banner error"
+      role="alert"
+      aria-live="assertive"
+      data-testid="capture-app-error"
+    >
+      <span>{error}</span>
+    </div>
+  );
+}
+
 function CaptureShell() {
   useEffect(() => {
     if (scene === "switch-blocked-generation") {
@@ -91,6 +106,7 @@ function CaptureShell() {
     return (
       <div className="app-shell profiles-capture-root">
         <main className="main">
+          <CaptureErrorBanner />
           <ProfileOnboardingScreen />
         </main>
       </div>
