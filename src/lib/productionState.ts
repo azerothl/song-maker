@@ -51,6 +51,7 @@ export type ProductionOverlay = {
 type Listener = () => void;
 
 let overlay: ProductionOverlay | null = null;
+let projectScope: string | null = null;
 let toolkit: MixProductionToolkit = createMixProductionToolkit();
 const listeners = new Set<Listener>();
 /** Project tempo for delay sync — optional; invalid → free ms fallback. */
@@ -82,7 +83,20 @@ export function setProductionDiskPersist(
 }
 
 function storageKey(mixId: string): string {
-  return `${STORAGE_PREFIX}${mixId}`;
+  return projectScope == null ? `${STORAGE_PREFIX}${mixId}`
+    : `${STORAGE_PREFIX}project:${encodeURIComponent(projectScope)}:mix:${encodeURIComponent(mixId)}`;
+}
+
+/** Mix IDs are local to each project. Never reuse another project's cache or undo. */
+export function setProductionProjectScope(projectId: string | null) {
+  if (projectScope === projectId) return;
+  projectScope = projectId;
+  overlay = null;
+  overlayUndo.length = 0;
+  overlayRedo.length = 0;
+  diskPersist = null;
+  rebuildToolkit();
+  notify();
 }
 
 function emptyOverlay(mixId: string): ProductionOverlay {
