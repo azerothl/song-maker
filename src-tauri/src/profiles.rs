@@ -596,21 +596,54 @@ pub fn commercial_creation_allowed() -> bool {
     })
 }
 
+/// Serializes tests that mutate `SONG_MAKER_DOCUMENTS_DIR` (process-global env).
+#[cfg(test)]
+pub fn documents_env_lock() -> std::sync::MutexGuard<'static, ()> {
+    use std::sync::{Mutex, OnceLock};
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
+    use std::sync::MutexGuard;
 
-    fn temp_root() -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "song-maker-profiles-test-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir_all(&dir).unwrap();
-        dir
+    /// Holds the documents-dir env lock and restores the variable on drop.
+    struct TempDocs {
+        root: PathBuf,
+        _guard: MutexGuard<'static, ()>,
+    }
+
+    impl TempDocs {
+        fn new(label: &str) -> Self {
+            let guard = documents_env_lock();
+            let root = std::env::temp_dir().join(format!(
+                "song-maker-profiles-{label}-{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            fs::create_dir_all(&root).unwrap();
+            unsafe {
+                std::env::set_var("SONG_MAKER_DOCUMENTS_DIR", root.as_os_str());
+            }
+            Self {
+                root,
+                _guard: guard,
+            }
+        }
+    }
+
+    impl Drop for TempDocs {
+        fn drop(&mut self) {
+            unsafe {
+                std::env::remove_var("SONG_MAKER_DOCUMENTS_DIR");
+            }
+            let _ = fs::remove_dir_all(&self.root);
+        }
     }
 
     #[test]
@@ -646,11 +679,8 @@ mod tests {
 
     #[test]
     fn migration_moves_legacy_projects_and_keeps_contracts() {
-        let root = temp_root();
-        unsafe {
-            std::env::set_var("SONG_MAKER_DOCUMENTS_DIR", root.as_os_str());
-        }
-        let legacy_projects = root.join("projects");
+        let docs = TempDocs::new("migrate");
+        let legacy_projects = docs.root.join("projects");
         fs::create_dir_all(legacy_projects.join("proj-a")).unwrap();
         fs::write(
             legacy_projects.join("proj-a").join("project.json"),
@@ -661,7 +691,7 @@ mod tests {
             r#"{{"projectsDir":"{}","cacheDir":"/tmp/cache","binaryTag":"t","binaryArchive":"a","binarySha256":"s","modelPack":"q4","modelGguf":"m","modelSha256":"x","serverHost":"127.0.0.1","serverPort":8787,"yue2LicenseAccepted":true,"ccByNcAccepted":true,"acceptedSeparatorLicenses":{{"htdemucs":true}}}}"#,
             legacy_projects.display()
         );
-        fs::write(root.join("settings.json"), settings).unwrap();
+        fs::write(docs.root.join("settings.json"), settings).unwrap();
 
         let manifest = migrate_legacy_if_needed().expect("migrate");
         assert_eq!(manifest.profiles.len(), 1);
@@ -672,8 +702,5 @@ mod tests {
         assert!(ps.yue2_license_accepted);
         assert!(ps.cc_by_nc_accepted);
         assert_eq!(ps.accepted_separator_licenses.get("htdemucs"), Some(&true));
-        unsafe {
-            std::env::remove_var("SONG_MAKER_DOCUMENTS_DIR");
-        }
     }
 }

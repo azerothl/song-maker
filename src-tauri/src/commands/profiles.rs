@@ -193,12 +193,7 @@ mod tests {
     use crate::commands::AppState;
     use std::fs;
     use std::path::PathBuf;
-    use std::sync::{Mutex, MutexGuard, OnceLock};
-
-    fn docs_env_lock() -> MutexGuard<'static, ()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
-    }
+    use std::sync::MutexGuard;
 
     struct TempDocs {
         root: PathBuf,
@@ -207,7 +202,8 @@ mod tests {
 
     impl TempDocs {
         fn new(label: &str) -> Self {
-            let guard = docs_env_lock();
+            // Share the lock with `profiles::tests` — both mutate process-global env.
+            let guard = profiles::documents_env_lock();
             let root = std::env::temp_dir().join(format!(
                 "song-maker-cmd-profiles-{label}-{}",
                 std::time::SystemTime::now()
