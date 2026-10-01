@@ -1,0 +1,58 @@
+import assert from "node:assert/strict";
+import { after, before, it } from "node:test";
+import { chromium, type Browser } from "playwright";
+import type { ViteDevServer } from "vite";
+import { startCaptureViteServer, stopCaptureViteServer } from "./captureViteServer";
+let server: ViteDevServer;
+let browser: Browser;
+before(async () => { server=await startCaptureViteServer(5229); browser=await chromium.launch(); });
+after(async () => { await browser?.close(); if(server) await stopCaptureViteServer(server); });
+for(const [locale,width] of [["fr",1280],["en",640]] as const) {
+  it(`${locale}/${width}: track automation shares the overlay, bounds edits and restores a cleared curve`,async () => {
+    const page=await browser.newPage({viewport:{width,height:720}});
+    try {
+      await page.addInitScript(locale => {localStorage.setItem("song-maker.locale",locale);},locale);
+      await page.goto("http://127.0.0.1:5229/production-capture.html#confortable-12",{waitUntil:"networkidle"});
+      await page.locator(".production-track-tools-btn").first().click();
+      await page.locator(".production-track-auto-toggle").click();
+      await page.keyboard.press("Escape");
+      const editor=page.locator(".production-track-automation").first();
+      await editor.waitFor();
+      const addPlayback=locale === "en" ? "Add at playback position" : "Ajouter à la position de lecture";
+      await editor.getByRole("button",{name:addPlayback,exact:true}).click();
+      const point=editor.locator(".production-auto-point").first();
+      await point.focus();
+      await page.keyboard.press("ArrowUp");
+      await page.keyboard.press("ArrowRight");
+      const inputs=editor.locator(".production-auto-points li input");
+      assert.equal(await inputs.nth(0).inputValue(),"50");
+      assert.equal(await inputs.nth(1).inputValue(),"0.5");
+      await inputs.nth(1).fill("-100");
+      assert.equal(await inputs.nth(1).inputValue(),"-24");
+      const sampled = await page.evaluate(async () => {
+        const modulePath = "/src/lib/productionState.ts";
+        const state = await import(/* @vite-ignore */ modulePath);
+        const overlay = state.getProductionOverlay();
+        const track = Object.keys(overlay.volumePointsByTrack)[0];
+        return state.getProductionToolkit().automation.sampleAt(overlay.mixId,track,"volume",50);
+      });
+      assert.equal(sampled,-24);
+      const clear=locale === "en" ? "Clear curve" : "Effacer la courbe";
+      await editor.getByRole("button",{name:clear,exact:true}).click();
+      assert.equal(await editor.locator(".production-auto-point").count(),0);
+      await editor.getByRole("button",{name:locale === "en" ? "Restore curve" : "Rétablir la courbe",exact:true}).click();
+      assert.equal(await editor.locator(".production-auto-point").count(),1);
+      await editor.locator("select").selectOption("pan");
+      assert.equal(await editor.locator(".production-auto-point").count(),0);
+      await editor.getByRole("button",{name:addPlayback,exact:true}).click();
+      await editor.locator(".production-auto-points li input").nth(1).fill("4");
+      assert.equal(await editor.locator(".production-auto-points li input").nth(1).inputValue(),"1");
+      await editor.locator("select").selectOption("volume");
+      assert.equal(await editor.locator(".production-auto-points li input").nth(1).inputValue(),"-24");
+      assert.doesNotMatch(await editor.innerText(),/production\.auto\.|phase3\.mix\./);
+      await page.reload({waitUntil:"networkidle"});
+      await page.locator(".production-track-automation").first().waitFor();
+      assert.equal(await page.locator(".production-auto-points li input").nth(1).inputValue(),"-24");
+    } finally {await page.close();}
+  });
+}
