@@ -13,7 +13,7 @@ import {
   HTDEMUCS_MAINTAINER_QUOTE_EN,
   HTDEMUCS_NOTICE_FR,
 } from "@song-maker/stem-providers";
-import { t } from "../ui/i18n";
+import { profileLocale, t } from "../ui/i18n";
 
 export const MIX_ONLY_STORAGE_KEY = "song-maker.first-launch.mix-only";
 export const NVIDIA_DRIVERS_URL = "https://www.nvidia.com/Download/index.aspx";
@@ -89,27 +89,32 @@ export function parsePack(value: string | undefined | null): ModelPack {
   return value === "q8" ? "q8" : "q4";
 }
 
+function numberLocale(): string {
+  return profileLocale() === "en" ? "en-US" : "fr-FR";
+}
+
 export function formatBytesFr(value: number): string {
   if (!Number.isFinite(value) || value < 0) return "—";
+  const loc = numberLocale();
   if (value >= 1024 ** 3) {
     const go = value / 1024 ** 3;
     const digits = go >= 10 ? 0 : 1;
-    return `${go.toLocaleString("fr-FR", { maximumFractionDigits: digits, minimumFractionDigits: digits })} Go`;
+    return `${go.toLocaleString(loc, { maximumFractionDigits: digits, minimumFractionDigits: digits })} ${t("firstLaunch.unit.gb")}`;
   }
   if (value >= 1024 ** 2) {
-    return `${Math.round(value / 1024 ** 2).toLocaleString("fr-FR")} Mo`;
+    return `${Math.round(value / 1024 ** 2).toLocaleString(loc)} ${t("firstLaunch.unit.mb")}`;
   }
   if (value >= 1024) {
-    return `${Math.round(value / 1024).toLocaleString("fr-FR")} Ko`;
+    return `${Math.round(value / 1024).toLocaleString(loc)} ${t("firstLaunch.unit.kb")}`;
   }
-  return `${Math.round(value)} o`;
+  return `${Math.round(value)} ${t("firstLaunch.unit.b")}`;
 }
 
 export function formatVramGo(vramMib: number | null | undefined): string | null {
   if (vramMib == null || vramMib <= 0) return null;
   const go = vramMib / 1024;
   const digits = Number.isInteger(go) ? 0 : 1;
-  return `${go.toLocaleString("fr-FR", { maximumFractionDigits: digits })} Go`;
+  return `${go.toLocaleString(numberLocale(), { maximumFractionDigits: digits })} ${t("firstLaunch.unit.gb")}`;
 }
 
 export function formatRateFr(bytesPerSec: number | null | undefined): string | null {
@@ -181,24 +186,40 @@ export const FIRST_LAUNCH_TOKENS = {
 export function fileMeta(name: string): { title: string; hint: string; kind: "engine" | "model" | "vae" | "stems" | "sidecar" } {
   const lower = name.toLowerCase();
   if (lower.includes("yue2-3b-q8")) {
-    return { title: "YuE2 (Q8)", hint: "Modèle de génération", kind: "model" };
+    return { title: "YuE2 (Q8)", hint: t("firstLaunch.file.model.hint"), kind: "model" };
   }
   if (lower.includes("yue2-3b-q4")) {
-    return { title: "YuE2 (Q4)", hint: "Modèle de génération", kind: "model" };
+    return { title: "YuE2 (Q4)", hint: t("firstLaunch.file.model.hint"), kind: "model" };
   }
   if (lower.includes("yue2-vae")) {
-    return { title: "VAE", hint: "Décodage audio", kind: "vae" };
+    return {
+      title: t("firstLaunch.file.vae.title"),
+      hint: t("firstLaunch.file.vae.hint"),
+      kind: "vae",
+    };
   }
   if (lower.includes("htdemucs")) {
-    return { title: "HTDemucs", hint: "Séparation de stems", kind: "stems" };
+    return {
+      title: t("firstLaunch.file.stems.title"),
+      hint: t("firstLaunch.file.stems.hint"),
+      kind: "stems",
+    };
   }
   if (lower.includes("cudart")) {
-    return { title: "Runtime CUDA", hint: "Bibliothèques NVIDIA", kind: "engine" };
+    return {
+      title: t("firstLaunch.file.cuda.title"),
+      hint: t("firstLaunch.file.cuda.hint"),
+      kind: "engine",
+    };
   }
   if (lower.endsWith(".json") || lower.endsWith(".tiktoken")) {
-    return { title: name, hint: "Fichiers d’accompagnement", kind: "sidecar" };
+    return { title: name, hint: t("firstLaunch.file.sidecar.hint"), kind: "sidecar" };
   }
-  return { title: "Moteur audio", hint: "Traitement du son", kind: "engine" };
+  return {
+    title: t("firstLaunch.file.engine.title"),
+    hint: t("firstLaunch.file.engine.hint"),
+    kind: "engine",
+  };
 }
 
 export function bucketPlanBytes(plan: InstallPlan | null): DownloadBuckets {
@@ -518,56 +539,62 @@ export function normalizeInstallCause(
 }
 
 export function installErrorCopy(error: InstallErrorInfo | null | undefined): InstallErrorCopy {
-  const receivedHint = "Les octets déjà reçus sont conservés.";
+  const receivedHint = t("firstLaunch.error.receivedHint");
   const cause = normalizeInstallCause(error?.cause);
   switch (cause) {
     case "network": {
       const fileTitle = error?.fileName ? fileMeta(error.fileName).title : null;
       return {
         title: fileTitle
-          ? `La connexion Internet a été coupée pendant le téléchargement de ${fileTitle}`
-          : "La connexion Internet a été coupée pendant le téléchargement",
-        body: `Ce n’est pas grave. ${receivedHint} Que faire :`,
+          ? t("firstLaunch.error.network.titleNamed", { fileName: fileTitle })
+          : t("firstLaunch.error.network.title"),
+        body: t("firstLaunch.error.network.body", { receivedHint }),
         steps: [
-          "Vérifiez que vous êtes connecté à Internet (Wi-Fi ou câble).",
-          "Cliquez sur « Reprendre ». Si cela échoue encore, essayez dans quelques minutes.",
+          t("firstLaunch.error.network.step1"),
+          t("firstLaunch.error.network.step2"),
         ],
       };
     }
     case "diskFull":
       return {
-        title: "Le disque est plein : le téléchargement n’a pas pu se terminer",
-        body: `${receivedHint} Libérez de l’espace, puis reprenez.`,
+        title: t("firstLaunch.error.diskFull.title"),
+        body: t("firstLaunch.error.diskFull.body", { receivedHint }),
         steps: [
-          "Supprimez des fichiers inutiles ou videz la corbeille.",
-          "Cliquez sur « Reprendre le téléchargement ».",
+          t("firstLaunch.error.diskFull.step1"),
+          t("firstLaunch.error.diskFull.step2"),
         ],
       };
     case "hashInvalid":
       return {
-        title: "Le fichier reçu n’a pas l’empreinte attendue",
-        body: "Le téléchargement a peut-être été altéré. Le fichier incomplet sera repris.",
+        title: t("firstLaunch.error.hashInvalid.title"),
+        body: t("firstLaunch.error.hashInvalid.body"),
         steps: [
-          "Cliquez sur « Reprendre le téléchargement ».",
-          "Si l’erreur revient, vérifiez votre connexion ou réessayez plus tard.",
+          t("firstLaunch.error.hashInvalid.step1"),
+          t("firstLaunch.error.hashInvalid.step2"),
         ],
       };
     case "http":
       return {
-        title: "Le serveur a refusé ou interrompu le téléchargement",
-        body: `${error?.message ?? "Erreur HTTP."} ${receivedHint}`,
+        title: t("firstLaunch.error.http.title"),
+        body: t("firstLaunch.error.http.body", {
+          message: error?.message ?? t("firstLaunch.error.http.messageFallback"),
+          receivedHint,
+        }),
         steps: [
-          "Réessayez dans quelques minutes.",
-          "Cliquez sur « Reprendre le téléchargement ».",
+          t("firstLaunch.error.http.step1"),
+          t("firstLaunch.error.http.step2"),
         ],
       };
     case "other":
       return {
-        title: "Le téléchargement a été interrompu",
-        body: `${error?.message ?? "Une erreur est survenue."} ${receivedHint}`,
+        title: t("firstLaunch.error.other.title"),
+        body: t("firstLaunch.error.other.body", {
+          message: error?.message ?? t("firstLaunch.error.other.messageFallback"),
+          receivedHint,
+        }),
         steps: [
-          "Vérifiez la connexion et l’espace disque.",
-          "Cliquez sur « Reprendre le téléchargement ».",
+          t("firstLaunch.error.other.step1"),
+          t("firstLaunch.error.other.step2"),
         ],
       };
     default: {
@@ -575,6 +602,33 @@ export function installErrorCopy(error: InstallErrorInfo | null | undefined): In
       return _exhaustive;
     }
   }
+}
+
+/** Libellé secondaire « À reprendre » (même assemblage que `FileStatusLabel`). */
+export function remainingAfterResumeLabel(
+  etaSeconds: number | null | undefined,
+  etaIsEstimate: boolean,
+): string {
+  return t("firstLaunch.status.remainingAfterResume", {
+    eta: formatEtaFr(etaSeconds, etaIsEstimate),
+  });
+}
+
+/** Texte aria-live du panneau téléchargement (même assemblage que l’écran). */
+export function downloadLiveAnnouncementText(input: {
+  lead: string | null;
+  activeTitle: string | null;
+  errorCount: number;
+}): string {
+  const chunks: string[] = [];
+  if (input.lead) chunks.push(input.lead);
+  if (input.activeTitle) {
+    chunks.push(t("firstLaunch.live.activeFile", { title: input.activeTitle }));
+  }
+  if (input.errorCount > 0) {
+    chunks.push(t("firstLaunch.live.errors", { count: input.errorCount }));
+  }
+  return chunks.filter(Boolean).join(". ");
 }
 
 function rowPercent(received: number, total: number | null): number {
