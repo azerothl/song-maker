@@ -44,6 +44,20 @@ export function ClipEditToolbar({
       role="toolbar"
       aria-label={t("production.edit.title")}
       onKeyDown={(event) => {
+        if (event.key === "PageDown" || event.key === "PageUp") {
+          const root = event.currentTarget.closest(
+            ".production-workspace-common",
+          );
+          if (root instanceof HTMLElement) {
+            event.preventDefault();
+            event.stopPropagation();
+            const delta =
+              (event.key === "PageDown" ? 1 : -1) *
+              Math.max(48, Math.floor(root.clientHeight * 0.9));
+            root.scrollBy(0, delta);
+          }
+          return;
+        }
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
           return;
         }
