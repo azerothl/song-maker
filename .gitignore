@@ -47,3 +47,6 @@ artifacts/
 
 # BasicPitch trial: WAV excerpts are redundant with mp3 A/B (issue #169)
 docs/basicpitch-trial/excerpts/*.wav
+
+# Bench snapshots piano (#250) — générés localement, ne pas committer
+bench/score-tab-*-piano-*.json
