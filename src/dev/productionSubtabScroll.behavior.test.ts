@@ -79,7 +79,8 @@ describe("Production commune (#223, #230)", () => {
       await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
       const top = page.locator(".production-workspace-common");
       await top.evaluate(el => { el.scrollTop = 0; });
-      await page.locator(".clip-edit-toolbar button").first().focus();
+      assert.ok(await top.evaluate(el => el.scrollHeight > el.clientHeight));
+      await page.locator(".production-main-toolbar .clip-edit-toolbar button").first().focus();
       await page.keyboard.press("PageDown");
       assert.ok(await top.evaluate(el => el.scrollTop) > 0);
       let reachedAdvanced = false;
@@ -203,6 +204,7 @@ describe("Production commune (#223, #230)", () => {
         assert.ok(Math.abs(railBox.x-rulerBox.x)<=1,JSON.stringify({railBox,rulerBox}));
         assert.ok(Math.abs(railBox.width-rulerBox.width)<=1,JSON.stringify({railBox,rulerBox}));
         await page.locator(".production-track-tools-btn").first().click();
+        await page.getByRole("tab", { name: "Automation", exact: true }).click();
         await page.locator(".production-track-auto-toggle").click();
         await page.keyboard.press("Escape");
         const auto=page.locator(".production-auto-curve").first();
@@ -220,7 +222,7 @@ describe("Production commune (#223, #230)", () => {
         assert.ok(Math.abs(rulerLine.x-clipLine.x)<=1);
         assert.ok(Math.abs(rulerLine.x-autoLine.x)<=1);
         const labelsBefore=await page.locator(".clip-ruler-tick").evaluateAll(elements=>elements.filter(el=>el.textContent?.trim()).length);
-        const zoom=page.locator(".production-clip-view-zoom input");
+        const zoom=page.locator(".production-context-bar .production-clip-view-zoom input");
         await zoom.focus();
         await zoom.press("End");
         await page.waitForFunction(count=>Array.from(document.querySelectorAll(".clip-ruler-tick")).filter(el=>el.textContent?.trim()).length>count,labelsBefore);

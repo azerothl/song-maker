@@ -343,6 +343,23 @@ export function ProductionWorkspace({
       ) {
         return;
       }
+      // Sticky chrome sits outside ClipTimeline: keep PageDown/PageUp scrolling the page.
+      if (
+        (e.key === "PageDown" || e.key === "PageUp") &&
+        target?.closest(".production-main-toolbar, .production-chrome-stack")
+      ) {
+        const root = target.closest<HTMLElement>(".production-workspace-common");
+        if (root && root.scrollHeight > root.clientHeight) {
+          e.preventDefault();
+          const step = Math.max(48, Math.floor(root.clientHeight * 0.85));
+          const max = root.scrollHeight - root.clientHeight;
+          root.scrollTop =
+            e.key === "PageDown"
+              ? Math.min(max, root.scrollTop + step)
+              : Math.max(0, root.scrollTop - step);
+          return;
+        }
+      }
       const tool = clipEditToolFromKey(e.key);
       if (!tool) return;
       e.preventDefault();

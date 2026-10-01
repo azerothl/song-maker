@@ -14,6 +14,7 @@ for(const [locale,width] of [["fr",1280],["en",640]] as const) {
       await page.addInitScript(locale => {localStorage.setItem("song-maker.locale",locale);},locale);
       await page.goto("http://127.0.0.1:5229/production-capture.html#confortable-12",{waitUntil:"networkidle"});
       await page.locator(".production-track-tools-btn").first().click();
+      await page.getByRole("tab", { name: "Automation", exact: true }).click();
       await page.locator(".production-track-auto-toggle").click();
       await page.keyboard.press("Escape");
       const editor=page.locator(".production-track-automation").first();
