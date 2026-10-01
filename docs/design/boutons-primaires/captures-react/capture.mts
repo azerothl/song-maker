@@ -4,7 +4,8 @@
  * Usage : pnpm exec tsx docs/design/boutons-primaires/captures-react/capture.mts
  */
 import { createHash } from "node:crypto";
-import { execSync, spawn } from "node:child_process";
+import { execSync } from "node:child_process";
+import { startCaptureViteServer, stopCaptureViteServer } from "../../../../src/dev/captureViteServer";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -150,7 +151,7 @@ const SCENARIOS: Scenario[] = [
     selector: ".record-panel button.btn.primary",
     disabledMode: "forced",
     prepare: async (page) => {
-      await page.locator(".production-actions-drawer").evaluate((el) => {
+      await page.locator(".production-advanced-disclosure").evaluate((el) => {
         (el as HTMLDetailsElement).open = true;
       });
       await page.waitForSelector(".record-panel button.btn.primary", {
@@ -169,17 +170,17 @@ const SCENARIOS: Scenario[] = [
     screen: "Production — Exporter (déclencheur)",
     path: "/production-capture.html",
     hash: "#12,confortable,view-mix",
-    selector: ".song-actions-export button.btn.primary",
+    selector: ".production-mix-toolbar-actions [data-capture-export-trigger]",
     disabledMode: "busy-export-trigger",
     prepare: async (page) => {
-      await page.locator(".production-actions-drawer").evaluate((el) => {
+      await page.locator(".production-advanced-disclosure").evaluate((el) => {
         (el as HTMLDetailsElement).open = true;
       });
-      await page.waitForSelector(".song-actions-export button.btn.primary", {
+      await page.waitForSelector(".production-mix-toolbar-actions [data-capture-export-trigger]", {
         timeout: 15_000,
       });
       await page
-        .locator(".song-actions-export button.btn.primary")
+        .locator(".production-mix-toolbar-actions [data-capture-export-trigger]")
         .first()
         .scrollIntoViewIfNeeded();
     },
@@ -200,10 +201,10 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "busy-export-popin",
     popinCompare: true,
     prepare: async (page) => {
-      await page.locator(".production-actions-drawer").evaluate((el) => {
+      await page.locator(".production-advanced-disclosure").evaluate((el) => {
         (el as HTMLDetailsElement).open = true;
       });
-      const trigger = ".song-actions-export button.btn.primary";
+      const trigger = ".production-mix-toolbar-actions [data-capture-export-trigger]";
       await page.waitForSelector(trigger, { timeout: 15_000 });
       await page.click(trigger);
       await page.waitForSelector(".export-dialog-popin", { timeout: 10_000 });
@@ -221,10 +222,10 @@ const SCENARIOS: Scenario[] = [
     selector: ".export-dialog-actions-end .btn.primary",
     disabledMode: "export-stems-none-aria",
     prepare: async (page) => {
-      await page.locator(".production-actions-drawer").evaluate((el) => {
+      await page.locator(".production-advanced-disclosure").evaluate((el) => {
         (el as HTMLDetailsElement).open = true;
       });
-      const trigger = ".song-actions-export button.btn.primary";
+      const trigger = ".production-mix-toolbar-actions [data-capture-export-trigger]";
       await page.waitForSelector(trigger, { timeout: 15_000 });
       await page.click(trigger);
       await page.waitForSelector(".export-dialog-popin", { timeout: 10_000 });
@@ -800,6 +801,9 @@ async function runScenario(
   try {
     const url = `http://127.0.0.1:${PORT}${scenario.path}${scenario.hash ?? ""}`;
     await page.goto(url, { waitUntil: "networkidle", timeout: 45_000 });
+    if(scenario.path === "/production-capture.html") {
+      await page.locator(".production-advanced-disclosure").evaluate(el=>{(el as HTMLDetailsElement).open=true;});
+    }
     await page.waitForTimeout(400);
     if (scenario.prepare) await scenario.prepare(page);
     await page.waitForSelector(scenario.selector, { timeout: 20_000 });
@@ -877,7 +881,7 @@ async function runScenario(
     }
 
     if (scenario.i3FocusCapture) {
-      await page.locator(".production-actions-drawer").evaluate((el) => {
+      await page.locator(".production-advanced-disclosure").evaluate((el) => {
         (el as HTMLDetailsElement).open = false;
       });
       await page.waitForTimeout(100);
@@ -971,67 +975,6 @@ async function runScenario(
 
 const MANUAL_REVIEW_SOURCE = "revue manuelle Alphonse";
 
-/** Publication officielle — ne modifie pas `screens[].states` (mesure script intacte). */
-function buildManualReviewAlphonse(): Record<string, unknown> {
-  return {
-    source: MANUAL_REVIEW_SOURCE,
-    bibliotheque: {
-      focusRingRatioMin: 10,
-      focusRingRatioMax: 11.69,
-      medianRatio: 10.92,
-      distinctBackgrounds: 53,
-      backdropNote: "dégradé panneau #131f31 → #192c43",
-      ringPixelCountDiffVsNormal: {
-        count: 712,
-        method:
-          "pixels cyan qui diffèrent du PNG normal (passe 2, revue Alphonse)",
-      },
-      ringPixelCountInButtonClip: {
-        count: 730,
-        method:
-          "tous les pixels cyan du clip bouton (passe 3, revue Alphonse)",
-      },
-    },
-    creer: {
-      focusRingRatio: 13.65,
-      backdropHex: "#0c0d18",
-      note:
-        "Anneau rogné visible dans `creer-primary-focus-*` (bouton ~243 px, colonne main ~220 px).",
-    },
-    "production-armer": {
-      focusRingRatio: 12.68,
-    },
-    "production-exporter": {
-      focusRingRatio: 12.68,
-    },
-    "production-mesurer": {
-      focusRingRatio: 13.58,
-      backdropHex: "#0c0e18",
-    },
-    "production-zip": {
-      focusRingRatio: 13.58,
-      backdropHex: "#0c0e18",
-    },
-    "reglages-lora": {
-      focusRingRatio: 13.58,
-      backdropHex: "#0c0e18",
-    },
-    "confirmation-invariant-panel": {
-      focusRingRatio: 13.58,
-      backdropHex: "#0c0e18",
-    },
-    "regeneration-gate-blocked": {
-      focusRingRatio: 3.51,
-      focusRingPixelCount: 742,
-      popinBackdropHex: "#151827",
-      deltaE00FaceVsPopin151827Top: 25.44,
-      deltaE00FaceVsPopin151827Bottom: 22.68,
-      deltaE00FaceVsBg2Approx: 20.9,
-      bg2Hex: "#20243a",
-    },
-  };
-}
-
 function formatScriptFocusRingLine(focus: FocusProof): string {
   const range =
     focus.outlineContrastRatioMax != null &&
@@ -1111,7 +1054,7 @@ function buildContrastesMd(
     `- États actifs : seuil WCAG 2.2 AA **${AA_MIN}:1**.`,
     `- Désactivé : texte **#848ba0** (~**5,36:1** sur **#12151f**), seuil lisibilité **${DISABLED_MIN}:1**.`,
     "- Focus : Tab + souris hors bouton ; contraste anneau mesuré contre le **fond** derrière l’outline (pas la face du bouton).",
-    `- Champs \`manualReviewAlphonse\` dans \`metrics.json\` : publication **${MANUAL_REVIEW_SOURCE}** (les mesures DOM restent dans \`screens\`).`,
+    "- Aucune nouvelle revue manuelle : les résultats de cette exécution sont les mesures DOM dans `screens`. Les valeurs historiques ne sont pas réattribuées aux nouvelles captures.",
     "",
     "## Synthèse",
     "",
@@ -1143,7 +1086,7 @@ function buildContrastesMd(
         `Mesure script — ΔE00 face primaire / secondaire actif : **${s.popinCompare.deltaE00Face}** ; ΔE00 bordure : **${s.popinCompare.deltaE00Border ?? "—"}** ; bordure tirets / fond page : **${s.popinCompare.borderContrastRatio ?? "—"}:1** ; bordure / fond popin : **${s.popinCompare.borderContrastRatioOnPopin ?? "—"}:1**.`,
         "",
       );
-      if (s.id === "regeneration-gate-blocked") {
+      if (s.id === "regeneration-gate-blocked" && manual[s.id]) {
         const gate = manual["regeneration-gate-blocked"] as Record<
           string,
           unknown
@@ -1199,22 +1142,13 @@ function buildContrastesMd(
 async function main(): Promise<void> {
   await mkdir(OUT, { recursive: true });
 
-  const vite = spawn(
-    "pnpm",
-    ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],
-    {
-      cwd: ROOT,
-      stdio: "ignore",
-      env: { ...process.env, VITE_CAPTURE: "1" },
-    },
-  );
+  const vite = await startCaptureViteServer(PORT);
 
   const screens: ScreenMeasure[] = [];
 
   try {
     await waitServer(`http://127.0.0.1:${PORT}/sidebar-capture.html`);
     const browser = await chromium.launch({
-      channel: "chrome",
       args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
     });
 
@@ -1225,7 +1159,7 @@ async function main(): Promise<void> {
 
     await browser.close();
 
-    const manualReviewAlphonse = buildManualReviewAlphonse();
+    const manualReviewAlphonse: Record<string,unknown> = {};
     const captureGitSha = resolveCaptureGitSha();
     const disabledRatios = screens
       .flatMap((s) => s.states.filter((st) => st.state === "disabled"))
@@ -1291,7 +1225,7 @@ async function main(): Promise<void> {
       );
     }
   } finally {
-    vite.kill("SIGTERM");
+    await stopCaptureViteServer(vite);
   }
 }
 
