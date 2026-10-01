@@ -8,7 +8,8 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { spawn } from "node:child_process";
+import type { ViteDevServer } from "vite";
+import { startCaptureViteServer, stopCaptureViteServer } from "../dev/captureViteServer";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, before, describe, it } from "node:test";
@@ -244,26 +245,18 @@ async function measureErrboxNotMaskedByHint(
 }
 
 describe("first-launch fold + Demucs focus (#199 / #196)", () => {
-  let proc: ReturnType<typeof spawn> | undefined;
+  let proc: ViteDevServer | undefined;
   let browser: Browser | undefined;
 
   before(async () => {
-    proc = spawn(
-      "pnpm",
-      ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],
-      {
-        cwd: ROOT,
-        env: { ...process.env, VITE_CAPTURE: "1" },
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
+    proc = await startCaptureViteServer(PORT);
     await waitServer(BASE);
     browser = await launchBrowser();
   });
 
   after(async () => {
     await browser?.close();
-    proc?.kill("SIGTERM");
+    if (proc) await stopCaptureViteServer(proc);
   });
 
   it("case HTDemucs visible sans scroll à 1280×720", async () => {

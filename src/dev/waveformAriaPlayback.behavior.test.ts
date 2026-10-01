@@ -16,7 +16,6 @@ let browser: Browser;
 before(async () => {
   server = await startCaptureViteServer(PORT);
   browser = await chromium.launch({
-    channel: "chrome",
     args: ["--no-sandbox", "--disable-dev-shm-usage"],
   });
 });

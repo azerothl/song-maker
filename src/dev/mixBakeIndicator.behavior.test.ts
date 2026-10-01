@@ -2,13 +2,11 @@
  * Comportement indicateur rebake mix (#234 / revue Alphonse).
  */
 import assert from "node:assert/strict";
-import { spawn, type ChildProcess } from "node:child_process";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import type { ViteDevServer } from "vite";
+import { startCaptureViteServer, stopCaptureViteServer } from "./captureViteServer";
 import { describe, it } from "node:test";
 import { chromium, type Browser } from "playwright";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const PORT = 5184;
 const BASE = `http://127.0.0.1:${PORT}/production-capture.html`;
 
@@ -25,17 +23,7 @@ async function waitServer(url: string, timeoutMs = 60_000): Promise<void> {
   throw new Error(`serveur inaccessible: ${url}`);
 }
 
-function startVite(): ChildProcess {
-  return spawn(
-    "pnpm",
-    ["exec", "vite", "--host", "127.0.0.1", "--port", String(PORT)],
-    {
-      cwd: root,
-      stdio: "ignore",
-      env: { ...process.env, VITE_CAPTURE: "1" },
-    },
-  );
-}
+async function startVite(): Promise<ViteDevServer> { return startCaptureViteServer(PORT); }
 
 async function withBrowser(
   fn: (browser: Browser) => Promise<void>,
@@ -70,7 +58,7 @@ function visibleBakeStatusCount(page: import("playwright").Page): Promise<number
 
 describe("mix bake status indicator (#234)", () => {
   it("un seul indicateur visible dans la chrome Production (mix)", async () => {
-    const vite = startVite();
+    const vite = await startVite();
     try {
       await waitServer(`${BASE}#mixbake-indicator`);
       await withBrowser(async (browser) => {
@@ -91,12 +79,12 @@ describe("mix bake status indicator (#234)", () => {
         assert.equal(live, 1);
       });
     } finally {
-      vite.kill("SIGTERM");
+      await stopCaptureViteServer(vite);
     }
   });
 
   it("visible en vue Outils (EQ) pendant le rebake", async () => {
-    const vite = startVite();
+    const vite = await startVite();
     try {
       await waitServer(`${BASE}#view-tools,mixbake-indicator`);
       await withBrowser(async (browser) => {
@@ -108,12 +96,12 @@ describe("mix bake status indicator (#234)", () => {
         assert.equal(await visibleBakeStatusCount(page), 1);
       });
     } finally {
-      vite.kill("SIGTERM");
+      await stopCaptureViteServer(vite);
     }
   });
 
   it("slot à hauteur fixe : CLS bannière master ≤ 0,25 à 640 px", async () => {
-    const vite = startVite();
+    const vite = await startVite();
     try {
       await waitServer(`${BASE}#mixbake-cycle`);
       await withBrowser(async (browser) => {
@@ -130,12 +118,12 @@ describe("mix bake status indicator (#234)", () => {
         assert.ok(cls <= 0.25, `CLS≈${cls} before=${before} during=${during} after=${after}`);
       });
     } finally {
-      vite.kill("SIGTERM");
+      await stopCaptureViteServer(vite);
     }
   });
 
   it("disparaît le texte après fin de pending (cycle capture)", async () => {
-    const vite = startVite();
+    const vite = await startVite();
     try {
       await waitServer(`${BASE}#mixbake-cycle`);
       await withBrowser(async (browser) => {
@@ -147,7 +135,7 @@ describe("mix bake status indicator (#234)", () => {
         assert.equal((await status.textContent())?.trim() ?? "", "");
       });
     } finally {
-      vite.kill("SIGTERM");
+      await stopCaptureViteServer(vite);
     }
   });
 });
