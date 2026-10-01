@@ -1,0 +1,38 @@
+[
+  {
+    "width": 1280,
+    "clips": [
+      {
+        "rect": {
+          "x": 327,
+          "y": 476.28125,
+          "width": 123.71875,
+          "height": 36,
+          "top": 476.28125,
+          "right": 450.71875,
+          "bottom": 512.28125,
+          "left": 327
+        },
+        "hit": "<div role=\"button\" tabindex=\"0\" class=\"clip-block\" title=\"Voix lead · 0:00.0 (1.1.0) → 0:04.0\" aria-label=\"Voix lead, 0:00.0, 0:04.0\" style=\"left: 0%; width: 13.3333%; background: "
+      }
+    ]
+  },
+  {
+    "width": 640,
+    "clips": [
+      {
+        "rect": {
+          "x": 191,
+          "y": 476.4375,
+          "width": 57.59375,
+          "height": 36,
+          "top": 476.4375,
+          "right": 248.59375,
+          "bottom": 512.4375,
+          "left": 191
+        },
+        "hit": "<div role=\"button\" tabindex=\"0\" class=\"clip-block\" title=\"Voix lead · 0:00.0 (1.1.0) → 0:04.0\" aria-label=\"Voix lead, 0:00.0, 0:04.0\" style=\"left: 0%; width: 13.3333%; background: "
+      }
+    ]
+  }
+]

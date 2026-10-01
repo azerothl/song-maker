@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { ProductionWorkspace } from "../screens/song/ProductionWorkspace";
 import type { PlaybackView } from "../components/AudioPlayer";
 import { t } from "../ui/i18n";
-import { workspaceLabel, WORKSPACES, type ProductionView } from "../screens/song/shared";
+import { workspaceLabel, WORKSPACES } from "../screens/song/shared";
 import {
   buildCaptureDemoMix,
   buildCapturePlaybackSources,
@@ -74,9 +74,6 @@ function ProductionCaptureApp() {
   const [captureBusy, setCaptureBusy] = useState(false);
   const capturePrefs = useCaptureHashPrefs();
   useEffect(() => {
-    setProductionView(capturePrefs.productionView);
-  }, [capturePrefs.productionView]);
-  useEffect(() => {
     if (!import.meta.env.VITE_CAPTURE) return;
     window.__productionCaptureSetBusy = (next: boolean) => setCaptureBusy(next);
     return () => {
@@ -102,9 +99,6 @@ function ProductionCaptureApp() {
   const project = useMemo(() => buildCaptureProject(), []);
   const playbackSources = useMemo(() => buildCapturePlaybackSources(mix), [mix]);
   const separationInfo = useMemo(() => buildCaptureSeparationInfo(), []);
-  const [productionView, setProductionView] = useState<ProductionView>(
-    () => parseCaptureHash(globalThis.location?.hash ?? "").productionView,
-  );
   const [mixState, setMixState] = useState<MixDoc>(mix);
   useEffect(() => {
     setMixState(mix);
@@ -228,7 +222,6 @@ function ProductionCaptureApp() {
               onUserTrackAdded={async () => {}}
               playback={playback}
               playbackSources={playbackSources}
-              productionView={productionView}
               project={project}
               recordOpen={capturePrefs.recordOpen}
               roleByTrack={Object.fromEntries(mix.tracks.map((tr) => [tr.id, tr.role]))}
@@ -240,7 +233,6 @@ function ProductionCaptureApp() {
               setBusy={() => {}}
               setError={() => {}}
               setMixPreview={() => {}}
-              setProductionView={setProductionView}
               setRecordOpen={() => {}}
               showMixAssist
               showProductionCopilot

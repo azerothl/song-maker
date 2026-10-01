@@ -147,5 +147,8 @@
   "production.addTrack.menu": "Add track menu",
   "production.strip.invalid": "Invalid value.",
   "production.strip.gain.valuetext": "{value}",
-  "production.strip.pan.valuetext": "{value}"
+  "production.strip.pan.valuetext": "{value}",
+  "production.common.mix": "Tracks and mix",
+  "production.common.clips": "Arrangement and clips",
+  "production.common.advanced": "Automation, advanced effects and export"
 }

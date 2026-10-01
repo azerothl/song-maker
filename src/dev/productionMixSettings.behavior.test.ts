@@ -76,6 +76,7 @@ describe("production mix settings comportement (#225)", () => {
     async () => {
       const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
       await page.goto(`${BASE}#view-clips-16`, { waitUntil: "networkidle" });
+      await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
       await page.waitForSelector('[data-testid="production-mix-settings-trigger-clips"]', {
         state: "visible",
       });
@@ -89,9 +90,11 @@ describe("production mix settings comportement (#225)", () => {
     async () => {
       const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
       await page.goto(`${BASE}#view-clips-16`, { waitUntil: "networkidle" });
+      await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
       await page.click('[data-testid="production-mix-settings-trigger-clips"]');
       await page.waitForSelector('[data-testid="production-mix-settings-popin"]');
       await page.waitForSelector(".clip-lane .clip-block", { timeout: 30_000 });
+      await page.locator(".clip-lane .clip-block").first().scrollIntoViewIfNeeded();
       await page.waitForTimeout(300);
       const hitClip = await page.evaluate(() => {
         const clips = Array.from(document.querySelectorAll(".clip-lane .clip-block"));

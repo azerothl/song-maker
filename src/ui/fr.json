@@ -1349,5 +1349,8 @@
   "firstLaunch.noGpu.opt3.cta": "Continuer sans génération",
   "firstLaunch.noGpu.noteNoModel": "Aucun modèle lourd ne sera téléchargé sans votre accord.",
   "firstLaunch.noGpu.noteDetect": "Détection : {detail}",
-  "production.unit.dbValue": "{value} dB"
+  "production.unit.dbValue": "{value} dB",
+  "production.common.mix": "Pistes et mixage",
+  "production.common.clips": "Arrangement et clips",
+  "production.common.advanced": "Automation, effets avancés et export"
 }

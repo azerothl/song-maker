@@ -1204,6 +1204,51 @@ option {
   overflow-x: auto;
 }
 
+/* Shared Production page: one vertical route through tracks, clips and tools. */
+.song-layout-production-fill .production-workspace-common {
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: block;
+  min-height: 0;
+}
+
+.production-workspace-common #production-panel-mix,
+.production-workspace-common #production-panel-clips {
+  display: block;
+  margin-bottom: 1.25rem;
+}
+
+.production-workspace-common .production-mix-scroll {
+  flex: none;
+  max-height: 420px;
+}
+
+.production-workspace-common .production-clips {
+  height: 520px;
+}
+
+.production-workspace-common #production-panel-tools.advanced-production {
+  display: block;
+  padding-top: 0;
+}
+
+.production-advanced-disclosure > summary {
+  min-height: 44px;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.production-advanced-disclosure > summary:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.production-workspace-common .production-tools-scroll {
+  overflow: visible;
+}
+
 .mixer-density.production-mix-panel {
   flex: 1;
   min-height: 0;
@@ -1822,11 +1867,8 @@ option {
   }
 
   .production-mix-grid {
-    grid-template-columns: minmax(0, 1fr) 5.5rem 5rem;
-    grid-template-areas:
-      "name name name"
-      "gain pan ms"
-      "tools tools wave";
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-width: 0;
     row-gap: 4px;
     min-height: 92px;
     height: auto;
@@ -1840,27 +1882,32 @@ option {
 
   .production-mix-name {
     grid-column: 1 / -1;
+    grid-row: 1;
   }
 
   .track-gain-knob {
     grid-column: 1;
+    grid-row: 3;
   }
 
   .track-pan-knob {
     grid-column: 2;
+    grid-row: 3;
   }
 
   .track-ms {
     grid-column: 3;
+    grid-row: 3;
   }
 
   .production-mix-track-tools {
-    grid-column: 1 / span 2;
+    grid-column: 3;
+    grid-row: 4;
   }
 
   .production-mix-wave {
-    grid-column: 3;
-    grid-row: 2 / span 2;
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 }
 

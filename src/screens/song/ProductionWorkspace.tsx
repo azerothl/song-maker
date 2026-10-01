@@ -70,12 +70,8 @@ import {
   formatPan,
   parseGainDb,
   parsePan,
-  PRODUCTION_VIEWS,
-  productionViewIntro,
-  productionViewLabel,
   workspaceIntro,
   workspaceTitle,
-  type ProductionView,
 } from "./shared";
 
 type MixUpdateOpts = { persist?: boolean };
@@ -95,7 +91,6 @@ type ProductionWorkspaceProps = {
   onUserTrackAdded: (next: MixDoc) => Promise<void>;
   playback: PlaybackView | null;
   playbackSources: PlaybackSources | null;
-  productionView: ProductionView;
   project: ProjectDoc;
   recordOpen: boolean;
   roleByTrack: Record<string, string>;
@@ -105,7 +100,6 @@ type ProductionWorkspaceProps = {
   setBusy: Dispatch<SetStateAction<boolean>>;
   setError: (e: string | null) => void;
   setMixPreview: Dispatch<SetStateAction<MixDoc | null>>;
-  setProductionView: Dispatch<SetStateAction<ProductionView>>;
   setRecordOpen: Dispatch<SetStateAction<boolean>>;
   showMixAssist: boolean;
   showProductionCopilot: boolean;
@@ -166,7 +160,6 @@ export function ProductionWorkspace({
   onUserTrackAdded,
   playback,
   playbackSources,
-  productionView,
   project,
   recordOpen,
   roleByTrack,
@@ -176,7 +169,6 @@ export function ProductionWorkspace({
   setBusy,
   setError,
   setMixPreview,
-  setProductionView,
   setRecordOpen,
   showMixAssist,
   showProductionCopilot,
@@ -301,7 +293,7 @@ export function ProductionWorkspace({
     [mix],
   );
   const waveHeight = waveHeightForDensity(effectiveDensity);
-  const tightMixLayout = shouldUseProductionTightLayout(productionView, effectiveDensity);
+  const tightMixLayout = shouldUseProductionTightLayout("mix", effectiveDensity);
   const masterWaveHeight = 56;
 
   const setDensityPreferencePersist = (next: ProductionDensityPreference) => {
@@ -314,10 +306,10 @@ export function ProductionWorkspace({
       JSON.stringify({
         tracks: mix?.tracks.length ?? 0,
         collapsedFamilies,
-        productionView,
+        productionView: "mix",
         groups: trackGroups.map((g) => g.tracks.length),
       }),
-    [mix?.tracks.length, collapsedFamilies, productionView, trackGroups],
+    [mix?.tracks.length, collapsedFamilies, trackGroups],
   );
 
   useLayoutEffect(() => {
@@ -360,8 +352,8 @@ export function ProductionWorkspace({
     <section
       className={
         tightMixLayout
-          ? "song-workspace-panel wide production-workspace production-workspace-tight"
-          : "song-workspace-panel wide production-workspace"
+          ? "song-workspace-panel wide production-workspace production-workspace-common production-workspace-tight"
+          : "song-workspace-panel wide production-workspace production-workspace-common"
       }
       role="tabpanel"
       id="song-panel-production"
@@ -374,32 +366,10 @@ export function ProductionWorkspace({
             <p className="hint">{workspaceIntro("production")}</p>
           </header>
 
-          <nav
-            className="song-subnav production-subnav"
-            role="tablist"
-            aria-label={t("workspace.production.nav")}
-          >
-            {PRODUCTION_VIEWS.map((view) => (
-              <button
-                key={view}
-                type="button"
-                role="tab"
-                className="song-subnav-tab"
-                aria-selected={productionView === view}
-                id={`production-view-${view}`}
-                aria-controls={`production-panel-${view}`}
-                tabIndex={productionView === view ? 0 : -1}
-                onClick={() => setProductionView(view)}
-              >
-                {productionViewLabel(view)}
-              </button>
-            ))}
-          </nav>
+
         </div>
 
-        <p className="hint song-subview-intro production-subview-intro">
-          {productionViewIntro(productionView)}
-        </p>
+
 
         <MixBakeStatusIndicator
           pending={playback?.mixBakePending ?? false}
@@ -426,9 +396,8 @@ export function ProductionWorkspace({
 
       <div
         id="production-panel-mix"
-        role="tabpanel"
-        aria-labelledby="production-view-mix"
-        hidden={productionView !== "mix"}
+        role="region"
+        aria-label={t("production.common.mix")}
       >
         {mix ? (
           <div
@@ -914,9 +883,8 @@ export function ProductionWorkspace({
 
       <div
         id="production-panel-clips"
-        role="tabpanel"
-        aria-labelledby="production-view-clips"
-        hidden={productionView !== "clips"}
+        role="region"
+        aria-label={t("production.common.clips")}
       >
         {mix ? (
           <div
@@ -945,13 +913,8 @@ export function ProductionWorkspace({
         )}
       </div>
 
-      <div
-        id="production-panel-tools"
-        role="tabpanel"
-        aria-labelledby="production-view-tools"
-        hidden={productionView !== "tools"}
-        className="advanced-production"
-      >
+      <details id="production-panel-tools" className="advanced-production production-advanced-disclosure">
+        <summary>{t("production.common.advanced")}</summary>
         <div
           className="production-subview-scroll production-tools-scroll"
           role="region"
@@ -976,7 +939,7 @@ export function ProductionWorkspace({
             onError={setError}
           />
         </div>
-      </div>
+      </details>
       {mix && (
         <>
           <ProductionMixSettingsPopin
