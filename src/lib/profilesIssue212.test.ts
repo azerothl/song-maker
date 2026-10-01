@@ -71,7 +71,7 @@ describe("profiles a11y/data debt (#212)", () => {
     assert.ok(APP_ENGINE_CATALOG.some((e) => e.id === "kim_vocal_2"));
     const mel = APP_ENGINE_CATALOG.find((e) => e.id === "mel_band_roformer");
     assert.ok(mel);
-    assert.match(mel!.displayNameFr, /Mel-Band RoFormer/);
+    assert.match(mel!.displayNameFr, /Mel-Band RoFormer « Kim Vocal »/);
     assert.doesNotMatch(mel!.displayNameFr, /Kim Vocal 2/);
     const kim = APP_ENGINE_CATALOG.find((e) => e.id === "kim_vocal_2");
     assert.match(kim!.displayNameFr, /Kim Vocal 2 \(MDX-Net\)/);
@@ -91,5 +91,6 @@ describe("profiles a11y/data debt (#212)", () => {
     assert.doesNotMatch(banner, /window\.prompt/);
     assert.match(onboarding, /ProfileRenameDialog/);
     assert.match(banner, /ProfileRenameDialog/);
+    assert.doesNotMatch(onboarding, /Nom du profil requis\./);
   });
 });

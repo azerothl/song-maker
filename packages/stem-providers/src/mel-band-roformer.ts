@@ -10,10 +10,11 @@ import type {
 import { reliabilityForRole } from "./types.js";
 
 /**
- * Mel-Band RoFormer « Kim Vocal 2 » (`mel_band_roformer`) via audio.cpp.
+ * Mel-Band RoFormer « Kim Vocal » (`mel_band_roformer`) via audio.cpp.
  *
  * Same honest layout as BS-RoFormer: vocals + instrumental → other.
  * Weights are opt-in (not in the first-build installer).
+ * Distinct from MDX-Net « Kim Vocal 2 » (`kim_vocal_2`).
  */
 export const MEL_BAND_ROFORMER_PACKAGE = {
   family: "mel_band_roformer",

@@ -7,9 +7,10 @@ import { api } from "../lib/api";
 import { resolveCommercialCreationState } from "../lib/profileCommercialCreation";
 import type { ProfileKind, ProfileSummary } from "../lib/profilesTypes";
 import { setupComplete } from "../lib/firstLaunch";
+import { formatProfileContractCount } from "../lib/profileContractCount";
+import { formatProfileProjectCount } from "../lib/profileProjectCount";
 import { formatProfileRenameInvokeError } from "../lib/profileRenameErrors";
 import { PROFILE_NAME_MAX_LENGTH } from "../lib/profileRenameValidation";
-import { formatProfileProjectCount } from "../lib/profileProjectCount";
 import { profileSwitchBlockReason } from "../lib/profileSwitchBlock";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
@@ -21,10 +22,7 @@ function profileCardMeta(p: ProfileSummary): string {
       ? t("profiles.onboarding.type.commercial")
       : t("profiles.onboarding.type.hobby");
   const projects = formatProfileProjectCount(p.projectCount);
-  const contracts =
-    p.acceptedContractCount > 0
-      ? t("profiles.contracts.count", { count: p.acceptedContractCount })
-      : t("profiles.contracts.none");
+  const contracts = formatProfileContractCount(p.acceptedContractCount);
   return `${kind} · ${projects} · ${contracts}`;
 }
 
@@ -117,7 +115,7 @@ export function ProfileOnboardingScreen() {
   const createProfile = () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("Nom du profil requis.");
+      setError(t("profiles.onboarding.nameRequired"));
       return;
     }
     if (type === "commercial" && !commercialState.activatable) {

@@ -32,7 +32,7 @@ function profileStrings(): string[] {
 }
 
 describe("profiles commercial copy forbidden words (#201)", () => {
-  it("no sûr / garanti / libre de droits in profile UI strings", () => {
+  it("no sûr / garanti / libre de droits / conforme / légal in profile UI strings", () => {
     for (const text of profileStrings()) {
       assert.equal(FORBIDDEN.test(text), false, `forbidden word in: ${text}`);
     }

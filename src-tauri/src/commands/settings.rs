@@ -152,7 +152,7 @@ pub fn get_phase3_status() -> Result<Phase3Status, String> {
         } else if selected == "bs_roformer" {
             "BS-RoFormer : voix + instrumental seulement. Batterie, basse, guitare et piano indisponibles.".into()
         } else if selected == "mel_band_roformer" {
-            "Mel-Band RoFormer « Kim Vocal 2 » : voix + instrumental seulement. Batterie, basse, guitare et piano indisponibles.".into()
+            "Mel-Band RoFormer « Kim Vocal » : voix + instrumental seulement. Batterie, basse, guitare et piano indisponibles.".into()
         } else {
             "HTDemucs : quatre stems. Guitare et piano non exposés par audio.cpp.".into()
         },
@@ -310,7 +310,7 @@ pub fn mel_band_roformer_install_info() -> Result<serde_json::Value, String> {
         "path": crate::paths::mel_band_roformer_path(&cache).display().to_string(),
         "available": present,
         "defaultSeparator": "htdemucs",
-        "stemLayoutFr": "Voix + instrumental seulement (Kim Vocal 2). HTDemucs reste le chemin stable par défaut.",
+        "stemLayoutFr": "Voix + instrumental seulement (Kim Vocal). HTDemucs reste le chemin stable par défaut.",
     }))
 }
 

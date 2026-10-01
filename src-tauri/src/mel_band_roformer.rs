@@ -20,7 +20,7 @@ const HF_URL: &str =
 
 /// License notice shown before / during opt-in install (weights from audio-cpp/audio.cpp-gguf).
 pub const LICENSE_NOTICE_FR: &str = "\
-Mel-Band RoFormer « Kim Vocal 2 » (GGUF q8_0) est optionnel (~240 Mo). Source : Hugging Face audio-cpp/audio.cpp-gguf. \
+Mel-Band RoFormer « Kim Vocal » (GGUF q8_0) est optionnel (~240 Mo). Source : Hugging Face audio-cpp/audio.cpp-gguf. \
 Licence non vérifiée (aucune source primaire confirmée ; une conversion tierce ne suffit pas). \
 Le poids n’est pas inclus dans l’installeur premier build. HTDemucs reste le séparateur par défaut.";
 

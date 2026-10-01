@@ -19,7 +19,7 @@ const UNMEASURED_RECOMMENDATION_BADGE_FR = "Recommandation non mesurée";
 export function recommendFocusReasonFr(focus: SeparationTrackFocus): string {
   switch (focus) {
     case "vocals":
-      return "Pour une piste voix / instrumental, Mel-Band RoFormer « Kim Vocal 2 » est proposé.";
+      return "Pour une piste voix / instrumental, Mel-Band RoFormer « Kim Vocal » est proposé.";
     case "drums":
       return "Pour isoler la batterie dans un mix, HTDemucs (4 stems) est proposé.";
     case "mix":
