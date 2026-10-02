@@ -210,6 +210,14 @@ export async function invoke<T>(
       if (next) Object.assign(captureSettings, next);
       return (next ?? captureSettings) as T;
     }
+    case "list_scores":
+      return [] as T;
+    case "load_score_version":
+      return null as T;
+    case "save_score":
+      return { project: ensureProject() } as T;
+    case "set_active_score":
+      return ensureProject() as T;
     case "get_phase3_status":
       return {
         stemSeparator: "htdemucs",

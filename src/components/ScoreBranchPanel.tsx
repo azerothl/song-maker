@@ -87,9 +87,10 @@ export function ScoreBranchPanel({
   async function reload() {
     try {
       const list = await api.listScores(projectId);
-      setScores(list);
+      setScores(Array.isArray(list) ? list : []);
     } catch (e) {
       onError(String(e));
+      setScores([]);
     }
   }
 
