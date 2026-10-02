@@ -1,0 +1,200 @@
+{
+  "generatedAt": "2026-10-02T10:10:00Z",
+  "productRef": "bfec8bbe2949fb6abccb0217b9dca1c7275efd61",
+  "maquetteHtmlPublished": false,
+  "sceneCountExpected": 33,
+  "sceneCountPresent": 21,
+  "emplacementCount": 12,
+  "allPngSha256Distinct": true,
+  "scenes": [
+    {
+      "file": "01-vue-par-defaut-1280x720.png",
+      "sha256": "c9e563a151d9b2b6664212ff7c483557bb009c8d2868cf2d9259ee086a9cb126",
+      "bytes": 197789,
+      "urlHash": "#a"
+    },
+    {
+      "file": "02-outil-decouper-1280x720.png",
+      "sha256": "74c8cdb12416e5a17f429feea115c972f0eac8f165d6df4ff5176ef62635a18b",
+      "bytes": 203620,
+      "urlHash": "#b"
+    },
+    {
+      "file": "03-popover-reglages-piste-1280x720.png",
+      "sha256": "81a28e6406ff71bad071d847b8e28a46ba290b32f32d2d9f5f9aaf296c28d212",
+      "bytes": 206125,
+      "urlHash": "#c"
+    },
+    {
+      "file": "05-automation-depliee-1280x720.png",
+      "sha256": "72f3a469ceb0d76f8b1b491e51621e0d4e52ecc893dcace45f6b6fb3ac525361",
+      "bytes": 191028,
+      "urlHash": "#e"
+    },
+    {
+      "file": "06-reglages-du-mix-1280x720.png",
+      "sha256": "20f02710ae6e25378e0c0b41b54cf2c66054b39e3f8067504550b08d1401b1da",
+      "bytes": 194018,
+      "urlHash": "#f"
+    },
+    {
+      "file": "07b-640-replie-640x720.png",
+      "sha256": "e296bfe1eb82717704c5dbcb28da0652d1e7eac75127cea4233febda9bec9cfc",
+      "bytes": 107704,
+      "urlHash": "#g2"
+    },
+    {
+      "file": "07c-640-reglages-du-mix-640x720.png",
+      "sha256": "08d8eb7d3791cfc0df14a54c6e6b3cced32c87fcc1f3c67e9feb9e0412325437",
+      "bytes": 91523,
+      "urlHash": "#g3"
+    },
+    {
+      "file": "07d-640-popover-piste-640x720.png",
+      "sha256": "cfb297f7073ce96a912576fa9f0ee2ac96a3fade4f7b780cdf18d8210909a64a",
+      "bytes": 115047,
+      "urlHash": "#g4"
+    },
+    {
+      "file": "08-clavier-focus-palette-1280x720.png",
+      "sha256": "35b649385ccf3d32357d18e1979ffbd8c7fbaa7d8b6a893c70633b138e703e12",
+      "bytes": 200035,
+      "urlHash": "#h"
+    },
+    {
+      "file": "09-gain-pan-clavier-focus-1280x720.png",
+      "sha256": "b4fa8d3a4a2ec8c729effdf595e30f73ae99786a42bdcd9db308d5807459f2a8",
+      "bytes": 198372,
+      "urlHash": "#i"
+    },
+    {
+      "file": "10-saisie-numerique-pan-1280x720.png",
+      "sha256": "9b95bd7592b35051e78a54b6987a17fc605b938fe34839eaf380936d152ba5e1",
+      "bytes": 198627,
+      "urlHash": "#j"
+    },
+    {
+      "file": "11-640-saisie-gain-2-lignes-640x720.png",
+      "sha256": "d1e86457b49264e62a2fb927225ead406500b89f39dd8d97aae5c36a2fb513b6",
+      "bytes": 107903,
+      "urlHash": "#g5"
+    },
+    {
+      "file": "12-ajout-menu-ouvert-1280x720.png",
+      "sha256": "3dad5341049ab360060d597b34ba6473090bafbb8d56d69320db5d1677b13faf",
+      "bytes": 204867,
+      "urlHash": "#k"
+    },
+    {
+      "file": "16-ajout-menu-ouvert-640x720.png",
+      "sha256": "6e7b51621d7a90522ba0433653cccfc0fcb5d9e36c2a37e42f309d7fa79cc50b",
+      "bytes": 111160,
+      "urlHash": "#g6"
+    },
+    {
+      "file": "22-egaliseur-popover-ouvert-1280x720.png",
+      "sha256": "365f2703b4bef0f061df5e4272207772f074f2c9c4db1cf036ed593f9c377904",
+      "bytes": 209809,
+      "urlHash": "#m"
+    },
+    {
+      "file": "24-640-egaliseur-popover-ouvert-640x720.png",
+      "sha256": "bd29041df7b45f0835e5a3cd839a20c3b06dccff28bc0d8f7af25333a95ea055",
+      "bytes": 98353,
+      "urlHash": "#g8"
+    },
+    {
+      "file": "26-automation-popover-1280x720.png",
+      "sha256": "f12a8bf04cfd066c9812c9804b53739b17bde6493af3a084aee1b8d7f038b364",
+      "bytes": 200371,
+      "urlHash": "#n"
+    },
+    {
+      "file": "27-640-automation-popover-640x720.png",
+      "sha256": "1e3f9d022dd57adc2478886da7280b5ad05a75918654dac3701f18a5dba66579",
+      "bytes": 105354,
+      "urlHash": "#g9"
+    },
+    {
+      "file": "28-separer-avis-licence-ouvert-1280x720.png",
+      "sha256": "c880e5219c9fbd2e0a349d961648d422784849ca8869808f5e6f223e30760d23",
+      "bytes": 212569,
+      "urlHash": "#o"
+    },
+    {
+      "file": "30-640-separer-avis-licence-ouvert-640x720.png",
+      "sha256": "2f7f3ab483ae1b5aeb335500eff7f79786f03b26e8558aa874a6c8d2aea35fb5",
+      "bytes": 120011,
+      "urlHash": "#g10"
+    },
+    {
+      "file": "33-en-outil-split-1280x720.png",
+      "sha256": "a4a5969d077e75748f38e820f2b21cce1c9e91ccc2756be817e87253fbcdb2fe",
+      "bytes": 199587,
+      "urlHash": "#b-en"
+    }
+  ],
+  "emplacements": [
+    {
+      "file": "emplacements/p1-1280-1280x720.png",
+      "sha256": "93b53abf39a201fd06d1e8a10614268fc621d86856d04b70d943760343656930",
+      "bytes": 210205
+    },
+    {
+      "file": "emplacements/p2-1280-1280x720.png",
+      "sha256": "a48eaca716eb8bd1960613dfc17110ed2559cc1203c06c6ca38be4407ecca8b2",
+      "bytes": 209025
+    },
+    {
+      "file": "emplacements/p2-640-640x800.png",
+      "sha256": "dc297fb6889169cc2e89e479e1119c9410a5e7ae70ecced234dc4c6535d6788e",
+      "bytes": 111545
+    },
+    {
+      "file": "emplacements/p3-1280-1280x720.png",
+      "sha256": "3931c4fcf00f03e5b64887c522c71b612310048b3aa1afa1cbd6c0b77e464c90",
+      "bytes": 210330
+    },
+    {
+      "file": "emplacements/p4-1280-1280x720.png",
+      "sha256": "b7fa80a6fc7e92451790a0f0726c2aecbea56e8d224117d38c09567cf3cc95d4",
+      "bytes": 197093
+    },
+    {
+      "file": "emplacements/p4b-1280-1280x720.png",
+      "sha256": "52f59a4acd9272a687e38c0a9494454e097ff6c736f0d7dc0368b7dd6a19492d",
+      "bytes": 208913
+    },
+    {
+      "file": "emplacements/p5-1280-1280x720.png",
+      "sha256": "ea594e23497025e2a2cd37d1ec141e6049e60b9e04dcf5fc402a4b3af2ffcf73",
+      "bytes": 200342
+    },
+    {
+      "file": "emplacements/p6-1280-1280x720.png",
+      "sha256": "12ab0cb4980e219a6610b54eea8e09e82dca6b7c5ad53202efca6da08249e777",
+      "bytes": 201010
+    },
+    {
+      "file": "emplacements/p6-640-640x800.png",
+      "sha256": "0e4aa8c271400042c56e4fe0f27a0b628dbddab956f871a64b77daa545876469",
+      "bytes": 110065
+    },
+    {
+      "file": "emplacements/p7-1280-1280x720.png",
+      "sha256": "72489dc89f76054e420667e9e02bdddc8976d8ca240a18f04508db067a1dcd4a",
+      "bytes": 191653
+    },
+    {
+      "file": "emplacements/p8-1280-1280x720.png",
+      "sha256": "585fa92093baa7e9d0bab1462ec019ae41d6c4256c0cbe597b799918b2188c9c",
+      "bytes": 209724
+    },
+    {
+      "file": "emplacements/p9-1280-1280x720.png",
+      "sha256": "ff939f491d2923db0cbaa9279d26e05325478824a97b73c9b6afddb56d248f3b",
+      "bytes": 212010
+    }
+  ],
+  "missingScenesNote": "HTML maquette + 12 captures manquantes (04, 07, 13-15, 17-21, 23, 25, 29, 31-32) hors dépôt ; pack A–G partiel."
+}
