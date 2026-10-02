@@ -69,6 +69,14 @@ Chaque PNG a une empreinte SHA-256 distincte (29/29). Une clé `metrics.json` pa
 - Les tests commités comparent les invariants (overlap ≤ 0,51 px, `footerReach.reachable`, contrastes ≥ 4,5) plutôt qu’une égalité bit-à-bit du JSON.
 - `data-testid="sep-recommend-trigger"` : déjà documenté dans les harness / mesures d’overlap.
 
+## Preuve B1 mutation (AnchoredPopin legacy)
+
+Artefact : `B1-regression-old-anchored-popin.txt` (généré par `b1-regression-old-popin.mts`).
+
+Sur `git show 92f4f8a:src/components/AnchoredPopin.tsx` (parent de `0fece00` / #191), le scénario Alphonse (ancre y≈219, 12 pistes, 1280×768, bascule « Pistes séparées ») mesure **footer.reachable === false** et **run.reachable === false** : échec **attendu** pour débordement du pied hors viewport (pas une assertion de calage). Avec le `AnchoredPopin` actuel, `anchoredPopinFooter.behavior.test.ts` passe.
+
+Checklist Pascal (#196) : Reprendre au-dessus du pli @640, indicateur de défilement récap, notice ≥ 14 px, README 29/29 empreintes, preuve B1 — **soldée** côté harness React.
+
 ## Non testé
 
 Tauri natif, WebKitGTK, lecteur d’écran, téléchargement réel des modèles, onglets Créer / Partition / Versions.
