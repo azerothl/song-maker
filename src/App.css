@@ -1400,7 +1400,8 @@ option {
 }
 
 /* #186 I3 — anneau inset + liseré sombre (≥ 3:1 vs face lavande, WCAG 1.4.11). */
-.production-mix-toolbar-actions > .btn.primary:focus-visible {
+.production-mix-toolbar-actions > .btn.primary:focus-visible,
+.production-main-toolbar-actions > .btn.primary:focus-visible {
   outline-offset: -2px;
   box-shadow: inset 0 0 0 2px #151827;
 }
