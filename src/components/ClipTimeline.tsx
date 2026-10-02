@@ -1746,8 +1746,8 @@ export function ClipTimeline({
               ))}
             </div>
           </div>
-          <div className="clip-marker-lane clip-tempo-lane" role="group" aria-label={t("clips.tempoMap")}>
-            <span className="clip-lane-label">{t("clips.tempoMap")}</span>
+          <div className="clip-marker-lane clip-tempo-lane" role="group" aria-label={t("production.lane.tempo")}>
+            <span className="clip-lane-label">{t("production.lane.tempo")}</span>
               <button type="button" className="btn clip-tempo-add" ref={tempoOpenButton}
                 aria-label={t("production.tempo.addNamed")} aria-haspopup="dialog" aria-expanded={arrangementOpen === "tempo"}
                 onClick={event=>{tempoAnchor.current=event.currentTarget;setTempoAtDraft(Math.min(timelineMs,Math.max(0,currentTimeMs)));setArrangementOpen("tempo");}}>+</button>
@@ -1782,8 +1782,8 @@ export function ClipTimeline({
               ))}
             </div>
           </div>
-          <div className="clip-marker-lane" role="group" aria-label={t("clips.markers")}>
-            <span className="clip-lane-label">{t("clips.markers")}</span>
+          <div className="clip-marker-lane" role="group" aria-label={t("production.lane.markers")}>
+            <span className="clip-lane-label">{t("production.lane.markers")}</span>
               <button type="button" className="btn clip-marker-add" ref={markerOpenButton}
                 aria-label={t("production.marker.addNamed")} aria-haspopup="dialog" aria-expanded={arrangementOpen === "markers"}
                 onClick={event=>{markerAnchor.current=event.currentTarget;setArrangementOpen("markers");}}>+</button>

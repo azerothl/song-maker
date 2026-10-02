@@ -1,6 +1,8 @@
 {
   "production.common.intro": "Mixez les pistes, éditez les clips et ouvrez les réglages avancés sur cette page.",
   "production.common.timelineNamed": "Pistes, tempo et marqueurs sur la règle commune",
+  "production.lane.tempo": "Tempo",
+  "production.lane.markers": "Marqueurs",
   "production.tempo.addNamed": "Ajouter un tempo à la position de lecture",
   "production.marker.addNamed": "Ajouter ou modifier un marqueur",
   "production.tempo.flagNamed": "Tempo {bpm} BPM, {time}",

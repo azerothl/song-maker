@@ -130,3 +130,29 @@ it("marker keyboard boundaries, fine steps and deletion keep clips unchanged",as
   assert.deepEqual(await page.evaluate(()=>(window as unknown as {__arrangementMix:{tracks:unknown}}).__arrangementMix.tracks),before);
  }finally{await page.close();}
 });
+it("FR zones are labeled Tempo/Marqueurs and times use a decimal comma",async()=>{
+ const page=await browser.newPage({viewport:{width:1280,height:720}});
+ try{
+  await page.addInitScript(()=>localStorage.setItem("song-maker.locale","fr"));
+  await page.goto("http://127.0.0.1:5239/arrangement-capture.html");
+  assert.equal(await page.locator(".clip-tempo-lane").getAttribute("aria-label"),"Tempo");
+  assert.equal(await page.locator(".clip-marker-lane:not(.clip-tempo-lane)").getAttribute("aria-label"),"Marqueurs");
+  assert.equal(await page.locator(".clip-tempo-lane .clip-lane-label").innerText(),"Tempo");
+  assert.equal(await page.locator(".clip-marker-lane:not(.clip-tempo-lane) .clip-lane-label").innerText(),"Marqueurs");
+  assert.doesNotMatch(await page.locator(".clip-tempo-lane, .clip-marker-lane").allInnerTexts().then(a=>a.join("\n")),/voie/i);
+  await page.locator(".clip-tempo-add").click();
+  await page.getByLabel("À (ms)",{exact:true}).fill("12340");
+  await page.getByLabel("BPM",{exact:true}).fill("128");
+  await page.getByRole("button",{name:"Ajouter / mettre à jour",exact:true}).click();
+  await page.keyboard.press("Escape");
+  const flag=page.locator('.clip-tempo-flag[data-tempo-ms="12340"]');
+  await flag.waitFor();
+  assert.match(await flag.getAttribute("aria-label")??"",/0:12,3/);
+  assert.match(await page.getByTestId("arrangement-status").innerText(),/0:12,3/);
+  await page.locator(".clip-marker-add").click();
+  assert.equal(await page.getByLabel("Nom",{exact:true}).count(),1);
+  assert.equal(await page.getByRole("checkbox",{name:/Déplacer les clips avec le marqueur/}).count(),1);
+  assert.equal(await page.getByLabel("Position (ms)",{exact:true}).count(),1);
+  assert.equal(await page.getByLabel("À (ms)",{exact:true}).count(),1);
+ }finally{await page.close();}
+});
