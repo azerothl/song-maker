@@ -113,6 +113,19 @@ pub fn sheetsage2_weights_present(cache: &Path) -> bool {
             .unwrap_or(false)
 }
 
+/// Deferred Rbitnet server binaries (release tag under cache/binaries/rbitnet/<tag>).
+pub fn rbitnet_bin_dir(cache: &Path) -> PathBuf {
+    cache
+        .join("binaries")
+        .join("rbitnet")
+        .join(crate::pins::RBITNET_TAG)
+}
+
+/// Deferred Rbitnet GGUF + tokenizer weights under cache/models/rbitnet/<model-id>.
+pub fn rbitnet_model_dir(cache: &Path, model_id: &str) -> PathBuf {
+    cache.join("models").join("rbitnet").join(model_id)
+}
+
 /// Persistent NAR LoRA training jobs (Documents/Song Maker/training-jobs).
 pub fn training_jobs_root() -> PathBuf {
     song_maker_documents().join("training-jobs")

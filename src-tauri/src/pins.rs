@@ -128,6 +128,70 @@ pub const ACE_STEP_REMOTE: &str = "ACE-Step1.5-GGUF/turbo/ace-step-1.5-turbo-bf1
 pub const ACE_STEP_SHA: &str = "93974239a29a1a821b3cc1b1ca7e1c6229b1a900a0e44a1a9770bb2271d2be5f";
 pub const ACE_STEP_BYTES: u64 = 10_090_398_272;
 
+/// Rbitnet (`azerothl/Rbitnet`) — mix-assistant sidecar (Phase 2a). Pin aligned with
+/// the only published release used by Akasha integrations (`v0.1.0`).
+pub const RBITNET_TAG: &str = "v0.1.0";
+pub const RBITNET_REPO: &str = "azerothl/Rbitnet";
+pub const RBITNET_BIND_HOST: &str = "127.0.0.1";
+pub const RBITNET_BIND_PORT: u16 = 8080;
+
+pub const RBITNET_ARCHIVE_LINUX: &str = "rbitnet-server-v0.1.0-linux-x86_64.tar.gz";
+pub const RBITNET_ARCHIVE_LINUX_SHA: &str =
+    "808de40fe42abe8f1b7508ca9c9f501d3d45b03719c55c72bf47bf3c8abbe71f";
+pub const RBITNET_ARCHIVE_LINUX_BYTES: u64 = 2_823_434;
+
+pub const RBITNET_ARCHIVE_MACOS_ARM64: &str = "rbitnet-server-v0.1.0-macos-arm64.tar.gz";
+pub const RBITNET_ARCHIVE_MACOS_ARM64_SHA: &str =
+    "dd2b9176088816e35356fc8aac7ad7c9890d59eb51710b46f5ab5a7a0f42881b";
+pub const RBITNET_ARCHIVE_MACOS_ARM64_BYTES: u64 = 2_546_159;
+
+pub const RBITNET_ARCHIVE_WINDOWS: &str = "rbitnet-server-v0.1.0-windows-x86_64.zip";
+pub const RBITNET_ARCHIVE_WINDOWS_SHA: &str =
+    "c966813c974a3fbeb52bce2c85de6ea365e91e95f84a87d249b4c0afabaab89a";
+pub const RBITNET_ARCHIVE_WINDOWS_BYTES: u64 = 2_258_806;
+
+/// Qwen 2.5 1.5B Instruct Q4_K_M (GGUF) — default Rbitnet mix model.
+pub const RBITNET_QWEN_ID: &str = "qwen2.5-1.5b-instruct-q4_k_m";
+pub const RBITNET_QWEN_REPO: &str = "Qwen/Qwen2.5-1.5B-Instruct-GGUF";
+pub const RBITNET_QWEN_FILE: &str = "qwen2.5-1.5b-instruct-q4_k_m.gguf";
+pub const RBITNET_QWEN_SHA: &str =
+    "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e";
+pub const RBITNET_QWEN_BYTES: u64 = 1_117_320_736;
+pub const RBITNET_QWEN_TOKENIZER_REPO: &str = "Qwen/Qwen2.5-1.5B-Instruct";
+pub const RBITNET_QWEN_TOKENIZER_BYTES: u64 = 7_031_645;
+
+/// Microsoft BitNet b1.58 2B-4T — native Rbitnet BitNet path.
+pub const RBITNET_BITNET_ID: &str = "microsoft-bitnet-b1.58-2b-4t";
+pub const RBITNET_BITNET_REPO: &str = "microsoft/bitnet-b1.58-2B-4T-gguf";
+pub const RBITNET_BITNET_FILE: &str = "ggml-model-i2_s.gguf";
+pub const RBITNET_BITNET_SHA: &str =
+    "4221b252fdd5fd25e15847adfeb5ee88886506ba50b8a34548374492884c2162";
+pub const RBITNET_BITNET_BYTES: u64 = 1_187_801_280;
+pub const RBITNET_BITNET_TOKENIZER_REPO: &str = "microsoft/bitnet-b1.58-2B-4T";
+pub const RBITNET_BITNET_TOKENIZER_BYTES: u64 = 9_085_698;
+
+pub fn rbitnet_platform_archive() -> (&'static str, &'static str, u64) {
+    if cfg!(target_os = "windows") {
+        (
+            RBITNET_ARCHIVE_WINDOWS,
+            RBITNET_ARCHIVE_WINDOWS_SHA,
+            RBITNET_ARCHIVE_WINDOWS_BYTES,
+        )
+    } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
+        (
+            RBITNET_ARCHIVE_MACOS_ARM64,
+            RBITNET_ARCHIVE_MACOS_ARM64_SHA,
+            RBITNET_ARCHIVE_MACOS_ARM64_BYTES,
+        )
+    } else {
+        (
+            RBITNET_ARCHIVE_LINUX,
+            RBITNET_ARCHIVE_LINUX_SHA,
+            RBITNET_ARCHIVE_LINUX_BYTES,
+        )
+    }
+}
+
 pub const DEFAULT_STEM_SEPARATOR: &str = "htdemucs";
 
 pub const DEFAULT_HOST: &str = "127.0.0.1";
