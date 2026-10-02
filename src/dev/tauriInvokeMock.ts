@@ -80,6 +80,10 @@ const captureSettings: AppSettings = {
   separatorTimeStats: {
     htdemucs: { msPerAudioSec: 1200, samples: 3 },
   },
+  mixLlmProvider: "ollama",
+  mixLlmBaseUrl: "http://127.0.0.1:11434",
+  mixLlmModelId: "qwen3.5:2b",
+  mixLlmAllowRemote: false,
 };
 
 export function isTauri(): boolean {

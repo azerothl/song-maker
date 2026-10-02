@@ -28,6 +28,10 @@ const captureSettings: AppSettings = {
   yue2LicenseAccepted: true,
   acceptedSeparatorLicenses: { htdemucs: true },
   localYue2Enabled: true,
+  mixLlmProvider: "ollama",
+  mixLlmBaseUrl: "http://127.0.0.1:11434",
+  mixLlmModelId: "qwen3.5:2b",
+  mixLlmAllowRemote: false,
 };
 
 seedCreateTabCaptureStore();

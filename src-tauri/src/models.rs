@@ -248,6 +248,18 @@ pub struct AppSettings {
     pub yue2_ar_lora_scale: f32,
     #[serde(default = "default_lora_scale")]
     pub yue2_nar_lora_scale: f32,
+    /// Mix assistant LLM provider: `ollama` | `openai_compat` | `rbitnet`.
+    #[serde(default = "default_mix_llm_provider")]
+    pub mix_llm_provider: String,
+    /// Base URL for the mix assistant LLM (loopback by default).
+    #[serde(default = "default_mix_llm_base_url")]
+    pub mix_llm_base_url: String,
+    /// Model id / tag expected on the configured server.
+    #[serde(default = "default_mix_llm_model_id")]
+    pub mix_llm_model_id: String,
+    /// Expert opt-in: allow non-loopback OpenAI-compat endpoints (off by default).
+    #[serde(default = "default_mix_llm_allow_remote")]
+    pub mix_llm_allow_remote: bool,
 }
 
 fn default_lora_scale() -> f32 {
@@ -268,6 +280,22 @@ fn default_audio_latency_ms() -> u32 {
 
 fn default_stem_separator() -> String {
     crate::pins::DEFAULT_STEM_SEPARATOR.to_string()
+}
+
+pub fn default_mix_llm_provider() -> String {
+    "ollama".into()
+}
+
+pub fn default_mix_llm_base_url() -> String {
+    "http://127.0.0.1:11434".into()
+}
+
+pub fn default_mix_llm_model_id() -> String {
+    "qwen3.5:2b".into()
+}
+
+pub fn default_mix_llm_allow_remote() -> bool {
+    false
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

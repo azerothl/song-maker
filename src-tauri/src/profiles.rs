@@ -273,6 +273,14 @@ pub struct GlobalAppSettings {
     pub audio_latency_ms: u32,
     #[serde(default)]
     pub active_profile_id: Option<String>,
+    #[serde(default = "crate::models::default_mix_llm_provider")]
+    pub mix_llm_provider: String,
+    #[serde(default = "crate::models::default_mix_llm_base_url")]
+    pub mix_llm_base_url: String,
+    #[serde(default = "crate::models::default_mix_llm_model_id")]
+    pub mix_llm_model_id: String,
+    #[serde(default = "crate::models::default_mix_llm_allow_remote")]
+    pub mix_llm_allow_remote: bool,
 }
 
 fn default_audio_latency() -> u32 {
@@ -427,6 +435,10 @@ pub fn split_and_save_settings(active_id: &str, merged: &AppSettings) -> Result<
             output_device: merged.output_device.clone(),
             audio_latency_ms: merged.audio_latency_ms,
             active_profile_id: Some(active_id.to_string()),
+            mix_llm_provider: merged.mix_llm_provider.clone(),
+            mix_llm_base_url: merged.mix_llm_base_url.clone(),
+            mix_llm_model_id: merged.mix_llm_model_id.clone(),
+            mix_llm_allow_remote: merged.mix_llm_allow_remote,
         }
     };
     global.cache_dir = merged.cache_dir.clone();
@@ -441,6 +453,10 @@ pub fn split_and_save_settings(active_id: &str, merged: &AppSettings) -> Result<
     global.output_device = merged.output_device.clone();
     global.audio_latency_ms = merged.audio_latency_ms;
     global.active_profile_id = Some(active_id.to_string());
+    global.mix_llm_provider = merged.mix_llm_provider.clone();
+    global.mix_llm_base_url = merged.mix_llm_base_url.clone();
+    global.mix_llm_model_id = merged.mix_llm_model_id.clone();
+    global.mix_llm_allow_remote = merged.mix_llm_allow_remote;
     atomic_write_json(&global_path, &global)
 }
 
@@ -533,6 +549,10 @@ pub fn merged_settings_from_disk() -> Result<AppSettings, String> {
                 settings.server_port = global.server_port;
                 settings.output_device = global.output_device;
                 settings.audio_latency_ms = global.audio_latency_ms;
+                settings.mix_llm_provider = global.mix_llm_provider;
+                settings.mix_llm_base_url = global.mix_llm_base_url;
+                settings.mix_llm_model_id = global.mix_llm_model_id;
+                settings.mix_llm_allow_remote = global.mix_llm_allow_remote;
             }
         }
         return Ok(settings);
@@ -570,6 +590,10 @@ pub fn merged_settings_from_disk() -> Result<AppSettings, String> {
                 yue2_nar_lora: None,
                 yue2_ar_lora_scale: 1.0,
                 yue2_nar_lora_scale: 1.0,
+                mix_llm_provider: global.mix_llm_provider,
+                mix_llm_base_url: global.mix_llm_base_url,
+                mix_llm_model_id: global.mix_llm_model_id,
+                mix_llm_allow_remote: global.mix_llm_allow_remote,
             }
         } else {
             serde_json::from_str::<AppSettings>(&text).map_err(|e| e.to_string())?

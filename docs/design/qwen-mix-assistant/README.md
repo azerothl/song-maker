@@ -1,14 +1,16 @@
-# Assistant de mix unique avec Qwen
+# Assistant de mix local (multi-backends LLM)
 
-Choix utilisateur : Qwen léger. Le modèle qwen3.5:2b était déjà installé dans Ollama ; aucun poids téléchargé pendant cette livraison. Un seul point d’entrée dans Réglages du mix. Les fonctions manuelles et diagnostics restent dans un panneau repliable.
+Choix utilisateur initial : Qwen léger via Ollama (`qwen3.5:2b`). Depuis 2026-10-02 : backends configurables — **Ollama natif**, **OpenAI-compat** (LM Studio, etc.), **preset Rbitnet** (`http://127.0.0.1:8080`, health `/ready`). Cloud = mode expert opt-in seulement. Un seul point d’entrée dans Réglages du mix. Les fonctions manuelles et diagnostics restent dans un panneau repliable.
 
-Le backend envoie uniquement noms, rôles, niveaux RMS/crêtes, gain/pan et objectif à 127.0.0.1:11434. Aucun WAV envoyé. Adresse fixe, proxy et redirections désactivés. Réponse JSON contrôlée : IDs inconnus/dupliqués, nombres non finis, gain hors [-60,+12] dB, variation supérieure à 6 dB ou pan hors [-1,+1] rejetés. Les propositions inchangées sont retirées. Aucun téléchargement automatique.
+Le backend envoie uniquement noms, rôles, niveaux RMS/crêtes, gain/pan et objectif au serveur LLM configuré (loopback par défaut). Aucun WAV envoyé. Proxy et redirections désactivés. Réponse JSON contrôlée : IDs inconnus/dupliqués, nombres non finis, gain hors [-60,+12] dB, variation supérieure à 6 dB ou pan hors [-1,+1] rejetés. Les propositions inchangées sont retirées. Aucun téléchargement automatique dans Phase 0+1.
 
 Les réglages demandent examen puis confirmation ; une action annule gain/pan. Le fingerprint du mix et de son overlay bloque une proposition périmée. L’annulation conserve les autres données de piste.
 
+Décisions produit et phases (sidecar Rbitnet = Phase 2a) : store Project `docs/mix-assistant-llm-backends.md` / issue #309.
+
 ## Licence et notices
 
-[Note et sources épinglées](../../model-licenses/README.md) : Apache-2.0, Copyright 2026 Alibaba Cloud. La copie officielle complète est disponible dans l’assistant hors ligne et référencée dans NOTICE. Les poids sont installés séparément dans Ollama.
+[Note et sources épinglées](../../model-licenses/README.md) : Apache-2.0, Copyright 2026 Alibaba Cloud. La copie officielle complète est disponible dans l’assistant hors ligne et référencée dans NOTICE. Les poids sont installés séparément sur le serveur LLM local.
 
 ## Preuves distinctes
 
