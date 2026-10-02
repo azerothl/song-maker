@@ -411,10 +411,23 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "forced",
     shotTarget: "button-clip",
     prepare: async (page) => {
-      await page.waitForTimeout(250);
-      await page.waitForSelector(".record-actions button.btn.primary", {
-        timeout: 15_000,
-      });
+      await page.waitForFunction(
+        () => typeof window.__captureSetRecordPhase === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureSetRecordPhase?.("armed"));
+      await page.waitForFunction(
+        () => {
+          const btn = document.querySelector(".record-actions button.btn.primary");
+          return !!btn && /démarrer|start/i.test(btn.textContent ?? "");
+        },
+        { timeout: 15_000 },
+      );
+      await page
+        .locator(".record-actions button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+      await page.waitForTimeout(100);
     },
   },
   {
@@ -426,10 +439,23 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "forced",
     shotTarget: "button-clip",
     prepare: async (page) => {
-      await page.waitForTimeout(250);
-      await page.waitForSelector(".record-actions button.btn.primary", {
-        timeout: 15_000,
-      });
+      await page.waitForFunction(
+        () => typeof window.__captureSetRecordPhase === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureSetRecordPhase?.("paused"));
+      await page.waitForFunction(
+        () => {
+          const btn = document.querySelector(".record-actions button.btn.primary");
+          return !!btn && /reprendre|resume/i.test(btn.textContent ?? "");
+        },
+        { timeout: 15_000 },
+      );
+      await page
+        .locator(".record-actions button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+      await page.waitForTimeout(100);
     },
   },
   {
@@ -441,10 +467,25 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "forced",
     shotTarget: "button-clip",
     prepare: async (page) => {
-      await page.waitForTimeout(250);
-      await page.waitForSelector(".record-actions button.btn.primary", {
-        timeout: 15_000,
-      });
+      await page.waitForFunction(
+        () => typeof window.__captureSetRecordPhase === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() =>
+        window.__captureSetRecordPhase?.("review", { withTakes: true }),
+      );
+      await page.waitForFunction(
+        () => {
+          const btn = document.querySelector(".record-actions button.btn.primary");
+          return !!btn && /garder|keep/i.test(btn.textContent ?? "");
+        },
+        { timeout: 15_000 },
+      );
+      await page
+        .locator(".record-actions button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+      await page.waitForTimeout(100);
     },
   },
   {
@@ -753,6 +794,10 @@ declare global {
     __captureSetGenerateBusy?: (busy: boolean) => void;
     __productionCaptureSetBusy?: (busy: boolean) => void;
     __captureOpenAdvancedSettings?: (page?: string) => void;
+    __captureSetRecordPhase?: (
+      next: string,
+      opts?: { withTakes?: boolean },
+    ) => void;
   }
 }
 
