@@ -130,3 +130,31 @@ it("marker keyboard boundaries, fine steps and deletion keep clips unchanged",as
   assert.deepEqual(await page.evaluate(()=>(window as unknown as {__arrangementMix:{tracks:unknown}}).__arrangementMix.tracks),before);
  }finally{await page.close();}
 });
+it("FR zones are labeled Tempo/Marqueurs and times use a decimal comma",async()=>{
+ const page=await browser.newPage({viewport:{width:1280,height:720}});
+ try{
+  await page.addInitScript(()=>localStorage.setItem("song-maker.locale","fr"));
+  await page.goto("http://127.0.0.1:5239/arrangement-capture.html");
+  assert.equal(await page.locator(".clip-tempo-lane").getAttribute("aria-label"),"Tempo");
+  assert.equal(await page.locator(".clip-marker-lane:not(.clip-tempo-lane)").getAttribute("aria-label"),"Marqueurs");
+  assert.equal(await page.locator(".clip-tempo-lane .clip-lane-label").innerText(),"Tempo");
+  assert.equal(await page.locator(".clip-marker-lane:not(.clip-tempo-lane) .clip-lane-label").innerText(),"Marqueurs");
+  assert.doesNotMatch((await page.locator(".clip-tempo-lane, .clip-marker-lane").allInnerTexts()).join("\n"),/voie/i);
+  assert.match(await page.locator(".clip-marker-flag").getAttribute("aria-label")??"",/0:08,0/);
+  await page.locator(".clip-tempo-add").click();
+  await page.getByLabel("À (ms)",{exact:true}).fill("8000");
+  await page.getByLabel("BPM",{exact:true}).fill("96");
+  await page.getByRole("button",{name:"Ajouter / mettre à jour",exact:true}).click();
+  await page.keyboard.press("Escape");
+  const flag=page.locator('.clip-tempo-flag[data-tempo-ms="8000"]');
+  await flag.waitFor();
+  assert.match(await flag.getAttribute("aria-label")??"",/0:08,0/);
+  assert.match(await page.getByTestId("arrangement-status").innerText(),/0:08,0/);
+  await page.locator(".clip-marker-flag").click();
+  await page.locator(".clip-marker-editor").waitFor();
+  assert.ok(await page.locator(".clip-marker-editor input[type=text]").count()>=1);
+  assert.ok(await page.locator(".clip-marker-editor input[type=checkbox]").count()>=1);
+  assert.ok(await page.locator(".clip-marker-editor input[type=number]").count()>=1);
+  assert.match(await page.locator(".clip-marker-editor").innerText(),/Position \(ms\)/);
+ }finally{await page.close();}
+});
