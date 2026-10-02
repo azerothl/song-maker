@@ -23,6 +23,7 @@ for(const [locale,width] of [["fr",1280],["en",640]] as const) {
       await point.focus();
       await page.keyboard.press("ArrowUp");
       await page.keyboard.press("ArrowRight");
+      assert.match(await editor.locator("p[role=status][aria-live=polite]").innerText(), /125/);
       const inputs=editor.locator(".production-auto-points li input");
       assert.equal(await inputs.nth(0).inputValue(),"125");
       assert.equal(Number(await inputs.nth(1).inputValue()),1.8);
@@ -52,6 +53,8 @@ for(const [locale,width] of [["fr",1280],["en",640]] as const) {
       const clear=locale === "en" ? "Clear curve" : "Effacer la courbe";
       await editor.getByRole("button",{name:clear,exact:true}).click();
       assert.equal(await editor.locator(".production-auto-point").count(),0);
+      assert.match(await editor.getByTestId("production-auto-empty").innerText(), /Aucun point|No points/);
+      assert.match(await editor.locator("p[role=status][aria-live=polite]").innerText(), /Aucun point|No points/);
       await editor.getByRole("button",{name:locale === "en" ? "Restore curve" : "Rétablir la courbe",exact:true}).click();
       assert.equal(await editor.locator(".production-auto-point").count(),1);
       const curve=editor.locator(".production-auto-curve");

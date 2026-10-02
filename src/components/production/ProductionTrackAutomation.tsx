@@ -64,11 +64,18 @@ export function ProductionTrackAutomation({ mixId, trackId, trackName, durationM
   const label = (point: AutomationPoint, index=0) => t("production.auto.point", {
     index:index+1,time: nf.format(point.timeMs), value: nf.format(point.value), unit: target === "volume" ? t("production.unit.db") : "",
   });
-  const persist = (next: AutomationPoint[]) => {
+  const persist = (next: AutomationPoint[], focusIndex?: number) => {
     setRestore(null);
     setSampled(null);
-    setAnnouncement(t("production.auto.points",{count:nf.format(next.length)}));
-    setAutomationLanePoints(mixId, trackId, target, [...next].sort((a,b) => a.timeMs-b.timeMs));
+    const sorted = [...next].sort((a,b) => a.timeMs-b.timeMs);
+    if (focusIndex != null && sorted[focusIndex]) {
+      setAnnouncement(label(sorted[focusIndex], focusIndex));
+    } else if (!sorted.length) {
+      setAnnouncement(t("production.auto.empty"));
+    } else {
+      setAnnouncement(t("production.auto.points",{count:nf.format(sorted.length)}));
+    }
+    setAutomationLanePoints(mixId, trackId, target, sorted);
   };
   const add = (timeMs: number, value = getProductionToolkit().automation.sampleAt(mixId,trackId,target,timeMs)) => {
     const time = clamp(Math.round(timeMs), 0, maxMs);
@@ -80,7 +87,9 @@ export function ProductionTrackAutomation({ mixId, trackId, trackName, durationM
     point.timeMs = clamp(Math.round(point.timeMs),index>0?points[index-1].timeMs+1:0,index<points.length-1?points[index+1].timeMs-1:maxMs);
     point.value = clamp(point.value,lo,hi);
     if(focus)focusTime.current=point.timeMs;
-    persist(points.filter((p,i) => i !== index && p.timeMs !== point.timeMs).concat(point));
+    const next = points.filter((p,i) => i !== index && p.timeMs !== point.timeMs).concat(point);
+    const sortedIndex = [...next].sort((a,b)=>a.timeMs-b.timeMs).findIndex(p=>p.timeMs===point.timeMs);
+    persist(next, focus ? Math.max(0, sortedIndex) : undefined);
   };
   const remove = (index:number) => {
     const next=points.filter((_,i)=>i!==index);
@@ -140,14 +149,14 @@ export function ProductionTrackAutomation({ mixId, trackId, trackName, durationM
       <button type="button" className="btn" disabled={!points.length} onClick={() => {
         setRestore({ target, points: points.map(p => ({ ...p })) });
         setAutomationLanePoints(mixId,trackId,target,[]);
-        setSampled(null);setAnnouncement(t("production.auto.points",{count:nf.format(0)}));
+        setSampled(null);setAnnouncement(t("production.auto.empty"));
       }}>{t("phase3.mix.clearAutomation")}</button>
       {restore && <button type="button" className="btn" onClick={() => {
         setAutomationLanePoints(mixId,trackId,restore.target,restore.points); setRestore(null);
       }}>{t("production.auto.restore")}</button>}
     </div>
     <p className="hint">{t("production.auto.laneNamed", { target: targetLabel })}</p>
-    {!points.length && <p className="hint">{t("production.auto.empty")}</p>}
+    {!points.length && <p className="hint" data-testid="production-auto-empty">{t("production.auto.empty")}</p>}
     <ol className="production-auto-points">
       {points.map((p,i) => <li key={i}>
         <button type="button" className="btn production-auto-point" role="slider" data-time-ms={p.timeMs} aria-valuemin={0} aria-valuemax={maxMs} aria-valuenow={p.timeMs} aria-valuetext={label(p,i)} aria-label={label(p,i)} onKeyDown={e => {
