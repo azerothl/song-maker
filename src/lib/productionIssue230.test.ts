@@ -93,9 +93,23 @@ describe("Production #230 — emplacements planches", () => {
       "utf8",
     );
     assert.doesNotMatch(workspace, /Phase3MixPanel/);
-    assert.doesNotMatch(workspace, /production-panel-tools/);
+    assert.doesNotMatch(workspace, /production-panel-/);
+    assert.doesNotMatch(workspace, /production-view-/);
+    assert.doesNotMatch(workspace, /production-subnav/);
     assert.doesNotMatch(workspace, /<ExportWizard/);
+    assert.match(workspace, /production-mix-region/);
+    assert.match(workspace, /production-common-timeline/);
     assert.match(workspace, /sources=\{playbackSources\}/);
+  });
+
+  it("API densité sans ProductionViewId / sans paramètre de vue", () => {
+    const layout = readFileSync("src/lib/productionTrackLayout.ts", "utf8");
+    assert.doesNotMatch(layout, /ProductionViewId/);
+    assert.doesNotMatch(layout, /productionView/);
+    assert.match(
+      layout,
+      /export function shouldUseProductionTightLayout\(\s*_density: ProductionTrackDensity/,
+    );
   });
 
   it("prises et Tempo/hauteur sur la barre de sélection clip (p8)", () => {
@@ -121,5 +135,20 @@ describe("Production #230 — emplacements planches", () => {
     localStorage.setItem(LOCALE_KEY, "en");
     assert.equal(t("phase3.routing.addGroup"), "+ Group bus");
     assert.equal(t("phase3.routing.noGroup"), "Master (no group bus)");
+  });
+
+  it("CSS sans vestiges sous-onglets / panneaux masqués", () => {
+    const css = readFileSync("src/App.css", "utf8");
+    assert.doesNotMatch(css, /production-panel-/);
+    assert.doesNotMatch(css, /production-subnav/);
+    assert.doesNotMatch(css, /production-actions-drawer/);
+    assert.doesNotMatch(css, /mix-assist-drawer/);
+    assert.doesNotMatch(css, /production-advanced-disclosure/);
+    assert.doesNotMatch(css, /\.advanced-production/);
+    assert.match(css, /\.production-mix-region/);
+    assert.match(
+      css,
+      /\.mix-master-play:focus-visible\s*\{[\s\S]*?rgb\(94,\s*236,\s*248\)/,
+    );
   });
 });

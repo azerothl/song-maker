@@ -889,51 +889,6 @@ option {
   border-bottom: none;
 }
 
-.production-actions-drawer,
-.mix-assist-drawer {
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--bg1) 88%, transparent);
-  padding: 0.15rem 0.55rem 0.35rem;
-}
-
-.production-actions-drawer > summary,
-.mix-assist-drawer > summary {
-  cursor: pointer;
-  list-style: none;
-  font-size: 0.88rem;
-  font-weight: 600;
-  padding: 0.4rem 0.15rem;
-  color: var(--text);
-}
-
-.production-actions-drawer > summary::-webkit-details-marker,
-.mix-assist-drawer > summary::-webkit-details-marker {
-  display: none;
-}
-
-.production-actions-drawer > summary::before,
-.mix-assist-drawer > summary::before {
-  content: "▸";
-  display: inline-block;
-  margin-right: 0.4rem;
-  color: var(--accent-cyan);
-  transition: transform 120ms ease;
-}
-
-.production-actions-drawer[open] > summary::before,
-.mix-assist-drawer[open] > summary::before {
-  transform: rotate(90deg);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .production-actions-drawer > summary::before,
-  .mix-assist-drawer > summary::before,
-  .mix-knob-indicator {
-    transition: none;
-  }
-}
-
 .production-workspace {
   gap: 0.55rem;
   flex: 1;
@@ -947,11 +902,6 @@ option {
 
 .production-heading-compact p {
   margin: 0.15rem 0 0;
-}
-
-.production-subview-intro {
-  margin: 0;
-  font-size: 0.82rem;
 }
 
 .production-chrome-stack {
@@ -973,17 +923,6 @@ option {
   gap: 0.2rem 0.55rem;
 }
 
-.production-workspace-tight .production-chrome-stack .production-actions-drawer {
-  flex: 1 1 10rem;
-  min-width: 0;
-  margin: 0;
-  order: 2;
-}
-
-.production-workspace-tight .production-chrome-stack .production-subview-intro {
-  display: none;
-}
-
 .production-workspace-tight {
   gap: 0.15rem;
 }
@@ -997,32 +936,6 @@ option {
 
 .production-workspace-tight .production-heading-compact {
   display: none;
-}
-
-.production-workspace-tight .production-subnav {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.production-workspace-tight .song-subnav-tab {
-  min-height: 32px;
-  padding: 0 0.55rem;
-  font-size: 0.8rem;
-}
-
-.production-workspace-tight .production-subview-intro {
-  display: none;
-}
-
-.production-workspace-tight .production-actions-drawer > summary {
-  min-height: 28px;
-  padding: 0.2rem 0.4rem;
-  font-size: 0.78rem;
-  line-height: 1.25;
-}
-
-.production-workspace-tight .production-actions-drawer {
-  margin: 0;
 }
 
 .production-workspace-tight .production-mix-sticky-master {
@@ -1107,37 +1020,11 @@ option {
   gap: 0.15rem;
 }
 
-.production-workspace #production-panel-mix {
+.production-workspace .production-mix-region {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-}
-
-.production-workspace #production-panel-mix[hidden] {
-  display: none;
-}
-
-.production-workspace #production-panel-clips,
-.production-workspace #production-panel-tools {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.production-workspace #production-panel-clips[hidden],
-.production-workspace #production-panel-tools[hidden],
-.production-workspace #production-panel-tools.advanced-production[hidden] {
-  display: none;
-}
-
-.production-workspace #production-panel-tools.advanced-production:not([hidden]) {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  padding-top: 0;
 }
 
 .production-subview-scroll {
@@ -1167,44 +1054,7 @@ option {
   outline-offset: 2px;
 }
 
-.production-clips {
-  /* #203 — hauteur visible minimale de la bande chrome + inspecteur (Clips). */
-  --production-clips-top-min-height: 200px;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.production-clips .clip-timeline {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  margin-top: 0;
-  padding-top: 0;
-  border-top: 0;
-}
-
-.production-clips .clip-timeline-scroll-chrome {
-  box-sizing: border-box;
-  flex: 0 0 var(--production-clips-top-min-height);
-  height: var(--production-clips-top-min-height);
-  min-height: var(--production-clips-top-min-height);
-  max-height: var(--production-clips-top-min-height);
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.production-clips .clip-timeline-lanes-pane {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: auto;
-}
-
-/* Shared Production page: one vertical route through tracks, clips and tools. */
+/* Shared Production page: one vertical route through tracks and clips. */
 .song-layout-production-fill .production-workspace-common {
   overflow-y: auto;
   overflow-x: hidden;
@@ -1212,8 +1062,8 @@ option {
   min-height: 0;
 }
 
-.production-workspace-common #production-panel-mix,
-.production-workspace-common #production-panel-clips {
+.production-workspace-common .production-mix-region,
+.production-workspace-common .production-common-timeline {
   display: block;
   margin-bottom: 1.25rem;
 }
@@ -1221,32 +1071,6 @@ option {
 .production-workspace-common .production-mix-scroll {
   flex: none;
   max-height: 420px;
-}
-
-.production-workspace-common .production-clips {
-  height: 520px;
-}
-
-.production-workspace-common #production-panel-tools.advanced-production {
-  display: block;
-  padding-top: 0;
-}
-
-.production-advanced-disclosure > summary {
-  min-height: 44px;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.production-advanced-disclosure > summary:focus-visible {
-  outline: 2px solid var(--accent-cyan);
-  outline-offset: 2px;
-}
-
-.production-workspace-common .production-tools-scroll {
-  overflow: visible;
 }
 
 .production-track-automation {
@@ -2322,11 +2146,6 @@ option {
   gap: 0.5rem 0.75rem;
 }
 
-.mix-toolbar-row .mix-assist-drawer {
-  flex: 1 1 14rem;
-  min-width: 0;
-}
-
 .mix-autosave {
   margin: 0;
   margin-left: auto;
@@ -2416,7 +2235,7 @@ option {
 }
 
 .mix-master-play:focus-visible {
-  outline: 3px solid var(--focus, #ffd76a);
+  outline: 2px solid rgb(94, 236, 248);
   outline-offset: 2px;
 }
 
@@ -2478,6 +2297,12 @@ option {
   border-radius: 50%;
   pointer-events: none;
   transition: transform 80ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mix-knob-indicator {
+    transition: none;
+  }
 }
 
 .mix-knob-indicator::after {
@@ -3175,8 +3000,7 @@ details[open] > summary {
   line-height: 1.45;
 }
 
-.score-edit-section,
-.advanced-production {
+.score-edit-section {
   border-top: 1px solid var(--line);
   padding-top: 0.65rem;
 }
@@ -6803,12 +6627,6 @@ details[open] > summary {
   margin-top: 1.5rem;
   padding-top: 1rem;
   border-top: 1px solid var(--border, #333);
-}
-
-.advanced-production .phase3-panel {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: 0;
 }
 
 .phase3-panel h2 {

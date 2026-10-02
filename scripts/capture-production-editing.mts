@@ -11,7 +11,7 @@ try {
   for (const width of [1280, 640]) {
     const page = await browser.newPage({ viewport: { width, height: 720 } });
     await page.goto("http://127.0.0.1:5234/production-capture.html#confortable-12", {waitUntil:"networkidle"});
-    await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
+    await page.locator(".production-common-timeline").scrollIntoViewIfNeeded();
     const images = [];
     for (const mode of ["editing", "tempo", "markers"]) {
       if (mode !== "editing") {

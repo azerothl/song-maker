@@ -281,7 +281,7 @@ export function ProductionWorkspace({
     () => (mix ? buildTrackFamilyGroups(mix.tracks) : []),
     [mix],
   );
-  const tightMixLayout = shouldUseProductionTightLayout("mix", effectiveDensity);
+  const tightMixLayout = shouldUseProductionTightLayout(effectiveDensity);
   const masterWaveHeight = 36;
 
   const setDensityPreferencePersist = (next: ProductionDensityPreference) => {
@@ -294,7 +294,6 @@ export function ProductionWorkspace({
       JSON.stringify({
         tracks: mix?.tracks.length ?? 0,
         collapsedFamilies,
-        productionView: "mix",
         groups: trackGroups.map((g) => g.tracks.length),
       }),
     [mix?.tracks.length, collapsedFamilies, trackGroups],
@@ -440,7 +439,7 @@ export function ProductionWorkspace({
       </div>
 
       <div
-        id="production-panel-mix"
+        className="production-mix-region"
         role="region"
         aria-label={t("production.common.mix")}
       >
@@ -612,7 +611,7 @@ export function ProductionWorkspace({
               )}
 
               <div className="production-mix-list" role="list" aria-label={t("mix.tracksTitle")}>
-                <div id="production-panel-clips" role="region" aria-label={t("production.common.clips")} className="production-common-timeline">
+                <div role="region" aria-label={t("production.common.clips")} className="production-common-timeline">
                 <ClipTimeline
                   mix={mix} onChange={scheduleMixUpdate}
                   peaksByTrack={playback?.peaksByTrack} roleByTrack={roleByTrack}

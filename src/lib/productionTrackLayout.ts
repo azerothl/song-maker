@@ -4,8 +4,6 @@ export type ProductionTrackDensity = "compact" | "confortable";
 
 export type ProductionDensityPreference = "auto" | ProductionTrackDensity;
 
-export type ProductionViewId = "mix" | "clips" | "tools";
-
 export function effectiveDensityFromPreference(
   preference: ProductionDensityPreference,
   autoResolved: ProductionTrackDensity,
@@ -38,12 +36,14 @@ export function shouldUseCompactForAutoDensity(
   return scrollHeight > clientHeight;
 }
 
-/** Vue mix : chrome resserré pour maximiser la hauteur de la liste (#137, #150). */
+/**
+ * Page Production unique : chrome resserré pour maximiser la hauteur de la liste
+ * (#137, #150, #230). Densité seule — plus de vue mix/clips/outils.
+ */
 export function shouldUseProductionTightLayout(
-  productionView: ProductionViewId,
   _density: ProductionTrackDensity,
 ): boolean {
-  return productionView === "mix";
+  return true;
 }
 
 export type TrackFamilyId = "voix" | "rythmique" | "harmonie";

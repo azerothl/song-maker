@@ -1,6 +1,6 @@
-/** Mesures DOM pour défilement des sous-onglets Production Clips / Outils (#203). */
+/** Mesures DOM pour défilement de la page Production commune (#203, #230). */
 
-/** Aligné sur `--production-clips-top-min-height` dans `App.css`. */
+/** Aligné sur l’ancienne `--production-clips-top-min-height` (bande chrome clips). */
 export const PRODUCTION_CLIPS_TOP_MIN_HEIGHT_PX = 200;
 
 /** Zone liste pistes Mix (`.production-mix-scroll` clientHeight) sur main a600209/2c85db0. */
@@ -48,12 +48,6 @@ function reachableInScroll(
   return ok;
 }
 
-function hiddenPanelLeaks(panelId: string): boolean {
-  const el = document.getElementById(panelId);
-  if (!el?.hasAttribute("hidden")) return false;
-  return getComputedStyle(el).display !== "none";
-}
-
 function countFullyVisibleInScroll(scrollEl: HTMLElement, itemSel: string): number {
   const c = scrollEl.getBoundingClientRect();
   let n = 0;
@@ -66,14 +60,16 @@ function countFullyVisibleInScroll(scrollEl: HTMLElement, itemSel: string): numb
   return n;
 }
 
+/** Vestiges sous-onglets (#230) : doit rester 0 sur la page Production. */
+export function countProductionSubtabVestiges(root: ParentNode = document): number {
+  return root.querySelectorAll(
+    '[id^="production-panel-"],[id^="production-view-"],.production-subnav',
+  ).length;
+}
+
 export type ProductionSubtabScrollMetrics = {
   viewport: { width: number; height: number };
-  hiddenPanelsLeaking: boolean;
-  hiddenPanelLeaks: {
-    mix: boolean;
-    clips: boolean;
-    tools: boolean;
-  };
+  subtabVestigeCount: number;
   tools: {
     scrollHeight: number;
     clientHeight: number;
@@ -108,12 +104,7 @@ export function measureProductionSubtabScroll(): ProductionSubtabScrollMetrics {
   const vh = window.innerHeight;
   const vw = window.innerWidth;
 
-  const leaks = {
-    mix: hiddenPanelLeaks("production-panel-mix"),
-    clips: hiddenPanelLeaks("production-panel-clips"),
-    tools: hiddenPanelLeaks("production-panel-tools"),
-  };
-  const hiddenPanelsLeaking = leaks.mix || leaks.clips || leaks.tools;
+  const subtabVestigeCount = countProductionSubtabVestiges();
 
   const toolsScroll = document.querySelector(
     '[data-testid="production-tools-scroll"]',
@@ -138,7 +129,7 @@ export function measureProductionSubtabScroll(): ProductionSubtabScrollMetrics {
   ) as HTMLElement | null;
 
   let tools: ProductionSubtabScrollMetrics["tools"] = null;
-  if (toolsScroll && !hiddenPanelLeaks("production-panel-tools")) {
+  if (toolsScroll) {
     const before = toolsScroll.scrollTop;
     let rackEndReachable = false;
     let rackRect: DOMRect | null = null;
@@ -163,11 +154,7 @@ export function measureProductionSubtabScroll(): ProductionSubtabScrollMetrics {
   }
 
   let clips: ProductionSubtabScrollMetrics["clips"] = null;
-  if (
-    clipsTopScroll &&
-    lanes &&
-    !hiddenPanelLeaks("production-panel-clips")
-  ) {
+  if (clipsTopScroll && lanes) {
     const arrangement = clipsTopScroll.querySelector(".clip-arrangement-bar");
     const topArrangementReachable = reachableInScroll(
       clipsTopScroll,
@@ -194,7 +181,7 @@ export function measureProductionSubtabScroll(): ProductionSubtabScrollMetrics {
   }
 
   let mix: ProductionSubtabScrollMetrics["mix"] = null;
-  if (mixScroll && !hiddenPanelLeaks("production-panel-mix")) {
+  if (mixScroll) {
     mix = {
       trackZoneClientHeightPx: r1(mixScroll.clientHeight),
       trackZoneScrollHeightPx: mixScroll.scrollHeight,
@@ -202,7 +189,7 @@ export function measureProductionSubtabScroll(): ProductionSubtabScrollMetrics {
   }
 
   let mixToolbar: ProductionSubtabScrollMetrics["mixToolbar"] = null;
-  if (mixBar && mixBtn && !hiddenPanelLeaks("production-panel-mix")) {
+  if (mixBar && mixBtn) {
     mixToolbar = {
       barHeightPx: r1(rect(mixBar).height),
       mixButtonHeightPx: r1(rect(mixBtn).height),
@@ -211,8 +198,7 @@ export function measureProductionSubtabScroll(): ProductionSubtabScrollMetrics {
 
   return {
     viewport: { width: vw, height: vh },
-    hiddenPanelsLeaking,
-    hiddenPanelLeaks: leaks,
+    subtabVestigeCount,
     tools,
     clips,
     mix,

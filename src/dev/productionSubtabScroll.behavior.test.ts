@@ -19,6 +19,34 @@ after(async () => {
 });
 
 describe("Production commune (#223, #230)", () => {
+  it("DOM Production sans sous-nav ni production-panel-* / production-view-*", async () => {
+    for (const width of [1280, 640]) {
+      const page = await browser.newPage({ viewport: { width, height: 720 } });
+      try {
+        await page.goto(BASE, { waitUntil: "networkidle" });
+        await page.locator(".production-workspace-common").waitFor();
+        const counts = await page.evaluate(() => ({
+          panel: document.querySelectorAll('[id^="production-panel-"]').length,
+          view: document.querySelectorAll('[id^="production-view-"]').length,
+          subnav: document.querySelectorAll(".production-subnav").length,
+          mixRegion: document.querySelectorAll(".production-mix-region").length,
+          clipsRegion: document.querySelectorAll(".production-common-timeline").length,
+        }));
+        assert.equal(counts.panel, 0, JSON.stringify(counts));
+        assert.equal(counts.view, 0, JSON.stringify(counts));
+        assert.equal(counts.subnav, 0, JSON.stringify(counts));
+        assert.ok(counts.mixRegion >= 1, JSON.stringify(counts));
+        assert.ok(counts.clipsRegion >= 1, JSON.stringify(counts));
+        const outline = await page.locator(".mix-master-play").evaluate((el) => {
+          el.focus();
+          return getComputedStyle(el).outline;
+        });
+        assert.match(outline, /rgb\(94,\s*236,\s*248\)/);
+      } finally {
+        await page.close();
+      }
+    }
+  });
   it("export popin stays above the sticky ruler, tempo and marker zones", async () => {
     for (const width of [1280,640]) {
       const page=await browser.newPage({viewport:{width,height:720}});
@@ -76,7 +104,7 @@ describe("Production commune (#223, #230)", () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 768 } });
     try {
       await page.goto(BASE, { waitUntil: "networkidle" });
-      await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
+      await page.locator(".production-common-timeline").scrollIntoViewIfNeeded();
       const top = page.locator(".production-workspace-common");
       await top.evaluate(el => { el.scrollTop = 0; });
       assert.ok(await top.evaluate(el => el.scrollHeight > el.clientHeight));
@@ -97,7 +125,7 @@ describe("Production commune (#223, #230)", () => {
     const page = await browser.newPage({ viewport: { width: 640, height: 720 } });
     try {
       await page.goto(BASE, { waitUntil: "networkidle" });
-      await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
+      await page.locator(".production-common-timeline").scrollIntoViewIfNeeded();
       const tempo = page.locator(".clip-tempo-add");
       await tempo.click();
       await page.locator(".clip-tempo-editor input").first().waitFor();
@@ -128,7 +156,7 @@ describe("Production commune (#223, #230)", () => {
     try {
       await page.addInitScript(()=>localStorage.setItem("song-maker.locale","en"));
       await page.goto(BASE, { waitUntil: "networkidle" });
-      await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
+      await page.locator(".production-common-timeline").scrollIntoViewIfNeeded();
       const toolbar = page.locator(".clip-edit-toolbar");
       const buttons = toolbar.locator("button");
       await buttons.first().focus();
@@ -161,7 +189,7 @@ describe("Production commune (#223, #230)", () => {
     const page = await browser.newPage({ viewport: { width: 640, height: 720 } });
     try {
       await page.goto(BASE, { waitUntil: "networkidle" });
-      await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
+      await page.locator(".production-common-timeline").scrollIntoViewIfNeeded();
       await page.locator(".clip-block").first().click();
       const start = page.locator(".clip-inspector .clip-field input").first();
       const oldValue = await start.inputValue();
@@ -185,10 +213,13 @@ describe("Production commune (#223, #230)", () => {
       try {
         await page.goto(BASE, { waitUntil: "networkidle" });
         await page.locator(".production-mix-scroll").waitFor();
-        assert.equal(await page.locator(".production-subnav").count(), 0);
+        assert.equal(
+          await page.locator('[id^="production-panel-"],[id^="production-view-"],.production-subnav').count(),
+          0,
+        );
         assert.equal(await page.locator(".production-advanced-disclosure").count(), 0);
-        assert.equal(await page.locator("#production-panel-mix").isVisible(), true);
-        assert.equal(await page.locator("#production-panel-clips").isVisible(), true);
+        assert.equal(await page.locator(".production-mix-region").isVisible(), true);
+        assert.equal(await page.locator(".production-common-timeline").isVisible(), true);
         assert.equal(await page.locator(".clip-lane-label").filter({hasText:/Voix|Batterie/}).count(),0);
         assert.equal(await page.locator(".common-track-lane").count(),12);
         const lanes=page.getByTestId("clip-timeline-lanes");
