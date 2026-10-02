@@ -84,7 +84,9 @@ export default defineConfig(() => ({
   server: {
     port: captureMode ? 5179 : 1420,
     strictPort: !captureMode,
-    host: captureMode ? true : host || false,
+    // host: false → Vite binds localhost, which on Windows/Node can be [::1] only.
+    // WebView2 and probes using 127.0.0.1 then fail (see #305). Prefer IPv4 loopback.
+    host: captureMode ? true : host || "127.0.0.1",
     hmr: host
       ? {
           protocol: "ws",
