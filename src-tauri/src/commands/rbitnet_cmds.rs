@@ -19,7 +19,9 @@ pub fn rbitnet_status(state: tauri::State<'_, AppState>) -> Result<serde_json::V
 }
 
 #[tauri::command]
-pub fn rbitnet_install_info(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+pub fn rbitnet_install_info(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
     let settings = load_settings().unwrap_or_else(|_| default_settings());
     let cache = PathBuf::from(&settings.cache_dir);
     let (asset, sha, bytes) = crate::pins::rbitnet_platform_archive();

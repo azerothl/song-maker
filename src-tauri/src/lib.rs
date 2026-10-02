@@ -21,8 +21,8 @@ mod profile_switch;
 mod profiles;
 mod project_sync;
 mod queue;
-mod resample;
 mod rbitnet;
+mod resample;
 mod sheetsage;
 
 #[cfg(test)]

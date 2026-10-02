@@ -310,9 +310,7 @@ pub fn status(cache: &Path, sidecar: &RbitnetSidecar, selected_model_id: &str) -
         base_url: base_url(),
         selected_model_id: kind.id().to_string(),
         model_present: model_present(cache, kind),
-        model_path: gguf
-            .is_file()
-            .then(|| gguf.display().to_string()),
+        model_path: gguf.is_file().then(|| gguf.display().to_string()),
         tokenizer_present: tok.is_file(),
         catalog,
         message_fr,
@@ -348,9 +346,7 @@ async fn download_file(
     }
     let partial = dest.with_extension(format!(
         "{}.partial",
-        dest.extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("bin")
+        dest.extension().and_then(|e| e.to_str()).unwrap_or("bin")
     ));
 
     let client = reqwest::Client::builder()
@@ -564,10 +560,7 @@ pub async fn install_model(
         )
         .await?;
     } else {
-        emit(
-            &app,
-            InstallProgress::file_done(kind.gguf_file(), 1, 2),
-        );
+        emit(&app, InstallProgress::file_done(kind.gguf_file(), 1, 2));
     }
     if !(tok.is_file()
         && std::fs::metadata(&tok)
@@ -593,7 +586,12 @@ pub async fn install_model(
     Ok(gguf.display().to_string())
 }
 
-fn spawn_server(bin: &Path, gguf: &Path, tokenizer: &Path, kind: RbitnetModelKind) -> Result<Child, String> {
+fn spawn_server(
+    bin: &Path,
+    gguf: &Path,
+    tokenizer: &Path,
+    kind: RbitnetModelKind,
+) -> Result<Child, String> {
     let mut cmd = Command::new(bin);
     cmd.env("RBITNET_MODEL", gguf)
         .env("RBITNET_TOKENIZER", tokenizer)
@@ -637,9 +635,8 @@ pub async fn ensure_started(
             tokio::time::sleep(Duration::from_millis(250)).await;
         }
     }
-    let bin = find_server_binary(cache).ok_or_else(|| {
-        "SERVICE_UNAVAILABLE:RBITNET_BINARY_MISSING".to_string()
-    })?;
+    let bin = find_server_binary(cache)
+        .ok_or_else(|| "SERVICE_UNAVAILABLE:RBITNET_BINARY_MISSING".to_string())?;
     if !model_present(cache, kind) {
         return Err("MODEL_MISSING:RBITNET_WEIGHTS".into());
     }
@@ -697,10 +694,8 @@ mod tests {
 
     #[test]
     fn status_reports_missing_binary() {
-        let tmp = std::env::temp_dir().join(format!(
-            "song-maker-rbitnet-status-{}",
-            std::process::id()
-        ));
+        let tmp =
+            std::env::temp_dir().join(format!("song-maker-rbitnet-status-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
         let sidecar = RbitnetSidecar::default();
