@@ -545,7 +545,11 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "forced",
     shotTarget: "button-clip",
     prepare: async (page) => {
-      await page.waitForTimeout(300);
+      await page.waitForFunction(
+        () => typeof window.__captureForceMixBalanceConfirm === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForceMixBalanceConfirm?.());
       await page.waitForFunction(
         () => {
           const labels = [
@@ -583,7 +587,11 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "forced",
     shotTarget: "button-clip",
     prepare: async (page) => {
-      await page.waitForTimeout(300);
+      await page.waitForFunction(
+        () => typeof window.__captureForceCopilotConfirm === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForceCopilotConfirm?.());
       await page.waitForFunction(
         () =>
           document.querySelectorAll(
@@ -640,10 +648,18 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "forced",
     shotTarget: "button-clip",
     prepare: async (page) => {
-      await page.waitForTimeout(250);
+      await page.waitForFunction(
+        () => typeof window.__captureForceMidiRecording === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForceMidiRecording?.(true));
       await page.waitForSelector(".midi-record-block button.btn.primary", {
         timeout: 15_000,
       });
+      await page
+        .locator(".midi-record-block button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
     },
   },
   {
@@ -655,10 +671,18 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "forced",
     shotTarget: "button-clip",
     prepare: async (page) => {
-      await page.waitForTimeout(250);
+      await page.waitForFunction(
+        () => typeof window.__captureForceScorePendingImport === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForceScorePendingImport?.());
       await page.waitForSelector(".banner.warn button.btn.primary", {
         timeout: 15_000,
       });
+      await page
+        .locator(".banner.warn button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
     },
   },
   {
@@ -679,10 +703,18 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "forced",
     shotTarget: "button-clip",
     prepare: async (page) => {
-      await page.waitForTimeout(300);
+      await page.waitForFunction(
+        () => typeof window.__captureForceScoreBranchMerge === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForceScoreBranchMerge?.());
       await page.waitForSelector(".score-diff button.btn.primary", {
         timeout: 15_000,
       });
+      await page
+        .locator(".score-diff button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
     },
   },
   {
@@ -694,10 +726,18 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "forced",
     shotTarget: "button-clip",
     prepare: async (page) => {
-      await page.waitForTimeout(250);
+      await page.waitForFunction(
+        () => typeof window.__captureForcePianoQuantize === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForcePianoQuantize?.());
       await page.waitForSelector(".banner.warn button.btn.primary", {
         timeout: 15_000,
       });
+      await page
+        .locator(".banner.warn button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
     },
   },
   {
@@ -709,7 +749,11 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "forced",
     shotTarget: "button-clip",
     prepare: async (page) => {
-      await page.waitForTimeout(300);
+      await page.waitForFunction(
+        () => typeof window.__captureForceSheetsageReady === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForceSheetsageReady?.());
       await page.waitForFunction(
         () =>
           [...document.querySelectorAll("button.btn.primary")].some(
@@ -721,7 +765,10 @@ const SCENARIOS: Scenario[] = [
         const btn = [
           ...document.querySelectorAll<HTMLButtonElement>("button.btn.primary"),
         ].find((b) => !b.disabled);
-        if (btn) btn.setAttribute("data-capture-primary", "sheetsage");
+        if (btn) {
+          btn.setAttribute("data-capture-primary", "sheetsage");
+          btn.scrollIntoView({ block: "center" });
+        }
       });
       await page.waitForSelector('[data-capture-primary="sheetsage"]');
     },
@@ -798,6 +845,7 @@ declare global {
       next: string,
       opts?: { withTakes?: boolean },
     ) => void;
+    __captureForceMixBalanceConfirm?: (...args: never[]) => void;
   }
 }
 
