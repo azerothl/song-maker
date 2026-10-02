@@ -173,7 +173,7 @@ const SCENARIOS: Scenario[] = [
     screen: "Production — Exporter (déclencheur)",
     path: "/production-capture.html",
     hash: "#12,confortable,view-mix",
-    selector: ".production-mix-toolbar-actions [data-capture-export-trigger]",
+    selector: ".production-main-toolbar-actions [data-capture-export-trigger]",
     disabledMode: "busy-export-trigger",
     prepare: async (page) => {
       const disclosure = page.locator(".production-advanced-disclosure");
@@ -182,11 +182,11 @@ const SCENARIOS: Scenario[] = [
           (el as HTMLDetailsElement).open = true;
         });
       }
-      await page.waitForSelector(".production-mix-toolbar-actions [data-capture-export-trigger]", {
+      await page.waitForSelector(".production-main-toolbar-actions [data-capture-export-trigger]", {
         timeout: 15_000,
       });
       await page
-        .locator(".production-mix-toolbar-actions [data-capture-export-trigger]")
+        .locator(".production-main-toolbar-actions [data-capture-export-trigger]")
         .first()
         .scrollIntoViewIfNeeded();
     },
@@ -194,7 +194,7 @@ const SCENARIOS: Scenario[] = [
     i3FocusCapture: {
       filename: "production-exporter-bar-focus-i3-clip.png",
       selector:
-        ".production-mix-toolbar-actions [data-capture-export-trigger]",
+        ".production-main-toolbar-actions [data-capture-export-trigger]",
     },
   },
   {
@@ -213,7 +213,7 @@ const SCENARIOS: Scenario[] = [
           (el as HTMLDetailsElement).open = true;
         });
       }
-      const trigger = ".production-mix-toolbar-actions [data-capture-export-trigger]";
+      const trigger = ".production-main-toolbar-actions [data-capture-export-trigger]";
       await page.waitForSelector(trigger, { timeout: 15_000 });
       await page.click(trigger);
       await page.waitForSelector(".export-dialog-popin", { timeout: 10_000 });
@@ -237,7 +237,7 @@ const SCENARIOS: Scenario[] = [
           (el as HTMLDetailsElement).open = true;
         });
       }
-      const trigger = ".production-mix-toolbar-actions [data-capture-export-trigger]";
+      const trigger = ".production-main-toolbar-actions [data-capture-export-trigger]";
       await page.waitForSelector(trigger, { timeout: 15_000 });
       await page.click(trigger);
       await page.waitForSelector(".export-dialog-popin", { timeout: 10_000 });
@@ -257,15 +257,20 @@ const SCENARIOS: Scenario[] = [
     id: "production-mesurer",
     screen: "Production — Mesurer le mix rendu",
     path: "/production-capture.html",
-    hash: "#12,confortable,view-tools",
-    selector: ".phase3-actions button.btn.primary",
+    hash: "#12,confortable",
+    selector: "[data-testid='production-mix-settings-loudness']",
     disabledMode: "forced",
+    shotTarget: "button-clip",
     prepare: async (page) => {
-      await page.waitForSelector(".phase3-actions button.btn.primary", {
+      await page.waitForSelector("[data-testid='production-mix-settings-trigger']", {
+        timeout: 15_000,
+      });
+      await page.click("[data-testid='production-mix-settings-trigger']");
+      await page.waitForSelector("[data-testid='production-mix-settings-loudness']", {
         timeout: 15_000,
       });
       await page
-        .locator(".phase3-actions button.btn.primary")
+        .locator("[data-testid='production-mix-settings-loudness']")
         .first()
         .scrollIntoViewIfNeeded();
     },
@@ -274,10 +279,17 @@ const SCENARIOS: Scenario[] = [
     id: "production-zip",
     screen: "Production — Créer l'archive ZIP",
     path: "/production-capture.html",
-    hash: "#12,confortable,view-tools",
+    hash: "#12,confortable",
     selector: ".export-wizard button.btn.primary",
     disabledMode: "forced",
+    shotTarget: "button-clip",
     prepare: async (page) => {
+      const trigger =
+        ".production-main-toolbar-actions [data-capture-export-trigger]";
+      await page.waitForSelector(trigger, { timeout: 15_000 });
+      await page.click(trigger);
+      await page.waitForSelector(".export-dialog-popin", { timeout: 10_000 });
+      await page.locator('input[name="export-mode"]').nth(2).click();
       await page.waitForSelector(".export-wizard button.btn.primary", {
         timeout: 15_000,
       });
