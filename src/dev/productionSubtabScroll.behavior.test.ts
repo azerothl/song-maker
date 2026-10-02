@@ -106,10 +106,10 @@ describe("Production commune (#223, #230)", () => {
       assert.equal(await tempo.evaluate(el => el === document.activeElement), true);
       const markers = page.locator(".clip-marker-add");
       await markers.click();
-      await page.locator(".clip-marker-editor select").waitFor();
+        await page.locator(".clip-marker-editor select").waitFor();
       await page.locator(".clip-marker-editor input[type=checkbox]").uncheck();
       const clipsBefore = await page.locator(".clip-block").evaluateAll(elements => elements.map(el => el.getAttribute("style")));
-      await page.locator(".clip-marker-editor > button").first().click();
+      await page.locator(".clip-marker-editor").getByRole("button", { name: /Ajouter|Add/ }).first().click();
       await page.keyboard.press("Escape");
       assert.equal(await markers.evaluate(el => el === document.activeElement), true);
       assert.equal(await page.locator(".clip-tempo-lane .clip-tempo-flag").count() > 0, true);

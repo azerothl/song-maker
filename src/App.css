@@ -6468,12 +6468,11 @@ details[open] > summary {
 .clip-ruler, .clip-tempo-lane, .clip-marker-lane {
   position: sticky;
   background: var(--bg0);
-  isolation: isolate;
-  z-index: 5;
+  z-index: 3;
 }
-.clip-ruler { top: 0; z-index: 7; }
-.clip-tempo-lane { top: 50px; z-index: 6; }
-.clip-marker-lane:not(.clip-tempo-lane) { top: 100px; z-index: 5; }
+.clip-ruler { top: 0; z-index: 5; }
+.clip-tempo-lane { top: 50px; z-index: 4; }
+.clip-marker-lane:not(.clip-tempo-lane) { top: 100px; }
 .clip-tempo-flag[aria-pressed="true"], .clip-marker-flag[aria-pressed="true"] {
   outline: 1px solid var(--accent-cyan);
 }

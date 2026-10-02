@@ -27,7 +27,12 @@ const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 function focusFirst(container: HTMLElement) {
-  const el = container.querySelector<HTMLElement>(FOCUSABLE);
+  const candidates = Array.from(
+    container.querySelectorAll<HTMLElement>(FOCUSABLE),
+  );
+  const el =
+    candidates.find((node) => !node.classList.contains("anchored-popin-close")) ??
+    candidates[0];
   el?.focus();
 }
 
