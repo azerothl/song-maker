@@ -226,6 +226,12 @@ export type AppSettings = {
   yue2NarLora?: string | null;
   yue2ArLoraScale?: number;
   yue2NarLoraScale?: number;
+  /** Mix assistant LLM: `ollama` | `openai_compat` | `rbitnet`. */
+  mixLlmProvider?: string;
+  mixLlmBaseUrl?: string;
+  mixLlmModelId?: string;
+  /** Expert opt-in for non-loopback OpenAI-compat endpoints. */
+  mixLlmAllowRemote?: boolean;
 };
 
 export type Phase3Status = {

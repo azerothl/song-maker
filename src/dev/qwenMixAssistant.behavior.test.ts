@@ -23,8 +23,8 @@ for (const locale of ["fr", "en"] as const) it(`missing Qwen model has a readabl
   await page.getByTestId("production-mix-settings-trigger").click();
   await page.getByRole("button",{name:locale==="fr"?"Assistant de mix":"Mix assistant",exact:true}).click();
   const panel=page.locator(".qwen-mix-assistant");
-  await panel.getByRole("button",{name:locale==="fr"?"Proposer des réglages avec Qwen":"Propose settings with Qwen",exact:true}).click();
-  await panel.getByText(locale==="fr"?"Le modèle Qwen 3.5 2B est absent. Installez qwen3.5:2b dans Ollama puis relancez.":"Qwen 3.5 2B is missing. Install qwen3.5:2b in Ollama and try again.",{exact:true}).waitFor();
+  await panel.getByRole("button",{name:locale==="fr"?"Proposer des réglages avec l’assistant":"Propose settings with the assistant",exact:true}).click();
+  await panel.getByText(locale==="fr"?"Le modèle configuré est absent. Installez-le sur le serveur LLM local puis relancez.":"The configured model is missing. Install it on the local LLM server and try again.",{exact:true}).waitFor();
   assert.equal(await gain.innerText(),initial);
   assert.doesNotMatch(await panel.innerText(),/MODEL_MISSING|private diagnostic|qwen\.mix\./);
  } finally {await page.close();}
@@ -66,7 +66,7 @@ it("Qwen settings require confirmation and can be undone; manual functions remai
     return {titleTop:title.top,actionBottom:action.bottom,panelTop:panel.top,panelBottom:panel.bottom,vh:innerHeight};
   });
   assert.ok(initialVisibility.titleTop>=initialVisibility.panelTop && initialVisibility.actionBottom<=initialVisibility.panelBottom && initialVisibility.panelBottom<=initialVisibility.vh,JSON.stringify(initialVisibility));
-  await panel.getByRole("button",{name:"Propose settings with Qwen",exact:true}).click();
+  await panel.getByRole("button",{name:"Propose settings with the assistant",exact:true}).click();
   await panel.getByRole("button",{name:"Review and apply",exact:true}).waitFor();
   assert.match(await panel.innerText(),/Complete analysis, including track decoding: [\d.,]+ s\./);
   assert.equal(await gain.innerText(),before);
@@ -74,7 +74,7 @@ it("Qwen settings require confirmation and can be undone; manual functions remai
   assert.equal(await gain.innerText(),before);
   await panel.getByRole("button",{name:"Confirm settings",exact:true}).click();
   assert.notEqual(await gain.innerText(),before);
-  await panel.getByRole("button",{name:"Undo Qwen settings",exact:true}).click();
+  await panel.getByRole("button",{name:"Undo assistant settings",exact:true}).click();
   assert.equal(await gain.innerText(),before);
   await page.locator(".mix-assistant-manual > summary").click();
   assert.equal(await page.locator(".production-copilot").isVisible(),true);
@@ -96,7 +96,7 @@ it("invalid local answers leave gains unchanged and disclose only a closed diagn
   await page.getByTestId("production-mix-settings-trigger").click();
   await page.getByRole("button",{name:"Mix assistant",exact:true}).click();
   const panel=page.locator(".qwen-mix-assistant");
-  await panel.getByRole("button",{name:"Propose settings with Qwen",exact:true}).click();
+  await panel.getByRole("button",{name:"Propose settings with the assistant",exact:true}).click();
   await panel.getByText("The model returned invalid settings. No settings were applied.",{exact:true}).waitFor();
   assert.equal(await gain.innerText(),before);
   assert.equal(await panel.getByRole("button",{name:"Review and apply",exact:true}).count(),0);

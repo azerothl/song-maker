@@ -1,18 +1,28 @@
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { measurePlanarStemLevel } from "@song-maker/mix-production";
 import { COMMERCIAL_COPY_FORBIDDEN } from "@song-maker/stem-providers";
+import { api } from "../lib/api";
 import { decodeMixStems } from "../lib/mixBridge";
 import { fingerprintProductionState } from "../lib/productionAssistant";
 import { getProductionOverlay, subscribeProduction } from "../lib/productionState";
 import { applyQwenAdjustments, proposeQwenMix, type QwenMixResponse } from "../lib/qwenMixAssistant";
+import { useAppStore } from "../store/appStore";
 import type { MixDoc, PlaybackSources } from "../lib/types";
 import { profileLocale, t } from "../ui/i18n";
 import qwenLicense from "../../docs/model-licenses/Qwen3.5-2B-LICENSE.txt?raw";
+
+const PROVIDER_DEFAULTS: Record<string, string> = {
+  ollama: "http://127.0.0.1:11434",
+  rbitnet: "http://127.0.0.1:8080",
+  openai_compat: "http://127.0.0.1:8080",
+};
 
 export function QwenMixAssistant({mix,sources,onCommitMix}: {
   mix: MixDoc; sources: PlaybackSources | null; onCommitMix: (mix:MixDoc)=>void;
 }) {
   const overlay=useSyncExternalStore(subscribeProduction,getProductionOverlay,()=>null);
+  const settings=useAppStore(s=>s.settings);
+  const refreshSettings=useAppStore(s=>s.refreshSettings);
   const [objective,setObjective]=useState("");
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState<string|null>(null);
@@ -20,10 +30,49 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
   const [proposal,setProposal]=useState<{result:QwenMixResponse;fingerprint:string;totalElapsedMs:number}|null>(null);
   const [confirm,setConfirm]=useState(false);
   const [undo,setUndo]=useState<MixDoc|null>(null);
+  const [provider,setProvider]=useState(settings?.mixLlmProvider??"ollama");
+  const [baseUrl,setBaseUrl]=useState(settings?.mixLlmBaseUrl??PROVIDER_DEFAULTS.ollama);
+  const [modelId,setModelId]=useState(settings?.mixLlmModelId??"qwen3.5:2b");
+  const [allowRemote,setAllowRemote]=useState(Boolean(settings?.mixLlmAllowRemote));
+  const [serverBusy,setServerBusy]=useState(false);
+  const [serverMsg,setServerMsg]=useState<string|null>(null);
   const current=useRef(mix); current.current=mix;
   const fingerprint=fingerprintProductionState(mix,overlay);
   const stale=proposal != null && proposal.fingerprint !== fingerprint;
   const hasStems=sources?.mode === "stems" && sources.stems.length > 0;
+
+  useEffect(()=>{
+    if(!settings) return;
+    setProvider(settings.mixLlmProvider??"ollama");
+    setBaseUrl(settings.mixLlmBaseUrl??PROVIDER_DEFAULTS.ollama);
+    setModelId(settings.mixLlmModelId??"qwen3.5:2b");
+    setAllowRemote(Boolean(settings.mixLlmAllowRemote));
+  },[settings]);
+
+  const onProviderChange=(next:string)=>{
+    setProvider(next);
+    setBaseUrl(PROVIDER_DEFAULTS[next]??PROVIDER_DEFAULTS.openai_compat);
+    setServerMsg(null);
+  };
+
+  const saveServer=async()=>{
+    if(!settings||serverBusy) return;
+    setServerBusy(true);setServerMsg(null);
+    try {
+      await api.updateSettings({
+        ...settings,
+        mixLlmProvider:provider,
+        mixLlmBaseUrl:baseUrl.trim()||PROVIDER_DEFAULTS[provider]||PROVIDER_DEFAULTS.ollama,
+        mixLlmModelId:modelId.trim()||"qwen3.5:2b",
+        mixLlmAllowRemote:allowRemote,
+      });
+      await refreshSettings();
+      setServerMsg(t("qwen.mix.serverSaved"));
+    } catch {
+      setServerMsg(t("qwen.mix.serverSaveFailed"));
+    } finally {setServerBusy(false);}
+  };
+
   const run=async () => {
     if (!sources || !hasStems || busy) return;
     setBusy(true);setError(null);setDiagnostic(null);setProposal(null);setConfirm(false);
@@ -43,15 +92,35 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
     } catch (e) {
       const code=String(e instanceof Error?e.message:e);
       const key=code.includes("MODEL_MISSING") ? "qwen.mix.modelMissing"
+        : code.includes("REMOTE_BLOCKED") ? "qwen.mix.remoteBlocked"
         : code.includes("SERVICE_UNAVAILABLE") ? "qwen.mix.serviceMissing"
         : code.includes("INVALID_RESPONSE") ? "qwen.mix.invalid" : "qwen.mix.failed";
       setError(t(key));
-      setDiagnostic(code.match(/INVALID_RESPONSE(?::[A-Z_]+)?/)?.[0]??null);
+      setDiagnostic(code.match(/(?:INVALID_RESPONSE|REMOTE_BLOCKED)(?::[A-Z_]+)?/)?.[0]??null);
     } finally {setBusy(false);}
   };
   const nf=new Intl.NumberFormat(profileLocale(),{maximumFractionDigits:2});
   return <section className="qwen-mix-assistant" aria-label={t("qwen.mix.title")}>
     <p className="hint">{t("qwen.mix.local")}</p>
+    <details className="qwen-mix-server">
+      <summary>{t("qwen.mix.server")}</summary>
+      <label>{t("qwen.mix.provider")}
+        <select value={provider} onChange={e=>onProviderChange(e.target.value)}>
+          <option value="ollama">{t("qwen.mix.provider.ollama")}</option>
+          <option value="rbitnet">{t("qwen.mix.provider.rbitnet")}</option>
+          <option value="openai_compat">{t("qwen.mix.provider.openaiCompat")}</option>
+        </select>
+      </label>
+      <label>{t("qwen.mix.baseUrl")}<input value={baseUrl} onChange={e=>setBaseUrl(e.target.value)} spellCheck={false} /></label>
+      <label>{t("qwen.mix.modelId")}<input value={modelId} onChange={e=>setModelId(e.target.value)} spellCheck={false} /></label>
+      <label className="qwen-mix-remote">
+        <input type="checkbox" checked={allowRemote} onChange={e=>setAllowRemote(e.target.checked)} />
+        {t("qwen.mix.allowRemote")}
+      </label>
+      {allowRemote && <p className="hint">{t("qwen.mix.allowRemoteWarn")}</p>}
+      <button type="button" className="btn" disabled={serverBusy||!settings} onClick={()=>void saveServer()}>{t("qwen.mix.saveServer")}</button>
+      {serverMsg && <p className="hint" role="status">{serverMsg}</p>}
+    </details>
     <details className="qwen-mix-license">
       <summary>{t("qwen.mix.license")}</summary>
       <p>{t("qwen.mix.licenseNotice")}</p>

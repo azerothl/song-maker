@@ -355,6 +355,10 @@ pub fn default_settings() -> AppSettings {
         yue2_nar_lora: None,
         yue2_ar_lora_scale: 1.0,
         yue2_nar_lora_scale: 1.0,
+        mix_llm_provider: crate::models::default_mix_llm_provider(),
+        mix_llm_base_url: crate::models::default_mix_llm_base_url(),
+        mix_llm_model_id: crate::models::default_mix_llm_model_id(),
+        mix_llm_allow_remote: crate::models::default_mix_llm_allow_remote(),
     }
 }
 
