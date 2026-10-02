@@ -15,6 +15,8 @@ Dossiers :
 
 ## production-unique/ (1280×720 et 640×720) — hash d'URL de la maquette `index.html#…`
 
+Pack documentaire A–G (partiel) : [`production-unique/README.md`](./production-unique/README.md) · `metrics.json` · `mesures.md` · `tests.md` · `fonctions-nouvelle-place.md` · `libelles-i18n.md`. HTML interactif toujours hors dépôt ; **21 / 33** scènes PNG.
+
 | Fichier | Hash | Contenu |
 |---|---|---|
 | `01-vue-par-defaut-1280x720.png` | `#a` | Vue par défaut : gain et pan dans chaque en-tête de piste |
