@@ -242,6 +242,18 @@ export function AceStepModelSettings() {
             <a href="https://huggingface.co/audio-cpp/audio.cpp-gguf/tree/7bf52723f5a95b6cec53ea905fd10eca1c8b942e" target="_blank" rel="noopener noreferrer">
               {t("settings.model.engine.convertedSource")}
             </a>
+            {" · "}
+            <a href="https://huggingface.co/Qwen/Qwen3-Embedding-0.6B/tree/97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3" target="_blank" rel="noopener noreferrer">
+              {t("profiles.engines.aceStepSource.qwenEmbedding")}
+            </a>
+            {" · "}
+            <a href="https://huggingface.co/Qwen/Qwen3-1.7B/tree/70d244cc86ccca08cf5af4e1e306ecf908b1ad5e" target="_blank" rel="noopener noreferrer">
+              {t("profiles.engines.aceStepSource.qwenLm")}
+            </a>
+            {" · "}
+            <a href="https://huggingface.co/ACE-Step/Ace-Step1.5/tree/19671f406d603126926c1b7e2adc169acbcade22/vae" target="_blank" rel="noopener noreferrer">
+              {t("profiles.engines.aceStepSource.vae")}
+            </a>
           </p>
         </details>
       </div>

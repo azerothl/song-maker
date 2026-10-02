@@ -16,11 +16,11 @@ use tokio::io::AsyncWriteExt;
 
 const HF_URL: &str = "https://huggingface.co/audio-cpp/audio.cpp-gguf/resolve/7bf52723f5a95b6cec53ea905fd10eca1c8b942e/ACE-Step1.5-GGUF/turbo/ace-step-1.5-turbo-bf16.gguf";
 
-/// Text shown before the opt-in download. It records the source conflict without resolving it.
+/// Text shown before the opt-in download. Records known source conflict and Qwen/VAE review limits.
 pub const LICENSE_NOTICE_FR: &str = "\
-ACE-Step 1.5 Turbo BF16 est optionnel (~9,4 Gio) et absent de l’installeur. La carte originale affiche MIT ; la conversion audio.cpp déclare « other » et renvoie à l’original. Licence et provenance du GGUF, données d’entraînement et droits sur les sorties non vérifiés. Les auteurs précisent : « The authors are not responsible for any misuse of the model ».";
+ACE-Step 1.5 Turbo BF16 est optionnel (~9,4 Gio) et absent de l’installeur. La carte originale affiche MIT ; la conversion audio.cpp déclare « other » et renvoie à l’original. Composants déclarés Qwen3-Embedding-0.6B et Qwen3-1.7B : Apache-2.0 sur leurs cartes (texte Apache joint pour Qwen3-1.7B ; pas de fichier LICENSE à la révision Embedding examinée). VAE sans licence séparée au-delà de la carte parente. Composition binaire du GGUF, données d’entraînement et droits sur les sorties non vérifiés. Les auteurs précisent : « The authors are not responsible for any misuse of the model ».";
 pub const LICENSE_NOTICE_EN: &str = "\
-ACE-Step 1.5 Turbo BF16 is optional (~9.4 GiB) and is not included in the installer. The original model card lists MIT; the audio.cpp conversion declares “other” and points back to the original. The GGUF license and provenance, training data, and output rights are unverified. The authors state: “The authors are not responsible for any misuse of the model”.";
+ACE-Step 1.5 Turbo BF16 is optional (~9.4 GiB) and is not included in the installer. The original model card lists MIT; the audio.cpp conversion declares “other” and points back to the original. Declared Qwen3-Embedding-0.6B and Qwen3-1.7B components: Apache-2.0 on their cards (Apache text bundled for Qwen3-1.7B; no LICENSE file at the examined Embedding revision). VAE has no separate license beyond the parent card. Binary GGUF composition, training data, and output rights are unverified. The authors state: “The authors are not responsible for any misuse of the model”.";
 
 pub fn weights_valid(cache: &Path) -> bool {
     ace_step_weights_present(cache)
@@ -312,6 +312,9 @@ mod tests {
         assert_eq!(info.bytes, ACE_STEP_BYTES);
         assert!(!info.available);
         assert!(info.license_notice_fr.contains("déclare « other »"));
+        assert!(info.license_notice_fr.contains("Apache-2.0"));
+        assert!(info.license_notice_fr.contains("VAE"));
+        assert!(info.license_notice_en.contains("Apache-2.0"));
         let _ = std::fs::remove_dir_all(dir);
     }
 
