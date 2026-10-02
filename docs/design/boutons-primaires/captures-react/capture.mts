@@ -151,9 +151,12 @@ const SCENARIOS: Scenario[] = [
     selector: ".record-panel button.btn.primary",
     disabledMode: "forced",
     prepare: async (page) => {
-      await page.locator(".production-advanced-disclosure").evaluate((el) => {
-        (el as HTMLDetailsElement).open = true;
-      });
+      const disclosure = page.locator(".production-advanced-disclosure");
+      if (await disclosure.count()) {
+        await disclosure.evaluate((el) => {
+          (el as HTMLDetailsElement).open = true;
+        });
+      }
       await page.waitForSelector(".record-panel button.btn.primary", {
         timeout: 15_000,
       });
@@ -173,9 +176,12 @@ const SCENARIOS: Scenario[] = [
     selector: ".production-mix-toolbar-actions [data-capture-export-trigger]",
     disabledMode: "busy-export-trigger",
     prepare: async (page) => {
-      await page.locator(".production-advanced-disclosure").evaluate((el) => {
-        (el as HTMLDetailsElement).open = true;
-      });
+      const disclosure = page.locator(".production-advanced-disclosure");
+      if (await disclosure.count()) {
+        await disclosure.evaluate((el) => {
+          (el as HTMLDetailsElement).open = true;
+        });
+      }
       await page.waitForSelector(".production-mix-toolbar-actions [data-capture-export-trigger]", {
         timeout: 15_000,
       });
@@ -201,9 +207,12 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "busy-export-popin",
     popinCompare: true,
     prepare: async (page) => {
-      await page.locator(".production-advanced-disclosure").evaluate((el) => {
-        (el as HTMLDetailsElement).open = true;
-      });
+      const disclosure = page.locator(".production-advanced-disclosure");
+      if (await disclosure.count()) {
+        await disclosure.evaluate((el) => {
+          (el as HTMLDetailsElement).open = true;
+        });
+      }
       const trigger = ".production-mix-toolbar-actions [data-capture-export-trigger]";
       await page.waitForSelector(trigger, { timeout: 15_000 });
       await page.click(trigger);
@@ -222,9 +231,12 @@ const SCENARIOS: Scenario[] = [
     selector: ".export-dialog-actions-end .btn.primary",
     disabledMode: "export-stems-none-aria",
     prepare: async (page) => {
-      await page.locator(".production-advanced-disclosure").evaluate((el) => {
-        (el as HTMLDetailsElement).open = true;
-      });
+      const disclosure = page.locator(".production-advanced-disclosure");
+      if (await disclosure.count()) {
+        await disclosure.evaluate((el) => {
+          (el as HTMLDetailsElement).open = true;
+        });
+      }
       const trigger = ".production-mix-toolbar-actions [data-capture-export-trigger]";
       await page.waitForSelector(trigger, { timeout: 15_000 });
       await page.click(trigger);
@@ -1157,8 +1169,13 @@ async function runScenario(
   try {
     const url = `http://127.0.0.1:${PORT}${scenario.path}${scenario.hash ?? ""}`;
     await page.goto(url, { waitUntil: "networkidle", timeout: 45_000 });
-    if(scenario.path === "/production-capture.html") {
-      await page.locator(".production-advanced-disclosure").evaluate(el=>{(el as HTMLDetailsElement).open=true;});
+    if (scenario.path === "/production-capture.html") {
+      const disclosure = page.locator(".production-advanced-disclosure");
+      if (await disclosure.count()) {
+        await disclosure.evaluate((el) => {
+          (el as HTMLDetailsElement).open = true;
+        });
+      }
     }
     await page.waitForTimeout(400);
     if (scenario.prepare) await scenario.prepare(page);
@@ -1237,9 +1254,12 @@ async function runScenario(
     }
 
     if (scenario.i3FocusCapture) {
-      await page.locator(".production-advanced-disclosure").evaluate((el) => {
-        (el as HTMLDetailsElement).open = false;
-      });
+      const disclosure = page.locator(".production-advanced-disclosure");
+      if (await disclosure.count()) {
+        await disclosure.evaluate((el) => {
+          (el as HTMLDetailsElement).open = false;
+        });
+      }
       await page.waitForTimeout(100);
       const i3Sel = scenario.i3FocusCapture.selector;
       await page.waitForSelector(i3Sel, { timeout: 15_000 });
