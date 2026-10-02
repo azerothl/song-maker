@@ -343,4 +343,35 @@ export const api = {
       textFingerprint,
       textVersion,
     }),
+  rbitnetStatus: () =>
+    invoke<{
+      releaseTag: string;
+      binaryPresent: boolean;
+      binaryPath?: string;
+      running: boolean;
+      ready: boolean;
+      baseUrl: string;
+      selectedModelId: string;
+      modelPresent: boolean;
+      modelPath?: string;
+      tokenizerPresent: boolean;
+      catalog: {
+        id: string;
+        labelFr: string;
+        ggufRepo: string;
+        ggufFile: string;
+        bytes: number;
+        present: boolean;
+      }[];
+      messageFr: string;
+    }>("rbitnet_status"),
+  installRbitnetBinary: () => invoke<string>("install_rbitnet_binary"),
+  installRbitnetModel: (modelId: string) =>
+    invoke<string>("install_rbitnet_model", { modelId }),
+  cancelRbitnetInstall: () => invoke<string>("cancel_rbitnet_install"),
+  ensureRbitnetSidecar: (modelId?: string) =>
+    invoke<{ baseUrl: string; modelId: string; ready: boolean }>(
+      "ensure_rbitnet_sidecar",
+      { modelId: modelId ?? null },
+    ),
 };

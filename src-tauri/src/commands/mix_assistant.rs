@@ -142,18 +142,17 @@ impl MixLlmConfig {
 
     async fn ensure_model(&self, client: &reqwest::Client) -> Result<(), String> {
         self.health(client).await?;
+        // Bundled Rbitnet sidecar: /ready is enough. Catalog keys (Qwen / BitNet) may
+        // differ from the id advertised on /v1/models (often the GGUF stem).
+        if self.kind == MixLlmBackendKind::Rbitnet {
+            return Ok(());
+        }
         let models = self.list_models(client).await?;
         if models.iter().any(|name| name == &self.model_id) {
             return Ok(());
         }
         // Some OpenAI-compat servers omit the loaded model from /v1/models until chat.
-        // Rbitnet /ready already proved the process is up; still require an exact match when
-        // the catalogue is non-empty so misconfigured ids fail early.
-        if matches!(
-            self.kind,
-            MixLlmBackendKind::OpenAiCompat | MixLlmBackendKind::Rbitnet
-        ) && models.is_empty()
-        {
+        if self.kind == MixLlmBackendKind::OpenAiCompat && models.is_empty() {
             return Ok(());
         }
         Err("MODEL_MISSING".into())
@@ -364,7 +363,10 @@ fn answer_schema(tracks: &[TrackSummary]) -> serde_json::Value {
 }
 
 #[tauri::command]
-pub async fn propose_qwen_mix(req: MixAssistantRequest) -> Result<MixAssistantResponse, String> {
+pub async fn propose_qwen_mix(
+    state: tauri::State<'_, crate::commands::AppState>,
+    req: MixAssistantRequest,
+) -> Result<MixAssistantResponse, String> {
     if req.tracks.is_empty()
         || req.tracks.len() > 32
         || req.objective.chars().count() > 1000
@@ -380,7 +382,12 @@ pub async fn propose_qwen_mix(req: MixAssistantRequest) -> Result<MixAssistantRe
         return Err("INVALID_INPUT".into());
     }
     let settings = load_settings().unwrap_or_else(|_| default_settings());
-    let config = MixLlmConfig::from_settings(&settings)?;
+    let mut config = MixLlmConfig::from_settings(&settings)?;
+    if config.kind == MixLlmBackendKind::Rbitnet {
+        let cache = std::path::PathBuf::from(&settings.cache_dir);
+        let url = crate::rbitnet::ensure_started(&state.rbitnet, &cache, &config.model_id).await?;
+        config.base_url = url;
+    }
     let client = reqwest::Client::builder()
         .no_proxy()
         .redirect(reqwest::redirect::Policy::none())
@@ -484,14 +491,24 @@ mod tests {
                 peak_db: -1.0,
             },
         ];
-        let response = propose_qwen_mix(MixAssistantRequest {
-            tracks,
-            objective: "Make the vocals more audible while keeping peak headroom.".into(),
-            locale: "en".into(),
-        })
-        .await
-        .unwrap();
-        println!("{}", serde_json::to_string(&response).unwrap());
+        let settings = load_settings().unwrap_or_else(|_| default_settings());
+        let config = MixLlmConfig::from_settings(&settings).unwrap();
+        let client = reqwest::Client::builder()
+            .no_proxy()
+            .redirect(reqwest::redirect::Policy::none())
+            .timeout(Duration::from_secs(120))
+            .build()
+            .unwrap();
+        config.ensure_model(&client).await.unwrap();
+        let schema = answer_schema(&tracks);
+        let prompt = "You are a music mixing assistant.";
+        let user_payload = json!({ "tracks": tracks, "objective": "Make the vocals more audible while keeping peak headroom." });
+        let answer = config
+            .propose(&client, &schema, prompt, &user_payload)
+            .await
+            .unwrap();
+        validate(&answer, &tracks).unwrap();
+        assert!(!answer.explanation.is_empty() || answer.adjustments.is_empty());
     }
 
     #[test]

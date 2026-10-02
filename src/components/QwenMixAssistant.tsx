@@ -17,6 +17,10 @@ const PROVIDER_DEFAULTS: Record<string, string> = {
   openai_compat: "http://127.0.0.1:8080",
 };
 
+const RBITNET_DEFAULT_MODEL = "qwen2.5-1.5b-instruct-q4_k_m";
+
+type RbitnetStatus = Awaited<ReturnType<typeof api.rbitnetStatus>>;
+
 export function QwenMixAssistant({mix,sources,onCommitMix}: {
   mix: MixDoc; sources: PlaybackSources | null; onCommitMix: (mix:MixDoc)=>void;
 }) {
@@ -36,6 +40,8 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
   const [allowRemote,setAllowRemote]=useState(Boolean(settings?.mixLlmAllowRemote));
   const [serverBusy,setServerBusy]=useState(false);
   const [serverMsg,setServerMsg]=useState<string|null>(null);
+  const [rbitnet,setRbitnet]=useState<RbitnetStatus|null>(null);
+  const [sidecarBusy,setSidecarBusy]=useState(false);
   const current=useRef(mix); current.current=mix;
   const fingerprint=fingerprintProductionState(mix,overlay);
   const stale=proposal != null && proposal.fingerprint !== fingerprint;
@@ -49,9 +55,18 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
     setAllowRemote(Boolean(settings.mixLlmAllowRemote));
   },[settings]);
 
+  useEffect(()=>{
+    if(provider !== "rbitnet") { setRbitnet(null); return; }
+    let cancelled=false;
+    void api.rbitnetStatus().then(status=>{ if(!cancelled) setRbitnet(status); }).catch(()=>{ if(!cancelled) setRbitnet(null); });
+    return ()=>{ cancelled=true; };
+  },[provider,serverMsg,sidecarBusy]);
+
   const onProviderChange=(next:string)=>{
     setProvider(next);
     setBaseUrl(PROVIDER_DEFAULTS[next]??PROVIDER_DEFAULTS.openai_compat);
+    if(next === "rbitnet") setModelId(RBITNET_DEFAULT_MODEL);
+    if(next === "ollama") setModelId("qwen3.5:2b");
     setServerMsg(null);
   };
 
@@ -63,7 +78,7 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
         ...settings,
         mixLlmProvider:provider,
         mixLlmBaseUrl:baseUrl.trim()||PROVIDER_DEFAULTS[provider]||PROVIDER_DEFAULTS.ollama,
-        mixLlmModelId:modelId.trim()||"qwen3.5:2b",
+        mixLlmModelId:modelId.trim()||(provider==="rbitnet"?RBITNET_DEFAULT_MODEL:"qwen3.5:2b"),
         mixLlmAllowRemote:allowRemote,
       });
       await refreshSettings();
@@ -71,6 +86,51 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
     } catch {
       setServerMsg(t("qwen.mix.serverSaveFailed"));
     } finally {setServerBusy(false);}
+  };
+
+  const refreshRbitnet=async()=>{
+    try { setRbitnet(await api.rbitnetStatus()); }
+    catch { setRbitnet(null); }
+  };
+
+  const installBinary=async()=>{
+    if(sidecarBusy) return;
+    setSidecarBusy(true);setServerMsg(null);
+    try {
+      await api.installRbitnetBinary();
+      await refreshRbitnet();
+      setServerMsg(t("qwen.mix.rbitnet.binaryInstalled"));
+    } catch {
+      setServerMsg(t("qwen.mix.rbitnet.binaryFailed"));
+    } finally {setSidecarBusy(false);}
+  };
+
+  const installModel=async()=>{
+    if(sidecarBusy) return;
+    setSidecarBusy(true);setServerMsg(null);
+    try {
+      await api.installRbitnetModel(modelId.trim()||RBITNET_DEFAULT_MODEL);
+      await refreshRbitnet();
+      setServerMsg(t("qwen.mix.rbitnet.modelInstalled"));
+    } catch {
+      setServerMsg(t("qwen.mix.rbitnet.modelFailed"));
+    } finally {setSidecarBusy(false);}
+  };
+
+  const startSidecar=async()=>{
+    if(sidecarBusy) return;
+    setSidecarBusy(true);setServerMsg(null);
+    try {
+      const result=await api.ensureRbitnetSidecar(modelId.trim()||RBITNET_DEFAULT_MODEL);
+      setBaseUrl(result.baseUrl);
+      setModelId(result.modelId);
+      await refreshSettings();
+      await refreshRbitnet();
+      setServerMsg(t("qwen.mix.rbitnet.ready"));
+    } catch (e) {
+      const code=String(e instanceof Error?e.message:e);
+      setServerMsg(code.includes("MODEL_MISSING")?t("qwen.mix.rbitnet.needWeights"):t("qwen.mix.rbitnet.startFailed"));
+    } finally {setSidecarBusy(false);}
   };
 
   const run=async () => {
@@ -93,10 +153,11 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
       const code=String(e instanceof Error?e.message:e);
       const key=code.includes("MODEL_MISSING") ? "qwen.mix.modelMissing"
         : code.includes("REMOTE_BLOCKED") ? "qwen.mix.remoteBlocked"
+        : code.includes("RBITNET_BINARY_MISSING") ? "qwen.mix.rbitnet.needBinary"
         : code.includes("SERVICE_UNAVAILABLE") ? "qwen.mix.serviceMissing"
         : code.includes("INVALID_RESPONSE") ? "qwen.mix.invalid" : "qwen.mix.failed";
       setError(t(key));
-      setDiagnostic(code.match(/(?:INVALID_RESPONSE|REMOTE_BLOCKED)(?::[A-Z_]+)?/)?.[0]??null);
+      setDiagnostic(code.match(/(?:INVALID_RESPONSE|REMOTE_BLOCKED|SERVICE_UNAVAILABLE|MODEL_MISSING)(?::[A-Z0-9_.]+)?/)?.[0]??null);
     } finally {setBusy(false);}
   };
   const nf=new Intl.NumberFormat(profileLocale(),{maximumFractionDigits:2});
@@ -112,13 +173,42 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
         </select>
       </label>
       <label>{t("qwen.mix.baseUrl")}<input value={baseUrl} onChange={e=>setBaseUrl(e.target.value)} spellCheck={false} /></label>
-      <label>{t("qwen.mix.modelId")}<input value={modelId} onChange={e=>setModelId(e.target.value)} spellCheck={false} /></label>
+      {provider === "rbitnet" ? (
+        <label>{t("qwen.mix.rbitnet.model")}
+          <select value={modelId} onChange={e=>setModelId(e.target.value)}>
+            {(rbitnet?.catalog??[
+              {id:RBITNET_DEFAULT_MODEL,labelFr:t("qwen.mix.rbitnet.qwen"),present:false},
+              {id:"microsoft-bitnet-b1.58-2b-4t",labelFr:t("qwen.mix.rbitnet.bitnet"),present:false},
+            ]).map(entry=>(
+              <option key={entry.id} value={entry.id}>{entry.labelFr}{entry.present?" ✓":""}</option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <label>{t("qwen.mix.modelId")}<input value={modelId} onChange={e=>setModelId(e.target.value)} spellCheck={false} /></label>
+      )}
       <label className="qwen-mix-remote">
         <input type="checkbox" checked={allowRemote} onChange={e=>setAllowRemote(e.target.checked)} />
         {t("qwen.mix.allowRemote")}
       </label>
       {allowRemote && <p className="hint">{t("qwen.mix.allowRemoteWarn")}</p>}
       <button type="button" className="btn" disabled={serverBusy||!settings} onClick={()=>void saveServer()}>{t("qwen.mix.saveServer")}</button>
+      {provider === "rbitnet" && (
+        <div className="qwen-mix-rbitnet">
+          <p className="hint">{rbitnet?.messageFr ?? t("qwen.mix.rbitnet.hint")}</p>
+          <p className="hint">{t("qwen.mix.rbitnet.pin",{tag:rbitnet?.releaseTag??"v0.1.0"})}</p>
+          <button type="button" className="btn" disabled={sidecarBusy||Boolean(rbitnet?.binaryPresent)} onClick={()=>void installBinary()}>
+            {t(rbitnet?.binaryPresent ? "qwen.mix.rbitnet.binaryOk" : "qwen.mix.rbitnet.installBinary")}
+          </button>
+          <button type="button" className="btn" disabled={sidecarBusy} onClick={()=>void installModel()}>
+            {t("qwen.mix.rbitnet.installModel")}
+          </button>
+          <button type="button" className="btn" disabled={sidecarBusy} onClick={()=>void startSidecar()}>
+            {t("qwen.mix.rbitnet.start")}
+          </button>
+          {sidecarBusy && <button type="button" className="btn" onClick={()=>void api.cancelRbitnetInstall()}>{t("qwen.mix.rbitnet.cancel")}</button>}
+        </div>
+      )}
       {serverMsg && <p className="hint" role="status">{serverMsg}</p>}
     </details>
     <details className="qwen-mix-license">

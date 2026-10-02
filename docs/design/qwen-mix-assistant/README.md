@@ -2,15 +2,17 @@
 
 Choix utilisateur initial : Qwen léger via Ollama (`qwen3.5:2b`). Depuis 2026-10-02 : backends configurables — **Ollama natif**, **OpenAI-compat** (LM Studio, etc.), **preset Rbitnet** (`http://127.0.0.1:8080`, health `/ready`). Cloud = mode expert opt-in seulement. Un seul point d’entrée dans Réglages du mix. Les fonctions manuelles et diagnostics restent dans un panneau repliable.
 
-Le backend envoie uniquement noms, rôles, niveaux RMS/crêtes, gain/pan et objectif au serveur LLM configuré (loopback par défaut). Aucun WAV envoyé. Proxy et redirections désactivés. Réponse JSON contrôlée : IDs inconnus/dupliqués, nombres non finis, gain hors [-60,+12] dB, variation supérieure à 6 dB ou pan hors [-1,+1] rejetés. Les propositions inchangées sont retirées. Aucun téléchargement automatique dans Phase 0+1.
+Le backend envoie uniquement noms, rôles, niveaux RMS/crêtes, gain/pan et objectif au serveur LLM configuré (loopback par défaut). Aucun WAV envoyé. Proxy et redirections désactivés. Réponse JSON contrôlée : IDs inconnus/dupliqués, nombres non finis, gain hors [-60,+12] dB, variation supérieure à 6 dB ou pan hors [-1,+1] rejetés. Les propositions inchangées sont retirées.
+
+**Phase 2a (sidecar Rbitnet) :** Song Maker peut télécharger à la demande le binaire `rbitnet-server` (release épinglée `v0.1.0` / `azerothl/Rbitnet`, alignée Akasha) et les poids **Qwen GGUF** ou **BitNet b1.58**, puis lancer le sidecar sur loopback. Les poids ne sont **pas** dans le MSI.
 
 Les réglages demandent examen puis confirmation ; une action annule gain/pan. Le fingerprint du mix et de son overlay bloque une proposition périmée. L’annulation conserve les autres données de piste.
 
-Décisions produit et phases (sidecar Rbitnet = Phase 2a) : store Project `docs/mix-assistant-llm-backends.md` / issue #309.
+Décisions produit : store Project `docs/mix-assistant-llm-backends.md` · Phase 0+1 = #309/#310 · Phase 2a = suivi dédié.
 
 ## Licence et notices
 
-[Note et sources épinglées](../../model-licenses/README.md) : Apache-2.0, Copyright 2026 Alibaba Cloud. La copie officielle complète est disponible dans l’assistant hors ligne et référencée dans NOTICE. Les poids sont installés séparément sur le serveur LLM local.
+[Note et sources épinglées](../../model-licenses/README.md) : Apache-2.0, Copyright 2026 Alibaba Cloud. La copie officielle complète est disponible dans l’assistant hors ligne et référencée dans NOTICE. Les poids sont installés séparément (Ollama ou téléchargement différé Rbitnet).
 
 ## Preuves distinctes
 

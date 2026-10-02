@@ -21,6 +21,7 @@ mod profile_switch;
 mod profiles;
 mod project_sync;
 mod queue;
+mod rbitnet;
 mod resample;
 mod sheetsage;
 
@@ -48,6 +49,12 @@ pub fn run() {
             commands::midi_output::panic_midi_output,
             commands::midi_output::disconnect_midi_output,
             commands::mix_assistant::propose_qwen_mix,
+            commands::rbitnet_cmds::rbitnet_status,
+            commands::rbitnet_cmds::rbitnet_install_info,
+            commands::rbitnet_cmds::install_rbitnet_binary,
+            commands::rbitnet_cmds::install_rbitnet_model,
+            commands::rbitnet_cmds::cancel_rbitnet_install,
+            commands::rbitnet_cmds::ensure_rbitnet_sidecar,
             // Réglages, santé, installation des modèles
             commands::settings::get_health,
             commands::settings::get_setup_gpu_info,
@@ -171,6 +178,7 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 let state = app.state::<AppState>();
                 state.server.shutdown();
+                state.rbitnet.shutdown();
             }
         });
 }

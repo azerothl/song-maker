@@ -20,6 +20,7 @@ pub mod mix_assistant;
 pub mod package;
 pub mod profiles;
 pub mod projects;
+pub mod rbitnet_cmds;
 pub mod score;
 pub mod separation;
 pub mod settings;
@@ -41,6 +42,9 @@ pub struct AppState {
     pub sheetsage_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub ace_step_installing: std::sync::atomic::AtomicBool,
     pub ace_step_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub rbitnet_installing: std::sync::atomic::AtomicBool,
+    pub rbitnet_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub rbitnet: crate::rbitnet::RbitnetSidecar,
     pub sheetsage_jobs: crate::sheetsage::SheetsageJobs,
     pub lora_train_jobs: crate::lora_train::LoraTrainJobs,
     pub profile_export_busy: std::sync::atomic::AtomicBool,
@@ -80,6 +84,9 @@ impl Default for AppState {
             sheetsage_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             ace_step_installing: std::sync::atomic::AtomicBool::new(false),
             ace_step_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            rbitnet_installing: std::sync::atomic::AtomicBool::new(false),
+            rbitnet_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            rbitnet: crate::rbitnet::RbitnetSidecar::default(),
             sheetsage_jobs: crate::sheetsage::SheetsageJobs::default(),
             lora_train_jobs: crate::lora_train::LoraTrainJobs::default(),
             profile_export_busy: std::sync::atomic::AtomicBool::new(false),
