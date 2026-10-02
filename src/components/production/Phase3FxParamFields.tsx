@@ -499,7 +499,80 @@ export function Phase3FxParamFields({
           <p className="hint">{t("phase3.mix.pitchCorrect.honesty")}</p>
         </>
       );
-    default:
+    case "voice_cleanup":
+      return (
+        <>
+          <label className="phase3-field">
+            <span>{t("phase3.mix.param.strength")}</span>
+            <input
+              type="number"
+              step={0.05}
+              min={0}
+              max={1}
+              value={Number(fx.params.strength ?? 0.55)}
+              onChange={(e) =>
+                updateEffectParam("strength", Number(e.target.value))
+              }
+            />
+          </label>
+          <label className="phase3-field">
+            <span>{t("phase3.mix.param.noiseFloorDb")}</span>
+            <input
+              type="number"
+              step={1}
+              min={-90}
+              max={-6}
+              value={Number(fx.params.noiseFloorDb ?? -48)}
+              onChange={(e) =>
+                updateEffectParam("noiseFloorDb", Number(e.target.value))
+              }
+            />
+          </label>
+          <label className="phase3-field">
+            <span>{t("phase3.mix.param.preserveAttack")}</span>
+            <input
+              type="number"
+              step={0.05}
+              min={0}
+              max={1}
+              value={Number(fx.params.preserveAttack ?? 0.65)}
+              onChange={(e) =>
+                updateEffectParam("preserveAttack", Number(e.target.value))
+              }
+            />
+          </label>
+          <p className="hint">{t("phase3.mix.voiceCleanup.honesty")}</p>
+        </>
+      );
+    case "voice_convert": {
+      const consented = fx.params.consentOwnVoice === true;
+      return (
+        <>
+          <label className="phase3-check">
+            <input
+              type="checkbox"
+              checked={consented}
+              onChange={(e) =>
+                updateEffectParam("consentOwnVoice", e.target.checked)
+              }
+            />
+            <span>{t("phase3.mix.voiceConvert.consent")}</span>
+          </label>
+          <p className="hint">{t("phase3.mix.voiceConvert.loicConstraint")}</p>
+          <p className="hint">
+            {consented
+              ? t("phase3.mix.voiceConvert.notShipped")
+              : t("phase3.mix.voiceConvert.needsConsent")}
+          </p>
+        </>
+      );
+    }
+    case "custom":
       return null;
+    default: {
+      const _exhaustive: never = fx.kind;
+      void _exhaustive;
+      return null;
+    }
   }
 }

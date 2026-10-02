@@ -61,6 +61,8 @@ export type EffectKind =
   | "delay"
   | "limiter"
   | "pitch_correct"
+  | "voice_cleanup"
+  | "voice_convert"
   | "custom";
 
 export type EffectProcessContext = {
@@ -85,6 +87,8 @@ export type TrackEffectSlot = {
    * - pitch_correct: `mode` ("chromatic"|"scale"), `tonic` (0…11),
    *   `scale` ("major"|"minor"), `intensity` (0…1), `speed` (0…1),
    *   `formantPreserve` (boolean)
+   * - voice_cleanup: `strength` (0…1), `noiseFloorDb`, `preserveAttack` (0…1)
+   * - voice_convert: `consentOwnVoice` (boolean) — stub; no third-party model
    * - custom: **required** `processorId` (string) naming a registered extension
    */
   params: Record<string, number | string | boolean>;

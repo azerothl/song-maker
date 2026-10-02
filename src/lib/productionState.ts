@@ -25,13 +25,20 @@ export const UI_EFFECT_KINDS = [
   "delay",
   "reverb",
   "pitch_correct",
+  "voice_cleanup",
+  "voice_convert",
 ] as const;
 export type UiEffectKind = (typeof UI_EFFECT_KINDS)[number];
 
-/** Pitch correction is intended for vocal stems only (issue #83). */
-export function isPitchCorrectEligibleTrack(role: string): boolean {
+/** Vocal-track FX inserts (pitch / cleanup / convert) — issues #83 / #164. */
+export function isVocalEffectEligibleTrack(role: string): boolean {
   const r = role.trim().toLowerCase();
   return r === "vocals" || r === "vocal" || r.includes("vocal");
+}
+
+/** @deprecated Prefer `isVocalEffectEligibleTrack` (alias for #83 callers). */
+export function isPitchCorrectEligibleTrack(role: string): boolean {
+  return isVocalEffectEligibleTrack(role);
 }
 
 export type ProductionOverlay = {
@@ -647,6 +654,16 @@ export function defaultEffectParams(
         intensity: 0.7,
         speed: 0.55,
         formantPreserve: true,
+      };
+    case "voice_cleanup":
+      return {
+        strength: 0.55,
+        noiseFloorDb: -48,
+        preserveAttack: 0.65,
+      };
+    case "voice_convert":
+      return {
+        consentOwnVoice: false,
       };
     default: {
       const _exhaustive: never = kind;

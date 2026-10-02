@@ -4,7 +4,7 @@ import { PopinCloseButton } from "../PopinCloseButton";
 import { ProductionTrackSettingsPopin } from "./ProductionTrackSettingsPopin";
 import { ProductionTrackFxLinePopin } from "./ProductionTrackFxLinePopin";
 import { ProductionTrackRoutingPopin } from "./ProductionTrackRoutingPopin";
-import { isPitchCorrectEligibleTrack } from "../../lib/productionState";
+import { isVocalEffectEligibleTrack } from "../../lib/productionState";
 import { setTrackAutomationVisible } from "../../lib/productionTrackAutomationVisible";
 import type { MixDoc, MixTrack } from "../../lib/types";
 import { t } from "../../ui/i18n";
@@ -142,7 +142,7 @@ export function ProductionTrackTools({
               trackId={track.id}
               trackName={track.name}
               tempoBpm={tempoBpm}
-              canAddPitchCorrect={isPitchCorrectEligibleTrack(track.role)}
+              canAddVocalFx={isVocalEffectEligibleTrack(track.role)}
               embedded
             />
           ) : null}

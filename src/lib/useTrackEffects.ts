@@ -12,6 +12,9 @@ import {
 
 export type UseTrackEffectsOptions = {
   tempoBpm?: number | null;
+  /** Vocal-only FX (pitch_correct, voice_cleanup, voice_convert). */
+  canAddVocalFx?: boolean;
+  /** @deprecated Prefer canAddVocalFx. */
   canAddPitchCorrect?: boolean;
 };
 
@@ -20,7 +23,12 @@ export function useTrackEffects(
   trackId: string,
   options: UseTrackEffectsOptions = {},
 ) {
-  const { tempoBpm = null, canAddPitchCorrect = true } = options;
+  const {
+    tempoBpm = null,
+    canAddVocalFx: canAddVocalFxOpt,
+    canAddPitchCorrect = true,
+  } = options;
+  const canAddVocalFx = canAddVocalFxOpt ?? canAddPitchCorrect;
   const [effects, setEffects] = useState<TrackEffectSlot[]>([]);
 
   const syncFromOverlay = useCallback(() => {
@@ -55,7 +63,14 @@ export function useTrackEffects(
   const addEffect = useCallback(
     (kind: UiEffectKind) => {
       if (!mixId || !trackId) return;
-      if (kind === "pitch_correct" && !canAddPitchCorrect) return;
+      if (
+        (kind === "pitch_correct" ||
+          kind === "voice_cleanup" ||
+          kind === "voice_convert") &&
+        !canAddVocalFx
+      ) {
+        return;
+      }
       const params = defaultEffectParams(kind);
       if (
         kind === "delay" &&
@@ -73,7 +88,7 @@ export function useTrackEffects(
       };
       persist([...effects, slot]);
     },
-    [mixId, trackId, canAddPitchCorrect, tempoBpm, effects, persist],
+    [mixId, trackId, canAddVocalFx, tempoBpm, effects, persist],
   );
 
   const updateEffect = useCallback(
