@@ -103,17 +103,18 @@ pub fn update_settings(
     {
         return Err("L’échelle LoRA doit être comprise entre 0 et 2.".into());
     }
-    crate::commands::mix_assistant::validate_mix_llm_settings(&s).map_err(|code| match code.as_str()
-    {
-        "REMOTE_BLOCKED" => {
-            "Le serveur LLM distant nécessite le mode expert (opt-in) dans l’assistant de mix."
-                .into()
+    crate::commands::mix_assistant::validate_mix_llm_settings(&s).map_err(|code| {
+        match code.as_str() {
+            "REMOTE_BLOCKED" => {
+                "Le serveur LLM distant nécessite le mode expert (opt-in) dans l’assistant de mix."
+                    .into()
+            }
+            "INVALID_INPUT:PROVIDER" => {
+                "Fournisseur LLM inconnu (ollama|openai_compat|rbitnet).".into()
+            }
+            "INVALID_INPUT:BASE_URL" => "URL de base LLM invalide.".into(),
+            other => other.to_string(),
         }
-        "INVALID_INPUT:PROVIDER" => {
-            "Fournisseur LLM inconnu (ollama|openai_compat|rbitnet).".into()
-        }
-        "INVALID_INPUT:BASE_URL" => "URL de base LLM invalide.".into(),
-        other => other.to_string(),
     })?;
     for path in [&mut s.yue2_ar_lora, &mut s.yue2_nar_lora] {
         if let Some(raw) = path.as_ref() {

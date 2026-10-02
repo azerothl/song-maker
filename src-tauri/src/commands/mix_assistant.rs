@@ -583,10 +583,8 @@ mod tests {
 
     #[test]
     fn parse_answer_strips_markdown_fences() {
-        let answer = parse_answer_json(
-            "```json\n{\"adjustments\":[],\"explanation\":\"ok\"}\n```",
-        )
-        .unwrap();
+        let answer =
+            parse_answer_json("```json\n{\"adjustments\":[],\"explanation\":\"ok\"}\n```").unwrap();
         assert!(answer.adjustments.is_empty());
         assert_eq!(answer.explanation, "ok");
     }
