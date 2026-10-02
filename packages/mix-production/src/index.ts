@@ -69,6 +69,11 @@ export {
   type PitchCorrectScale,
 } from "./pitchCorrect.js";
 export {
+  applyVoiceCleanup,
+  peakDb as voiceCleanupPeakDb,
+  type VoiceCleanupParams,
+} from "./voiceCleanup.js";
+export {
   MixAutomationEngineImpl,
   TrackEffectsRackImpl,
   SidechainRouterImpl,

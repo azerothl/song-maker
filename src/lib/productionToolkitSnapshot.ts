@@ -15,6 +15,8 @@ const SNAPSHOT_UI_EFFECT_KINDS = [
   "delay",
   "reverb",
   "pitch_correct",
+  "voice_cleanup",
+  "voice_convert",
 ] as const;
 
 function isUiEffectKind(kind: string): boolean {

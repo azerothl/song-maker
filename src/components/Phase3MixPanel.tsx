@@ -25,7 +25,7 @@ import {
   ensureProductionOverlay,
   getProductionOverlay,
   getProductionToolkit,
-  isPitchCorrectEligibleTrack,
+  isVocalEffectEligibleTrack,
   newEffectId,
   productionIsActive,
   setAutomationLanePoints,
@@ -68,6 +68,8 @@ const FX_LABEL: Record<
   | "phase3.mix.fx.delay"
   | "phase3.mix.fx.reverb"
   | "phase3.mix.fx.pitchCorrect"
+  | "phase3.mix.fx.voiceCleanup"
+  | "phase3.mix.fx.voiceConvert"
 > = {
   limiter: "phase3.mix.fx.limiter",
   compressor: "phase3.mix.fx.compressor",
@@ -78,6 +80,8 @@ const FX_LABEL: Record<
   delay: "phase3.mix.fx.delay",
   reverb: "phase3.mix.fx.reverb",
   pitch_correct: "phase3.mix.fx.pitchCorrect",
+  voice_cleanup: "phase3.mix.fx.voiceCleanup",
+  voice_convert: "phase3.mix.fx.voiceConvert",
 };
 
 const FX_ADD_LABEL: Record<
@@ -91,6 +95,8 @@ const FX_ADD_LABEL: Record<
   | "phase3.mix.add.delay"
   | "phase3.mix.add.reverb"
   | "phase3.mix.add.pitchCorrect"
+  | "phase3.mix.add.voiceCleanup"
+  | "phase3.mix.add.voiceConvert"
 > = {
   limiter: "phase3.mix.add.limiter",
   compressor: "phase3.mix.add.compressor",
@@ -101,7 +107,15 @@ const FX_ADD_LABEL: Record<
   delay: "phase3.mix.add.delay",
   reverb: "phase3.mix.add.reverb",
   pitch_correct: "phase3.mix.add.pitchCorrect",
+  voice_cleanup: "phase3.mix.add.voiceCleanup",
+  voice_convert: "phase3.mix.add.voiceConvert",
 };
+
+const VOCAL_FX_KINDS = new Set<UiEffectKind>([
+  "pitch_correct",
+  "voice_cleanup",
+  "voice_convert",
+]);
 
 function sortPoints(points: AutomationPoint[]): AutomationPoint[] {
   return [...points].sort((a, b) => a.timeMs - b.timeMs);
@@ -308,8 +322,8 @@ export function Phase3MixPanel({
   const tracks = mix?.tracks ?? [];
   const activeTrack = trackId || tracks[0]?.id || "";
   const activeTrackMeta = tracks.find((tr) => tr.id === activeTrack);
-  const canAddPitchCorrect = activeTrackMeta
-    ? isPitchCorrectEligibleTrack(activeTrackMeta.role)
+  const canAddVocalFx = activeTrackMeta
+    ? isVocalEffectEligibleTrack(activeTrackMeta.role)
     : false;
 
   const laneMaxMs = Math.max(5000, durationMs ?? 0);
@@ -401,7 +415,14 @@ export function Phase3MixPanel({
 
   const addEffect = (kind: UiEffectKind) => {
     if (!mix || !activeTrack) return;
-    if (kind === "pitch_correct" && !canAddPitchCorrect) return;
+    if (
+      (kind === "pitch_correct" ||
+        kind === "voice_cleanup" ||
+        kind === "voice_convert") &&
+      !canAddVocalFx
+    ) {
+      return;
+    }
     const params = defaultEffectParams(kind);
     if (
       kind === "delay" &&
@@ -617,8 +638,7 @@ export function Phase3MixPanel({
             <p className="hint">{t("phase3.mix.fxHint")}</p>
             <div className="btn-row">
               {UI_EFFECT_KINDS.map((kind) => {
-                const disabled =
-                  kind === "pitch_correct" && !canAddPitchCorrect;
+                const disabled = VOCAL_FX_KINDS.has(kind) && !canAddVocalFx;
                 return (
                   <button
                     key={kind}
@@ -627,7 +647,7 @@ export function Phase3MixPanel({
                     disabled={disabled}
                     title={
                       disabled
-                        ? t("phase3.mix.pitchCorrect.vocalsOnly")
+                        ? t("phase3.mix.vocalFx.vocalsOnly")
                         : undefined
                     }
                     onClick={() => addEffect(kind)}
@@ -637,8 +657,8 @@ export function Phase3MixPanel({
                 );
               })}
             </div>
-            {!canAddPitchCorrect && (
-              <p className="hint">{t("phase3.mix.pitchCorrect.vocalsOnly")}</p>
+            {!canAddVocalFx && (
+              <p className="hint">{t("phase3.mix.vocalFx.vocalsOnly")}</p>
             )}
             {effects.length === 0 ? (
               <p className="hint">{t("phase3.mix.fxEmpty")}</p>

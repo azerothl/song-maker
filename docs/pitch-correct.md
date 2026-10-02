@@ -1,6 +1,6 @@
 # Correction de justesse vocale (optionnelle)
 
-Issue [#83](https://github.com/azerothl/song-maker/issues/83).
+Issue [#83](https://github.com/azerothl/song-maker/issues/83). Également insert FX vocal pour [#164](https://github.com/azerothl/song-maker/issues/164) (étape autotune) — voir [`voice-cleanup.md`](./voice-cleanup.md).
 
 ## Décision
 

@@ -36,6 +36,7 @@ import {
   type PitchCorrectMode,
   type PitchCorrectScale,
 } from "./pitchCorrect.js";
+import { applyVoiceCleanup } from "./voiceCleanup.js";
 
 export class MixAutomationEngineImpl implements MixAutomationEngine {
   private readonly lanes = new Map<string, AutomationLane[]>();
@@ -292,6 +293,31 @@ export class TrackEffectsRackImpl implements TrackEffectsRack {
                 ? effect.params.formantPreserve
                 : true,
           });
+          break;
+        }
+        case "voice_cleanup": {
+          current = applyVoiceCleanup(current, sr, {
+            strength:
+              typeof effect.params.strength === "number"
+                ? effect.params.strength
+                : 0.55,
+            noiseFloorDb:
+              typeof effect.params.noiseFloorDb === "number"
+                ? effect.params.noiseFloorDb
+                : -48,
+            preserveAttack:
+              typeof effect.params.preserveAttack === "number"
+                ? effect.params.preserveAttack
+                : 0.65,
+          });
+          break;
+        }
+        case "voice_convert": {
+          // Stub (#164): refuse conversion without consent (dry pass-through).
+          // Even with consent, no third-party voice model is shipped.
+          if (effect.params.consentOwnVoice !== true) {
+            break;
+          }
           break;
         }
         case "custom": {

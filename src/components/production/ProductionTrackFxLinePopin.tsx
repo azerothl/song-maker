@@ -27,6 +27,8 @@ const FX_LABEL: Record<
   | "phase3.mix.fx.delay"
   | "phase3.mix.fx.reverb"
   | "phase3.mix.fx.pitchCorrect"
+  | "phase3.mix.fx.voiceCleanup"
+  | "phase3.mix.fx.voiceConvert"
 > = {
   limiter: "phase3.mix.fx.limiter",
   compressor: "phase3.mix.fx.compressor",
@@ -37,6 +39,8 @@ const FX_LABEL: Record<
   delay: "phase3.mix.fx.delay",
   reverb: "phase3.mix.fx.reverb",
   pitch_correct: "phase3.mix.fx.pitchCorrect",
+  voice_cleanup: "phase3.mix.fx.voiceCleanup",
+  voice_convert: "phase3.mix.fx.voiceConvert",
 };
 
 const FX_ADD_LABEL: Record<
@@ -50,6 +54,8 @@ const FX_ADD_LABEL: Record<
   | "phase3.mix.add.delay"
   | "phase3.mix.add.reverb"
   | "phase3.mix.add.pitchCorrect"
+  | "phase3.mix.add.voiceCleanup"
+  | "phase3.mix.add.voiceConvert"
 > = {
   limiter: "phase3.mix.add.limiter",
   compressor: "phase3.mix.add.compressor",
@@ -60,7 +66,15 @@ const FX_ADD_LABEL: Record<
   delay: "phase3.mix.add.delay",
   reverb: "phase3.mix.add.reverb",
   pitch_correct: "phase3.mix.add.pitchCorrect",
+  voice_cleanup: "phase3.mix.add.voiceCleanup",
+  voice_convert: "phase3.mix.add.voiceConvert",
 };
+
+const VOCAL_FX_KINDS = new Set<UiEffectKind>([
+  "pitch_correct",
+  "voice_cleanup",
+  "voice_convert",
+]);
 
 function isUiEffectKind(kind: string): kind is UiEffectKind {
   return (UI_EFFECT_KINDS as readonly string[]).includes(kind);
@@ -78,6 +92,8 @@ type Props = {
   trackId: string;
   trackName: string;
   tempoBpm?: number | null;
+  canAddVocalFx?: boolean;
+  /** @deprecated Prefer canAddVocalFx. */
   canAddPitchCorrect?: boolean;
   grByEffect?: Record<string, number>;
   /** @deprecated EQ is configured inline in Effects (Loïc 2026-10-02). */
@@ -93,10 +109,12 @@ export function ProductionTrackFxLinePopin({
   trackId,
   trackName,
   tempoBpm = null,
+  canAddVocalFx: canAddVocalFxProp,
   canAddPitchCorrect = true,
   grByEffect,
   embedded = false,
 }: Props) {
+  const canAddVocalFx = canAddVocalFxProp ?? canAddPitchCorrect;
   const titleId = useId();
   const propsGroupId = useId();
   const {
@@ -106,7 +124,7 @@ export function ProductionTrackFxLinePopin({
     updateEffectParam,
     removeEffect,
     moveEffect,
-  } = useTrackEffects(mixId, trackId, { tempoBpm, canAddPitchCorrect });
+  } = useTrackEffects(mixId, trackId, { tempoBpm, canAddVocalFx });
 
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(
     null,
@@ -251,7 +269,7 @@ export function ProductionTrackFxLinePopin({
 
       <div className="btn-row production-fx-line-add">
         {UI_EFFECT_KINDS.map((kind) => {
-          const disabled = kind === "pitch_correct" && !canAddPitchCorrect;
+          const disabled = VOCAL_FX_KINDS.has(kind) && !canAddVocalFx;
           return (
             <button
               key={kind}
@@ -259,7 +277,7 @@ export function ProductionTrackFxLinePopin({
               className="btn"
               disabled={disabled}
               title={
-                disabled ? t("phase3.mix.pitchCorrect.vocalsOnly") : undefined
+                disabled ? t("phase3.mix.vocalFx.vocalsOnly") : undefined
               }
               onClick={() => addEffect(kind)}
             >
@@ -268,8 +286,8 @@ export function ProductionTrackFxLinePopin({
           );
         })}
       </div>
-      {!canAddPitchCorrect && (
-        <p className="hint">{t("phase3.mix.pitchCorrect.vocalsOnly")}</p>
+      {!canAddVocalFx && (
+        <p className="hint">{t("phase3.mix.vocalFx.vocalsOnly")}</p>
       )}
     </>
   );
