@@ -36,7 +36,7 @@ Le harness régénère **9** PNG `after/` (mix + tools + clips × 3 hauteurs) et
 | `clips-1280x768-after.png` | Clips, 768 px |
 | `clips-1280x640-after.png` | Clips, 640 px |
 
-`metrics-after.json` : métriques mesurées par `capture.mts` (`hiddenPanelsLeaking` doit rester `false` sur chaque scène).
+`metrics-after.json` : métriques mesurées par `capture.mts` (`subtabVestigeCount` doit rester `0` sur chaque scène).
 
 Référence Alphonse (revue #204 / suivi #208) — Outils `clientHeight` **417 / 465 / 337** (720 / 768 / 640) ; timeline Clips `lanesClientHeightPx` **210 / 258 / 130** ; **3** pistes 44 px entières visibles à 768 (pas 4). Un run local peut différer de ±2 px (voir variance ci-dessus ; plage 2,24–9,36 % = Chrome stable seulement).
 

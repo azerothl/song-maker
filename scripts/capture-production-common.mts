@@ -12,7 +12,7 @@ try {
     const page = await browser.newPage({ viewport: { width, height: 720 } });
     await page.goto("http://127.0.0.1:5228/production-capture.html#view-clips-16", { waitUntil: "networkidle" });
     await page.screenshot({ path: `${dir}/tracks-${width}.png` });
-    await page.locator("#production-panel-clips").scrollIntoViewIfNeeded();
+    await page.locator(".production-common-timeline").scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${dir}/clips-${width}.png` });
     const trigger = page.getByTestId("production-mix-settings-trigger-clips");
     await trigger.click();

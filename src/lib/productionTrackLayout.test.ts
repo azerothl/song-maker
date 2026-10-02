@@ -56,10 +56,9 @@ describe("buildTrackFamilyGroups", () => {
 });
 
 describe("shouldUseProductionTightLayout", () => {
-  it("active en vue mix (toutes densités)", () => {
-    assert.equal(shouldUseProductionTightLayout("mix", "compact"), true);
-    assert.equal(shouldUseProductionTightLayout("mix", "confortable"), true);
-    assert.equal(shouldUseProductionTightLayout("clips", "compact"), false);
+  it("active sur la page unique (toutes densités)", () => {
+    assert.equal(shouldUseProductionTightLayout("compact"), true);
+    assert.equal(shouldUseProductionTightLayout("confortable"), true);
   });
 });
 
