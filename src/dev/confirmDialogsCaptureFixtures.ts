@@ -77,6 +77,8 @@ export function captureRemotePayloadPreview(): BuiltRemotePayload {
 
 export type ConfirmCaptureScenario =
   | "regeneration-gate"
+  | "regeneration-gate-keep-ok"
+  | "regeneration-gate-keep-violations"
   | "invariant-panel"
   | "remote-generate-confirm"
   | "separation-recommend"
@@ -84,6 +86,12 @@ export type ConfirmCaptureScenario =
 
 export function parseConfirmCaptureHash(hashRaw: string): ConfirmCaptureScenario {
   const hash = hashRaw.replace(/^#/, "").toLowerCase();
+  if (hash.includes("keep-violations") || hash.includes("gate-violations")) {
+    return "regeneration-gate-keep-violations";
+  }
+  if (hash.includes("keep-ok") || hash.includes("gate-keep")) {
+    return "regeneration-gate-keep-ok";
+  }
   if (hash.includes("invariant")) return "invariant-panel";
   if (hash.includes("remote")) return "remote-generate-confirm";
   if (hash.includes("separation") || hash.includes("sep")) return "separation-recommend";

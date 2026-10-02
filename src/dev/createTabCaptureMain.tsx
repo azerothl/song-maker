@@ -29,8 +29,12 @@ function CreateTabCaptureApp() {
   useEffect(() => {
     if (!import.meta.env.VITE_CAPTURE) return;
     window.__captureSetGenerateBusy = (next: boolean) => setBusy(next);
+    window.__captureOpenAdvancedSettings = (page = "seed") => {
+      setAdvancedSettingsPage(page ?? "seed");
+    };
     return () => {
       delete window.__captureSetGenerateBusy;
+      delete window.__captureOpenAdvancedSettings;
     };
   }, []);
 
@@ -70,6 +74,7 @@ function CreateTabCaptureApp() {
 declare global {
   interface Window {
     __captureSetGenerateBusy?: (busy: boolean) => void;
+    __captureOpenAdvancedSettings?: (page?: AdvancedSettingsPage) => void;
   }
 }
 

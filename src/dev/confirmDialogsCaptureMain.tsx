@@ -9,6 +9,7 @@ import type { Update } from "@tauri-apps/plugin-updater";
 import { useAppStore } from "../store/appStore";
 import {
   captureInvariantScoreDocument,
+  captureRegenerationAfterOk,
   captureRegenerationAfterViolations,
   captureRegenerationBefore,
   captureRemotePayloadPreview,
@@ -16,6 +17,7 @@ import {
   CONFIRM_CAPTURE_PROJECT_ID,
   parseConfirmCaptureHash,
   prepareRegenerationBaseline,
+  type ConfirmCaptureScenario,
 } from "./confirmDialogsCaptureFixtures";
 import { attachPrimaryButtonMetricsWindow } from "./primaryButtonMetrics";
 import { seedCreateTabCaptureStore } from "./seedCreateTabCaptureStore";
@@ -97,20 +99,29 @@ function MockSeparationRecommend() {
   );
 }
 
-function MockRegenerationGate() {
+function MockRegenerationGate({
+  scenario,
+}: {
+  scenario: ConfirmCaptureScenario;
+}) {
   const before = useMemo(() => captureRegenerationBefore(), []);
-  const after = useMemo(() => captureRegenerationAfterViolations(), []);
+  const afterOk = useMemo(() => captureRegenerationAfterOk(), []);
+  const afterViolations = useMemo(() => captureRegenerationAfterViolations(), []);
   useEffect(() => {
     prepareRegenerationBaseline(before);
   }, [before]);
-  const hash = globalThis.location?.hash ?? "";
-  const violations = hash.toLowerCase().includes("violations");
+  const afterDocument =
+    scenario === "regeneration-gate-keep-ok"
+      ? afterOk
+      : scenario === "regeneration-gate-keep-violations"
+        ? afterViolations
+        : null;
   return (
     <RegenerationGate
       open
       projectId={CONFIRM_CAPTURE_PROJECT_ID}
       beforeDocument={before}
-      afterDocument={violations ? after : null}
+      afterDocument={afterDocument}
       isRegeneration
       onProceed={() => {}}
       onCancel={() => {}}
@@ -131,7 +142,11 @@ function ConfirmDialogsCaptureApp() {
       data-capture-mock="confirm-dialogs-harness"
     >
       <main className="main">
-        {scenario === "regeneration-gate" && <MockRegenerationGate />}
+        {(scenario === "regeneration-gate" ||
+          scenario === "regeneration-gate-keep-ok" ||
+          scenario === "regeneration-gate-keep-violations") && (
+          <MockRegenerationGate scenario={scenario} />
+        )}
         {scenario === "invariant-panel" && (
           <div className="panel wide" style={{ padding: "1.5rem" }}>
             <p className="hint">

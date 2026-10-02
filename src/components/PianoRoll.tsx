@@ -86,6 +86,14 @@ export function PianoRoll({ document, onChange, onError }: Props) {
   const focusedNoteIdRef = useRef<string | null>(null);
   const [sectionKind, setSectionKind] = useState<SectionKind>("verse");
   const [pendingQuantize, setPendingQuantize] = useState(false);
+
+  useEffect(() => {
+    if (!import.meta.env.VITE_CAPTURE) return;
+    window.__captureForcePianoQuantize = () => setPendingQuantize(true);
+    return () => {
+      delete window.__captureForcePianoQuantize;
+    };
+  }, []);
   const [chordSymbol, setChordSymbol] = useState("C");
   const [chordTick, setChordTick] = useState(0);
   const tempo = document.tempoMap[0]?.quarterBpm ?? 120;
@@ -827,4 +835,10 @@ export function PianoRoll({ document, onChange, onError }: Props) {
       </div>
     </div>
   );
+}
+
+declare global {
+  interface Window {
+    __captureForcePianoQuantize?: () => void;
+  }
 }

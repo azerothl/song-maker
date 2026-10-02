@@ -86,6 +86,18 @@ export function SheetSage2Panel({
   const abortRef = useRef<AbortController | null>(null);
   const jobIdRef = useRef<string | null>(null);
 
+  useEffect(() => {
+    if (!import.meta.env.VITE_CAPTURE) return;
+    window.__captureForceSheetsageReady = () => {
+      setProposedAbc("X:1\nT:Capture\nM:4/4\nL:1/8\nK:C\nCDEF GABc|");
+      setConfirmed(true);
+      setLicenseAccepted(true);
+    };
+    return () => {
+      delete window.__captureForceSheetsageReady;
+    };
+  }, []);
+
   const refreshProbe = async () => {
     if (!isTauriRuntime()) return;
     const p = await runtimeApi.sheetsageProbe();
@@ -585,4 +597,10 @@ export function SheetSage2Panel({
       {notice && <pre className="phase3-download-notice">{notice}</pre>}
     </section>
   );
+}
+
+declare global {
+  interface Window {
+    __captureForceSheetsageReady?: () => void;
+  }
 }

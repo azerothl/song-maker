@@ -88,10 +88,11 @@ describe("bouton primaire — tokens (#186)", () => {
   it("I3 : outline-offset -2px et box-shadow inset sur la barre mix (CSS)", () => {
     const css = readFileSync(path.join(ROOT, "App.css"), "utf8");
     const block = css.match(
-      /\.production-mix-toolbar-actions > \.btn\.primary:focus-visible\s*\{[^}]+\}/,
+      /\.production-mix-toolbar-actions > \.btn\.primary:focus-visible(?:,\s*\.production-main-toolbar-actions > \.btn\.primary:focus-visible)?\s*\{[^}]+\}/,
     );
     assert.ok(block, "règle barre mix I3 introuvable");
     assert.match(block![0], /outline-offset:\s*-2px/);
+    assert.match(css, /\.production-main-toolbar-actions > \.btn\.primary:focus-visible/);
     assert.match(block![0], /box-shadow:\s*inset 0 0 0 2px #151827/);
     assert.doesNotMatch(
       css,

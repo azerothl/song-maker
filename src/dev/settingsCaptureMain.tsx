@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Phase3SettingsPanel } from "../components/Phase3SettingsPanel";
+import { Phase4SettingsPanel } from "../components/Phase4SettingsPanel";
 import { useAppStore } from "../store/appStore";
 import type { AppSettings } from "../lib/types";
 import { attachPrimaryButtonMetricsWindow } from "./primaryButtonMetrics";
@@ -9,8 +10,8 @@ import { seedCreateTabCaptureStore } from "./seedCreateTabCaptureStore";
 import "../App.css";
 
 /**
- * Harness Réglages — page LoRA avec bouton primaire visible (#186).
- * Monte Phase3SettingsPanel directement (évite App + plugin-updater).
+ * Harness Réglages — LoRA phase 3 ou phase 4 (#186).
+ * Hash `#phase4` → Phase4SettingsPanel ; sinon Phase3.
  */
 const captureSettings: AppSettings = {
   projectsDir: "/tmp/capture-projects",
@@ -47,18 +48,29 @@ useAppStore.setState({
 
 attachPrimaryButtonMetricsWindow();
 
+const phase4 =
+  (globalThis.location?.hash ?? "").toLowerCase().includes("phase4");
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <div className="app-shell" data-capture-scenario="reglages-lora">
+    <div
+      className="app-shell"
+      data-capture-scenario={phase4 ? "reglages-lora-phase4" : "reglages-lora"}
+    >
       <main className="main">
         <div className="panel settings">
           <header className="settings-page-header">
-            <h1>LoRA et styles</h1>
+            <h1>{phase4 ? "LoRA styles (phase 4)" : "LoRA et styles"}</h1>
             <p className="hint">
-              Harness capture — primaire « Télécharger » visible (CC BY-NC accepté).
+              Harness capture — primaire « Télécharger » visible (CC BY-NC
+              accepté).
             </p>
           </header>
-          <Phase3SettingsPanel view="lora" />
+          {phase4 ? (
+            <Phase4SettingsPanel view="lora" />
+          ) : (
+            <Phase3SettingsPanel view="lora" />
+          )}
         </div>
       </main>
     </div>

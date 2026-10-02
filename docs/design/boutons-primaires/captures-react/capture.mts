@@ -151,9 +151,12 @@ const SCENARIOS: Scenario[] = [
     selector: ".record-panel button.btn.primary",
     disabledMode: "forced",
     prepare: async (page) => {
-      await page.locator(".production-advanced-disclosure").evaluate((el) => {
-        (el as HTMLDetailsElement).open = true;
-      });
+      const disclosure = page.locator(".production-advanced-disclosure");
+      if (await disclosure.count()) {
+        await disclosure.evaluate((el) => {
+          (el as HTMLDetailsElement).open = true;
+        });
+      }
       await page.waitForSelector(".record-panel button.btn.primary", {
         timeout: 15_000,
       });
@@ -170,17 +173,20 @@ const SCENARIOS: Scenario[] = [
     screen: "Production — Exporter (déclencheur)",
     path: "/production-capture.html",
     hash: "#12,confortable,view-mix",
-    selector: ".production-mix-toolbar-actions [data-capture-export-trigger]",
+    selector: ".production-main-toolbar-actions [data-capture-export-trigger]",
     disabledMode: "busy-export-trigger",
     prepare: async (page) => {
-      await page.locator(".production-advanced-disclosure").evaluate((el) => {
-        (el as HTMLDetailsElement).open = true;
-      });
-      await page.waitForSelector(".production-mix-toolbar-actions [data-capture-export-trigger]", {
+      const disclosure = page.locator(".production-advanced-disclosure");
+      if (await disclosure.count()) {
+        await disclosure.evaluate((el) => {
+          (el as HTMLDetailsElement).open = true;
+        });
+      }
+      await page.waitForSelector(".production-main-toolbar-actions [data-capture-export-trigger]", {
         timeout: 15_000,
       });
       await page
-        .locator(".production-mix-toolbar-actions [data-capture-export-trigger]")
+        .locator(".production-main-toolbar-actions [data-capture-export-trigger]")
         .first()
         .scrollIntoViewIfNeeded();
     },
@@ -188,7 +194,7 @@ const SCENARIOS: Scenario[] = [
     i3FocusCapture: {
       filename: "production-exporter-bar-focus-i3-clip.png",
       selector:
-        ".production-mix-toolbar-actions [data-capture-export-trigger]",
+        ".production-main-toolbar-actions [data-capture-export-trigger]",
     },
   },
   {
@@ -201,10 +207,13 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "busy-export-popin",
     popinCompare: true,
     prepare: async (page) => {
-      await page.locator(".production-advanced-disclosure").evaluate((el) => {
-        (el as HTMLDetailsElement).open = true;
-      });
-      const trigger = ".production-mix-toolbar-actions [data-capture-export-trigger]";
+      const disclosure = page.locator(".production-advanced-disclosure");
+      if (await disclosure.count()) {
+        await disclosure.evaluate((el) => {
+          (el as HTMLDetailsElement).open = true;
+        });
+      }
+      const trigger = ".production-main-toolbar-actions [data-capture-export-trigger]";
       await page.waitForSelector(trigger, { timeout: 15_000 });
       await page.click(trigger);
       await page.waitForSelector(".export-dialog-popin", { timeout: 10_000 });
@@ -222,10 +231,13 @@ const SCENARIOS: Scenario[] = [
     selector: ".export-dialog-actions-end .btn.primary",
     disabledMode: "export-stems-none-aria",
     prepare: async (page) => {
-      await page.locator(".production-advanced-disclosure").evaluate((el) => {
-        (el as HTMLDetailsElement).open = true;
-      });
-      const trigger = ".production-mix-toolbar-actions [data-capture-export-trigger]";
+      const disclosure = page.locator(".production-advanced-disclosure");
+      if (await disclosure.count()) {
+        await disclosure.evaluate((el) => {
+          (el as HTMLDetailsElement).open = true;
+        });
+      }
+      const trigger = ".production-main-toolbar-actions [data-capture-export-trigger]";
       await page.waitForSelector(trigger, { timeout: 15_000 });
       await page.click(trigger);
       await page.waitForSelector(".export-dialog-popin", { timeout: 10_000 });
@@ -245,15 +257,20 @@ const SCENARIOS: Scenario[] = [
     id: "production-mesurer",
     screen: "Production — Mesurer le mix rendu",
     path: "/production-capture.html",
-    hash: "#12,confortable,view-tools",
-    selector: ".phase3-actions button.btn.primary",
+    hash: "#12,confortable",
+    selector: "[data-testid='production-mix-settings-loudness']",
     disabledMode: "forced",
+    shotTarget: "button-clip",
     prepare: async (page) => {
-      await page.waitForSelector(".phase3-actions button.btn.primary", {
+      await page.waitForSelector("[data-testid='production-mix-settings-trigger']", {
+        timeout: 15_000,
+      });
+      await page.click("[data-testid='production-mix-settings-trigger']");
+      await page.waitForSelector("[data-testid='production-mix-settings-loudness']", {
         timeout: 15_000,
       });
       await page
-        .locator(".phase3-actions button.btn.primary")
+        .locator("[data-testid='production-mix-settings-loudness']")
         .first()
         .scrollIntoViewIfNeeded();
     },
@@ -262,10 +279,17 @@ const SCENARIOS: Scenario[] = [
     id: "production-zip",
     screen: "Production — Créer l'archive ZIP",
     path: "/production-capture.html",
-    hash: "#12,confortable,view-tools",
+    hash: "#12,confortable",
     selector: ".export-wizard button.btn.primary",
     disabledMode: "forced",
+    shotTarget: "button-clip",
     prepare: async (page) => {
+      const trigger =
+        ".production-main-toolbar-actions [data-capture-export-trigger]";
+      await page.waitForSelector(trigger, { timeout: 15_000 });
+      await page.click(trigger);
+      await page.waitForSelector(".export-dialog-popin", { timeout: 10_000 });
+      await page.locator('input[name="export-mode"]').nth(2).click();
       await page.waitForSelector(".export-wizard button.btn.primary", {
         timeout: 15_000,
       });
@@ -359,6 +383,470 @@ const SCENARIOS: Scenario[] = [
     selector: ".update-notice button.btn.primary",
     disabledMode: "forced",
   },
+  {
+    id: "creer-avance",
+    screen: "Créer — Générer (avancé)",
+    path: "/create-capture.html",
+    selector: ".song-actions-primary .btn.primary",
+    disabledMode: "busy-create",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.evaluate(() => window.__captureOpenAdvancedSettings?.("seed"));
+      await page.waitForSelector(".song-actions-primary .btn.primary", {
+        timeout: 15_000,
+      });
+      await page
+        .locator(".song-actions-primary .btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+      await page.waitForTimeout(150);
+    },
+  },
+  {
+    id: "production-record-start",
+    screen: "Production — Démarrer (enregistrement)",
+    path: "/primary-remaining-capture.html",
+    hash: "#record-start",
+    selector: ".record-actions button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForFunction(
+        () => typeof window.__captureSetRecordPhase === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureSetRecordPhase?.("armed"));
+      await page.waitForFunction(
+        () => {
+          const btn = document.querySelector(".record-actions button.btn.primary");
+          return !!btn && /démarrer|start|conserver/i.test(btn.textContent ?? "");
+        },
+        { timeout: 15_000 },
+      );
+      await page
+        .locator(".record-actions button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+      await page.waitForTimeout(100);
+    },
+  },
+  {
+    id: "production-record-resume",
+    screen: "Production — Reprendre (enregistrement)",
+    path: "/primary-remaining-capture.html",
+    hash: "#record-resume",
+    selector: ".record-actions button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForFunction(
+        () => typeof window.__captureSetRecordPhase === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureSetRecordPhase?.("paused"));
+      await page.waitForFunction(
+        () => {
+          const btn = document.querySelector(".record-actions button.btn.primary");
+          return !!btn && /reprendre|resume/i.test(btn.textContent ?? "");
+        },
+        { timeout: 15_000 },
+      );
+      await page
+        .locator(".record-actions button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+      await page.waitForTimeout(100);
+    },
+  },
+  {
+    id: "production-record-keep",
+    screen: "Production — Garder les prises",
+    path: "/primary-remaining-capture.html",
+    hash: "#record-keep",
+    selector: ".record-actions button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForFunction(
+        () => typeof window.__captureSetRecordPhase === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() =>
+        window.__captureSetRecordPhase?.("review", { withTakes: true }),
+      );
+      await page.waitForFunction(
+        () => {
+          const btn = document.querySelector(".record-actions button.btn.primary");
+          return !!btn && /conserver|garder|keep/i.test(btn.textContent ?? "");
+        },
+        { timeout: 15_000 },
+      );
+      await page
+        .locator(".record-actions button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+      await page.waitForTimeout(100);
+    },
+  },
+  {
+    id: "regeneration-gate-keep-ok",
+    screen: "RegenerationGate — Garder (post_check ok)",
+    path: "/confirm-dialogs-capture.html",
+    hash: "#regeneration-gate-keep-ok",
+    selector:
+      ".regeneration-gate button.btn.primary, .modal.regeneration-gate .btn-row .btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+  },
+  {
+    id: "regeneration-gate-keep-violations",
+    screen: "RegenerationGate — Garder (violations)",
+    path: "/confirm-dialogs-capture.html",
+    hash: "#regeneration-gate-keep-violations",
+    selector:
+      ".regeneration-gate button.btn.primary, .modal.regeneration-gate .btn-row .btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+  },
+  {
+    id: "reglages-lora-phase4",
+    screen: "Réglages — LoRA phase 4",
+    path: "/settings-capture.html",
+    hash: "#phase4",
+    selector: ".phase3-lora-list button.btn.primary",
+    disabledMode: "forced",
+    prepare: async (page) => {
+      await page.waitForSelector(".phase3-lora-list button.btn.primary", {
+        timeout: 20_000,
+      });
+      await page.evaluate(() => {
+        const btn = document.querySelector(
+          ".phase3-lora-list button.btn.primary:not([disabled])",
+        ) as HTMLButtonElement | null;
+        if (!btn) {
+          const any = document.querySelector(
+            ".phase3-lora-list button.btn.primary",
+          ) as HTMLButtonElement | null;
+          if (any) any.disabled = false;
+        }
+      });
+      await page
+        .locator(".phase3-lora-list button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    id: "mix-assist-confirm",
+    screen: "MixAssist — Confirmer l'équilibre",
+    path: "/primary-remaining-capture.html",
+    hash: "#mix-confirm",
+    selector: '[data-capture-primary="mix-confirm"]',
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForFunction(
+        () => typeof window.__captureForceMixBalanceConfirm === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForceMixBalanceConfirm?.());
+      await page.waitForFunction(
+        () => {
+          const labels = [
+            ...document.querySelectorAll(".mix-assist button.btn.primary"),
+          ].map((b) => (b.textContent ?? "").trim().toLowerCase());
+          return labels.some(
+            (l) =>
+              l.includes("confirm") ||
+              l.includes("confirmer") ||
+              l.includes("balance") ||
+              l.includes("appliquer la balance"),
+          );
+        },
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => {
+        const buttons = [
+          ...document.querySelectorAll<HTMLButtonElement>(
+            ".mix-assist button.btn.primary",
+          ),
+        ];
+        // Prefer the confirm/balance button (last primary in balance block).
+        const confirm =
+          buttons.find((btn) => {
+            const label = (btn.textContent ?? "").trim().toLowerCase();
+            return (
+              label.includes("confirm") ||
+              label.includes("confirmer") ||
+              label.includes("balance")
+            );
+          }) ?? buttons[buttons.length - 1];
+        if (confirm) {
+          confirm.setAttribute("data-capture-primary", "mix-confirm");
+          confirm.scrollIntoView({ block: "center" });
+        }
+      });
+      await page.waitForSelector('[data-capture-primary="mix-confirm"]', {
+        timeout: 5_000,
+      });
+    },
+  },
+  {
+    id: "production-assist-confirm",
+    screen: "ProductionAssist — Confirmer (copilote)",
+    path: "/primary-remaining-capture.html",
+    hash: "#copilot-confirm",
+    selector: '[data-capture-primary="copilot-confirm"]',
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForFunction(
+        () => typeof window.__captureForceCopilotConfirm === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForceCopilotConfirm?.());
+      await page.waitForFunction(
+        () =>
+          document.querySelectorAll(
+            ".production-copilot button.btn.primary, .mix-assist.production-copilot button.btn.primary",
+          ).length >= 2,
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => {
+        const buttons = [
+          ...document.querySelectorAll<HTMLButtonElement>(
+            ".production-copilot button.btn.primary, .mix-assist.production-copilot button.btn.primary",
+          ),
+        ];
+        const confirm =
+          buttons.find((btn) => {
+            const label = (btn.textContent ?? "").trim().toLowerCase();
+            return (
+              label.includes("confirm") ||
+              label.includes("confirmer") ||
+              label.includes("sélection") ||
+              label.includes("selection") ||
+              label.includes("appliquer")
+            );
+          }) ?? buttons[buttons.length - 1];
+        if (confirm) {
+          confirm.setAttribute("data-capture-primary", "copilot-confirm");
+          confirm.scrollIntoView({ block: "center" });
+        }
+      });
+      await page.waitForSelector('[data-capture-primary="copilot-confirm"]', {
+        timeout: 5_000,
+      });
+    },
+  },
+  {
+    id: "midi-play",
+    screen: "MIDI — Lecture (primaire)",
+    path: "/primary-remaining-capture.html",
+    hash: "#midi-play",
+    selector: '[data-capture-primary="midi-play"]',
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForTimeout(200);
+      await page.waitForSelector("button.btn.primary", { timeout: 15_000 });
+      await page.evaluate(() => {
+        const btn = document.querySelector<HTMLButtonElement>(
+          ".btn-row button.btn.primary",
+        );
+        if (btn) btn.setAttribute("data-capture-primary", "midi-play");
+      });
+      await page.waitForSelector('[data-capture-primary="midi-play"]');
+    },
+  },
+  {
+    id: "midi-stop",
+    screen: "MIDI — Stop enregistrement",
+    path: "/primary-remaining-capture.html",
+    hash: "#midi-stop",
+    selector: ".midi-record-block button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForFunction(
+        () => typeof window.__captureForceMidiRecording === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForceMidiRecording?.(true));
+      await page.waitForSelector(".midi-record-block button.btn.primary", {
+        timeout: 15_000,
+      });
+      await page
+        .locator(".midi-record-block button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    id: "score-quantize",
+    screen: "ScorePanel — Quantifier",
+    path: "/primary-remaining-capture.html",
+    hash: "#score-quantize",
+    selector: ".banner.warn button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForFunction(
+        () => typeof window.__captureForceScorePendingImport === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForceScorePendingImport?.());
+      await page.waitForSelector(".banner.warn button.btn.primary", {
+        timeout: 15_000,
+      });
+      await page
+        .locator(".banner.warn button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    id: "score-import",
+    screen: "ScorePanel — Importer un MIDI",
+    path: "/primary-remaining-capture.html",
+    hash: "#score-import",
+    selector: ".score-empty button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+  },
+  {
+    id: "score-branch",
+    screen: "ScoreBranchPanel — Fusionner",
+    path: "/primary-remaining-capture.html",
+    hash: "#score-branch",
+    selector: ".score-diff button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForFunction(
+        () => typeof window.__captureForceScoreBranchMerge === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForceScoreBranchMerge?.());
+      await page.waitForSelector(".score-diff button.btn.primary", {
+        timeout: 15_000,
+      });
+      await page
+        .locator(".score-diff button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    id: "piano-quantize",
+    screen: "PianoRoll — Quantifier (bannière)",
+    path: "/primary-remaining-capture.html",
+    hash: "#piano-quantize",
+    selector: ".banner.warn button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForFunction(
+        () => typeof window.__captureForcePianoQuantize === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForcePianoQuantize?.());
+      await page.waitForSelector(".banner.warn button.btn.primary", {
+        timeout: 15_000,
+      });
+      await page
+        .locator(".banner.warn button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    id: "sheetsage",
+    screen: "SheetSage2 — Générer YuE2",
+    path: "/primary-remaining-capture.html",
+    hash: "#sheetsage",
+    selector: '[data-capture-primary="sheetsage"]',
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForFunction(
+        () => typeof window.__captureForceSheetsageReady === "function",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => window.__captureForceSheetsageReady?.());
+      await page.waitForFunction(
+        () =>
+          [...document.querySelectorAll("button.btn.primary")].some(
+            (b) => !(b as HTMLButtonElement).disabled,
+          ),
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => {
+        const btn = [
+          ...document.querySelectorAll<HTMLButtonElement>("button.btn.primary"),
+        ].find((b) => !b.disabled);
+        if (btn) {
+          btn.setAttribute("data-capture-primary", "sheetsage");
+          btn.scrollIntoView({ block: "center" });
+        }
+      });
+      await page.waitForSelector('[data-capture-primary="sheetsage"]');
+    },
+  },
+  {
+    id: "clip-take",
+    screen: "ClipTimeline — Activer prise",
+    path: "/primary-remaining-capture.html",
+    hash: "#clip-take",
+    selector:
+      ".clip-takes button.btn.primary, .clip-takes-bar button.btn.primary",
+    disabledMode: "n/a",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForSelector(".clip-block", { timeout: 15_000 });
+      await page.locator(".clip-block").first().click({ force: true });
+      await page.waitForSelector(
+        ".clip-takes button.btn.primary, .clip-takes-bar button.btn.primary",
+        { timeout: 15_000 },
+      );
+      await page
+        .locator(".clip-takes button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    id: "profile-rename",
+    screen: "Profils — Renommer",
+    path: "/profiles-capture.html",
+    hash: "#rename",
+    selector:
+      "[data-testid='profile-rename-save'], .profile-modal-actions .btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForSelector(
+        "[data-testid='profile-rename-save'], .profile-modal-actions .btn.primary",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => {
+        const btn = document.querySelector(
+          "[data-testid='profile-rename-save']",
+        ) as HTMLButtonElement | null;
+        if (btn) btn.disabled = false;
+      });
+    },
+  },
+  {
+    id: "profile-commercial-create",
+    screen: "Profils — Création commerciale",
+    path: "/profiles-capture.html",
+    hash: "#commercial-create",
+    selector:
+      "[data-testid='profile-commercial-create-confirm-submit'], .profile-modal-actions .btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+  },
 ];
 
 declare global {
@@ -373,6 +861,18 @@ declare global {
     ) => PopinCompare;
     __captureSetGenerateBusy?: (busy: boolean) => void;
     __productionCaptureSetBusy?: (busy: boolean) => void;
+    __captureOpenAdvancedSettings?: (page?: string) => void;
+    __captureSetRecordPhase?: (
+      next: string,
+      opts?: { withTakes?: boolean },
+    ) => void;
+    __captureForceMixBalanceConfirm?: () => void;
+    __captureForceCopilotConfirm?: () => void;
+    __captureForceMidiRecording?: (on: boolean) => void;
+    __captureForceScorePendingImport?: () => void;
+    __captureForceScoreBranchMerge?: () => void;
+    __captureForcePianoQuantize?: () => void;
+    __captureForceSheetsageReady?: () => void;
   }
 }
 
@@ -801,8 +1301,13 @@ async function runScenario(
   try {
     const url = `http://127.0.0.1:${PORT}${scenario.path}${scenario.hash ?? ""}`;
     await page.goto(url, { waitUntil: "networkidle", timeout: 45_000 });
-    if(scenario.path === "/production-capture.html") {
-      await page.locator(".production-advanced-disclosure").evaluate(el=>{(el as HTMLDetailsElement).open=true;});
+    if (scenario.path === "/production-capture.html") {
+      const disclosure = page.locator(".production-advanced-disclosure");
+      if (await disclosure.count()) {
+        await disclosure.evaluate((el) => {
+          (el as HTMLDetailsElement).open = true;
+        });
+      }
     }
     await page.waitForTimeout(400);
     if (scenario.prepare) await scenario.prepare(page);
@@ -881,9 +1386,12 @@ async function runScenario(
     }
 
     if (scenario.i3FocusCapture) {
-      await page.locator(".production-advanced-disclosure").evaluate((el) => {
-        (el as HTMLDetailsElement).open = false;
-      });
+      const disclosure = page.locator(".production-advanced-disclosure");
+      if (await disclosure.count()) {
+        await disclosure.evaluate((el) => {
+          (el as HTMLDetailsElement).open = false;
+        });
+      }
       await page.waitForTimeout(100);
       const i3Sel = scenario.i3FocusCapture.selector;
       await page.waitForSelector(i3Sel, { timeout: 15_000 });

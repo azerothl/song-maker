@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import {
+  createEmptyScoreDocument,
   diffScores,
   forkScoreBranch,
   mergeScores,
@@ -55,12 +56,41 @@ export function ScoreBranchPanel({
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!import.meta.env.VITE_CAPTURE) return;
+    window.__captureForceScoreBranchMerge = () => {
+      const left = createEmptyScoreDocument({ id: "capture-branch-a" });
+      const right = createEmptyScoreDocument({ id: "capture-branch-b" });
+      const voice = right.voices[0];
+      if (voice) {
+        voice.notes = [
+          {
+            id: "n1",
+            pitch: 64,
+            startTick: 0,
+            durationTick: 480,
+            velocity: 90,
+          },
+        ];
+      }
+      setLeftDoc(left);
+      setRightDoc(right);
+      setDiff(diffScores(left, right));
+      setNoteChoices({});
+      setMetaSide("left");
+    };
+    return () => {
+      delete window.__captureForceScoreBranchMerge;
+    };
+  }, []);
+
   async function reload() {
     try {
       const list = await api.listScores(projectId);
-      setScores(list);
+      setScores(Array.isArray(list) ? list : []);
     } catch (e) {
       onError(String(e));
+      setScores([]);
     }
   }
 
@@ -388,4 +418,10 @@ export function ScoreBranchPanel({
       {status && <p className="hint ok">{status}</p>}
     </section>
   );
+}
+
+declare global {
+  interface Window {
+    __captureForceScoreBranchMerge?: () => void;
+  }
 }
