@@ -359,6 +359,361 @@ const SCENARIOS: Scenario[] = [
     selector: ".update-notice button.btn.primary",
     disabledMode: "forced",
   },
+  {
+    id: "creer-avance",
+    screen: "Créer — Générer (avancé)",
+    path: "/create-capture.html",
+    selector: ".song-actions-primary .btn.primary",
+    disabledMode: "busy-create",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.evaluate(() => window.__captureOpenAdvancedSettings?.("seed"));
+      await page.waitForSelector(".song-actions-primary .btn.primary", {
+        timeout: 15_000,
+      });
+      await page
+        .locator(".song-actions-primary .btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+      await page.waitForTimeout(150);
+    },
+  },
+  {
+    id: "production-record-start",
+    screen: "Production — Démarrer (enregistrement)",
+    path: "/primary-remaining-capture.html",
+    hash: "#record-start",
+    selector: ".record-actions button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForTimeout(250);
+      await page.waitForSelector(".record-actions button.btn.primary", {
+        timeout: 15_000,
+      });
+    },
+  },
+  {
+    id: "production-record-resume",
+    screen: "Production — Reprendre (enregistrement)",
+    path: "/primary-remaining-capture.html",
+    hash: "#record-resume",
+    selector: ".record-actions button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForTimeout(250);
+      await page.waitForSelector(".record-actions button.btn.primary", {
+        timeout: 15_000,
+      });
+    },
+  },
+  {
+    id: "production-record-keep",
+    screen: "Production — Garder les prises",
+    path: "/primary-remaining-capture.html",
+    hash: "#record-keep",
+    selector: ".record-actions button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForTimeout(250);
+      await page.waitForSelector(".record-actions button.btn.primary", {
+        timeout: 15_000,
+      });
+    },
+  },
+  {
+    id: "regeneration-gate-keep-ok",
+    screen: "RegenerationGate — Garder (post_check ok)",
+    path: "/confirm-dialogs-capture.html",
+    hash: "#regeneration-gate-keep-ok",
+    selector:
+      ".regeneration-gate button.btn.primary, .modal.regeneration-gate .btn-row .btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+  },
+  {
+    id: "regeneration-gate-keep-violations",
+    screen: "RegenerationGate — Garder (violations)",
+    path: "/confirm-dialogs-capture.html",
+    hash: "#regeneration-gate-keep-violations",
+    selector:
+      ".regeneration-gate button.btn.primary, .modal.regeneration-gate .btn-row .btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+  },
+  {
+    id: "reglages-lora-phase4",
+    screen: "Réglages — LoRA phase 4",
+    path: "/settings-capture.html",
+    hash: "#phase4",
+    selector: ".phase3-lora-list button.btn.primary",
+    disabledMode: "forced",
+    prepare: async (page) => {
+      await page.waitForSelector(".phase3-lora-list button.btn.primary", {
+        timeout: 20_000,
+      });
+      await page.evaluate(() => {
+        const btn = document.querySelector(
+          ".phase3-lora-list button.btn.primary:not([disabled])",
+        ) as HTMLButtonElement | null;
+        if (!btn) {
+          const any = document.querySelector(
+            ".phase3-lora-list button.btn.primary",
+          ) as HTMLButtonElement | null;
+          if (any) any.disabled = false;
+        }
+      });
+      await page
+        .locator(".phase3-lora-list button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
+    },
+  },
+  {
+    id: "mix-assist-confirm",
+    screen: "MixAssist — Confirmer l'équilibre",
+    path: "/primary-remaining-capture.html",
+    hash: "#mix-confirm",
+    selector: '[data-capture-primary="mix-confirm"]',
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForTimeout(300);
+      await page.waitForFunction(
+        () => {
+          const labels = [
+            ...document.querySelectorAll(".mix-assist button.btn.primary"),
+          ].map((b) => (b.textContent ?? "").trim().toLowerCase());
+          return labels.some(
+            (l) => l.includes("confirm") || l.includes("confirmer"),
+          );
+        },
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => {
+        for (const btn of document.querySelectorAll<HTMLButtonElement>(
+          ".mix-assist button.btn.primary",
+        )) {
+          const label = (btn.textContent ?? "").trim().toLowerCase();
+          if (label.includes("confirm") || label.includes("confirmer")) {
+            btn.setAttribute("data-capture-primary", "mix-confirm");
+            btn.scrollIntoView({ block: "center" });
+            return;
+          }
+        }
+      });
+      await page.waitForSelector('[data-capture-primary="mix-confirm"]', {
+        timeout: 5_000,
+      });
+    },
+  },
+  {
+    id: "production-assist-confirm",
+    screen: "ProductionAssist — Confirmer (copilote)",
+    path: "/primary-remaining-capture.html",
+    hash: "#copilot-confirm",
+    selector: '[data-capture-primary="copilot-confirm"]',
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForTimeout(300);
+      await page.waitForFunction(
+        () =>
+          document.querySelectorAll(
+            ".production-copilot button.btn.primary, .mix-assist.production-copilot button.btn.primary",
+          ).length >= 2,
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => {
+        const buttons = [
+          ...document.querySelectorAll<HTMLButtonElement>(
+            ".production-copilot button.btn.primary, .mix-assist.production-copilot button.btn.primary",
+          ),
+        ];
+        const confirm = buttons.find((btn) => {
+          const label = (btn.textContent ?? "").trim().toLowerCase();
+          return label.includes("confirm") || label.includes("confirmer");
+        });
+        if (confirm) {
+          confirm.setAttribute("data-capture-primary", "copilot-confirm");
+          confirm.scrollIntoView({ block: "center" });
+        }
+      });
+      await page.waitForSelector('[data-capture-primary="copilot-confirm"]', {
+        timeout: 5_000,
+      });
+    },
+  },
+  {
+    id: "midi-play",
+    screen: "MIDI — Lecture (primaire)",
+    path: "/primary-remaining-capture.html",
+    hash: "#midi-play",
+    selector: '[data-capture-primary="midi-play"]',
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForTimeout(200);
+      await page.waitForSelector("button.btn.primary", { timeout: 15_000 });
+      await page.evaluate(() => {
+        const btn = document.querySelector<HTMLButtonElement>(
+          ".btn-row button.btn.primary",
+        );
+        if (btn) btn.setAttribute("data-capture-primary", "midi-play");
+      });
+      await page.waitForSelector('[data-capture-primary="midi-play"]');
+    },
+  },
+  {
+    id: "midi-stop",
+    screen: "MIDI — Stop enregistrement",
+    path: "/primary-remaining-capture.html",
+    hash: "#midi-stop",
+    selector: ".midi-record-block button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForTimeout(250);
+      await page.waitForSelector(".midi-record-block button.btn.primary", {
+        timeout: 15_000,
+      });
+    },
+  },
+  {
+    id: "score-quantize",
+    screen: "ScorePanel — Quantifier",
+    path: "/primary-remaining-capture.html",
+    hash: "#score-quantize",
+    selector: ".banner.warn button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForTimeout(250);
+      await page.waitForSelector(".banner.warn button.btn.primary", {
+        timeout: 15_000,
+      });
+    },
+  },
+  {
+    id: "score-import",
+    screen: "ScorePanel — Importer un MIDI",
+    path: "/primary-remaining-capture.html",
+    hash: "#score-import",
+    selector: ".score-empty button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+  },
+  {
+    id: "score-branch",
+    screen: "ScoreBranchPanel — Fusionner",
+    path: "/primary-remaining-capture.html",
+    hash: "#score-branch",
+    selector: ".score-diff button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForTimeout(300);
+      await page.waitForSelector(".score-diff button.btn.primary", {
+        timeout: 15_000,
+      });
+    },
+  },
+  {
+    id: "piano-quantize",
+    screen: "PianoRoll — Quantifier (bannière)",
+    path: "/primary-remaining-capture.html",
+    hash: "#piano-quantize",
+    selector: ".banner.warn button.btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForTimeout(250);
+      await page.waitForSelector(".banner.warn button.btn.primary", {
+        timeout: 15_000,
+      });
+    },
+  },
+  {
+    id: "sheetsage",
+    screen: "SheetSage2 — Générer YuE2",
+    path: "/primary-remaining-capture.html",
+    hash: "#sheetsage",
+    selector: '[data-capture-primary="sheetsage"]',
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForTimeout(300);
+      await page.waitForFunction(
+        () =>
+          [...document.querySelectorAll("button.btn.primary")].some(
+            (b) => !(b as HTMLButtonElement).disabled,
+          ),
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => {
+        const btn = [
+          ...document.querySelectorAll<HTMLButtonElement>("button.btn.primary"),
+        ].find((b) => !b.disabled);
+        if (btn) btn.setAttribute("data-capture-primary", "sheetsage");
+      });
+      await page.waitForSelector('[data-capture-primary="sheetsage"]');
+    },
+  },
+  {
+    id: "clip-take",
+    screen: "ClipTimeline — Activer prise",
+    path: "/primary-remaining-capture.html",
+    hash: "#clip-take",
+    selector:
+      ".clip-takes button.btn.primary, .clip-takes-bar button.btn.primary",
+    disabledMode: "n/a",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForTimeout(200);
+      const block = page.locator(".clip-block").first();
+      if (await block.count()) {
+        await block.click();
+      }
+      await page.waitForSelector(
+        ".clip-takes button.btn.primary, .clip-takes-bar button.btn.primary",
+        { timeout: 15_000 },
+      );
+    },
+  },
+  {
+    id: "profile-rename",
+    screen: "Profils — Renommer",
+    path: "/profiles-capture.html",
+    hash: "#rename",
+    selector:
+      "[data-testid='profile-rename-save'], .profile-modal-actions .btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+    prepare: async (page) => {
+      await page.waitForSelector(
+        "[data-testid='profile-rename-save'], .profile-modal-actions .btn.primary",
+        { timeout: 15_000 },
+      );
+      await page.evaluate(() => {
+        const btn = document.querySelector(
+          "[data-testid='profile-rename-save']",
+        ) as HTMLButtonElement | null;
+        if (btn) btn.disabled = false;
+      });
+    },
+  },
+  {
+    id: "profile-commercial-create",
+    screen: "Profils — Création commerciale",
+    path: "/profiles-capture.html",
+    hash: "#commercial-create",
+    selector:
+      "[data-testid='profile-commercial-create-confirm-submit'], .profile-modal-actions .btn.primary",
+    disabledMode: "forced",
+    shotTarget: "button-clip",
+  },
 ];
 
 declare global {
@@ -373,6 +728,7 @@ declare global {
     ) => PopinCompare;
     __captureSetGenerateBusy?: (busy: boolean) => void;
     __productionCaptureSetBusy?: (busy: boolean) => void;
+    __captureOpenAdvancedSettings?: (page?: string) => void;
   }
 }
 

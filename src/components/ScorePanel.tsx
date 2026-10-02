@@ -113,6 +113,19 @@ export function ScorePanel({
     suggestedQuantizeTicks: number;
   } | null>(null);
 
+  useEffect(() => {
+    if (!import.meta.env.VITE_CAPTURE) return;
+    window.__captureForceScorePendingImport = () => {
+      setPendingImport({
+        bytes: new Uint8Array([77, 84, 104, 100]),
+        suggestedQuantizeTicks: 120,
+      });
+    };
+    return () => {
+      delete window.__captureForceScorePendingImport;
+    };
+  }, []);
+
   const [status, setStatus] = useState<string | null>(null);
   const [branchRefresh, setBranchRefresh] = useState(0);
   /** Après 2 rAF : laisse peindre le squelette avant buildStaffAbc / abcjs (#249). */
@@ -631,4 +644,10 @@ export function ScorePanel({
       )}
     </section>
   );
+}
+
+declare global {
+  interface Window {
+    __captureForceScorePendingImport?: () => void;
+  }
 }

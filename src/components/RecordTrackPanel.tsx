@@ -105,6 +105,29 @@ export function RecordTrackPanel({
   const [pendingTakes, setPendingTakes] = useState<PendingTake[]>([]);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!import.meta.env.VITE_CAPTURE) return;
+    window.__captureSetRecordPhase = (next, opts) => {
+      setPhase(next);
+      if (next === "review" || opts?.withTakes) {
+        setPendingTakes([
+          {
+            sessionId: "capture-take-1",
+            reviewUrl: "",
+            elapsedMs: 1_500,
+            label: "Prise 1",
+          },
+        ]);
+      }
+      if (next === "paused") {
+        setElapsedMs(2_400);
+      }
+    };
+    return () => {
+      delete window.__captureSetRecordPhase;
+    };
+  }, []);
+
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -968,4 +991,21 @@ function formatElapsed(ms: number): string {
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+declare global {
+  interface Window {
+    __captureSetRecordPhase?: (
+      next:
+        | "idle"
+        | "arming"
+        | "armed"
+        | "countdown"
+        | "recording"
+        | "paused"
+        | "review"
+        | "saving",
+      opts?: { withTakes?: boolean },
+    ) => void;
+  }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   applyMixPreset,
   applyStemBalanceProposals,
@@ -121,6 +121,40 @@ export function MixAssistPanel({
   const [balanceBaseMix, setBalanceBaseMix] = useState<MixDoc | null>(null);
   const [abSide, setAbSide] = useState<AbSide>("current");
   const [matchGainDb, setMatchGainDb] = useState(0);
+
+  useEffect(() => {
+    if (!import.meta.env.VITE_CAPTURE) return;
+    window.__captureForceMixBalanceConfirm = () => {
+      const proposals = mix.tracks.slice(0, Math.min(3, mix.tracks.length)).map((tr) => ({
+        trackId: tr.id,
+        role: tr.role,
+        currentGainDb: tr.gainDb,
+        proposedGainDb: tr.gainDb - 1.5,
+        deltaDb: -1.5,
+        measured: {
+          trackId: tr.id,
+          role: tr.role,
+          rmsDb: -18,
+          peakDb: -6,
+          silent: false,
+          frameCount: 1000,
+        },
+        note: "balanced" as const,
+      }));
+      setBalanceResult({
+        proposals,
+        estimatedBusPeakDb: -3,
+        masterTrimDb: 0,
+        limitedBoost: true,
+      });
+      setBalanceBaseMix(cloneMix(mix));
+      setAbSide("proposed");
+      setMatchGainDb(0);
+    };
+    return () => {
+      delete window.__captureForceMixBalanceConfirm;
+    };
+  }, [mix]);
 
   const selectedPreset = presets.find((p) => p.id === selectedPresetId) ?? null;
   const hasStems =
@@ -427,4 +461,10 @@ export function MixAssistPanel({
       </div>
     </section>
   );
+}
+
+declare global {
+  interface Window {
+    __captureForceMixBalanceConfirm?: () => void;
+  }
 }

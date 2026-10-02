@@ -92,6 +92,17 @@ export function MidiInstrumentPanel({
   const [monitorInput, setMonitorInput] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!import.meta.env.VITE_CAPTURE) return;
+    window.__captureForceMidiRecording = (on) => {
+      setRecording(Boolean(on));
+      setStatus(on ? "Enregistrement (capture)" : null);
+    };
+    return () => {
+      delete window.__captureForceMidiRecording;
+    };
+  }, []);
+
   const recordingRef = useRef(recording);
   const quantizeRef = useRef(quantize);
   const monitorRef = useRef(monitorInput);
@@ -452,4 +463,10 @@ export function MidiInstrumentPanel({
       {status && <p className="hint">{status}</p>}
     </div>
   );
+}
+
+declare global {
+  interface Window {
+    __captureForceMidiRecording?: (on: boolean) => void;
+  }
 }

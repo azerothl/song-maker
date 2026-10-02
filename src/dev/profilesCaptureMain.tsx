@@ -5,7 +5,10 @@ import { ProfileKindBadge } from "../components/ProfileKindBadge";
 import { ProfileMigrationBanner } from "../components/ProfileMigrationBanner";
 import { ProfileOnboardingScreen } from "../screens/ProfileOnboardingScreen";
 import { ProfileSwitchConfirmDialog } from "../components/ProfileSwitchConfirmDialog";
+import { ProfileRenameDialog } from "../components/ProfileRenameDialog";
+import { ProfileCommercialCreateConfirmDialog } from "../components/ProfileCommercialCreateConfirmDialog";
 import { CommercialEnginesPanel } from "../components/CommercialEnginesPanel";
+import { buildCommercialProfileCreationConfirm } from "@song-maker/stem-providers";
 import { useAppStore } from "../store/appStore";
 import { writeSidebarCollapsedPref } from "../lib/sidebarCollapse";
 import {
@@ -25,12 +28,18 @@ export type ProfileCaptureScene =
   | "switch-confirm"
   | "switch-blocked-generation"
   | "commercial-engines-fixture"
-  | "migration-banner";
+  | "migration-banner"
+  | "rename"
+  | "commercial-create";
 
 function parseScene(hash: string): ProfileCaptureScene {
   const h = hash.replace(/^#/, "").toLowerCase();
   if (h.includes("six-max")) return "onboarding-six-max";
   if (h.includes("commercial-disabled")) return "onboarding-commercial-disabled";
+  if (h.includes("commercial-create") || h.includes("create-confirm")) {
+    return "commercial-create";
+  }
+  if (h.includes("rename")) return "rename";
   if (h.includes("selector-open")) return "selector-open";
   if (h.includes("selector-collapsed")) return "selector-collapsed";
   if (h.includes("switch-confirm")) return "switch-confirm";
@@ -85,7 +94,11 @@ function CaptureShell() {
     }
     if (scene === "selector-open") {
       setTimeout(() => {
-        document.querySelector<HTMLButtonElement>('[data-testid="profile-selector-trigger"]')?.click();
+        document
+          .querySelector<HTMLButtonElement>(
+            '[data-testid="profile-selector-trigger"]',
+          )
+          ?.click();
       }, 200);
     }
     if (scene === "selector-collapsed") {
@@ -138,6 +151,43 @@ function CaptureShell() {
     );
   }
 
+  if (scene === "rename") {
+    const profiles = useAppStore.getState().profilesState!.profiles;
+    return (
+      <div className="app-shell profiles-capture-root">
+        <ProfileRenameDialog
+          open
+          currentName={profiles[0]?.name ?? "Profil"}
+          typeLabel="Hobby"
+          existingNames={profiles.slice(1).map((p) => p.name)}
+          onConfirm={() => {}}
+          onCancel={() => {}}
+        />
+      </div>
+    );
+  }
+
+  if (scene === "commercial-create") {
+    const confirm = buildCommercialProfileCreationConfirm() ?? {
+      titleFr: "Créer un profil Commercial ?",
+      titleEn: "Create a Commercial profile?",
+      introFr: "Harness capture — confirmation commerciale.",
+      introEn: "Capture harness.",
+      engineLinesFr: ["Moteur proposé aujourd'hui : Capture — réservé."],
+      engineLinesEn: ["Engine offered today: Capture — reserved."],
+    };
+    return (
+      <div className="app-shell profiles-capture-root">
+        <ProfileCommercialCreateConfirmDialog
+          open
+          confirm={confirm}
+          onConfirm={() => {}}
+          onCancel={() => {}}
+        />
+      </div>
+    );
+  }
+
   if (scene === "migration-banner") {
     return (
       <div className="app-shell profiles-capture-root">
@@ -165,7 +215,9 @@ function CaptureShell() {
             <ProfileKindBadge />
           </h1>
           {scene === "switch-blocked-generation" ? (
-            <p className="profile-capture-jobline">Génération en cours · étape 2/4</p>
+            <p className="profile-capture-jobline">
+              Génération en cours · étape 2/4
+            </p>
           ) : null}
         </header>
       </main>

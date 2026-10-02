@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   loudnessMatchGainDb,
   measureLoudnessFromPcm,
@@ -79,6 +79,42 @@ export function ProductionAssistPanel({
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [abSide, setAbSide] = useState<AbSide>("current");
   const [matchGainDb, setMatchGainDb] = useState(0);
+
+  useEffect(() => {
+    if (!import.meta.env.VITE_CAPTURE) return;
+    window.__captureForceCopilotConfirm = () => {
+      ensureProductionOverlay(mix.id);
+      const fingerprint = fingerprintProductionState(mix, getProductionOverlay());
+      const id = "capture-copilot-prop";
+      setAnalysis({
+        mixId: mix.id,
+        fingerprint,
+        analyzedAtIso: new Date().toISOString(),
+        proposals: [
+          {
+            id,
+            kind: "save_mix_version",
+            titleFr: "Enregistrer une version (capture)",
+            findingFr: "Proposition de capture pour contraste primaire.",
+            expectedFr: "Confirmer sans backend audio.",
+            changes: [{ type: "save_version" }],
+            previewable: false,
+            autoApplicable: true,
+            selectedByDefault: true,
+          },
+        ],
+        balanceResult: null,
+        remoteAnalysis: false,
+        limitsFr: "Harness capture #186 — pas d'analyse réelle.",
+      });
+      setSelected(new Set([id]));
+      setError(null);
+      setStatus(null);
+    };
+    return () => {
+      delete window.__captureForceCopilotConfirm;
+    };
+  }, [mix]);
 
   const hasStems =
     sources?.mode === "stems" && (sources.stems?.length ?? 0) > 0;
@@ -440,5 +476,11 @@ function describeChange(
       const _exhaustive: never = change;
       return String(_exhaustive);
     }
+  }
+}
+
+declare global {
+  interface Window {
+    __captureForceCopilotConfirm?: () => void;
   }
 }
