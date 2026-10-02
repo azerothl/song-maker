@@ -6,6 +6,7 @@ import {
   type RefObject,
 } from "react";
 import { AnchoredPopin } from "../AnchoredPopin";
+import { MixSlider } from "../MixSlider";
 import { PopinCloseButton } from "../PopinCloseButton";
 import { t } from "../../ui/i18n";
 import {
@@ -15,12 +16,22 @@ import {
 import { clipFadeErrorMessage } from "../../lib/clipFadeErrorMessage";
 import { applyClipFadeEdit } from "../../lib/mixClipFadeEdit";
 import {
+  applyClipGainEdit,
+  CLIP_GAIN_DB_MAX,
+  CLIP_GAIN_DB_MIN,
+  CLIP_GAIN_DB_STEP,
+} from "../../lib/mixClipGainEdit";
+import {
   isTrackAutomationVisible,
   setTrackAutomationVisible,
 } from "../../lib/productionTrackAutomationVisible";
 import { isMixMsActivationKey } from "../../lib/productionMixA11y";
 import type { MixDoc, MixTrack } from "../../lib/types";
-import { formatMsForClipLabel } from "../../lib/productionTimeFormat";
+import { formatMs } from "../../lib/productionTimeFormat";
+import {
+  formatGainDb,
+  parseGainDb,
+} from "../../screens/song/shared";
 
 const TIME_SNAP_MS = 50;
 
@@ -58,6 +69,7 @@ export function ProductionTrackSettingsPopin({
   const fadesId = useId();
   const [clipSel, setClipSel] = useState(getProductionClipSelection());
   const [fadeError, setFadeError] = useState<string | null>(null);
+  const [gainStatus, setGainStatus] = useState("");
   const [autoVisible, setAutoVisible] = useState(() =>
     isTrackAutomationVisible(track.id),
   );
@@ -70,6 +82,7 @@ export function ProductionTrackSettingsPopin({
     if (!open) return;
     setAutoVisible(isTrackAutomationVisible(track.id));
     setFadeError(null);
+    setGainStatus("");
   }, [open, track.id]);
 
   const selectedClip = useMemo(() => {
@@ -98,6 +111,21 @@ export function ProductionTrackSettingsPopin({
       setFadeError(null);
     } catch (e) {
       setFadeError(clipFadeErrorMessage(e));
+    }
+  };
+
+  const applyGain = (gainDb: number, persist: boolean) => {
+    if (!selectedClip) return;
+    const next = applyClipGainEdit(mix, track.id, selectedClip.id, gainDb);
+    onMixChange(next, { persist });
+    if (persist) {
+      const applied =
+        next.tracks
+          .find((tr) => tr.id === track.id)
+          ?.clips.find((c) => c.id === selectedClip.id)?.gainDb ?? gainDb;
+      setGainStatus(
+        t("production.status.clipGain", { value: formatGainDb(applied) }),
+      );
     }
   };
 
@@ -195,7 +223,7 @@ export function ProductionTrackSettingsPopin({
             <p className="hint">
               {t("production.track.clipSel", {
                 n: clipIndex,
-                time: formatMsForClipLabel(selectedClip.startMs),
+                time: formatMs(selectedClip.startMs),
               })}
             </p>
             <label className="phase3-field">
@@ -227,6 +255,35 @@ export function ProductionTrackSettingsPopin({
                 {fadeError}
               </p>
             )}
+            <div className="production-track-settings-clip-gain">
+              <p className="production-track-settings-subhead">
+                {t("production.clip.gain")}
+              </p>
+              <MixSlider
+                className="track-gain-slider"
+                value={selectedClip.gainDb}
+                min={CLIP_GAIN_DB_MIN}
+                max={CLIP_GAIN_DB_MAX}
+                step={CLIP_GAIN_DB_STEP}
+                defaultValue={0}
+                ariaLabel={t("production.clip.gainNamed", {
+                  track: track.name,
+                  n: clipIndex,
+                })}
+                valueText={formatGainDb(selectedClip.gainDb)}
+                displayValue={formatGainDb(selectedClip.gainDb)}
+                parseDisplay={parseGainDb}
+                onChange={(gainDb) => applyGain(gainDb, false)}
+                onCommit={(gainDb) => applyGain(gainDb, true)}
+              />
+            </div>
+            <p
+              className={gainStatus ? "hint" : "sr-only"}
+              role="status"
+              aria-live="polite"
+            >
+              {gainStatus}
+            </p>
           </>
         )}
       </div>

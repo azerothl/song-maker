@@ -45,6 +45,7 @@ import type {
 import { t, profileLocale } from "../ui/i18n";
 import type { ProductionClipViewPrefs } from "../lib/productionClipViewPrefs";
 import { DEFAULT_PRODUCTION_CLIP_VIEW_PREFS } from "../lib/productionClipViewPrefs";
+import { formatMs } from "../lib/productionTimeFormat";
 import { AnchoredPopin } from "./AnchoredPopin";
 import { PlaybackLine } from "./PlaybackLine";
 import { PopinCloseButton } from "./PopinCloseButton";
@@ -59,6 +60,7 @@ const EDGE_PX = 6;
 const FADE_HANDLE_PX = 8;
 const MIN_DURATION_MS = 50;
 const NUDGE_MS = 50;
+const FADE_STEP_MS = 50;
 
 const MARKER_KINDS: MixMarkerKind[] = [
   "intro",
@@ -115,15 +117,6 @@ function toEngine(clip: MixClip): EngineClip {
 
 function fromEngine(clip: EngineClip): MixClip {
   return { ...clip };
-}
-
-function formatMs(ms: number): string {
-  const s = Math.max(0, ms) / 1000;
-  const m = Math.floor(s / 60);
-  const rest = new Intl.NumberFormat(profileLocale(), {
-    minimumIntegerDigits: 2, minimumFractionDigits: 1, maximumFractionDigits: 1,
-  }).format(s % 60);
-  return `${m}:${rest.padStart(4, "0")}`;
 }
 
 function estimateSourceMs(
@@ -542,6 +535,17 @@ export function ClipTimeline({
           if (id) {
             setSelected({ trackId: track.id, clipId: id });
           }
+          if (lastReq.kind === "cut") {
+            setArrangementStatus(
+              t("production.cut.done", { time: formatMs(lastReq.atMs) }),
+            );
+          } else {
+            setArrangementStatus(
+              t("production.status.duplicated", {
+                time: formatMs(lastReq.startMs),
+              }),
+            );
+          }
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -884,23 +888,103 @@ export function ClipTimeline({
   }
 
   function cutSelected() {
-    if (!selected || !selectedClip) return;
+    if (!selected || !selectedClip) {
+      setArrangementStatus(t("production.cut.needClip"));
+      return;
+    }
     const track = mix.tracks.find((tr) => tr.id === selected.trackId);
     if (!track) return;
     const mid =
       selectedClip.startMs + Math.floor(selectedClip.durationMs / 2);
     let atMs = onSeek ? currentTimeMs : cutAtMs ?? mid;
+    let usedMidpoint = false;
     if (
       atMs <= selectedClip.startMs ||
       atMs >= selectedClip.startMs + selectedClip.durationMs
     ) {
       atMs = mid;
+      usedMidpoint = true;
     }
     applyEdit(track, {
       kind: "cut",
       clipId: selected.clipId,
       atMs: Math.round(atMs),
     });
+    if (usedMidpoint) {
+      setArrangementStatus(t("production.cut.midpoint"));
+    }
+  }
+
+  function nudgeSelected(direction: -1 | 1) {
+    if (!selected || !selectedClip) {
+      setArrangementStatus(t("production.select.needClip"));
+      return;
+    }
+    const track = mix.tracks.find((tr) => tr.id === selected.trackId);
+    if (!track) return;
+    const startMs = snap(
+      Math.max(0, selectedClip.startMs + direction * nudgeStep),
+    );
+    applyEdit(track, {
+      kind: "move",
+      clipId: selected.clipId,
+      startMs,
+    });
+    setArrangementStatus(
+      t("production.status.moved", { time: formatMs(startMs) }),
+    );
+  }
+
+  function duplicateSelected() {
+    if (!selected || !selectedClip) {
+      setArrangementStatus(t("production.select.needClip"));
+      return;
+    }
+    const track = mix.tracks.find((tr) => tr.id === selected.trackId);
+    if (!track) return;
+    applyEdit(track, {
+      kind: "duplicate",
+      clipId: selected.clipId,
+      startMs: snap(selectedClip.startMs + selectedClip.durationMs),
+    });
+  }
+
+  function stepPlayhead(direction: -1 | 1) {
+    if (!onSeek) return;
+    onSeek(
+      Math.min(timelineMs, Math.max(0, currentTimeMs + direction * nudgeStep)) /
+        1000,
+    );
+  }
+
+  function bumpFade(field: "fadeInMs" | "fadeOutMs", delta: number) {
+    if (!selected || !selectedClip) {
+      setArrangementStatus(t("production.fade.needClip"));
+      return;
+    }
+    const track = mix.tracks.find((tr) => tr.id === selected.trackId);
+    if (!track) return;
+    const other =
+      field === "fadeInMs" ? selectedClip.fadeOutMs : selectedClip.fadeInMs;
+    const max = Math.max(0, selectedClip.durationMs - other);
+    const next = Math.min(max, Math.max(0, selectedClip[field] + delta));
+    const snapped = Math.round(next / FADE_STEP_MS) * FADE_STEP_MS;
+    applyEdit(track, {
+      kind: "fade",
+      clipId: selected.clipId,
+      ...(field === "fadeInMs"
+        ? { fadeInMs: snapped }
+        : { fadeOutMs: snapped }),
+    });
+    setArrangementStatus(
+      t("production.status.fade", {
+        kind:
+          field === "fadeInMs"
+            ? t("production.fade.in")
+            : t("production.fade.out"),
+        value: t("production.unit.ms", { value: snapped }),
+      }),
+    );
   }
 
   function addMarkerAt(ms: number) {
@@ -1065,10 +1149,28 @@ export function ClipTimeline({
                           width: `${width}%`,
                           background: withAlpha(color, takeMuted ? 0.12 : 0.28),
                         }}
-                        title={`${tr.name} · ${formatMs(clip.startMs)} (${formatMusical(musical)}) → ${formatMs(clip.startMs + clip.durationMs)}${
-                          clip.takeLabel ? ` · ${clip.takeLabel}` : ""
-                        }`}
-                        aria-label={`${tr.name}, ${formatMs(clip.startMs)}, ${formatMs(clip.durationMs)}`}
+                        title={
+                          clip.takeLabel
+                            ? t("production.clip.titleNamedTake", {
+                                track: tr.name,
+                                time: formatMs(clip.startMs),
+                                musical: formatMusical(musical),
+                                end: formatMs(clip.startMs + clip.durationMs),
+                                take: clip.takeLabel,
+                              })
+                            : t("production.clip.titleNamed", {
+                                track: tr.name,
+                                time: formatMs(clip.startMs),
+                                musical: formatMusical(musical),
+                                end: formatMs(clip.startMs + clip.durationMs),
+                              })
+                        }
+                        aria-label={t("production.clip.named", {
+                          track: tr.name,
+                          n: tr.clips.findIndex((c) => c.id === clip.id) + 1,
+                          time: formatMs(clip.startMs),
+                          duration: formatMs(clip.durationMs),
+                        })}
                         onPointerDown={(e) => onClipPointerDown(e, tr, clip)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
@@ -1569,6 +1671,164 @@ export function ClipTimeline({
         </div>
       )}
 
+      <div
+        className="clip-action-bar"
+        role="toolbar"
+        aria-label={t("production.actions.bar")}
+        data-testid="clip-action-bar"
+      >
+        {editTool === "select" && (
+          <>
+            <span className="clip-action-bar-label">
+              {selectedClip
+                ? t("production.select.clip", {
+                    name: selectedClip.id.slice(0, 8),
+                  })
+                : t("production.select.none")}
+            </span>
+            <button
+              type="button"
+              className="btn"
+              aria-label={t("production.select.left")}
+              aria-disabled={!selectedClip || undefined}
+              disabled={!selectedClip}
+              title={!selectedClip ? t("production.select.needClip") : undefined}
+              onClick={() => nudgeSelected(-1)}
+            >
+              ←
+            </button>
+            <button
+              type="button"
+              className="btn"
+              aria-label={t("production.select.right")}
+              aria-disabled={!selectedClip || undefined}
+              disabled={!selectedClip}
+              title={!selectedClip ? t("production.select.needClip") : undefined}
+              onClick={() => nudgeSelected(1)}
+            >
+              →
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={!selectedClip}
+              aria-disabled={!selectedClip || undefined}
+              onClick={duplicateSelected}
+            >
+              {t("clips.duplicate")}
+            </button>
+          </>
+        )}
+        {editTool === "cut" && (
+          <>
+            <button
+              type="button"
+              className="btn"
+              disabled={!selectedClip}
+              aria-disabled={!selectedClip || undefined}
+              title={!selectedClip ? t("production.cut.needClip") : undefined}
+              onClick={cutSelected}
+            >
+              {t("production.cut.atPlayhead")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              aria-label={t("production.playhead.back")}
+              disabled={!onSeek}
+              onClick={() => stepPlayhead(-1)}
+            >
+              ⏮
+            </button>
+            <button
+              type="button"
+              className="btn"
+              aria-label={t("production.playhead.forward")}
+              disabled={!onSeek}
+              onClick={() => stepPlayhead(1)}
+            >
+              ⏭
+            </button>
+            {selectedClip &&
+              cutAtMs != null &&
+              cutAtMs > selectedClip.startMs &&
+              cutAtMs < selectedClip.startMs + selectedClip.durationMs && (
+                <span className="hint clip-action-cut-preview" role="status">
+                  {t("production.cut.preview", {
+                    time: formatMs(cutAtMs),
+                    bar: msToMusical(
+                      cutAtMs,
+                      tempoMap,
+                      meterMap,
+                      subdivision,
+                    ).bar,
+                  })}
+                </span>
+              )}
+          </>
+        )}
+        {editTool === "fade" && (
+          <>
+            <span className="clip-action-bar-label">{t("production.fade.in")}</span>
+            <button
+              type="button"
+              className="btn"
+              aria-label={t("production.fade.lessNamed", {
+                fade: t("production.fade.in"),
+              })}
+              disabled={!selectedClip}
+              onClick={() => bumpFade("fadeInMs", -FADE_STEP_MS)}
+            >
+              −
+            </button>
+            <span className="mono">
+              {t("production.unit.ms", {
+                value: selectedClip?.fadeInMs ?? 0,
+              })}
+            </span>
+            <button
+              type="button"
+              className="btn"
+              aria-label={t("production.fade.moreNamed", {
+                fade: t("production.fade.in"),
+              })}
+              disabled={!selectedClip}
+              onClick={() => bumpFade("fadeInMs", FADE_STEP_MS)}
+            >
+              +
+            </button>
+            <span className="clip-action-bar-label">{t("production.fade.out")}</span>
+            <button
+              type="button"
+              className="btn"
+              aria-label={t("production.fade.lessNamed", {
+                fade: t("production.fade.out"),
+              })}
+              disabled={!selectedClip}
+              onClick={() => bumpFade("fadeOutMs", -FADE_STEP_MS)}
+            >
+              −
+            </button>
+            <span className="mono">
+              {t("production.unit.ms", {
+                value: selectedClip?.fadeOutMs ?? 0,
+              })}
+            </span>
+            <button
+              type="button"
+              className="btn"
+              aria-label={t("production.fade.moreNamed", {
+                fade: t("production.fade.out"),
+              })}
+              disabled={!selectedClip}
+              onClick={() => bumpFade("fadeOutMs", FADE_STEP_MS)}
+            >
+              +
+            </button>
+          </>
+        )}
+      </div>
+
       {selected && selectedClip && (
         <div className="clip-inspector">
           <p className="clip-inspector-title">
@@ -1586,8 +1846,16 @@ export function ClipTimeline({
           {cutAtMs != null &&
             cutAtMs > selectedClip.startMs &&
             cutAtMs < selectedClip.startMs + selectedClip.durationMs && (
-              <p className="hint">
-                {t("clips.cutAt", { ms: Math.round(cutAtMs) })}
+              <p className="hint" role="status">
+                {t("production.cut.preview", {
+                  time: formatMs(cutAtMs),
+                  bar: msToMusical(
+                    cutAtMs,
+                    tempoMap,
+                    meterMap,
+                    subdivision,
+                  ).bar,
+                })}
               </p>
             )}
           <div className="clip-fields">
