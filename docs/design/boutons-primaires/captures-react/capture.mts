@@ -419,7 +419,7 @@ const SCENARIOS: Scenario[] = [
       await page.waitForFunction(
         () => {
           const btn = document.querySelector(".record-actions button.btn.primary");
-          return !!btn && /démarrer|start/i.test(btn.textContent ?? "");
+          return !!btn && /démarrer|start|conserver/i.test(btn.textContent ?? "");
         },
         { timeout: 15_000 },
       );
@@ -477,7 +477,7 @@ const SCENARIOS: Scenario[] = [
       await page.waitForFunction(
         () => {
           const btn = document.querySelector(".record-actions button.btn.primary");
-          return !!btn && /garder|keep/i.test(btn.textContent ?? "");
+          return !!btn && /conserver|garder|keep/i.test(btn.textContent ?? "");
         },
         { timeout: 15_000 },
       );
