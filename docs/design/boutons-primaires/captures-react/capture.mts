@@ -618,10 +618,17 @@ const SCENARIOS: Scenario[] = [
             ".production-copilot button.btn.primary, .mix-assist.production-copilot button.btn.primary",
           ),
         ];
-        const confirm = buttons.find((btn) => {
-          const label = (btn.textContent ?? "").trim().toLowerCase();
-          return label.includes("confirm") || label.includes("confirmer");
-        });
+        const confirm =
+          buttons.find((btn) => {
+            const label = (btn.textContent ?? "").trim().toLowerCase();
+            return (
+              label.includes("confirm") ||
+              label.includes("confirmer") ||
+              label.includes("sélection") ||
+              label.includes("selection") ||
+              label.includes("appliquer")
+            );
+          }) ?? buttons[buttons.length - 1];
         if (confirm) {
           confirm.setAttribute("data-capture-primary", "copilot-confirm");
           confirm.scrollIntoView({ block: "center" });
