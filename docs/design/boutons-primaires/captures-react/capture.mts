@@ -556,21 +556,34 @@ const SCENARIOS: Scenario[] = [
             ...document.querySelectorAll(".mix-assist button.btn.primary"),
           ].map((b) => (b.textContent ?? "").trim().toLowerCase());
           return labels.some(
-            (l) => l.includes("confirm") || l.includes("confirmer"),
+            (l) =>
+              l.includes("confirm") ||
+              l.includes("confirmer") ||
+              l.includes("balance") ||
+              l.includes("appliquer la balance"),
           );
         },
         { timeout: 15_000 },
       );
       await page.evaluate(() => {
-        for (const btn of document.querySelectorAll<HTMLButtonElement>(
-          ".mix-assist button.btn.primary",
-        )) {
-          const label = (btn.textContent ?? "").trim().toLowerCase();
-          if (label.includes("confirm") || label.includes("confirmer")) {
-            btn.setAttribute("data-capture-primary", "mix-confirm");
-            btn.scrollIntoView({ block: "center" });
-            return;
-          }
+        const buttons = [
+          ...document.querySelectorAll<HTMLButtonElement>(
+            ".mix-assist button.btn.primary",
+          ),
+        ];
+        // Prefer the confirm/balance button (last primary in balance block).
+        const confirm =
+          buttons.find((btn) => {
+            const label = (btn.textContent ?? "").trim().toLowerCase();
+            return (
+              label.includes("confirm") ||
+              label.includes("confirmer") ||
+              label.includes("balance")
+            );
+          }) ?? buttons[buttons.length - 1];
+        if (confirm) {
+          confirm.setAttribute("data-capture-primary", "mix-confirm");
+          confirm.scrollIntoView({ block: "center" });
         }
       });
       await page.waitForSelector('[data-capture-primary="mix-confirm"]', {
