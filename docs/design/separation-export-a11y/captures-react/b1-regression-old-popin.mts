@@ -127,6 +127,7 @@ try {
       );
     } catch (e) {
       lines.push(`Résultat : PASS inattendu — ${(e as Error).message}`);
+      process.exitCode = 1;
     }
   } finally {
     vite.kill("SIGTERM");
@@ -141,3 +142,4 @@ console.log(lines.join("\n"));
 declare function __measureReachability(
   el: HTMLElement | null,
 ): { reachable?: boolean } | null;
+if (process.exitCode) process.exit(process.exitCode);
