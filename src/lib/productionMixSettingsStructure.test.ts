@@ -40,10 +40,12 @@ describe("production mix settings structure (#225)", () => {
     assert.match(src, /aria-expanded=\{dualMixTools \? mixToolsMenuOpen : undefined\}/);
   });
 
-  it("banner master layout knob is inert (single exposed Master in popover)", () => {
+  it("banner master layout knob is live (global waveform strip)", () => {
     const src = readFileSync("src/screens/song/ProductionWorkspace.tsx", "utf8");
-    assert.match(src, /mix-master-knob-spacer-host/);
-    assert.match(src, /<div inert className="mix-master-knob-spacer-host">/);
+    assert.match(src, /mix-master-knob-host/);
+    assert.doesNotMatch(src, /mix-master-knob-spacer/);
+    assert.doesNotMatch(src, /inert className="mix-master-knob/);
+    assert.match(src, /onChange=\{\(gainDb\) =>/);
   });
 
   it("popover field accessible names match acceptance list (mutation: drop a fieldset)", () => {

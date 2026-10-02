@@ -106,10 +106,10 @@ describe("Production commune (#223, #230)", () => {
       assert.equal(await tempo.evaluate(el => el === document.activeElement), true);
       const markers = page.locator(".clip-marker-add");
       await markers.click();
-      await page.locator(".clip-marker-editor select").waitFor();
+        await page.locator(".clip-marker-editor select").waitFor();
       await page.locator(".clip-marker-editor input[type=checkbox]").uncheck();
       const clipsBefore = await page.locator(".clip-block").evaluateAll(elements => elements.map(el => el.getAttribute("style")));
-      await page.locator(".clip-marker-editor > button").first().click();
+      await page.locator(".clip-marker-editor").getByRole("button", { name: /Ajouter|Add/ }).first().click();
       await page.keyboard.press("Escape");
       assert.equal(await markers.evaluate(el => el === document.activeElement), true);
       assert.equal(await page.locator(".clip-tempo-lane .clip-tempo-flag").count() > 0, true);
@@ -209,9 +209,8 @@ describe("Production commune (#223, #230)", () => {
         await page.getByRole("tab", { name: "Routage", exact: true }).click();
         await page.getByTestId("production-track-routing").waitFor();
         await page.getByRole("tab", { name: "Automation", exact: true }).click();
-        await page.locator(".production-track-auto-toggle").click();
-        await page.keyboard.press("Escape");
         const auto=page.locator(".production-auto-curve").first();
+        await auto.waitFor();
         const autoBox=await auto.boundingBox();
         assert.ok(autoBox);
         assert.ok(Math.abs(autoBox.x-railBox.x)<=1,JSON.stringify({autoBox,railBox}));

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { AutomationPoint } from "@song-maker/mix-production";
 import { ensureProductionOverlay, getProductionOverlay, getProductionToolkit, setAutomationLanePoints, subscribeProduction } from "../../lib/productionState";
 import { isTrackAutomationVisible, setTrackAutomationVisible, subscribeTrackAutomationVisible } from "../../lib/productionTrackAutomationVisible";
+import { subscribePlaybackPosition } from "../../lib/playbackPosition";
 import { profileLocale, t } from "../../ui/i18n";
 
 const clamp = (v: number, lo: number, hi: number) => Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : lo;
@@ -19,6 +20,7 @@ export function ProductionTrackAutomation({ mixId, trackId, trackName, durationM
   const [sampled, setSampled] = useState<number | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const root = useRef<HTMLElement>(null);
+  const playheadLine = useRef<SVGLineElement>(null);
   const focusTime = useRef<number | null>(null);
   const dragTime = useRef<number | null>(null);
   const dragBefore = useRef<{target:"volume"|"pan";points:AutomationPoint[]}|null>(null);
@@ -38,8 +40,20 @@ export function ProductionTrackAutomation({ mixId, trackId, trackName, durationM
     window.addEventListener("keydown",cancel,true);
     return ()=>window.removeEventListener("keydown",cancel,true);
   }, [mixId,trackId]);
-  if (!visible) return null;
   const maxMs = Math.max(1, durationMs);
+  useEffect(() => {
+    if (!visible) return;
+    const apply = (ms: number) => {
+      const x = Math.min(100, Math.max(0, (ms / maxMs) * 100));
+      if (playheadLine.current) {
+        playheadLine.current.setAttribute("x1", String(x));
+        playheadLine.current.setAttribute("x2", String(x));
+      }
+    };
+    apply(currentMs);
+    return subscribePlaybackPosition((seconds) => apply(seconds * 1000));
+  }, [visible, currentMs, maxMs]);
+  if (!visible) return null;
   const lo = target === "volume" ? -24 : -1;
   const hi = target === "volume" ? 12 : 1;
   const step = target === "volume" ? 0.1 : 0.01;
@@ -75,26 +89,8 @@ export function ProductionTrackAutomation({ mixId, trackId, trackName, durationM
     if(!next.length) root.current?.querySelector<HTMLButtonElement>(".production-auto-add-playback")?.focus();
   };
   return <section ref={root} id={`production-auto-${encodeURIComponent(trackId)}`} className="production-track-automation" role="group" aria-label={t("production.auto.track", { track: trackName })}>
-    <button type="button" className="btn" aria-expanded="true" aria-controls={`production-auto-${encodeURIComponent(trackId)}`} onClick={()=>{
-      setTrackAutomationVisible(trackId,false);onCollapse?.();
-    }}>{t("production.auto.collapse",{track:trackName})}</button>
     {locked && <p className="hint">{t("production.auto.locked")}</p>}
     <fieldset disabled={locked} className="production-auto-controls">
-    <div className="production-auto-toolbar">
-      <label>{t("production.auto.target")} <select aria-label={t("production.auto.targetNamed",{track:trackName})} value={target} onChange={e => {setTarget(e.target.value as "volume" | "pan");setSampled(null);}}>
-        <option value="volume">{t("phase3.mix.targetVolume")}</option><option value="pan">{t("phase3.mix.targetPan")}</option>
-      </select></label>
-      <button type="button" className="btn production-auto-add-playback" onClick={() => add(currentMs)}>{t("production.auto.addPlayback")}</button>
-      <button type="button" className="btn" disabled={!points.length} onClick={() => {
-        setRestore({ target, points: points.map(p => ({ ...p })) });
-        setAutomationLanePoints(mixId,trackId,target,[]);
-        setSampled(null);setAnnouncement(t("production.auto.points",{count:nf.format(0)}));
-      }}>{t("phase3.mix.clearAutomation")}</button>
-      {restore && <button type="button" className="btn" onClick={() => {
-        setAutomationLanePoints(mixId,trackId,restore.target,restore.points); setRestore(null);
-      }}>{t("production.auto.restore")}</button>}
-    </div>
-    <p className="hint">{t("production.auto.laneNamed", { target: targetLabel })}</p>
     <svg className="production-auto-curve" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" onDoubleClick={e=>{
         if(locked)return;
         const rect=e.currentTarget.getBoundingClientRect();
@@ -129,10 +125,28 @@ export function ProductionTrackAutomation({ mixId, trackId, trackName, durationM
         dragTime.current = null;dragBefore.current=null;
       }}>
       <line x1="0" x2="100" y1={hi/(hi-lo)*100} y2={hi/(hi-lo)*100} className="production-auto-zero" />
-      <line x1={clamp(currentMs/maxMs*100,0,100)} x2={clamp(currentMs/maxMs*100,0,100)} y1="0" y2="100" className="production-auto-playback-line" />
+      <line ref={playheadLine} x1={clamp(currentMs/maxMs*100,0,100)} x2={clamp(currentMs/maxMs*100,0,100)} y1="0" y2="100" className="production-auto-playback-line" />
       <polyline points={points.map(p => `${p.timeMs/maxMs*100},${(hi-p.value)/(hi-lo)*100}`).join(" ")} />
       {points.map((p,i) => <ellipse key={i} cx={p.timeMs/maxMs*100} cy={(hi-p.value)/(hi-lo)*100} rx="0.7" ry="4" />)}
     </svg>
+    <div className="production-auto-toolbar">
+      <button type="button" className="btn" aria-expanded="true" aria-controls={`production-auto-${encodeURIComponent(trackId)}`} onClick={()=>{
+        setTrackAutomationVisible(trackId,false);onCollapse?.();
+      }}>{t("production.auto.collapse",{track:trackName})}</button>
+      <label>{t("production.auto.target")} <select aria-label={t("production.auto.targetNamed",{track:trackName})} value={target} onChange={e => {setTarget(e.target.value as "volume" | "pan");setSampled(null);}}>
+        <option value="volume">{t("phase3.mix.targetVolume")}</option><option value="pan">{t("phase3.mix.targetPan")}</option>
+      </select></label>
+      <button type="button" className="btn production-auto-add-playback" onClick={() => add(currentMs)}>{t("production.auto.addPlayback")}</button>
+      <button type="button" className="btn" disabled={!points.length} onClick={() => {
+        setRestore({ target, points: points.map(p => ({ ...p })) });
+        setAutomationLanePoints(mixId,trackId,target,[]);
+        setSampled(null);setAnnouncement(t("production.auto.points",{count:nf.format(0)}));
+      }}>{t("phase3.mix.clearAutomation")}</button>
+      {restore && <button type="button" className="btn" onClick={() => {
+        setAutomationLanePoints(mixId,trackId,restore.target,restore.points); setRestore(null);
+      }}>{t("production.auto.restore")}</button>}
+    </div>
+    <p className="hint">{t("production.auto.laneNamed", { target: targetLabel })}</p>
     {!points.length && <p className="hint">{t("production.auto.empty")}</p>}
     <ol className="production-auto-points">
       {points.map((p,i) => <li key={i}>

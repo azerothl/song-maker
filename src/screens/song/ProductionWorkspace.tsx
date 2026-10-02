@@ -547,9 +547,9 @@ export function ProductionWorkspace({
                     onSeek={playback?.seek}
                   />
                 </div>
-                <div inert className="mix-master-knob-spacer-host">
+                <div className="mix-master-knob-host">
                   <MixKnob
-                    className="mix-master-knob mix-master-knob-spacer"
+                    className="mix-master-knob"
                     value={mix.masterGainDb}
                     min={-24}
                     max={12}
@@ -559,8 +559,15 @@ export function ProductionWorkspace({
                     valueText={formatGainDb(mix.masterGainDb)}
                     displayValue={formatGainDb(mix.masterGainDb)}
                     parseDisplay={parseGainDb}
-                    onChange={() => {}}
-                    onCommit={() => {}}
+                    onChange={(gainDb) =>
+                      scheduleMixUpdate(
+                        { ...mix, masterGainDb: gainDb },
+                        { persist: false },
+                      )
+                    }
+                    onCommit={(gainDb) =>
+                      scheduleMixUpdate({ ...mix, masterGainDb: gainDb })
+                    }
                   />
                 </div>
               </div>

@@ -8,6 +8,7 @@ import {
 import type { LoudnessReport } from "@song-maker/mix-production";
 import { AnchoredPopin } from "./AnchoredPopin";
 import { MixKnob } from "./MixKnob";
+import { PopinCloseButton } from "./PopinCloseButton";
 import {
   ProductionClipViewControls,
   productionClipViewControlNames,
@@ -188,9 +189,10 @@ export function ProductionMixSettingsPopin({
     >
       <header className="anchored-popin-header production-mix-settings-header">
         <h3 id={labelId}>{t("production.mixSettings.title")}</h3>
-        <button type="button" className="btn" onClick={closeAndReset}>
-          {t("production.mixSettings.close")}
-        </button>
+        <PopinCloseButton
+          label={t("production.mixSettings.close")}
+          onClick={closeAndReset}
+        />
       </header>
       <div
         className="production-mix-settings-body"

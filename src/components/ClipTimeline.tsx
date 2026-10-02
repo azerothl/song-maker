@@ -46,6 +46,8 @@ import { t, profileLocale } from "../ui/i18n";
 import type { ProductionClipViewPrefs } from "../lib/productionClipViewPrefs";
 import { DEFAULT_PRODUCTION_CLIP_VIEW_PREFS } from "../lib/productionClipViewPrefs";
 import { AnchoredPopin } from "./AnchoredPopin";
+import { PlaybackLine } from "./PlaybackLine";
+import { PopinCloseButton } from "./PopinCloseButton";
 import {
   CLIP_EDIT_TOOLS,
   clipEditToolFromKey,
@@ -1023,7 +1025,7 @@ export function ClipTimeline({
               >
                 {!renderTracks && <span className="clip-lane-label">{tr.name}</span>}
                 <div className="clip-lane-rail">
-                  <span aria-hidden="true" className="production-playback-line" style={{left:`${Math.min(100,Math.max(0,currentTimeMs/timelineMs*100))}%`}} />
+                  <PlaybackLine currentMs={currentTimeMs} timelineMs={timelineMs} />
                   {tr.clips.map((clip) => {
                     const left = (clip.startMs / timelineMs) * 100;
                     const width = Math.max(
@@ -1240,7 +1242,13 @@ export function ClipTimeline({
         <AnchoredPopin open={arrangementOpen === "tempo"} onClose={() => setArrangementOpen(null)}
           anchorRef={tempoAnchor} labelId={`${arrangementId}-tempo`}>
         <div className="clip-tempo-editor">
-          <strong id={`${arrangementId}-tempo`}>{t("clips.tempoMap")}</strong>
+          <header className="anchored-popin-header">
+            <strong id={`${arrangementId}-tempo`}>{t("clips.tempoMap")}</strong>
+            <PopinCloseButton
+              label={t("production.arrangement.close")}
+              onClick={() => setArrangementOpen(null)}
+            />
+          </header>
           <label>
             <span>{t("clips.tempoBpm")}</span>
             <input
@@ -1294,14 +1302,19 @@ export function ClipTimeline({
             ))}
           </ul>
           <p className="hint">{t("clips.tempoHint")}</p>
-          <button type="button" className="btn" onClick={() => setArrangementOpen(null)}>{t("production.arrangement.close")}</button>
         </div>
         </AnchoredPopin>
 
         <AnchoredPopin open={arrangementOpen === "markers"} onClose={() => setArrangementOpen(null)}
           anchorRef={markerAnchor} labelId={`${arrangementId}-markers`}>
         <div className="clip-marker-editor">
-          <strong id={`${arrangementId}-markers`}>{t("clips.markers")}</strong>
+          <header className="anchored-popin-header">
+            <strong id={`${arrangementId}-markers`}>{t("clips.markers")}</strong>
+            <PopinCloseButton
+              label={t("production.arrangement.close")}
+              onClick={() => setArrangementOpen(null)}
+            />
+          </header>
           <label>
             <span>{t("clips.markerKind")}</span>
             <select
@@ -1396,7 +1409,6 @@ export function ClipTimeline({
               </button>
             </div>
           )}
-          <button type="button" className="btn" onClick={() => setArrangementOpen(null)}>{t("production.arrangement.close")}</button>
         </div>
         </AnchoredPopin>
       </div>
@@ -1458,13 +1470,10 @@ export function ClipTimeline({
           >
             <header className="anchored-popin-header">
               <h3 id={stretchTitleId}>{t("clips.stretch.title")}</h3>
-              <button
-                type="button"
-                className="btn"
+              <PopinCloseButton
+                label={t("production.track.close")}
                 onClick={() => setStretchOpen(false)}
-              >
-                {t("production.track.close")}
-              </button>
+              />
             </header>
             <p className="hint">
               {t("clips.selected", { id: selectedClip.id.slice(0, 8) })}
@@ -1716,7 +1725,7 @@ export function ClipTimeline({
             }}>
             <span className="clip-lane-label" />
             <div ref={rulerRailRef} className="clip-ruler-marks-abs" aria-hidden="true">
-              <span className="production-playback-line" style={{left:`${Math.min(100,Math.max(0,currentTimeMs/timelineMs*100))}%`}} />
+              <PlaybackLine currentMs={currentTimeMs} timelineMs={timelineMs} />
               {rulerDisplayMarks(rulerMarks,timelineMs,rulerWidth).map((mark, i) => (
                 <span
                   key={`${mark.ms}-${i}`}

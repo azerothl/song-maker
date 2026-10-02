@@ -6,7 +6,9 @@ import {
   type RefObject,
 } from "react";
 import { AnchoredPopin } from "../AnchoredPopin";
+import { PopinCloseButton } from "../PopinCloseButton";
 import { Phase3FxParamFields } from "./Phase3FxParamFields";
+import { ParametricEqBandFields } from "./ParametricEqBandFields";
 import { t } from "../../ui/i18n";
 import { useTrackEffects } from "../../lib/useTrackEffects";
 import {
@@ -78,7 +80,8 @@ type Props = {
   tempoBpm?: number | null;
   canAddPitchCorrect?: boolean;
   grByEffect?: Record<string, number>;
-  onOpenEq: () => void;
+  /** @deprecated EQ is configured inline in Effects (Loïc 2026-10-02). */
+  onOpenEq?: () => void;
   embedded?: boolean;
 };
 
@@ -92,7 +95,6 @@ export function ProductionTrackFxLinePopin({
   tempoBpm = null,
   canAddPitchCorrect = true,
   grByEffect,
-  onOpenEq,
   embedded = false,
 }: Props) {
   const titleId = useId();
@@ -128,116 +130,123 @@ export function ProductionTrackFxLinePopin({
 
   const selectedLabel = selectedFx ? effectDisplayName(selectedFx) : "";
 
+  const listBlock =
+    effects.length === 0 ? (
+      <p className="hint">{t("phase3.mix.fxEmpty")}</p>
+    ) : (
+      <ul className="phase3-fx-list production-fx-line-list" role="list">
+        {effects.map((fx, index) => {
+          const name = effectDisplayName(fx);
+          const selected = fx.id === selectedEffectId;
+          return (
+            <li key={fx.id} className="phase3-fx-item">
+              <div className="phase3-fx-item-head production-fx-line-row">
+                <label className="phase3-check">
+                  <input
+                    type="checkbox"
+                    checked={fx.enabled}
+                    aria-label={name}
+                    onChange={(e) =>
+                      updateEffect(fx.id, { enabled: e.target.checked })
+                    }
+                  />
+                </label>
+                <button
+                  type="button"
+                  className={`btn production-fx-line-select${selected ? " is-selected" : ""}`}
+                  aria-pressed={selected}
+                  onClick={() => setSelectedEffectId(fx.id)}
+                >
+                  {name}
+                </button>
+                <div className="btn-row">
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={index === 0}
+                    aria-label={t("production.fx.moveUpNamed", {
+                      effect: name,
+                    })}
+                    onClick={() => moveEffect(fx.id, -1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={index === effects.length - 1}
+                    aria-label={t("production.fx.moveDownNamed", {
+                      effect: name,
+                    })}
+                    onClick={() => moveEffect(fx.id, 1)}
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    aria-label={t("production.fx.removeNamed", {
+                      effect: name,
+                    })}
+                    onClick={() => removeEffect(fx.id)}
+                  >
+                    {t("production.fx.removeNamed", { effect: name })}
+                  </button>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    );
+
+  const propsBlock = (
+    <div
+      className="phase3-fields production-fx-line-props"
+      role="group"
+      aria-labelledby={propsGroupId}
+    >
+      <p id={propsGroupId} className="production-fx-line-props-title">
+        {selectedFx ? selectedLabel : t("production.fx.noneSelected")}
+      </p>
+      {selectedFx &&
+        (selectedFx.kind === "parametricEq" ? (
+          <ParametricEqBandFields
+            fx={selectedFx}
+            updateEffectParam={(key, value) =>
+              updateEffectParam(selectedFx.id, key, value)
+            }
+          />
+        ) : (
+          <Phase3FxParamFields
+            fx={selectedFx}
+            updateEffectParam={(key, value) =>
+              updateEffectParam(selectedFx.id, key, value)
+            }
+            grByEffect={grByEffect}
+            tempoBpm={tempoBpm}
+          />
+        ))}
+    </div>
+  );
+
   const body = (
     <>
       {!embedded && (
-      <header className="anchored-popin-header">
-        <h3 id={titleId}>
-          {t("production.fx.line.title", { track: trackName })}
-        </h3>
-        <button type="button" className="btn" onClick={onClose}>
-          {t("production.fx.line.close")}
-        </button>
-      </header>
+        <header className="anchored-popin-header">
+          <h3 id={titleId}>
+            {t("production.fx.line.title", { track: trackName })}
+          </h3>
+          <PopinCloseButton
+            label={t("production.fx.line.close")}
+            onClick={onClose}
+          />
+        </header>
       )}
 
-      {effects.length === 0 ? (
-        <p className="hint">{t("phase3.mix.fxEmpty")}</p>
-      ) : (
-        <ul className="phase3-fx-list production-fx-line-list" role="list">
-          {effects.map((fx, index) => {
-            const name = effectDisplayName(fx);
-            const selected = fx.id === selectedEffectId;
-            return (
-              <li key={fx.id} className="phase3-fx-item">
-                <div className="phase3-fx-item-head production-fx-line-row">
-                  <label className="phase3-check">
-                    <input
-                      type="checkbox"
-                      checked={fx.enabled}
-                      aria-label={name}
-                      onChange={(e) =>
-                        updateEffect(fx.id, { enabled: e.target.checked })
-                      }
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    className={`btn production-fx-line-select${selected ? " is-selected" : ""}`}
-                    aria-pressed={selected}
-                    onClick={() => setSelectedEffectId(fx.id)}
-                  >
-                    {name}
-                  </button>
-                  <div className="btn-row">
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={index === 0}
-                      aria-label={t("production.fx.moveUpNamed", {
-                        effect: name,
-                      })}
-                      onClick={() => moveEffect(fx.id, -1)}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={index === effects.length - 1}
-                      aria-label={t("production.fx.moveDownNamed", {
-                        effect: name,
-                      })}
-                      onClick={() => moveEffect(fx.id, 1)}
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      className="btn"
-                      aria-label={t("production.fx.removeNamed", {
-                        effect: name,
-                      })}
-                      onClick={() => removeEffect(fx.id)}
-                    >
-                      {t("production.fx.removeNamed", { effect: name })}
-                    </button>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      <div
-        className="phase3-fields production-fx-line-props"
-        role="group"
-        aria-labelledby={propsGroupId}
-      >
-        <p id={propsGroupId} className="production-fx-line-props-title">
-          {selectedFx
-            ? selectedLabel
-            : t("production.fx.noneSelected")}
-        </p>
-        {selectedFx && (
-          <>
-            {selectedFx.kind === "parametricEq" ? (
-              <button type="button" className="btn" onClick={onOpenEq}>
-                {t("production.fx.openEq")}
-              </button>
-            ) : (
-              <Phase3FxParamFields
-                fx={selectedFx}
-                updateEffectParam={(key, value) =>
-                  updateEffectParam(selectedFx.id, key, value)
-                }
-                grByEffect={grByEffect}
-                tempoBpm={tempoBpm}
-              />
-            )}
-          </>
-        )}
+      <div className="production-fx-line-columns">
+        <div className="production-fx-line-col-list">{listBlock}</div>
+        <div className="production-fx-line-col-props">{propsBlock}</div>
       </div>
 
       <div className="btn-row production-fx-line-add">

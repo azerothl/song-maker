@@ -1,5 +1,6 @@
 import { useId, useMemo, type RefObject } from "react";
 import { AnchoredPopin } from "../AnchoredPopin";
+import { PopinCloseButton } from "../PopinCloseButton";
 import { ParametricEqBandFields } from "./ParametricEqBandFields";
 import { t } from "../../ui/i18n";
 import { useTrackEffects } from "../../lib/useTrackEffects";
@@ -38,9 +39,10 @@ export function ProductionParametricEqPopin({
         <h3 id={titleId}>
           {t("production.eq.popover", { track: trackName })}
         </h3>
-        <button type="button" className="btn" onClick={onClose}>
-          {t("production.eq.popover.close")}
-        </button>
+        <PopinCloseButton
+          label={t("production.eq.popover.close")}
+          onClick={onClose}
+        />
       </header>
       )}
       {!paramEq ? (

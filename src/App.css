@@ -1250,7 +1250,7 @@ option {
 }
 
 .production-track-automation {
-  padding: 0.75rem;
+  padding: 0.25rem 0.75rem 0.65rem;
   border-bottom: 1px solid var(--line);
   background: var(--bg2);
 }
@@ -1285,10 +1285,10 @@ option {
 .qwen-mix-license > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .qwen-mix-license pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.75rem; max-height: 16rem; overflow-y: auto; }
 .production-common-timeline {
-  --production-controls-width: calc(264px + 10.5rem + 96px + 3.25rem);
+  --production-controls-width: calc(148px + 7.5rem + 88px + 2.25rem);
 }
 .production-common-timeline .common-track-lane { display: block; min-width: 0; }
-.production-playback-line { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent-cyan); z-index: 4; pointer-events: none; }
+.production-playback-line { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent-cyan); z-index: 2; pointer-events: none; }
 .production-auto-playback-line { stroke: var(--accent-cyan); stroke-width: 1px; vector-effect: non-scaling-stroke; pointer-events: none; }
 .production-common-timeline .clip-ruler,
 .production-common-timeline .clip-tempo-lane,
@@ -1650,20 +1650,8 @@ option {
   }
 }
 
-.mix-master-knob-spacer-host {
+.mix-master-knob-host {
   flex: 0 0 auto;
-}
-
-.mix-master-knob-spacer {
-  opacity: 0;
-  pointer-events: none;
-  user-select: none;
-}
-
-.mix-master-knob-spacer .mix-knob-dial,
-.mix-master-knob-spacer .mix-knob-value,
-.mix-master-knob-spacer .mix-knob-input {
-  pointer-events: none;
 }
 
 .production-mix-settings-separate-reason {
@@ -1676,9 +1664,9 @@ option {
 
 .production-mix-grid {
   display: grid;
-  grid-template-columns: minmax(0, 264px) 5.5rem 5rem 60px 36px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 148px) 4rem 3.5rem 56px 32px minmax(0, 1fr);
   min-width: 640px;
-  column-gap: 0.65rem;
+  column-gap: 0.45rem;
   align-items: center;
   padding: 0 0.35rem;
 }
@@ -1695,7 +1683,7 @@ option {
   border-bottom: 1px solid var(--line);
   margin-top: 0.15rem;
   padding-bottom: 0.2rem;
-  background: color-mix(in srgb, var(--bg0) 96%, transparent);
+  background: var(--bg0);
 }
 
 .production-mix-list {
@@ -2028,6 +2016,64 @@ option {
 .production-track-detail-popin {
   overflow-y: auto;
   max-height: calc(100vh - 16px);
+}
+
+.production-fx-line-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.production-fx-line-col-list,
+.production-fx-line-col-props {
+  min-width: 0;
+}
+
+.production-fx-line-col-props {
+  border-left: 1px solid var(--line);
+  padding-left: 0.75rem;
+}
+
+@media (max-width: 720px) {
+  .production-fx-line-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .production-fx-line-col-props {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--line);
+    padding-top: 0.65rem;
+  }
+}
+
+.anchored-popin-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.anchored-popin-header h3,
+.anchored-popin-header strong {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.95rem;
+}
+
+.anchored-popin-close {
+  flex: 0 0 auto;
+  min-width: 36px;
+  min-height: 36px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  line-height: 1;
+  font-size: 1.25rem;
 }
 
 .production-track-tabs {
@@ -5638,7 +5684,7 @@ details[open] > summary {
 }
 
 .anchored-popin-header h3 {
-  margin: 0 0 0.35rem;
+  margin: 0;
   font-size: 0.95rem;
 }
 
@@ -6421,7 +6467,7 @@ details[open] > summary {
 .clip-tempo-flag, .clip-marker-flag { touch-action: none; user-select: none; }
 .clip-ruler, .clip-tempo-lane, .clip-marker-lane {
   position: sticky;
-  background: var(--bg1);
+  background: var(--bg0);
   z-index: 3;
 }
 .clip-ruler { top: 0; z-index: 5; }
