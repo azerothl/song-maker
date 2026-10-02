@@ -6671,6 +6671,40 @@ details[open] > summary {
   padding: 0.35rem 0.15rem 0.5rem;
 }
 
+.clip-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg1) 55%, transparent);
+}
+
+.clip-action-bar .btn {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.clip-action-bar-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-right: 0.15rem;
+}
+
+.clip-action-cut-preview {
+  margin: 0;
+}
+
+.production-track-settings-clip-gain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
 .clip-inspector {
   display: flex;
   flex-direction: column;
