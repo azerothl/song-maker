@@ -15,8 +15,6 @@ for(const [locale,width] of [["fr",1280],["en",640]] as const) {
       await page.goto("http://127.0.0.1:5229/production-capture.html#confortable-12",{waitUntil:"networkidle"});
       await page.locator(".production-track-tools-btn").first().click();
       await page.getByRole("tab", { name: "Automation", exact: true }).click();
-      await page.locator(".production-track-auto-toggle").click();
-      await page.keyboard.press("Escape");
       const editor=page.locator(".production-track-automation").first();
       await editor.waitFor();
       const addPlayback=locale === "en" ? "Add at playback position" : "Ajouter à la position de lecture";

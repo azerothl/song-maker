@@ -209,9 +209,8 @@ describe("Production commune (#223, #230)", () => {
         await page.getByRole("tab", { name: "Routage", exact: true }).click();
         await page.getByTestId("production-track-routing").waitFor();
         await page.getByRole("tab", { name: "Automation", exact: true }).click();
-        await page.locator(".production-track-auto-toggle").click();
-        await page.keyboard.press("Escape");
         const auto=page.locator(".production-auto-curve").first();
+        await auto.waitFor();
         const autoBox=await auto.boundingBox();
         assert.ok(autoBox);
         assert.ok(Math.abs(autoBox.x-railBox.x)<=1,JSON.stringify({autoBox,railBox}));

@@ -1,18 +1,15 @@
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { AnchoredPopin } from "../AnchoredPopin";
+import { PopinCloseButton } from "../PopinCloseButton";
 import { ProductionTrackSettingsPopin } from "./ProductionTrackSettingsPopin";
 import { ProductionTrackFxLinePopin } from "./ProductionTrackFxLinePopin";
-import { ProductionParametricEqPopin } from "./ProductionParametricEqPopin";
 import { ProductionTrackRoutingPopin } from "./ProductionTrackRoutingPopin";
 import { isPitchCorrectEligibleTrack } from "../../lib/productionState";
-import {
-  isTrackAutomationVisible,
-  setTrackAutomationVisible,
-} from "../../lib/productionTrackAutomationVisible";
+import { setTrackAutomationVisible } from "../../lib/productionTrackAutomationVisible";
 import type { MixDoc, MixTrack } from "../../lib/types";
 import { t } from "../../ui/i18n";
 
-type TrackTab = "eq" | "fx" | "automation" | "routing" | "settings";
+type TrackTab = "fx" | "automation" | "routing" | "settings";
 
 type Props = {
   track: MixTrack;
@@ -26,6 +23,7 @@ type Props = {
 /**
  * Track tools — single popover with tabs (maquette / #226), not a popover chain.
  * Settings (fondus / M-S) stay available as a fourth tab for existing controls.
+ * Automation tab opens the under-track curve immediately (Loïc 2026-10-02).
  */
 export function ProductionTrackTools({
   track,
@@ -39,24 +37,28 @@ export function ProductionTrackTools({
   const titleId = useId();
   const tablistId = useId();
   const [tab, setTab] = useState<TrackTab>("settings");
-  const [autoVisible, setAutoVisible] = useState(() =>
-    isTrackAutomationVisible(track.id),
-  );
 
   useEffect(() => {
     if (!isOpen) setTab("settings");
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    setAutoVisible(isTrackAutomationVisible(track.id));
-  }, [isOpen, track.id]);
-
   const closeAll = () => onOpenChange(false);
   const popinAnchor: RefObject<HTMLElement | null> = btnRef;
 
+  const openAutomationUnderTrack = () => {
+    setTrackAutomationVisible(track.id, true);
+    closeAll();
+    requestAnimationFrame(() => {
+      const lane = document.getElementById(
+        `production-auto-${encodeURIComponent(track.id)}`,
+      );
+      lane
+        ?.querySelector<HTMLElement>(".production-auto-curve")
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+  };
+
   const tabs: { id: TrackTab; label: string }[] = [
-    { id: "eq", label: t("production.track.tab.eq") },
     { id: "fx", label: t("production.track.tab.fx") },
     { id: "automation", label: t("production.track.tab.automation") },
     { id: "routing", label: t("production.track.tab.routing") },
@@ -94,9 +96,7 @@ export function ProductionTrackTools({
       >
         <header className="anchored-popin-header">
           <h3 id={titleId}>{title}</h3>
-          <button type="button" className="btn" onClick={closeAll}>
-            {t("production.track.close")}
-          </button>
+          <PopinCloseButton label={t("production.track.close")} onClick={closeAll} />
         </header>
 
         <div
@@ -114,31 +114,19 @@ export function ProductionTrackTools({
               id={`${tablistId}-${item.id}`}
               aria-selected={tab === item.id}
               tabIndex={tab === item.id ? 0 : -1}
-              onClick={() => setTab(item.id)}
+              onClick={() => {
+                if (item.id === "automation") {
+                  openAutomationUnderTrack();
+                  return;
+                }
+                setTab(item.id);
+              }}
             >
               {item.label}
             </button>
           ))}
         </div>
 
-        <div
-          role="tabpanel"
-          className="production-track-tabpanel"
-          aria-labelledby={`${tablistId}-${tab}`}
-          hidden={tab !== "eq"}
-        >
-          {tab === "eq" ? (
-            <ProductionParametricEqPopin
-              open
-              onClose={closeAll}
-              anchorRef={popinAnchor}
-              mixId={mix.id}
-              trackId={track.id}
-              trackName={track.name}
-              embedded
-            />
-          ) : null}
-        </div>
         <div
           role="tabpanel"
           className="production-track-tabpanel"
@@ -155,40 +143,8 @@ export function ProductionTrackTools({
               trackName={track.name}
               tempoBpm={tempoBpm}
               canAddPitchCorrect={isPitchCorrectEligibleTrack(track.role)}
-              onOpenEq={() => setTab("eq")}
               embedded
             />
-          ) : null}
-        </div>
-        <div
-          role="tabpanel"
-          className="production-track-tabpanel"
-          aria-labelledby={`${tablistId}-automation`}
-          hidden={tab !== "automation"}
-        >
-          {tab === "automation" ? (
-            <div className="production-track-auto-panel">
-              <button
-                type="button"
-                className="btn production-track-auto-toggle"
-                aria-pressed={autoVisible}
-                aria-expanded={autoVisible}
-                aria-controls={`production-auto-${encodeURIComponent(track.id)}`}
-                disabled={track.locked}
-                title={track.locked ? t("production.auto.locked") : undefined}
-                onClick={() => {
-                  const next = !autoVisible;
-                  setAutoVisible(next);
-                  setTrackAutomationVisible(track.id, next);
-                }}
-              >
-                {t("production.track.showAuto")}
-              </button>
-              {track.locked && (
-                <p className="hint">{t("production.auto.locked")}</p>
-              )}
-              <p className="hint">{t("production.track.auto.hint")}</p>
-            </div>
           ) : null}
         </div>
         <div

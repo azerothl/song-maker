@@ -6,6 +6,7 @@ import {
   type RefObject,
 } from "react";
 import { AnchoredPopin } from "../AnchoredPopin";
+import { PopinCloseButton } from "../PopinCloseButton";
 import { t } from "../../ui/i18n";
 import {
   getProductionClipSelection,
@@ -131,9 +132,10 @@ export function ProductionTrackSettingsPopin({
         <h3 id={titleId}>
           {t("production.track.popover", { track: track.name })}
         </h3>
-        <button type="button" className="btn" onClick={onClose}>
-          {t("production.track.close")}
-        </button>
+        <PopinCloseButton
+          label={t("production.track.close")}
+          onClick={onClose}
+        />
       </header>
       )}
 

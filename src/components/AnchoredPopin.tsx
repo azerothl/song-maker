@@ -40,6 +40,12 @@ function panelMaxWidth(className?: string): number {
   ) {
     return 520;
   }
+  if (
+    className?.includes("production-track-detail-popin") ||
+    className?.includes("production-fx-line-popin")
+  ) {
+    return 720;
+  }
   return 420;
 }
 
