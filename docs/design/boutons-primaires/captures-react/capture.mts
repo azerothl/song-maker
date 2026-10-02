@@ -803,15 +803,16 @@ const SCENARIOS: Scenario[] = [
     disabledMode: "n/a",
     shotTarget: "button-clip",
     prepare: async (page) => {
-      await page.waitForTimeout(200);
-      const block = page.locator(".clip-block").first();
-      if (await block.count()) {
-        await block.click();
-      }
+      await page.waitForSelector(".clip-block", { timeout: 15_000 });
+      await page.locator(".clip-block").first().click({ force: true });
       await page.waitForSelector(
         ".clip-takes button.btn.primary, .clip-takes-bar button.btn.primary",
         { timeout: 15_000 },
       );
+      await page
+        .locator(".clip-takes button.btn.primary")
+        .first()
+        .scrollIntoViewIfNeeded();
     },
   },
   {
@@ -865,7 +866,13 @@ declare global {
       next: string,
       opts?: { withTakes?: boolean },
     ) => void;
-    __captureForceMixBalanceConfirm?: (...args: never[]) => void;
+    __captureForceMixBalanceConfirm?: () => void;
+    __captureForceCopilotConfirm?: () => void;
+    __captureForceMidiRecording?: (on: boolean) => void;
+    __captureForceScorePendingImport?: () => void;
+    __captureForceScoreBranchMerge?: () => void;
+    __captureForcePianoQuantize?: () => void;
+    __captureForceSheetsageReady?: () => void;
   }
 }
 
