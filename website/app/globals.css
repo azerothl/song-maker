@@ -258,6 +258,31 @@ canvas {
   overflow-x: auto;
 }
 
+.docs-article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0 1.25rem;
+  font-size: 0.92rem;
+}
+
+.docs-article th,
+.docs-article td {
+  border: 1px solid var(--line);
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.docs-article th {
+  color: var(--text);
+  font-weight: 600;
+  background: var(--bg-1);
+}
+
+.docs-article td {
+  color: var(--text-soft);
+}
+
 .docs-article a {
   color: var(--console-warm);
   text-decoration: underline;

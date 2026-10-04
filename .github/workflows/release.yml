@@ -9,7 +9,7 @@ on:
       tag_name:
         description: Existing version tag to build and publish
         required: true
-        default: v0.1.2
+        default: v0.2.0
         type: string
 
 permissions:
@@ -31,7 +31,7 @@ jobs:
           sudo apt-get install -y \
             build-essential curl file pkg-config libssl-dev \
             libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
-            librsvg2-dev patchelf
+            librsvg2-dev patchelf libasound2-dev
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -42,9 +42,10 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      # Same toolchain and components as CI, pinned by rust-toolchain.toml.
+      # rust-toolchain.toml pins channel/components. dtolnay/rust-toolchain@master
+      # requires `with.toolchain` and does not read that file (v0.1.2 verify died here).
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
+        run: rustup toolchain install
 
       - name: Cache Rust build
         uses: swatinem/rust-cache@v2
@@ -153,9 +154,11 @@ jobs:
           cache: pnpm
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+        run: |
+          rustup toolchain install
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          fi
 
       - name: Cache Rust build
         uses: swatinem/rust-cache@v2

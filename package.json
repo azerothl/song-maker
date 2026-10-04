@@ -1,7 +1,7 @@
 {
   "name": "song-maker",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.2.0",
   "type": "module",
   "description": "Song Maker — local Tauri desktop app (YuE2 / audio.cpp) and monorepo packages",
   "license": "Apache-2.0",

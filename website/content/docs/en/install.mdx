@@ -1,6 +1,6 @@
 ---
 title: Install Song Maker
-description: Install Song Maker on Windows, macOS, or Linux and prepare its local models.
+description: Download the app, run first-launch setup, and prepare GPU, models, and ffmpeg.
 order: 1
 ---
 
@@ -8,7 +8,7 @@ order: 1
 
 ## 1. Download the app
 
-Download the installer for your system directly:
+Download the installer for your system:
 
 - Windows x64: [recommended `.exe` installer](https://github.com/azerothl/song-maker/releases/latest/download/Song.Maker___APP_VERSION___x64-setup.exe) or [`.msi`](https://github.com/azerothl/song-maker/releases/latest/download/Song.Maker___APP_VERSION___x64_en-US.msi), with an NVIDIA GPU.
 - macOS: [Apple Silicon `.dmg`](https://github.com/azerothl/song-maker/releases/latest/download/Song.Maker___APP_VERSION___aarch64.dmg) or [Intel Mac `.dmg`](https://github.com/azerothl/song-maker/releases/latest/download/Song.Maker___APP_VERSION___x64.dmg), using Metal acceleration.
@@ -16,46 +16,53 @@ Download the installer for your system directly:
 
 [See all releases and their files](https://github.com/azerothl/song-maker/releases/latest).
 
-The app and your models stay on your computer. YuE2 and HTDemucs model files are downloaded separately during first-time setup.
+The app and models stay on your computer.
 
-Changes in **v0.1.2** (batch import, instrumental part, opt-in Lego) are listed under [What’s new](/en/docs/whats-new).
+What **v0.2.0** adds: [What’s new](/en/docs/whats-new).
 
-## 2. Install the engine and models
+## 2. Open the app (setup)
 
-YuE2 weights are licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/), which restricts commercial use. The setup script asks you to accept the license before downloading. Q4 is selected by default, and interrupted downloads can resume.
+On **first launch**, Song Maker’s assistant:
 
-### Windows
+1. checks the GPU (NVIDIA CUDA or Metal);
+2. offers the **Q4** pack (default) or **Q8**;
+3. asks you to accept YuE2 **CC BY-NC 4.0** and HTDemucs licenses;
+4. downloads the engine and weights (can resume if the connection drops).
 
-Open PowerShell and paste:
+No online account. Screens, Settings, Lego, and ffmpeg: [Set up Song Maker](/en/docs/setup).
+
+Windows installers may not all be signed yet, so SmartScreen can appear. On macOS the app is not notarized; allow it in System Settings → Privacy & Security.
+
+## 3. Disk space and ffmpeg
+
+The engine, YuE2, and HTDemucs need **several gigabytes**. ffmpeg with libsoxr is used for resampling and some exports:
+
+- Windows: `winget install Gyan.FFmpeg`
+- macOS: `brew install ffmpeg`
+- Linux: your distribution’s ffmpeg package
+
+Otherwise set `SONG_MAKER_FFMPEG`.
+
+## 4. Next
+
+- [First song](/en/docs/first-song) — style, lyrics, YuE2.
+- [Batch generation](/en/docs/batch-generation) — JSON for several songs.
+- [GPU troubleshooting](/en/docs/gpu-troubleshooting) — Q4, Q8, memory.
+
+## Script path (optional)
+
+To download binaries and weights **without** the in-app assistant (developers):
+
+Windows (PowerShell):
 
 ```powershell
 irm https://raw.githubusercontent.com/azerothl/song-maker/main/scripts/first-run-windows.ps1 | iex
 ```
 
-An NVIDIA GPU and a recent driver are required. The installer is not signed with a publisher certificate, so Windows may show SmartScreen.
-
-### macOS
-
-Open Terminal and paste:
+macOS / Linux:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/azerothl/song-maker/main/scripts/first-run-unix.sh | bash
 ```
 
-Intel and Apple Silicon Macs use the Metal engine. The app is not notarized; if macOS prompts you, allow it in System Settings → Privacy & Security.
-
-### Linux
-
-On an x64 PC with an NVIDIA GPU, open Terminal and paste:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/azerothl/song-maker/main/scripts/first-run-unix.sh | bash
-```
-
-The NVIDIA driver must support CUDA 12.8. The release binary targets Ubuntu x64; other distributions may need additional system dependencies.
-
-## 3. Check disk space
-
-The engine, YuE2, and HTDemucs require several gigabytes. Make sure you have a stable connection and enough free space. Files are kept in Song Maker's local cache.
-
-ffmpeg with libsoxr is required for resampling and some exports: `winget install Gyan.FFmpeg` on Windows, `brew install ffmpeg` on macOS, or your Linux distribution's ffmpeg package.
+The usual path is still the assistant in the installed app.

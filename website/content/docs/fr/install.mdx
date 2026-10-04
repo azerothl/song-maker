@@ -1,6 +1,6 @@
 ---
 title: Installer Song Maker
-description: Installer Song Maker sur Windows, macOS ou Linux et préparer les modèles locaux.
+description: Télécharger l’application, passer l’assistant de configuration et préparer GPU, modèles et ffmpeg.
 order: 1
 ---
 
@@ -8,7 +8,7 @@ order: 1
 
 ## 1. Télécharger l’application
 
-Téléchargez directement l’installeur adapté à votre système :
+Téléchargez l’installeur adapté à votre système :
 
 - Windows x64 : [installeur `.exe` recommandé](https://github.com/azerothl/song-maker/releases/latest/download/Song.Maker___APP_VERSION___x64-setup.exe) ou [`.msi`](https://github.com/azerothl/song-maker/releases/latest/download/Song.Maker___APP_VERSION___x64_en-US.msi), avec carte NVIDIA.
 - macOS : [Apple Silicon `.dmg`](https://github.com/azerothl/song-maker/releases/latest/download/Song.Maker___APP_VERSION___aarch64.dmg) ou [Mac Intel `.dmg`](https://github.com/azerothl/song-maker/releases/latest/download/Song.Maker___APP_VERSION___x64.dmg), avec accélération Metal.
@@ -16,46 +16,53 @@ Téléchargez directement l’installeur adapté à votre système :
 
 [Voir toutes les versions et les fichiers de la release](https://github.com/azerothl/song-maker/releases/latest).
 
-L’application et les modèles restent sur votre ordinateur. Les fichiers YuE2 et HTDemucs sont téléchargés séparément lors de la première configuration.
+L’application et les modèles restent sur votre ordinateur.
 
-Les changements de la **v0.1.2** (batch, partie instrumentale, Lego opt-in) sont décrits dans [Nouveautés](/fr/docs/nouveautes).
+Ce que change la **v0.2.0** : [Nouveautés](/fr/docs/nouveautes).
 
-## 2. Installer le moteur et les modèles
+## 2. Ouvrir l’application (configuration)
 
-Les poids YuE2 sont soumis à la licence [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/), qui restreint l’usage commercial. L’assistant vous demande votre accord avant les téléchargements. Le modèle Q4 est choisi par défaut et les téléchargements interrompus peuvent reprendre.
+Au **premier lancement**, un assistant dans Song Maker :
 
-### Windows
+1. vérifie le GPU (NVIDIA CUDA ou Metal) ;
+2. propose le pack **Q4** (défaut) ou **Q8** ;
+3. demande l’acceptation des licences YuE2 **CC BY-NC 4.0** et HTDemucs ;
+4. télécharge le moteur et les poids (reprise possible si la connexion coupe).
 
-Ouvrez PowerShell et collez cette commande :
+Ce n’est pas un compte en ligne. Détail des écrans, de Paramètres, de Lego et de ffmpeg : [Configurer Song Maker](/fr/docs/configuration).
+
+Les installeurs Windows ne sont pas encore tous signés : SmartScreen peut s’afficher. Sur macOS, l’app n’est pas notariée : autorisez-la dans Réglages Système → Confidentialité et sécurité.
+
+## 3. Espace disque et ffmpeg
+
+Le moteur, YuE2 et HTDemucs occupent **plusieurs gigaoctets**. ffmpeg avec libsoxr sert au rééchantillonnage et à certains exports :
+
+- Windows : `winget install Gyan.FFmpeg`
+- macOS : `brew install ffmpeg`
+- Linux : paquet ffmpeg de la distribution
+
+Sinon : variable `SONG_MAKER_FFMPEG`.
+
+## 4. Ensuite
+
+- [Premier morceau](/fr/docs/premier-morceau) — un style, des paroles, YuE2.
+- [Génération batch](/fr/docs/generation-batch) — JSON de plusieurs morceaux.
+- [Dépannage GPU](/fr/docs/depannage-gpu) — Q4, Q8, mémoire.
+
+## Chemin scripts (optionnel)
+
+Pour télécharger binaires et poids **sans** passer par l’assistant de l’app (développeurs) :
+
+Windows (PowerShell) :
 
 ```powershell
 irm https://raw.githubusercontent.com/azerothl/song-maker/main/scripts/first-run-windows.ps1 | iex
 ```
 
-Il faut un GPU NVIDIA compatible et un pilote récent. L’installeur n’est pas encore signé par un certificat de publication : Windows peut afficher SmartScreen.
-
-### macOS
-
-Ouvrez Terminal et collez :
+macOS / Linux :
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/azerothl/song-maker/main/scripts/first-run-unix.sh | bash
 ```
 
-Les Mac Intel et Apple Silicon utilisent le moteur Metal. L’application n’est pas notariée : au premier lancement, autorisez-la depuis Réglages Système → Confidentialité et sécurité si macOS le demande.
-
-### Linux
-
-Sur un PC x64 avec carte NVIDIA, ouvrez Terminal et collez :
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/azerothl/song-maker/main/scripts/first-run-unix.sh | bash
-```
-
-Le pilote NVIDIA doit prendre en charge CUDA 12.8. L’archive publiée cible Ubuntu x64 ; les autres distributions peuvent nécessiter des dépendances système supplémentaires.
-
-## 3. Prévoir l’espace disque
-
-Le moteur, YuE2 et HTDemucs occupent plusieurs gigaoctets. Assurez-vous d’avoir une connexion stable et assez d’espace libre. Les fichiers sont conservés dans le cache local de Song Maker.
-
-ffmpeg avec libsoxr est nécessaire pour le rééchantillonnage et certains exports : `winget install Gyan.FFmpeg` sous Windows, `brew install ffmpeg` sur macOS, ou le paquet ffmpeg de votre distribution Linux.
+Le parcours normal reste l’assistant dans l’application installée.

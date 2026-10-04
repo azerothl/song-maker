@@ -1,25 +1,42 @@
 ---
-title: Nouveautés v0.1.2
-description: Ce qui change dans Song Maker 0.1.2 par rapport à 0.1.1.
+title: Nouveautés v0.2.0
+description: Ce qui change dans Song Maker 0.2.0 — batch JSON, configuration, partie instrumentale, Lego, punch.
 order: 2
 ---
 
-# Nouveautés — v0.1.2
+# Nouveautés — v0.2.0
 
-Cette version ajoute un import de plusieurs morceaux, un ajout de piste depuis le mix/stems (opt-in), et des outils de production déjà présents sur `main`.
+Par rapport à **v0.1.1**, l’application et ce site documentent :
 
-## Bibliothèque — génération batch
+1. **[Génération batch](/fr/docs/generation-batch)** — fichier JSON UTF-8 dans la Bibliothèque, champs et exemple complets.
+2. **[Configuration](/fr/docs/configuration)** — assistant de premier lancement, Q4/Q8, Paramètres, ffmpeg, Lego opt-in.
+3. **Partie instrumentale** depuis Production (YuE2 selon le projet, ou mix/stems via Lego).
+4. Punch aimanté, `startMs` natif, interface FR/EN, téléchargement YuE2 sans figer la fenêtre.
 
-Dans **Bibliothèque**, ouvrez **Génération batch**, importez un JSON UTF-8, vérifiez l’aperçu, puis lancez. Un projet est créé par morceau. Pause, annulation, reprise et export des prises prêtes sont disponibles.
+## Bibliothèque — plusieurs morceaux
 
-Les inférences utilisent la **même file GPU exclusive** que Créer. Tant que deux workers `audiocpp` isolés n’ont pas été mesurés, la capacité **admise est 1**. Si le fichier demande 2 générations simultanées, `allowReduction` lance à 1 ; `requireRequested` bloque. Ce n’est **pas** deux inférences en parallèle.
+**Bibliothèque → Génération batch.** Le fichier doit être du JSON UTF-8 avec `"schemaVersion": 1` et un tableau `songs`. Chaque entrée exige `id`, `title`, `style`, `lyrics`.
 
-Schéma et exemple : le dépôt (`docs/batch-generation/`).
+Les inférences restent **sérielles** (capacité GPU admise = 1). `allowReduction` (défaut) lance à 1 ; `requireRequested` bloque si vous demandez plus.
+
+Le détail des champs, des défauts et un exemple copiable : [Génération batch](/fr/docs/generation-batch).
+
+## Configuration
+
+Ce n’est plus seulement « lancer un script ». Après l’installeur :
+
+- assistant GPU / licences / pack Q4 ou Q8 / téléchargement reprisable ;
+- **Paramètres → Système** pour la langue FR/EN ;
+- YuE2 par défaut ; ACE-Step Turbo et Lego sont des opt-in distincts.
+
+Guide pas à pas : [Configurer Song Maker](/fr/docs/configuration).
 
 ## Production — partie instrumentale
 
 - **Tempo / tonalité / style (YuE2) :** basse, batterie ou accompagnement, puis import dans l’arrangement.
 - **Mix / stems (opt-in) :** sidecar Python ACE-Step 1.5 **Base Lego** (pas le GGUF Turbo, pas un `audio_input` YuE2). YuE2 **refuse** une entrée audio. Lego peut produire un **mix fusionné**, pas un stem dry. Import à `start_ms = 0`. Licence MIT sur la carte ACE-Step ; un mix YuE2 reste **CC BY-NC**. GPU ≥ 12 Go VRAM conseillés.
+
+Voir [Mix & export](/fr/docs/mix-export) et [Configuration](/fr/docs/configuration).
 
 ## Autres
 

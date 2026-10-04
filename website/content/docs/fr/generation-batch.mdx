@@ -1,0 +1,134 @@
+---
+title: Génération batch
+description: Importer plusieurs morceaux depuis un JSON UTF-8 — champs, règles et exemple.
+order: 4
+---
+
+# Génération batch
+
+Dans **Bibliothèque**, ouvrez **Génération batch**. Vous importez un fichier JSON **UTF-8**, voyez un aperçu (nombre de morceaux, de prises, parallélisme demandé vs admis), puis lancez. Un projet est créé par morceau. Pause, annulation, reprise, nouvel essai des échecs et export des WAV prêts sont disponibles.
+
+Les prises passent par la **même file GPU exclusive** que Créer. La capacité **admise est 1** : ce n’est pas deux inférences en parallèle. Si le fichier demande 2, `allowReduction` (défaut) lance à 1 ; `requireRequested` refuse le lot.
+
+Un fichier invalide ne crée **aucun** projet. Après un crash, un lot en cours passe à « interrompu » ; rien ne redémarre tout seul.
+
+## Fichier minimal
+
+Encodage UTF-8. `schemaVersion` doit valoir `1`. Chaque morceau a un `id` unique, un `title`, un `style` et des `lyrics`.
+
+```json
+{
+  "schemaVersion": 1,
+  "songs": [
+    {
+      "id": "nuit",
+      "title": "La nuit avance",
+      "style": "French indie pop, warm bass, soft drums, intimate vocals",
+      "lyrics": "[Verse]\nLa nuit avance sur les toits\nJe garde une lumière pour toi\n\n[Chorus]\nReviens quand le jour se lève\nNous avons encore nos rêves"
+    }
+  ]
+}
+```
+
+Sans autres champs : 1 prise, `cot` = `full`, durée cible 180 s, paroles envoyées telles quelles.
+
+## Champs racine
+
+| Champ | Obligatoire | Défaut | Règle |
+|---|---|---|---|
+| `schemaVersion` | oui | — | Entier, **uniquement `1`** |
+| `songs` | oui | — | Tableau, 1 à 1000 morceaux |
+| `name` | non | — | 1 à 120 caractères |
+| `maxParallelGenerations` | non | `2` | 1 à 32. Aujourd’hui la capacité **admise reste 1** |
+| `parallelismPolicy` | non | `allowReduction` | `allowReduction` (lance à 1) ou `requireRequested` (bloque si la demande &gt; 1) |
+| `onError` | non | `continue` | `continue` (morceau suivant) ou `pause` |
+| `retry.maxAttempts` | non | `1` | 1 à 5 |
+| `defaults` | non | — | Valeurs communes aux morceaux (voir plus bas) |
+
+Toute **propriété inconnue** est rejetée. Les **clés JSON en double** aussi. Taille max du fichier : 10 Mo. Au plus 10 000 prises au total.
+
+## Chaque morceau (`songs[]`)
+
+| Champ | Obligatoire | Limites |
+|---|---|---|
+| `id` | oui | 1 à 64 caractères, unique dans le fichier |
+| `title` | oui | 1 à 120. Pas de point final. Caractères interdits : `/ \ : * ? " < > \|` |
+| `style` | oui | 1 à 4000 caractères |
+| `lyrics` | oui | 1 à 4000, **sauf** si `instrumentalMode` est `true` (alors `""` est accepté) |
+| `seed` | non | Entier 0 à 4 294 967 295. Si omis, une graine est écrite |
+| `generations` | non | 1 à 1000 prises pour ce morceau |
+| `cot` | non | `full`, `melody` ou `off` |
+| `targetDurationSec` | non | 30 à 360 (cible, pas une durée musicale garantie) |
+| `preferFullLyrics` | non | booléen |
+| `instrumentalMode` | non | `true` : paroles facultatives, pas le LoRA instrumental YuE2 |
+| `singingLanguage` | non | chaîne ou `null` (1 à 40 caractères si renseigné) |
+| `tempoBpm` | non | entier 40 à 220, ou `null` |
+| `key` | non | `{ "tonic": "C", "mode": "minor" }` ou `null` |
+| `meter` | non | `{ "numerator": 4, "denominator": 4 }` ou `null` |
+
+`tonic` : `C`, `C#`, `D`, `Eb`, `E`, `F`, `F#`, `G`, `Ab`, `A`, `Bb`, `B`.  
+`mode` : `major` ou `minor`.  
+Métrique : **4/4**, **3/4**, **6/8** ou **2/4** seulement.
+
+## `defaults` et priorité
+
+`defaults` reprend les champs optionnels d’un morceau (pas `id`, `title`, `style`, `lyrics`, `seed`). Pour chaque option : **valeur du morceau**, sinon `defaults`, sinon le défaut produit :
+
+| Option | Défaut produit |
+|---|---|
+| `generations` | `1` |
+| `cot` | `full` |
+| `targetDurationSec` | `180` |
+| `preferFullLyrics` | `true` |
+| `instrumentalMode` | `false` |
+| `singingLanguage`, `tempoBpm`, `key`, `meter` | non renseignés |
+
+## Exemple avec options
+
+Deux morceaux, 3 prises puis 2, politique qui accepte la réduction à 1 :
+
+```json
+{
+  "schemaVersion": 1,
+  "name": "Démo — deux morceaux",
+  "maxParallelGenerations": 2,
+  "parallelismPolicy": "allowReduction",
+  "onError": "continue",
+  "retry": { "maxAttempts": 1 },
+  "defaults": {
+    "generations": 3,
+    "cot": "full",
+    "singingLanguage": "fr",
+    "targetDurationSec": 180,
+    "preferFullLyrics": true,
+    "instrumentalMode": false
+  },
+  "songs": [
+    {
+      "id": "nuit",
+      "title": "La nuit avance",
+      "style": "French indie pop, warm bass, soft drums, intimate vocals",
+      "lyrics": "[Verse]\nLa nuit avance sur les toits\nJe garde une lumière pour toi\n\n[Chorus]\nReviens quand le jour se lève",
+      "tempoBpm": 110,
+      "seed": 42
+    },
+    {
+      "id": "route",
+      "title": "Sur la route",
+      "style": "French rock, electric guitars, energetic drums, clear vocals",
+      "lyrics": "[Verse]\nLa route déroule ses détours\n\n[Chorus]\nSur la route nous avançons",
+      "generations": 2,
+      "targetDurationSec": 120,
+      "tempoBpm": 140
+    }
+  ]
+}
+```
+
+Dans l’app, **Génération batch** propose aussi de télécharger un exemple. Le moteur utilisé est celui du profil (YuE2 par défaut), pas un second XOR.
+
+## Ce que le batch ne fait pas
+
+- Pas d’inférences GPU qui se chevauchent.
+- Pas d’`audio_input` YuE2, pas de mix/stems Lego dans le JSON (Lego se lance depuis Production, morceau ouvert).
+- Pas un remplacement des candidats séquentiels de l’onglet Créer (N appels sur **un** morceau).

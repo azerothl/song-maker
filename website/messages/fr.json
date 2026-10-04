@@ -42,6 +42,14 @@
       "separation": "HTDemucs sépare la chanson en pistes",
       "privacy": "Vos projets et vos exports restent sur votre ordinateur"
     },
+    "news": {
+      "eyebrow": "Version {version}",
+      "title": "Batch JSON, configuration, partie instrumentale",
+      "body": "v{version} : import de plusieurs morceaux via un fichier JSON (file GPU à 1), assistant de premier lancement et Paramètres détaillés, ajout de piste depuis Production (YuE2 ou ACE-Step Lego opt-in).",
+      "whatsNew": "Lire les nouveautés",
+      "setup": "Guide de configuration",
+      "batch": "Structure du fichier batch"
+    },
     "process": {
       "eyebrow": "Du texte au mix",
       "title": "Une première version à façonner",
@@ -84,7 +92,7 @@
         },
         "batch": {
           "title": "Génération batch",
-          "body": "Importez plusieurs morceaux en JSON depuis la Bibliothèque. Les prises passent par la file GPU une à une (capacité admise : 1)."
+          "body": "Importez un JSON UTF-8 (schemaVersion 1, tableau songs). Les prises passent une à une (capacité GPU admise : 1). Le guide décrit chaque champ."
         },
         "mix": {
           "title": "Pistes et mix",
@@ -99,8 +107,8 @@
     "setup": {
       "eyebrow": "Configuration requise",
       "title": "Song Maker fonctionne sur votre ordinateur.",
-      "intro": "Song Maker est une application de bureau. Son moteur audio et ses modèles se téléchargent lors de la configuration ; prévoyez de l’espace disque et un GPU compatible.",
-      "link": "Consulter le guide d’installation",
+      "intro": "Après l’installeur, un assistant dans l’app vérifie le GPU, fait accepter les licences, télécharge Q4 ou Q8, puis Paramètres règle la langue, Lego et ffmpeg.",
+      "link": "Lire le guide de configuration",
       "systemLabel": "Systèmes",
       "systems": "Windows, macOS ou Linux",
       "gpuLabel": "Accélération IA",
@@ -132,14 +140,14 @@
         },
         "batch": {
           "question": "Puis-je générer plusieurs morceaux d’un coup ?",
-          "answer": "Oui : Bibliothèque → Génération batch, via un fichier JSON. Les prises passent une à une dans la file GPU (capacité admise : 1). Ce n’est pas deux inférences en parallèle."
+          "answer": "Oui : Bibliothèque → Génération batch. Le fichier est un JSON UTF-8 avec schemaVersion 1 et un tableau songs (id, title, style, lyrics). Les prises passent une à une (capacité GPU admise : 1). Tous les champs sont décrits dans le guide Génération batch."
         }
       }
     },
     "closing": {
       "eyebrow": "Pour commencer",
       "title": "Vérifiez les prérequis, puis installez Song Maker.",
-      "body": "Le guide vous indique comment installer l’application, le moteur audio et les modèles."
+      "body": "Le guide détaille l’installeur, l’assistant de premier lancement, Paramètres, et le JSON des lots."
     }
   },
   "nav": {
@@ -184,7 +192,7 @@
       },
       "batch": {
         "title": "Génération batch",
-        "body": "Importez un JSON de morceaux dans la Bibliothèque. File GPU exclusive, capacité admise 1."
+        "body": "JSON UTF-8 : schemaVersion 1, tableau songs. File GPU exclusive, capacité admise 1. Le guide liste les champs."
       },
       "stems": {
         "title": "Séparation des pistes",
@@ -283,7 +291,7 @@
   },
   "docs": {
     "title": "Documentation",
-    "body": "Installation, nouveautés, premier morceau, partition, mix et dépannage.",
+    "body": "Installation, nouveautés, configuration, fichier batch JSON, premier morceau, partition, mix et dépannage.",
     "back": "Retour au site",
     "toc": "Sommaire"
   },
@@ -291,8 +299,10 @@
     "eyebrow": "Song Maker v{version}",
     "title": "Télécharger Song Maker",
     "intro": "Choisissez la version prévue pour votre système. Le moteur audio et les modèles se téléchargent séparément pendant la configuration initiale.",
-    "whatsNew": "Nouveautés de la v{version} : import batch JSON (file GPU à 1), partie instrumentale YuE2, ajout de piste mix/stems via ACE-Step Lego (opt-in, mix fusionné possible), punch aimanté, interface FR/EN.",
+    "whatsNew": "Nouveautés de la v{version} : import batch JSON (schemaVersion 1, file GPU à 1), assistant de configuration, partie instrumentale YuE2, ACE-Step Lego opt-in, punch aimanté, interface FR/EN.",
     "whatsNewCta": "Lire le détail",
+    "setupCta": "Configuration",
+    "batchCta": "Fichier batch JSON",
     "windows": {
       "title": "Windows",
       "description": "Windows 10/11 · x64 · GPU NVIDIA conseillé pour générer",

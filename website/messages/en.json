@@ -42,6 +42,14 @@
       "separation": "HTDemucs separates the song into tracks",
       "privacy": "Your projects and exports stay on your computer"
     },
+    "news": {
+      "eyebrow": "Version {version}",
+      "title": "JSON batch, setup, instrumental parts",
+      "body": "v{version}: import several songs from a JSON file (GPU queue capacity 1), first-launch assistant and Settings, add a part from Production (YuE2 or opt-in ACE-Step Lego).",
+      "whatsNew": "What’s new",
+      "setup": "Setup guide",
+      "batch": "Batch file structure"
+    },
     "process": {
       "eyebrow": "From lyrics to a mix",
       "title": "A first version to make your own",
@@ -84,7 +92,7 @@
         },
         "batch": {
           "title": "Batch generation",
-          "body": "Import several songs as JSON from the Library. Takes run on the GPU queue one at a time (admitted capacity: 1)."
+          "body": "Import UTF-8 JSON (schemaVersion 1, songs array). Takes run one at a time (admitted GPU capacity: 1). The guide lists every field."
         },
         "mix": {
           "title": "Tracks and mix",
@@ -99,7 +107,7 @@
     "setup": {
       "eyebrow": "System requirements",
       "title": "Song Maker runs on your computer.",
-      "intro": "Song Maker is a desktop app. Setup downloads the audio engine and models; leave disk space available and check that your GPU is supported.",
+      "intro": "After the installer, an in-app assistant checks the GPU, accepts licenses, downloads Q4 or Q8, then Settings covers language, Lego, and ffmpeg.",
       "link": "Read the setup guide",
       "systemLabel": "Systems",
       "systems": "Windows, macOS, or Linux",
@@ -132,14 +140,14 @@
         },
         "batch": {
           "question": "Can I generate several songs at once?",
-          "answer": "Yes: Library → Batch generation, from a JSON file. Takes run one at a time on the GPU queue (admitted capacity: 1). That is not two overlapping inferences."
+          "answer": "Yes: Library → Batch generation. The file is UTF-8 JSON with schemaVersion 1 and a songs array (id, title, style, lyrics). Takes run one at a time (admitted GPU capacity: 1). Every field is listed in the Batch generation guide."
         }
       }
     },
     "closing": {
       "eyebrow": "Get started",
       "title": "Check the requirements, then install Song Maker.",
-      "body": "The guide explains how to install the app, audio engine, and models."
+      "body": "The guide covers the installer, first-launch assistant, Settings, and the batch JSON file."
     }
   },
   "nav": {
@@ -184,7 +192,7 @@
       },
       "batch": {
         "title": "Batch generation",
-        "body": "Import a JSON song list in the Library. Exclusive GPU queue, admitted capacity 1."
+        "body": "UTF-8 JSON: schemaVersion 1, songs array. Exclusive GPU queue, admitted capacity 1. The guide lists the fields."
       },
       "stems": {
         "title": "Track separation",
@@ -283,7 +291,7 @@
   },
   "docs": {
     "title": "Documentation",
-    "body": "Setup, what’s new, making a first song, editing a score, mixing, and troubleshooting.",
+    "body": "Install, what’s new, setup, JSON batch files, first song, score, mix, and troubleshooting.",
     "back": "Back to site",
     "toc": "Contents"
   },
@@ -291,8 +299,10 @@
     "eyebrow": "Song Maker v{version}",
     "title": "Download Song Maker",
     "intro": "Choose the version for your system. The audio engine and models download separately during setup.",
-    "whatsNew": "New in v{version}: JSON batch import (GPU queue capacity 1), YuE2 instrumental part, opt-in ACE-Step Lego mix/stems add-track (fused mix possible), grid-snapped punch, FR/EN desktop UI.",
+    "whatsNew": "New in v{version}: JSON batch import (schemaVersion 1, GPU queue capacity 1), setup assistant, YuE2 instrumental part, opt-in ACE-Step Lego, grid-snapped punch, FR/EN desktop UI.",
     "whatsNewCta": "Read the details",
+    "setupCta": "Setup",
+    "batchCta": "Batch JSON file",
     "windows": {
       "title": "Windows",
       "description": "Windows 10/11 · x64 · NVIDIA GPU recommended for generation",
