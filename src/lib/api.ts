@@ -38,6 +38,27 @@ export const api = {
   getSettings: () => invoke<AppSettings>("get_settings"),
   updateSettings: (settings: AppSettings) =>
     invoke<AppSettings>("update_settings", { settings }),
+  embeddedDeclUiStatus: () =>
+    invoke<{
+      running: boolean;
+      url: string | null;
+      bind: string;
+      notesFr: string;
+    }>("embedded_declui_status"),
+  startEmbeddedDeclUiHost: () =>
+    invoke<{
+      running: boolean;
+      url: string | null;
+      bind: string;
+      notesFr: string;
+    }>("start_embedded_declui_host"),
+  stopEmbeddedDeclUiHost: () =>
+    invoke<{
+      running: boolean;
+      url: string | null;
+      bind: string;
+      notesFr: string;
+    }>("stop_embedded_declui_host"),
   getPhase3Status: () => invoke<Phase3Status>("get_phase3_status"),
   installHtDemucs6sRuntime: () =>
     invoke<string>("install_htdemucs_6s_runtime"),

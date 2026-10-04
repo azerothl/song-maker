@@ -63,7 +63,7 @@ Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau
 - Historique lisible des **prises** (noms, dates, pastilles Musique / Partition / Mix, filiation en mots) — les identifiants `gen-*` restent dans Détails. Comparateur multi-candidats, restauration réversible, événements de séparation (« Revenir à la séparation précédente »).
 - Invariants de partition avant régénération (`@song-maker/partition-invariants`).
 - **Worker GPU distant** : client + serveur de référence HTTP, **désactivé par défaut** (local-first, consentement + rétention). Voir [`docs/remote-worker-contract.md`](docs/remote-worker-contract.md).
-- **Akasha / DeclUI** : découverte HTTP réelle (`GET /v1/host/discover`) si opt-in + hôte joignable ; sinon clairement `unavailable` — pas de faux mode connecté, pas d’hôte DeclUI embarqué.
+- **Akasha / DeclUI** : hôte **embarqué** opt-in (`127.0.0.1`, `GET /v1/host/discover`) ; découverte HTTP externe inchangée. Sans hôte joignable = `unavailable`. La génération YuE2 reste desktop.
 - Synchro projet optionnelle (NAS/USB ou HTTP auto-hébergé) — jamais obligatoire. Voir [`docs/project-sync-contract.md`](docs/project-sync-contract.md).
 - Packs LoRA style (opt-in) et **pilote** d’entraînement NAR local — voir [`docs/lora-training-pilot.md`](docs/lora-training-pilot.md).
 
@@ -84,7 +84,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | HTDemucs 6 stems (guitare/piano) | Opt-in expérimental ; **déconseillé piano-heavy** ; masque de fuite post-séparation, piano non nettoyé — [`docs/htdemucs-6s-leaks.md`](docs/htdemucs-6s-leaks.md) |
 | Transcription audio → MIDI produit | Audio → MIDI par piste (BasicPitch ONNX Apache-2.0, sans TensorFlow) depuis les réglages de piste → Partition ; batterie inutilisable (essai interne : [`docs/basicpitch-trial/`](docs/basicpitch-trial/REPORT.md)) |
 | Sortie MIDI matériel (midir) | Compilée WinMM / CoreMIDI / ALSA. Preuve native : **Windows GS Wavetable seulement**. macOS IAC, Linux jack/USB, Windows USB : **non testés** — [`docs/midi-instrument.md`](docs/midi-instrument.md) |
-| Worker distant / Akasha | Opt-in ; sans hôte = indisponible, pas un stub trompeur |
+| Worker distant / Akasha | Opt-in ; hôte DeclUI embarqué localhost ou URL externe ; sans hôte = indisponible |
 | Entraînement LoRA NAR | Pilote CPU — LoRA YuE2 GPU : `scripts/lora-train-yue2-gpu.py` (CUDA) |
 | Capture basse latence | Natif cpal (WASAPI **partagé** / ALSA / Core Audio). Pas d’ASIO ni WASAPI exclusif. Repli WebView. |
 | Licences modèles | YuE2 & SheetSage2 : **CC BY-NC 4.0** — usage commercial des poids restreint |

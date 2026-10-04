@@ -184,6 +184,45 @@ export function Phase4SettingsPanel({
     );
   };
 
+  const onStartEmbeddedHost = async () => {
+    try {
+      const status = await api.startEmbeddedDeclUiHost();
+      if (status.url) {
+        setHostUrl(status.url);
+      }
+      setHostResult({
+        ok: false,
+        mode: "desktop",
+        messageFr: status.notesFr,
+        registration: bridge.describe(),
+        hostUrl: status.url,
+      });
+    } catch (e) {
+      setHostResult({
+        ok: false,
+        mode: "unavailable",
+        messageFr: String(e),
+        registration: bridge.describe(),
+        hostUrl: null,
+      });
+    }
+  };
+
+  const onStopEmbeddedHost = async () => {
+    try {
+      await api.stopEmbeddedDeclUiHost();
+      setHostResult(bridge.disableHostMode());
+    } catch (e) {
+      setHostResult({
+        ok: false,
+        mode: bridge.getMode(),
+        messageFr: String(e),
+        registration: bridge.describe(),
+        hostUrl: bridge.getHostUrl(),
+      });
+    }
+  };
+
   const onToggleHost = async (enable: boolean) => {
     if (enable) {
       setHostResult(
@@ -416,6 +455,23 @@ export function Phase4SettingsPanel({
       {view === "host" && (
         <div className="settings-page-content">
       <p className="hint">{t("phase4.host.intro")}</p>
+      <p className="hint">{t("phase4.host.embeddedIntro")}</p>
+      <div className="btn-row">
+        <button
+          type="button"
+          className="btn"
+          onClick={() => void onStartEmbeddedHost()}
+        >
+          {t("phase4.host.embeddedStart")}
+        </button>
+        <button
+          type="button"
+          className="btn ghost"
+          onClick={() => void onStopEmbeddedHost()}
+        >
+          {t("phase4.host.embeddedStop")}
+        </button>
+      </div>
       <label className="invariant-level">
         {t("phase4.host.endpoint")}
         <input
