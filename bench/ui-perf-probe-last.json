@@ -1,0 +1,338 @@
+{
+  "capturedAt": "2026-09-30T20:35:29.917Z",
+  "scenarios": [
+    {
+      "label": "production-mix-12",
+      "wallClockMs": 1210,
+      "longTaskCount": 1,
+      "longTasksMs": 99,
+      "worstLongTaskMs": 99,
+      "longTasks": [
+        {
+          "name": "self",
+          "duration": 99,
+          "start": 690.1000000014901
+        }
+      ],
+      "dom": {
+        "nodes": 886,
+        "canvases": 15,
+        "buttons": 101,
+        "inputs": 7,
+        "svgs": 1
+      }
+    },
+    {
+      "label": "production-mix-16",
+      "wallClockMs": 607,
+      "longTaskCount": 1,
+      "longTasksMs": 87,
+      "worstLongTaskMs": 87,
+      "longTasks": [
+        {
+          "name": "self",
+          "duration": 87,
+          "start": 89.40000000223517
+        }
+      ],
+      "dom": {
+        "nodes": 1002,
+        "canvases": 19,
+        "buttons": 117,
+        "inputs": 7,
+        "svgs": 1
+      }
+    },
+    {
+      "label": "production-clips-16",
+      "wallClockMs": 626,
+      "longTaskCount": 1,
+      "longTasksMs": 94,
+      "worstLongTaskMs": 94,
+      "longTasks": [
+        {
+          "name": "self",
+          "duration": 94,
+          "start": 109
+        }
+      ],
+      "dom": {
+        "nodes": 1009,
+        "canvases": 19,
+        "buttons": 117,
+        "inputs": 7,
+        "svgs": 1
+      }
+    },
+    {
+      "label": "production-tools-12",
+      "wallClockMs": 602,
+      "longTaskCount": 1,
+      "longTasksMs": 80,
+      "worstLongTaskMs": 80,
+      "longTasks": [
+        {
+          "name": "self",
+          "duration": 80,
+          "start": 91.59999999776483
+        }
+      ],
+      "dom": {
+        "nodes": 893,
+        "canvases": 15,
+        "buttons": 101,
+        "inputs": 7,
+        "svgs": 1
+      }
+    },
+    {
+      "label": "production-mix-collapsed",
+      "wallClockMs": 607,
+      "longTaskCount": 1,
+      "longTasksMs": 81,
+      "worstLongTaskMs": 81,
+      "longTasks": [
+        {
+          "name": "self",
+          "duration": 81,
+          "start": 97.60000000149012
+        }
+      ],
+      "dom": {
+        "nodes": 886,
+        "canvases": 15,
+        "buttons": 101,
+        "inputs": 7,
+        "svgs": 1
+      }
+    },
+    {
+      "label": "production-mix-compact-12",
+      "wallClockMs": 622,
+      "longTaskCount": 1,
+      "longTasksMs": 85,
+      "worstLongTaskMs": 85,
+      "longTasks": [
+        {
+          "name": "self",
+          "duration": 85,
+          "start": 103.90000000223517
+        }
+      ],
+      "dom": {
+        "nodes": 886,
+        "canvases": 15,
+        "buttons": 101,
+        "inputs": 7,
+        "svgs": 1
+      }
+    },
+    {
+      "label": "production-click-clips-tab",
+      "wallClockMs": 765,
+      "longTaskCount": 0,
+      "longTasksMs": 0,
+      "worstLongTaskMs": 0,
+      "longTasks": []
+    },
+    {
+      "label": "production-click-tools-tab",
+      "wallClockMs": 749,
+      "longTaskCount": 0,
+      "longTasksMs": 0,
+      "worstLongTaskMs": 0,
+      "longTasks": []
+    },
+    {
+      "label": "production-toggle-rythmique",
+      "wallClockMs": 502,
+      "longTaskCount": 0,
+      "longTasksMs": 0,
+      "worstLongTaskMs": 0,
+      "longTasks": []
+    },
+    {
+      "label": "production-mute-solo-burst",
+      "wallClockMs": 439,
+      "longTaskCount": 0,
+      "longTasksMs": 0,
+      "worstLongTaskMs": 0,
+      "longTasks": []
+    },
+    {
+      "label": "create-workspace",
+      "wallClockMs": 3284,
+      "longTaskCount": 0,
+      "longTasksMs": 0,
+      "worstLongTaskMs": 0,
+      "longTasks": [],
+      "dom": {
+        "nodes": 51,
+        "canvases": 0,
+        "buttons": 2,
+        "inputs": 2,
+        "svgs": 0
+      }
+    },
+    {
+      "label": "create-fill-lyrics",
+      "wallClockMs": 501,
+      "longTaskCount": 0,
+      "longTasksMs": 0,
+      "worstLongTaskMs": 0,
+      "longTasks": []
+    }
+  ],
+  "scoreMicro": {
+    "stats": {
+      "noteCount": 1233,
+      "maxTick": 4978560,
+      "pianoRollWidthPx": 199142.4
+    },
+    "abcChars": 14173,
+    "withResize": [
+      {
+        "phase": "abcjs.renderAbc (legacy responsive: resize)",
+        "durationMs": 209,
+        "detail": {
+          "chars": 14173,
+          "tunes": 1
+        }
+      },
+      {
+        "phase": "reflow SVG (offsetWidth/Height)",
+        "durationMs": 56.100000001490116,
+        "detail": {
+          "nodes": 17932,
+          "paperWidth": 1280,
+          "paperHeight": 94422
+        }
+      }
+    ],
+    "withoutResize": [
+      {
+        "phase": "abcjs.renderAbc (responsive off)",
+        "durationMs": 125.39999999850988
+      },
+      {
+        "phase": "reflow SVG (responsive off)",
+        "durationMs": 46.30000000074506,
+        "detail": {
+          "nodes": 17932
+        }
+      }
+    ],
+    "abcStaffViewOnly": [
+      {
+        "phase": "AbcStaffView seul → SVG",
+        "durationMs": 60.80000000074506
+      }
+    ],
+    "pianoRoll": [
+      {
+        "phase": "PianoRoll mount (hidden tabpanel path)",
+        "durationMs": 0.4000000022351742,
+        "detail": {
+          "noteButtons": 1233,
+          "gridWidthPx": 199142.4
+        }
+      }
+    ],
+    "resizeStorm": [
+      {
+        "phase": "resize storm (5×, responsive: resize)",
+        "durationMs": 109.69999999925494
+      }
+    ],
+    "viewportResizeLegacy": {
+      "phase": "layout après resize (viewportHorizontal + responsive: resize)",
+      "durationMs": 39.399999998509884,
+      "detail": {
+        "passes": 8
+      }
+    },
+    "viewportResizeFixed": {
+      "phase": "layout après resize (viewportHorizontal, responsive off)",
+      "durationMs": 33,
+      "detail": {
+        "passes": 8
+      }
+    }
+  },
+  "error": "Error: page.evaluate: TypeError: window.__scoreTabBench.runScorePanelOpen is not a function\n    at eval (eval at evaluate (:234:30), <anonymous>:1:33)\n    at UtilityScript.evaluate (<anonymous>:236:17)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+  "viteLogTail": "\n  VITE v6.4.3  ready in 252 ms\n\n  ➜  Local:   http://127.0.0.1:5201/\n",
+  "rankedByLongTasks": [
+    {
+      "label": "production-mix-12",
+      "longTasksMs": 99,
+      "worstLongTaskMs": 99,
+      "wallClockMs": 1210
+    },
+    {
+      "label": "production-clips-16",
+      "longTasksMs": 94,
+      "worstLongTaskMs": 94,
+      "wallClockMs": 626
+    },
+    {
+      "label": "production-mix-16",
+      "longTasksMs": 87,
+      "worstLongTaskMs": 87,
+      "wallClockMs": 607
+    },
+    {
+      "label": "production-mix-compact-12",
+      "longTasksMs": 85,
+      "worstLongTaskMs": 85,
+      "wallClockMs": 622
+    },
+    {
+      "label": "production-mix-collapsed",
+      "longTasksMs": 81,
+      "worstLongTaskMs": 81,
+      "wallClockMs": 607
+    },
+    {
+      "label": "production-tools-12",
+      "longTasksMs": 80,
+      "worstLongTaskMs": 80,
+      "wallClockMs": 602
+    },
+    {
+      "label": "create-workspace",
+      "longTasksMs": 0,
+      "worstLongTaskMs": 0,
+      "wallClockMs": 3284
+    },
+    {
+      "label": "production-click-clips-tab",
+      "longTasksMs": 0,
+      "worstLongTaskMs": 0,
+      "wallClockMs": 765
+    },
+    {
+      "label": "production-click-tools-tab",
+      "longTasksMs": 0,
+      "worstLongTaskMs": 0,
+      "wallClockMs": 749
+    },
+    {
+      "label": "production-toggle-rythmique",
+      "longTasksMs": 0,
+      "worstLongTaskMs": 0,
+      "wallClockMs": 502
+    },
+    {
+      "label": "create-fill-lyrics",
+      "longTasksMs": 0,
+      "worstLongTaskMs": 0,
+      "wallClockMs": 501
+    },
+    {
+      "label": "production-mute-solo-burst",
+      "longTasksMs": 0,
+      "worstLongTaskMs": 0,
+      "wallClockMs": 439
+    }
+  ]
+}

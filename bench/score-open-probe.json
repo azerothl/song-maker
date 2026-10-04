@@ -1,0 +1,72 @@
+{
+  "open": {
+    "stats": {
+      "noteCount": 1233,
+      "maxTick": 4978560,
+      "pianoRollWidthPx": 199142.4
+    },
+    "abcChars": 14163,
+    "abcLines": 1312,
+    "phases": [
+      {
+        "phase": "ScorePanel mount (1 frame)",
+        "durationMs": 10.600000001490116
+      },
+      {
+        "phase": "attente rendu portée (abcjs useEffect)",
+        "durationMs": 89.69999999925494,
+        "detail": {
+          "hasSvg": true
+        }
+      },
+      {
+        "phase": "rafales resize après montage (post-ouverture)",
+        "durationMs": 103.39999999850988
+      },
+      {
+        "phase": "ouverture → portée visible (total)",
+        "durationMs": 203.69999999925494,
+        "detail": {
+          "hasSvg": false
+        }
+      }
+    ],
+    "longTasksMs": 56,
+    "longTaskCount": 1
+  },
+  "openLong": {
+    "stats": {
+      "noteCount": 9857,
+      "maxTick": 5412480,
+      "pianoRollWidthPx": 216499.2
+    },
+    "abcChars": 28781,
+    "abcLines": 1428,
+    "phases": [
+      {
+        "phase": "ScorePanel mount (1 frame)",
+        "durationMs": 165.80000000074506
+      },
+      {
+        "phase": "attente rendu portée (abcjs useEffect)",
+        "durationMs": 7702.199999999255,
+        "detail": {
+          "hasSvg": false
+        }
+      },
+      {
+        "phase": "rafales resize après montage (post-ouverture)",
+        "durationMs": 125.19999999925494
+      },
+      {
+        "phase": "ouverture → portée visible (total)",
+        "durationMs": 7993.300000000745,
+        "detail": {
+          "hasSvg": false
+        }
+      }
+    ],
+    "longTasksMs": 221,
+    "longTaskCount": 3
+  }
+}
