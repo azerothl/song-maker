@@ -40,6 +40,47 @@ describe("importAbcToScoreDocument", () => {
     void issues;
   });
 
+  it("imports N ABC voices (bass + drums) into distinct ScoreDocument voices", () => {
+    const abc = [
+      "X:1",
+      "T:n-voix",
+      "M:4/4",
+      "L:1/8",
+      "Q:1/4=100",
+      'V: Vocal clef=treble',
+      'V: Bass clef=bass',
+      'V: Drums clef=perc',
+      "K:C",
+      "V: Vocal",
+      "CDEF|",
+      "V: Bass",
+      "C,2G,2|",
+      "V: Drums",
+      "CCCC|",
+    ].join("\n");
+    const { document, empty, issues } = importAbcToScoreDocument(abc, {
+      id: "n-voices",
+    });
+    assert.equal(empty, false);
+    assert.equal(document.voices.length, 3);
+    assert.ok(document.voices.find((v) => v.abcVoice === "Vocal"));
+    const bass = document.voices.find((v) => v.abcVoice === "Bass");
+    const drums = document.voices.find((v) => v.abcVoice === "Drums");
+    assert.ok(bass);
+    assert.ok(drums);
+    assert.equal(bass!.role, "bass");
+    assert.ok(bass!.notes.length > 0);
+    assert.ok(drums!.notes.length > 0);
+    assert.ok(
+      issues.some((i) => /batterie|percussion/i.test(i.message)),
+    );
+    const again = exportToYuE2Abc(document, { cot: "full" });
+    assert.match(again.abc, /V: Vocal/);
+    assert.match(again.abc, /V: Ins/);
+    assert.doesNotMatch(again.abc, /V: Bass/);
+    assert.ok(again.warnings.some((w) => /voix extra/i.test(w)));
+  });
+
   it("imports score.abc chords onto chordEvents", () => {
     const abc = loadFixture("score.abc");
     const { document, empty } = importAbcToScoreDocument(abc);

@@ -93,6 +93,11 @@ export type SheetsageTranscribeRequest = {
   licenseAccepted: boolean;
   /** Prefer melody-only ABC for YuE2 cot=melody. */
   mode?: "melody" | "full";
+  /**
+   * Requested ABC voice count (2–8). SheetSage2 may still return 2 voices;
+   * extra voices are parsed when present. Drums remain approximate (#340).
+   */
+  nVoices?: number;
   signal?: AbortSignal;
   onProgress?: (progress: SheetsageProgress) => void;
 };

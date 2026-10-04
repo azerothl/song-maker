@@ -11,10 +11,10 @@ export type ScoreVoiceRole =
   | "other";
 
 /**
- * Target ABC voice. Phase 2 marks Ins explicitly (§7.6).
- * Default: vocal/melody → Vocal; unset otherwise.
+ * Target ABC voice. YuE2 dialect uses Vocal/Ins; SheetSage N-voice ABC may add others (#340).
+ * Extra names stay on the ScoreDocument for Partition / piano roll.
  */
-export type AbcVoiceTarget = "Vocal" | "Ins";
+export type AbcVoiceTarget = string;
 
 export type ModeName = "major" | "minor";
 
@@ -73,7 +73,7 @@ export type ScoreVoice = {
   name: string;
   role: ScoreVoiceRole;
   notes: NoteEvent[];
-  /** Explicit Ins/Vocal assignment for ABC export (§7.6). */
+  /** Explicit Ins/Vocal (or extra ABC name) for export (§7.6, #340). */
   abcVoice?: AbcVoiceTarget;
 };
 

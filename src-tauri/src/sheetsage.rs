@@ -56,6 +56,8 @@ pub struct SheetsageTranscribeArgs {
     pub audio_path: String,
     pub out_abc_path: Option<String>,
     pub mode: Option<String>,
+    #[serde(default)]
+    pub n_voices: Option<u32>,
     pub license_accepted: bool,
 }
 
@@ -410,6 +412,10 @@ fn looks_like_abc(text: &str) -> bool {
     !trimmed.is_empty() && trimmed.lines().any(|l| l.starts_with("X:"))
 }
 
+fn clamp_n_voices(n: Option<u32>) -> Option<u32> {
+    n.filter(|v| (2..=8).contains(v))
+}
+
 fn run_cli_transcribe(
     cli: &Path,
     model: &Path,
@@ -417,64 +423,96 @@ fn run_cli_transcribe(
     out_abc: &Path,
     jobs: &SheetsageJobs,
     job_id: &str,
-) -> Result<(), String> {
-    let mut cmd = Command::new(cli);
-    cmd.arg("--task")
-        .arg("midi")
-        .arg("--family")
-        .arg("sheetsage2")
-        .arg("--model")
-        .arg(model)
-        .arg("--backend")
-        .arg(backend_name())
-        .arg("--audio")
-        .arg(audio)
-        .arg("--out")
-        .arg(out_abc)
-        .arg("--log")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    let child = cmd
-        .spawn()
-        .map_err(|e| format!("Échec lancement audiocpp_cli SheetSage2 : {e}"))?;
-    {
-        jobs.children
-            .lock()
-            .unwrap()
-            .insert(job_id.to_string(), child);
-    }
-    let status = {
-        let mut map = jobs.children.lock().unwrap();
-        let child = map
-            .get_mut(job_id)
-            .ok_or_else(|| "Job SheetSage2 introuvable (annulé ?).".to_string())?;
-        child
-            .wait()
-            .map_err(|e| format!("Attente audiocpp_cli : {e}"))?
+    n_voices: Option<u32>,
+) -> Result<Vec<String>, String> {
+    let mut warnings = Vec::new();
+    let mut last_err = None;
+    let attempts: Vec<Option<u32>> = if n_voices.is_some_and(|n| n > 2) {
+        vec![n_voices, None]
+    } else {
+        vec![None]
     };
-    jobs.children.lock().unwrap().remove(job_id);
-    if !status.success() {
-        return Err(format!(
+    for voices in attempts {
+        let mut cmd = Command::new(cli);
+        cmd.arg("--task")
+            .arg("midi")
+            .arg("--family")
+            .arg("sheetsage2")
+            .arg("--model")
+            .arg(model)
+            .arg("--backend")
+            .arg(backend_name())
+            .arg("--audio")
+            .arg(audio)
+            .arg("--out")
+            .arg(out_abc)
+            .arg("--log");
+        if let Some(n) = voices {
+            cmd.arg("--n-voices").arg(n.to_string());
+        }
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+        let child = cmd
+            .spawn()
+            .map_err(|e| format!("Échec lancement audiocpp_cli SheetSage2 : {e}"))?;
+        {
+            jobs.children
+                .lock()
+                .unwrap()
+                .insert(job_id.to_string(), child);
+        }
+        let status = {
+            let mut map = jobs.children.lock().unwrap();
+            let child = map
+                .get_mut(job_id)
+                .ok_or_else(|| "Job SheetSage2 introuvable (annulé ?).".to_string())?;
+            child
+                .wait()
+                .map_err(|e| format!("Attente audiocpp_cli : {e}"))?
+        };
+        jobs.children.lock().unwrap().remove(job_id);
+        if status.success() {
+            if voices.is_none() && n_voices.is_some_and(|n| n > 2) {
+                warnings.push(
+                    "Le binaire épinglé a ignoré --n-voices ; transcription relancée à 2 voix. L’ABC N voix n’est importé que s’il est présent.".into(),
+                );
+            }
+            return Ok(warnings);
+        }
+        last_err = Some(format!(
             "audiocpp_cli SheetSage2 a échoué (code {:?}). Aucune ABC inventée.",
             status.code()
         ));
+        if voices.is_some() {
+            warnings.push(
+                "Option --n-voices refusée par audiocpp_cli ; nouvel essai sans ce drapeau.".into(),
+            );
+            continue;
+        }
     }
-    Ok(())
+    Err(last_err.unwrap_or_else(|| "audiocpp_cli SheetSage2 a échoué.".into()))
 }
 
 async fn run_server_transcribe(
     state_server: &AudioCppServer,
     audio: &Path,
     out_abc: &Path,
-) -> Result<(), String> {
+    n_voices: Option<u32>,
+) -> Result<Vec<String>, String> {
     let settings = load_settings()?;
     let base = state_server.ensure_started(&settings)?;
+    let mut request = json!({
+        "audio": audio.display().to_string(),
+        "out": out_abc.display().to_string(),
+    });
+    if let Some(n) = n_voices {
+        request
+            .as_object_mut()
+            .ok_or_else(|| "requête SheetSage2 invalide".to_string())?
+            .insert("n_voices".into(), json!(n));
+    }
     let body = json!({
         "model": "sheetsage2",
-        "request": {
-            "audio": audio.display().to_string(),
-            "out": out_abc.display().to_string(),
-        }
+        "request": request
     });
     let response = AudioCppServer::run_task(&base, body).await?;
     if let Some(abc) = response
@@ -488,11 +526,11 @@ async fn run_server_transcribe(
                 ensure_dir(parent).map_err(|e| e.to_string())?;
             }
             std::fs::write(out_abc, abc).map_err(|e| e.to_string())?;
-            return Ok(());
+            return Ok(Vec::new());
         }
     }
     if out_abc.is_file() {
-        return Ok(());
+        return Ok(Vec::new());
     }
     Err(
         "Réponse serveur SheetSage2 sans ABC valide — aucune partition fictive n’est inventée."
@@ -556,28 +594,32 @@ pub async fn transcribe(
         ensure_dir(parent).map_err(|e| e.to_string())?;
     }
 
+    let n_voices = clamp_n_voices(args.n_voices);
     let run_result = if let Ok(cli_path) = find_cli_binary(&cache) {
         let job_id = args.job_id.clone();
         let model = model.clone();
         let audio = audio.clone();
         let out_abc = out_abc.clone();
         tokio::task::block_in_place(|| {
-            run_cli_transcribe(&cli_path, &model, &audio, &out_abc, jobs, &job_id)
+            run_cli_transcribe(&cli_path, &model, &audio, &out_abc, jobs, &job_id, n_voices)
         })
     } else {
-        run_server_transcribe(state_server, &audio, &out_abc).await
+        run_server_transcribe(state_server, &audio, &out_abc, n_voices).await
     };
 
-    if let Err(e) = run_result {
-        return Ok(SheetsageTranscribeOutcome {
-            status: "failed".into(),
-            job_id: args.job_id,
-            abc: None,
-            warnings: vec!["runner_failed".into()],
-            message_fr: e,
-            out_abc_path: Some(out_abc.display().to_string()),
-        });
-    }
+    let runner_warnings = match run_result {
+        Ok(w) => w,
+        Err(e) => {
+            return Ok(SheetsageTranscribeOutcome {
+                status: "failed".into(),
+                job_id: args.job_id,
+                abc: None,
+                warnings: vec!["runner_failed".into()],
+                message_fr: e,
+                out_abc_path: Some(out_abc.display().to_string()),
+            });
+        }
+    };
 
     let abc_text = std::fs::read_to_string(&out_abc).unwrap_or_default();
     if !looks_like_abc(&abc_text) {
@@ -593,15 +635,20 @@ pub async fn transcribe(
         });
     }
     let _ = args.mode;
+    let mut warnings = runner_warnings;
+    if !probe.weights_sha256_verified {
+        warnings.push("weights_sha_unverified".into());
+    }
+    if n_voices.is_some_and(|n| n > 2) {
+        warnings.push(
+            "N voix demandées : les voix extra restent dans Partition ; YuE2 ne régénère que Vocal/Ins. Batterie approximative.".into(),
+        );
+    }
     Ok(SheetsageTranscribeOutcome {
         status: "ok".into(),
         job_id: args.job_id,
         abc: Some(abc_text),
-        warnings: if probe.weights_sha256_verified {
-            vec![]
-        } else {
-            vec!["weights_sha_unverified".into()]
-        },
+        warnings,
         message_fr: "Transcription SheetSage2 terminée — corrigez puis confirmez avant YuE2."
             .into(),
         out_abc_path: Some(out_abc.display().to_string()),
@@ -630,5 +677,14 @@ mod tests {
         assert_eq!(SHEETSAGE2_REPO, "audio-cpp/SheetSage2-GGUF");
         assert!(download_url().contains("SheetSage2-GGUF"));
         assert!(LICENSE_NOTICE_FR.contains("CC BY-NC"));
+    }
+
+    #[test]
+    fn n_voices_clamped_to_two_through_eight() {
+        assert_eq!(clamp_n_voices(None), None);
+        assert_eq!(clamp_n_voices(Some(1)), None);
+        assert_eq!(clamp_n_voices(Some(2)), Some(2));
+        assert_eq!(clamp_n_voices(Some(8)), Some(8));
+        assert_eq!(clamp_n_voices(Some(9)), None);
     }
 }

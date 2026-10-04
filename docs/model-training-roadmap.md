@@ -68,7 +68,7 @@ Recette : entraînement reconstructif style SongCraft + 10-20% du temps masquage
 
 ## 4. Sortie audio + partition
 
-1. **SheetSage2 (YuE2)** : audio -> lead sheet ABC éditable (beats, sections, key, chords, melody 2 voix). Déjà intégré opt-in CC BY-NC dans l'app. À étendre à N voix pour le multi-pistes.
+1. **SheetSage2 (YuE2)** : audio -> lead sheet ABC éditable (beats, sections, key, chords, melody **2..N voix**). Déjà intégré opt-in CC BY-NC dans l'app (`docs/sheetsage2-path.md`, sélecteur N voix). YuE2 ne consomme que Vocal/Ins.
 2. **Modèle unifié multitâche Image<->Audio<->MIDI<->MusicXML** avec tokenization VQ unifiée, 1300h paires YouTube. OMR SER 24.58%->13.67%, première génération audio depuis image de partition. Prouve le bénéfice multitâche. Réf : **Unified Cross-modal `2505.12863`**.
 3. **Chant -> score time-aligné** : note = quadruplet `<onset><pitch><offset><note_value>`, Transformer + masking + pseudo-labels note-values via beat-tracker. F1 0.61 SOTA chant. Réf : **T3MS `2502.12438`** — à adapter voix + instru.
 4. **Désentrelacement content/style, alignement score-perf avec repeats, LM note-level comme prior** : **Joint EPR/APT `2509.23878`**, **RUMAA (2025)**, **Singing MIDI Transcription with LMs (APSIPA 2025)**.
