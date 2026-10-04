@@ -6,7 +6,7 @@ Phase **3** — séparateurs de stems interchangeables ([spec §9](../../specs/S
 
 - interface `StemSeparatorProvider` ;
 - **HTDemucs** `htdemucs_q8_0` (défaut, premier build) — 4 stems ;
-- **HTDemucs 6 stems ONNX** — guitare et piano en plus ; runtime Python/ONNX optionnel, ces deux stems restent expérimentaux ;
+- **HTDemucs 6 stems ONNX** — guitare et piano en plus ; runtime Python/ONNX optionnel, **déconseillé piano-heavy** ; masque spectral post-séparation sur les autres stems (mesure synthétique 440 Hz).
 - **BS-RoFormer** `bs_roformer_q8_0` — seulement voix + instrumental (mappé sur « Accompagnement »). Poids opt-in (~165 Mo) via Paramètres → Production audio (SHA-256, taille, espace disque, annulation). HTDemucs reste le défaut.
 
 ## Honêteté stems

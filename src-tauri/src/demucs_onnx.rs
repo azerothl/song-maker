@@ -174,6 +174,47 @@ inference.separate(
     source, destination, model="htdemucs_6s", providers="cpu",
     precision="fp16weights", cache_dir=cache,
 )
+# #344: Wiener-like mask using the piano estimate as interferer.
+# Does not clean the piano stem. numpy is a demucs-onnx dependency.
+import numpy as np, soundfile as sf, pathlib
+    dest = pathlib.Path(destination)
+    piano_path = dest / "piano.wav"
+    if piano_path.is_file():
+        piano, sr = sf.read(str(piano_path), always_2d=True)
+        hop, n_fft = 512, 1024
+        win = np.hanning(n_fft).astype(np.float32)
+        def stft(x):
+            frames = []
+            for start in range(0, max(0, len(x) - n_fft + 1), hop):
+                frames.append(np.fft.rfft(x[start:start+n_fft] * win))
+            return np.stack(frames) if frames else np.zeros((1, n_fft//2+1), np.complex64)
+        def istft(spec, length):
+            acc = np.zeros(length, np.float32)
+            wsum = np.zeros(length, np.float32)
+            for i, frame in enumerate(spec):
+                start = i * hop
+                chunk = np.fft.irfft(frame, n=n_fft).real.astype(np.float32) * win
+                acc[start:start+n_fft] += chunk[: max(0, length-start)]
+                wsum[start:start+n_fft] += (win * win)[: max(0, length-start)]
+            wsum[wsum < 1e-8] = 1
+            return acc / wsum
+        piano_mono = piano.mean(axis=1)
+        pspec = stft(piano_mono)
+        for role in ("vocals", "drums", "bass", "other", "guitar"):
+            path = dest / f"{{role}}.wav"
+            if not path.is_file():
+                continue
+            other, _ = sf.read(str(path), always_2d=True)
+            mono = other.mean(axis=1)
+            n = min(len(mono), len(piano_mono))
+            ospec = stft(mono[:n])
+            p = pspec[: ospec.shape[0]]
+            o2 = np.abs(ospec) ** 2
+            p2 = np.abs(p) ** 2
+            mask = o2 / (o2 + 0.85 * p2 + 1e-12)
+            cleaned = istft(ospec * mask, n)
+            stereo = np.column_stack([cleaned, cleaned])
+            sf.write(str(path), stereo, sr)
 "#
     );
     let output = tokio::process::Command::new(&python)

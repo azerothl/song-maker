@@ -89,6 +89,11 @@ export {
   buildQualityTimeOptions,
   mergeTimeStat,
 } from "./recommend.js";
+export {
+  suppressPianoBleed,
+  bandEnergy,
+  HTDEMUCS_6S_PIANO_WARNING_FR,
+} from "./pianoBleed.js";
 export type {
   EngineLicenseRow201,
   CommercialGrayReasonId,
