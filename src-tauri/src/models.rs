@@ -147,6 +147,19 @@ pub struct MixTrack {
     pub locked: bool,
     pub ai_separated: bool,
     pub clips: Vec<Clip>,
+    /// Spike VST3 (#326) — métadonnée uniquement, ignorée par le bake.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub experimental_vst3_insert: Option<ExperimentalVst3Insert>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExperimentalVst3Insert {
+    pub plugin_path: String,
+    pub factory_present: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state_b64: Option<String>,
+    pub notes_fr: String,
 }
 
 /// Arrangement tempo event (ms timeline). Clip storage stays in ms (#94).

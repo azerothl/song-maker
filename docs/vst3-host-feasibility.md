@@ -20,6 +20,14 @@ Raisons principales :
 
 **Contrainte produit :** aucun contrôle UI VST3 n’est présenté comme disponible.
 
+## Spike #326 (2026-10-04) — pas un hôte
+
+Incrément derrière `SONG_MAKER_VST3_SPIKE=1` : scan de bundles `.vst3`, `dlopen` + `GetPluginFactory`, métadonnée d’insert sur une piste mix **ignorée par le bake**. Isolation crash via `song-maker --vst3-spike-probe` si le binaire Tauri est utilisé.
+
+**Ce n’est pas** : callback audio, éditeur de plugin, AU, sandbox produit, rack « VST disponible ». Sans le flag, l’UI spike est absente.
+
+La décision « différer l’hôte » ci-dessus reste la vérité produit.
+
 ## Stack audio actuelle (constat)
 
 | Couche | Techno | Rôle | Prêt pour hôte VST3 ? |

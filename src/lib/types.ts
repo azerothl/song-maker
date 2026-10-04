@@ -111,6 +111,13 @@ export type MixTrack = {
   locked: boolean;
   aiSeparated: boolean;
   clips: MixClip[];
+  /** Spike VST3 (#326) — metadata only, not processed. */
+  experimentalVst3Insert?: {
+    pluginPath: string;
+    factoryPresent: boolean;
+    stateB64?: string | null;
+    notesFr: string;
+  } | null;
 };
 
 /** Arrangement tempo change (ms timeline). Clip storage stays in ms (#94). */

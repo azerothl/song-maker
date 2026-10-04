@@ -141,6 +141,10 @@ export async function invoke<T>(
         bind: "127.0.0.1",
         notesFr: "Mock navigateur — pas d’hôte embarqué.",
       } as T;
+    case "vst3_spike_status":
+      return { enabled: false, isHost: false, notesFr: "" } as T;
+    case "vst3_spike_scan":
+      return [] as T;
     case "list_midi_outputs":
     case "midi_output_support":
     case "connect_midi_output":
