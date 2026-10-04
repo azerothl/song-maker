@@ -110,11 +110,15 @@ jobs:
           Song Maker télécharge séparément les modèles YuE2 et HTDemucs lors de la première configuration. Prévoyez plusieurs gigaoctets d’espace libre. La génération demande NVIDIA CUDA sous Windows/Linux ou Apple Metal sous macOS. Suivez le guide : https://website-ten-iota-41.vercel.app/fr/docs/install.
           EOF
           fi
-          gh release create "$RELEASE_TAG" \
-            --repo azerothl/song-maker \
-            --draft \
-            --title "Song Maker $RELEASE_TAG" \
-            --notes-file "$NOTES_FILE"
+          if gh release view "$RELEASE_TAG" --repo azerothl/song-maker >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; leave it for asset upload."
+          else
+            gh release create "$RELEASE_TAG" \
+              --repo azerothl/song-maker \
+              --draft \
+              --title "Song Maker $RELEASE_TAG" \
+              --notes-file "$NOTES_FILE"
+          fi
 
   build:
     name: ${{ matrix.name }}
@@ -166,11 +170,11 @@ jobs:
           cache: pnpm
 
       - name: Install Rust
-        run: |
-          rustup toolchain install
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            rustup target add aarch64-apple-darwin x86_64-apple-darwin
-          fi
+        run: rustup toolchain install
+
+      - name: Add macOS cross-compile targets
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
       - name: Cache Rust build
         uses: swatinem/rust-cache@v2
