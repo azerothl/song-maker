@@ -4,8 +4,8 @@ import { DemoMixer } from "./DemoMixer";
 import styles from "./LandingExperience.module.css";
 
 const STEPS = ["idea", "generation", "separation"] as const;
-const CAPABILITIES = ["generation", "score", "takes", "mix", "export"] as const;
-const FAQ = ["stems", "local", "hardware", "license"] as const;
+const CAPABILITIES = ["generation", "score", "takes", "instrumental", "batch", "mix", "export"] as const;
+const FAQ = ["stems", "local", "hardware", "license", "batch"] as const;
 
 export async function LandingExperience() {
   const t = await getTranslations("landing");

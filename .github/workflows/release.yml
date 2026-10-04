@@ -9,7 +9,7 @@ on:
       tag_name:
         description: Existing version tag to build and publish
         required: true
-        default: v0.1.1
+        default: v0.1.2
         type: string
 
 permissions:
@@ -74,16 +74,19 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
       - name: Create the shared draft before parallel builds start
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ inputs.tag_name || github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" \
-            --repo azerothl/song-maker \
-            --draft \
-            --title "Song Maker $RELEASE_TAG" \
-            --notes "Install the desktop app for Windows, macOS, or Linux using the matching asset below.
+          NOTES_FILE="docs/releases/${RELEASE_TAG}.md"
+          if [ ! -f "$NOTES_FILE" ]; then
+            NOTES_FILE="$(mktemp)"
+            cat > "$NOTES_FILE" <<'EOF'
+          Install the desktop app for Windows, macOS, or Linux using the matching asset below.
 
           Song Maker downloads YuE2 and HTDemucs model files separately on first setup. They require several gigabytes of free disk space. Generation requires NVIDIA CUDA on Windows/Linux or Apple Metal on macOS. Follow the guide at https://website-ten-iota-41.vercel.app/en/docs/install.
 
@@ -91,7 +94,14 @@ jobs:
 
           Installez l’application de bureau correspondant à votre système avec le fichier ci-dessous.
 
-          Song Maker télécharge séparément les modèles YuE2 et HTDemucs lors de la première configuration. Prévoyez plusieurs gigaoctets d’espace libre. La génération demande NVIDIA CUDA sous Windows/Linux ou Apple Metal sous macOS. Suivez le guide : https://website-ten-iota-41.vercel.app/fr/docs/install."
+          Song Maker télécharge séparément les modèles YuE2 et HTDemucs lors de la première configuration. Prévoyez plusieurs gigaoctets d’espace libre. La génération demande NVIDIA CUDA sous Windows/Linux ou Apple Metal sous macOS. Suivez le guide : https://website-ten-iota-41.vercel.app/fr/docs/install.
+          EOF
+          fi
+          gh release create "$RELEASE_TAG" \
+            --repo azerothl/song-maker \
+            --draft \
+            --title "Song Maker $RELEASE_TAG" \
+            --notes-file "$NOTES_FILE"
 
   build:
     name: ${{ matrix.name }}

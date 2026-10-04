@@ -5,6 +5,8 @@ const KEYS = [
   "yue2",
   "score",
   "candidates",
+  "instrumental",
+  "batch",
   "stems",
   "mix",
   "export",

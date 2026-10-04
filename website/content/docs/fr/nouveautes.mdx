@@ -1,0 +1,31 @@
+---
+title: Nouveautés v0.1.2
+description: Ce qui change dans Song Maker 0.1.2 par rapport à 0.1.1.
+order: 2
+---
+
+# Nouveautés — v0.1.2
+
+Cette version ajoute un import de plusieurs morceaux, un ajout de piste depuis le mix/stems (opt-in), et des outils de production déjà présents sur `main`.
+
+## Bibliothèque — génération batch
+
+Dans **Bibliothèque**, ouvrez **Génération batch**, importez un JSON UTF-8, vérifiez l’aperçu, puis lancez. Un projet est créé par morceau. Pause, annulation, reprise et export des prises prêtes sont disponibles.
+
+Les inférences utilisent la **même file GPU exclusive** que Créer. Tant que deux workers `audiocpp` isolés n’ont pas été mesurés, la capacité **admise est 1**. Si le fichier demande 2 générations simultanées, `allowReduction` lance à 1 ; `requireRequested` bloque. Ce n’est **pas** deux inférences en parallèle.
+
+Schéma et exemple : le dépôt (`docs/batch-generation/`).
+
+## Production — partie instrumentale
+
+- **Tempo / tonalité / style (YuE2) :** basse, batterie ou accompagnement, puis import dans l’arrangement.
+- **Mix / stems (opt-in) :** sidecar Python ACE-Step 1.5 **Base Lego** (pas le GGUF Turbo, pas un `audio_input` YuE2). YuE2 **refuse** une entrée audio. Lego peut produire un **mix fusionné**, pas un stem dry. Import à `start_ms = 0`. Licence MIT sur la carte ACE-Step ; un mix YuE2 reste **CC BY-NC**. GPU ≥ 12 Go VRAM conseillés.
+
+## Autres
+
+- Punch aimanté sur la grille ; `startMs` natif pour les clips audio utilisateur.
+- Téléchargement d’un pack YuE2 depuis Paramètres sans figer la fenêtre.
+- Hôte DeclUI embarqué opt-in (`127.0.0.1`) ; la génération YuE2 reste locale.
+- Interface de l’application **français / anglais** (Paramètres → Système).
+
+Les plugins VST3 ne sont pas un produit : un spike existe derrière un flag. Le modèle maison et `audio_input` YuE2 restent indisponibles.

@@ -15,7 +15,7 @@ Song Maker vise à devenir un atelier de MAO multipiste assisté par l’IA gén
 
 ## Installer l’application
 
-Téléchargez la dernière version depuis les [Releases GitHub](https://github.com/azerothl/song-maker/releases/latest) (actuelle : **v0.1.1**) :
+Téléchargez la dernière version depuis les [Releases GitHub](https://github.com/azerothl/song-maker/releases/latest) (actuelle : **v0.1.2**) :
 
 - **Windows** : installeur `.msi` ou `.exe`, Windows x64 avec carte **NVIDIA** (CUDA). L’installeur embarque le runtime CUDA (`cudart`) à côté du serveur audio.cpp pour que le moteur soit détecté.
 - **macOS** : `.dmg` Apple Silicon ou Intel (Metal). Chemin de génération moins prioritaire que CUDA Windows/Linux.

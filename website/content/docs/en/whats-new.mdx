@@ -1,0 +1,31 @@
+---
+title: What’s new in v0.1.2
+description: Changes in Song Maker 0.1.2 compared with 0.1.1.
+order: 2
+---
+
+# What’s new — v0.1.2
+
+This release adds multi-song import, an opt-in mix/stems add-track path, and production tools already on `main`.
+
+## Library — batch generation
+
+In **Library**, open **Batch generation**, import a UTF-8 JSON file, review the preview, then start. One project is created per song. Pause, cancel, resume, and export of ready takes are available.
+
+Inferences use the **same exclusive GPU queue** as Create. Until two isolated `audiocpp` workers are measured, **admitted capacity is 1**. If the file asks for 2 concurrent generations, `allowReduction` starts at 1; `requireRequested` blocks. This is **not** two overlapping inferences.
+
+Schema and example live in the repo (`docs/batch-generation/`).
+
+## Production — instrumental part
+
+- **Tempo / key / style (YuE2):** bass, drums, or accompaniment, then import into the arrangement.
+- **Mix / stems (opt-in):** ACE-Step 1.5 **Base Lego** Python sidecar (not the Turbo GGUF, not YuE2 `audio_input`). YuE2 **refuses** audio input. Lego may return a **fused mix**, not a dry stem. Import at `start_ms = 0`. ACE-Step card is MIT; a YuE2 mix stays **CC BY-NC**. ≥ 12 GB VRAM recommended.
+
+## Other
+
+- Grid-snapped punch; native `startMs` on user audio clips.
+- YuE2 pack download from Settings no longer freezes the window.
+- Opt-in embedded DeclUI host (`127.0.0.1`); YuE2 generation stays local.
+- Desktop UI is **French / English** (Settings → System).
+
+VST3 plugins are not a product feature (flagged spike only). The in-house model and YuE2 `audio_input` remain unavailable.
