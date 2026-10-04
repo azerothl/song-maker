@@ -17,6 +17,7 @@ mod lora_train;
 mod mel_band_roformer;
 mod mix;
 mod models;
+mod native_capture;
 mod paths;
 mod pins;
 mod profile_switch;
@@ -44,6 +45,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(state)
         .manage(commands::midi_output::MidiOutputState::default())
+        .manage(native_capture::NativeCaptureState::default())
         .invoke_handler(tauri::generate_handler![
             commands::midi_output::list_midi_outputs,
             commands::midi_output::midi_output_support,
@@ -129,6 +131,12 @@ pub fn run() {
             commands::capture::discard_user_audio_capture,
             commands::capture::finalize_user_audio_capture,
             commands::capture::finalize_user_audio_capture_takes,
+            native_capture::native_capture_backend,
+            native_capture::list_native_capture_devices,
+            native_capture::start_native_capture,
+            native_capture::poll_native_capture,
+            native_capture::pause_native_capture,
+            native_capture::stop_native_capture,
             // Paquet portable de projet
             commands::package::save_production_overlay,
             commands::package::load_production_overlay,
