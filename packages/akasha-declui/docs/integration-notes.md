@@ -58,5 +58,17 @@ Les packs de **style** (ex. chanson française) sont listés dans Paramètres �
 
 ## SDK
 
-Il n’existe pas de SDK Akasha/DeclUI publié pour Song Maker dans ce dépôt.  
-L’intégration passe par le protocole HTTP ci-dessus. Tant qu’aucun hôte réel n’est déployé, l’UI doit afficher **intégration indisponible**, pas un adaptateur « activé ».
+It n’existe pas de SDK Akasha/DeclUI publié pour Song Maker dans ce dépôt.  
+L’intégration passe par le protocole HTTP ci-dessus.
+
+## Hôte embarqué (#343)
+
+Le binaire desktop peut démarrer un **processus HTTP local** (`127.0.0.1`, port éphémère) qui implémente `GET /v1/host/discover` et `POST /v1/host/invoke`.
+
+| Invocation | Comportement |
+|---|---|
+| `list_projects` | Liste réelle de la bibliothèque locale |
+| `generate_yue2`, `separate_stems`, `export_mix`, `apply_style_lora` | Erreur typée `capability_denied` — ces actions restent le chemin Tauri desktop, pas un relais |
+| autre | `capability_unknown` |
+
+Sans démarrer cet hôte et sans URL externe joignable, le mode reste **`unavailable`** après opt-in, jamais un faux « connecté ». Aucun bind hors loopback. L’opt-in Paramètres est toujours requis avant `enableHostMode`.

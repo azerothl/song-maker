@@ -14,6 +14,7 @@ Phase **4** — intégration hôte Akasha / DeclUI ([spec §18.5](../../specs/SO
 
 Le défaut reste **desktop** (zéro réseau).  
 `enableHostMode({ hostOptIn: true, hostUrl })` appelle `GET /v1/host/discover`.  
+Un **hôte DeclUI embarqué** (loopback 127.0.0.1) peut être démarré depuis Paramètres.  
 Sans URL ou hôte injoignable → **`unavailable`** (jamais un faux « activé »).  
 La génération phase 1 n’est pas altérée.
 

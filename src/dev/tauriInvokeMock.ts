@@ -132,6 +132,15 @@ export async function invoke<T>(
     case "pause_native_capture":
     case "stop_native_capture":
       throw new Error("Capture native absente du mock navigateur.");
+    case "embedded_declui_status":
+    case "start_embedded_declui_host":
+    case "stop_embedded_declui_host":
+      return {
+        running: false,
+        url: null,
+        bind: "127.0.0.1",
+        notesFr: "Mock navigateur — pas d’hôte embarqué.",
+      } as T;
     case "list_midi_outputs":
     case "midi_output_support":
     case "connect_midi_output":

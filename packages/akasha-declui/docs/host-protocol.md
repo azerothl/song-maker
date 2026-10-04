@@ -83,7 +83,9 @@ Erreurs typées (JSON, non-2xx ou `ok:false`) :
 3. `invokeMusicCapability` seulement si `connected`  
 4. `disableHostMode` / perte réseau → desktop ou rediscover via `resumeHostMode`
 
-## Desktop indépendant
+## Hôte embarqué Song Maker
+
+Le desktop peut servir le même protocole sur `http://127.0.0.1:<port>` (opt-in Paramètres). Pas d’écoute hors loopback.
 
 La génération YuE2 locale (Tauri / audiocpp) ne dépend pas de ce protocole.  
 Aucun accès réseau hôte sans opt-in utilisateur.

@@ -6,6 +6,7 @@ mod audiocpp;
 mod basicpitch;
 mod bs_roformer;
 mod commands;
+mod declui_host;
 mod demucs_onnx;
 mod form;
 mod hashutil;
@@ -46,6 +47,7 @@ pub fn run() {
         .manage(state)
         .manage(commands::midi_output::MidiOutputState::default())
         .manage(native_capture::NativeCaptureState::default())
+        .manage(declui_host::EmbeddedDeclUiState::default())
         .invoke_handler(tauri::generate_handler![
             commands::midi_output::list_midi_outputs,
             commands::midi_output::midi_output_support,
@@ -82,6 +84,9 @@ pub fn run() {
             commands::settings::list_lora_adapters,
             commands::settings::import_lora_adapters,
             commands::settings::confirm_model_pack,
+            declui_host::embedded_declui_status,
+            declui_host::start_embedded_declui_host,
+            declui_host::stop_embedded_declui_host,
             // Profils (#201)
             commands::profiles::get_profiles_state,
             commands::profiles::create_profile,
