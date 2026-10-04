@@ -165,6 +165,7 @@
   "form.instrumental": "Mode instrumental (sans paroles)",
   "form.instrumental.hint": "Les paroles deviennent facultatives. YuE2 reçoit une chaîne vide et génère sans texte vocal.",
   "form.instrumental.active": "Mode retenu : instrumental — paroles facultatives.",
+  "form.audioInput.incapacity": "Référence audio / inpainting : YuE2 et ACE-Step ne consomment pas audio_input. Pas de « une phrase sans tout régénérer ». La reprise SheetSage2 n’est pas une entrée audio au décodeur.",
   "form.instrumental.summary": "Instrumental",
   "form.lyrics": "Paroles",
   "form.lyrics.optional": "Paroles (facultatives)",

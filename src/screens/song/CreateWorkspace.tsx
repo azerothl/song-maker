@@ -181,6 +181,9 @@ export function CreateWorkspace({
                     {t("form.instrumental.active")}
                   </p>
                 )}
+                <p className="hint warn" role="note">
+                  {t("form.audioInput.incapacity")}
+                </p>
                 <button
                   type="button"
                   className="form-advanced-entry"

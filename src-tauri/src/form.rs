@@ -206,11 +206,30 @@ pub fn assemble_style_sent(input: &FormInput) -> Result<String, FormError> {
     Ok(cleaned)
 }
 
+pub fn audio_input_requested(input: &FormInput) -> bool {
+    let path = input
+        .audio_input_path
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    path.is_some() || input.inpaint_start_ms.is_some() || input.inpaint_end_ms.is_some()
+}
+
+pub fn refuse_unsupported_audio_input(input: &FormInput) -> Result<(), FormError> {
+    if !audio_input_requested(input) {
+        return Ok(());
+    }
+    Err(FormError::Message(
+        "YuE2 / ACE-Step épinglés n’acceptent pas audio_input : pas de référence waveform ni d’inpainting d’une phrase. Ce n’est pas une reprise SheetSage2. Retirez la référence ou le masque.".into(),
+    ))
+}
+
 pub fn validate_form(input: &FormInput) -> Result<String, FormError> {
     validate_title(&input.title)?;
     validate_lyrics(&input.lyrics, input.instrumental_mode)?;
     validate_cot(&input.cot)?;
     validate_target_duration(input.target_duration_sec)?;
+    refuse_unsupported_audio_input(input)?;
     assemble_style_sent(input)
 }
 
@@ -248,6 +267,9 @@ mod tests {
             prefer_full_lyrics: true,
             instrumental_mode: false,
             continuation_generation_id: None,
+            audio_input_path: None,
+            inpaint_start_ms: None,
+            inpaint_end_ms: None,
         };
         let s = assemble_style_sent(&input).unwrap();
         assert_eq!(
@@ -289,8 +311,40 @@ mod tests {
             prefer_full_lyrics: true,
             instrumental_mode: true,
             continuation_generation_id: None,
+            audio_input_path: None,
+            inpaint_start_ms: None,
+            inpaint_end_ms: None,
         };
         assemble_style_sent(&input).unwrap();
+        validate_form(&input).unwrap();
+    }
+
+    #[test]
+    fn rejects_audio_input_on_pinned_engines() {
+        let mut input = FormInput {
+            title: "Phrase".into(),
+            style: "pop".into(),
+            lyrics: "un vers".into(),
+            cot: "full".into(),
+            singing_language: None,
+            tempo_bpm: None,
+            key: None,
+            meter: None,
+            seed: None,
+            target_duration_sec: 180,
+            prefer_full_lyrics: true,
+            instrumental_mode: false,
+            continuation_generation_id: None,
+            audio_input_path: Some("/tmp/ref.wav".into()),
+            inpaint_start_ms: Some(1000),
+            inpaint_end_ms: Some(4000),
+        };
+        let err = validate_form(&input).unwrap_err().to_string();
+        assert!(err.contains("audio_input"));
+        assert!(err.contains("SheetSage2"));
+        input.audio_input_path = None;
+        input.inpaint_start_ms = None;
+        input.inpaint_end_ms = None;
         validate_form(&input).unwrap();
     }
 
@@ -310,6 +364,9 @@ mod tests {
             prefer_full_lyrics: true,
             instrumental_mode: false,
             continuation_generation_id: None,
+            audio_input_path: None,
+            inpaint_start_ms: None,
+            inpaint_end_ms: None,
         };
         validate_draft_form(&input).unwrap();
     }

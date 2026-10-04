@@ -1,4 +1,5 @@
 import type { FormInput } from "../../lib/types";
+import { wantsAudioInput } from "../../lib/audioInput";
 import { t } from "../../ui/i18n";
 
 function formatDecimalOneFraction(n: number): string {
@@ -54,6 +55,7 @@ export type FormFieldErrors = {
   style?: string;
   lyrics?: string;
   duration?: string;
+  audioInput?: string;
 };
 
 export function workspaceLabel(space: SongWorkspace): string {
@@ -289,11 +291,14 @@ export function validateFormFields(form: FormInput): FormFieldErrors {
   ) {
     errors.duration = t("form.error.duration");
   }
+  if (wantsAudioInput(form)) {
+    errors.audioInput = t("form.audioInput.incapacity");
+  }
   return errors;
 }
 
 export function primaryFormError(errors: FormFieldErrors): string | null {
-  return errors.title ?? errors.style ?? errors.lyrics ?? errors.duration ?? null;
+  return errors.title ?? errors.style ?? errors.lyrics ?? errors.duration ?? errors.audioInput ?? null;
 }
 
 export function soundSummaryValue(form: FormInput): string {

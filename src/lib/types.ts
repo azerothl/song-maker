@@ -62,7 +62,11 @@ export type FormInput = {
    * Chaîne vide autorisée ; audio.cpp YuE2 génère alors sans texte vocal.
    */
   instrumentalMode: boolean;
-  continuationGenerationId?: string | null;
+    continuationGenerationId?: string | null;
+  /** Reference audio path. Pinned YuE2 / ACE-Step refuse this (#324). */
+  audioInputPath?: string | null;
+  inpaintStartMs?: number | null;
+  inpaintEndMs?: number | null;
 };
 
 export type MixClip = {
