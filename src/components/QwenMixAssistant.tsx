@@ -15,6 +15,8 @@ const PROVIDER_DEFAULTS: Record<string, string> = {
   ollama: "http://127.0.0.1:11434",
   rbitnet: "http://127.0.0.1:8080",
   openai_compat: "http://127.0.0.1:8080",
+  llama_cpp: "http://127.0.0.1:8080",
+  external: "http://127.0.0.1:8080",
 };
 
 const RBITNET_DEFAULT_MODEL = "qwen2.5-1.5b-instruct-q4_k_m";
@@ -67,6 +69,8 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
     setBaseUrl(PROVIDER_DEFAULTS[next]??PROVIDER_DEFAULTS.openai_compat);
     if(next === "rbitnet") setModelId(RBITNET_DEFAULT_MODEL);
     if(next === "ollama") setModelId("qwen3.5:2b");
+    if(next === "llama_cpp") setModelId("qwen2.5-1.5b-instruct");
+    if(next === "external") setModelId("qwen3.5:2b");
     setServerMsg(null);
   };
 
@@ -170,6 +174,8 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
           <option value="ollama">{t("qwen.mix.provider.ollama")}</option>
           <option value="rbitnet">{t("qwen.mix.provider.rbitnet")}</option>
           <option value="openai_compat">{t("qwen.mix.provider.openaiCompat")}</option>
+          <option value="llama_cpp">{t("qwen.mix.provider.llamaCpp")}</option>
+          <option value="external">{t("qwen.mix.provider.external")}</option>
         </select>
       </label>
       <label>{t("qwen.mix.baseUrl")}<input value={baseUrl} onChange={e=>setBaseUrl(e.target.value)} spellCheck={false} /></label>
@@ -193,10 +199,14 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
       </label>
       {allowRemote && <p className="hint">{t("qwen.mix.allowRemoteWarn")}</p>}
       <button type="button" className="btn" disabled={serverBusy||!settings} onClick={()=>void saveServer()}>{t("qwen.mix.saveServer")}</button>
+      {provider === "llama_cpp" && <p className="hint">{t("qwen.mix.llamaCpp.hint")}</p>}
+      {provider === "external" && <p className="hint">{t("qwen.mix.external.hint")}</p>}
       {provider === "rbitnet" && (
         <div className="qwen-mix-rbitnet">
+          <p className="hint">{t("qwen.mix.rbitnet.weightsNotInInstaller")}</p>
           <p className="hint">{rbitnet?.messageFr ?? t("qwen.mix.rbitnet.hint")}</p>
           <p className="hint">{t("qwen.mix.rbitnet.pin",{tag:rbitnet?.releaseTag??"v0.1.0"})}</p>
+          <p className="hint">{t("qwen.mix.rbitnet.jsonQuality")}</p>
           <button type="button" className="btn" disabled={sidecarBusy||Boolean(rbitnet?.binaryPresent)} onClick={()=>void installBinary()}>
             {t(rbitnet?.binaryPresent ? "qwen.mix.rbitnet.binaryOk" : "qwen.mix.rbitnet.installBinary")}
           </button>
@@ -209,6 +219,17 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
           {sidecarBusy && <button type="button" className="btn" onClick={()=>void api.cancelRbitnetInstall()}>{t("qwen.mix.rbitnet.cancel")}</button>}
         </div>
       )}
+      <details className="qwen-mix-leftovers">
+        <summary>{t("qwen.mix.leftovers.title")}</summary>
+        <ul>
+          <li>{t("qwen.mix.leftovers.weights")}</li>
+          <li>{t("qwen.mix.leftovers.e2e")}</li>
+          <li>{t("qwen.mix.leftovers.json")}</li>
+          <li>{t("qwen.mix.leftovers.llama")}</li>
+          <li>{t("qwen.mix.leftovers.external")}</li>
+          <li>{t("qwen.mix.leftovers.foundry")}</li>
+        </ul>
+      </details>
       {serverMsg && <p className="hint" role="status">{serverMsg}</p>}
     </details>
     <details className="qwen-mix-license">

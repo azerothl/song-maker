@@ -110,7 +110,7 @@ pub fn update_settings(
                     .into()
             }
             "INVALID_INPUT:PROVIDER" => {
-                "Fournisseur LLM inconnu (ollama|openai_compat|rbitnet).".into()
+                "Fournisseur LLM inconnu (ollama|openai_compat|rbitnet|llama_cpp|external).".into()
             }
             "INVALID_INPUT:BASE_URL" => "URL de base LLM invalide.".into(),
             other => other.to_string(),

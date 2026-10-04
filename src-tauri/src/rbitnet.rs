@@ -290,10 +290,11 @@ pub fn status(cache: &Path, sidecar: &RbitnetSidecar, selected_model_id: &str) -
     let message_fr = if ready {
         "Sidecar Rbitnet prêt.".to_string()
     } else if binary.is_none() {
-        "Binaire rbitnet-server absent — téléchargement différé requis.".to_string()
+        "Binaire rbitnet-server absent — hors installeur, téléchargement différé requis."
+            .to_string()
     } else if !model_present(cache, kind) {
         format!(
-            "Poids « {} » absents — téléchargement différé requis.",
+            "Poids « {} » absents — hors installeur, téléchargement différé requis.",
             kind.label_fr()
         )
     } else if running {
@@ -704,6 +705,7 @@ mod tests {
         assert!(!st.model_present);
         assert_eq!(st.catalog.len(), 2);
         assert_eq!(st.release_tag, "v0.1.0");
+        assert!(st.message_fr.contains("hors installeur"));
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

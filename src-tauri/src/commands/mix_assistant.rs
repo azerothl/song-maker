@@ -14,6 +14,10 @@ const DEFAULT_MODEL: &str = "qwen3.5:2b";
 pub const PROVIDER_OLLAMA: &str = "ollama";
 pub const PROVIDER_OPENAI_COMPAT: &str = "openai_compat";
 pub const PROVIDER_RBITNET: &str = "rbitnet";
+/// Phase 2b: llama.cpp `llama-server` (OpenAI-compat HTTP). Not bundled.
+pub const PROVIDER_LLAMA_CPP: &str = "llama_cpp";
+/// Phase 2c: already-running OpenAI-compat server; Song Maker never starts a sidecar.
+pub const PROVIDER_EXTERNAL: &str = "external";
 
 /// Mix assistant LLM backend contract: `health` / `list_models` / `propose`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,7 +31,9 @@ impl MixLlmBackendKind {
     pub fn parse(raw: &str) -> Result<Self, String> {
         match raw.trim() {
             PROVIDER_OLLAMA => Ok(Self::OllamaNative),
-            PROVIDER_OPENAI_COMPAT => Ok(Self::OpenAiCompat),
+            PROVIDER_OPENAI_COMPAT | PROVIDER_LLAMA_CPP | PROVIDER_EXTERNAL => {
+                Ok(Self::OpenAiCompat)
+            }
             PROVIDER_RBITNET => Ok(Self::Rbitnet),
             _ => Err("INVALID_INPUT:PROVIDER".into()),
         }
@@ -595,6 +601,23 @@ mod tests {
         assert_eq!(
             MixLlmBackendKind::parse("rbitnet").unwrap(),
             MixLlmBackendKind::Rbitnet
+        );
+    }
+
+    #[test]
+    fn llama_cpp_and_external_are_openai_compat_http() {
+        assert_eq!(
+            MixLlmBackendKind::parse("llama_cpp").unwrap(),
+            MixLlmBackendKind::OpenAiCompat
+        );
+        assert_eq!(
+            MixLlmBackendKind::parse("external").unwrap(),
+            MixLlmBackendKind::OpenAiCompat
+        );
+        assert_eq!(MixLlmBackendKind::OpenAiCompat.health_path(), "/v1/models");
+        assert_eq!(
+            MixLlmBackendKind::OpenAiCompat.default_base_url(),
+            DEFAULT_OPENAI_COMPAT_BASE
         );
     }
 
