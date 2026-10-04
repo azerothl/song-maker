@@ -678,6 +678,13 @@ pub struct FormInput {
     /// Generation to continue from, when its semantic artifact is available.
     #[serde(default)]
     pub continuation_generation_id: Option<String>,
+    /// Reference WAV for audio_input / inpainting. Pinned YuE2 and ACE-Step reject this (#324).
+    #[serde(default)]
+    pub audio_input_path: Option<String>,
+    #[serde(default)]
+    pub inpaint_start_ms: Option<i64>,
+    #[serde(default)]
+    pub inpaint_end_ms: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

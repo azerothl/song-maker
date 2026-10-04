@@ -123,6 +123,14 @@ describe("validateFormFields", () => {
     );
     assert.equal(validateFormFields(form({ targetDurationSec: 210 })).duration, undefined);
   });
+
+  it("refuse audio_input / inpainting tant que YuE2 ne les consomme pas", () => {
+    const errors = validateFormFields(
+      form({ audioInputPath: "/tmp/ref.wav", inpaintStartMs: 0, inpaintEndMs: 2000 }),
+    );
+    assert.match(errors.audioInput ?? "", /audio_input/);
+    assert.match(errors.audioInput ?? "", /SheetSage2/);
+  });
 });
 
 describe("primaryFormError", () => {

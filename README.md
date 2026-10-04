@@ -38,7 +38,7 @@ Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau
 - **Mode instrumental** : paroles facultatives (chaîne vide acceptée) — ce n’est **pas** le LoRA instrumental YuE2 CC BY-NC.
 - Modes `cot` (`full` / `melody` / `off`), durée cible indicative (bornes de tokens, pas une durée musicale garantie), multi-candidats **séquentiels** (N appels locaux successifs, pas un échantillonnage parallèle natif), seed écrit.
 - Continuation mid-song (`semantic_prefix` / `continuationGenerationId`) et génération partition seule (`stop_after=abc`).
-- YuE2 **ne consomme pas** d’audio en entrée (`audio_input`) : pas d’inpainting ni de référence audio directe. Une génération = un nouvel appel.
+- YuE2 **ne consomme pas** d’audio en entrée (`audio_input`) : pas d’inpainting ni de référence audio directe. Une génération = un nouvel appel. L’onglet Créer l’affiche explicitement ; un payload `audio_input` / masque d’inpainting est **refusé** avant l’appel GPU.
 
 ### Partition / Reprise
 
