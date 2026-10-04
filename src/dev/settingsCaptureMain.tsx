@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { Phase3SettingsPanel } from "../components/Phase3SettingsPanel";
 import { Phase4SettingsPanel } from "../components/Phase4SettingsPanel";
+import { Yue2PackSettings } from "../components/Yue2PackSettings";
 import { useAppStore } from "../store/appStore";
 import type { AppSettings } from "../lib/types";
 import { attachPrimaryButtonMetricsWindow } from "./primaryButtonMetrics";
@@ -41,32 +42,77 @@ if (seededProject) {
   registerCaptureProject(seededProject);
 }
 
+const captureHash = (globalThis.location?.hash ?? "").toLowerCase();
+const yue2Missing = captureHash.includes("yue2-missing");
+
+if (yue2Missing) {
+  (globalThis as unknown as { __TAURI_INTERNALS__?: object }).__TAURI_INTERNALS__ =
+    {};
+}
+
 useAppStore.setState({
   screen: "settings",
-  settings: captureSettings,
+  settings: yue2Missing
+    ? {
+        ...captureSettings,
+        localYue2Enabled: false,
+        yue2LicenseAccepted: false,
+        acceptedSeparatorLicenses: {},
+      }
+    : captureSettings,
+  ...(yue2Missing
+    ? {
+        health: {
+          cudaAvailable: true,
+          accelerationKind: "nvidiaCuda" as const,
+          gpuName: "Capture (mock)",
+          suggestedPack: "q4",
+          localYue2Enabled: false,
+          modelsOk: false,
+          binaryOk: false,
+          serverHealthy: false,
+          message: "Télécharger YuE2 Q8 (ou Q4) et HTDemucs.",
+        },
+      }
+    : {}),
 });
 
 attachPrimaryButtonMetricsWindow();
 
-const phase4 =
-  (globalThis.location?.hash ?? "").toLowerCase().includes("phase4");
+const phase4 = captureHash.includes("phase4");
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <div
       className="app-shell"
-      data-capture-scenario={phase4 ? "reglages-lora-phase4" : "reglages-lora"}
+      data-capture-scenario={
+        yue2Missing
+          ? "reglages-yue2-missing"
+          : phase4
+            ? "reglages-lora-phase4"
+            : "reglages-lora"
+      }
     >
       <main className="main">
         <div className="panel settings">
           <header className="settings-page-header">
-            <h1>{phase4 ? "LoRA styles (phase 4)" : "LoRA et styles"}</h1>
+            <h1>
+              {yue2Missing
+                ? "Modèle de génération"
+                : phase4
+                  ? "LoRA styles (phase 4)"
+                  : "LoRA et styles"}
+            </h1>
             <p className="hint">
               Harness capture — primaire « Télécharger » visible (CC BY-NC
               accepté).
             </p>
           </header>
-          {phase4 ? (
+          {yue2Missing ? (
+            <section className="settings-detail-page">
+              <Yue2PackSettings />
+            </section>
+          ) : phase4 ? (
             <Phase4SettingsPanel view="lora" />
           ) : (
             <Phase3SettingsPanel view="lora" />

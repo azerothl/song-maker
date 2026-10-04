@@ -84,12 +84,31 @@ export function persistMixOnlySkip(): void {
   }
 }
 
+export function clearMixOnlySkip(): void {
+  try {
+    globalThis.localStorage?.removeItem(MIX_ONLY_STORAGE_KEY);
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 export function setupComplete(health: HealthSnapshot | null): boolean {
   return Boolean(health?.modelsOk && health?.binaryOk);
 }
 
 export function parsePack(value: string | undefined | null): ModelPack {
   return value === "q8" ? "q8" : "q4";
+}
+
+/** Le pack affiché dans Réglages n’est utilisable qu’après téléchargement. */
+export function yue2PackNeedsInstall(input: {
+  selected: ModelPack;
+  activePack: string | null | undefined;
+  modelsOk: boolean;
+  localYue2Enabled: boolean;
+}): boolean {
+  if (!input.localYue2Enabled || !input.modelsOk) return true;
+  return parsePack(input.activePack) !== input.selected;
 }
 
 function numberLocale(): string {

@@ -236,6 +236,31 @@ export async function invoke<T>(
       return captureHealth as T;
     case "get_settings":
       return captureSettings as T;
+    case "get_install_plan":
+      return {
+        pack: String(args?.pack ?? "q4"),
+        fileCount: 1,
+        bytesToDownload: 2_665_632_320,
+        bytesKnown: true,
+        hasPartialDownloads: false,
+        files: [],
+      } as T;
+    case "install_required_assets": {
+      const pack = String(args?.pack ?? "q4");
+      captureSettings.modelPack = pack;
+      captureSettings.modelGguf =
+        pack === "q8" ? "yue2-3b-q8_0.gguf" : "yue2-3b-q4_0.gguf";
+      captureSettings.localYue2Enabled = true;
+      captureSettings.yue2LicenseAccepted = Boolean(args?.acceptedLicense);
+      captureSettings.acceptedSeparatorLicenses = {
+        ...(captureSettings.acceptedSeparatorLicenses ?? {}),
+        htdemucs: true,
+      };
+      captureHealth.localYue2Enabled = true;
+      captureHealth.modelsOk = true;
+      captureHealth.binaryOk = true;
+      return "Installation terminée." as T;
+    }
     case "update_settings": {
       const next = args?.settings as AppSettings | undefined;
       if (next) Object.assign(captureSettings, next);

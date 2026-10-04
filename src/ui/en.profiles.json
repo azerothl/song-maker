@@ -267,5 +267,12 @@
   "aceStep.ab.hint": "YuE2 stays the default engine. This A/B listen does not change that default. ACE-Step remains available with conditions.",
   "aceStep.ab.group": "Engine to listen to",
   "aceStep.ab.needBoth": "You need a YuE2 take and an ACE-Step take with audio. Generate an ACE-Step take below (without changing the default).",
-  "aceStep.ab.generate": "Generate an ACE-Step take (keep YuE2 as default)"
+  "aceStep.ab.generate": "Generate an ACE-Step take (keep YuE2 as default)",
+  "settings.model.missing": "No model downloaded",
+  "settings.model.installed": "This pack is already on this computer.",
+  "settings.model.chooseAria": "YuE2 model precision",
+  "settings.model.download": "Download {pack}",
+  "settings.model.downloadSize": "Download {pack} ({size})",
+  "settings.model.activate": "Enable {pack}",
+  "settings.model.downloading": "Downloading…"
 }

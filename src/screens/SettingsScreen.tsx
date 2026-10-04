@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AceStepModelSettings } from "../components/AceStepModelSettings";
 import { HouseModelSettings } from "../components/HouseModelSettings";
+import { Yue2PackSettings } from "../components/Yue2PackSettings";
 import { LoraTrainingPanel } from "../components/LoraTrainingPanel";
 import { Phase3SettingsPanel } from "../components/Phase3SettingsPanel";
 import { Phase4SettingsPanel } from "../components/Phase4SettingsPanel";
@@ -147,7 +148,13 @@ export function SettingsScreen() {
             <SettingsCard
               title={pageTitle.model}
               description={t("settings.card.model")}
-              value={`${t("settings.model.current")} · ${settings.modelPack.toUpperCase()}`}
+              value={
+                health == null
+                  ? `${t("settings.model.current")} · ${settings.modelPack.toUpperCase()}`
+                  : health.localYue2Enabled && health.modelsOk
+                    ? `${t("settings.model.current")} · ${settings.modelPack.toUpperCase()}`
+                    : t("settings.model.missing")
+              }
               onClick={() => setPage("model")}
             />
             <SettingsCard
@@ -220,54 +227,7 @@ export function SettingsScreen() {
 
       {page === "model" && (
         <section className="settings-detail-page">
-          <p className="settings-intro">{t("settings.model.hint")}</p>
-          <p className="settings-current-model">
-            {t("settings.model.current")}: <strong>{settings.modelPack.toUpperCase()}</strong>
-            <span className="hint"> · {settings.modelGguf}</span>
-          </p>
-          {health && (
-            <p className="hint">
-              {t("settings.model.gpu", {
-                pack: health.suggestedPack.toUpperCase(),
-                vram: health.vramMib != null ? `${health.vramMib} MiB` : t("settings.model.unknown"),
-              })}
-            </p>
-          )}
-          <div className="settings-model-options">
-            <div className="settings-pack-choice">
-              <button
-                type="button"
-                className={`btn${settings.modelPack === "q8" ? " active" : ""}`}
-                aria-pressed={settings.modelPack === "q8"}
-                onClick={() =>
-                  void api
-                    .confirmModelPack("q8")
-                    .then(() => refreshSettings())
-                    .catch((e) => setError(String(e)))
-                }
-              >
-                {t("settings.model.q8")}
-              </button>
-              <span className="hint">{t("settings.model.q8Hint")}</span>
-            </div>
-            <div className="settings-pack-choice">
-              <button
-                type="button"
-                className={`btn${settings.modelPack === "q4" ? " active" : ""}`}
-                aria-pressed={settings.modelPack === "q4"}
-                onClick={() =>
-                  void api
-                    .confirmModelPack("q4")
-                    .then(() => refreshSettings())
-                    .catch((e) => setError(String(e)))
-                }
-              >
-                {t("settings.model.q4")}
-              </button>
-              <span className="hint">{t("settings.model.q4Hint")}</span>
-            </div>
-          </div>
-          <p className="hint">{t("settings.pack.confirm")}</p>
+          <Yue2PackSettings />
           <AceStepModelSettings />
           <HouseModelSettings />
         </section>
