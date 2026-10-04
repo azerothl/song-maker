@@ -124,6 +124,7 @@ pub fn run() {
             commands::mix::export_pcm_audio,
             // Capture et import audio utilisateur
             commands::capture::import_user_audio_track,
+            commands::capture::import_generation_as_user_track,
             commands::capture::begin_user_audio_capture,
             commands::capture::append_user_audio_chunk,
             commands::capture::discard_user_audio_capture,

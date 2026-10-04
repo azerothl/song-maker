@@ -160,6 +160,16 @@ export const api = {
   /** Native dialog → copy + normalize → append user MixTrack (#40). Null if cancelled. */
   importUserAudioTrack: (id: string) =>
     invoke<MixDoc | null>("import_user_audio_track", { id }),
+  importGenerationAsUserTrack: (
+    id: string,
+    generationId: string,
+    displayName?: string | null,
+  ) =>
+    invoke<MixDoc>("import_generation_as_user_track", {
+      id,
+      generationId,
+      displayName: displayName ?? null,
+    }),
   beginUserAudioCapture: (id: string) =>
     invoke<{ sessionId: string; relativePath: string }>(
       "begin_user_audio_capture",

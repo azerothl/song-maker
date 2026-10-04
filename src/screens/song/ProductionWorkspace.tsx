@@ -34,6 +34,11 @@ import { Waveform } from "../../components/Waveform";
 import { t } from "../../ui/i18n";
 import { appendEmptyUserTrack } from "../../lib/appendEmptyUserTrack";
 import {
+  planProjectInstrumentalPart,
+  type InstrumentalConditioning,
+  type InstrumentalRole,
+} from "../../lib/projectInstrumental";
+import {
   buildTrackFamilyGroups,
   groupMutePressed,
   groupSoloPressed,
@@ -97,6 +102,10 @@ type ProductionWorkspaceProps = {
   onSeparate: () => Promise<void>;
   onRevertSeparation?: () => void;
   onUserTrackAdded: (next: MixDoc) => Promise<void>;
+  onRequestInstrumentalPart?: (input: {
+    role: "bass" | "drums" | "other";
+    conditioning: "project_metadata" | "mix_stems";
+  }) => Promise<void>;
   playback: PlaybackView | null;
   playbackSources: PlaybackSources | null;
   project: ProjectDoc;
@@ -168,6 +177,7 @@ export function ProductionWorkspace({
   onSeparate,
   onRevertSeparation,
   onUserTrackAdded,
+  onRequestInstrumentalPart,
   playback,
   playbackSources,
   project,
@@ -207,6 +217,14 @@ export function ProductionWorkspace({
   const mixSettingsBtnRef = useRef<HTMLButtonElement>(null);
   const [mixSettingsOpen, setMixSettingsOpen] = useState(false);
   const [editTool, setEditTool] = useState<ClipEditTool>("select");
+  const [instrumentalOpen, setInstrumentalOpen] = useState(false);
+  const [instrumentalRole, setInstrumentalRole] =
+    useState<InstrumentalRole>("bass");
+  const [instrumentalCond, setInstrumentalCond] =
+    useState<InstrumentalConditioning>("project_metadata");
+  const [instrumentalNotice, setInstrumentalNotice] = useState<string | null>(
+    null,
+  );
   const mixLayoutNarrow = useProductionMixLayoutNarrow();
   const [localClipViewPrefs, setLocalClipViewPrefs] = useState<ProductionClipViewPrefs>(
     () => DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
@@ -420,6 +438,14 @@ export function ProductionWorkspace({
                     }
                   : undefined
               }
+              onAddInstrumentalPart={
+                onRequestInstrumentalPart
+                  ? () => {
+                      setInstrumentalNotice(null);
+                      setInstrumentalOpen(true);
+                    }
+                  : undefined
+              }
             />
             {mix ? (
               <ExportDialog
@@ -442,6 +468,89 @@ export function ProductionWorkspace({
           onTrackAdded={(m) => void onUserTrackAdded(m)}
           onError={setError}
         />
+        {instrumentalOpen && onRequestInstrumentalPart ? (
+          <div className="production-instrumental-panel" role="dialog" aria-labelledby="instrumental-part-title">
+            <h3 id="instrumental-part-title">{t("production.instrumental.title")}</h3>
+            <p className="hint">{t("production.instrumental.intro")}</p>
+            <label className="invariant-level">
+              {t("production.instrumental.role")}
+              <select
+                value={instrumentalRole}
+                onChange={(e) =>
+                  setInstrumentalRole(e.target.value as InstrumentalRole)
+                }
+              >
+                <option value="bass">{t("production.instrumental.role.bass")}</option>
+                <option value="drums">{t("production.instrumental.role.drums")}</option>
+                <option value="other">{t("production.instrumental.role.other")}</option>
+              </select>
+            </label>
+            <fieldset className="settings-engine-options">
+              <legend>{t("production.instrumental.conditioning")}</legend>
+              <label className="settings-engine-option">
+                <input
+                  type="radio"
+                  name="instrumental-cond"
+                  checked={instrumentalCond === "project_metadata"}
+                  onChange={() => setInstrumentalCond("project_metadata")}
+                />
+                <span>{t("production.instrumental.conditioning.meta")}</span>
+              </label>
+              <label className="settings-engine-option">
+                <input
+                  type="radio"
+                  name="instrumental-cond"
+                  checked={instrumentalCond === "mix_stems"}
+                  onChange={() => setInstrumentalCond("mix_stems")}
+                />
+                <span>{t("production.instrumental.conditioning.mix")}</span>
+              </label>
+            </fieldset>
+            {instrumentalNotice ? (
+              <p className="hint warn" role="status">
+                {instrumentalNotice}
+              </p>
+            ) : null}
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => {
+                  const plan = planProjectInstrumentalPart({
+                    role: instrumentalRole,
+                    conditioning: instrumentalCond,
+                    style: form.style,
+                    tempoBpm: form.tempoBpm,
+                    key: form.key ?? null,
+                    hasMixOrStems: Boolean(mix?.tracks.length),
+                  });
+                  if (!plan.ok) {
+                    setInstrumentalNotice(plan.messageFr);
+                    return;
+                  }
+                  void onRequestInstrumentalPart({
+                    role: instrumentalRole,
+                    conditioning: instrumentalCond,
+                  }).catch((e) =>
+                    setInstrumentalNotice(
+                      e instanceof Error ? e.message : String(e),
+                    ),
+                  );
+                }}
+              >
+                {t("production.instrumental.generate")}
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => setInstrumentalOpen(false)}
+              >
+                {t("production.instrumental.cancel")}
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div

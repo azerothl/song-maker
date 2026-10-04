@@ -13,6 +13,7 @@ import {
   type ProductionClipViewPrefs,
 } from "../lib/productionClipViewPrefs";
 import { loadInvariantBaseline } from "../lib/invariants";
+import { planProjectInstrumentalPart } from "../lib/projectInstrumental";
 import { ProductionWorkspace } from "./song/ProductionWorkspace";
 import { ProfileKindBadge } from "../components/ProfileKindBadge";
 import { RegenerationGate } from "../components/RegenerationGate";
@@ -143,6 +144,53 @@ export function SongScreen() {
     } finally {
       setBusy(false);
       setTranscribingTrackId(null);
+    }
+  }
+
+  async function onRequestInstrumentalPart(input: {
+    role: "bass" | "drums" | "other";
+    conditioning: "project_metadata" | "mix_stems";
+  }) {
+    if (!project) return;
+    const plan = planProjectInstrumentalPart({
+      role: input.role,
+      conditioning: input.conditioning,
+      style: form.style,
+      tempoBpm: form.tempoBpm,
+      key: form.key ?? null,
+      hasMixOrStems: Boolean(mix?.tracks.length),
+    });
+    if (!plan.ok) {
+      setError(plan.messageFr);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const nextForm: FormInput = {
+        ...form,
+        style: plan.styleSent,
+        lyrics: "",
+        instrumentalMode: true,
+      };
+      const doc = await api.startGeneration(project.id, nextForm);
+      const genId = doc.activeGenerationId;
+      if (!genId) {
+        throw new Error(
+          "Génération sans identifiant actif — piste non ajoutée à l’arrangement.",
+        );
+      }
+      const nextMix = await api.importGenerationAsUserTrack(
+        project.id,
+        genId,
+        plan.displayName,
+      );
+      await onUserTrackAdded(nextMix);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      throw e;
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -806,6 +854,7 @@ export function SongScreen() {
               separationUndo ? () => void onRevertSeparation() : undefined
             }
             onUserTrackAdded={onUserTrackAdded}
+            onRequestInstrumentalPart={onRequestInstrumentalPart}
             playback={playback}
             playbackSources={playbackSources}
             project={project}
