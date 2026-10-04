@@ -45,7 +45,7 @@
     "news": {
       "eyebrow": "Version {version}",
       "title": "JSON batch, setup, instrumental parts",
-      "body": "v0.1.2: import several songs from a JSON file (GPU queue capacity 1), first-launch assistant and Settings, add a part from Production (YuE2 or opt-in ACE-Step Lego).",
+      "body": "v{version}: import several songs from a JSON file (GPU queue capacity 1), first-launch assistant and Settings, add a part from Production (YuE2 or opt-in ACE-Step Lego).",
       "whatsNew": "What’s new",
       "setup": "Setup guide",
       "batch": "Batch file structure"

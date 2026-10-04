@@ -45,7 +45,7 @@
     "news": {
       "eyebrow": "Version {version}",
       "title": "Batch JSON, configuration, partie instrumentale",
-      "body": "v0.1.2 : import de plusieurs morceaux via un fichier JSON (file GPU à 1), assistant de premier lancement et Paramètres détaillés, ajout de piste depuis Production (YuE2 ou ACE-Step Lego opt-in).",
+      "body": "v{version} : import de plusieurs morceaux via un fichier JSON (file GPU à 1), assistant de premier lancement et Paramètres détaillés, ajout de piste depuis Production (YuE2 ou ACE-Step Lego opt-in).",
       "whatsNew": "Lire les nouveautés",
       "setup": "Guide de configuration",
       "batch": "Structure du fichier batch"

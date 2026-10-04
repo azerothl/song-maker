@@ -47,7 +47,7 @@ export async function LandingExperience() {
         <p className={styles.eyebrow}>{t("news.eyebrow", { version: APP_VERSION })}</p>
         <div className={styles.releaseCopy}>
           <h2 id="release-title">{t("news.title")}</h2>
-          <p>{t("news.body")}</p>
+          <p>{t("news.body", { version: APP_VERSION })}</p>
         </div>
         <div className={styles.releaseLinks}>
           <Link className={styles.textLink} href={newsHref}>{t("news.whatsNew")} <span aria-hidden="true">→</span></Link>
