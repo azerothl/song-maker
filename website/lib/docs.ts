@@ -2,7 +2,18 @@ import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
 import type { AppLocale } from "@/i18n/routing";
+import { routing } from "@/i18n/routing";
 import { APP_VERSION } from "@/lib/releases";
+import { expectedDocSlugs } from "@/lib/doc-slugs";
+
+export {
+  DOC_PAIRS,
+  docsPath,
+  expectedDocSlugs,
+  localizeDocSlug,
+  localizePathname,
+} from "@/lib/doc-slugs";
+export type { DocTopic } from "@/lib/doc-slugs";
 
 const DOCS_ROOT = path.join(process.cwd(), "content/docs");
 
@@ -19,22 +30,6 @@ export type DocPage = DocMeta & {
 
 function docsDir(locale: AppLocale) {
   return path.join(DOCS_ROOT, locale);
-}
-
-export function localeDocsPath(
-  locale: AppLocale,
-  slugs: Record<AppLocale, string>,
-): string {
-  switch (locale) {
-    case "fr":
-      return slugs.fr;
-    case "en":
-      return slugs.en;
-    default: {
-      const _exhaustive: never = locale;
-      return _exhaustive;
-    }
-  }
 }
 
 export function listDocs(locale: AppLocale): DocMeta[] {
@@ -55,6 +50,22 @@ export function listDocs(locale: AppLocale): DocMeta[] {
       };
     })
     .sort((a, b) => a.order - b.order);
+}
+
+/** Fail the website build if a locale is missing a paired guide or uses a different order. */
+export function assertDocLocaleParity(): void {
+  for (const locale of routing.locales) {
+    const actual = listDocs(locale).map((doc) => doc.slug);
+    const expected = [...expectedDocSlugs(locale)];
+    if (
+      actual.length !== expected.length ||
+      actual.some((slug, index) => slug !== expected[index])
+    ) {
+      throw new Error(
+        `Docs FR/EN slug mismatch for ${locale}: expected [${expected.join(", ")}], got [${actual.join(", ")}]`,
+      );
+    }
+  }
 }
 
 export function getDoc(locale: AppLocale, slug: string): DocPage | null {

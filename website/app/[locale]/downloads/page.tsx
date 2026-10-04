@@ -1,7 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { APP_VERSION, RELEASE_LATEST_PAGE, releaseAssets } from "@/lib/releases";
-import { localeDocsPath } from "@/lib/docs";
+import { docsPath } from "@/lib/docs";
 import { type AppLocale } from "@/i18n/routing";
 import styles from "./downloads.module.css";
 
@@ -12,18 +12,9 @@ export default async function DownloadsPage({ params }: Props) {
   setRequestLocale(locale);
   const t = await getTranslations("downloads");
   const appLocale = locale as AppLocale;
-  const newsHref = localeDocsPath(appLocale, {
-    fr: "/docs/nouveautes",
-    en: "/docs/whats-new",
-  });
-  const setupHref = localeDocsPath(appLocale, {
-    fr: "/docs/configuration",
-    en: "/docs/setup",
-  });
-  const batchHref = localeDocsPath(appLocale, {
-    fr: "/docs/generation-batch",
-    en: "/docs/batch-generation",
-  });
+  const newsHref = docsPath(appLocale, "whats-new");
+  const setupHref = docsPath(appLocale, "setup");
+  const batchHref = docsPath(appLocale, "batch");
 
   return (
     <div className={styles.page}>

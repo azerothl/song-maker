@@ -2,7 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { DemoMixer } from "./DemoMixer";
 import { APP_VERSION } from "@/lib/releases";
-import { localeDocsPath } from "@/lib/docs";
+import { docsPath } from "@/lib/docs";
 import { type AppLocale } from "@/i18n/routing";
 import styles from "./LandingExperience.module.css";
 
@@ -13,18 +13,9 @@ const FAQ = ["stems", "local", "hardware", "license", "batch"] as const;
 export async function LandingExperience() {
   const t = await getTranslations("landing");
   const locale = (await getLocale()) as AppLocale;
-  const newsHref = localeDocsPath(locale, {
-    fr: "/docs/nouveautes",
-    en: "/docs/whats-new",
-  });
-  const setupHref = localeDocsPath(locale, {
-    fr: "/docs/configuration",
-    en: "/docs/setup",
-  });
-  const batchHref = localeDocsPath(locale, {
-    fr: "/docs/generation-batch",
-    en: "/docs/batch-generation",
-  });
+  const newsHref = docsPath(locale, "whats-new");
+  const setupHref = docsPath(locale, "setup");
+  const batchHref = docsPath(locale, "batch");
 
   return (
     <>
