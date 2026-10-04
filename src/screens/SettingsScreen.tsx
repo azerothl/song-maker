@@ -20,7 +20,7 @@ import {
 import { CommercialEnginesPanel } from "../components/CommercialEnginesPanel";
 import { HobbyEnginesPanel } from "../components/HobbyEnginesPanel";
 import { useAppStore } from "../store/appStore";
-import { t } from "../ui/i18n";
+import { profileLocale, setAppLocale, t, type AppLocale } from "../ui/i18n";
 
 type SettingsPage =
   | "home"
@@ -305,6 +305,32 @@ export function SettingsScreen() {
         <section className="settings-detail-page settings-system-page">
           <p className="settings-intro">{t("settings.system.description")}</p>
           <section>
+            <h2>{t("settings.language")}</h2>
+            <p className="hint">{t("settings.language.hint")}</p>
+            <div
+              className="settings-language-seg"
+              role="radiogroup"
+              aria-label={t("settings.language.group")}
+            >
+              {(["fr", "en"] as const).map((locale) => (
+                <label key={locale} className="settings-language-option">
+                  <input
+                    type="radio"
+                    name="app-locale"
+                    value={locale}
+                    checked={profileLocale() === locale}
+                    onChange={() => setAppLocale(locale as AppLocale)}
+                  />
+                  {t(
+                    locale === "fr"
+                      ? "settings.language.fr"
+                      : "settings.language.en",
+                  )}
+                </label>
+              ))}
+            </div>
+          </section>
+          <section>
             <h2>{t("settings.appVersion")}</h2>
             <p className="mono">{appVersion ?? t("settings.appVersionUnknown")}</p>
           </section>
@@ -312,7 +338,9 @@ export function SettingsScreen() {
             <h2>{t("settings.health")}</h2>
             <p>{health?.message ?? "—"}</p>
             <p>
-              GPU : {health?.gpuName ?? t("nav.gpuAbsent")}
+              {t("settings.gpu", {
+                name: health?.gpuName ?? t("nav.gpuAbsent"),
+              })}
               {health?.driverVersion ? ` · driver ${health.driverVersion}` : ""}
             </p>
           </section>
@@ -393,18 +421,15 @@ export function LicensesScreen() {
         <li>{t("licenses.audiocpp")}</li>
         <li>{t("licenses.midiInstrument")}</li>
         <li>{t("licenses.yue2")}</li>
-        <li>
-          Packs LoRA optionnels (phases 3–4, y compris styles) — CC BY-NC 4.0,
-          hors installeur ; voir Paramètres → Production audio / Agent.
-        </li>
+        <li>{t("licenses.loraOptional")}</li>
         <li>{t("licenses.sheetsage")}</li>
         <li>{t("licenses.basicPitch")}</li>
         <li>{t("licenses.loraTrain")}</li>
         <li>
-          Crédit : <strong>{t("licenses.credit")}</strong>
+          {t("licenses.creditLabel")} : <strong>{t("licenses.credit")}</strong>
         </li>
       </ul>
-      <p className="hint">Pas de badge « monétisation autorisée ».</p>
+      <p className="hint">{t("licenses.noMonetizationBadge")}</p>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 Application **desktop locale** (Tauri 2) pour générer, séparer, éditer et mixer un morceau avec **YuE2** via [audio.cpp](https://github.com/0xShug0/audio.cpp) (GGUF) et HTDemucs. Un projet = un morceau. Contrat produit : [`specs/SONG_MAKER_SPEC.md`](specs/SONG_MAKER_SPEC.md) (le spec décrit aussi l’historique des phases ; ce README décrit **ce qui est livré aujourd’hui** sur `main`). Licence du code : [Apache-2.0](LICENSE) — voir aussi [`NOTICE`](NOTICE).
 
-Site marketing bilingue FR/EN : dossier [`website/`](website/) — landing, docs MDX, téléchargements. L’UI de l’app desktop est **française uniquement** (`src/ui/fr.json`).
+Site marketing bilingue FR/EN : dossier [`website/`](website/) — landing, docs MDX, téléchargements. L’app desktop est **FR/EN** (Paramètres → Système).
 
 ## Direction produit à long terme
 
@@ -89,11 +89,11 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Capture basse latence | Chemin WebView (pas ASIO / WASAPI exclusif) |
 | Licences modèles | YuE2 & SheetSage2 : **CC BY-NC 4.0** — usage commercial des poids restreint |
 | Signature Windows / notarisation macOS | Workflow Windows configuré, signature réelle à valider avec Azure ; macOS non notarié |
-| UI app bilingue | Non — français seul ; le site marketing est FR/EN |
+| UI app bilingue | FR/EN dans Paramètres → Système (persistance locale) ; le site marketing a sa propre i18n |
 
 ## Stack
 
-- Tauri 2 + React + TypeScript + Vite ; UI française (`src/ui/fr.json`)
+- Tauri 2 + React + TypeScript + Vite ; UI FR/EN (`src/ui/fr.json`, `src/ui/en.*.json`)
 - Serveur local `audiocpp_server` (audio.cpp **v0.8.2** épinglé)
 - Monorepo `packages/*` + app `src/` / `src-tauri/`
 - Code applicatif sous [Apache-2.0](LICENSE) ; notices tierces dans [`NOTICE`](NOTICE)

@@ -21,7 +21,7 @@ import { ProfileSelector } from "./components/ProfileSelector";
 import { ProfileOnboardingScreen } from "./screens/ProfileOnboardingScreen";
 import { SplashScreen } from "./screens/SplashScreen";
 import { useAppStore } from "./store/appStore";
-import { t } from "./ui/i18n";
+import { t, useAppLocale } from "./ui/i18n";
 import "./App.css";
 
 type IconProps = SVGProps<SVGSVGElement>;
@@ -364,6 +364,7 @@ export function Sidebar() {
 }
 
 export default function App() {
+  const locale = useAppLocale();
   const screen = useAppStore((s) => s.screen);
   const setScreen = useAppStore((s) => s.setScreen);
   const error = useAppStore((s) => s.error);
@@ -410,7 +411,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-locale={locale}>
       <Sidebar />
       <main className="main">
         {availableUpdate && (
