@@ -9,11 +9,6 @@ import {
   formatProductionDbPerOct,
 } from "../../lib/productionFormat";
 import { t } from "../../ui/i18n";
-import {
-  formatProductionDb,
-  formatProductionDbPerOct,
-} from "../../lib/productionFormat";
-import { t } from "../../ui/i18n";
 
 const DELAY_DIV_OPTIONS = [
   "1/1",
