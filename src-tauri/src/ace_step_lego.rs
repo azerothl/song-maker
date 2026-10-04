@@ -9,7 +9,7 @@ use crate::models::{InstallProgress, MixDoc, ProjectDoc};
 use crate::paths::ensure_dir;
 use crate::pins::{
     ACE_STEP_LEGO_BIND_HOST, ACE_STEP_LEGO_BIND_PORT, ACE_STEP_LEGO_GIT, ACE_STEP_LEGO_HF_REPO,
-    ACE_STEP_LEGO_HF_REVISION, CHANNELS, SAMPLE_RATE,
+    ACE_STEP_LEGO_HF_REVISION,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -513,6 +513,7 @@ Un stem MIT sur un mix YuE2 reste soumis au NC du mix."
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pins::{CHANNELS, SAMPLE_RATE};
 
     #[test]
     fn maps_roles_to_lego_track_names() {

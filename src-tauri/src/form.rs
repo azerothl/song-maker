@@ -224,6 +224,7 @@ pub fn refuse_unsupported_audio_input(input: &FormInput) -> Result<(), FormError
     ))
 }
 
+#[cfg(test)]
 pub fn validate_form(input: &FormInput) -> Result<String, FormError> {
     validate_form_for_engine(input, "yue2")
 }

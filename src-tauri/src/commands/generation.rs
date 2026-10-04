@@ -114,6 +114,7 @@ fn ace_step_task_request(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn start_generation(
     state: tauri::State<'_, AppState>,
     id: String,
