@@ -155,3 +155,15 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+
+================================================================================
+BasicPitch (optional Python runtime, audio → MIDI)
+================================================================================
+
+Component: spotify/basic-pitch 0.4.0 default ONNX weights (`nmp.onnx`) invoked
+via `scripts/basicpitch-product/transcribe.py` and onnxruntime. Not bundled in
+the installer; TensorFlow is not a runtime dependency.
+
+Source: https://github.com/spotify/basic-pitch
+License: Apache-2.0
+

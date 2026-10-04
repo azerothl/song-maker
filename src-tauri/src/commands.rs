@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 use std::sync::Mutex;
 
 pub mod ace_step_cmds;
+pub mod basicpitch_cmds;
 pub mod capture;
 pub mod generation;
 pub mod jobs;

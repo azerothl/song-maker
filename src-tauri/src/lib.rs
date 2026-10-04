@@ -3,6 +3,7 @@ use tauri::Manager;
 mod abc_metadata;
 mod ace_step;
 mod audiocpp;
+mod basicpitch;
 mod bs_roformer;
 mod commands;
 mod demucs_onnx;
@@ -141,6 +142,7 @@ pub fn run() {
             commands::score::list_scores,
             commands::score::load_score_version,
             commands::score::set_active_score,
+            commands::basicpitch_cmds::transcribe_basicpitch,
             // Versions
             commands::versions::use_generation,
             commands::versions::rename_generation,

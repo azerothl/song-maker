@@ -116,6 +116,8 @@ type ProductionWorkspaceProps = {
   capturePaintCollapsedTracks?: boolean;
   clipViewPrefs?: ProductionClipViewPrefs;
   onClipViewPrefsChange?: (patch: Partial<ProductionClipViewPrefs>) => void;
+  onTranscribeBasicPitch?: (track: MixTrack) => void;
+  transcribingTrackId?: string | null;
 };
 
 function formatSavedClock(at: Date): string {
@@ -184,6 +186,8 @@ export function ProductionWorkspace({
   capturePaintCollapsedTracks = false,
   clipViewPrefs: clipViewPrefsProp,
   onClipViewPrefsChange,
+  onTranscribeBasicPitch,
+  transcribingTrackId = null,
 }: ProductionWorkspaceProps) {
   const hasAiStems = mix?.tracks.some((tr) => tr.aiSeparated) ?? false;
   const separationAudioSec = useMemo(
@@ -798,6 +802,12 @@ export function ProductionWorkspace({
                               }
                             }}
                             tempoBpm={form.tempoBpm}
+                            onTranscribeBasicPitch={
+                              onTranscribeBasicPitch
+                                ? () => onTranscribeBasicPitch(tr)
+                                : undefined
+                            }
+                            transcribing={transcribingTrackId === tr.id}
                           />
                         </div>
                         <div className="track-wave production-mix-wave">

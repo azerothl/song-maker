@@ -6,7 +6,8 @@ import { matchesGenerateShortcut } from "./song/createWorkspaceLayout";
 import { ensureProductionOverlay, normalizeProductionOverlay, setProductionDiskPersist, setProductionOverlay, setProductionProjectScope, setProductionTempoBpm, undoProductionOverlay, redoProductionOverlay } from "../lib/productionState";
 import { exportProjectAudio } from "../lib/exportMix";
 import { generateScoreOnly, renderNFromScore } from "../lib/scoreOnlyApi";
-import { importAbcText, prepareAbcForGeneration, type ScoreDocument } from "../lib/score";
+import { importAbcText, importMidiBytes, prepareAbcForGeneration, type ScoreDocument } from "../lib/score";
+import { midiBytesToUint8Array } from "../lib/basicPitchProduct";
 import {
   DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
   type ProductionClipViewPrefs,
@@ -86,6 +87,9 @@ export function SongScreen() {
     mixId: string;
   } | null>(null);
   const [importingAudio, setImportingAudio] = useState(false);
+  const [transcribingTrackId, setTranscribingTrackId] = useState<string | null>(
+    null,
+  );
   const [mixPreview, setMixPreview] = useState<MixDoc | null>(null);
   const [mixSavedAt, setMixSavedAt] = useState<Date | null>(null);
   const [recordOpen, setRecordOpen] = useState(false);
@@ -117,6 +121,29 @@ export function SongScreen() {
   async function onUserTrackAdded(next: MixDoc) {
     setMix(next);
     if (project) await openProject(project.id);
+  }
+
+  async function onTranscribeBasicPitch(track: MixTrack) {
+    if (!project || transcribingTrackId) return;
+    setTranscribingTrackId(track.id);
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api.transcribeBasicpitch(project.id, track.id);
+      const { document } = importMidiBytes(midiBytesToUint8Array(result.midiBytes), {
+        id: `basicpitch-${track.id}`,
+      });
+      await api.saveScore(project.id, document);
+      setScoreDocument(document);
+      setScoreOpen(true);
+      setWorkspace("score");
+      await openProject(project.id);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+      setTranscribingTrackId(null);
+    }
   }
 
   async function onExport(format: "wav" | "flac" | "mp3") {
@@ -797,6 +824,8 @@ export function SongScreen() {
             sourceDurationMsByTrack={sourceDurationMsByTrack}
             clipViewPrefs={productionClipViewPrefs}
             onClipViewPrefsChange={patchProductionClipViewPrefs}
+            onTranscribeBasicPitch={onTranscribeBasicPitch}
+            transcribingTrackId={transcribingTrackId}
           />
         )}
 

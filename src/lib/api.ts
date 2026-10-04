@@ -292,6 +292,14 @@ export const api = {
     invoke<unknown | null>("load_score_version", { id, scoreId }),
   setActiveScore: (id: string, scoreId: string) =>
     invoke<ProjectDoc>("set_active_score", { id, scoreId }),
+  transcribeBasicpitch: (id: string, trackId: string) =>
+    invoke<{
+      midiBytes: number[];
+      noteCount: number;
+      backend: string;
+      tensorflowInstalled: boolean;
+      model: string;
+    }>("transcribe_basicpitch", { id, trackId }),
   useGeneration: (id: string, genId: string) =>
     invoke<ProjectDoc>("use_generation", { id, genId }),
   renameGeneration: (id: string, genId: string, name: string) =>
