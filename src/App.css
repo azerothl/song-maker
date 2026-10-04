@@ -2210,8 +2210,36 @@ option {
   --track-wave-played: var(--accent-cyan);
 }
 
-.mix-master-knob {
+.mix-master-level {
+  display: flex;
   flex: 0 0 auto;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mix-master-fader {
+  min-width: 7.5rem;
+}
+
+.mix-master-meter {
+  width: 10px;
+  height: 36px;
+  border-radius: 4px;
+  border: 1px solid var(--line2, #7a6ea1);
+  background: #171320;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.mix-master-meter-fill {
+  display: block;
+  width: 100%;
+  background: var(--ok, #7fe0a1);
+}
+
+.mix-master-density {
+  flex: 0 1 auto;
 }
 
 .mix-master-play {

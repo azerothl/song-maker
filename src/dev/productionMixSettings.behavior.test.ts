@@ -54,11 +54,12 @@ describe("production mix settings comportement (#225)", () => {
         });
         assert.equal(await trigger.textContent(), "Mix settings");
         const bar = page.locator(".production-context-bar");
-        assert.equal(await bar.getByRole("button", { name: "Snap", exact: true }).count(), 1);
-        assert.equal(await bar.getByRole("slider", { name: "Zoom", exact: true }).count(), 1);
+        assert.equal(await bar.getByRole("button", { name: "Snap", exact: true }).count(), 0);
+        assert.equal(await bar.getByRole("slider", { name: "Zoom", exact: true }).count(), 0);
         await trigger.click();
         const popin = page.getByTestId("production-mix-settings-popin");
         await popin.waitFor();
+        assert.equal(await popin.getByRole("button", { name: "Snap", exact: true }).count(), 1);
         assert.equal(await popin.getByRole("slider", { name: "Master", exact: true }).count(), 1);
         assert.equal(await popin.locator(".production-mix-settings-density").getAttribute("aria-label"), "Line height");
         assert.equal(await popin.getByRole("group", { name: "Grid", exact: true }).count(), 1);
