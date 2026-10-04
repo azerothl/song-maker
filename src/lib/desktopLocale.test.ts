@@ -32,20 +32,6 @@ afterEach(() => {
   setAppLocale("fr");
 });
 
-const PRODUCT_PREFIXES = [
-  "nav.",
-  "library.",
-  "workspace.",
-  "form.",
-  "generate.",
-  "settings.",
-  "score.",
-  "mix.",
-  "player.",
-  "candidates.",
-  "copilot.",
-] as const;
-
 describe("desktop bilingual UI (#331)", () => {
   it("every French key has a non-empty English catalog entry", () => {
     const en = englishCatalog();
