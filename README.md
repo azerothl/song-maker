@@ -82,7 +82,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | HTDemucs 6 stems (guitare/piano) | Opt-in expérimental ; fuites possibles |
 | Transcription audio → MIDI produit / MIDI matériel | Non livré en UI (essai interne BasicPitch ONNX documenté sous [`docs/basicpitch-trial/`](docs/basicpitch-trial/REPORT.md) — pas un bouton produit) |
 | Worker distant / Akasha | Opt-in ; sans hôte = indisponible, pas un stub trompeur |
-| Entraînement LoRA NAR | Pilote (format / chargement) — pas un entraînement YuE2 officiel complet |
+| Entraînement LoRA NAR | Pilote CPU — LoRA YuE2 GPU : `scripts/lora-train-yue2-gpu.py` (CUDA) |
 | Capture basse latence | Chemin WebView (pas ASIO / WASAPI exclusif) |
 | Licences modèles | YuE2 & SheetSage2 : **CC BY-NC 4.0** — usage commercial des poids restreint |
 | Signature Windows / notarisation macOS | Workflow Windows configuré, signature réelle à valider avec Azure ; macOS non notarié |

@@ -29,6 +29,11 @@ pub struct TrainerProbeResult {
     pub jobs_root: String,
     pub python_available: bool,
     pub message_fr: String,
+    #[serde(default)]
+    pub yue2_gpu_trainer_exists: bool,
+    pub yue2_gpu_trainer_script_path: Option<String>,
+    #[serde(default)]
+    pub cuda_available: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,20 +119,28 @@ pub fn probe_audio(path: String) -> Result<AudioProbeResult, String> {
     })
 }
 
-fn find_repo_trainer() -> Option<PathBuf> {
+fn find_repo_script(relative: &str) -> Option<PathBuf> {
     let candidates = [
-        PathBuf::from("scripts/lora-train-nar.py"),
-        PathBuf::from("../scripts/lora-train-nar.py"),
+        PathBuf::from(relative),
+        PathBuf::from("..").join(relative),
         std::env::current_dir()
             .ok()
-            .map(|d| d.join("scripts/lora-train-nar.py"))
+            .map(|d| d.join(relative))
             .unwrap_or_default(),
         std::env::var_os("SONG_MAKER_ROOT")
             .map(PathBuf::from)
-            .map(|d| d.join("scripts/lora-train-nar.py"))
+            .map(|d| d.join(relative))
             .unwrap_or_default(),
     ];
     candidates.into_iter().find(|p| p.is_file())
+}
+
+fn find_repo_trainer() -> Option<PathBuf> {
+    find_repo_script("scripts/lora-train-nar.py")
+}
+
+fn find_yue2_gpu_trainer() -> Option<PathBuf> {
+    find_repo_script("scripts/lora-train-yue2-gpu.py")
 }
 
 fn python_cmd() -> Option<(PathBuf, Vec<String>)> {
@@ -161,12 +174,24 @@ pub fn probe_trainer() -> Result<TrainerProbeResult, String> {
     let jobs_root = training_jobs_root();
     ensure_dir(&jobs_root).map_err(|e| e.to_string())?;
     let trainer = find_repo_trainer();
+    let gpu_trainer = find_yue2_gpu_trainer();
     let python_available = python_cmd().is_some();
     let trainer_exists = trainer.is_some() && python_available;
+    let yue2_gpu_trainer_exists = gpu_trainer.is_some() && python_available;
+    let cuda_available = crate::health::detect_gpu().0;
     let message_fr = if trainer_exists {
         format!(
-            "Trainer NAR détecté ({}) — jobs sous {}.",
+            "Pilote NAR CPU : {}. LoRA YuE2 GPU : {} (CUDA {}). Jobs sous {}.",
             trainer.as_ref().unwrap().display(),
+            gpu_trainer
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "script absent".into()),
+            if cuda_available {
+                "détecté"
+            } else {
+                "absent"
+            },
             jobs_root.display()
         )
     } else if trainer.is_some() && !python_available {
@@ -181,6 +206,9 @@ pub fn probe_trainer() -> Result<TrainerProbeResult, String> {
         jobs_root: jobs_root.display().to_string(),
         python_available,
         message_fr,
+        yue2_gpu_trainer_exists,
+        yue2_gpu_trainer_script_path: gpu_trainer.map(|p| p.display().to_string()),
+        cuda_available,
     })
 }
 
@@ -239,8 +267,12 @@ pub fn launch_trainer(
             message_fr: format!("Trainer introuvable : {}", script.display()),
         });
     }
+    let gpu = script
+        .file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|n| n.contains("yue2-gpu"));
     let (python, prefix) = python_cmd().ok_or_else(|| {
-        "Python 3.10+ requis pour le trainer NAR (ou SONG_MAKER_PYTHON).".to_string()
+        "Python 3.10+ requis pour le trainer LoRA (ou SONG_MAKER_PYTHON).".to_string()
     })?;
     let job_dir = PathBuf::from(&args.job_dir);
     ensure_dir(&job_dir).map_err(|e| e.to_string())?;
@@ -261,12 +293,15 @@ pub fn launch_trainer(
         .arg("--job-dir")
         .arg(&job_dir)
         .arg("--manifest")
-        .arg(&manifest)
-        .stdout(Stdio::from(log_file))
+        .arg(&manifest);
+    if gpu {
+        cmd.arg("--slot").arg("nar");
+    }
+    cmd.stdout(Stdio::from(log_file))
         .stderr(Stdio::from(err_file));
     let child = cmd
         .spawn()
-        .map_err(|e| format!("Échec lancement trainer NAR : {e}"))?;
+        .map_err(|e| format!("Échec lancement trainer LoRA : {e}"))?;
     let pid = child.id();
     std::fs::write(job_dir.join("pid"), pid.to_string()).ok();
     // Mark running in manifest if present.
@@ -290,7 +325,12 @@ pub fn launch_trainer(
         job_id: args.job_id,
         pid: Some(pid),
         message_fr: format!(
-            "Trainer NAR démarré (pid {pid}). Adaptateur non activé automatiquement."
+            "{} démarré (pid {pid}). Adaptateur non activé automatiquement.",
+            if gpu {
+                "Trainer YuE2 GPU"
+            } else {
+                "Trainer NAR (pilote CPU)"
+            }
         ),
     })
 }

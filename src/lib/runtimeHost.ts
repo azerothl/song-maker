@@ -56,6 +56,9 @@ export type LoraTrainerProbe = {
   jobsRoot: string;
   pythonAvailable: boolean;
   messageFr: string;
+  yue2GpuTrainerExists?: boolean;
+  yue2GpuTrainerScriptPath?: string | null;
+  cudaAvailable?: boolean;
 };
 
 export type LoraAudioProbe = {
