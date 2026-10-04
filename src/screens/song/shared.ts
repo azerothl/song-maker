@@ -235,6 +235,7 @@ const KNOWN_WARNINGS = [
   "guitar-piano-unavailable",
   "experimental-guitar-piano",
   "piano-less-reliable",
+  "piano-bleed-mask",
   "bs-roformer-vocals-instrumental-only",
   "drums-bass-guitar-piano-unavailable",
 ] as const;
@@ -256,6 +257,8 @@ export function warningLabel(code: string): string {
       return t("separation.warn.experimentalGuitarPiano");
     case "piano-less-reliable":
       return t("separation.warn.pianoLessReliable");
+    case "piano-bleed-mask":
+      return t("separation.warn.pianoBleedMask");
     case "bs-roformer-vocals-instrumental-only":
       return t("separation.warn.bsRoformerOnly");
     case "drums-bass-guitar-piano-unavailable":

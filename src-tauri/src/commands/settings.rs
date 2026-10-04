@@ -178,7 +178,7 @@ pub fn get_phase3_status() -> Result<Phase3Status, String> {
         separator_time_stats: settings.separator_time_stats.clone(),
         guitar_piano_available: selected == "htdemucs_6s" && onnx_runtime_present,
         honesty_fr: if selected == "htdemucs_6s" && onnx_runtime_present {
-            "HTDemucs 6 stems via ONNX : guitare et piano estimés séparément. Modèle expérimental ; fuites possibles, surtout sur le piano. Première séparation : téléchargement du modèle (136 Mo environ).".into()
+            "HTDemucs 6 stems via ONNX : guitare et piano estimés séparément. Expérimental ; déconseillé piano-heavy. Masque spectral post-séparation sur les autres stems (le piano n’est pas nettoyé). Première séparation : téléchargement du modèle (136 Mo environ).".into()
         } else if selected == "htdemucs_6s" {
             "HTDemucs 6 stems nécessite le runtime ONNX optionnel. Installez-le ici avant de lancer une séparation.".into()
         } else if selected == "bs_roformer" {

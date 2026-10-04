@@ -215,6 +215,7 @@ pub async fn start_separation(
                 "estimated-separation".to_string(),
                 "experimental-guitar-piano".to_string(),
                 "piano-less-reliable".to_string(),
+                "piano-bleed-mask".to_string(),
             ],
         ),
         _ => (

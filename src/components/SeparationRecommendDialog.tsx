@@ -356,6 +356,11 @@ export function SeparationRecommendDialog({
               <>
                 <br />
                 <span className="hint">{provider?.stemLayoutNoteFr}</span>
+                {opt.id === "htdemucs_6s" && (
+                  <p className="hint warn" data-testid="sep-piano-heavy-warn">
+                    {t("separation.warn.pianoHeavy6s")}
+                  </p>
+                )}
                 <br />
               </>
             )}

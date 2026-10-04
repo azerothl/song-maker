@@ -24,7 +24,7 @@ export const HTDEMUCS_6S_CAPABILITIES: StemSeparatorCapabilities = {
   marksExtrasLessReliable: true,
   displayNameFr: "HTDemucs 6 stems (expérimental)",
   stemLayoutNoteFr:
-    "Six stems : voix, batterie, basse, accompagnement, guitare et piano. Les deux derniers sont des estimations ; le piano peut contenir beaucoup de fuites.",
+    "Six stems : voix, batterie, basse, accompagnement, guitare et piano. Les deux derniers sont des estimations. Déconseillé piano-heavy : fuites, surtout piano. Un masque spectral réduit la fuite dans les autres stems ; le piano n’est pas nettoyé.",
 };
 
 const STEMS = ["vocals", "drums", "bass", "other", "guitar", "piano"] as const;
@@ -83,7 +83,12 @@ export class HtDemucs6sStemSeparator implements StemSeparatorProvider {
       },
       stems,
       unavailableRoles: [],
-      warnings: ["estimated-separation", "experimental-guitar-piano", "piano-less-reliable"],
+      warnings: [
+        "estimated-separation",
+        "experimental-guitar-piano",
+        "piano-less-reliable",
+        "piano-bleed-mask",
+      ],
     };
   }
 }
