@@ -71,6 +71,7 @@ export function LoraTrainingPanel({
   probing: probingProp = false,
   onRuntimeStatusChange,
 }: LoraTrainingPanelProps = {}) {
+  const [kind, setKind] = useState<"nar" | "yue2_gpu">("nar");
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [files, setFiles] = useState<FileMeta[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -91,9 +92,14 @@ export function LoraTrainingPanel({
   const controlled = probeProp !== undefined;
   const probe = controlled ? (probeProp ?? null) : localProbe;
   const probing = controlled ? probingProp : localProbing;
-  const trainerExists = Boolean(probe?.trainerExists);
   const trainerScriptPath =
-    probe?.trainerScriptPath ?? "scripts/lora-train-nar.py";
+    kind === "yue2_gpu"
+      ? (probe?.yue2GpuTrainerScriptPath ?? "scripts/lora-train-yue2-gpu.py")
+      : (probe?.trainerScriptPath ?? "scripts/lora-train-nar.py");
+  const trainerExists =
+    kind === "yue2_gpu"
+      ? Boolean(probe?.yue2GpuTrainerExists ?? probe?.yue2GpuTrainerScriptPath)
+      : Boolean(probe?.trainerExists);
   const jobsRoot = probe?.jobsRoot ?? "training-jobs";
 
   useEffect(() => {
@@ -295,6 +301,38 @@ export function LoraTrainingPanel({
     <section className="lora-training-panel" aria-labelledby="lora-train-title">
       <h2 id="lora-train-title">{t("loraTrain.title")}</h2>
       <p className="hint">{t("loraTrain.intro")}</p>
+      <fieldset className="settings-engine-options">
+        <legend>{t("loraTrain.kind")}</legend>
+        <label className="settings-engine-option">
+          <input
+            type="radio"
+            name="lora-train-kind"
+            checked={kind === "nar"}
+            onChange={() => setKind("nar")}
+          />
+          <span>
+            <strong>{t("loraTrain.kind.nar")}</strong>
+            <small>{t("loraTrain.kind.narHint")}</small>
+          </span>
+        </label>
+        <label className="settings-engine-option">
+          <input
+            type="radio"
+            name="lora-train-kind"
+            checked={kind === "yue2_gpu"}
+            onChange={() => setKind("yue2_gpu")}
+          />
+          <span>
+            <strong>{t("loraTrain.kind.gpu")}</strong>
+            <small>{t("loraTrain.kind.gpuHint")}</small>
+          </span>
+        </label>
+      </fieldset>
+      {kind === "yue2_gpu" && probe?.cudaAvailable === false ? (
+        <p className="hint warn" role="status">
+          {t("loraTrain.kind.gpuNoCuda")}
+        </p>
+      ) : null}
       <p className="hint" role="status">
         {t("loraTrain.runtimeStatus")}:{" "}
         <strong>{t(loraTrainStatusLabelKey(runtimeStatus))}</strong>
@@ -364,11 +402,15 @@ export function LoraTrainingPanel({
           type="button"
           className="btn"
           disabled={
-            busy || !rightsConfirmed || songs.length === 0 || !validation.ok
+            busy ||
+            !rightsConfirmed ||
+            songs.length === 0 ||
+            !validation.ok ||
+            (kind === "yue2_gpu" && probe?.cudaAvailable === false)
           }
           onClick={() => void onLaunch()}
         >
-          {t("loraTrain.launch")}
+          {kind === "yue2_gpu" ? t("loraTrain.launchGpu") : t("loraTrain.launch")}
         </button>
         <button
           type="button"

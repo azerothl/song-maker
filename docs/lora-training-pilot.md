@@ -14,7 +14,7 @@ Package produit : `@song-maker/lora-training` (validation corpus, split par morc
 |---|---|
 | Chargement AR/NAR unfused dans audio.cpp épinglé | **Fermé pour le runtime** — session `yue2.ar_lora` / `yue2.nar_lora` |
 | Worker NAR local (`scripts/lora-train-nar.py`) | **Livré** — validation corpus, logs, checkpoints, export SafeTensors unfused |
-| Entraînement GPU complet (torch + recette YuE2 officielle) | **Ouverte** — le script exporte un adapter de format pour tests de charge ; torch optionnel |
+| Entraînement GPU YuE2 officiel (torch + recette, pins audio.cpp) | **Livré en parcours** — `scripts/lora-train-yue2-gpu.py`, UI distincte du pilote NAR ; CUDA obligatoire ; trainer vendeur optionnel `SONG_MAKER_YUE2_TRAIN` |
 | Export ComfyUI / fusionné → audio.cpp | **Fermé côté politique** — refus catalogue jusqu’à conversion |
 | VRAM / disque / durée sur machine cible | **Estimations UI `measured: false`** — mesurer avant promesse matérielle |
 | Clonage de voix | **Fermé** — hors périmètre |
@@ -23,7 +23,10 @@ Package produit : `@song-maker/lora-training` (validation corpus, split par morc
 
 ```text
 python scripts/lora-train-nar.py --job-dir <jobs>/<id> --manifest <jobs>/<id>/manifest.json
+python scripts/lora-train-yue2-gpu.py --job-dir <jobs>/<id> --manifest <jobs>/<id>/manifest.json --slot nar
 ```
+
+Le second exige CUDA + torch. Les deux : `autoActivate: false`.
 
 - Annulation : fichier `CANCEL` ou SIGTERM.
 - Sortie : `adapter/nar_lora.safetensors` (unfused), `metrics.json`, `validation-report.json`.
@@ -35,7 +38,7 @@ python scripts/lora-train-nar.py --job-dir <jobs>/<id> --manifest <jobs>/<id>/ma
 |---|---|
 | Validation corpus + split + estimations | Réel |
 | Écriture `training-jobs/<id>/` disque | Réel (hôte Tauri) |
-| Trainer Python | Réel (`scripts/lora-train-nar.py`) |
+| Trainer Python | Réel (`scripts/lora-train-nar.py` et `scripts/lora-train-yue2-gpu.py`) |
 | Activation auto | **Jamais** |
 | Gate catalogue | Réel (`validateAdapterForCatalog`) |
 
