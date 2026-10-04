@@ -1,13 +1,13 @@
 # Maquette « Vue unique Production » — pack docs (#224)
 
 Direction silhouette **validée par Loïc** (2026-10-01, commentaire sur #224).  
-Ce dossier versionne les **captures PNG** + le **pack documentaire A–G partiel**. Le HTML/CSS/JS interactif reste **hors dépôt** (boîte équipe).
+Ce dossier versionne les **captures PNG**, le **pack documentaire A–G partiel**, et un **HTML interactif** des restes #345 (master : lecture / fader / mesure / densité ; aimantation-zoom uniquement dans Réglages du mix). Ce HTML n’est pas les 33 scènes Alphonse.
 
 | Réf. | Valeur |
 |------|--------|
 | Produit tip au moment du pack | `bfec8bbe2949fb6abccb0217b9dca1c7275efd61` |
 | Réf. produit citée par la maquette | `2c13dd7cb79d4b4bda855b276674eb18492aef85` |
-| HTML publié | **Non** |
+| HTML publié | **Partiel** (`index.html` restes #345) |
 | Scènes PNG | **21 / 33** |
 | `metrics.json` sha256 | `4b337af1916e8414690740b6dc968a823cf6f475736294c739b1e501bfe580e9` |
 
@@ -21,7 +21,7 @@ Ce dossier versionne les **captures PNG** + le **pack documentaire A–G partiel
 | [`tests.md`](./tests.md) | A | Mapping vers tests produit |
 | [`fonctions-nouvelle-place.md`](./fonctions-nouvelle-place.md) | B | Complet (décisions consignées) |
 | [`libelles-i18n.md`](./libelles-i18n.md) | E | Clés `production.*` produit FR/EN |
-| `index.html` / `app.js` / `i18n*.js` | A / G | **Absents** |
+| `index.html` | A / G / #345 | **Partiel** (master + aimantation/zoom) |
 
 ## Scénarios disponibles — hash d’URL maquette
 

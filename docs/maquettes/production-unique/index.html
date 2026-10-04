@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Song Maker — Maquette Production (restes #345)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#141218;--text:#f3f0fa;--muted:#bdb6cf;--line2:#7a6ea1;--purple:#805cdf;--ok:#7fe0a1;--field:#171320}
+*{box-sizing:border-box}body{margin:0;font:14px/1.4 system-ui,sans-serif;background:#0b0a0e;color:var(--text)}
+.wrap{max-width:960px;margin:0 auto;padding:16px}
+.badge{display:inline-block;border:1px dashed var(--purple);padding:4px 8px;border-radius:8px;font-size:12px;margin-bottom:12px}
+.master{display:flex;flex-wrap:wrap;gap:10px;align-items:center;border:1px solid var(--line2);border-radius:8px;padding:8px 10px;background:#1b1723}
+button{font:inherit;min-height:32px;border-radius:8px;border:1px solid var(--line2);background:var(--purple);color:#fff;cursor:pointer}
+button[aria-pressed="true"]{outline:2px solid var(--ok)}
+.meter{width:12px;height:36px;background:var(--field);border:1px solid var(--line2);border-radius:4px;display:flex;align-items:flex-end}
+.meter span{width:100%;background:var(--ok);height:40%}
+.pop{margin-top:16px;border:1px solid var(--line2);border-radius:10px;padding:12px;background:#221e2c}
+label{display:flex;gap:8px;align-items:center;margin:8px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="badge">Maquette interactive · restes #345 · valeurs d’exemple</p>
+  <h1>Bandeau master</h1>
+  <div class="master" aria-label="Bandeau master">
+    <button type="button" id="play" aria-label="Lecture">▶</button>
+    <span>0:12 / 3:40</span>
+    <input type="range" min="-24" max="12" value="0" aria-label="Master">
+    <div class="meter" role="meter" aria-label="Niveau master" aria-valuenow="40" aria-valuemin="0" aria-valuemax="100"><span></span></div>
+    <div role="group" aria-label="Hauteur des lignes">
+      <button type="button" aria-pressed="true">Auto</button>
+      <button type="button" aria-pressed="false">Compact</button>
+      <button type="button" aria-pressed="false">Confortable</button>
+    </div>
+  </div>
+  <div class="pop">
+    <h2>Réglages du mix — aimantation / zoom</h2>
+    <p>Ces contrôles n’apparaissent pas dans une barre orpheline : uniquement ici.</p>
+    <label><input type="checkbox" checked> Aimantation</label>
+    <label>Zoom <input type="range" min="1" max="4" step="0.25" value="1" aria-label="Zoom"></label>
+  </div>
+</div>
+<script>
+const play=document.getElementById("play");
+play.addEventListener("click",()=>{
+  const on=play.getAttribute("aria-label")==="Pause";
+  play.setAttribute("aria-label",on?"Lecture":"Pause");
+  play.textContent=on?"▶":"❚❚";
+});
+document.querySelectorAll('[aria-label="Hauteur des lignes"] button').forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll('[aria-label="Hauteur des lignes"] button').forEach(b=>b.setAttribute("aria-pressed","false"));
+    btn.setAttribute("aria-pressed","true");
+  });
+});
+</script>
+</body>
+</html>

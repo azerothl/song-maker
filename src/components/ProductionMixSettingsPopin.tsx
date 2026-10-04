@@ -7,7 +7,7 @@ import {
 } from "react";
 import type { LoudnessReport } from "@song-maker/mix-production";
 import { AnchoredPopin } from "./AnchoredPopin";
-import { MixKnob } from "./MixKnob";
+import { MixSlider } from "./MixSlider";
 import { PopinCloseButton } from "./PopinCloseButton";
 import {
   ProductionClipViewControls,
@@ -200,6 +200,7 @@ export function ProductionMixSettingsPopin({
       >
         <fieldset className="production-mix-settings-field">
           <legend>{t("production.mixSettings.grid")}</legend>
+          <p className="hint">{t("production.mixSettings.gridHint")}</p>
           <ProductionClipViewControls
             prefs={clipView}
             onChange={onClipViewChange}
@@ -239,8 +240,8 @@ export function ProductionMixSettingsPopin({
 
         <fieldset className="production-mix-settings-field">
           <legend>{t("production.mixSettings.sound")}</legend>
-          <MixKnob
-            className="production-mix-settings-master-knob"
+          <MixSlider
+            className="production-mix-settings-master-fader"
             value={mix.masterGainDb}
             min={-24}
             max={12}

@@ -256,9 +256,11 @@ describe("Production commune (#223, #230)", () => {
         assert.ok(Math.abs(rulerLine.x-clipLine.x)<=1);
         assert.ok(Math.abs(rulerLine.x-autoLine.x)<=1);
         const labelsBefore=await page.locator(".clip-ruler-tick").evaluateAll(elements=>elements.filter(el=>el.textContent?.trim()).length);
-        const zoom=page.locator(".production-context-bar .production-clip-view-zoom input");
+        await page.getByTestId("production-mix-settings-trigger").click();
+        const zoom=page.getByTestId("production-mix-settings-popin").getByRole("slider",{name:"Zoom",exact:true});
         await zoom.focus();
         await zoom.press("End");
+        await page.keyboard.press("Escape");
         await page.waitForFunction(count=>Array.from(document.querySelectorAll(".clip-ruler-tick")).filter(el=>el.textContent?.trim()).length>count,labelsBefore);
         const zoomRail=await rail.boundingBox();
         const zoomRuler=await page.locator(".clip-ruler-marks-abs").boundingBox();

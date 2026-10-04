@@ -16,14 +16,12 @@ import { SeparationRecommendDialog } from "../../components/SeparationRecommendD
 import { EstimatedSeparationMarker } from "../../components/EstimatedSeparationMarker";
 import { AnchoredPopin } from "../../components/AnchoredPopin";
 import { ProductionMixSettingsPopin } from "../../components/ProductionMixSettingsPopin";
-import { MixKnob } from "../../components/MixKnob";
 import { MixSlider } from "../../components/MixSlider";
 import {
   ClipEditToolbar,
   clipEditToolFromKey,
   type ClipEditTool,
 } from "../../components/ClipEditToolbar";
-import { ProductionClipViewControls } from "../../components/ProductionClipViewControls";
 import { ProductionAssistPanel } from "../../components/ProductionAssistPanel";
 import { QwenMixAssistant } from "../../components/QwenMixAssistant";
 import { RecordTrackPanel } from "../../components/RecordTrackPanel";
@@ -79,6 +77,10 @@ import {
   parsePan,
   workspaceTitle,
 } from "./shared";
+import {
+  mixPeakAtPlayhead,
+  mixPeakPercent,
+} from "../../lib/productionMasterMeter";
 
 type MixUpdateOpts = { persist?: boolean };
 
@@ -546,9 +548,9 @@ export function ProductionWorkspace({
                     onSeek={playback?.seek}
                   />
                 </div>
-                <div className="mix-master-knob-host">
-                  <MixKnob
-                    className="mix-master-knob"
+                <div className="mix-master-level">
+                  <MixSlider
+                    className="mix-master-fader"
                     value={mix.masterGainDb}
                     min={-24}
                     max={12}
@@ -568,6 +570,53 @@ export function ProductionWorkspace({
                       scheduleMixUpdate({ ...mix, masterGainDb: gainDb })
                     }
                   />
+                  <div
+                    className="mix-master-meter"
+                    role="meter"
+                    aria-label={t("mix.masterMeter")}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={mixPeakPercent(
+                      mixPeakAtPlayhead(
+                        playback?.mixPeaks ?? null,
+                        playback?.current ?? 0,
+                        playback?.duration ?? 0,
+                      ),
+                    )}
+                  >
+                    <span
+                      className="mix-master-meter-fill"
+                      style={{
+                        height: `${mixPeakPercent(
+                          mixPeakAtPlayhead(
+                            playback?.mixPeaks ?? null,
+                            playback?.current ?? 0,
+                            playback?.duration ?? 0,
+                          ),
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+                <div
+                  className="production-density-seg mix-master-density"
+                  role="group"
+                  aria-label={t("mix.density.group")}
+                >
+                  {(["auto", "compact", "confortable"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      className="production-density-btn"
+                      aria-pressed={densityPreference === mode}
+                      onClick={() => setDensityPreferencePersist(mode)}
+                    >
+                      <span className="production-density-check" aria-hidden>
+                        ✓
+                      </span>
+                      {t(`mix.density.${mode}`)}
+                    </button>
+                  ))}
                 </div>
               </div>
               <div
@@ -581,12 +630,6 @@ export function ProductionWorkspace({
                 {separationInfo && separationInfo.warnings.length > 0 && (
                   <EstimatedSeparationMarker warningCodes={separationInfo.warnings} />
                 )}
-                <ProductionClipViewControls
-                  prefs={clipViewPrefs}
-                  onChange={patchClipViewPrefs}
-                  variant="quick"
-                  idPrefix="production-context"
-                />
                 <p className="mix-autosave production-mix-saved" role="status">
                   {mixSavedAt
                     ? t("mix.savedAt", { time: formatSavedClock(mixSavedAt) })

@@ -17,6 +17,7 @@ export function productionMixSettingsUiEnKeys(
     "production.mixSettings.title",
     "production.mixSettings.close",
     "production.mixSettings.grid",
+    "production.mixSettings.gridHint",
     "production.mixSettings.densityLegend",
     "production.mixSettings.sound",
     "production.mixSettings.tracks",
