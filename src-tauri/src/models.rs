@@ -425,6 +425,8 @@ pub struct HealthSnapshot {
     pub server_healthy: bool,
     pub server_url: Option<String>,
     pub message: String,
+    /// Official Python YuE2 is intentionally not installed and not a fallback (#328).
+    pub python_yue2_runtime: String,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]

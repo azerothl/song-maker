@@ -77,7 +77,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Génération avec audio en entrée (`audio_input`) | Non supporté par YuE2 / audio.cpp épinglé |
 | Plugins **VST3** / AU | Différés (étude : [`docs/vst3-host-feasibility.md`](docs/vst3-host-feasibility.md)) — FX natifs uniquement |
 | **UniverSR** / upscaling audio | Hors périmètre |
-| Runtime Python YuE2 officiel | Non installé, pas un repli |
+| Runtime Python YuE2 officiel | **Volontairement absent** : non installé, **pas un repli**. Le desktop ne bascule jamais vers Python si audio.cpp échoue. |
 | SheetSage2 / BS-RoFormer / Mel-Band RoFormer / LoRA packs | Opt-in, hors installeur minimal |
 | HTDemucs 6 stems (guitare/piano) | Opt-in expérimental ; fuites possibles |
 | Transcription audio → MIDI produit / MIDI matériel | Non livré en UI (essai interne BasicPitch ONNX documenté sous [`docs/basicpitch-trial/`](docs/basicpitch-trial/REPORT.md) — pas un bouton produit) |

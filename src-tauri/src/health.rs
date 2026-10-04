@@ -220,6 +220,7 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
         server_healthy,
         server_url: server_url.map(|s| s.to_string()),
         message,
+        python_yue2_runtime: "absent_by_design".into(),
     }
 }
 
@@ -279,5 +280,11 @@ mod tests {
         assert!(
             info.acceleration_kind == GPU_ACCEL_NVIDIA || info.acceleration_kind == GPU_ACCEL_NONE
         );
+    }
+
+    #[test]
+    fn python_yue2_runtime_is_absent_by_design() {
+        let snap = check_health(None);
+        assert_eq!(snap.python_yue2_runtime, "absent_by_design");
     }
 }

@@ -179,6 +179,8 @@ export function AceStepModelSettings() {
         </label>
       </fieldset>
 
+      <p className="hint" role="note">{t("settings.model.engine.pythonYue2")}</p>
+
       {selected ? (
         <p className="hint" role="note">{t("settings.model.engine.aceStepLimits")}</p>
       ) : null}

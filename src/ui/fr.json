@@ -804,6 +804,7 @@
   "settings.model.engine.yue2Hint": "Moteur par défaut, préférable lors de l’écoute comparative.",
   "settings.model.engine.aceStepHint": "Optionnel · environ 9,4 Gio · génération audio depuis un prompt, sans partition ni continuation.",
   "settings.model.engine.aceStepLimits": "Avec ACE-Step, la génération de partition, la continuation et le rendu depuis un score restent indisponibles. Revenez à YuE2 pour ces fonctions.",
+  "settings.model.engine.pythonYue2": "Le runtime Python officiel YuE2 n’est pas installé et n’est pas un repli. Le desktop passe uniquement par audio.cpp épinglé (YuE2 GGUF) ou ACE-Step opt-in. Aucun bouton « moteur officiel Python ».",
   "settings.model.engine.optionalDownload": "Téléchargement facultatif et avis de licence",
   "settings.model.engine.checking": "Vérification du modèle local…",
   "settings.model.engine.desktopOnly": "Le téléchargement du modèle est disponible dans l’application de bureau.",
