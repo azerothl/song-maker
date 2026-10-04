@@ -1,0 +1,93 @@
+---
+title: Configurer Song Maker
+description: Premier lancement, GPU, modèles Q4/Q8, Paramètres, ffmpeg et options avancées.
+order: 3
+---
+
+# Configurer Song Maker
+
+Après [l’installation](/fr/docs/install), tout se règle dans l’application. Les scripts `curl` / PowerShell du dépôt sont un chemin développeur optionnel, pas l’assistant du premier lancement.
+
+## Premier lancement
+
+À l’ouverture, Song Maker affiche un assistant :
+
+1. **Profil** Hobby ou Commercial (jusqu’à 6 profils). Les poids YuE2 restent **CC BY-NC 4.0** quel que soit le profil.
+2. **Contrôle GPU** : NVIDIA CUDA sous Windows/Linux, Metal sous macOS. Sans accélération compatible, la génération YuE2 n’est pas disponible.
+3. **Licences** : YuE2 (CC BY-NC 4.0) et HTDemucs. Cochez-les avant tout téléchargement.
+4. **Pack modèle** : **Q4** par défaut (moins de mémoire vidéo). **Q8** si la carte a assez de VRAM (environ 12 Go ou plus).
+5. **Téléchargement** du moteur `audiocpp` et des poids. Les fichiers partent les uns après les autres ; une interruption se reprend.
+
+Prévoyez **plusieurs gigaoctets** d’espace et une connexion stable. Aucun compte en ligne n’est requis.
+
+## Matériel
+
+| Élément | Attendu |
+|---|---|
+| Windows / Linux | GPU **NVIDIA** + pilote CUDA (Linux : CUDA 12.8) |
+| macOS | Metal (Apple Silicon ou Intel) |
+| Pack **Q4** | Environ 8 Go de mémoire vidéo, selon la carte |
+| Pack **Q8** | Environ 12 Go ou plus |
+| File GPU | Un modèle chargé à la fois (`max_loaded_models=1`) |
+
+YuE2 et ACE-Step Lego ne tournent **pas** en parallèle. Si la mémoire manque, restez en Q4, fermez les autres applications GPU. Détails : [Dépannage GPU](/fr/docs/depannage-gpu).
+
+## Paramètres
+
+Ouvrez **Paramètres** une fois l’assistant terminé.
+
+### Système
+
+- **Langue de l’interface** : français ou anglais, mémorisée sur cet ordinateur.
+- Chemins de cache et infos techniques (diagnostic).
+
+### Modèle YuE2
+
+- Pack actif **Q4** ou **Q8**.
+- Téléchargement d’un pack supplémentaire sans figer la fenêtre.
+- Moteur par défaut : **YuE2** via audio.cpp. YuE2 **refuse** une entrée audio (`audio_input`).
+
+### Autre moteur (opt-in)
+
+- **ACE-Step 1.5 Turbo** (GGUF) : texte → musique, XOR global distinct. Pas de partition, pas de continuation. Ce n’est **pas** Lego.
+- **Modèle maison** Song Maker : indisponible (radio désactivée).
+- Le runtime Python officiel YuE2 n’est pas installé et n’est pas un repli.
+
+### Ajout de piste mix/stems (opt-in)
+
+Section **ACE-Step 1.5 Base Lego** : sidecar Python REST, appelé seulement depuis **Production**, pas depuis Créer.
+
+- GPU réel, **≥ 12 Go de VRAM** conseillés.
+- Pas le GGUF Turbo.
+- La sortie peut être un **mix fusionné**, pas un stem dry.
+- Carte ACE-Step **MIT** ; un mix YuE2 reste **CC BY-NC**.
+
+Sans cette option, Production peut quand même générer une partie selon le **tempo / la tonalité / le style** du projet, avec YuE2.
+
+### Séparation et packs
+
+- **HTDemucs** 4 pistes par défaut (voix, batterie, basse, autres).
+- 6 pistes ONNX, BS-RoFormer, Mel-Band RoFormer : opt-in, hors installeur minimal.
+- Packs LoRA de style : opt-in, CC BY-NC.
+
+### Autres options
+
+- **Hôte DeclUI embarqué** : loopback `127.0.0.1`, désactivé par défaut. La génération YuE2 reste sur le bureau.
+- **Worker GPU distant** : désactivé par défaut.
+- Les plugins **VST3** ne sont pas un produit (flag développeur seulement).
+
+## ffmpeg
+
+Nécessaire pour le rééchantillonnage et certains exports (MP3 surtout) :
+
+- Windows : `winget install Gyan.FFmpeg`
+- macOS : `brew install ffmpeg`
+- Linux : paquet `ffmpeg` de la distribution
+
+Si Song Maker ne le trouve pas : variable d’environnement `SONG_MAKER_FFMPEG` = chemin vers l’exécutable.
+
+## Suite
+
+- [Génération batch](/fr/docs/generation-batch) — fichier JSON, champs, exemple.
+- [Premier morceau](/fr/docs/premier-morceau)
+- [Mix & export](/fr/docs/mix-export)

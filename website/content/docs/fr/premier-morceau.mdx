@@ -1,7 +1,7 @@
 ---
 title: Créer un premier morceau
 description: Saisir un style et des paroles, puis lancer une génération YuE2 sur son ordinateur.
-order: 3
+order: 5
 ---
 
 # Premier morceau
@@ -15,7 +15,7 @@ Après avoir installé et ouvert Song Maker :
 
 Vous pouvez générer un morceau à partir du style et des paroles sans importer de partition. Pour un instrumental sans texte vocal, activez le **mode instrumental** : les paroles deviennent facultatives et peuvent rester vides.
 
-Pour plusieurs morceaux d’un coup, **Bibliothèque → Génération batch** importe un JSON UTF-8. Les prises passent par la file GPU une à une (capacité admise : 1). Détails : [Nouveautés v0.1.2](/fr/docs/nouveautes).
+Pour plusieurs morceaux d’un coup, **Bibliothèque → Génération batch** importe un JSON UTF-8 (`schemaVersion: 1`, tableau `songs` avec `id`, `title`, `style`, `lyrics`). Les prises passent par la file GPU une à une (capacité admise : 1). Structure complète : [Génération batch](/fr/docs/generation-batch). Configuration GPU et modèles : [Configurer](/fr/docs/configuration).
 
 ## Conseils
 

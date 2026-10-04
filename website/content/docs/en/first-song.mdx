@@ -1,7 +1,7 @@
 ---
 title: Make your first song
 description: Add a style and lyrics, then generate a song with YuE2 on your computer.
-order: 3
+order: 5
 ---
 
 # First song
@@ -15,7 +15,7 @@ After installing and opening Song Maker:
 
 You can generate a song from a style and lyrics without importing a score. For an instrumental without sung text, turn on **instrumental mode**: lyrics become optional and may be left empty.
 
-To generate several songs in one go, **Library → Batch generation** imports a UTF-8 JSON file. Takes run on the exclusive GPU queue one at a time (admitted capacity: 1). Details: [What’s new in v0.1.2](/en/docs/whats-new).
+To generate several songs in one go, **Library → Batch generation** imports a UTF-8 JSON file (`schemaVersion: 1`, `songs` array with `id`, `title`, `style`, `lyrics`). Takes run on the exclusive GPU queue one at a time (admitted capacity: 1). Full structure: [Batch generation](/en/docs/batch-generation). GPU and models: [Setup](/en/docs/setup).
 
 ## Tips
 

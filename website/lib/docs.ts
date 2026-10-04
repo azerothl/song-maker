@@ -21,6 +21,22 @@ function docsDir(locale: AppLocale) {
   return path.join(DOCS_ROOT, locale);
 }
 
+export function localeDocsPath(
+  locale: AppLocale,
+  slugs: Record<AppLocale, string>,
+): string {
+  switch (locale) {
+    case "fr":
+      return slugs.fr;
+    case "en":
+      return slugs.en;
+    default: {
+      const _exhaustive: never = locale;
+      return _exhaustive;
+    }
+  }
+}
+
 export function listDocs(locale: AppLocale): DocMeta[] {
   const dir = docsDir(locale);
   if (!fs.existsSync(dir)) return [];

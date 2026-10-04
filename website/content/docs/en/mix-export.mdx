@@ -1,7 +1,7 @@
 ---
 title: Mix & export
 description: Separate a song into tracks, adjust the mix, and export the result.
-order: 5
+order: 7
 ---
 
 # Mix & export
@@ -17,7 +17,7 @@ The standard **HTDemucs** model separates vocals, drums, bass, and other sounds.
 - **Grid-snapped punch:** in/out points snap to the grid; user audio clips have native `startMs`.
 - **Instrumental part** from Production:
   - tempo / key / style via **YuE2** (bass, drums, accompaniment);
-  - mix / stems via the opt-in **ACE-Step 1.5 Base Lego** sidecar (Python REST, not the Turbo GGUF). YuE2 does not accept `audio_input`. Lego may return a fused mix, not a dry stem. A YuE2 mix stays CC BY-NC.
+  - mix / stems via the opt-in **ACE-Step 1.5 Base Lego** sidecar (Python REST, not the Turbo GGUF). YuE2 does not accept `audio_input`. Lego may return a fused mix, not a dry stem. A YuE2 mix stays CC BY-NC. Lego install: [Setup](/en/docs/setup).
 
 ## Export
 

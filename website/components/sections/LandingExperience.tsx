@@ -1,6 +1,9 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { DemoMixer } from "./DemoMixer";
+import { APP_VERSION } from "@/lib/releases";
+import { localeDocsPath } from "@/lib/docs";
+import { type AppLocale } from "@/i18n/routing";
 import styles from "./LandingExperience.module.css";
 
 const STEPS = ["idea", "generation", "separation"] as const;
@@ -9,6 +12,19 @@ const FAQ = ["stems", "local", "hardware", "license", "batch"] as const;
 
 export async function LandingExperience() {
   const t = await getTranslations("landing");
+  const locale = (await getLocale()) as AppLocale;
+  const newsHref = localeDocsPath(locale, {
+    fr: "/docs/nouveautes",
+    en: "/docs/whats-new",
+  });
+  const setupHref = localeDocsPath(locale, {
+    fr: "/docs/configuration",
+    en: "/docs/setup",
+  });
+  const batchHref = localeDocsPath(locale, {
+    fr: "/docs/generation-batch",
+    en: "/docs/batch-generation",
+  });
 
   return (
     <>
@@ -35,6 +51,19 @@ export async function LandingExperience() {
         <div><span className={styles.factIndex}>02</span><span>{t("facts.separation")}</span></div>
         <div><span className={styles.factIndex}>03</span><span>{t("facts.privacy")}</span></div>
       </div>
+
+      <section className={styles.release} aria-labelledby="release-title">
+        <p className={styles.eyebrow}>{t("news.eyebrow", { version: APP_VERSION })}</p>
+        <div className={styles.releaseCopy}>
+          <h2 id="release-title">{t("news.title")}</h2>
+          <p>{t("news.body")}</p>
+        </div>
+        <div className={styles.releaseLinks}>
+          <Link className={styles.textLink} href={newsHref}>{t("news.whatsNew")} <span aria-hidden="true">→</span></Link>
+          <Link className={styles.textLink} href={setupHref}>{t("news.setup")} <span aria-hidden="true">→</span></Link>
+          <Link className={styles.textLink} href={batchHref}>{t("news.batch")} <span aria-hidden="true">→</span></Link>
+        </div>
+      </section>
 
       <section className={styles.process} id="parcours">
         <div className={styles.sectionHeading}>
@@ -73,7 +102,7 @@ export async function LandingExperience() {
           <p className={styles.eyebrow}>{t("setup.eyebrow")}</p>
           <h2>{t("setup.title")}</h2>
           <p>{t("setup.intro")}</p>
-          <Link className={styles.textLink} href="/docs">{t("setup.link")} <span aria-hidden="true">→</span></Link>
+          <Link className={styles.textLink} href={setupHref}>{t("setup.link")} <span aria-hidden="true">→</span></Link>
         </div>
         <div className={styles.setupSpecs}>
           <div><span>{t("setup.systemLabel")}</span><strong>{t("setup.systems")}</strong></div>

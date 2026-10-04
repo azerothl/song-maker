@@ -1,0 +1,134 @@
+---
+title: Batch generation
+description: Import several songs from a UTF-8 JSON file — fields, rules, and an example.
+order: 4
+---
+
+# Batch generation
+
+In **Library**, open **Batch generation**. You import a **UTF-8** JSON file, review a preview (song count, takes, requested vs admitted parallelism), then start. One project is created per song. Pause, cancel, resume, retry failures, and export of ready WAVs are available.
+
+Takes use the **same exclusive GPU queue** as Create. **Admitted capacity is 1**: this is not two overlapping inferences. If the file asks for 2, `allowReduction` (default) starts at 1; `requireRequested` rejects the batch.
+
+An invalid file creates **no** projects. After a crash, a running batch becomes “interrupted”; nothing auto-resumes.
+
+## Minimal file
+
+UTF-8 encoding. `schemaVersion` must be `1`. Each song needs a unique `id`, a `title`, a `style`, and `lyrics`.
+
+```json
+{
+  "schemaVersion": 1,
+  "songs": [
+    {
+      "id": "night",
+      "title": "The night moves on",
+      "style": "French indie pop, warm bass, soft drums, intimate vocals",
+      "lyrics": "[Verse]\nThe night moves across the roofs\nI keep a light for you\n\n[Chorus]\nCome back when day is breaking\nWe still have our dreams"
+    }
+  ]
+}
+```
+
+With no other fields: 1 take, `cot` = `full`, 180 s target duration, lyrics sent as written.
+
+## Root fields
+
+| Field | Required | Default | Rule |
+|---|---|---|---|
+| `schemaVersion` | yes | — | Integer, **only `1`** |
+| `songs` | yes | — | Array, 1 to 1000 songs |
+| `name` | no | — | 1 to 120 characters |
+| `maxParallelGenerations` | no | `2` | 1 to 32. **Admitted capacity is still 1** |
+| `parallelismPolicy` | no | `allowReduction` | `allowReduction` (start at 1) or `requireRequested` (block if demand &gt; 1) |
+| `onError` | no | `continue` | `continue` (next song) or `pause` |
+| `retry.maxAttempts` | no | `1` | 1 to 5 |
+| `defaults` | no | — | Shared song options (below) |
+
+Any **unknown property** is rejected. **Duplicate JSON keys** too. Max file size: 10 MB. At most 10,000 takes in total.
+
+## Each song (`songs[]`)
+
+| Field | Required | Limits |
+|---|---|---|
+| `id` | yes | 1 to 64 characters, unique in the file |
+| `title` | yes | 1 to 120. No trailing period. Forbidden: `/ \ : * ? " < > \|` |
+| `style` | yes | 1 to 4000 characters |
+| `lyrics` | yes | 1 to 4000, **unless** `instrumentalMode` is `true` (then `""` is allowed) |
+| `seed` | no | Integer 0 to 4,294,967,295. If omitted, a seed is written |
+| `generations` | no | 1 to 1000 takes for this song |
+| `cot` | no | `full`, `melody`, or `off` |
+| `targetDurationSec` | no | 30 to 360 (a target, not a guaranteed musical length) |
+| `preferFullLyrics` | no | boolean |
+| `instrumentalMode` | no | `true`: lyrics optional; this is not the YuE2 instrumental LoRA |
+| `singingLanguage` | no | string or `null` (1 to 40 characters when set) |
+| `tempoBpm` | no | integer 40 to 220, or `null` |
+| `key` | no | `{ "tonic": "C", "mode": "minor" }` or `null` |
+| `meter` | no | `{ "numerator": 4, "denominator": 4 }` or `null` |
+
+`tonic`: `C`, `C#`, `D`, `Eb`, `E`, `F`, `F#`, `G`, `Ab`, `A`, `Bb`, `B`.  
+`mode`: `major` or `minor`.  
+Meter: **4/4**, **3/4**, **6/8**, or **2/4** only.
+
+## `defaults` and precedence
+
+`defaults` uses the optional song fields (not `id`, `title`, `style`, `lyrics`, `seed`). For each option: **song value**, else `defaults`, else the product default:
+
+| Option | Product default |
+|---|---|
+| `generations` | `1` |
+| `cot` | `full` |
+| `targetDurationSec` | `180` |
+| `preferFullLyrics` | `true` |
+| `instrumentalMode` | `false` |
+| `singingLanguage`, `tempoBpm`, `key`, `meter` | unset |
+
+## Example with options
+
+Two songs, 3 takes then 2, policy that accepts reduction to 1:
+
+```json
+{
+  "schemaVersion": 1,
+  "name": "Demo — two songs",
+  "maxParallelGenerations": 2,
+  "parallelismPolicy": "allowReduction",
+  "onError": "continue",
+  "retry": { "maxAttempts": 1 },
+  "defaults": {
+    "generations": 3,
+    "cot": "full",
+    "singingLanguage": "en",
+    "targetDurationSec": 180,
+    "preferFullLyrics": true,
+    "instrumentalMode": false
+  },
+  "songs": [
+    {
+      "id": "night",
+      "title": "The night moves on",
+      "style": "French indie pop, warm bass, soft drums, intimate vocals",
+      "lyrics": "[Verse]\nThe night moves across the roofs\nI keep a light for you\n\n[Chorus]\nCome back when day is breaking",
+      "tempoBpm": 110,
+      "seed": 42
+    },
+    {
+      "id": "road",
+      "title": "On the road",
+      "style": "French rock, electric guitars, energetic drums, clear vocals",
+      "lyrics": "[Verse]\nThe road unfolds its turns\n\n[Chorus]\nOn the road we keep going",
+      "generations": 2,
+      "targetDurationSec": 120,
+      "tempoBpm": 140
+    }
+  ]
+}
+```
+
+In the app, **Batch generation** can also download a sample file. The engine is the profile’s engine (YuE2 by default), not a second XOR.
+
+## What batch does not do
+
+- No overlapping GPU inferences.
+- No YuE2 `audio_input` and no Lego mix/stems fields in the JSON (Lego runs from Production on an open song).
+- Not a replacement for sequential candidates on the Create tab (N calls for **one** song).

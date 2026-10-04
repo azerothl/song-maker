@@ -1,6 +1,8 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { APP_VERSION, RELEASE_LATEST_PAGE, releaseAssets } from "@/lib/releases";
+import { localeDocsPath } from "@/lib/docs";
+import { type AppLocale } from "@/i18n/routing";
 import styles from "./downloads.module.css";
 
 type Props = { params: Promise<{ locale: string }> };
@@ -9,6 +11,19 @@ export default async function DownloadsPage({ params }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("downloads");
+  const appLocale = locale as AppLocale;
+  const newsHref = localeDocsPath(appLocale, {
+    fr: "/docs/nouveautes",
+    en: "/docs/whats-new",
+  });
+  const setupHref = localeDocsPath(appLocale, {
+    fr: "/docs/configuration",
+    en: "/docs/setup",
+  });
+  const batchHref = localeDocsPath(appLocale, {
+    fr: "/docs/generation-batch",
+    en: "/docs/batch-generation",
+  });
 
   return (
     <div className={styles.page}>
@@ -17,10 +32,14 @@ export default async function DownloadsPage({ params }: Props) {
         <h1 className={styles.title}>{t("title")}</h1>
         <p className={styles.intro}>{t("intro")}</p>
         <p className={styles.intro}>
-          {t("whatsNew", { version: APP_VERSION })}{" "}
-          <Link href={`/docs/${locale === "fr" ? "nouveautes" : "whats-new"}`}>
-            {t("whatsNewCta")}
-          </Link>
+          {t("whatsNew", { version: APP_VERSION })}
+        </p>
+        <p className={styles.intro}>
+          <Link href={newsHref}>{t("whatsNewCta")}</Link>
+          {" · "}
+          <Link href={setupHref}>{t("setupCta")}</Link>
+          {" · "}
+          <Link href={batchHref}>{t("batchCta")}</Link>
         </p>
 
         <div className={styles.grid}>
