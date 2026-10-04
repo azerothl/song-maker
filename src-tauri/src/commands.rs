@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 use std::sync::Mutex;
 
 pub mod ace_step_cmds;
+pub mod ace_step_lego_cmds;
 pub mod basicpitch_cmds;
 pub mod capture;
 pub mod generation;
@@ -43,6 +44,9 @@ pub struct AppState {
     pub sheetsage_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub ace_step_installing: std::sync::atomic::AtomicBool,
     pub ace_step_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub ace_step_lego_installing: std::sync::atomic::AtomicBool,
+    pub ace_step_lego_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub ace_step_lego: crate::ace_step_lego::AceStepLegoSidecar,
     pub rbitnet_installing: std::sync::atomic::AtomicBool,
     pub rbitnet_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub rbitnet: crate::rbitnet::RbitnetSidecar,
@@ -85,6 +89,9 @@ impl Default for AppState {
             sheetsage_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             ace_step_installing: std::sync::atomic::AtomicBool::new(false),
             ace_step_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            ace_step_lego_installing: std::sync::atomic::AtomicBool::new(false),
+            ace_step_lego_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            ace_step_lego: crate::ace_step_lego::AceStepLegoSidecar::default(),
             rbitnet_installing: std::sync::atomic::AtomicBool::new(false),
             rbitnet_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             rbitnet: crate::rbitnet::RbitnetSidecar::default(),

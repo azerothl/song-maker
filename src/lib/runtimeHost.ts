@@ -109,6 +109,31 @@ export const runtimeApi = {
   installAceStep: (licenseAccepted: boolean) =>
     invoke<string>("install_ace_step", { licenseAccepted }),
   cancelAceStepInstall: () => invoke<string>("cancel_ace_step_install"),
+  aceStepLegoStatus: () =>
+    invoke<{
+      engineId: string;
+      ready: boolean;
+      running: boolean;
+      pythonPresent: boolean;
+      venvPresent: boolean;
+      sidecarScriptPresent: boolean;
+      inferenceAvailable: boolean;
+      mock: boolean;
+      licenseAccepted: boolean;
+      baseUrl: string;
+      hfRepo: string;
+      hfRevision: string;
+      gitSource: string;
+      outputKind: string;
+      vramNoteFr: string;
+      licenseNoticeFr: string;
+      licenseNoticeEn: string;
+      messageFr: string;
+    }>("ace_step_lego_status"),
+  installAceStepLego: (licenseAccepted: boolean) =>
+    invoke<string>("install_ace_step_lego", { licenseAccepted }),
+  cancelAceStepLegoInstall: () =>
+    invoke<string>("cancel_ace_step_lego_install"),
 
   loraTrainProbe: () => invoke<LoraTrainerProbe>("lora_train_probe"),
   loraTrainProbeAudio: (path: string) =>

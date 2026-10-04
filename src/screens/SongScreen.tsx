@@ -14,6 +14,7 @@ import {
 } from "../lib/productionClipViewPrefs";
 import { loadInvariantBaseline } from "../lib/invariants";
 import { planProjectInstrumentalPart } from "../lib/projectInstrumental";
+import { isTauriRuntime, runtimeApi } from "../lib/runtimeHost";
 import { ProductionWorkspace } from "./song/ProductionWorkspace";
 import { ProfileKindBadge } from "../components/ProfileKindBadge";
 import { RegenerationGate } from "../components/RegenerationGate";
@@ -55,6 +56,27 @@ export function SongScreen() {
   const setProfileOperationBusy = useAppStore((s) => s.setProfileOperationBusy);
 
   const [busy, setBusy] = useState(false);
+  const [legoSidecarReady, setLegoSidecarReady] = useState(false);
+  const [legoLicenseAccepted, setLegoLicenseAccepted] = useState(false);
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    let cancelled = false;
+    void runtimeApi
+      .aceStepLegoStatus()
+      .then((st) => {
+        if (cancelled) return;
+        setLegoSidecarReady(Boolean(st.ready || st.inferenceAvailable));
+        setLegoLicenseAccepted(Boolean(st.licenseAccepted));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLegoSidecarReady(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [project?.id]);
   useEffect(() => {
     setProfileOperationBusy(busy);
     return () => setProfileOperationBusy(false);
@@ -159,6 +181,8 @@ export function SongScreen() {
       tempoBpm: form.tempoBpm,
       key: form.key ?? null,
       hasMixOrStems: Boolean(mix?.tracks.length),
+      legoSidecarReady,
+      legoLicenseAccepted,
     });
     if (!plan.ok) {
       setError(plan.messageFr);
@@ -173,7 +197,14 @@ export function SongScreen() {
         lyrics: "",
         instrumentalMode: true,
       };
-      const doc = await api.startGeneration(project.id, nextForm);
+      const doc = await api.startGeneration(
+        project.id,
+        nextForm,
+        null,
+        plan.conditioning === "mix_stems"
+          ? { engine: "ace_step_lego", instrumentalRole: plan.role }
+          : { instrumentalRole: plan.role },
+      );
       const genId = doc.activeGenerationId;
       if (!genId) {
         throw new Error(
@@ -186,6 +217,9 @@ export function SongScreen() {
         plan.displayName,
       );
       await onUserTrackAdded(nextMix);
+      if (plan.conditioning === "mix_stems") {
+        setError(plan.leftoverNotesFr);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       throw e;
@@ -855,6 +889,8 @@ export function SongScreen() {
             }
             onUserTrackAdded={onUserTrackAdded}
             onRequestInstrumentalPart={onRequestInstrumentalPart}
+            legoSidecarReady={legoSidecarReady}
+            legoLicenseAccepted={legoLicenseAccepted}
             playback={playback}
             playbackSources={playbackSources}
             project={project}

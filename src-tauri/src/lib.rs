@@ -2,6 +2,7 @@ use tauri::Manager;
 
 mod abc_metadata;
 mod ace_step;
+mod ace_step_lego;
 mod audiocpp;
 mod basicpitch;
 mod bs_roformer;
@@ -87,6 +88,11 @@ pub fn run() {
             commands::ace_step_cmds::install_ace_step,
             commands::ace_step_cmds::cancel_ace_step_install,
             commands::ace_step_cmds::ace_step_install_info,
+            commands::ace_step_lego_cmds::ace_step_lego_status,
+            commands::ace_step_lego_cmds::ace_step_lego_install_info,
+            commands::ace_step_lego_cmds::install_ace_step_lego,
+            commands::ace_step_lego_cmds::cancel_ace_step_lego_install,
+            commands::ace_step_lego_cmds::ensure_ace_step_lego_sidecar,
             commands::settings::list_lora_adapters,
             commands::settings::import_lora_adapters,
             commands::settings::confirm_model_pack,
@@ -207,6 +213,7 @@ pub fn run() {
                 let state = app.state::<AppState>();
                 state.server.shutdown();
                 state.rbitnet.shutdown();
+                state.ace_step_lego.shutdown();
             }
         });
 }

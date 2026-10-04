@@ -225,8 +225,10 @@ export type AppSettings = {
   ccByNcAccepted?: boolean;
   /** Consentement distinct au modèle principal YuE2 CC BY-NC 4.0. */
   yue2LicenseAccepted?: boolean;
-  /** Consentement au téléchargement ACE-Step 1.5 optionnel. */
+  /** Consentement au téléchargement ACE-Step 1.5 Turbo optionnel. */
   aceStepLicenseAccepted?: boolean;
+  /** Consentement distinct pour le sidecar Lego Base. */
+  aceStepLegoLicenseAccepted?: boolean;
   /** Per-model license checkbox (#167). */
   acceptedSeparatorLicenses?: Record<string, boolean>;
   /** Measured separation rates (#166). */
@@ -324,6 +326,8 @@ export type HealthSnapshot = {
   pythonYue2Runtime?: "absent_by_design" | string;
   /** House-model desktop provider (#323). Never generates until a decoder is wired. */
   houseModelRuntime?: "unavailable" | "weights_present_unwired" | string;
+  /** ACE-Step 1.5 Base Lego sidecar. */
+  aceStepLegoRuntime?: "missing" | "installed" | "ready" | string;
 };
 
 export type InstallProgress = {

@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { planProjectInstrumentalPart } from "./projectInstrumental.ts";
 
 describe("planProjectInstrumentalPart", () => {
-  it("refuses mix/stems conditioning while YuE2 has no audio_input", () => {
+  it("refuses mix/stems on YuE2 and when Lego is not installed", () => {
     const plan = planProjectInstrumentalPart({
       role: "bass",
       conditioning: "mix_stems",
@@ -12,8 +12,27 @@ describe("planProjectInstrumentalPart", () => {
     });
     assert.equal(plan.ok, false);
     if (!plan.ok) {
-      assert.match(plan.messageFr, /audio_input/);
-      assert.match(plan.messageFr, /stems/);
+      assert.match(plan.messageFr, /Lego|audio_input|YuE2/);
+      assert.doesNotMatch(plan.messageFr, /silencieusement/);
+    }
+  });
+
+  it("plans Lego add-track when the sidecar is ready, with fused-mix honesty", () => {
+    const plan = planProjectInstrumentalPart({
+      role: "drums",
+      conditioning: "mix_stems",
+      style: "funk",
+      tempoBpm: 100,
+      hasMixOrStems: true,
+      legoSidecarReady: true,
+      legoLicenseAccepted: true,
+    });
+    assert.equal(plan.ok, true);
+    if (plan.ok && plan.conditioning === "mix_stems") {
+      assert.equal(plan.engine, "ace_step_lego");
+      assert.equal(plan.outputKind, "possibly_fused_mix");
+      assert.match(plan.leftoverNotesFr, /fusionné|dry/);
+      assert.match(plan.styleSent, /100 BPM/);
     }
   });
 
@@ -27,8 +46,9 @@ describe("planProjectInstrumentalPart", () => {
       hasMixOrStems: true,
     });
     assert.equal(plan.ok, true);
-    if (plan.ok) {
+    if (plan.ok && plan.conditioning === "project_metadata") {
       assert.equal(plan.instrumentalMode, true);
+      assert.equal(plan.engine, "yue2");
       assert.equal(plan.displayName, "Basse");
       assert.match(plan.styleSent, /funk/);
       assert.match(plan.styleSent, /96 BPM/);

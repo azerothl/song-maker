@@ -166,6 +166,8 @@ pub struct ProfileSettings {
     pub yue2_license_accepted: bool,
     #[serde(default)]
     pub ace_step_license_accepted: bool,
+    #[serde(default)]
+    pub ace_step_lego_license_accepted: bool,
     #[serde(default = "crate::models::default_generation_engine")]
     pub generation_engine: String,
     #[serde(default)]
@@ -206,6 +208,7 @@ impl Default for ProfileSettings {
             cc_by_nc_accepted: false,
             yue2_license_accepted: false,
             ace_step_license_accepted: false,
+            ace_step_lego_license_accepted: false,
             generation_engine: crate::models::default_generation_engine(),
             accepted_separator_licenses: Default::default(),
             separator_time_stats: Default::default(),
@@ -355,6 +358,7 @@ fn extract_profile_fields(settings: &AppSettings) -> ProfileSettings {
         cc_by_nc_accepted: settings.cc_by_nc_accepted,
         yue2_license_accepted: settings.yue2_license_accepted,
         ace_step_license_accepted: settings.ace_step_license_accepted,
+        ace_step_lego_license_accepted: settings.ace_step_lego_license_accepted,
         generation_engine: settings.generation_engine.clone(),
         accepted_separator_licenses: settings.accepted_separator_licenses.clone(),
         separator_time_stats: settings.separator_time_stats.clone(),
@@ -373,6 +377,7 @@ fn apply_profile_to_settings(settings: &mut AppSettings, profile: &ProfileSettin
     settings.cc_by_nc_accepted = profile.cc_by_nc_accepted;
     settings.yue2_license_accepted = profile.yue2_license_accepted;
     settings.ace_step_license_accepted = profile.ace_step_license_accepted;
+    settings.ace_step_lego_license_accepted = profile.ace_step_lego_license_accepted;
     settings.generation_engine = profile.generation_engine.clone();
     settings.accepted_separator_licenses = profile.accepted_separator_licenses.clone();
     settings.separator_time_stats = profile.separator_time_stats.clone();
@@ -405,6 +410,7 @@ pub fn split_and_save_settings(active_id: &str, merged: &AppSettings) -> Result<
         cc_by_nc_accepted: merged.cc_by_nc_accepted,
         yue2_license_accepted: merged.yue2_license_accepted,
         ace_step_license_accepted: merged.ace_step_license_accepted,
+        ace_step_lego_license_accepted: merged.ace_step_lego_license_accepted,
         generation_engine: merged.generation_engine.clone(),
         accepted_separator_licenses: merged.accepted_separator_licenses.clone(),
         separator_time_stats: merged.separator_time_stats.clone(),
@@ -583,6 +589,7 @@ pub fn merged_settings_from_disk() -> Result<AppSettings, String> {
                 cc_by_nc_accepted: false,
                 yue2_license_accepted: false,
                 ace_step_license_accepted: false,
+                ace_step_lego_license_accepted: false,
                 accepted_separator_licenses: Default::default(),
                 separator_time_stats: Default::default(),
                 local_yue2_enabled: defaults.local_yue2_enabled,

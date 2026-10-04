@@ -348,6 +348,7 @@ pub fn default_settings() -> AppSettings {
         cc_by_nc_accepted: false,
         yue2_license_accepted: false,
         ace_step_license_accepted: false,
+        ace_step_lego_license_accepted: false,
         accepted_separator_licenses: Default::default(),
         separator_time_stats: Default::default(),
         local_yue2_enabled: true,

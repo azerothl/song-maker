@@ -128,6 +128,13 @@ pub const ACE_STEP_REMOTE: &str = "ACE-Step1.5-GGUF/turbo/ace-step-1.5-turbo-bf1
 pub const ACE_STEP_SHA: &str = "93974239a29a1a821b3cc1b1ca7e1c6229b1a900a0e44a1a9770bb2271d2be5f";
 pub const ACE_STEP_BYTES: u64 = 10_090_398_272;
 
+/// ACE-Step 1.5 Base (Python, Lego) — opt-in sidecar, not the Turbo GGUF above.
+pub const ACE_STEP_LEGO_HF_REPO: &str = "ACE-Step/acestep-v15-base";
+pub const ACE_STEP_LEGO_HF_REVISION: &str = "main";
+pub const ACE_STEP_LEGO_GIT: &str = "git+https://github.com/ace-step/ACE-Step-1.5.git";
+pub const ACE_STEP_LEGO_BIND_HOST: &str = "127.0.0.1";
+pub const ACE_STEP_LEGO_BIND_PORT: u16 = 8002;
+
 /// Rbitnet (`azerothl/Rbitnet`) — mix-assistant sidecar (Phase 2a). Pin aligned with
 /// the only published release used by Akasha integrations (`v0.1.0`).
 pub const RBITNET_TAG: &str = "v0.1.0";

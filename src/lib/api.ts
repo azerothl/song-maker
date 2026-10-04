@@ -138,7 +138,9 @@ export const api = {
       stopAfter?: "abc" | null;
       sourceGenerationId?: string | null;
       /** One-shot engine; does not persist Settings default. */
-      engine?: "yue2" | "ace_step" | null;
+      engine?: "yue2" | "ace_step" | "ace_step_lego" | null;
+      /** Production add-track only; ignored for Créer. */
+      instrumentalRole?: "bass" | "drums" | "other" | null;
     },
   ) =>
     invoke<ProjectDoc>("start_generation", {
@@ -148,6 +150,7 @@ export const api = {
       stopAfter: options?.stopAfter ?? null,
       sourceGenerationId: options?.sourceGenerationId ?? null,
       engine: options?.engine ?? null,
+      instrumentalRole: options?.instrumentalRole ?? null,
     }),
   /** Render audio from an existing gen's immutable score.abc (parent = source). */
   renderFromGeneration: (

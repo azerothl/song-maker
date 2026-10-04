@@ -129,5 +129,18 @@
     "statut": "Disponible avec réserve",
     "date_verification": "2026-10-02",
     "raison_grise_fr": "Licence des poids : MIT selon la carte du modèle d'origine ; la conversion distribuée par audio.cpp déclare \"other\" et renvoie à l'original ; sortie non vérifiée. Disponible après téléchargement explicitement demandé et acceptation d'un avertissement dans ce profil. Le hash SHA-256 du fichier téléchargé a été comparé au pin local ; cela ne prouve pas sa provenance ni sa correspondance avec les poids originaux. Cartes Qwen Apache-2.0 et VAE sans licence séparée : voir docs/model-licenses/ACE-Step-Qwen-VAE.md. Le contenu binaire du GGUF, la provenance et les autorisations d'entraînement et les droits sur les sorties restent non vérifiés. Le statut réservé ne conclut pas sur les droits d'usage commercial."
+  },
+  {
+    "id": "ace_step_1_5_base_lego",
+    "nom": "ACE-Step 1.5 Base mode Lego (poids ACE-Step/acestep-v15-base ; sidecar Python Song Maker, pas le GGUF Turbo)",
+    "licence_poids": "MIT selon la carte Hugging Face ACE-Step/acestep-v15-base et le LICENSE GitHub ACE-Step-1.5. Données d'entraînement et droits sur une sortie non vérifiés.",
+    "citation": "Carte HF : « license: mit ». README ACE-Step 1.5 : Lego Mode (Base Model Only) — Add a new instrument track to existing audio. La doc n'affirme pas un stem dry.",
+    "source_url": "https://huggingface.co/ACE-Step/acestep-v15-base ; https://github.com/ace-step/ACE-Step-1.5 ; https://github.com/ace-step/ACE-Step-1.5/blob/main/docs/en/GRADIO_GUIDE.md",
+    "licence_code": "MIT (LICENSE du dépôt ACE-Step-1.5). Sidecar Song Maker Apache-2.0. Un stem MIT sur un mix YuE2 (CC BY-NC 4.0) n'efface pas le NC du mix.",
+    "donnees_entrainement": "Non revérifiées pour cette fiche (même famille ACE-Step 1.5 que le Turbo).",
+    "restriction_sorties": "Aucune clause MIT lue qui interdise Hobby ou Commercial pour ACE-Step. Song Maker n'a pas vérifié les droits sur une sortie particulière. Mix YuE2 sous-jacent : NC.",
+    "statut": "Disponible avec réserve",
+    "date_verification": "2026-10-04",
+    "raison_grise_fr": "Carte MIT, mais données d'entraînement et droits sur les sorties non vérifiés. Sidecar Python opt-in, GPU ≥12 Go. Pas câblé comme moteur XOR Commercial (le Turbo GGUF reste l'entrée ACE-Step du profil Commercial)."
   }
 ]

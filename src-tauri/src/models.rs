@@ -240,9 +240,12 @@ pub struct AppSettings {
     /// Consentement distinct pour le modèle YuE2 principal sous CC BY-NC 4.0.
     #[serde(default)]
     pub yue2_license_accepted: bool,
-    /// Consentement explicite avant le téléchargement optionnel ACE-Step 1.5.
+    /// Consentement explicite avant le téléchargement optionnel ACE-Step 1.5 Turbo GGUF.
     #[serde(default)]
     pub ace_step_license_accepted: bool,
+    /// Consentement distinct pour le sidecar Python ACE-Step 1.5 Base (Lego, #325).
+    #[serde(default)]
+    pub ace_step_lego_license_accepted: bool,
     /// Per-separator « J'ai lu la licence » (once per model id) before opt-in download (#167).
     #[serde(default)]
     pub accepted_separator_licenses: std::collections::BTreeMap<String, bool>,
@@ -442,6 +445,9 @@ pub struct HealthSnapshot {
     pub python_yue2_runtime: String,
     /// House-model desktop provider (#323). `unavailable` until a decoder is wired.
     pub house_model_runtime: String,
+    /// ACE-Step 1.5 Base Lego sidecar (#325). `missing` | `installed` | `ready`.
+    #[serde(default)]
+    pub ace_step_lego_runtime: String,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]

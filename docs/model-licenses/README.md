@@ -17,6 +17,7 @@ Apache-2.0 accorde les droits d'utilisation et de redistribution, y compris pour
 | Fichier | Rôle |
 |---|---|
 | [ACE-Step-1.5-Turbo-BF16.md](./ACE-Step-1.5-Turbo-BF16.md) | Pins, écoute comparative, conflit MIT / « other » du GGUF chargé |
+| [ACE-Step-1.5-Base-Lego.md](./ACE-Step-1.5-Base-Lego.md) | Sidecar Python mix/stems (issue #325) : pas le Turbo GGUF ; VRAM ; Hobby/Commercial |
 | [ACE-Step-Qwen-VAE.md](./ACE-Step-Qwen-VAE.md) | Revue du 2 octobre 2026 : Qwen3-Embedding, LM Qwen3-1.7B, VAE — connu vs non vérifié |
 | [Qwen3-1.7B-LICENSE.txt](./Qwen3-1.7B-LICENSE.txt) | Texte Apache-2.0 amont (rév. `70d244c`, `Copyright 2024 Alibaba Cloud`) |
 

@@ -79,6 +79,12 @@ pub fn update_settings(
             }
         }
         "house_model" => return Err(crate::house_model::REFUSE_SELECT_FR.into()),
+        "ace_step_lego" => {
+            return Err(
+                "ACE-Step Lego n’est pas le moteur global. YuE2 reste le défaut Créer ; Lego n’est appelé que pour ajouter une piste (mix/stems)."
+                    .into(),
+            );
+        }
         other => {
             return Err(format!(
                 "Moteur de génération inconnu ({other}). Attendu : yue2|ace_step."

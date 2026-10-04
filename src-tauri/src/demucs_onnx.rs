@@ -30,7 +30,7 @@ fn failed(label: &str, output: Output) -> String {
     }
 }
 
-fn python_bootstrap() -> Result<(PathBuf, Vec<String>), String> {
+pub(crate) fn python_bootstrap() -> Result<(PathBuf, Vec<String>), String> {
     if let Some(configured) = std::env::var_os("SONG_MAKER_PYTHON") {
         let path = PathBuf::from(configured);
         if path.is_file() {

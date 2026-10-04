@@ -224,12 +224,27 @@ pub fn refuse_unsupported_audio_input(input: &FormInput) -> Result<(), FormError
     ))
 }
 
+#[cfg(test)]
 pub fn validate_form(input: &FormInput) -> Result<String, FormError> {
+    validate_form_for_engine(input, "yue2")
+}
+
+/// YuE2 / ACE-Step Turbo refuse audio_input. Lego (Base Python) accepts a source WAV
+/// for mix/stems add-track only — not YuE2 waveform inpainting (#324).
+pub fn validate_form_for_engine(input: &FormInput, engine: &str) -> Result<String, FormError> {
     validate_title(&input.title)?;
     validate_lyrics(&input.lyrics, input.instrumental_mode)?;
     validate_cot(&input.cot)?;
     validate_target_duration(input.target_duration_sec)?;
-    refuse_unsupported_audio_input(input)?;
+    if engine == "ace_step_lego" {
+        if input.inpaint_start_ms.is_some() || input.inpaint_end_ms.is_some() {
+            return Err(FormError::Message(
+                "Lego n’est pas de l’inpainting YuE2 : retirez la fenêtre de masque.".into(),
+            ));
+        }
+    } else {
+        refuse_unsupported_audio_input(input)?;
+    }
     assemble_style_sent(input)
 }
 
@@ -346,6 +361,10 @@ mod tests {
         input.inpaint_start_ms = None;
         input.inpaint_end_ms = None;
         validate_form(&input).unwrap();
+        input.audio_input_path = Some("/tmp/mix.wav".into());
+        validate_form_for_engine(&input, "ace_step_lego").unwrap();
+        input.inpaint_start_ms = Some(0);
+        assert!(validate_form_for_engine(&input, "ace_step_lego").is_err());
     }
 
     #[test]

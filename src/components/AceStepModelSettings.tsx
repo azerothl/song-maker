@@ -35,6 +35,20 @@ export function AceStepModelSettings() {
   const [saving, setSaving] = useState(false);
   const [licenseRead, setLicenseRead] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [legoNotice, setLegoNotice] = useState<string | null>(null);
+  const [legoInfo, setLegoInfo] = useState<{
+    ready: boolean;
+    venvPresent: boolean;
+    licenseAccepted: boolean;
+    licenseNoticeFr: string;
+    licenseNoticeEn: string;
+    vramNoteFr: string;
+    messageFr: string;
+    hfRepo: string;
+    gitSource: string;
+  } | null>(null);
+  const [legoInstalling, setLegoInstalling] = useState(false);
+  const [legoLicenseRead, setLegoLicenseRead] = useState(false);
   const english = profileLocale() === "en";
   const selected = settings?.generationEngine === "ace_step";
   const licenseAccepted = Boolean(settings?.aceStepLicenseAccepted || licenseRead);
@@ -64,6 +78,14 @@ export function AceStepModelSettings() {
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
+      });
+    void runtimeApi
+      .aceStepLegoStatus()
+      .then((next) => {
+        if (!cancelled) setLegoInfo(next);
+      })
+      .catch(() => {
+        /* Lego is optional; status failure is not a Turbo install error. */
       });
     return () => {
       cancelled = true;
@@ -276,6 +298,74 @@ export function AceStepModelSettings() {
           </label>
         </fieldset>
       ) : null}
+
+      <div className="ace-step-download" aria-labelledby="ace-step-lego-title">
+        <h3 id="ace-step-lego-title">{t("settings.model.lego.title")}</h3>
+        <p>{t("settings.model.lego.intro")}</p>
+        <p className="hint" role="note">
+          {english
+            ? t("settings.model.lego.vram")
+            : (legoInfo?.vramNoteFr ?? t("settings.model.lego.vram"))}
+        </p>
+        <p>{english ? legoInfo?.licenseNoticeEn : legoInfo?.licenseNoticeFr}</p>
+        {!settings.aceStepLegoLicenseAccepted ? (
+          <label className="settings-license-accept">
+            <input
+              type="checkbox"
+              checked={legoLicenseRead}
+              disabled={legoInstalling}
+              onChange={(event) => setLegoLicenseRead(event.currentTarget.checked)}
+            />
+            <span>{t("settings.model.engine.licenseAccept")}</span>
+          </label>
+        ) : (
+          <p className="hint" role="status">{t("settings.model.lego.accepted")}</p>
+        )}
+        <div className="settings-engine-actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={
+              !isTauriRuntime()
+              || legoInstalling
+              || !(settings.aceStepLegoLicenseAccepted || legoLicenseRead)
+            }
+            onClick={() => {
+              setLegoInstalling(true);
+              setLegoNotice(null);
+              void runtimeApi
+                .installAceStepLego(
+                  Boolean(settings.aceStepLegoLicenseAccepted || legoLicenseRead),
+                )
+                .then(async () => {
+                  await refreshSettings();
+                  setLegoInfo(await runtimeApi.aceStepLegoStatus());
+                })
+                .catch((error) => setLegoNotice(String(error)))
+                .finally(() => setLegoInstalling(false));
+            }}
+          >
+            {legoInstalling
+              ? t("settings.model.lego.installing")
+              : t("settings.model.lego.install")}
+          </button>
+          {legoInstalling ? (
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => void runtimeApi.cancelAceStepLegoInstall()}
+            >
+              {t("settings.model.engine.cancel")}
+            </button>
+          ) : null}
+        </div>
+        {legoInfo ? (
+          <p className="hint">{legoInfo.messageFr}</p>
+        ) : null}
+        {legoNotice ? (
+          <p className="settings-engine-error" role="alert">{legoNotice}</p>
+        ) : null}
+      </div>
 
       {notice ? <p className="settings-engine-error" role="alert">{notice}</p> : null}
     </section>
