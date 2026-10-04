@@ -464,6 +464,8 @@ export function ProductionWorkspace({
         <RecordTrackPanel
           projectId={project.id}
           open={recordOpen}
+          mix={mix}
+          clipViewPrefs={clipViewPrefs}
           onClose={() => setRecordOpen(false)}
           onTrackAdded={(m) => void onUserTrackAdded(m)}
           onError={setError}

@@ -341,6 +341,7 @@
   "record.punchIn": "Punch-in (ms)",
   "record.punchOut": "Punch-out (ms)",
   "record.punch.invalid": "Punch-out must be after punch-in.",
+  "record.punch.grid": "Snapped to the mix grid (same Production setting). A single take places the clip at punch-in without a second mix update.",
   "record.takeLabel": "Take {n}",
   "record.takes.count": "{n} take(s)",
   "record.arm": "Arm",

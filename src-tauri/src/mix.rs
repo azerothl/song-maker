@@ -41,12 +41,13 @@ pub fn append_user_audio_track(
     sha256: &str,
     duration_ms: i64,
     display_name: &str,
+    start_ms: i64,
 ) -> MixTrack {
     append_user_audio_takes(
         mix,
         &[(relative_wav, sha256, duration_ms, "Prise 1")],
         display_name,
-        0,
+        start_ms,
         None,
     )
 }
@@ -726,12 +727,22 @@ mod tests {
             "def",
             2000,
             "Ma voix",
+            0,
         );
         assert_eq!(mix.tracks.len(), 2);
         assert!(!user.ai_separated);
         assert_eq!(user.role, "user");
         assert_eq!(user.clips[0].start_ms, 0);
         assert_eq!(user.clips[0].duration_ms, 2000);
+        let punched = append_user_audio_track(
+            &mut mix,
+            "user-audio/normalized/u2.wav",
+            "ghi",
+            500,
+            "Punch",
+            1500,
+        );
+        assert_eq!(punched.clips[0].start_ms, 1500);
         assert!(mix.tracks[0].ai_separated);
         assert_eq!(mix.tracks[0].role, "vocals");
     }
@@ -739,8 +750,8 @@ mod tests {
     #[test]
     fn append_user_track_dedupes_names() {
         let mut mix = empty_mix("mix-v1");
-        append_user_audio_track(&mut mix, "a.wav", "1", 100, "Custom");
-        append_user_audio_track(&mut mix, "b.wav", "2", 100, "Custom");
+        append_user_audio_track(&mut mix, "a.wav", "1", 100, "Custom", 0);
+        append_user_audio_track(&mut mix, "b.wav", "2", 100, "Custom", 0);
         assert_eq!(mix.tracks[0].name, "Custom");
         assert_eq!(mix.tracks[1].name, "Custom (2)");
     }

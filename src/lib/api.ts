@@ -227,11 +227,13 @@ export const api = {
     id: string,
     sessionId: string,
     displayName?: string | null,
+    startMs?: number | null,
   ) =>
     invoke<MixDoc>("finalize_user_audio_capture", {
       id,
       sessionId,
       displayName: displayName ?? null,
+      startMs: startMs ?? null,
     }),
   finalizeUserAudioCaptureTakes: (
     id: string,
