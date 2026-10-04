@@ -10,6 +10,7 @@ import {
   SoftSynth,
   type InstrumentProgram,
 } from "../lib/midiInstrument";
+import { parseSf2, type Sf2Preset } from "../lib/sf2Bank";
 import {
   playScoreDocument,
   quantizeSecondsToTick,
@@ -91,6 +92,9 @@ export function MidiInstrumentPanel({
   const [quantize, setQuantize] = useState(true);
   const [monitorInput, setMonitorInput] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
+  const [sf2Presets, setSf2Presets] = useState<Sf2Preset[]>([]);
+  const [sf2Preset, setSf2Preset] = useState(0);
+  const [sf2Name, setSf2Name] = useState<string | null>(null);
 
   useEffect(() => {
     if (!import.meta.env.VITE_CAPTURE) return;
@@ -142,6 +146,10 @@ export function MidiInstrumentPanel({
     synth.setSolo(solo);
     synth.setSoloGate(true);
   }, [program, gainDb, mute, solo]);
+
+  useEffect(() => {
+    synthRef.current?.setSf2Preset(sf2Preset);
+  }, [sf2Preset]);
 
   useEffect(() => {
     let cancelled = false;
@@ -331,6 +339,7 @@ export function MidiInstrumentPanel({
           <span>{t("midi.program")}</span>
           <select
             value={program}
+            disabled={sf2Presets.length > 0}
             onChange={(e) => setProgram(e.target.value as InstrumentProgram)}
           >
             {INSTRUMENT_PROGRAMS.map((p) => (
@@ -340,6 +349,67 @@ export function MidiInstrumentPanel({
             ))}
           </select>
         </label>
+        <label>
+          <span>{t("midi.sf2")}</span>
+          <input
+            type="file"
+            accept=".sf2,audio/x-sf2"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              void (async () => {
+                try {
+                  const buf = await file.arrayBuffer();
+                  const bank = parseSf2(buf);
+                  synthRef.current?.setSf2Bank(bank);
+                  setSf2Presets(bank.presets);
+                  setSf2Preset(0);
+                  setSf2Name(file.name);
+                  setStatus(
+                    t("midi.sf2.loaded", {
+                      name: file.name,
+                      n: String(bank.presets.length),
+                    }),
+                  );
+                } catch {
+                  synthRef.current?.setSf2Bank(null);
+                  setSf2Presets([]);
+                  setSf2Name(null);
+                  setStatus(t("midi.sf2.failed"));
+                }
+              })();
+            }}
+          />
+        </label>
+        {sf2Presets.length > 0 && (
+          <label>
+            <span>{t("midi.sf2.preset")}</span>
+            <select
+              value={sf2Preset}
+              onChange={(e) => setSf2Preset(Number(e.target.value))}
+            >
+              {sf2Presets.map((preset, i) => (
+                <option key={`${preset.bank}-${preset.program}-${i}`} value={i}>
+                  {preset.bank}:{preset.program} {preset.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <button
+          type="button"
+          className="btn"
+          disabled={!sf2Name}
+          onClick={() => {
+            synthRef.current?.setSf2Bank(null);
+            setSf2Presets([]);
+            setSf2Preset(0);
+            setSf2Name(null);
+            setStatus(t("midi.sf2.cleared"));
+          }}
+        >
+          {t("midi.sf2.clear")}
+        </button>
         <label>
           <span>{t("midi.gain")}</span>
           <input

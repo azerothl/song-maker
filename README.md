@@ -44,7 +44,7 @@ Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau
 
 - Import MIDI, piano roll, validation et export ABC dialecte YuE2 (`@song-maker/score-engine`).
 - Aperçu portée ABC synchronisé à la lecture ; métadonnées tempo/tonalité alignées.
-- Instrument MIDI intégré (préécoute + enregistrement Web MIDI) : softsynth Web Audio (oscillateurs), **sans banque SF2** — voir [`docs/midi-instrument.md`](docs/midi-instrument.md).
+- Instrument MIDI intégré (préécoute + enregistrement Web MIDI) : softsynth Web Audio (oscillateurs), **SF2 utilisateur optionnelle** (pas de banque GM bundlée) — voir [`docs/midi-instrument.md`](docs/midi-instrument.md).
 - **SheetSage2** (opt-in, hors installeur premier build) : audio → ABC → confirmation → nouvelle génération YuE2. Poids ~2,7 Go CC BY-NC. Voir [`docs/sheetsage2-path.md`](docs/sheetsage2-path.md).
 
 ### Production — stems, mix, outils

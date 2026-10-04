@@ -4,13 +4,14 @@ Issue [#96](https://github.com/azerothl/song-maker/issues/96).
 
 ## Décision
 
-Instrument logiciel **intégré** en Web Audio (`src/lib/midiInstrument.ts`) : oscillateurs + filtre, **sans banque SF2 tierce**. Les notes restent symboliques (`ScoreDocument` / export MIDI) ; le rendu audio n’écrase jamais le MIDI.
+Instrument logiciel **intégré** en Web Audio (`src/lib/midiInstrument.ts`) : oscillateurs + filtre par défaut ; **banque SF2 choisie par l’utilisateur** (#329) pour le rendu interne. Aucune SF2 n’est bundlée (licence / taille). Sans fichier, ou si le parse échoue : oscillateurs. Les notes restent symboliques (`ScoreDocument` / export MIDI) ; le rendu audio n’écrase jamais le MIDI.
 
 | Aspect | Choix |
 |---|---|
 | Licence moteur | Apache-2.0 in-repo (Song Maker) |
-| Banque d’échantillons | Aucune — empreinte N/A |
-| Programmes | piano, epiano, organ, bass, strings, lead, pad, pluck (formes d’onde) |
+| Banque d’échantillons | Aucune bundlée. SF2 utilisateur optionnelle (`parseSf2`) |
+| Parseur | RIFF `sfbk` : `smpl` 16-bit + presets/programmes. **Pas** un moteur SoundFont complet (modulateurs, envelopes AHDSR, chorus) |
+| Programmes | Sans SF2 : piano, epiano, organ, bass, strings, lead, pad, pluck. Avec SF2 : presets bank/program du fichier |
 | Entrée | Web MIDI API (`navigator.requestMIDIAccess`) |
 | Sortie | `AudioContext` → périphérique système (`outputDevice` affiché dans Paramètres) |
 | Mute / solo / niveau | Panneau instrument (partition) |
@@ -34,7 +35,7 @@ Réglage : Paramètres → Système → Latence audio, ou panneau instrument sou
 
 ## Hors périmètre
 
-Plugins VST3 (ticket d’étude séparé). Soundfonts GM propriétaires.
+Plugins VST3 (ticket d’étude séparé). Soundfonts GM propriétaires **bundlées**. FluidR3 / GeneralUser : l’utilisateur peut les charger s’il en a les droits ; Song Maker ne les redistribue pas.
 
 ## Sortie MIDI native (midir, #170 / #338)
 
