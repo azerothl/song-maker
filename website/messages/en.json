@@ -64,7 +64,7 @@
     "capabilities": {
       "eyebrow": "Inside Song Maker",
       "title": "Keep working on your song",
-      "intro": "Generate a starting point, edit a score, compare versions, and adjust the mix in the app.",
+      "intro": "Generate a starting point, add a part, compare versions, and adjust the mix in the app.",
       "items": {
         "generation": {
           "title": "YuE2 generation",
@@ -77,6 +77,14 @@
         "takes": {
           "title": "Compare generations",
           "body": "Run several generations in sequence and compare their audio to choose a version to develop."
+        },
+        "instrumental": {
+          "title": "Instrumental part",
+          "body": "From Production: a track from tempo, key, and style (YuE2), or optionally from the mix/stems via ACE-Step Lego. Lego may return a fused mix, not a dry stem."
+        },
+        "batch": {
+          "title": "Batch generation",
+          "body": "Import several songs as JSON from the Library. Takes run on the GPU queue one at a time (admitted capacity: 1)."
         },
         "mix": {
           "title": "Tracks and mix",
@@ -121,6 +129,10 @@
         "license": {
           "question": "Can I use YuE2 in a commercial project?",
           "answer": "The YuE2/GGUF weights provided by the project use the CC BY-NC 4.0 license, which restricts commercial use. Read the license before using the weights in a commercial project."
+        },
+        "batch": {
+          "question": "Can I generate several songs at once?",
+          "answer": "Yes: Library → Batch generation, from a JSON file. Takes run one at a time on the GPU queue (admitted capacity: 1). That is not two overlapping inferences."
         }
       }
     },
@@ -165,6 +177,14 @@
       "candidates": {
         "title": "Compare versions",
         "body": "Run several generations and listen to them in the A/B comparator."
+      },
+      "instrumental": {
+        "title": "Instrumental part",
+        "body": "Add a track from Production: YuE2 from the project, or opt-in ACE-Step Lego from the mix/stems. Lego does not claim a dry stem."
+      },
+      "batch": {
+        "title": "Batch generation",
+        "body": "Import a JSON song list in the Library. Exclusive GPU queue, admitted capacity 1."
       },
       "stems": {
         "title": "Track separation",
@@ -263,7 +283,7 @@
   },
   "docs": {
     "title": "Documentation",
-    "body": "Installation, making a first song, editing a score, separating tracks, and troubleshooting.",
+    "body": "Setup, what’s new, making a first song, editing a score, mixing, and troubleshooting.",
     "back": "Back to site",
     "toc": "Contents"
   },
@@ -271,6 +291,8 @@
     "eyebrow": "Song Maker v{version}",
     "title": "Download Song Maker",
     "intro": "Choose the version for your system. The audio engine and models download separately during setup.",
+    "whatsNew": "New in v{version}: JSON batch import (GPU queue capacity 1), YuE2 instrumental part, opt-in ACE-Step Lego mix/stems add-track (fused mix possible), grid-snapped punch, FR/EN desktop UI.",
+    "whatsNewCta": "Read the details",
     "windows": {
       "title": "Windows",
       "description": "Windows 10/11 · x64 · NVIDIA GPU recommended for generation",

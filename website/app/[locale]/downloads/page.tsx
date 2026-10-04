@@ -16,6 +16,12 @@ export default async function DownloadsPage({ params }: Props) {
         <p className={styles.eyebrow}>{t("eyebrow", { version: APP_VERSION })}</p>
         <h1 className={styles.title}>{t("title")}</h1>
         <p className={styles.intro}>{t("intro")}</p>
+        <p className={styles.intro}>
+          {t("whatsNew", { version: APP_VERSION })}{" "}
+          <Link href={`/docs/${locale === "fr" ? "nouveautes" : "whats-new"}`}>
+            {t("whatsNewCta")}
+          </Link>
+        </p>
 
         <div className={styles.grid}>
           <section className={styles.card} aria-labelledby="windows-title">
