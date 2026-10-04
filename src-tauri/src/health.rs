@@ -221,6 +221,7 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
         server_url: server_url.map(|s| s.to_string()),
         message,
         python_yue2_runtime: "absent_by_design".into(),
+        house_model_runtime: crate::house_model::runtime_status(&cache),
     }
 }
 
@@ -286,5 +287,14 @@ mod tests {
     fn python_yue2_runtime_is_absent_by_design() {
         let snap = check_health(None);
         assert_eq!(snap.python_yue2_runtime, "absent_by_design");
+    }
+
+    #[test]
+    fn house_model_runtime_is_unavailable_without_weights() {
+        let snap = check_health(None);
+        assert_eq!(
+            snap.house_model_runtime,
+            crate::house_model::RUNTIME_UNAVAILABLE
+        );
     }
 }

@@ -315,6 +315,8 @@ export type HealthSnapshot = {
   message: string;
   /** Official Python YuE2 is not installed and is not a fallback (#328). */
   pythonYue2Runtime?: "absent_by_design" | string;
+  /** House-model desktop provider (#323). Never generates until a decoder is wired. */
+  houseModelRuntime?: "unavailable" | "weights_present_unwired" | string;
 };
 
 export type InstallProgress = {
