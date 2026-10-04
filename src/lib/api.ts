@@ -59,6 +59,23 @@ export const api = {
       bind: string;
       notesFr: string;
     }>("stop_embedded_declui_host"),
+  vst3SpikeStatus: () =>
+    invoke<{ enabled: boolean; isHost: boolean; notesFr: string }>(
+      "vst3_spike_status",
+    ),
+  vst3SpikeScan: () =>
+    invoke<
+      { path: string; name: string; binaryPath: string | null }[]
+    >("vst3_spike_scan"),
+  vst3SpikeLoad: (path: string) =>
+    invoke<{
+      path: string;
+      factoryPresent: boolean;
+      isolatedProcess: boolean;
+      notesFr: string;
+    }>("vst3_spike_load", { path }),
+  vst3SpikeAttach: (projectId: string, trackId: string, path: string) =>
+    invoke<MixDoc>("vst3_spike_attach", { projectId, trackId, path }),
   getPhase3Status: () => invoke<Phase3Status>("get_phase3_status"),
   installHtDemucs6sRuntime: () =>
     invoke<string>("install_htdemucs_6s_runtime"),

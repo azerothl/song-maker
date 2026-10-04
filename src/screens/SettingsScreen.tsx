@@ -4,6 +4,7 @@ import { HouseModelSettings } from "../components/HouseModelSettings";
 import { LoraTrainingPanel } from "../components/LoraTrainingPanel";
 import { Phase3SettingsPanel } from "../components/Phase3SettingsPanel";
 import { Phase4SettingsPanel } from "../components/Phase4SettingsPanel";
+import { Vst3SpikePanel } from "../components/Vst3SpikePanel";
 import { ProjectSyncPanel } from "../components/ProjectSyncPanel";
 import { api } from "../lib/api";
 import {
@@ -300,7 +301,12 @@ export function SettingsScreen() {
           <ProjectSyncPanel />
         </div>
       )}
-      {page === "host" && <Phase4SettingsPanel view="host" />}
+      {page === "host" && (
+        <>
+          <Phase4SettingsPanel view="host" />
+          <Vst3SpikePanel />
+        </>
+      )}
       {page === "system" && (
         <section className="settings-detail-page settings-system-page">
           <p className="settings-intro">{t("settings.system.description")}</p>

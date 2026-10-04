@@ -157,6 +157,7 @@ pub fn append_user_audio_takes(
         locked: false,
         ai_separated: false,
         clips,
+        experimental_vst3_insert: None,
     };
     mix.tracks.push(track.clone());
     track
@@ -226,6 +227,7 @@ pub fn new_mix_from_separation(
             locked: false,
             ai_separated: true,
             clips: vec![clip],
+            experimental_vst3_insert: None,
         });
     }
     MixDoc {

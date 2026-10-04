@@ -28,11 +28,17 @@ mod queue;
 mod rbitnet;
 mod resample;
 mod sheetsage;
+mod vst3_spike;
 
 #[cfg(test)]
 mod test_docs_env;
 
 use commands::AppState;
+
+/// Entrée CLI `song-maker --vst3-spike-probe <binaire>` (isolation crash, spike #326).
+pub fn vst3_spike_probe_exit(binary: &str) -> i32 {
+    vst3_spike::probe_exit(binary)
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -87,6 +93,10 @@ pub fn run() {
             declui_host::embedded_declui_status,
             declui_host::start_embedded_declui_host,
             declui_host::stop_embedded_declui_host,
+            vst3_spike::vst3_spike_status,
+            vst3_spike::vst3_spike_scan,
+            vst3_spike::vst3_spike_load,
+            vst3_spike::vst3_spike_attach,
             // Profils (#201)
             commands::profiles::get_profiles_state,
             commands::profiles::create_profile,
