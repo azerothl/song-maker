@@ -309,6 +309,8 @@ export type HealthSnapshot = {
   serverHealthy: boolean;
   serverUrl?: string | null;
   message: string;
+  /** Official Python YuE2 is not installed and is not a fallback (#328). */
+  pythonYue2Runtime?: "absent_by_design" | string;
 };
 
 export type InstallProgress = {
