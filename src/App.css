@@ -4821,6 +4821,20 @@ details[open] > summary {
   font-size: 1rem;
 }
 
+.settings-language-seg {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.settings-language-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  font-weight: 600;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
