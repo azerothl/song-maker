@@ -2,6 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 import type { PortablePackagePlan } from "./projectPackage";
 import type { ProfilesState, ProfileSummary } from "./profilesTypes";
 import type {
+  NativeCaptureBackend,
+  NativeCapturePoll,
+  NativeCaptureStopResult,
+  NativeInputDevice,
+} from "./nativeCapture";
+import type {
   AppSettings,
   FormInput,
   GenerationSummary,
@@ -193,6 +199,18 @@ export const api = {
         startMs: startMs ?? null,
       },
     }),
+  nativeCaptureBackend: () => invoke<NativeCaptureBackend>("native_capture_backend"),
+  listNativeCaptureDevices: () =>
+    invoke<NativeInputDevice[]>("list_native_capture_devices"),
+  startNativeCapture: (id: string, deviceId?: string | null) =>
+    invoke<{ sessionId: string; relativePath: string }>("start_native_capture", {
+      id,
+      deviceId: deviceId ?? null,
+    }),
+  pollNativeCapture: () => invoke<NativeCapturePoll | null>("poll_native_capture"),
+  pauseNativeCapture: (paused: boolean) =>
+    invoke<void>("pause_native_capture", { paused }),
+  stopNativeCapture: () => invoke<NativeCaptureStopResult>("stop_native_capture"),
   saveMixVersion: (id: string) => invoke<MixDoc>("save_mix_version", { id }),
   listMixVersions: (id: string) =>
     invoke<MixVersionSummary[]>("list_mix_versions", { id }),

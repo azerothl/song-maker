@@ -116,6 +116,22 @@ export async function invoke<T>(
   args?: Record<string, unknown>,
 ): Promise<T> {
   switch (cmd) {
+    case "native_capture_backend":
+      return {
+        hostApi: "mock",
+        exclusive: false,
+        asio: false,
+        platform: "linux",
+        roundTripMeasured: false,
+        notesFr: "Capture mock navigateur — pas de cpal.",
+      } as T;
+    case "list_native_capture_devices":
+      return [] as T;
+    case "start_native_capture":
+    case "poll_native_capture":
+    case "pause_native_capture":
+    case "stop_native_capture":
+      throw new Error("Capture native absente du mock navigateur.");
     case "list_midi_outputs":
     case "midi_output_support":
     case "connect_midi_output":

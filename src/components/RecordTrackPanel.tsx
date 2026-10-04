@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { api } from "../lib/api";
 import {
   formatLatencyReading,
@@ -7,6 +8,13 @@ import {
   type CaptureLatencyPreference,
   type CaptureLatencyReading,
 } from "../lib/captureLatency";
+import {
+  formatNativeBackend,
+  nativeRoundTripLabel,
+  type CaptureEngine,
+  type NativeCaptureBackend,
+  type NativeInputDevice,
+} from "../lib/nativeCapture";
 import type { MixDoc } from "../lib/types";
 import { t } from "../ui/i18n";
 
@@ -86,6 +94,10 @@ export function RecordTrackPanel({
   onError,
 }: Props) {
   const [phase, setPhase] = useState<CapturePhase>("idle");
+  const [engine, setEngine] = useState<CaptureEngine>("webview");
+  const [nativeBackend, setNativeBackend] =
+    useState<NativeCaptureBackend | null>(null);
+  const [nativeDevices, setNativeDevices] = useState<NativeInputDevice[]>([]);
   const [devices, setDevices] = useState<InputDevice[]>([]);
   const [deviceId, setDeviceId] = useState<string>("");
   const [monitoring, setMonitoring] = useState(false);
@@ -146,6 +158,8 @@ export function RecordTrackPanel({
   const loopBarsMsRef = useRef(8000);
   const punchEnabledRef = useRef(false);
   const punchWindowMsRef = useRef(0);
+  const engineRef = useRef<CaptureEngine>("webview");
+  const nativeStopInFlightRef = useRef(false);
   const takeIndexRef = useRef(0);
   const rollingTakesRef = useRef(false);
   const countdownTimerRef = useRef<number | null>(null);
@@ -207,8 +221,37 @@ export function RecordTrackPanel({
   });
 
   const refreshDevices = useEffectEvent(async () => {
+    try {
+      const backend = await api.nativeCaptureBackend();
+      setNativeBackend(backend);
+    } catch {
+      setNativeBackend(null);
+    }
+    let nativeList: NativeInputDevice[] = [];
+    try {
+      nativeList = (await api.listNativeCaptureDevices()) ?? [];
+    } catch {
+      nativeList = [];
+    }
+    setNativeDevices((old) => {
+      if (old.length === 0 && nativeList.length > 0) {
+        setEngine("native");
+      }
+      return nativeList;
+    });
+    if (nativeList.length === 0) {
+      setEngine("webview");
+    }
+
     if (!navigator.mediaDevices?.enumerateDevices) {
       setDevices([]);
+      setDeviceId((prev) => {
+        if (engineRef.current === "native") {
+          if (prev && nativeList.some((d) => d.id === prev)) return prev;
+          return nativeList.find((d) => d.isDefault)?.id ?? nativeList[0]?.id ?? "";
+        }
+        return "";
+      });
       return;
     }
     try {
@@ -221,9 +264,16 @@ export function RecordTrackPanel({
         }));
       setDevices(inputs);
       setDeviceId((prev) => {
+        if (engineRef.current === "native") {
+          if (prev && nativeList.some((d) => d.id === prev)) return prev;
+          return nativeList.find((d) => d.isDefault)?.id ?? nativeList[0]?.id ?? "";
+        }
         if (prev && inputs.some((d) => d.deviceId === prev)) return prev;
         return inputs[0]?.deviceId ?? "";
       });
+      if (nativeList.length > 0 && inputs.length === 0) {
+        setEngine("native");
+      }
     } catch {
       setDevices([]);
     }
@@ -239,6 +289,10 @@ export function RecordTrackPanel({
   });
 
   useEffect(() => {
+    engineRef.current = engine;
+  }, [engine]);
+
+  useEffect(() => {
     loopEnabledRef.current = loopEnabled;
   }, [loopEnabled]);
 
@@ -252,8 +306,52 @@ export function RecordTrackPanel({
       punchEnabled && punchOutMs > punchInMs ? punchOutMs - punchInMs : 0;
   }, [punchEnabled, punchInMs, punchOutMs]);
 
+  const stopNativeNow = useEffectEvent(async (rollLoop: boolean) => {
+    if (nativeStopInFlightRef.current) return;
+    nativeStopInFlightRef.current = true;
+    rollingTakesRef.current = rollLoop;
+    try {
+      const stopped = await api.stopNativeCapture();
+      takeIndexRef.current += 1;
+      let reviewUrl = "";
+      try {
+        reviewUrl = convertFileSrc(stopped.absolutePath);
+      } catch {
+        reviewUrl = "";
+      }
+      const take: PendingTake = {
+        sessionId: stopped.sessionId,
+        reviewUrl,
+        elapsedMs: stopped.durationMs,
+        label: t("record.takeLabel", { n: String(takeIndexRef.current) }),
+      };
+      sessionIdRef.current = null;
+      setPendingTakes((prev) => [...prev, take]);
+      if (rollingTakesRef.current && loopEnabledRef.current) {
+        rollingTakesRef.current = false;
+        nativeStopInFlightRef.current = false;
+        await startRecording();
+        return;
+      }
+      setPhase("review");
+    } catch (e) {
+      const msg = t("record.err.start", {
+        detail: e instanceof Error ? e.message : String(e),
+      });
+      setStatusMsg(msg);
+      onError(msg);
+      setPhase("armed");
+    } finally {
+      nativeStopInFlightRef.current = false;
+    }
+  });
+
   const stopRecorderNow = useEffectEvent((rollLoop: boolean) => {
     rollingTakesRef.current = rollLoop;
+    if (engineRef.current === "native") {
+      void stopNativeNow(rollLoop);
+      return;
+    }
     const rec = recorderRef.current;
     if (!rec || (rec.state !== "recording" && rec.state !== "paused")) return;
     if (pauseStartedRef.current != null) {
@@ -307,6 +405,11 @@ export function RecordTrackPanel({
         Date.now() - startedAtRef.current - pausedAccumRef.current - pauseExtra;
       elapsedMsRef.current = elapsed;
       setElapsedMs(elapsed);
+      if (engineRef.current === "native" && phase === "recording") {
+        void api.pollNativeCapture().then((poll) => {
+          if (poll) setLevel(Math.min(1, poll.peak * 3));
+        }).catch(() => undefined);
+      }
       if (phase !== "recording") return;
       if (loopEnabledRef.current && elapsed >= loopBarsMsRef.current) {
         stopRecorderNow(true);
@@ -344,6 +447,31 @@ export function RecordTrackPanel({
     setStatusMsg(null);
     setPhase("arming");
     try {
+      if (engine === "native") {
+        const list = (await api.listNativeCaptureDevices()) ?? [];
+        if (list.length === 0) {
+          throw new Error(t("record.err.nativeUnavailable"));
+        }
+        setNativeDevices(list);
+        const selected =
+          (deviceId && list.some((d) => d.id === deviceId) && deviceId) ||
+          list.find((d) => d.isDefault)?.id ||
+          list[0]!.id;
+        setDeviceId(selected);
+        const chosen = list.find((d) => d.id === selected);
+        if (chosen?.estimatedRoundTripMs) {
+          setLatency({
+            preference: latencyPref,
+            baseLatencySec: chosen.estimatedRoundTripMs / 2000,
+            outputLatencySec: chosen.estimatedRoundTripMs / 2000,
+            roundTripMs: chosen.estimatedRoundTripMs,
+            compensationMs: chosen.estimatedRoundTripMs,
+            sampleRate: chosen.sampleRate,
+          });
+        }
+        setPhase("armed");
+        return;
+      }
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error(t("record.err.unsupported"));
       }
@@ -402,14 +530,17 @@ export function RecordTrackPanel({
     } catch (e) {
       releaseStream();
       setPhase("idle");
-      const msg = mapGetUserMediaError(e);
+      const msg =
+        engine === "native" && e instanceof Error
+          ? e.message
+          : mapGetUserMediaError(e);
       setStatusMsg(msg);
       onError(msg);
     }
   }
 
   function beginCountdown() {
-    if (!streamRef.current) {
+    if (engine !== "native" && !streamRef.current) {
       onError(t("record.err.notArmed"));
       return;
     }
@@ -443,6 +574,32 @@ export function RecordTrackPanel({
   }
 
   async function startRecording() {
+    if (engineRef.current === "native") {
+      setStatusMsg(null);
+      writeFailedRef.current = false;
+      try {
+        const session = await api.startNativeCapture(
+          projectId,
+          deviceId || null,
+        );
+        sessionIdRef.current = session.sessionId;
+        startedAtRef.current = Date.now();
+        pausedAccumRef.current = 0;
+        pauseStartedRef.current = null;
+        setElapsedMs(0);
+        setPhase("recording");
+      } catch (e) {
+        sessionIdRef.current = null;
+        rollingTakesRef.current = false;
+        setPhase("armed");
+        const msg = t("record.err.nativeStart", {
+          detail: e instanceof Error ? e.message : String(e),
+        });
+        setStatusMsg(msg);
+        onError(msg);
+      }
+      return;
+    }
     const stream = streamRef.current;
     if (!stream) {
       onError(t("record.err.notArmed"));
@@ -577,6 +734,13 @@ export function RecordTrackPanel({
   }
 
   function pauseRecording() {
+    if (engineRef.current === "native") {
+      void api.pauseNativeCapture(true).then(() => {
+        pauseStartedRef.current = Date.now();
+        setPhase("paused");
+      });
+      return;
+    }
     const rec = recorderRef.current;
     if (!rec || rec.state !== "recording") return;
     rec.pause();
@@ -585,6 +749,16 @@ export function RecordTrackPanel({
   }
 
   function resumeRecording() {
+    if (engineRef.current === "native") {
+      if (pauseStartedRef.current != null) {
+        pausedAccumRef.current += Date.now() - pauseStartedRef.current;
+        pauseStartedRef.current = null;
+      }
+      void api.pauseNativeCapture(false).then(() => {
+        setPhase("recording");
+      });
+      return;
+    }
     const rec = recorderRef.current;
     if (!rec || rec.state !== "paused") return;
     if (pauseStartedRef.current != null) {
@@ -693,6 +867,24 @@ export function RecordTrackPanel({
 
   function handleClose() {
     const sid = sessionIdRef.current;
+    if (engineRef.current === "native") {
+      if (phase === "recording" || phase === "paused") {
+        void api.stopNativeCapture().catch(() => undefined);
+      }
+      if (sid && phase !== "saving") {
+        void api.discardUserAudioCapture(projectId, sid).catch(() => undefined);
+      }
+      if (phase !== "saving") {
+        for (const take of pendingTakes) {
+          void api
+            .discardUserAudioCapture(projectId, take.sessionId)
+            .catch(() => undefined);
+        }
+      }
+      resetLocal();
+      onClose();
+      return;
+    }
     const rec = recorderRef.current;
     if (rec && (rec.state === "recording" || rec.state === "paused")) {
       try {
@@ -733,14 +925,65 @@ export function RecordTrackPanel({
 
       <p className="hint">{t("record.intro")}</p>
 
+      <fieldset className="record-engine" disabled={!canPickDevice}>
+        <legend>{t("record.engine")}</legend>
+        <label className="record-monitor">
+          <input
+            type="radio"
+            name="record-engine"
+            checked={engine === "native"}
+            disabled={nativeDevices.length === 0}
+            onChange={() => {
+              setEngine("native");
+              const next =
+                nativeDevices.find((d) => d.isDefault)?.id ??
+                nativeDevices[0]?.id ??
+                "";
+              setDeviceId(next);
+            }}
+          />
+          <span>{t("record.engine.native")}</span>
+        </label>
+        <label className="record-monitor">
+          <input
+            type="radio"
+            name="record-engine"
+            checked={engine === "webview"}
+            onChange={() => {
+              setEngine("webview");
+              setDeviceId(devices[0]?.deviceId ?? "");
+            }}
+          />
+          <span>{t("record.engine.webview")}</span>
+        </label>
+        <p className="hint">
+          {nativeBackend
+            ? `${formatNativeBackend(nativeBackend)}. ${nativeBackend.notesFr}`
+            : t("record.engine.nativeUnavailable")}
+        </p>
+      </fieldset>
+
       <label className="record-device">
         <span>{t("record.device")}</span>
         <select
           value={deviceId}
-          disabled={!canPickDevice || devices.length === 0}
+          disabled={
+            !canPickDevice ||
+            (engine === "native" ? nativeDevices.length === 0 : devices.length === 0)
+          }
           onChange={(e) => setDeviceId(e.target.value)}
         >
-          {devices.length === 0 ? (
+          {engine === "native" ? (
+            nativeDevices.length === 0 ? (
+              <option value="">{t("record.device.empty")}</option>
+            ) : (
+              nativeDevices.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))
+            )
+          ) : devices.length === 0 ? (
             <option value="">{t("record.device.empty")}</option>
           ) : (
             devices.map((d) => (
@@ -767,20 +1010,35 @@ export function RecordTrackPanel({
         </select>
       </label>
       <p className="hint record-latency" aria-live="polite">
-        {t("record.latency.measured", {
-          value: latency ? formatLatencyReading(latency) : "—",
-        })}
+        {engine === "native"
+          ? t("record.latency.measured", {
+              value: nativeRoundTripLabel(
+                nativeDevices.find((d) => d.id === deviceId)
+                  ?.estimatedRoundTripMs ?? latency?.roundTripMs,
+              ),
+            })
+          : t("record.latency.measured", {
+              value: latency ? formatLatencyReading(latency) : "—",
+            })}
       </p>
-      <p className="hint">{t("record.latency.hint")}</p>
+      <p className="hint">
+        {engine === "native"
+          ? t("record.latency.hintNative")
+          : t("record.latency.hint")}
+      </p>
 
       <label className="record-monitor">
         <input
           type="checkbox"
           checked={monitoring}
+          disabled={engine === "native"}
           onChange={(e) => setMonitoring(e.target.checked)}
         />
         <span>{t("record.monitor")}</span>
       </label>
+      {engine === "native" && (
+        <p className="hint">{t("record.monitor.nativeOff")}</p>
+      )}
       {monitoring && (
         <>
           <p className="hint warn">{t("record.monitor.warn")}</p>

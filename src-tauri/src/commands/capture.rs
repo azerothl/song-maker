@@ -31,11 +31,11 @@ fn user_audio_ext_ok(path: &Path) -> Result<String, String> {
     ))
 }
 
-fn user_audio_root(folder: &Path) -> PathBuf {
+pub(crate) fn user_audio_root(folder: &Path) -> PathBuf {
     folder.join("user-audio")
 }
 
-fn ensure_user_audio_dirs(folder: &Path) -> Result<(), String> {
+pub(crate) fn ensure_user_audio_dirs(folder: &Path) -> Result<(), String> {
     let root = user_audio_root(folder);
     ensure_dir(&root).map_err(|e| e.to_string())?;
     ensure_dir(&root.join("originals")).map_err(|e| e.to_string())?;
@@ -296,12 +296,10 @@ pub fn append_user_audio_chunk(
         return Ok(());
     }
     let folder = project_folder(&id);
-    let path = folder
-        .join("user-audio")
-        .join("capture")
-        .join(format!("{session_id}.webm"));
-    if !path.is_file() {
-        return Err("Session de capture introuvable ou déjà finalisée.".into());
+    let path = capture_session_file(&folder, &session_id)
+        .ok_or_else(|| "Session de capture introuvable ou déjà finalisée.".to_string())?;
+    if path.extension().and_then(|e| e.to_str()) != Some("webm") {
+        return Err("Ajout de chunks réservé à la capture WebView (.webm).".into());
     }
     use std::io::Write;
     let mut file = std::fs::OpenOptions::new()
@@ -313,12 +311,25 @@ pub fn append_user_audio_chunk(
     Ok(())
 }
 
-fn capture_session_id_ok(session_id: &str) -> bool {
+pub(crate) fn capture_session_id_ok(session_id: &str) -> bool {
     !session_id.is_empty()
         && session_id.len() <= 80
         && session_id
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-')
+}
+
+pub(crate) fn capture_session_file(folder: &Path, session_id: &str) -> Option<PathBuf> {
+    let dir = folder.join("user-audio").join("capture");
+    let wav = dir.join(format!("{session_id}.wav"));
+    if wav.is_file() {
+        return Some(wav);
+    }
+    let webm = dir.join(format!("{session_id}.webm"));
+    if webm.is_file() {
+        return Some(webm);
+    }
+    None
 }
 
 #[tauri::command]
@@ -327,11 +338,7 @@ pub fn discard_user_audio_capture(id: String, session_id: String) -> Result<(), 
         return Err("Identifiant de session de capture invalide.".into());
     }
     let folder = project_folder(&id);
-    let path = folder
-        .join("user-audio")
-        .join("capture")
-        .join(format!("{session_id}.webm"));
-    if path.is_file() {
+    if let Some(path) = capture_session_file(&folder, &session_id) {
         std::fs::remove_file(&path).map_err(|e| format!("Suppression capture : {e}"))?;
     }
     Ok(())
@@ -348,25 +355,24 @@ pub fn finalize_user_audio_capture(
     }
     let folder = project_folder(&id);
     let mut doc = load_project(&folder)?;
-    let capture = folder
-        .join("user-audio")
-        .join("capture")
-        .join(format!("{session_id}.webm"));
-    if !capture.is_file() {
-        return Err("Session de capture introuvable.".into());
-    }
+    let capture = capture_session_file(&folder, &session_id)
+        .ok_or_else(|| "Session de capture introuvable.".to_string())?;
     let meta = std::fs::metadata(&capture).map_err(|e| e.to_string())?;
     if meta.len() == 0 {
         let _ = std::fs::remove_file(&capture);
         return Err("Enregistrement vide — aucune piste créée.".into());
     }
+    let ext = capture
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("webm");
     let name = display_name
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .unwrap_or("Enregistrement")
         .to_string();
-    match ingest_user_audio_file(&folder, &mut doc, &capture, &name, true, Some("webm")) {
+    match ingest_user_audio_file(&folder, &mut doc, &capture, &name, true, Some(ext)) {
         Ok(mix) => {
             // Original copy lives under originals/; drop capture temp.
             let _ = std::fs::remove_file(&capture);
@@ -416,16 +422,12 @@ pub fn finalize_user_audio_capture_takes(
     let mut assets: Vec<IngestedUserAudio> = Vec::new();
     let mut labels: Vec<String> = Vec::new();
     for (i, sid) in req.session_ids.iter().enumerate() {
-        let capture = folder
-            .join("user-audio")
-            .join("capture")
-            .join(format!("{sid}.webm"));
-        if !capture.is_file() {
+        let Some(capture) = capture_session_file(&folder, sid) else {
             for a in &assets {
                 rollback_ingested_asset(&folder, a);
             }
             return Err(format!("Session de capture introuvable : {sid}"));
-        }
+        };
         let meta = std::fs::metadata(&capture).map_err(|e| e.to_string())?;
         if meta.len() == 0 {
             for a in &assets {
@@ -433,13 +435,17 @@ pub fn finalize_user_audio_capture_takes(
             }
             return Err("Enregistrement vide — aucune piste créée.".into());
         }
+        let ext = capture
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("webm");
         let label = format!("Prise {}", i + 1);
         match prepare_user_audio_asset(
             &folder,
             &capture,
             &format!("{name} — {label}"),
             true,
-            Some("webm"),
+            Some(ext),
         ) {
             Ok(asset) => {
                 assets.push(asset);
@@ -487,14 +493,44 @@ pub fn finalize_user_audio_capture_takes(
     }
 
     for sid in &req.session_ids {
-        let capture = folder
-            .join("user-audio")
-            .join("capture")
-            .join(format!("{sid}.webm"));
-        let _ = std::fs::remove_file(&capture);
+        if let Some(capture) = capture_session_file(&folder, sid) {
+            let _ = std::fs::remove_file(&capture);
+        }
     }
     doc.updated_at = now_iso();
     let _ = save_project(&folder, &doc);
     let _ = upsert_library_row(&library_row_from_project(&folder, &doc));
     Ok(mix)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn session_file_prefers_wav_over_webm() {
+        let dir =
+            std::env::temp_dir().join(format!("song-maker-cap-sess-{}", uuid::Uuid::new_v4()));
+        let capture = dir.join("user-audio").join("capture");
+        std::fs::create_dir_all(&capture).unwrap();
+        let sid = "sess-1";
+        assert!(capture_session_file(&dir, sid).is_none());
+        std::fs::write(capture.join(format!("{sid}.webm")), b"webm").unwrap();
+        assert_eq!(
+            capture_session_file(&dir, sid)
+                .unwrap()
+                .extension()
+                .unwrap(),
+            "webm"
+        );
+        std::fs::write(capture.join(format!("{sid}.wav")), b"RIFF").unwrap();
+        assert_eq!(
+            capture_session_file(&dir, sid)
+                .unwrap()
+                .extension()
+                .unwrap(),
+            "wav"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

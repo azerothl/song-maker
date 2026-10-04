@@ -54,7 +54,7 @@ Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau
 - Mix : gain, pan, mute/solo, master ; groupes / aux / sends ; presets d’intention et équilibre auto des stems.
 - **Assistant de mix** : Ollama, OpenAI-compat, sidecar **Rbitnet** (binaire + GGUF **hors installeur**, téléchargement différé), llama.cpp / serveur externe via `/v1`. Cloud expert opt-in. Foundry Local / WinML **non livrés**. Voir [`docs/design/qwen-mix-assistant/README.md`](docs/design/qwen-mix-assistant/README.md).
 - Effets DSP réels (`@song-maker/mix-production`) : filtre HP/LP, EQ (shelf + paramétrique), compresseur / gate / limiteur, delay sync tempo, réverb stéréo, sidechain, correction de justesse vocale, nettoyage spectral, débruitage statistique MMSE, conversion de voix par enveloppe (voix de l’utilisateur + consentement, **pas** un modèle RVC), loudness (estimation).
-- Clips : trim, fondus, déplacement, découpe ; grille musicale / arrangement ; étirement tempo / transpose (WSOLA maison) ; capture micro/ligne avec prises (latence WebView documentée — [`docs/capture-low-latency.md`](docs/capture-low-latency.md)).
+- Clips : trim, fondus, déplacement, découpe ; grille musicale / arrangement ; étirement tempo / transpose (WSOLA maison) ; capture micro/ligne native (cpal : WASAPI partagé / ALSA / Core Audio) avec repli WebView — [`docs/capture-low-latency.md`](docs/capture-low-latency.md).
 - Copilote de production réversible (suggestions locales, pas d’analyse distante obligatoire).
 - **Export unifié** : mix WAV PCM 24 bits, FLAC 24 bits, MP3 livraison (profondeur de bits ou débit selon le format) ; export de pistes / stems sélectionnés (dossier ou zip) et paquet projet portable.
 
@@ -86,7 +86,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Sortie MIDI matériel (midir) | Compilée WinMM / CoreMIDI / ALSA. Preuve native : **Windows GS Wavetable seulement**. macOS IAC, Linux jack/USB, Windows USB : **non testés** — [`docs/midi-instrument.md`](docs/midi-instrument.md) |
 | Worker distant / Akasha | Opt-in ; sans hôte = indisponible, pas un stub trompeur |
 | Entraînement LoRA NAR | Pilote CPU — LoRA YuE2 GPU : `scripts/lora-train-yue2-gpu.py` (CUDA) |
-| Capture basse latence | Chemin WebView (pas ASIO / WASAPI exclusif) |
+| Capture basse latence | Natif cpal (WASAPI **partagé** / ALSA / Core Audio). Pas d’ASIO ni WASAPI exclusif. Repli WebView. |
 | Licences modèles | YuE2 & SheetSage2 : **CC BY-NC 4.0** — usage commercial des poids restreint |
 | Signature Windows / notarisation macOS | Workflow Windows configuré, signature réelle à valider avec Azure ; macOS non notarié |
 | UI app bilingue | Non — français seul ; le site marketing est FR/EN |

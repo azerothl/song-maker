@@ -1,27 +1,26 @@
 # Capture à faible latence et prises
 
-Issue [#93](https://github.com/azerothl/song-maker/issues/93).
+Issues [#93](https://github.com/azerothl/song-maker/issues/93) (v1 WebView) et [#330](https://github.com/azerothl/song-maker/issues/330) (chemin natif).
 
-## Décision v1
+## Décision actuelle
 
 | Aspect | Choix |
 |---|---|
-| Moteur | WebView `MediaRecorder` + `AudioContext` (comme #41) |
-| Latence | Affichage `baseLatency` + `outputLatency` ; compromis via `latencyHint` (`stable` / `balanced` / `low`) |
-| Monitoring | Coupé par défaut ; délai optionnel = latence estimée (anti-décalage, pas anti-larsen magique) |
-| Décompte | 0–10 s avant départ |
-| Boucle | N sessions → une piste, N clips `takeGroupId` ; dernière prise active |
-| Punch | Placement `startMs` = punch-in ; arrêt auto à (punch-out − punch-in) hors boucle |
-| Comping | Sélection de prise dans l’inspecteur clips ; découpe pour régions ; originaux conservés |
-| Urgence | Déconnexion / pause / arrêt : pas de piste mix corrompue (discard session) |
+| Moteur par défaut | **cpal** : WASAPI **partagé** (Windows), Core Audio (macOS), ALSA (Linux). Pas de getUserMedia. |
+| Repli | WebView `MediaRecorder` + `AudioContext` si aucun périphérique natif, ou choix explicite. |
+| Latence native | Estimation `2 × (buffer / sampleRate)` — **pas** une mesure boucle haut-parleur → micro. |
+| WASAPI exclusif | **Non livré**. |
+| ASIO | **Non livré** (pas de SDK Steinberg dans le dépôt). |
+| Monitoring natif | Coupé en v1 (pas de graphe duplex matériel). Monitoring optionnel seulement sur le repli WebView. |
+| Prises / punch / comping | Inchangés côté mix ; le fichier de session peut être `.wav` (natif) ou `.webm` (WebView). |
 
-## Limites (Windows / Linux)
+## Limites
 
-- Pas de WASAPI exclusif, ASIO, PipeWire ou JACK dans ce ticket — latence typique WebView souvent **> 10–40 ms**.
-- Périphériques testés via `enumerateDevices` / `getUserMedia` dans le WebView Tauri.
-- Calibration boucle complète (haut-parleur → micro) non instrumentée ; la compensation est une estimation.
-- Chemin natif `cpal` envisageable plus tard derrière les mêmes commandes `user-audio/capture`.
+- Windows : chemin réel = WASAPI partagé via cpal. L’exclusif et ASIO restent un ticket ouvert (checklist #330).
+- Linux : ALSA (souvent via PipeWire). JACK dédié non branché. Preuve cloud Linux = énumération + WAV de test, pas une interface audio studio.
+- macOS : Core Audio ; **non mesuré** ici (comme le MIDI matériel).
+- Calibration boucle complète non instrumentée.
 
 ## Hors périmètre
 
-Hôte VST3, monitoring DSP externe.
+Hôte VST3, monitoring DSP externe, driver ASIO.

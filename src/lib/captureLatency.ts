@@ -1,8 +1,8 @@
 /**
  * WebView capture latency estimate + stability tradeoffs (issue #93).
  *
- * Native WASAPI / PipeWire / JACK are out of scope for this pass — we expose
- * what the AudioContext reports and let the user pick a latencyHint.
+ * Native WASAPI / ASIO exclusive paths are still out of scope — cpal shared
+ * WASAPI (Win) / ALSA / Core Audio sit behind the same UI as a native engine.
  */
 
 export type CaptureLatencyPreference = "stable" | "balanced" | "low";
