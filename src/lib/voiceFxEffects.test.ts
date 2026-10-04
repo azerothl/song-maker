@@ -29,5 +29,9 @@ describe("voice FX eligibility (#164)", () => {
     assert.equal(cleanup.preserveAttack, 0.65);
     const convert = defaultEffectParams("voice_convert");
     assert.equal(convert.consentOwnVoice, false);
+    assert.equal(convert.mix, 0.65);
+    const denoise = defaultEffectParams("voice_denoise");
+    assert.equal(denoise.strength, 0.55);
+    assert.ok(UI_EFFECT_KINDS.includes("voice_denoise"));
   });
 });

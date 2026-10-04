@@ -37,6 +37,8 @@ import {
   type PitchCorrectScale,
 } from "./pitchCorrect.js";
 import { applyVoiceCleanup } from "./voiceCleanup.js";
+import { applyVoiceConvert } from "./voiceConvert.js";
+import { applyVoiceDenoise } from "./voiceDenoise.js";
 
 export class MixAutomationEngineImpl implements MixAutomationEngine {
   private readonly lanes = new Map<string, AutomationLane[]>();
@@ -313,11 +315,23 @@ export class TrackEffectsRackImpl implements TrackEffectsRack {
           break;
         }
         case "voice_convert": {
-          // Stub (#164): refuse conversion without consent (dry pass-through).
-          // Even with consent, no third-party voice model is shipped.
-          if (effect.params.consentOwnVoice !== true) {
-            break;
-          }
+          current = applyVoiceConvert(current, sr, {
+            consentOwnVoice: effect.params.consentOwnVoice === true,
+            ...(typeof effect.params.targetEnvelope === "string"
+              ? { targetEnvelope: effect.params.targetEnvelope }
+              : {}),
+            mix:
+              typeof effect.params.mix === "number" ? effect.params.mix : 0.65,
+          });
+          break;
+        }
+        case "voice_denoise": {
+          current = applyVoiceDenoise(current, sr, {
+            strength:
+              typeof effect.params.strength === "number"
+                ? effect.params.strength
+                : 0.55,
+          });
           break;
         }
         case "custom": {

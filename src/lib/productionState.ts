@@ -27,6 +27,7 @@ export const UI_EFFECT_KINDS = [
   "pitch_correct",
   "voice_cleanup",
   "voice_convert",
+  "voice_denoise",
 ] as const;
 export type UiEffectKind = (typeof UI_EFFECT_KINDS)[number];
 
@@ -664,6 +665,13 @@ export function defaultEffectParams(
     case "voice_convert":
       return {
         consentOwnVoice: false,
+        mix: 0.65,
+        targetEnvelope: "",
+        referenceName: "",
+      };
+    case "voice_denoise":
+      return {
+        strength: 0.55,
       };
     default: {
       const _exhaustive: never = kind;
