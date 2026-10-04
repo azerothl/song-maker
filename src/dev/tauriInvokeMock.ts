@@ -117,6 +117,7 @@ export async function invoke<T>(
 ): Promise<T> {
   switch (cmd) {
     case "list_midi_outputs":
+    case "midi_output_support":
     case "connect_midi_output":
     case "disconnect_midi_output":
     case "play_midi_output":
@@ -126,6 +127,7 @@ export async function invoke<T>(
       }).__captureMidiOutput;
       if(hook)return await hook(cmd,args) as T;
       if(cmd==="list_midi_outputs")return [] as T;
+      if(cmd==="midi_output_support")return {os:"linux",backend:"ALSA",portCount:0,nativeProof:false,honestyFr:"Linux : ALSA via midir, compilé. Lister les ports n’est pas une preuve jack/USB. 0 port(s) visible(s) ici."} as T;
       return undefined as T;
     }
     case "propose_qwen_mix": {

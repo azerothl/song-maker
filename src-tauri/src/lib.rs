@@ -44,6 +44,7 @@ pub fn run() {
         .manage(commands::midi_output::MidiOutputState::default())
         .invoke_handler(tauri::generate_handler![
             commands::midi_output::list_midi_outputs,
+            commands::midi_output::midi_output_support,
             commands::midi_output::connect_midi_output,
             commands::midi_output::play_midi_output,
             commands::midi_output::panic_midi_output,

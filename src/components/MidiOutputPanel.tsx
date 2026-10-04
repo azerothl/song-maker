@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ScoreDocument } from "@song-maker/score-engine";
-import { connectMidiOutput, disconnectMidiOutput, listMidiOutputs, panicMidiOutput, playMidiOutput, scoreOutputNotes, type MidiOutputPort } from "../lib/midiOutput";
+import { connectMidiOutput, disconnectMidiOutput, listMidiOutputs, midiOutputSupport, panicMidiOutput, playMidiOutput, scoreOutputNotes, type MidiOutputPort } from "../lib/midiOutput";
 import { t } from "../ui/i18n";
 
 export function MidiOutputPanel({document,voiceId}:{document:ScoreDocument;voiceId?:string|null}) {
@@ -13,6 +13,7 @@ export function MidiOutputPanel({document,voiceId}:{document:ScoreDocument;voice
  const [program,setProgram]=useState(1);
  const [selectedVoice,setSelectedVoice]=useState(voiceId??document.voices[0]?.id??"");
  const [error,setError]=useState(false);
+ const [honesty,setHonesty]=useState<string|null>(null);
  const epoch=useRef(0);
  const alive=useRef(true);
  const outputVoice=document.voices.find(voice=>voice.id===selectedVoice)?.id??voiceId??document.voices[0]?.id??"";
@@ -24,6 +25,10 @@ export function MidiOutputPanel({document,voiceId}:{document:ScoreDocument;voice
    const next=await listMidiOutputs();
    if(!alive.current)return;
    setPorts(next);
+   try {
+    const support=await midiOutputSupport();
+    if(alive.current)setHonesty(support.honestyFr);
+   } catch { if(alive.current) setHonesty(t("midi.output.osLimit")); }
    if(!next.some(port=>port.id===portId)) {
     epoch.current++;await disconnectMidiOutput();setConnected(false);setPlaying(false);setPortId("");
    }
@@ -56,6 +61,7 @@ export function MidiOutputPanel({document,voiceId}:{document:ScoreDocument;voice
  return <section className="midi-output-panel" aria-label={t("midi.output.title")}>
   <h4>{t("midi.output.title")}</h4>
   <p className="hint">{t("midi.output.hint")}</p>
+  {honesty?<p className="hint">{honesty}</p>:<p className="hint">{t("midi.output.osLimit")}</p>}
   <div className="midi-instrument-controls">
    <label>{t("midi.output.voice")}<select aria-label={t("midi.output.voice")} value={outputVoice} disabled={playing} onChange={e=>setSelectedVoice(e.target.value)}>
     {document.voices.map(voice=><option key={voice.id} value={voice.id}>{voice.name||voice.id}</option>)}
