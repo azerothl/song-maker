@@ -77,6 +77,8 @@ Sources primaires consultées le 1er octobre 2026. Elles motivent les options de
 | [DiT-MoE — article](https://arxiv.org/abs/2407.11633), [Diff-MoE — article ICML](https://proceedings.mlr.press/v267/cheng25d.html) | Experts internes et spécialisation selon les étapes de génération | Résultats sur images ; aucune preuve directe du contrat musical multipiste ni d'une économie sur notre matériel |
 | [UniMoE-Audio — article](https://arxiv.org/abs/2510.13344) | Experts partagés/spécialisés et entraînement équilibré parole/musique | Parole et musique ne valident pas à elles seules chant FR/EN, pistes natives, partitions et inpainting exact |
 
+Recette **exécutable** (jouet étape D, hors app) : [`scripts/model-training/README.md`](../../scripts/model-training/README.md). Pas un fournisseur desktop.
+
 ## Points à trancher après les premières expériences
 
 Le budget de première campagne et le choix du pilote sont fixés ci-dessus. Le volume réellement accessible, les révisions de poids, la licence exacte des futurs poids permettant l'usage commercial, le moteur de rendu de partition, les seuils musicaux et l'intérêt d'un routage appris restent à établir. Le dossier fixe les contrats pour comparer ces choix sur les mêmes tâches.

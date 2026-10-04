@@ -1,0 +1,26 @@
+{
+  "schema": "songmaker.model-training.pins",
+  "schemaVersion": 1,
+  "purpose": "research",
+  "desktopProvider": null,
+  "noteFr": "Recette jouable hors app. Aucun poids n’est branché comme fournisseur desktop. Pas de bouton magique.",
+  "audiocpp": {
+    "tag": "v0.8.2",
+    "commit": "4d88768fbcae4e6eb3352c6ab1422dabb7d90b58"
+  },
+  "papers": {
+    "fulldit": { "id": "2608.08787", "role": "DiT flow-matching + EMDC + 4-way CFG" },
+    "songcraft": { "id": "2609.16315", "role": "entraînement reconstructif génération+édition" }
+  },
+  "licenses": {
+    "code": "Apache-2.0",
+    "toyCheckpoint": "research-only, not a model weight, not for generation"
+  },
+  "stages": {
+    "D": {
+      "id": "stage-d-renderer-toy",
+      "entry": "scripts/model-training/run_stage_d_toy.py",
+      "config": "scripts/model-training/configs/songcraft-toy.json"
+    }
+  }
+}
