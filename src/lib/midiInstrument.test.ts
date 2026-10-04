@@ -26,7 +26,7 @@ describe("midiInput", () => {
 });
 
 describe("midiInstrument programs", () => {
-  it("lists built-in programs (no SF2)", () => {
+  it("lists built-in oscillator programs and keeps SF2 optional", () => {
     assert.ok(INSTRUMENT_PROGRAMS.includes("piano"));
     assert.equal(INSTRUMENT_PROGRAMS.length, 8);
   });

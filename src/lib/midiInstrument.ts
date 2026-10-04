@@ -1,7 +1,9 @@
 /**
  * Built-in offline software instrument (Web Audio).
- * No third-party SF2 — oscillators only; see docs/midi-instrument.md (#96).
+ * Oscillators by default; optional user-selected SF2 (#329).
  */
+
+import { pickSf2Zone, type Sf2Bank } from "./sf2Bank";
 
 export type InstrumentProgram =
   | "piano"
@@ -31,8 +33,9 @@ export type SoftSynthOptions = {
 
 type Voice = {
   osc: OscillatorNode[];
+  source: AudioBufferSourceNode | null;
   gain: GainNode;
-  filter: BiquadFilterNode;
+  filter: BiquadFilterNode | null;
 };
 
 function midiToHz(pitch: number): number {
@@ -90,6 +93,8 @@ export class SoftSynth {
   /** When any track is soloed elsewhere, callers set this. */
   private soloGate = true;
   private latencySec: number;
+  private sf2: Sf2Bank | null = null;
+  private sf2Preset = 0;
 
   constructor(options?: SoftSynthOptions) {
     this.latencySec = Math.max(0, options?.latencySec ?? 0.02);
@@ -130,6 +135,31 @@ export class SoftSynth {
 
   getProgram(): InstrumentProgram {
     return this.program;
+  }
+
+  setSf2Bank(bank: Sf2Bank | null) {
+    this.sf2 = bank;
+    this.sf2Preset = 0;
+  }
+
+  getSf2Bank(): Sf2Bank | null {
+    return this.sf2;
+  }
+
+  setSf2Preset(index: number) {
+    if (!this.sf2) {
+      this.sf2Preset = 0;
+      return;
+    }
+    this.sf2Preset = Math.max(0, Math.min(this.sf2.presets.length - 1, index));
+  }
+
+  getSf2Preset(): number {
+    return this.sf2Preset;
+  }
+
+  usesSf2(): boolean {
+    return this.sf2 != null;
   }
 
   setGainDb(db: number) {
@@ -184,6 +214,27 @@ export class SoftSynth {
     this.noteOff(p, when);
     const t = when ?? ctx.currentTime + this.latencySec;
     const vel = Math.max(1, Math.min(127, velocity)) / 127;
+    const zone = this.sf2 ? pickSf2Zone(this.sf2, this.sf2Preset, p) : null;
+    if (zone && zone.sample.length > 0) {
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.35 * vel, t + 0.01);
+      const source = ctx.createBufferSource();
+      const buf = ctx.createBuffer(1, zone.sample.length, zone.sampleRate);
+      buf.getChannelData(0).set(zone.sample);
+      source.buffer = buf;
+      source.playbackRate.value = 2 ** ((p - zone.rootKey) / 12);
+      if (zone.loop && zone.loopEnd > zone.loopStart + 8) {
+        source.loop = true;
+        source.loopStart = zone.loopStart / zone.sampleRate;
+        source.loopEnd = zone.loopEnd / zone.sampleRate;
+      }
+      source.connect(gain);
+      gain.connect(this.master);
+      source.start(t);
+      this.voices.set(p, { osc: [], source, gain, filter: null });
+      return;
+    }
     const wave = programWave(this.program);
     const filter = ctx.createBiquadFilter();
     filter.type = "lowpass";
@@ -212,7 +263,7 @@ export class SoftSynth {
     }
     filter.connect(gain);
     gain.connect(this.master);
-    this.voices.set(p, { osc: oscs, gain, filter });
+    this.voices.set(p, { osc: oscs, source: null, gain, filter });
   }
 
   noteOff(pitch: number, when?: number) {
@@ -226,6 +277,11 @@ export class SoftSynth {
       voice.gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
       for (const osc of voice.osc) {
         osc.stop(t + 0.14);
+      }
+      try {
+        voice.source?.stop(t + 0.14);
+      } catch {
+        /* already stopped */
       }
     } catch {
       /* already stopped */
