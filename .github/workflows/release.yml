@@ -154,9 +154,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential curl file \
+            build-essential curl file pkg-config libssl-dev \
             libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
-            librsvg2-dev patchelf libfuse2 rpm
+            librsvg2-dev patchelf libfuse2 rpm libasound2-dev
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
