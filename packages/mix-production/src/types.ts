@@ -63,6 +63,7 @@ export type EffectKind =
   | "pitch_correct"
   | "voice_cleanup"
   | "voice_convert"
+  | "voice_denoise"
   | "custom";
 
 export type EffectProcessContext = {
@@ -88,7 +89,9 @@ export type TrackEffectSlot = {
    *   `scale` ("major"|"minor"), `intensity` (0…1), `speed` (0…1),
    *   `formantPreserve` (boolean)
    * - voice_cleanup: `strength` (0…1), `noiseFloorDb`, `preserveAttack` (0…1)
-   * - voice_convert: `consentOwnVoice` (boolean) — stub; no third-party model
+   * - voice_convert: `consentOwnVoice` (boolean), `targetEnvelope` (string),
+   *   `mix` (0…1) — own-voice spectral envelope, not a neural model
+   * - voice_denoise: `strength` (0…1) — statistical MMSE, not neural
    * - custom: **required** `processorId` (string) naming a registered extension
    */
   params: Record<string, number | string | boolean>;

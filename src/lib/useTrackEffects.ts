@@ -12,7 +12,7 @@ import {
 
 export type UseTrackEffectsOptions = {
   tempoBpm?: number | null;
-  /** Vocal-only FX (pitch_correct, voice_cleanup, voice_convert). */
+  /** Vocal-only FX (pitch_correct, voice_cleanup, voice_convert, voice_denoise). */
   canAddVocalFx?: boolean;
   /** @deprecated Prefer canAddVocalFx. */
   canAddPitchCorrect?: boolean;
@@ -66,7 +66,8 @@ export function useTrackEffects(
       if (
         (kind === "pitch_correct" ||
           kind === "voice_cleanup" ||
-          kind === "voice_convert") &&
+          kind === "voice_convert" ||
+          kind === "voice_denoise") &&
         !canAddVocalFx
       ) {
         return;

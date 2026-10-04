@@ -29,6 +29,7 @@ const FX_LABEL: Record<
   | "phase3.mix.fx.pitchCorrect"
   | "phase3.mix.fx.voiceCleanup"
   | "phase3.mix.fx.voiceConvert"
+  | "phase3.mix.fx.voiceDenoise"
 > = {
   limiter: "phase3.mix.fx.limiter",
   compressor: "phase3.mix.fx.compressor",
@@ -41,6 +42,7 @@ const FX_LABEL: Record<
   pitch_correct: "phase3.mix.fx.pitchCorrect",
   voice_cleanup: "phase3.mix.fx.voiceCleanup",
   voice_convert: "phase3.mix.fx.voiceConvert",
+  voice_denoise: "phase3.mix.fx.voiceDenoise",
 };
 
 const FX_ADD_LABEL: Record<
@@ -56,6 +58,7 @@ const FX_ADD_LABEL: Record<
   | "phase3.mix.add.pitchCorrect"
   | "phase3.mix.add.voiceCleanup"
   | "phase3.mix.add.voiceConvert"
+  | "phase3.mix.add.voiceDenoise"
 > = {
   limiter: "phase3.mix.add.limiter",
   compressor: "phase3.mix.add.compressor",
@@ -68,12 +71,14 @@ const FX_ADD_LABEL: Record<
   pitch_correct: "phase3.mix.add.pitchCorrect",
   voice_cleanup: "phase3.mix.add.voiceCleanup",
   voice_convert: "phase3.mix.add.voiceConvert",
+  voice_denoise: "phase3.mix.add.voiceDenoise",
 };
 
 const VOCAL_FX_KINDS = new Set<UiEffectKind>([
   "pitch_correct",
   "voice_cleanup",
   "voice_convert",
+  "voice_denoise",
 ]);
 
 function isUiEffectKind(kind: string): kind is UiEffectKind {

@@ -74,6 +74,19 @@ export {
   type VoiceCleanupParams,
 } from "./voiceCleanup.js";
 export {
+  applyVoiceConvert,
+  extractSpectralEnvelope,
+  parseEnvelope,
+  serializeEnvelope,
+  voiceConvertHasReference,
+  VOICE_CONVERT_NO_REFERENCE,
+  type VoiceConvertParams,
+} from "./voiceConvert.js";
+export {
+  applyVoiceDenoise,
+  type VoiceDenoiseParams,
+} from "./voiceDenoise.js";
+export {
   MixAutomationEngineImpl,
   TrackEffectsRackImpl,
   SidechainRouterImpl,

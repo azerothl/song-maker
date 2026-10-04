@@ -1,4 +1,14 @@
-import type { TrackEffectSlot } from "@song-maker/mix-production";
+import {
+  extractSpectralEnvelope,
+  parseEnvelope,
+  serializeEnvelope,
+  type TrackEffectSlot,
+} from "@song-maker/mix-production";
+import {
+  formatProductionDb,
+  formatProductionDbPerOct,
+} from "../../lib/productionFormat";
+import { t } from "../../ui/i18n";
 import {
   formatProductionDb,
   formatProductionDbPerOct,
@@ -546,6 +556,11 @@ export function Phase3FxParamFields({
       );
     case "voice_convert": {
       const consented = fx.params.consentOwnVoice === true;
+      const hasRef = parseEnvelope(fx.params.targetEnvelope) != null;
+      const refName =
+        typeof fx.params.referenceName === "string" && fx.params.referenceName
+          ? fx.params.referenceName
+          : null;
       return (
         <>
           <label className="phase3-check">
@@ -559,14 +574,93 @@ export function Phase3FxParamFields({
             <span>{t("phase3.mix.voiceConvert.consent")}</span>
           </label>
           <p className="hint">{t("phase3.mix.voiceConvert.loicConstraint")}</p>
+          <p className="hint">{t("phase3.mix.voiceConvert.legal")}</p>
+          <label className="phase3-field">
+            <span>{t("phase3.mix.voiceConvert.reference")}</span>
+            <input
+              type="file"
+              accept="audio/wav,audio/x-wav,.wav"
+              disabled={!consented}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                void (async () => {
+                  const Ctx =
+                    globalThis.AudioContext ??
+                    (globalThis as unknown as { webkitAudioContext?: typeof AudioContext })
+                      .webkitAudioContext;
+                  if (!Ctx) return;
+                  const ctx = new Ctx();
+                  try {
+                    const buf = await file.arrayBuffer();
+                    const audio = await ctx.decodeAudioData(buf.slice(0));
+                    const ch = audio.getChannelData(0);
+                    const env = extractSpectralEnvelope(ch, audio.sampleRate);
+                    updateEffectParam(
+                      "targetEnvelope",
+                      serializeEnvelope(env),
+                    );
+                    updateEffectParam("referenceName", file.name);
+                  } finally {
+                    await ctx.close().catch(() => undefined);
+                  }
+                })();
+              }}
+            />
+          </label>
+          {refName && (
+            <p className="hint">
+              {t("phase3.mix.voiceConvert.referenceLoaded", { name: refName })}
+            </p>
+          )}
+          <label className="phase3-field">
+            <span>{t("phase3.mix.param.mix")}</span>
+            <input
+              type="number"
+              step={0.05}
+              min={0}
+              max={1}
+              value={Number(fx.params.mix ?? 0.65)}
+              onChange={(e) => updateEffectParam("mix", Number(e.target.value))}
+            />
+          </label>
           <p className="hint">
-            {consented
-              ? t("phase3.mix.voiceConvert.notShipped")
-              : t("phase3.mix.voiceConvert.needsConsent")}
+            {!consented
+              ? t("phase3.mix.voiceConvert.needsConsent")
+              : !hasRef
+                ? t("phase3.mix.voiceConvert.needsReference")
+                : t("phase3.mix.voiceConvert.ready")}
           </p>
+          <details>
+            <summary>{t("phase3.mix.voiceConvert.leftovers.title")}</summary>
+            <ul>
+              <li>{t("phase3.mix.voiceConvert.leftovers.model")}</li>
+              <li>{t("phase3.mix.voiceConvert.leftovers.neuralDenoise")}</li>
+              <li>{t("phase3.mix.voiceConvert.leftovers.weights")}</li>
+            </ul>
+          </details>
         </>
       );
     }
+    case "voice_denoise":
+      return (
+        <>
+          <label className="phase3-field">
+            <span>{t("phase3.mix.param.strength")}</span>
+            <input
+              type="number"
+              step={0.05}
+              min={0}
+              max={1}
+              value={Number(fx.params.strength ?? 0.55)}
+              onChange={(e) =>
+                updateEffectParam("strength", Number(e.target.value))
+              }
+            />
+          </label>
+          <p className="hint">{t("phase3.mix.voiceDenoise.honesty")}</p>
+        </>
+      );
     case "custom":
       return null;
     default: {

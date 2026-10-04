@@ -97,8 +97,9 @@ describe("voice_cleanup", () => {
       enabled: true,
       params: { consentOwnVoice: true },
     });
-    const consented = toolkit.effects.process("trk-vocals", pcm, sr);
-    expect(consented.length).toBe(pcm.length);
+    expect(() => toolkit.effects.process("trk-vocals", pcm, sr)).toThrow(
+      /VOICE_CONVERT_NO_REFERENCE/,
+    );
   });
 
   it("disabled voice_cleanup leaves signal unchanged via rack", () => {
