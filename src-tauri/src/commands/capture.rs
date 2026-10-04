@@ -206,6 +206,7 @@ fn ingest_user_audio_file(
     display_name: &str,
     copy_original: bool,
     original_ext: Option<&str>,
+    start_ms: i64,
 ) -> Result<MixDoc, String> {
     let asset =
         prepare_user_audio_asset(folder, source, display_name, copy_original, original_ext)?;
@@ -218,6 +219,7 @@ fn ingest_user_audio_file(
         &asset.sha,
         asset.duration_ms,
         display_name,
+        start_ms.max(0),
     );
     if let Err(e) = atomic_write_json(&mix_path, &mix) {
         mix.tracks.truncate(track_count_before);
@@ -259,8 +261,16 @@ pub async fn import_user_audio_track(
     tokio::task::spawn_blocking(move || {
         let folder = project_folder(&id);
         let mut doc = load_project(&folder)?;
-        ingest_user_audio_file(&folder, &mut doc, &source, &display_name, true, Some(&ext))
-            .map(Some)
+        ingest_user_audio_file(
+            &folder,
+            &mut doc,
+            &source,
+            &display_name,
+            true,
+            Some(&ext),
+            0,
+        )
+        .map(Some)
     })
     .await
     .map_err(|e| format!("Import audio interrompu : {e}"))?
@@ -381,6 +391,7 @@ pub fn finalize_user_audio_capture(
     id: String,
     session_id: String,
     display_name: Option<String>,
+    start_ms: Option<i64>,
 ) -> Result<MixDoc, String> {
     if !capture_session_id_ok(&session_id) {
         return Err("Identifiant de session de capture invalide.".into());
@@ -404,7 +415,15 @@ pub fn finalize_user_audio_capture(
         .filter(|s| !s.is_empty())
         .unwrap_or("Enregistrement")
         .to_string();
-    match ingest_user_audio_file(&folder, &mut doc, &capture, &name, true, Some(ext)) {
+    match ingest_user_audio_file(
+        &folder,
+        &mut doc,
+        &capture,
+        &name,
+        true,
+        Some(ext),
+        start_ms.unwrap_or(0).max(0),
+    ) {
         Ok(mix) => {
             // Original copy lives under originals/; drop capture temp.
             let _ = std::fs::remove_file(&capture);

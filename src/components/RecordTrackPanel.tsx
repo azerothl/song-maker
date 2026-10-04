@@ -16,6 +16,15 @@ import {
   type NativeInputDevice,
 } from "../lib/nativeCapture";
 import type { MixDoc } from "../lib/types";
+import {
+  punchBarDurationMs,
+  snapPunchMs,
+  snapPunchWindow,
+} from "../lib/punchGrid";
+import {
+  DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
+  type ProductionClipViewPrefs,
+} from "../lib/productionClipViewPrefs";
 import { t } from "../ui/i18n";
 
 type CapturePhase =
@@ -46,6 +55,8 @@ type Props = {
   onClose: () => void;
   onTrackAdded: (mix: MixDoc) => void;
   onError: (message: string) => void;
+  mix?: MixDoc | null;
+  clipViewPrefs?: ProductionClipViewPrefs;
 };
 
 function pickMimeType(): string | undefined {
@@ -92,6 +103,8 @@ export function RecordTrackPanel({
   onClose,
   onTrackAdded,
   onError,
+  mix,
+  clipViewPrefs,
 }: Props) {
   const [phase, setPhase] = useState<CapturePhase>("idle");
   const [engine, setEngine] = useState<CaptureEngine>("webview");
@@ -113,6 +126,13 @@ export function RecordTrackPanel({
   const [punchInMs, setPunchInMs] = useState(0);
   const [punchOutMs, setPunchOutMs] = useState(8000);
   const [level, setLevel] = useState(0);
+  const grid = clipViewPrefs ?? DEFAULT_PRODUCTION_CLIP_VIEW_PREFS;
+  const punchGrid = {
+    mix,
+    snapEnabled: grid.snapEnabled,
+    gridMode: grid.gridMode,
+    subdivision: grid.subdivision,
+  };
   const [elapsedMs, setElapsedMs] = useState(0);
   const [pendingTakes, setPendingTakes] = useState<PendingTake[]>([]);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -785,13 +805,16 @@ export function RecordTrackPanel({
       if (writeFailedRef.current) {
         throw new Error(t("record.err.writeFailed"));
       }
-      const startMs = punchEnabled ? Math.max(0, punchInMs) : 0;
-      const mix =
+      const startMs = punchEnabled
+        ? snapPunchMs(Math.max(0, punchInMs), punchGrid)
+        : 0;
+      const mixDoc =
         pendingTakes.length === 1
           ? await api.finalizeUserAudioCapture(
               projectId,
               pendingTakes[0]!.sessionId,
               t("record.defaultName"),
+              startMs,
             )
           : await api.finalizeUserAudioCaptureTakes(
               projectId,
@@ -799,42 +822,8 @@ export function RecordTrackPanel({
               t("record.defaultName"),
               startMs,
             );
-      // Single-take punch: place clip at punch-in via update.
-      if (pendingTakes.length === 1 && punchEnabled && startMs > 0) {
-        const track = mix.tracks[mix.tracks.length - 1];
-        if (track?.clips[0]) {
-          const clips = track.clips.map((c, i) =>
-            i === 0 ? { ...c, startMs } : c,
-          );
-          const updated = await api.updateMix(projectId, {
-            masterGainDb: mix.masterGainDb,
-            tracks: mix.tracks.map((tr) =>
-              tr.id === track.id
-                ? {
-                    id: tr.id,
-                    gainDb: tr.gainDb,
-                    pan: tr.pan,
-                    mute: tr.mute,
-                    solo: tr.solo,
-                    clips,
-                  }
-                : {
-                    id: tr.id,
-                    gainDb: tr.gainDb,
-                    pan: tr.pan,
-                    mute: tr.mute,
-                    solo: tr.solo,
-                  },
-            ),
-          });
-          resetLocal();
-          onTrackAdded(updated);
-          onClose();
-          return;
-        }
-      }
       resetLocal();
-      onTrackAdded(mix);
+      onTrackAdded(mixDoc);
       onClose();
     } catch (e) {
       const msg = t("record.err.finalize", {
@@ -1084,6 +1073,11 @@ export function RecordTrackPanel({
               value={loopBarsMs}
               disabled={phase === "recording" || phase === "countdown"}
               onChange={(e) => setLoopBarsMs(Number(e.target.value) || 8000)}
+              onBlur={() => {
+                const bar = punchBarDurationMs(mix);
+                const n = Math.max(1, Math.round(loopBarsMs / bar));
+                setLoopBarsMs(n * bar);
+              }}
             />
           </label>
         )}
@@ -1092,7 +1086,15 @@ export function RecordTrackPanel({
             type="checkbox"
             checked={punchEnabled}
             disabled={phase === "recording" || phase === "countdown"}
-            onChange={(e) => setPunchEnabled(e.target.checked)}
+            onChange={(e) => {
+              const on = e.target.checked;
+              setPunchEnabled(on);
+              if (on) {
+                const win = snapPunchWindow(punchInMs, punchOutMs, punchGrid);
+                setPunchInMs(win.punchInMs);
+                setPunchOutMs(win.punchOutMs);
+              }
+            }}
           />
           <span>{t("record.punch")}</span>
         </label>
@@ -1106,6 +1108,9 @@ export function RecordTrackPanel({
                 step={50}
                 value={punchInMs}
                 onChange={(e) => setPunchInMs(Number(e.target.value) || 0)}
+                onBlur={() =>
+                  setPunchInMs(snapPunchMs(punchInMs, punchGrid))
+                }
               />
             </label>
             <label className="record-field">
@@ -1116,8 +1121,14 @@ export function RecordTrackPanel({
                 step={50}
                 value={punchOutMs}
                 onChange={(e) => setPunchOutMs(Number(e.target.value) || 0)}
+                onBlur={() => {
+                  const win = snapPunchWindow(punchInMs, punchOutMs, punchGrid);
+                  setPunchInMs(win.punchInMs);
+                  setPunchOutMs(win.punchOutMs);
+                }}
               />
             </label>
+            <p className="hint">{t("record.punch.grid")}</p>
           </div>
         )}
         {punchInvalid && (

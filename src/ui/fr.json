@@ -488,6 +488,7 @@
   "record.punchIn": "Punch-in (ms)",
   "record.punchOut": "Punch-out (ms)",
   "record.punch.invalid": "Le punch-out doit être après le punch-in.",
+  "record.punch.grid": "Aimanté sur la grille du mix (même réglage Production). Une prise unique place le clip à punch-in sans second updateMix.",
   "record.takeLabel": "Prise {n}",
   "record.takes.count": "{n} prise(s)",
   "record.arm": "Armer",
