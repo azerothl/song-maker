@@ -20,3 +20,9 @@ it("Qwen FR/EN keys and variables match",()=>{
     assert.deepEqual(variables(fr[key as keyof typeof fr]),variables(en[key as keyof typeof en]),key);
   }
 });
+it("leftovers #336 stay honest about unmeasured BitNet JSON and missing Foundry",()=>{
+  assert.match(fr["qwen.mix.leftovers.foundry"],/Foundry Local/);
+  assert.match(fr["qwen.mix.leftovers.e2e"],/pas faite/);
+  assert.match(fr["qwen.mix.rbitnet.weightsNotInInstaller"],/pas dans l’installeur/);
+  assert.match(fr["qwen.mix.rbitnet.jsonQuality"],/non mesurée/);
+});

@@ -230,7 +230,7 @@ export type AppSettings = {
   yue2NarLora?: string | null;
   yue2ArLoraScale?: number;
   yue2NarLoraScale?: number;
-  /** Mix assistant LLM: `ollama` | `openai_compat` | `rbitnet`. */
+  /** Mix assistant LLM: `ollama` | `openai_compat` | `rbitnet` | `llama_cpp` | `external`. */
   mixLlmProvider?: string;
   mixLlmBaseUrl?: string;
   mixLlmModelId?: string;

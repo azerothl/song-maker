@@ -248,7 +248,7 @@ pub struct AppSettings {
     pub yue2_ar_lora_scale: f32,
     #[serde(default = "default_lora_scale")]
     pub yue2_nar_lora_scale: f32,
-    /// Mix assistant LLM provider: `ollama` | `openai_compat` | `rbitnet`.
+    /// Mix assistant LLM provider: `ollama` | `openai_compat` | `rbitnet` | `llama_cpp` | `external`.
     #[serde(default = "default_mix_llm_provider")]
     pub mix_llm_provider: String,
     /// Base URL for the mix assistant LLM (loopback by default).

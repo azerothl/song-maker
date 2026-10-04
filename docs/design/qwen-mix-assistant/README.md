@@ -4,11 +4,19 @@ Choix utilisateur initial : Qwen léger via Ollama (`qwen3.5:2b`). Depuis 2026-1
 
 Le backend envoie uniquement noms, rôles, niveaux RMS/crêtes, gain/pan et objectif au serveur LLM configuré (loopback par défaut). Aucun WAV envoyé. Proxy et redirections désactivés. Réponse JSON contrôlée : IDs inconnus/dupliqués, nombres non finis, gain hors [-60,+12] dB, variation supérieure à 6 dB ou pan hors [-1,+1] rejetés. Les propositions inchangées sont retirées.
 
-**Phase 2a (sidecar Rbitnet) :** Song Maker peut télécharger à la demande le binaire `rbitnet-server` (release épinglée `v0.1.0` / `azerothl/Rbitnet`, alignée Akasha) et les poids **Qwen GGUF** ou **BitNet b1.58**, puis lancer le sidecar sur loopback. Les poids ne sont **pas** dans le MSI.
+**Phase 2a (sidecar Rbitnet) :** Song Maker peut télécharger à la demande le binaire `rbitnet-server` (release épinglée `v0.1.0` / `azerothl/Rbitnet`, alignée Akasha) et les poids **Qwen GGUF** ou **BitNet b1.58**, puis lancer le sidecar sur loopback.
+
+**Décision produit (#336) :** les poids **ne sont pas** dans l’installeur (MSI ou autre). L’UI le dit explicitement. Ce n’est pas un oubli d’emballage.
+
+**Phase 2b :** fournisseur `llama_cpp` — HTTP OpenAI-compat vers un `llama-server` **déjà lancé**. Song Maker ne télécharge pas llama.cpp.
+
+**Phase 2c :** fournisseur `external` — même HTTP, aucun sidecar.
+
+**Non livré :** preuve e2e Windows avec GGUF réellement téléchargés ; comparaison qualitative JSON BitNet vs Qwen ; Phase 3 Foundry Local / WinML.
 
 Les réglages demandent examen puis confirmation ; une action annule gain/pan. Le fingerprint du mix et de son overlay bloque une proposition périmée. L’annulation conserve les autres données de piste.
 
-Décisions produit : store Project `docs/mix-assistant-llm-backends.md` · Phase 0+1 = #309/#310 · Phase 2a = suivi dédié.
+Décisions produit : store Project `docs/mix-assistant-llm-backends.md` · Phase 0+1 = #309/#310 · Phase 2a = #311/#312 · leftovers = #336.
 
 ## Licence et notices
 
