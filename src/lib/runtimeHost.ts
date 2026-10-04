@@ -20,6 +20,8 @@ export type SheetsageHostTranscribeArgs = {
   audioPath: string;
   outAbcPath?: string | null;
   mode?: string | null;
+  /** Requested ABC voice count (2–8). Optional; runner may ignore (#340). */
+  nVoices?: number | null;
   licenseAccepted: boolean;
 };
 

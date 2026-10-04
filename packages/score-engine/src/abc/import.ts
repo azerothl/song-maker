@@ -17,6 +17,7 @@ import type {
   NoteEvent,
   ScoreDocument,
   ScoreVoice,
+  ScoreVoiceRole,
   SectionKind,
   SongSection,
   TempoEvent,
@@ -44,6 +45,57 @@ type VoiceAccum = {
   notes: NoteEvent[];
   tick: number;
 };
+
+function voiceSlug(name: string): string {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return slug || "voice";
+}
+
+function roleFromAbcVoiceName(name: string): ScoreVoiceRole {
+  const n = name.toLowerCase();
+  if (n === "vocal" || n.includes("vocal") || n.includes("voix") || n.includes("voice")) {
+    return "vocal";
+  }
+  if (n === "bass" || n.includes("bass") || n.includes("basse")) {
+    return "bass";
+  }
+  if (
+    n.includes("drum") ||
+    n.includes("perc") ||
+    n.includes("batter") ||
+    n === "drums"
+  ) {
+    return "other";
+  }
+  if (n === "ins" || n.includes("melody") || n.includes("lead")) {
+    return "melody";
+  }
+  if (
+    n.includes("harm") ||
+    n.includes("piano") ||
+    n.includes("guitar") ||
+    n.includes("accord")
+  ) {
+    return "harmony";
+  }
+  return "accompaniment";
+}
+
+function canonAbcVoiceName(raw: string): string {
+  const token = raw.trim().split(/\s+/)[0] ?? "Vocal";
+  if (/^vocal$/i.test(token)) return "Vocal";
+  if (/^ins$/i.test(token)) return "Ins";
+  return token;
+}
+
+function looksLikeDrumVoice(name: string): boolean {
+  const n = name.toLowerCase();
+  return n.includes("drum") || n.includes("perc") || n.includes("batter");
+}
 
 const SECTION_COMMENT: Record<string, SectionKind> = {
   intro: "intro",
@@ -273,11 +325,27 @@ export function importAbcToScoreDocument(
   const sections: SongSection[] = [];
   const chordEvents: ChordEvent[] = [];
 
-  const vocal: VoiceAccum = { notes: [], tick: 0 };
-  const ins: VoiceAccum = { notes: [], tick: 0 };
-  let currentVoice: "Vocal" | "Ins" | null = null;
+  const voices = new Map<string, VoiceAccum>();
+  const ensureVoice = (name: string): VoiceAccum => {
+    let acc = voices.get(name);
+    if (!acc) {
+      acc = { notes: [], tick: 0 };
+      voices.set(name, acc);
+    }
+    return acc;
+  };
+  ensureVoice("Vocal");
+  let currentVoice: string | null = null;
   let bodyStarted = false;
   let sectionTickAnchor = 0;
+
+  const maxVoiceTick = (): number => {
+    let max = sectionTickAnchor;
+    for (const acc of voices.values()) {
+      if (acc.tick > max) max = acc.tick;
+    }
+    return max;
+  };
 
   const lines = text.split("\n");
   for (const rawLine of lines) {
@@ -288,16 +356,16 @@ export function importAbcToScoreDocument(
     if (trimmed.startsWith("%")) {
       const kind = parseSectionKind(trimmed.slice(1));
       if (kind) {
-        const startTick = Math.max(vocal.tick, ins.tick, sectionTickAnchor);
+        const startTick = maxVoiceTick();
         sections.push({
           id: newId("sec"),
           kind,
           startTick,
         });
         sectionTickAnchor = startTick;
-        // Reset voice cursors to section start so bars align.
-        vocal.tick = startTick;
-        ins.tick = startTick;
+        for (const acc of voices.values()) {
+          acc.tick = startTick;
+        }
       }
       continue;
     }
@@ -330,7 +398,9 @@ export function importAbcToScoreDocument(
           break;
         }
         case "V": {
-          // Voice defs in header — ignore until body.
+          // Voice defs in header — remember names, notes start in body.
+          const name = canonAbcVoiceName(value);
+          ensureVoice(name);
           break;
         }
         default:
@@ -339,12 +409,13 @@ export function importAbcToScoreDocument(
       continue;
     }
 
-    // Body voice switch
-    const voiceLine = /^V:\s*(Vocal|Ins)\b/i.exec(trimmed);
+    // Body voice switch — any ABC voice id, not only Vocal/Ins (#340).
+    const voiceLine = /^V:\s*(\S+)/i.exec(trimmed);
     if (voiceLine) {
       bodyStarted = true;
-      const name = voiceLine[1]!.toLowerCase() === "ins" ? "Ins" : "Vocal";
+      const name = canonAbcVoiceName(voiceLine[1] ?? "Vocal");
       currentVoice = name;
+      ensureVoice(name);
       continue;
     }
 
@@ -357,10 +428,11 @@ export function importAbcToScoreDocument(
     if (!currentVoice) {
       // Default to Vocal for monophonic SheetSage melody dumps.
       currentVoice = "Vocal";
+      ensureVoice("Vocal");
     }
 
     const barTicks = ticksPerBar(meter);
-    const target = currentVoice === "Ins" ? ins : vocal;
+    const target = ensureVoice(currentVoice);
     const parsed = parseMusicLine(
       trimmed,
       target.tick,
@@ -373,7 +445,17 @@ export function importAbcToScoreDocument(
     target.tick = parsed.endTick;
   }
 
-  if (vocal.notes.length === 0 && ins.notes.length === 0) {
+  const vocalAcc = voices.get("Vocal") ?? { notes: [], tick: 0 };
+  const insAcc = voices.get("Ins");
+  const extraNames = [...voices.keys()].filter(
+    (name) => name !== "Vocal" && name !== "Ins",
+  );
+  const noteCount = [...voices.values()].reduce(
+    (sum, acc) => sum + acc.notes.length,
+    0,
+  );
+
+  if (noteCount === 0) {
     issues.push({
       code: "validation_failed",
       severity: "warning",
@@ -383,7 +465,7 @@ export function importAbcToScoreDocument(
   }
 
   // Detect likely polyphony: overlapping notes in Vocal
-  const sorted = [...vocal.notes].sort((a, b) => a.startTick - b.startTick);
+  const sorted = [...vocalAcc.notes].sort((a, b) => a.startTick - b.startTick);
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1]!;
     const cur = sorted[i]!;
@@ -399,22 +481,42 @@ export function importAbcToScoreDocument(
     }
   }
 
-  const voices: ScoreVoice[] = [
+  if (extraNames.some(looksLikeDrumVoice)) {
+    issues.push({
+      code: "validation_failed",
+      severity: "warning",
+      message:
+        "Voix batterie/percussion : SheetSage2 transcrit surtout des hauteurs ; les drums restent approximatifs.",
+    });
+  }
+
+  const scoreVoices: ScoreVoice[] = [
     {
       id: "voice-vocal",
       name: "Vocal",
       role: "vocal",
       abcVoice: "Vocal",
-      notes: vocal.notes,
+      notes: vocalAcc.notes,
     },
   ];
-  if (ins.notes.length > 0) {
-    voices.push({
+  if (insAcc && insAcc.notes.length > 0) {
+    scoreVoices.push({
       id: "voice-ins",
       name: "Ins",
       role: "melody",
       abcVoice: "Ins",
-      notes: ins.notes,
+      notes: insAcc.notes,
+    });
+  }
+  for (const name of extraNames) {
+    const acc = voices.get(name)!;
+    if (acc.notes.length === 0) continue;
+    scoreVoices.push({
+      id: `voice-${voiceSlug(name)}`,
+      name,
+      role: roleFromAbcVoiceName(name),
+      abcVoice: name,
+      notes: acc.notes,
     });
   }
 
@@ -426,7 +528,7 @@ export function importAbcToScoreDocument(
     timeSignatures: [meter],
     keySignatures: [key],
     sections,
-    voices,
+    voices: scoreVoices,
     chordEvents,
     lyricAnchors: [],
     source: "abc",
@@ -440,7 +542,7 @@ export function importAbcToScoreDocument(
   return {
     document,
     issues,
-    empty: vocal.notes.length === 0 && ins.notes.length === 0,
+    empty: noteCount === 0,
   };
 }
 

@@ -13,7 +13,8 @@ Licence des poids SheetSage2 : **CC BY-NC 4.0** (`audio-cpp/SheetSage2-GGUF`, fi
 | Contrat TypeScript `@song-maker/sheetsage` | Câblé — readiness, progress/cancel types, gate YuE2 |
 | Vérif licence / binaire / poids / disque | Câblé (sonde Tauri `sheetsage_probe`) |
 | Installateur opt-in des poids | Câblé — `install_sheetsage2` + progression `sheetsage2-progress` + annulation |
-| Runner live | Câblé — `audiocpp_cli --task midi --family sheetsage2` ou serveur `/v1/tasks/run` (modèle `sheetsage2` si GGUF présent) |
+| Runner live | Câblé — `audiocpp_cli --task midi --family sheetsage2` ou serveur `/v1/tasks/run` (modèle `sheetsage2` si GGUF présent). `--n-voices` 2–8 si le binaire l’accepte, sinon nouvel essai à 2 voix. |
+| Import ABC N voix | Câblé — `importAbcToScoreDocument` crée une voix ScoreDocument par `V:` (Vocal/Ins + extras). YuE2 ne régénère que Vocal+Ins. Batterie/drums : approximatif. |
 | Panneau UI (piste ou mixdown → install → transcribe → ABC éditable → confirmer) | Câblé |
 | ABC → ScoreDocument / piano roll / export MIDI | Câblé — `importAbcToScoreDocument` + bouton « Ouvrir dans le piano roll » |
 | Mixdown | Export WAV automatique avant transcription |
@@ -45,8 +46,10 @@ Licence des poids SheetSage2 : **CC BY-NC 4.0** (`audio-cpp/SheetSage2-GGUF`, fi
 ```bash
 audiocpp_cli --task midi --family sheetsage2 \
   --model models/SheetSage2-GGUF/sheetsage2-orig.gguf \
-  --backend cuda --audio song.wav --out score.abc --log
+  --backend cuda --audio song.wav --out score.abc --n-voices 4 --log
 ```
+
+`--n-voices` est optionnel (2–8). Si le runtime épinglé le refuse, Song Maker relance sans le drapeau et importe quand même toutes les voix `V:` présentes dans l’ABC.
 
 ## Package
 

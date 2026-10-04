@@ -179,6 +179,18 @@ export function exportToYuE2Abc(
   const warnings = validation.issues
     .filter((i) => i.severity === "warning")
     .map((i) => i.message);
+  const extraVoices = doc.voices.filter(
+    (v) =>
+      v.abcVoice &&
+      v.abcVoice !== "Vocal" &&
+      v.abcVoice !== "Ins" &&
+      v.notes.length > 0,
+  );
+  if (extraVoices.length > 0) {
+    warnings.push(
+      `${extraVoices.length} voix extra (hors Vocal/Ins) conservées dans Partition ; YuE2 n’en reçoit que Vocal et Ins.`,
+    );
+  }
 
   const tempo = doc.tempoMap[0]!;
   const ts = doc.timeSignatures[0];

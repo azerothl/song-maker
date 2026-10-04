@@ -68,6 +68,7 @@ export function SheetSage2Panel({
   const [licenseAccepted, setLicenseAccepted] = useState(false);
   const [sourceChoice, setSourceChoice] = useState<SourceChoice>("mixdown");
   const [mode, setMode] = useState<"melody" | "full">("melody");
+  const [nVoices, setNVoices] = useState(2);
   const [progress, setProgress] = useState<SheetsageProgress | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [proposedAbc, setProposedAbc] = useState<string>("");
@@ -212,6 +213,7 @@ export function SheetSage2Panel({
         jobId,
         audioPath,
         mode: request.mode ?? "melody",
+        nVoices: request.nVoices ?? null,
         licenseAccepted: request.licenseAccepted,
       });
       if (request.signal?.aborted || outcome.status === "cancelled") {
@@ -316,6 +318,7 @@ export function SheetSage2Panel({
         source: selectedSource,
         licenseAccepted,
         mode,
+        nVoices,
         signal: ac.signal,
         onProgress: setProgress,
       });
@@ -506,6 +509,23 @@ export function SheetSage2Panel({
         </select>
       </label>
 
+      <label className="invariant-level">
+        {t("sheetsage.nVoices")}
+        <select
+          value={String(nVoices)}
+          onChange={(e) => {
+            setNVoices(Number(e.target.value));
+            setConfirmed(false);
+          }}
+        >
+          {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+            <option key={n} value={n}>
+              {t("sheetsage.nVoices.option").replace("{n}", String(n))}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="hint">{t("sheetsage.nVoices.hint")}</p>
       <div className="btn-row">
         <button
           type="button"
