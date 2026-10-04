@@ -8,9 +8,36 @@ use serde_json::json;
 use std::path::{Path, PathBuf};
 
 #[tauri::command]
-pub fn get_health(state: tauri::State<'_, AppState>) -> HealthSnapshot {
+pub async fn get_health(state: tauri::State<'_, AppState>) -> Result<HealthSnapshot, String> {
     let url = state.server.base_url.lock().ok().map(|u| u.clone());
-    crate::health::check_health(url.as_deref())
+    let mut health = crate::health::check_health(url.as_deref());
+    if health.server_healthy {
+        if let Some(url) = url.as_deref() {
+            health.generation_model_loaded =
+                crate::audiocpp::AudioCppServer::model_loaded(url, &health.generation_model_id)
+                    .await
+                    .ok()
+                    .flatten();
+        }
+    }
+    Ok(health)
+}
+
+#[tauri::command]
+pub async fn restart_audio_runtime(state: tauri::State<'_, AppState>) -> Result<String, String> {
+    let _restart_guard = state.queue.try_acquire_runtime_restart().await?;
+    let ordering = std::sync::atomic::Ordering::Acquire;
+    if state.setup_installing.load(ordering)
+        || state.ace_step_installing.load(ordering)
+        || state.bs_roformer_installing.load(ordering)
+        || state.mel_band_roformer_installing.load(ordering)
+        || state.sheetsage_installing.load(ordering)
+    {
+        return Err("Impossible de relancer le runtime pendant une installation de modèle.".into());
+    }
+    let settings = load_settings()?;
+    state.server.shutdown();
+    state.server.ensure_started(&settings)
 }
 
 #[tauri::command]

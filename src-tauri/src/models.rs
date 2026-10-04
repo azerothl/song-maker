@@ -440,6 +440,11 @@ pub struct HealthSnapshot {
     pub binary_ok: bool,
     pub server_healthy: bool,
     pub server_url: Option<String>,
+    pub generation_model_id: String,
+    pub generation_model: String,
+    pub generation_model_available: bool,
+    #[serde(default)]
+    pub generation_model_loaded: Option<bool>,
     pub message: String,
     /// Official Python YuE2 is intentionally not installed and not a fallback (#328).
     pub python_yue2_runtime: String,

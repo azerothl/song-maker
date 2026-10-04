@@ -73,6 +73,7 @@ pub fn run() {
             commands::rbitnet_cmds::ensure_rbitnet_sidecar,
             // Réglages, santé, installation des modèles
             commands::settings::get_health,
+            commands::settings::restart_audio_runtime,
             commands::settings::get_setup_gpu_info,
             commands::settings::get_install_plan,
             commands::settings::install_required_assets,

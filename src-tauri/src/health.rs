@@ -172,16 +172,31 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
         "yue2-qwen.tiktoken",
         "yue2-vae-config.json",
     ];
+    let yue2_model_ok = artifact_present(&gguf)
+        && artifact_present(&vae)
+        && sidecars
+            .iter()
+            .all(|name| artifact_present(&yue2.join("sidecars").join(name)));
     let models_ok = if settings.local_yue2_enabled {
-        artifact_present(&gguf)
-            && artifact_present(&vae)
-            && artifact_present(&htdemucs_path(&cache))
-            && sidecars
-                .iter()
-                .all(|name| artifact_present(&yue2.join("sidecars").join(name)))
+        yue2_model_ok && artifact_present(&htdemucs_path(&cache))
     } else {
         artifact_present(&htdemucs_path(&cache))
     };
+
+    let (generation_model_id, generation_model, generation_model_available) =
+        if settings.generation_engine == "ace_step" {
+            (
+                "ace_step".to_string(),
+                "ACE-Step 1.5 Turbo".to_string(),
+                crate::ace_step::weights_valid(&cache),
+            )
+        } else {
+            (
+                "yue2".to_string(),
+                format!("YuE2 {}", settings.model_pack.to_uppercase()),
+                settings.local_yue2_enabled && yue2_model_ok,
+            )
+        };
 
     let server_healthy = server_url
         .and_then(|url| {
@@ -219,6 +234,10 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
         binary_ok,
         server_healthy,
         server_url: server_url.map(|s| s.to_string()),
+        generation_model_id,
+        generation_model,
+        generation_model_available,
+        generation_model_loaded: None,
         message,
         python_yue2_runtime: "absent_by_design".into(),
         house_model_runtime: crate::house_model::runtime_status(&cache),

@@ -248,7 +248,7 @@ option {
   line-height: 1.5;
 }
 
-.sidebar :where(.sidebar-toggle, nav button, .sidebar-meta-row):focus-visible {
+.sidebar :where(.sidebar-toggle, nav button, .sidebar-meta-row, .sidebar-runtime-restart):focus-visible {
   outline: 2px solid var(--accent-cyan);
   outline-offset: 2px;
 }
@@ -285,6 +285,70 @@ option {
 .sidebar-meta-row {
   cursor: default;
   font-weight: 500;
+}
+
+.sidebar-model-row {
+  gap: 0.65rem;
+}
+
+.sidebar-model-row.is-ready .sidebar-icon,
+.sidebar-runtime-row.is-online .sidebar-icon {
+  color: var(--ok);
+}
+
+.sidebar-model-row.is-unavailable .sidebar-icon,
+.sidebar-runtime-row.is-offline .sidebar-icon {
+  color: var(--accent-coral);
+}
+
+.sidebar-model-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.1rem;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.sidebar-model-copy strong {
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.sidebar-model-copy small {
+  color: var(--muted);
+  font-size: 0.73rem;
+  font-weight: 500;
+}
+
+.sidebar-runtime-restart {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 40px;
+  min-width: 44px;
+  width: 100%;
+  padding: 0 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-align: left;
+}
+
+.sidebar-runtime-restart:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg2));
+}
+
+.sidebar-runtime-restart:disabled,
+.sidebar-runtime-restart[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .sidebar nav button:hover {
@@ -324,7 +388,8 @@ option {
 }
 
 .sidebar.is-collapsed nav button,
-.sidebar.is-collapsed .sidebar-meta-row {
+.sidebar.is-collapsed .sidebar-meta-row,
+.sidebar.is-collapsed .sidebar-runtime-restart {
   justify-content: center;
   padding-left: 0;
   padding-right: 0;

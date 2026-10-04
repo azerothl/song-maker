@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub struct AudioCppServer {
     child: Mutex<Option<Child>>,
@@ -23,6 +23,50 @@ impl Default for AudioCppServer {
             child: Mutex::new(None),
             base_url: Mutex::new(format!("http://{DEFAULT_HOST}:{DEFAULT_PORT}")),
             port: Mutex::new(DEFAULT_PORT),
+        }
+    }
+}
+
+const SERVER_HEALTH_WAIT: Duration = Duration::from_secs(45);
+const SERVER_HEALTH_POLL: Duration = Duration::from_millis(200);
+
+enum WaitHealthError {
+    Exited(std::process::ExitStatus),
+    TimedOut,
+    Wait(String),
+}
+
+fn wait_for_server_health(
+    child: &mut Child,
+    healthy: impl Fn() -> bool,
+) -> Result<(), WaitHealthError> {
+    wait_for_server_health_until(
+        child,
+        healthy,
+        Instant::now() + SERVER_HEALTH_WAIT,
+        SERVER_HEALTH_POLL,
+    )
+}
+
+fn wait_for_server_health_until(
+    child: &mut Child,
+    healthy: impl Fn() -> bool,
+    deadline: Instant,
+    poll: Duration,
+) -> Result<(), WaitHealthError> {
+    loop {
+        if healthy() {
+            return Ok(());
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => return Err(WaitHealthError::Exited(status)),
+            Ok(None) => {
+                if Instant::now() >= deadline {
+                    return Err(WaitHealthError::TimedOut);
+                }
+                std::thread::sleep(poll);
+            }
+            Err(e) => return Err(WaitHealthError::Wait(e.to_string())),
         }
     }
 }
@@ -228,6 +272,35 @@ impl AudioCppServer {
         }
     }
 
+    /// Return whether a configured model is resident in audio.cpp memory.
+    /// `None` means the endpoint did not report that model (or its state).
+    pub async fn model_loaded(base_url: &str, model_id: &str) -> Result<Option<bool>, String> {
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_millis(800))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let response = client
+            .get(format!("{base_url}/v1/models"))
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        if !response.status().is_success() {
+            return Err(format!("GET /v1/models : HTTP {}", response.status()));
+        }
+        let body: Value = response.json().await.map_err(|e| e.to_string())?;
+        let loaded = body
+            .get("data")
+            .and_then(Value::as_array)
+            .and_then(|models| {
+                models.iter().find(|model| {
+                    model.get("id").and_then(Value::as_str) == Some(model_id)
+                })
+            })
+            .and_then(|model| model.get("loaded"))
+            .and_then(Value::as_bool);
+        Ok(loaded)
+    }
+
     pub fn ensure_started(&self, settings: &AppSettings) -> Result<String, String> {
         {
             let child = Self::lock(&self.child);
@@ -259,19 +332,38 @@ impl AudioCppServer {
 
             match cmd.spawn() {
                 Ok(mut child) => {
-                    std::thread::sleep(Duration::from_millis(600));
-                    if Self::tcp_health(&settings.server_host, port) {
-                        let url = format!("http://{}:{}", settings.server_host, port);
-                        *Self::lock(&self.child) = Some(child);
-                        *Self::lock(&self.base_url) = url.clone();
-                        *Self::lock(&self.port) = port;
-                        return Ok(url);
+                    match wait_for_server_health(
+                        &mut child,
+                        || Self::tcp_health(&settings.server_host, port),
+                    ) {
+                        Ok(()) => {
+                            let url = format!("http://{}:{}", settings.server_host, port);
+                            *Self::lock(&self.child) = Some(child);
+                            *Self::lock(&self.base_url) = url.clone();
+                            *Self::lock(&self.port) = port;
+                            return Ok(url);
+                        }
+                        Err(WaitHealthError::Exited(status)) => {
+                            last_err = format!(
+                                "audiocpp_server s’est arrêté avant /health sur {}:{} ({status}).",
+                                settings.server_host, port
+                            );
+                        }
+                        Err(WaitHealthError::TimedOut) => {
+                            let _ = child.kill();
+                            return Err(format!(
+                                "Impossible de démarrer audiocpp_server (backend {} requis). /health ne répond pas après {} s sur {}:{}. Vérifiez le pilote NVIDIA.",
+                                crate::pins::backend_name(),
+                                SERVER_HEALTH_WAIT.as_secs(),
+                                settings.server_host,
+                                port
+                            ));
+                        }
+                        Err(WaitHealthError::Wait(e)) => {
+                            let _ = child.kill();
+                            last_err = e;
+                        }
                     }
-                    let _ = child.kill();
-                    last_err = format!(
-                        "Serveur démarré mais /health KO sur {}:{}",
-                        settings.server_host, port
-                    );
                 }
                 Err(e) => {
                     last_err = e.to_string();
@@ -522,8 +614,10 @@ impl AudioCppServer {
 
 #[cfg(test)]
 mod semantic_metadata_tests {
-    use super::AudioCppServer;
+    use super::{wait_for_server_health_until, AudioCppServer, WaitHealthError};
     use serde_json::json;
+    use std::process::{Child, Command, Stdio};
+    use std::time::{Duration, Instant};
 
     #[test]
     fn reads_v082_string_encoded_truncation_flag() {
@@ -565,5 +659,74 @@ mod semantic_metadata_tests {
             AudioCppServer::lock(&server.base_url).as_str(),
             "http://127.0.0.1:1"
         );
+    }
+
+    fn spawn_sleeper() -> Child {
+        let mut cmd = if cfg!(windows) {
+            let mut cmd = Command::new("ping");
+            cmd.args(["-n", "8", "127.0.0.1"]);
+            cmd
+        } else {
+            let mut cmd = Command::new("sleep");
+            cmd.arg("8");
+            cmd
+        };
+        cmd.stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("sleeper")
+    }
+
+    #[test]
+    fn wait_ok_when_health_is_already_true() {
+        let mut child = spawn_sleeper();
+        let result = wait_for_server_health_until(
+            &mut child,
+            || true,
+            Instant::now() + Duration::from_secs(2),
+            Duration::from_millis(20),
+        );
+        let _ = child.kill();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn wait_times_out_while_child_still_runs() {
+        let mut child = spawn_sleeper();
+        let err = wait_for_server_health_until(
+            &mut child,
+            || false,
+            Instant::now() + Duration::from_millis(80),
+            Duration::from_millis(20),
+        )
+        .unwrap_err();
+        let _ = child.kill();
+        assert!(matches!(err, WaitHealthError::TimedOut));
+    }
+
+    #[test]
+    fn wait_reports_when_child_exits() {
+        let mut cmd = if cfg!(windows) {
+            let mut cmd = Command::new("cmd");
+            cmd.args(["/C", "exit", "7"]);
+            cmd
+        } else {
+            let mut cmd = Command::new("sh");
+            cmd.args(["-c", "exit 7"]);
+            cmd
+        };
+        let mut child = cmd
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("exiter");
+        let err = wait_for_server_health_until(
+            &mut child,
+            || false,
+            Instant::now() + Duration::from_secs(5),
+            Duration::from_millis(20),
+        )
+        .unwrap_err();
+        assert!(matches!(err, WaitHealthError::Exited(_)));
     }
 }

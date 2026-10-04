@@ -31,6 +31,23 @@ impl Default for JobQueue {
 }
 
 impl JobQueue {
+    /// Hold the audio queue while the managed runtime is restarted.
+    pub async fn try_acquire_runtime_restart(
+        &self,
+    ) -> Result<tokio::sync::OwnedMutexGuard<()>, String> {
+        let permit = self.gate.clone().try_lock_owned().map_err(|_| {
+            "Impossible de relancer le runtime pendant une tâche audio.".to_string()
+        })?;
+        let state = self.status().state;
+        if matches!(
+            state.as_str(),
+            "queued" | "preparing" | "generating" | "separating" | "importing_tracks"
+        ) {
+            return Err("Impossible de relancer le runtime pendant une tâche audio.".into());
+        }
+        Ok(permit)
+    }
+
     pub fn status(&self) -> JobStatus {
         let g = self.inner.lock();
         if let Some(ref cur) = g.current {

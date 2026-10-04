@@ -29,6 +29,7 @@ import type {
 
 export const api = {
   getHealth: () => invoke<HealthSnapshot>("get_health"),
+  restartAudioRuntime: () => invoke<string>("restart_audio_runtime"),
   getSetupGpuInfo: () => invoke<SetupGpuInfo>("get_setup_gpu_info"),
   getInstallPlan: (pack: "q4" | "q8", mixOnly?: boolean) =>
     invoke<InstallPlan>("get_install_plan", { pack, mixOnly: mixOnly ?? null }),

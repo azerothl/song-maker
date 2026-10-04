@@ -321,6 +321,10 @@ export type HealthSnapshot = {
   binaryOk: boolean;
   serverHealthy: boolean;
   serverUrl?: string | null;
+  generationModelId?: string;
+  generationModel?: string;
+  generationModelAvailable?: boolean;
+  generationModelLoaded?: boolean | null;
   message: string;
   /** Official Python YuE2 is not installed and is not a fallback (#328). */
   pythonYue2Runtime?: "absent_by_design" | string;
