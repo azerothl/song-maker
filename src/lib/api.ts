@@ -456,4 +456,102 @@ export const api = {
       "ensure_rbitnet_sidecar",
       { modelId: modelId ?? null },
     ),
+  validateBatchImport: () => invoke<BatchValidateResult>("validate_batch_import"),
+  updateBatchPreview: (
+    startToken: string,
+    overrides: { generations?: number | null; maxParallelGenerations?: number | null },
+  ) =>
+    invoke<BatchValidateResult>("update_batch_preview", {
+      startToken,
+      overrides,
+    }),
+  startBatch: (startToken: string, revision: number) =>
+    invoke<{ batchId: string; idempotent: boolean }>("start_batch", {
+      startToken,
+      revision,
+    }),
+  listBatches: () => invoke<BatchSnapshot[]>("list_batches"),
+  getBatchStatus: (batchId: string) => invoke<BatchSnapshot>("get_batch_status", { batchId }),
+  pauseBatch: (batchId: string) => invoke<BatchSnapshot>("pause_batch", { batchId }),
+  resumeBatch: (batchId: string) => invoke<BatchSnapshot>("resume_batch", { batchId }),
+  cancelBatch: (batchId: string) => invoke<BatchSnapshot>("cancel_batch", { batchId }),
+  cancelBatchTask: (batchId: string, taskId: string) =>
+    invoke<unknown>("cancel_batch_task", { batchId, taskId }),
+  retryBatchTasks: (batchId: string, taskIds: string[]) =>
+    invoke<BatchSnapshot>("retry_batch_tasks", { batchId, taskIds }),
+  exportBatchResults: (batchId: string) =>
+    invoke<string | null>("export_batch_results", { batchId }),
+  downloadBatchExample: () => invoke<string | null>("download_batch_example"),
+};
+
+export type BatchError = { path: string; messageFr: string };
+
+export type BatchSongPreview = {
+  id: string;
+  title: string;
+  stylePreview: string;
+  generations: number;
+  lyricsChars: number;
+};
+
+export type BatchTask = {
+  taskId: string;
+  songId: string;
+  variantIndex: number;
+  seed: number;
+  title: string;
+  projectId?: string | null;
+  generationId?: string | null;
+  state: string;
+  lastError?: string | null;
+};
+
+export type BatchPreview = {
+  name: string;
+  songCount: number;
+  taskCount: number;
+  requestedParallel: number;
+  admittedParallel: number;
+  effectiveParallel: number;
+  parallelismPolicy: string;
+  capacityReasonFr: string;
+  onError: string;
+  retryMaxAttempts: number;
+  songs: BatchSongPreview[];
+  tasks: BatchTask[];
+  startToken: string;
+  revision: number;
+  canLaunch: boolean;
+  launchBlockFr?: string | null;
+};
+
+export type BatchValidateResult = {
+  ok: boolean;
+  cancelled?: boolean;
+  errors?: BatchError[];
+  preview?: BatchPreview;
+  admittedParallel?: number;
+};
+
+export type BatchSnapshot = {
+  batchId: string;
+  name: string;
+  state: string;
+  revision: number;
+  pauseRequested?: boolean;
+  cancelRequested?: boolean;
+  capacityReasonFr?: string;
+  requestedParallel?: number;
+  admittedParallel?: number;
+  effectiveParallel?: number;
+  counts?: {
+    ready: number;
+    running: number;
+    queued: number;
+    failed: number;
+    interrupted: number;
+    cancelled: number;
+    total: number;
+  };
+  tasks?: BatchTask[];
 };

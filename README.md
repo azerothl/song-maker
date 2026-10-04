@@ -35,6 +35,7 @@ Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau
 
 - Disposition en **deux colonnes** sur large viewport (style / paroles à gauche, options et lancement à droite).
 - Style + paroles → WAV stéréo 48 kHz via le serveur local `audiocpp_server` (file FIFO, `max_loaded_models=1`).
+- **Génération batch** (Bibliothèque) : import JSON UTF-8, aperçu, file persistante, pause / annulation / reprise. Les prises d’un lot passent par la **même file GPU exclusive**. Capacité **admise = 1** tant que deux workers `audiocpp` isolés n’ont pas été mesurés (`allowReduction` lance à 1 ; `requireRequested` bloque). Ce n’est **pas** un XOR de moteur. Schéma : [`docs/batch-generation/`](docs/batch-generation/).
 - **Mode instrumental** : paroles facultatives (chaîne vide acceptée) — ce n’est **pas** le LoRA instrumental YuE2 CC BY-NC.
 - Modes `cot` (`full` / `melody` / `off`), durée cible indicative (bornes de tokens, pas une durée musicale garantie), multi-candidats **séquentiels** (N appels locaux successifs, pas un échantillonnage parallèle natif), seed écrit.
 - Continuation mid-song (`semantic_prefix` / `continuationGenerationId`) et génération partition seule (`stop_after=abc`).

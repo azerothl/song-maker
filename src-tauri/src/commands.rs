@@ -6,12 +6,13 @@
 
 use crate::audiocpp::AudioCppServer;
 use crate::queue::JobQueue;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Mutex;
 
 pub mod ace_step_cmds;
 pub mod ace_step_lego_cmds;
 pub mod basicpitch_cmds;
+pub mod batch_cmds;
 pub mod capture;
 pub mod generation;
 pub mod jobs;
@@ -53,6 +54,9 @@ pub struct AppState {
     pub sheetsage_jobs: crate::sheetsage::SheetsageJobs,
     pub lora_train_jobs: crate::lora_train::LoraTrainJobs,
     pub profile_export_busy: std::sync::atomic::AtomicBool,
+    pub pending_batches: Mutex<BTreeMap<String, crate::batch::PendingImport>>,
+    pub started_batch_tokens: Mutex<BTreeMap<String, String>>,
+    pub batch_inflight: Mutex<HashSet<String>>,
 }
 
 #[derive(Default)]
@@ -98,6 +102,9 @@ impl Default for AppState {
             sheetsage_jobs: crate::sheetsage::SheetsageJobs::default(),
             lora_train_jobs: crate::lora_train::LoraTrainJobs::default(),
             profile_export_busy: std::sync::atomic::AtomicBool::new(false),
+            pending_batches: Mutex::new(BTreeMap::new()),
+            started_batch_tokens: Mutex::new(BTreeMap::new()),
+            batch_inflight: Mutex::new(HashSet::new()),
         }
     }
 }
