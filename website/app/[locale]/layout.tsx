@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Analytics } from "@vercel/analytics/next";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
@@ -78,6 +79,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             <SiteFooter />
           </div>
         </NextIntlClientProvider>
+        <Analytics />
       </body>
     </html>
   );
