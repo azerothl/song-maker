@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ProjectSyncPanel } from "../components/ProjectSyncPanel";
+import { BatchGenerationPanel } from "../components/BatchGenerationPanel";
 import { api } from "../lib/api";
 import { useAppStore } from "../store/appStore";
 import { ProfileKindBadge } from "../components/ProfileKindBadge";
@@ -28,6 +29,7 @@ export function LibraryScreen() {
   const setError = useAppStore((s) => s.setError);
   const [query, setQuery] = useState("");
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [batchOpen, setBatchOpen] = useState(false);
 
   useEffect(() => {
     void refreshLibrary(query || undefined);
@@ -72,10 +74,16 @@ export function LibraryScreen() {
           {t("nav.library")}
           <ProfileKindBadge />
         </h1>
-        <button type="button" className="btn primary" onClick={() => void onNew()}>
-          {t("library.new")}
-        </button>
+        <div className="library-header-actions">
+          <button type="button" className="btn" onClick={() => setBatchOpen((open) => !open)}>
+            {t("batch.open")}
+          </button>
+          <button type="button" className="btn primary" onClick={() => void onNew()}>
+            {t("library.new")}
+          </button>
+        </div>
       </header>
+      <BatchGenerationPanel open={batchOpen} onClose={() => setBatchOpen(false)} />
       <input
         className="search"
         placeholder={t("library.search")}

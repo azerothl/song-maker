@@ -5,6 +5,7 @@ mod ace_step;
 mod ace_step_lego;
 mod audiocpp;
 mod basicpitch;
+mod batch;
 mod bs_roformer;
 mod commands;
 mod declui_host;
@@ -45,6 +46,7 @@ pub fn vst3_spike_probe_exit(binary: &str) -> i32 {
 pub fn run() {
     let _ = profiles::init_profile_system();
     let _ = library::recover_generation_jobs();
+    let _ = batch::recover_batches();
     let state = AppState::default();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -124,6 +126,18 @@ pub fn run() {
             commands::jobs::cancel_job,
             // Génération
             commands::generation::start_generation,
+            commands::batch_cmds::validate_batch_import,
+            commands::batch_cmds::update_batch_preview,
+            commands::batch_cmds::start_batch,
+            commands::batch_cmds::list_batches,
+            commands::batch_cmds::get_batch_status,
+            commands::batch_cmds::pause_batch,
+            commands::batch_cmds::resume_batch,
+            commands::batch_cmds::cancel_batch,
+            commands::batch_cmds::cancel_batch_task,
+            commands::batch_cmds::retry_batch_tasks,
+            commands::batch_cmds::export_batch_results,
+            commands::batch_cmds::download_batch_example,
             commands::generation::render_from_generation,
             commands::generation::download_cache_file,
             commands::generation::list_generations,

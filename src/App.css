@@ -605,6 +605,71 @@ option {
   border-color: var(--accent-2);
 }
 
+.library-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.batch-panel {
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg1);
+}
+
+.batch-panel-header,
+.batch-actions,
+.batch-task-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.batch-panel-header {
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.batch-panel-header h2,
+.batch-lot h3,
+.batch-lot h4 {
+  margin: 0 0 0.4rem;
+}
+
+.batch-preview label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 16rem;
+  margin: 0.4rem 0;
+}
+
+.batch-errors {
+  color: var(--danger, #f0b4b4);
+}
+
+.batch-lot {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.batch-tasks {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.batch-tasks li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+
 .search {
   width: min(420px, 100%);
   margin-bottom: 1rem;

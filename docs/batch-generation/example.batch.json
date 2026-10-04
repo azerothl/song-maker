@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "name": "Démo — deux morceaux",
+  "maxParallelGenerations": 2,
+  "parallelismPolicy": "allowReduction",
+  "onError": "continue",
+  "retry": {
+    "maxAttempts": 1
+  },
+  "defaults": {
+    "generations": 3,
+    "cot": "full",
+    "singingLanguage": "fr",
+    "targetDurationSec": 180,
+    "preferFullLyrics": true,
+    "instrumentalMode": false
+  },
+  "songs": [
+    {
+      "id": "nuit",
+      "title": "La nuit avance",
+      "style": "French indie pop, warm bass, soft drums, intimate vocals",
+      "lyrics": "[Verse]\nLa nuit avance sur les toits\nJe garde une lumière pour toi\nLes rues s'effacent dans le soir\nJe laisse une place à l'espoir\n\n[Chorus]\nReviens quand le jour se lève\nNous avons encore nos rêves\nUne fenêtre et deux voix\nUn chemin devant nos pas",
+      "tempoBpm": 110,
+      "seed": 42
+    },
+    {
+      "id": "route",
+      "title": "Sur la route",
+      "style": "French rock, electric guitars, energetic drums, clear vocals",
+      "lyrics": "[Verse]\nLa route déroule ses détours\nJe pars retrouver le jour\nLe vent traverse les années\nEt rien ne peut nous arrêter\n\n[Chorus]\nSur la route nous avançons\nAvec nos doutes et nos chansons\nLe ciel s'ouvre devant nous\nNous irons jusqu'au bout",
+      "generations": 2,
+      "targetDurationSec": 120,
+      "tempoBpm": 140
+    }
+  ]
+}
