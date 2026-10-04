@@ -302,7 +302,7 @@ pub async fn import_generation_as_user_track(
             .filter(|s| !s.is_empty())
             .unwrap_or("Partie instrumentale")
             .to_string();
-        ingest_user_audio_file(&folder, &mut doc, &wav, &name, true, Some("wav"))
+        ingest_user_audio_file(&folder, &mut doc, &wav, &name, true, Some("wav"), 0)
     })
     .await
     .map_err(|e| format!("Import génération interrompu : {e}"))?
