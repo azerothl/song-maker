@@ -15,6 +15,8 @@ Song Maker vise à devenir un atelier de MAO multipiste assisté par l’IA gén
 
 ## Installer l’application
 
+Pour générer avec YuE2 depuis Codex sans installer l’application desktop, voir le [serveur MCP local](packages/mcp-server/README.md). Il utilise audio.cpp et les poids GGUF sur la machine qui exécute Codex.
+
 Téléchargez la dernière version depuis les [Releases GitHub](https://github.com/azerothl/song-maker/releases/latest) (actuelle : **v0.2.0**) :
 
 - **Windows** : installeur `.msi` ou `.exe`, Windows x64 avec carte **NVIDIA** (CUDA). L’installeur embarque le runtime CUDA (`cudart`) à côté du serveur audio.cpp pour que le moteur soit détecté.

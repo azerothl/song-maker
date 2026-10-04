@@ -1,0 +1,16 @@
+{
+  "name": "@song-maker/mcp-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "bin": { "song-maker-mcp": "./src/server.mjs" },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "zod": "^4.1.0"
+  },
+  "engines": { "node": ">=20" }
+}
