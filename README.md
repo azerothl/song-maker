@@ -80,7 +80,8 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Runtime Python YuE2 officiel | Non installé, pas un repli |
 | SheetSage2 / BS-RoFormer / Mel-Band RoFormer / LoRA packs | Opt-in, hors installeur minimal |
 | HTDemucs 6 stems (guitare/piano) | Opt-in expérimental ; fuites possibles |
-| Transcription audio → MIDI produit / MIDI matériel | Non livré en UI (essai interne BasicPitch ONNX documenté sous [`docs/basicpitch-trial/`](docs/basicpitch-trial/REPORT.md) — pas un bouton produit) |
+| Transcription audio → MIDI produit | Non livré en UI (essai interne BasicPitch ONNX documenté sous [`docs/basicpitch-trial/`](docs/basicpitch-trial/REPORT.md) — pas un bouton produit) |
+| Sortie MIDI matériel (midir) | Compilée WinMM / CoreMIDI / ALSA. Preuve native : **Windows GS Wavetable seulement**. macOS IAC, Linux jack/USB, Windows USB : **non testés** — [`docs/midi-instrument.md`](docs/midi-instrument.md) |
 | Worker distant / Akasha | Opt-in ; sans hôte = indisponible, pas un stub trompeur |
 | Entraînement LoRA NAR | Pilote (format / chargement) — pas un entraînement YuE2 officiel complet |
 | Capture basse latence | Chemin WebView (pas ASIO / WASAPI exclusif) |

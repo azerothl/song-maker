@@ -35,3 +35,15 @@ Réglage : Paramètres → Système → Latence audio, ou panneau instrument sou
 ## Hors périmètre
 
 Plugins VST3 (ticket d’étude séparé). Soundfonts GM propriétaires.
+
+## Sortie MIDI native (midir, #170 / #338)
+
+Le piano roll envoie aussi vers un port **midir** (indépendant de Web MIDI) : Partition → Sortie MIDI.
+
+| OS | Backend | Preuve dans ce dépôt |
+|---|---|---|
+| Windows | WinMM | GS Wavetable, 2026-10-01. USB matériel : **non vérifié**. |
+| macOS | CoreMIDI | **Aucune** preuve Tauri / IAC. Compilé seulement. |
+| Linux | ALSA | Compilé + test « liste des ports sans panic ». Pas de preuve jack/USB. |
+
+« Non testé » n’est pas « non compilé ». L’UI affiche cette limite. Ne pas cocher macOS/Linux comme validés tant qu’un testeur n’a pas collé une preuve native.

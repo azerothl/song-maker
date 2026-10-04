@@ -10,9 +10,9 @@ Décision Loïc du **2026-10-01** : traiter la sortie MIDI vers un synthé comme
 
 | OS | Preuve matérielle / port virtuel | Statut |
 |---|---|---|
-| **Windows** | Application Tauri native : Microsoft GS Wavetable Synth, sélection, test de note, « Tout arrêter », retour au repos. Capture `native-connected-after-stop.jpg` (1282×832). SHA-256 `3537d46ea864d14e578cc5598a78a2bac09a616b8cfb25bb5a13a1e2f54e8322`. Aucun synthé matériel ni port virtuel externe distinct vérifié sur cette capture. | **Vérifié** |
-| **macOS** | Aucun test natif Tauri ni port virtuel documenté. | **Non testé** |
-| **Linux** | Aucun test natif Tauri ni port virtuel documenté. La CI Linux installe `libasound2-dev` (ALSA) pour la compilation midir ; cela ne constitue pas une preuve d’exécution. | **Non testé** |
+| **Windows** | Application Tauri native : Microsoft GS Wavetable Synth, sélection, test de note, « Tout arrêter », retour au repos. Capture `native-connected-after-stop.jpg` (1282×832). SHA-256 `3537d46ea864d14e578cc5598a78a2bac09a616b8cfb25bb5a13a1e2f54e8322`. Aucun synthé matériel ni port virtuel externe distinct vérifié sur cette capture. | **Vérifié (GS logiciel)** |
+| **macOS** | Aucun test natif Tauri ni port IAC documenté. CoreMIDI est le backend midir. | **Non testé — limite écrite** |
+| **Linux** | Test unitaire : `list_midi_outputs` / `midi_output_support` ne paniquent pas (client ALSA). Aucun jack/USB. La CI installe `libasound2-dev` ; ce n’est pas une preuve d’écoute. | **Non testé matériellement** |
 
 ## Vérifications séparées
 

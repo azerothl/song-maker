@@ -364,6 +364,7 @@
   "midi.output.title": "MIDI output",
   "midi.output.voice": "Score voice",
   "midi.output.hint": "Send the selected score voice to a synthesizer or virtual MIDI port. Channel and program numbers start at 1.",
+  "midi.output.osLimit": "Native proofs: Windows GS Wavetable only. macOS (CoreMIDI) and Linux (ALSA) are compiled, not hardware-tested in this repo. Windows USB: unverified.",
   "midi.output.refresh": "Find MIDI outputs",
   "midi.output.port": "Output",
   "midi.output.none": "No output selected",

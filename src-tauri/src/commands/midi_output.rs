@@ -13,7 +13,7 @@ struct Session {
 #[derive(Default)]
 pub struct MidiOutputState(Mutex<Session>);
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct OutputPort {
     id: String,
     name: String,
@@ -26,6 +26,68 @@ fn output() -> Result<MidiOutput, String> {
 fn port_key(driver_id: &str, name: &str) -> String {
     // WinMM's built-in GS synth has an empty interface ID.
     serde_json::to_string(&(driver_id, name)).expect("strings serialize")
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MidiOutputSupport {
+    pub os: String,
+    pub backend: String,
+    pub port_count: usize,
+    /// True only when this build's OS has a documented native hardware/synth proof.
+    pub native_proof: bool,
+    pub honesty_fr: String,
+}
+
+fn midi_backend_name() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "WinMM"
+    } else if cfg!(target_os = "macos") {
+        "CoreMIDI"
+    } else if cfg!(target_os = "linux") {
+        "ALSA"
+    } else {
+        "inconnu"
+    }
+}
+
+fn midi_honesty_fr(port_count: usize) -> String {
+    let ports = format!("{port_count} port(s) visible(s) ici");
+    if cfg!(target_os = "windows") {
+        format!(
+            "Windows : GS Wavetable synthé logiciel vérifié (2026-10-01). Interface USB matérielle : non vérifiée. {ports}."
+        )
+    } else if cfg!(target_os = "macos") {
+        format!(
+            "macOS : CoreMIDI via midir, compilé. Aucune preuve native Tauri (IAC ou device) dans ce dépôt. Ne pas afficher macOS comme testé. {ports}."
+        )
+    } else if cfg!(target_os = "linux") {
+        format!(
+            "Linux : ALSA via midir, compilé. Lister les ports n’est pas une preuve jack/USB. {ports}."
+        )
+    } else {
+        format!("Sortie MIDI native : plateforme non documentée. {ports}.")
+    }
+}
+
+#[tauri::command]
+pub fn midi_output_support() -> Result<MidiOutputSupport, String> {
+    let (ports, sequencer_ok) = match list_midi_outputs() {
+        Ok(ports) => (ports, true),
+        Err(code) if code == "MIDI_UNAVAILABLE" => (Vec::new(), false),
+        Err(code) => return Err(code),
+    };
+    let mut honesty = midi_honesty_fr(ports.len());
+    if !sequencer_ok {
+        honesty.push_str(" Séquenceur MIDI système absent (ex. /dev/snd/seq).");
+    }
+    Ok(MidiOutputSupport {
+        os: std::env::consts::OS.to_string(),
+        backend: midi_backend_name().to_string(),
+        port_count: ports.len(),
+        native_proof: cfg!(target_os = "windows"),
+        honesty_fr: honesty,
+    })
 }
 
 #[tauri::command]
@@ -247,10 +309,36 @@ mod tests {
         );
     }
     #[test]
-    #[ignore = "Requires an installed MIDI endpoint; diagnostic only"]
-    fn installed_output_metadata() {
-        for port in list_midi_outputs().unwrap() {
-            println!("{}: id={:?}", port.name, port.id);
+    fn list_outputs_does_not_panic_on_this_os() {
+        let listed = list_midi_outputs();
+        assert!(
+            listed.is_ok()
+                || listed
+                    .as_ref()
+                    .err()
+                    .is_some_and(|e| e == "MIDI_UNAVAILABLE"),
+            "unexpected MIDI error: {listed:?}"
+        );
+        let support = midi_output_support().expect("support must not panic");
+        assert_eq!(support.backend, midi_backend_name());
+        if let Ok(ports) = listed {
+            assert_eq!(support.port_count, ports.len());
+        } else {
+            assert_eq!(support.port_count, 0);
+            assert!(support.honesty_fr.contains("Séquenceur MIDI"));
+        }
+        if cfg!(target_os = "macos") {
+            assert!(!support.native_proof);
+            assert!(support
+                .honesty_fr
+                .contains("Ne pas afficher macOS comme testé"));
+        }
+        if cfg!(target_os = "linux") {
+            assert!(!support.native_proof);
+            assert!(support.honesty_fr.contains("ALSA"));
+        }
+        if cfg!(target_os = "windows") {
+            assert!(support.native_proof);
         }
     }
     #[test]
