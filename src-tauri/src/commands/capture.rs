@@ -266,6 +266,38 @@ pub async fn import_user_audio_track(
     .map_err(|e| format!("Import audio interrompu : {e}"))?
 }
 
+/// Copy a finished generation WAV onto a new user mix track (project-conditioned part, #325).
+#[tauri::command]
+pub async fn import_generation_as_user_track(
+    id: String,
+    generation_id: String,
+    display_name: Option<String>,
+) -> Result<MixDoc, String> {
+    tokio::task::spawn_blocking(move || {
+        let folder = project_folder(&id);
+        let mut doc = load_project(&folder)?;
+        let gen_id = generation_id.trim();
+        if gen_id.is_empty() {
+            return Err("Identifiant de génération manquant.".into());
+        }
+        let wav = folder.join("generations").join(gen_id).join("audio.wav");
+        if !wav.is_file() {
+            return Err(format!(
+                "WAV de génération introuvable (generations/{gen_id}/audio.wav)."
+            ));
+        }
+        let name = display_name
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .unwrap_or("Partie instrumentale")
+            .to_string();
+        ingest_user_audio_file(&folder, &mut doc, &wav, &name, true, Some("wav"))
+    })
+    .await
+    .map_err(|e| format!("Import génération interrompu : {e}"))?
+}
+
 #[tauri::command]
 pub fn begin_user_audio_capture(id: String) -> Result<UserAudioCaptureSession, String> {
     let folder = project_folder(&id);
