@@ -15,10 +15,17 @@ on:
 permissions:
   contents: write
 
+# One desktop release at a time. A newer tag run cancels a stuck verify
+# (v0.2.0 hung here: pnpm test launches Playwright without Chromium).
+concurrency:
+  group: desktop-release
+  cancel-in-progress: true
+
 jobs:
   verify:
     name: Verify before release
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout source
         uses: actions/checkout@v7
@@ -54,6 +61,11 @@ jobs:
 
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
+
+      # pnpm test includes src/**/*.behavior.test.ts, which call chromium.launch().
+      # Without browsers, node:test has no timeout and verify hangs (v0.2.0).
+      - name: Install Playwright Chromium (tests B1 / captures)
+        run: pnpm exec playwright install chromium --with-deps
 
       # Mirrors .github/workflows/ci.yml so a tag can never publish code that
       # CI would have rejected.
