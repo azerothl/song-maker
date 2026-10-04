@@ -349,6 +349,8 @@ export type GenerationSummary = {
   audioPath?: string | null;
   semanticTruncated?: boolean | null;
   canContinue: boolean;
+  /** `yue2_3b` (default) or `ace_step_1_5`. */
+  engineId?: string;
 };
 
 export type ScoreSummary = {

@@ -93,6 +93,8 @@ export const api = {
     options?: {
       stopAfter?: "abc" | null;
       sourceGenerationId?: string | null;
+      /** One-shot engine; does not persist Settings default. */
+      engine?: "yue2" | "ace_step" | null;
     },
   ) =>
     invoke<ProjectDoc>("start_generation", {
@@ -101,6 +103,7 @@ export const api = {
       abc: abc ?? null,
       stopAfter: options?.stopAfter ?? null,
       sourceGenerationId: options?.sourceGenerationId ?? null,
+      engine: options?.engine ?? null,
     }),
   /** Render audio from an existing gen's immutable score.abc (parent = source). */
   renderFromGeneration: (
