@@ -1,0 +1,15 @@
+{
+  "stage": "D",
+  "name": "songcraft-fulldit-toy",
+  "descriptionFr": "Jouet CPU : reconstruction + masquage d’inpainting (10–20 %). Produit un checkpoint JSON et metrics.json. Ce n’est pas FullDiT réel ni un poids Song Maker.",
+  "seed": 7,
+  "steps": 40,
+  "batch": 4,
+  "dim": 16,
+  "frames": 32,
+  "lr": 0.008,
+  "maskRatioMin": 0.1,
+  "maskRatioMax": 0.2,
+  "conditions": ["lyrics_token", "chord_token", "beat_token", "residual"],
+  "metrics": ["recon_mse", "masked_mse", "unmasked_mse"]
+}

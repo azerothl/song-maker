@@ -100,6 +100,15 @@ Data : `mix -> Demucs/UVR -> stems -> MIR par stem -> tokens multi-pistes align�
 
 Infra : entraînement GPU complet hors app (torch + recette officielle) ; pilote local existant `scripts/lora-train-nar.py` ne fait que LoRA NAR unfused + validation, `autoActivate: false` toujours. Jobs sous `training-jobs/<id>/`.
 
+**Recette exécutable (étape D, jouet)** — entrée : [`scripts/model-training/README.md`](../scripts/model-training/README.md).
+
+```text
+python scripts/model-training/run_stage_d_toy.py --self-test
+python scripts/model-training/run_stage_d_toy.py --out-dir training-jobs/stage-d-toy
+```
+
+Sortie réelle : `checkpoint.json` + `metrics.json` (reconstruction + masquage 10–20 %). Pins et licences : `scripts/model-training/pins.json`. `desktopProvider` reste `null` : pas de fournisseur desktop tant qu’un vrai poids n’existe pas (#323).
+
 ## 7. Références à lire en priorité
 
 - YuE `2503.08638` ; YuE2 `m-a-p/YuE2-3B` + démo `map-yue2.github.io` — baseline à battre.
