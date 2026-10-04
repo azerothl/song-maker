@@ -81,7 +81,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Runtime Python YuE2 officiel | **Volontairement absent** : non installé, **pas un repli**. Le desktop ne bascule jamais vers Python si audio.cpp échoue. |
 | SheetSage2 / BS-RoFormer / Mel-Band RoFormer / LoRA packs | Opt-in, hors installeur minimal |
 | HTDemucs 6 stems (guitare/piano) | Opt-in expérimental ; **déconseillé piano-heavy** ; masque de fuite post-séparation, piano non nettoyé — [`docs/htdemucs-6s-leaks.md`](docs/htdemucs-6s-leaks.md) |
-| Transcription audio → MIDI produit | Non livré en UI (essai interne BasicPitch ONNX documenté sous [`docs/basicpitch-trial/`](docs/basicpitch-trial/REPORT.md) — pas un bouton produit) |
+| Transcription audio → MIDI produit | Audio → MIDI par piste (BasicPitch ONNX Apache-2.0, sans TensorFlow) depuis les réglages de piste → Partition ; batterie inutilisable (essai interne : [`docs/basicpitch-trial/`](docs/basicpitch-trial/REPORT.md)) |
 | Sortie MIDI matériel (midir) | Compilée WinMM / CoreMIDI / ALSA. Preuve native : **Windows GS Wavetable seulement**. macOS IAC, Linux jack/USB, Windows USB : **non testés** — [`docs/midi-instrument.md`](docs/midi-instrument.md) |
 | Worker distant / Akasha | Opt-in ; sans hôte = indisponible, pas un stub trompeur |
 | Entraînement LoRA NAR | Pilote CPU — LoRA YuE2 GPU : `scripts/lora-train-yue2-gpu.py` (CUDA) |

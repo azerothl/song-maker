@@ -396,6 +396,7 @@ export function LicensesScreen() {
           hors installeur ; voir Paramètres → Production audio / Agent.
         </li>
         <li>{t("licenses.sheetsage")}</li>
+        <li>{t("licenses.basicPitch")}</li>
         <li>{t("licenses.loraTrain")}</li>
         <li>
           Crédit : <strong>{t("licenses.credit")}</strong>

@@ -1,0 +1,16 @@
+# Product BasicPitch (#346) — ONNX runtime, no TensorFlow.
+#   python3 -m venv .venv && source .venv/bin/activate
+#   pip install -U 'pip' 'setuptools<81' wheel
+#   pip install basic-pitch==0.4.0 --no-deps
+#   pip install -r requirements.txt
+basic-pitch==0.4.0
+onnxruntime>=1.16
+librosa>=0.8.0
+numpy>=1.18
+pretty-midi>=0.2.9
+resampy>=0.2.2,<0.4.3
+scikit-learn
+scipy>=1.4.1
+typing-extensions
+soundfile
+setuptools<81
