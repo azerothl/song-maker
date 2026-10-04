@@ -64,6 +64,7 @@
   "form.instrumental.hint": "Lyrics become optional. YuE2 receives an empty string and generates without vocal text.",
   "form.instrumental.active": "Mode set: instrumental — lyrics optional.",
   "form.audioInput.incapacity": "Audio reference / inpainting: YuE2 and ACE-Step do not consume audio_input. There is no “one phrase without regenerating everything”. A SheetSage2 cover is not audio input to the decoder.",
+  "form.houseModel.unavailable": "In-house model: no generation in the app (no weights, no decoder). Recipe lives outside the app: scripts/model-training/. YuE2 / ACE-Step remain the engines.",
   "form.instrumental.summary": "Instrumental",
   "form.lyrics": "Lyrics",
   "form.lyrics.optional": "Lyrics (optional)",
