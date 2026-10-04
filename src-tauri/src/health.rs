@@ -222,6 +222,21 @@ pub fn check_health(server_url: Option<&str>) -> HealthSnapshot {
         message,
         python_yue2_runtime: "absent_by_design".into(),
         house_model_runtime: crate::house_model::runtime_status(&cache),
+        ace_step_lego_runtime: {
+            let dummy = crate::ace_step_lego::AceStepLegoSidecar::default();
+            let st = crate::ace_step_lego::status(
+                &cache,
+                &dummy,
+                settings.ace_step_lego_license_accepted,
+            );
+            if st.ready {
+                "ready".into()
+            } else if st.venv_present {
+                "installed".into()
+            } else {
+                "missing".into()
+            }
+        },
     }
 }
 
@@ -287,6 +302,12 @@ mod tests {
     fn python_yue2_runtime_is_absent_by_design() {
         let snap = check_health(None);
         assert_eq!(snap.python_yue2_runtime, "absent_by_design");
+        assert_ne!(snap.ace_step_lego_runtime, "yue2");
+        assert!(
+            snap.ace_step_lego_runtime == "missing"
+                || snap.ace_step_lego_runtime == "installed"
+                || snap.ace_step_lego_runtime == "ready"
+        );
     }
 
     #[test]

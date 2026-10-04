@@ -4,11 +4,12 @@ import { audioInputCapability, wantsAudioInput } from "./audioInput.ts";
 
 describe("audioInputCapability", () => {
   it("never claims YuE2 or ACE-Step can consume audio_input", () => {
-    for (const engine of ["yue2", "ace_step", "unknown"]) {
+    for (const engine of ["yue2", "ace_step", "ace_step_lego", "unknown"]) {
       const cap = audioInputCapability(engine);
       assert.equal(cap.supported, false);
       assert.match(cap.messageFr, /audio_input/);
       assert.match(cap.messageFr, /SheetSage2/);
+      assert.match(cap.messageFr, /Lego/);
     }
   });
 

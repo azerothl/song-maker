@@ -9,7 +9,7 @@ Site marketing bilingue FR/EN : dossier [`website/`](website/) — landing, docs
 Song Maker vise à devenir un atelier de MAO multipiste assisté par l’IA générative, dans la famille d’usage d’un logiciel comme Cubase, sans viser la parité fonctionnelle. Deux parcours doivent converger vers le même projet de production :
 
 - **Simple :** décrire un style et écrire des paroles pour générer une chanson, puis éditer, mixer et exporter le résultat.
-- **Avancé :** partir d’une partition, de pistes audio ou de stems, puis utiliser l’IA pour créer des parties instrumentales complémentaires et aider au mix. Depuis Production, une **partie instrumentale** peut être générée dans l’arrangement (conditionnement tempo/tonalité/style). Le mix/stems en entrée audio est refusé clairement : YuE2 n’a pas `audio_input`.
+- **Avancé :** partir d’une partition, de pistes audio ou de stems, puis utiliser l’IA pour créer des parties instrumentales complémentaires et aider au mix. Depuis Production, une **partie instrumentale** peut être générée dans l’arrangement : tempo/tonalité/style via **YuE2**, ou mix/stems via le sidecar opt-in **ACE-Step 1.5 Base Lego** (Python REST, pas le GGUF Turbo). YuE2 **refuse** `audio_input` (pas de simulacre). Lego n’affirme pas un stem dry.
 
 À long terme, Song Maker prévoit aussi de créer son propre modèle de transformation audio, complémentaire à YuE2, pour travailler les pistes des projets existants. Les résultats de l’IA doivent rester éditables et réversibles, et les sources du projet être préservées. Cette direction n’est pas une liste de fonctions déjà livrées : le YuE2 actuel ne prend pas d’audio de référence en entrée. L’état des fonctionnalités disponibles est détaillé ci-dessous.
 
@@ -38,7 +38,7 @@ Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau
 - **Mode instrumental** : paroles facultatives (chaîne vide acceptée) — ce n’est **pas** le LoRA instrumental YuE2 CC BY-NC.
 - Modes `cot` (`full` / `melody` / `off`), durée cible indicative (bornes de tokens, pas une durée musicale garantie), multi-candidats **séquentiels** (N appels locaux successifs, pas un échantillonnage parallèle natif), seed écrit.
 - Continuation mid-song (`semantic_prefix` / `continuationGenerationId`) et génération partition seule (`stop_after=abc`).
-- YuE2 **ne consomme pas** d’audio en entrée (`audio_input`) : pas d’inpainting ni de référence audio directe. Une génération = un nouvel appel. L’onglet Créer l’affiche explicitement ; un payload `audio_input` / masque d’inpainting est **refusé** avant l’appel GPU.
+- YuE2 **ne consomme pas** d’audio en entrée (`audio_input`) : pas d’inpainting ni de référence audio directe. Une génération = un nouvel appel. L’onglet Créer l’affiche explicitement ; un payload `audio_input` / masque d’inpainting est **refusé** avant l’appel GPU. Le moteur XOR global (`generation_engine`) reste YuE2 par défaut ; ACE-Step **Turbo** GGUF est un opt-in texte→musique distinct, **pas** Lego.
 
 ### Partition / Reprise
 
@@ -55,6 +55,7 @@ Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau
 - **Assistant de mix** : Ollama, OpenAI-compat, sidecar **Rbitnet** (binaire + GGUF **hors installeur**, téléchargement différé), llama.cpp / serveur externe via `/v1`. Cloud expert opt-in. Foundry Local / WinML **non livrés**. Voir [`docs/design/qwen-mix-assistant/README.md`](docs/design/qwen-mix-assistant/README.md).
 - Effets DSP réels (`@song-maker/mix-production`) : filtre HP/LP, EQ (shelf + paramétrique), compresseur / gate / limiteur, delay sync tempo, réverb stéréo, sidechain, correction de justesse vocale, nettoyage spectral, débruitage statistique MMSE, conversion de voix par enveloppe (voix de l’utilisateur + consentement, **pas** un modèle RVC), loudness (estimation).
 - Clips : trim, fondus, déplacement, découpe ; grille musicale / arrangement ; étirement tempo / transpose (WSOLA maison) ; capture micro/ligne native (cpal : WASAPI partagé / ALSA / Core Audio) avec repli WebView — [`docs/capture-low-latency.md`](docs/capture-low-latency.md).
+- **Partie instrumentale** (Production) : métadonnées projet → YuE2 ; mix/stems → sidecar **ACE-Step 1.5 Base Lego** (`scripts/ace-step-lego-sidecar.py`, `127.0.0.1:8002`, `GET /ready`, `POST /v1/lego`). Opt-in GPU (≥12 Go VRAM conseillés). Sortie souvent un **mix fusionné**, importée à `start_ms = 0` sans `follow_project_tempo`. File GPU `max_loaded_models=1` : pas YuE2 et Lego en parallèle. Notice : [`docs/model-licenses/ACE-Step-1.5-Base-Lego.md`](docs/model-licenses/ACE-Step-1.5-Base-Lego.md).
 - Copilote de production réversible (suggestions locales, pas d’analyse distante obligatoire).
 - **Export unifié** : mix WAV PCM 24 bits, FLAC 24 bits, MP3 livraison (profondeur de bits ou débit selon le format) ; export de pistes / stems sélectionnés (dossier ou zip) et paquet projet portable.
 
@@ -75,7 +76,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 
 | Sujet | État |
 |---|---|
-| Génération avec audio en entrée (`audio_input`) | Non supporté par YuE2 / audio.cpp épinglé |
+| Génération avec audio en entrée (`audio_input`) | **Refusé** sur YuE2 / ACE-Step Turbo. Mix/stems → Lego Base Python (opt-in), pas un champ YuE2. Sortie Lego : mix fusionné possible, pas un stem dry. |
 | Plugins **VST3** / AU | Différés comme produit. Spike de chargement derrière `SONG_MAKER_VST3_SPIKE=1` (pas un hôte DAW) — [`docs/vst3-host-feasibility.md`](docs/vst3-host-feasibility.md) |
 | **UniverSR** / upscaling audio | Hors périmètre |
 | Runtime Python YuE2 officiel | **Volontairement absent** : non installé, **pas un repli**. Le desktop ne bascule jamais vers Python si audio.cpp échoue. |
@@ -87,7 +88,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Worker distant / Akasha | Opt-in ; hôte DeclUI embarqué localhost ou URL externe ; sans hôte = indisponible |
 | Entraînement LoRA NAR | Pilote CPU — LoRA YuE2 GPU : `scripts/lora-train-yue2-gpu.py` (CUDA) |
 | Capture basse latence | Natif cpal (WASAPI **partagé** / ALSA / Core Audio). Pas d’ASIO ni WASAPI exclusif. Repli WebView. |
-| Licences modèles | YuE2 & SheetSage2 : **CC BY-NC 4.0** — usage commercial des poids restreint |
+| Licences modèles | YuE2 & SheetSage2 : **CC BY-NC 4.0**. ACE-Step Turbo/Lego : carte **MIT** (Hobby + Commercial possibles pour ACE-Step) ; un mix YuE2 reste NC même si on y colle un stem MIT. |
 | Signature Windows / notarisation macOS | Workflow Windows configuré, signature réelle à valider avec Azure ; macOS non notarié |
 | UI app bilingue | FR/EN dans Paramètres → Système (persistance locale) ; le site marketing a sa propre i18n |
 

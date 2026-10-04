@@ -106,6 +106,8 @@ type ProductionWorkspaceProps = {
     role: "bass" | "drums" | "other";
     conditioning: "project_metadata" | "mix_stems";
   }) => Promise<void>;
+  legoSidecarReady?: boolean;
+  legoLicenseAccepted?: boolean;
   playback: PlaybackView | null;
   playbackSources: PlaybackSources | null;
   project: ProjectDoc;
@@ -178,6 +180,8 @@ export function ProductionWorkspace({
   onRevertSeparation,
   onUserTrackAdded,
   onRequestInstrumentalPart,
+  legoSidecarReady = false,
+  legoLicenseAccepted = false,
   playback,
   playbackSources,
   project,
@@ -474,6 +478,11 @@ export function ProductionWorkspace({
           <div className="production-instrumental-panel" role="dialog" aria-labelledby="instrumental-part-title">
             <h3 id="instrumental-part-title">{t("production.instrumental.title")}</h3>
             <p className="hint">{t("production.instrumental.intro")}</p>
+            {instrumentalCond === "mix_stems" ? (
+              <p className="hint warn" role="note">
+                {t("production.instrumental.legoHonesty")}
+              </p>
+            ) : null}
             <label className="invariant-level">
               {t("production.instrumental.role")}
               <select
@@ -526,6 +535,8 @@ export function ProductionWorkspace({
                     tempoBpm: form.tempoBpm,
                     key: form.key ?? null,
                     hasMixOrStems: Boolean(mix?.tracks.length),
+                    legoSidecarReady,
+                    legoLicenseAccepted,
                   });
                   if (!plan.ok) {
                     setInstrumentalNotice(plan.messageFr);

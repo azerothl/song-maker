@@ -25,7 +25,7 @@ The same project should support two entry paths:
 
 AI-created tracks and mix changes should remain editable and reversible, with imported source material preserved. As a long-term goal, the project also intends to create a Song Maker audio transformation model, complementary to YuE2, for working with audio in existing projects. Its architecture and exact transformations are undecided.
 
-This is target direction, not a claim about current capabilities. The integrated YuE2 engine does not accept reference audio. Project-conditioned instrumental generation and the custom audio transformation model are not shipped capabilities.
+This is target direction, not a claim about current capabilities. The integrated YuE2 engine does not accept reference audio (`audio_input` is refused, not faked). Production can add a metadata-conditioned instrumental part with YuE2, or call an opt-in ACE-Step 1.5 **Base Lego** Python sidecar for mix/stems-conditioned add-track. Lego does not promise a dry isolated stem; the custom audio transformation model is not shipped.
 
 ## Positioning
 
@@ -37,14 +37,14 @@ The desktop application targets Windows and Linux with an NVIDIA CUDA GPU. Users
 
 ## Capabilities and Constraints
 
-- The root README is the source of truth for what ships on `main`. The desktop app includes local YuE2 generation (style + lyrics, or instrumental mode with optional empty lyrics), MIDI/score/ABC editing, SheetSage2 opt-in reprise, sequential candidates (N successive local calls), clip editing, stem separation (with separation history), mix/production tools, and WAV / FLAC / MP3 export. Desktop UI is French-only; the marketing site is FR/EN. Do not present deferred items (VST3, audio_input generation, UniverSR, SF2 banks) as available. An embedded DeclUI loopback host is opt-in from Settings; YuE2 generation stays desktop.
+- The root README is the source of truth for what ships on `main`. The desktop app includes local YuE2 generation (style + lyrics, or instrumental mode with optional empty lyrics), MIDI/score/ABC editing, SheetSage2 opt-in reprise, sequential candidates (N successive local calls), clip editing, stem separation (with separation history), mix/production tools, and WAV / FLAC / MP3 export. Desktop UI is French-only; the marketing site is FR/EN. Do not present deferred items (VST3, YuE2 waveform `audio_input`, UniverSR, SF2 banks) as available. Mix/stems add-track via ACE-Step 1.5 Base Lego is opt-in (Python REST sidecar, not the Turbo GGUF XOR). Lego may return a fused mix, not a dry stem. An embedded DeclUI loopback host is opt-in from Settings; YuE2 generation stays desktop. The global `generation_engine` XOR stays YuE2 by default.
 - Prefer the current README over historical “phase N incomplete” wording in the product specification when writing site copy.
 - The standard HTDemucs path produces vocals, drums, bass, and other. An optional experimental ONNX 6-stem path also estimates guitar and piano; those estimates can leak, especially piano. Do not imply the 6-stem path is the default or its extra stems are cleanly isolated. BS-RoFormer is an optional second separator (opt-in GGUF download) that returns vocals + instrumental only; HTDemucs remains the default.
 - Remote generation and Akasha host discovery are **opt-in**. With remote disabled, the client makes no network request. A reference worker (`packages/remote-worker-server`) implements the HTTP contract; do not present remote as the default path.
 - YuE2 does not consume reference audio (`audio_input`) and does not guarantee the requested duration, language, tempo, or key. A style is required. Lyrics are required unless instrumental mode is enabled.
 - The official Python YuE2 runtime is intentionally absent: not installed, not a fallback if audio.cpp fails, and not offered as an engine in Settings.
 - The in-house Song Maker generation model is not available in the app (`houseModelRuntime: unavailable`). Training recipes live under `scripts/model-training/`; do not present them as a generate button.
-- YuE2 / GGUF model weights are distributed under CC BY-NC 4.0. The site must not promise commercial use of those weights or outputs.
+- YuE2 / GGUF model weights are distributed under CC BY-NC 4.0. The site must not promise commercial use of those weights or outputs. ACE-Step Base Lego is MIT on the card (Hobby and Commercial possible for ACE-Step); layering it on a YuE2 mix does not clear the mix’s NC terms.
 
 ## Evidence on Hand
 

@@ -2,7 +2,7 @@ use super::shared::write_checksums;
 use super::AppState;
 use crate::abc_metadata::{write_aligned_score_abc, AbcAlignRequest};
 use crate::audiocpp::AudioCppServer;
-use crate::form::{guidance_scale, validate_form, validate_target_duration};
+use crate::form::{guidance_scale, validate_form_for_engine, validate_target_duration};
 use crate::hashutil::{normalize_seed, random_seed, sha256_file};
 use crate::library::{
     library_row_from_project, load_project, load_settings, project_folder, save_project,
@@ -37,6 +37,7 @@ pub(crate) fn engine_id_from_generation_request(req: &serde_json::Value) -> Stri
         .unwrap_or("yue2")
     {
         "ace_step" => "ace_step_1_5".into(),
+        "ace_step_lego" => crate::ace_step_lego::ENGINE_ID.into(),
         _ => "yue2_3b".into(),
     }
 }
@@ -45,12 +46,25 @@ fn resolve_generation_engine(
     requested: Option<&str>,
     settings_engine: &str,
 ) -> Result<String, String> {
+    if requested
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .is_some_and(|s| s == "ace_step_lego")
+    {
+        return Ok("ace_step_lego".into());
+    }
     let engine = requested
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .unwrap_or(settings_engine);
     if engine == "house_model" {
         return Err(crate::house_model::REFUSE_GENERATE_FR.into());
+    }
+    if engine == "ace_step_lego" {
+        return Err(
+            "ACE-Step Lego n’est pas le moteur global. YuE2 reste le défaut Créer ; Lego n’est appelé que pour ajouter une piste (mix/stems)."
+                .into(),
+        );
     }
     if engine != "yue2" && engine != "ace_step" {
         return Err("Moteur de génération inconnu (yue2|ace_step).".into());
@@ -108,8 +122,13 @@ pub async fn start_generation(
     stop_after: Option<String>,
     source_generation_id: Option<String>,
     engine: Option<String>,
+    instrumental_role: Option<String>,
 ) -> Result<ProjectDoc, String> {
-    let style_sent = validate_form(&form).map_err(|e| e.to_string())?;
+    let mut settings = load_settings()?;
+    let requested_engine =
+        resolve_generation_engine(engine.as_deref(), &settings.generation_engine)?;
+    let style_sent =
+        validate_form_for_engine(&form, &requested_engine).map_err(|e| e.to_string())?;
     let target_duration_sec =
         validate_target_duration(form.target_duration_sec).map_err(|e| e.to_string())?;
     let (mut semantic_min_tokens, mut semantic_max_tokens) =
@@ -131,10 +150,8 @@ pub async fn start_generation(
         .as_ref()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    let mut settings = load_settings()?;
-    let requested_engine =
-        resolve_generation_engine(engine.as_deref(), &settings.generation_engine)?;
     let use_ace_step = requested_engine == "ace_step";
+    let use_lego = requested_engine == "ace_step_lego";
     if use_ace_step {
         if !settings.ace_step_license_accepted {
             return Err(
@@ -144,6 +161,27 @@ pub async fn start_generation(
         let cache = PathBuf::from(&settings.cache_dir);
         if !crate::ace_step::weights_valid(&cache) {
             return Err("Les poids ACE-Step sont absents ou incomplets; réinstallez-les depuis Paramètres → Modèle.".into());
+        }
+    }
+    if use_lego {
+        if !settings.ace_step_lego_license_accepted {
+            return Err(
+                "Lisez et acceptez l’avis ACE-Step 1.5 Base (Lego) avant d’ajouter une piste."
+                    .into(),
+            );
+        }
+        if !crate::profiles::ace_step_contract_accepted_for_active_profile()? {
+            return Err("Avant Lego dans le profil Commercial, acceptez l’avertissement ACE-Step dans Paramètres → Modèle.".into());
+        }
+        if stop_after_abc
+            || form.continuation_generation_id.is_some()
+            || source_generation_id.is_some()
+            || abc_trimmed.is_some()
+        {
+            return Err(
+                "Lego n’est que l’ajout d’une piste depuis le mix/stems. Partition, continuation et rendu score restent YuE2."
+                    .into(),
+            );
         }
     }
     if abc_trimmed.is_some() && form.cot == "off" {
@@ -232,7 +270,7 @@ pub async fn start_generation(
     doc.prefer_full_lyrics = form.prefer_full_lyrics;
     doc.instrumental_mode = form.instrumental_mode;
     doc.updated_at = now_iso();
-    let (lora_provenance, lora_warnings) = if use_ace_step {
+    let (lora_provenance, lora_warnings) = if use_ace_step || use_lego {
         (json!({}), Vec::new())
     } else {
         resolve_lora_provenance_for_generation(&mut settings)
@@ -261,7 +299,17 @@ pub async fn start_generation(
     let parent_generation_id = continuation
         .or(source_gen_id.as_deref())
         .or(doc.active_generation_id.as_deref());
-    let model_metadata = if use_ace_step {
+    let model_metadata = if use_lego {
+        json!({
+            "engineId": crate::ace_step_lego::ENGINE_ID,
+            "repo": ACE_STEP_LEGO_HF_REPO,
+            "revision": ACE_STEP_LEGO_HF_REVISION,
+            "git": ACE_STEP_LEGO_GIT,
+            "weightLicense": "MIT per ACE-Step/acestep-v15-base card; training data and output rights unverified",
+            "outputKind": crate::ace_step_lego::OUTPUT_KIND,
+            "outputVerified": false
+        })
+    } else if use_ace_step {
         json!({
             "engineId": "ace_step_1_5",
             "repo": ACE_STEP_REPO,
@@ -284,7 +332,9 @@ pub async fn start_generation(
             "vaeSha256": YUE2_VAE_SHA
         })
     };
-    let job_kind = if continuation.is_some() {
+    let job_kind = if use_lego {
+        "lego_add_track"
+    } else if continuation.is_some() {
         "continuation"
     } else if stop_after_abc {
         "score_only"
@@ -292,6 +342,13 @@ pub async fn start_generation(
         "render_from_score"
     } else {
         "generation"
+    };
+    let lego_role = if use_lego {
+        Some(crate::ace_step_lego::lego_track_name(
+            instrumental_role.as_deref().unwrap_or(""),
+        )?)
+    } else {
+        None
     };
     let request = json!({
         "schema": SCHEMA_GEN_REQUEST,
@@ -303,7 +360,7 @@ pub async fn start_generation(
         "sourceGenerationId": source_gen_id,
         "stopAfter": if stop_after_abc { Some("abc") } else { None::<&str> },
         "createdAt": now_iso(),
-        "provider": "audiocpp",
+        "provider": if use_lego { "ace_step_lego_python" } else { "audiocpp" },
         "generationEngine": requested_engine,
         "binary": {
             "tag": AUDIOCPP_TAG,
@@ -323,6 +380,10 @@ pub async fn start_generation(
         "targetDurationSec": target_duration_sec,
         "preferFullLyrics": form.prefer_full_lyrics,
         "instrumentalMode": form.instrumental_mode,
+        "instrumentalRole": instrumental_role,
+        "legoTrackName": lego_role,
+        "outputKind": if use_lego { Some(crate::ace_step_lego::OUTPUT_KIND) } else { None },
+        "leftoverNotesFr": if use_lego { Some(crate::ace_step_lego::leftover_notes_fr()) } else { None },
         "semanticMinTokens": semantic_min_tokens,
         "semanticMaxTokens": semantic_max_tokens,
         "lora": lora_provenance,
@@ -342,7 +403,34 @@ pub async fn start_generation(
 
     let queue = state.queue.clone();
     let queue_ref = queue.clone();
-    let server_url = {
+    let lego_source = if use_lego {
+        if let Some(path) = form
+            .audio_input_path
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            let p = PathBuf::from(path);
+            if !p.is_file() {
+                return Err(format!("Source mix/stems introuvable : {}", p.display()));
+            }
+            Some(p)
+        } else {
+            let bounce = gen_dir.join("lego-source.wav");
+            Some(crate::ace_step_lego::resolve_lego_source_wav(
+                &folder, &doc, &bounce,
+            )?)
+        }
+    } else {
+        None
+    };
+    if use_lego {
+        let cache = PathBuf::from(&settings.cache_dir);
+        crate::ace_step_lego::ensure_started(&state.ace_step_lego, &cache).await?;
+    }
+    let server_url = if use_lego {
+        crate::ace_step_lego::base_url()
+    } else {
         let s = settings.clone();
         state.server.ensure_started(&s)?
     };
@@ -369,12 +457,16 @@ pub async fn start_generation(
     let gen_dir_for_job = gen_dir.clone();
     let project_id_for_job = id.clone();
     let job_kind_for_job = job_kind.to_string();
+    let style_for_lego = style_sent.clone();
+    let lego_instruction = lego_role.map(crate::ace_step_lego::lego_instruction);
     let abc_align =
         AbcAlignRequest::from_form(form.tempo_bpm, form.key.clone(), form.meter.clone());
     let result = queue
         .run_exclusive(
             Some(id.clone()),
-            if stop_after_abc {
+            if use_lego {
+                "Ajout de piste Lego"
+            } else if stop_after_abc {
                 "Génération partition seule"
             } else {
                 "Génération en cours"
@@ -389,13 +481,83 @@ pub async fn start_generation(
                 }))?;
                 queue_ref.set_state(
                     "generating",
-                    if stop_after_abc {
+                    if use_lego {
+                        "Ajout de piste Lego (mix/stems)"
+                    } else if stop_after_abc {
                         "Génération partition seule"
                     } else {
                         "Génération en cours"
                     },
                     Some(project_id_for_job.clone()),
                 );
+                if use_lego {
+                    let started = now_iso();
+                    let src = lego_source.ok_or_else(|| "source Lego manquante".to_string())?;
+                    let instruction = lego_instruction
+                        .unwrap_or_else(|| "Generate the instrument track.".into());
+                    let lego_result = crate::ace_step_lego::run_lego(
+                        &src,
+                        &out_wav,
+                        &style_for_lego,
+                        &instruction,
+                        seed,
+                    )
+                    .await;
+                    let finished = now_iso();
+                    if queue_ref.cancel_requested() {
+                        return Err("cancelled".into());
+                    }
+                    match lego_result {
+                        Ok(_) => {
+                            let (duration, audio_sha) =
+                                crate::ace_step_lego::verify_written_wav(&out_wav)?;
+                            let result = json!({
+                                "schema": SCHEMA_GEN_RESULT,
+                                "schemaVersion": SCHEMA_VERSION,
+                                "id": gen_id_for_job,
+                                "state": "generated",
+                                "decode": "unsupported",
+                                "startedAt": started,
+                                "finishedAt": finished,
+                                "outputKind": crate::ace_step_lego::OUTPUT_KIND,
+                                "leftoverNotesFr": crate::ace_step_lego::leftover_notes_fr(),
+                                "audio": {
+                                    "path": "audio.wav",
+                                    "sampleRate": SAMPLE_RATE,
+                                    "channels": CHANNELS,
+                                    "durationMs": duration,
+                                    "sha256": audio_sha
+                                },
+                                "score": null,
+                                "error": null
+                            });
+                            atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                            write_checksums(&gen_dir_for_job)?;
+                            queue_ref.set_state(
+                                "generated",
+                                "Piste Lego générée (mix fusionné possible)",
+                                Some(project_id_for_job.clone()),
+                            );
+                            return Ok(duration);
+                        }
+                        Err(e) => {
+                            let result = json!({
+                                "schema": SCHEMA_GEN_RESULT,
+                                "schemaVersion": SCHEMA_VERSION,
+                                "id": gen_id_for_job,
+                                "state": "failed",
+                                "decode": "unsupported",
+                                "startedAt": started,
+                                "finishedAt": finished,
+                                "audio": null,
+                                "score": null,
+                                "error": e
+                            });
+                            atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
+                            return Err(e);
+                        }
+                    }
+                }
                 let mut options = json!({
                     "style": style_sent,
                     "cot": cot,
@@ -649,9 +811,11 @@ pub async fn start_generation(
         }
     };
     doc.active_generation_id = Some(gen_id.clone());
-    // Detach separation when new take
-    doc.active_separation_id = None;
-    doc.active_mix_id = None;
+    if !use_lego {
+        // New Créer take replaces the arrangement. Lego add-track keeps mix/stems.
+        doc.active_separation_id = None;
+        doc.active_mix_id = None;
+    }
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
     let mut row = library_row_from_project(&folder, &doc);
@@ -674,7 +838,7 @@ pub async fn render_from_generation(
     let mut form = form;
     // Rendering from a score is a fresh audio take, not a semantic continuation.
     form.continuation_generation_id = None;
-    start_generation(state, id, form, None, None, Some(source_gen_id), None).await
+    start_generation(state, id, form, None, None, Some(source_gen_id), None, None).await
 }
 
 fn resolve_lora_slot_provenance(
@@ -1032,11 +1196,20 @@ mod continuation_tests {
             engine_id_from_generation_request(&json!({"generationEngine": "ace_step"})),
             "ace_step_1_5"
         );
-        assert_eq!(engine_id_from_generation_request(&json!({})), "yue2_3b");
+        assert_eq!(
+            engine_id_from_generation_request(&json!({"generationEngine": "ace_step_lego"})),
+            "ace_step_1_5_base_lego"
+        );
         assert_eq!(
             resolve_generation_engine(Some("ace_step"), "yue2").unwrap(),
             "ace_step"
         );
+        assert_eq!(
+            resolve_generation_engine(Some("ace_step_lego"), "yue2").unwrap(),
+            "ace_step_lego"
+        );
+        let lego_settings = resolve_generation_engine(None, "ace_step_lego").unwrap_err();
+        assert!(lego_settings.contains("moteur global") || lego_settings.contains("Lego"));
         assert_eq!(resolve_generation_engine(None, "yue2").unwrap(), "yue2");
         let house = resolve_generation_engine(Some("house_model"), "yue2").unwrap_err();
         assert!(house.contains("modèle maison"));
