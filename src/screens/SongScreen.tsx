@@ -511,6 +511,27 @@ export function SongScreen() {
     }
   }
 
+  async function onGenerateAceStep() {
+    if (!project || formError || scoreGate.error) {
+      setShowFormErrors(true);
+      setWorkspace("create");
+      setAdvancedSettingsPage(null);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await api.startGeneration(project.id, form, scoreGate.abc, {
+        engine: "ace_step",
+      });
+      await openProject(project.id);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onGenerateScoreOnly() {
     if (!project || !canGenerateScoreOnly) {
       setShowFormErrors(true);
@@ -787,6 +808,7 @@ export function SongScreen() {
             generations={generations}
             onContinue={onContinue}
             onGenerateBatch={onGenerateBatch}
+            onGenerateAceStep={onGenerateAceStep}
             onRevertSeparation={
               separationUndo ? () => void onRevertSeparation() : undefined
             }

@@ -249,5 +249,10 @@
   "settings.model.engine.cancel": "Cancel download",
   "settings.model.engine.pinDetails": "Show pinned revision and fingerprint",
   "settings.model.engine.originalSource": "Original model card",
-  "settings.model.engine.convertedSource": "GGUF conversion repository"
+  "settings.model.engine.convertedSource": "GGUF conversion repository",
+  "aceStep.ab.title": "YuE2 / ACE-Step A/B listen",
+  "aceStep.ab.hint": "YuE2 stays the default engine. This A/B listen does not change that default. ACE-Step remains available with conditions.",
+  "aceStep.ab.group": "Engine to listen to",
+  "aceStep.ab.needBoth": "You need a YuE2 take and an ACE-Step take with audio. Generate an ACE-Step take below (without changing the default).",
+  "aceStep.ab.generate": "Generate an ACE-Step take (keep YuE2 as default)"
 }

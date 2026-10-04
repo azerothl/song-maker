@@ -6595,6 +6595,31 @@ details[open] > summary {
   min-width: 0;
 }
 
+.ace-step-ab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.ace-step-ab-sides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ace-step-ab-player {
+  width: 100%;
+}
+
+.ace-step-ab-badge {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .candidate-compare,
 .version-graph {
   display: flex;

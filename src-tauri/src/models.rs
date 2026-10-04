@@ -773,6 +773,10 @@ pub struct DownloadCacheFileRequest {
     pub expected_sha256: Option<String>,
 }
 
+fn default_yue2_engine_id() -> String {
+    "yue2_3b".into()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerationSummary {
@@ -790,6 +794,9 @@ pub struct GenerationSummary {
     pub semantic_truncated: Option<bool>,
     #[serde(default)]
     pub can_continue: bool,
+    /// `yue2_3b` or `ace_step_1_5` (from request.json).
+    #[serde(default = "default_yue2_engine_id")]
+    pub engine_id: String,
 }
 
 /// Immutable score version metadata for branch/merge UI (§12.2).

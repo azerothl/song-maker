@@ -22,6 +22,39 @@ struct AceStepTaskOptions<'a> {
     language: Option<&'a str>,
 }
 
+pub(crate) fn engine_id_from_generation_request(req: &serde_json::Value) -> String {
+    if let Some(id) = req
+        .get("model")
+        .and_then(|model| model.get("engineId"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+    {
+        return id.to_string();
+    }
+    match req
+        .get("generationEngine")
+        .and_then(|v| v.as_str())
+        .unwrap_or("yue2")
+    {
+        "ace_step" => "ace_step_1_5".into(),
+        _ => "yue2_3b".into(),
+    }
+}
+
+fn resolve_generation_engine(
+    requested: Option<&str>,
+    settings_engine: &str,
+) -> Result<String, String> {
+    let engine = requested
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or(settings_engine);
+    if engine != "yue2" && engine != "ace_step" {
+        return Err("Moteur de génération inconnu (yue2|ace_step).".into());
+    }
+    Ok(engine.to_string())
+}
+
 fn ace_step_task_request(
     text: &str,
     lyrics: &str,
@@ -71,6 +104,7 @@ pub async fn start_generation(
     abc: Option<String>,
     stop_after: Option<String>,
     source_generation_id: Option<String>,
+    engine: Option<String>,
 ) -> Result<ProjectDoc, String> {
     let style_sent = validate_form(&form).map_err(|e| e.to_string())?;
     let target_duration_sec =
@@ -95,10 +129,9 @@ pub async fn start_generation(
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
     let mut settings = load_settings()?;
-    if settings.generation_engine != "yue2" && settings.generation_engine != "ace_step" {
-        return Err("Moteur de génération inconnu (yue2|ace_step).".into());
-    }
-    let use_ace_step = settings.generation_engine == "ace_step";
+    let requested_engine =
+        resolve_generation_engine(engine.as_deref(), &settings.generation_engine)?;
+    let use_ace_step = requested_engine == "ace_step";
     if use_ace_step {
         if !settings.ace_step_license_accepted {
             return Err(
@@ -268,7 +301,7 @@ pub async fn start_generation(
         "stopAfter": if stop_after_abc { Some("abc") } else { None::<&str> },
         "createdAt": now_iso(),
         "provider": "audiocpp",
-        "generationEngine": settings.generation_engine,
+        "generationEngine": requested_engine,
         "binary": {
             "tag": AUDIOCPP_TAG,
             "commit": AUDIOCPP_COMMIT,
@@ -638,7 +671,7 @@ pub async fn render_from_generation(
     let mut form = form;
     // Rendering from a score is a fresh audio take, not a semantic continuation.
     form.continuation_generation_id = None;
-    start_generation(state, id, form, None, None, Some(source_gen_id)).await
+    start_generation(state, id, form, None, None, Some(source_gen_id), None).await
 }
 
 fn resolve_lora_slot_provenance(
@@ -885,6 +918,7 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
                 && semantic_frames.as_ref().is_some_and(|frames| {
                     !frames.is_empty() && frames.iter().all(|&frame| frame < 32768)
                 }),
+            engine_id: engine_id_from_generation_request(&req),
         });
     }
     Ok(out)
@@ -982,6 +1016,25 @@ mod continuation_tests {
         ));
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn engine_id_from_request_prefers_model_metadata() {
+        let req = json!({
+            "generationEngine": "yue2",
+            "model": { "engineId": "ace_step_1_5" }
+        });
+        assert_eq!(engine_id_from_generation_request(&req), "ace_step_1_5");
+        assert_eq!(
+            engine_id_from_generation_request(&json!({"generationEngine": "ace_step"})),
+            "ace_step_1_5"
+        );
+        assert_eq!(engine_id_from_generation_request(&json!({})), "yue2_3b");
+        assert_eq!(
+            resolve_generation_engine(Some("ace_step"), "yue2").unwrap(),
+            "ace_step"
+        );
+        assert_eq!(resolve_generation_engine(None, "yue2").unwrap(), "yue2");
     }
 
     #[test]

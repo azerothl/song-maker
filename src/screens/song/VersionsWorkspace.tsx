@@ -1,4 +1,5 @@
 import { useEffect, useState, type Dispatch, SetStateAction } from "react";
+import { AceStepAbPanel } from "../../components/AceStepAbPanel";
 import { CandidateCompare } from "../../components/CandidateCompare";
 import { VersionHistory } from "../../components/VersionHistory";
 import { api } from "../../lib/api";
@@ -23,6 +24,7 @@ type VersionsWorkspaceProps = {
   generations: GenerationSummary[];
   onContinue: (generationId: string) => Promise<void>;
   onGenerateBatch: (count: number) => Promise<void>;
+  onGenerateAceStep: () => Promise<void>;
   onRevertSeparation?: () => void;
   onRetryTake?: (generationId: string) => void;
   canRetryTake?: boolean;
@@ -41,6 +43,7 @@ export function VersionsWorkspace({
   generations,
   onContinue,
   onGenerateBatch,
+  onGenerateAceStep,
   onRevertSeparation,
   onRetryTake,
   canRetryTake = true,
@@ -158,6 +161,12 @@ export function VersionsWorkspace({
           onUse={(genId) => {
             void activateTake(genId);
           }}
+        />
+        <AceStepAbPanel
+          generations={generations}
+          busy={busy}
+          takeLabels={takeLabels}
+          onGenerateAceStep={onGenerateAceStep}
         />
       </details>
 
