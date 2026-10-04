@@ -9,6 +9,7 @@ mod demucs_onnx;
 mod form;
 mod hashutil;
 mod health;
+mod house_model;
 mod installer;
 mod library;
 mod lora_train;

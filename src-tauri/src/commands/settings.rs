@@ -78,7 +78,12 @@ pub fn update_settings(
                 );
             }
         }
-        _ => return Err("Moteur de génération inconnu (yue2|ace_step).".into()),
+        "house_model" => return Err(crate::house_model::REFUSE_SELECT_FR.into()),
+        other => {
+            return Err(format!(
+                "Moteur de génération inconnu ({other}). Attendu : yue2|ace_step."
+            ));
+        }
     }
     if s.stem_separator == "bs_roformer" && !crate::paths::bs_roformer_weights_present(&cache) {
         return Err(

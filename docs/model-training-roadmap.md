@@ -126,3 +126,4 @@ Sortie réelle : `checkpoint.json` + `metrics.json` (reconstruction + masquage 1
 - Adaptateur LoRA inactif jusqu'à validation + écoute A/B.
 - Poids YuE2/SheetSage2 : CC BY-NC 4.0 — usage commercial restreint, opt-in hors installeur.
 - Clonage de voix hors périmètre.
+- **État app (#323) :** `get_health.houseModelRuntime` = `unavailable` (ou `weights_present_unwired` si un fichier cache `house-model/` est déposé sans décodeur). Paramètres → Modèle : radio désactivée. `start_generation` refuse `house_model`. Aucune génération modèle maison dans l’app.

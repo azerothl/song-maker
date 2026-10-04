@@ -427,6 +427,8 @@ pub struct HealthSnapshot {
     pub message: String,
     /// Official Python YuE2 is intentionally not installed and not a fallback (#328).
     pub python_yue2_runtime: String,
+    /// House-model desktop provider (#323). `unavailable` until a decoder is wired.
+    pub house_model_runtime: String,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]

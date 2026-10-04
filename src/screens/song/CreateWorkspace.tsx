@@ -184,6 +184,9 @@ export function CreateWorkspace({
                 <p className="hint warn" role="note">
                   {t("form.audioInput.incapacity")}
                 </p>
+                <p className="hint" role="note">
+                  {t("form.houseModel.unavailable")}
+                </p>
                 <button
                   type="button"
                   className="form-advanced-entry"

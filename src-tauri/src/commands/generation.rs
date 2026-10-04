@@ -49,6 +49,9 @@ fn resolve_generation_engine(
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .unwrap_or(settings_engine);
+    if engine == "house_model" {
+        return Err(crate::house_model::REFUSE_GENERATE_FR.into());
+    }
     if engine != "yue2" && engine != "ace_step" {
         return Err("Moteur de génération inconnu (yue2|ace_step).".into());
     }
@@ -1035,6 +1038,10 @@ mod continuation_tests {
             "ace_step"
         );
         assert_eq!(resolve_generation_engine(None, "yue2").unwrap(), "yue2");
+        let house = resolve_generation_engine(Some("house_model"), "yue2").unwrap_err();
+        assert!(house.contains("modèle maison"));
+        let house_settings = resolve_generation_engine(None, "house_model").unwrap_err();
+        assert!(house_settings.contains("modèle maison"));
     }
 
     #[test]
