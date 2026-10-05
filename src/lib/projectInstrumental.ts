@@ -42,8 +42,8 @@ const ROLE_STYLE: Record<InstrumentalRole, string> = {
 };
 
 export const LEGO_FUSED_MIX_NOTE_FR =
-  "ACE-Step 1.5 Base Lego n’affirme pas un stem dry : le fichier peut déjà être un mix fusionné. " +
-  "Il est importé à t = 0 sans follow_project_tempo. Un stem MIT sur un mix YuE2 reste CC BY-NC.";
+  "Le résultat peut contenir le morceau d’origine en plus de la nouvelle partie. " +
+  "Vérifiez à l’écoute que les instruments existants ne sont pas doublés dans le mix.";
 
 export function planProjectInstrumentalPart(input: {
   role: InstrumentalRole;
@@ -62,7 +62,7 @@ export function planProjectInstrumentalPart(input: {
         role: input.role,
         conditioning: "mix_stems",
         messageFr:
-          "Aucun mix ni stems dans l’arrangement ouvert. Séparez ou importez des pistes d’abord.",
+          "Ajoutez un morceau ou des pistes à l’arrangement pour guider la nouvelle partie.",
       };
     }
     if (!input.legoLicenseAccepted || !input.legoSidecarReady) {
@@ -71,8 +71,8 @@ export function planProjectInstrumentalPart(input: {
         role: input.role,
         conditioning: "mix_stems",
         messageFr:
-          "Le conditionnement mix/stems passe par ACE-Step 1.5 Base Lego (sidecar Python, ≥12 Go VRAM conseillés), " +
-          "pas par YuE2 ni le GGUF Turbo. YuE2 refuse audio_input. Installez Lego (opt-in) dans Paramètres → Modèle.",
+          "Pour créer une partie qui suit votre morceau, installez le moteur Lego dans Paramètres → Modèle " +
+          "et acceptez ses conditions d’utilisation.",
       };
     }
     const styleBits = [

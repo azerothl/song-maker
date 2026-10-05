@@ -49,7 +49,7 @@ it.each([30, 1])("validates the full encrypted HTTP duration flow with a %i-seco
     expect(observed!.request.options).toMatchObject({ semantic_min_tokens: 750, semantic_max_tokens: 750 });
     const job = worker.server.getJob(id)!;
     if (outputSeconds === 30) {
-      expect(job.status).toBe("succeeded");
+      expect(job.status, job.error).toBe("succeeded");
       const result = JSON.parse(await readFile(job.artifacts["result.json"]!.path, "utf8"));
       expect(result.audio.durationMs).toBe(30000);
       expect(result.durationCompliance.matches).toBe(true);

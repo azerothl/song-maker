@@ -228,3 +228,16 @@ Le service Rust démarre désormais le serveur REST officiel ACE-Step Base dans 
 La présence du venv ne suffit plus à annoncer la capacité : une installation doit avoir réussi l’import du serveur et laissé un reçu correspondant à cette version. La disponibilité du service contrôle son identité et son champ `ready`; la passerelle sonde réellement `/health` du moteur. Le serveur démarre sans charger les modèles, puis l’amont télécharge/charge les poids lors de la première tâche. Cela ne prouve pas la présence des poids ni une inférence réussie.
 
 Validation : compilation Rust et trois régressions Python sur la disponibilité (sans serveur, serveur inaccessible, serveur joignable). Installation complète, génération audio conditionnée sur GPU et insertion/écoute dans l’interface restent à vérifier ; #325 reste ouvert. Les poids amont utilisent encore leur mécanisme de téléchargement et ne sont pas figés par cette correction.
+
+
+### #325 — installation complète et première inférence réelle Windows
+
+L’installateur utilise maintenant l’archive du commit figé, puis `uv sync --locked --active` avec le fichier de verrouillage et les sources du projet officiel : les wheels PyTorch CUDA et le paquet local nano-vllm sont ainsi réellement installés. `uv` est installé dans le venv Lego, version 0.9.2 ; Python 3.11/3.12 est requis. L’installation réelle et l’import du serveur ont réussi sur cette machine Windows.
+
+Une tâche réelle Lego `Generate the bass track.`, seed 773, a utilisé le WAV instrumental YuE2 de 30 secondes du contrôle distant précédent. Serveur Base avec CPU offload, sans LLM ni Flash Attention, RTX 4080 SUPER 16 Go. Les modèles absents ont été téléchargés par l’amont, puis l’inférence a produit un WAV FLOAT stéréo 48 kHz de 29,96 s, 11 504 728 octets, SHA-256 `8da002c1ab5a308fc40407a8d7968fd090a8e4858224204c2d2d2ca8e24f6f36`. Échantillons finis, RMS 0,0691. Artefacts : `%TEMP%/song-maker-lego-real-2026-10-05/{request,result,audio-metadata}.json` et `bass.wav`. L’écoute musicale et l’insertion via l’interface ne sont pas prouvées par ce contrôle ; #325 reste ouvert.
+
+Les WAV Lego invalides/vides/tronqués sont désormais rejetés au lieu de devenir une génération de durée nulle. Les messages d’installation/conditionnement ont été simplifiés pour #378. Tests : 6 Rust Lego, 5 Python, 3 TypeScript passent ; typecheck passe. Les poids sont encore téléchargés selon le mécanisme amont non figé.
+
+CI du précédent push : échec de formatage du pin corrigé ; FFmpeg est désormais installé explicitement avant les tests de retrait de voix, avec affichage de l’erreur du job en cas d’échec. Nouvelle validation GitHub à suivre.
+
+Contrôles complémentaires : formatage global et Clippy strict passent après suppression de trois emprunts superflus dans `form.rs`. Les 16 tests du worker passent localement, dont le traitement instrumental FFmpeg. Le serveur réel de contrôle (PID 36468) a été arrêté après la tâche ; son absence a été vérifiée.

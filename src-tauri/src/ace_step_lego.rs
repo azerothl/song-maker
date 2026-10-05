@@ -354,20 +354,25 @@ pub async fn install(
         .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes"))
         .unwrap_or(false);
     if !mock {
+        let installer = venv.join("install-ace-step-lego.py");
+        std::fs::write(
+            &installer,
+            include_str!("../../scripts/install-ace-step-lego.py"),
+        )
+        .map_err(|e| e.to_string())?;
+        let revision = ACE_STEP_LEGO_GIT
+            .rsplit('@')
+            .next()
+            .ok_or("Révision Lego absente")?;
         let output = Command::new(&python)
-            .args([
-                "-m",
-                "pip",
-                "install",
-                "--disable-pip-version-check",
-                "--no-input",
-                ACE_STEP_LEGO_GIT,
-            ])
+            .arg(&installer)
+            .arg(&venv)
+            .arg(revision)
             .output()
             .map_err(|e| format!("Installation ACE-Step Base : {e}"))?;
         if !output.status.success() {
             return Err(format!(
-                "pip ACE-Step 1.5 Base a échoué : {}",
+                "Installation ACE-Step 1.5 Base a échoué : {}",
                 String::from_utf8_lossy(&output.stderr)
             ));
         }
@@ -633,7 +638,26 @@ pub fn verify_written_wav(path: &Path) -> Result<(i64, String), String> {
     if !path.is_file() {
         return Err("WAV Lego introuvable.".into());
     }
-    let duration = crate::mix::wav_duration_ms(path).unwrap_or(0);
+    let mut reader =
+        hound::WavReader::open(path).map_err(|e| format!("WAV Lego invalide : {e}"))?;
+    let spec = reader.spec();
+    if spec.sample_rate == 0 || spec.channels == 0 || reader.duration() == 0 {
+        return Err("Le moteur Lego a produit un WAV vide.".into());
+    }
+    let duration = i64::from(reader.duration()) * 1000 / i64::from(spec.sample_rate);
+    let expected = reader.len() as usize;
+    let count = match spec.sample_format {
+        hound::SampleFormat::Float => reader
+            .samples::<f32>()
+            .try_fold(0usize, |count, sample| sample.map(|_| count + 1)),
+        hound::SampleFormat::Int => reader
+            .samples::<i32>()
+            .try_fold(0usize, |count, sample| sample.map(|_| count + 1)),
+    }
+    .map_err(|e| format!("WAV Lego incomplet : {e}"))?;
+    if duration == 0 || count != expected {
+        return Err("WAV Lego incomplet ou trop court.".into());
+    }
     let sha = sha256_file(path)?;
     Ok((duration, sha))
 }
@@ -648,6 +672,14 @@ Un stem MIT sur un mix YuE2 reste soumis au NC du mix."
 mod tests {
     use super::*;
     use crate::pins::{CHANNELS, SAMPLE_RATE};
+
+    #[test]
+    fn rejects_invalid_lego_audio() {
+        let path = std::env::temp_dir().join(format!("lego-invalid-{}.wav", uuid::Uuid::new_v4()));
+        std::fs::write(&path, b"RIFFMOCKWAV").unwrap();
+        assert!(verify_written_wav(&path).is_err());
+        std::fs::remove_file(path).unwrap();
+    }
 
     #[test]
     fn maps_roles_to_lego_track_names() {

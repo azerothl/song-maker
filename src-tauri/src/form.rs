@@ -71,7 +71,7 @@ pub fn validate_draft_form(input: &FormInput) -> Result<(), FormError> {
             "Les paroles sont limitées à 4000 caractères.".into(),
         ));
     }
-    if let Some(ref lang) = input
+    if let Some(lang) = input
         .singing_language
         .as_ref()
         .filter(|_| !input.instrumental_mode)
@@ -155,7 +155,7 @@ pub fn validate_meter(meter: &Meter) -> Result<(), FormError> {
 /// Assemble le style envoyé au moteur, sans doubler un fragment déjà présent.
 pub fn assemble_style_sent(input: &FormInput) -> Result<String, FormError> {
     validate_style(&input.style)?;
-    if let Some(ref lang) = input
+    if let Some(lang) = input
         .singing_language
         .as_ref()
         .filter(|_| !input.instrumental_mode)
@@ -192,7 +192,7 @@ pub fn assemble_style_sent(input: &FormInput) -> Result<String, FormError> {
         }
     };
 
-    if let Some(ref lang) = input
+    if let Some(lang) = input
         .singing_language
         .as_ref()
         .filter(|_| !input.instrumental_mode)

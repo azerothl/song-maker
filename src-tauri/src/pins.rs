@@ -131,7 +131,8 @@ pub const ACE_STEP_BYTES: u64 = 10_090_398_272;
 /// ACE-Step 1.5 Base (Python, Lego) — opt-in sidecar, not the Turbo GGUF above.
 pub const ACE_STEP_LEGO_HF_REPO: &str = "ACE-Step/acestep-v15-base";
 pub const ACE_STEP_LEGO_HF_REVISION: &str = "main";
-pub const ACE_STEP_LEGO_GIT: &str = "git+https://github.com/ace-step/ACE-Step-1.5.git@ca1e85fe9430179831e6bc6be790c332190a3866";
+pub const ACE_STEP_LEGO_GIT: &str =
+    "git+https://github.com/ace-step/ACE-Step-1.5.git@ca1e85fe9430179831e6bc6be790c332190a3866";
 pub const ACE_STEP_LEGO_BIND_HOST: &str = "127.0.0.1";
 pub const ACE_STEP_LEGO_BIND_PORT: u16 = 8002;
 
