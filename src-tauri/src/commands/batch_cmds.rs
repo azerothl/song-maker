@@ -188,9 +188,9 @@ pub(super) fn replace_pending_preview(
     previous_revision: u32,
     replacement: PendingImport,
 ) -> Result<(), String> {
-    if !registry
+    if registry
         .get(previous_token)
-        .is_some_and(|pending| pending.preview.revision == previous_revision)
+        .is_none_or(|pending| pending.preview.revision != previous_revision)
     {
         return Err("Aperçu périmé : les réglages ont déjà changé ou le lot a été lancé.".into());
     }
