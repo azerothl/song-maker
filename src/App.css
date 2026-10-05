@@ -7091,6 +7091,12 @@ details[open] > summary {
   color: var(--accent-cyan);
 }
 
+.instrumental-style-warning {
+  display: block;
+  padding-left: 0.55rem;
+  border-left: 2px solid currentColor;
+}
+
 .continuation-panel,
 .phase4-lora-active {
   display: grid;

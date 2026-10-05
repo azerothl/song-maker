@@ -20,6 +20,18 @@ import {
   type AdvancedSettingsPage, FormFieldErrors
 } from "./shared";
 
+const VOCAL_STYLE_CUE = /\b(vocal(?:s|ist|ists)?|voices?|sing(?:ing|er|ers)?|sung|growl(?:s|ing|ed)?|spoken(?:\s+word)?|choir|rap(?:ping)?|chant(?:er|é|ée|eur|euse)?|voix|paroles|chanteur|chanteuse)\b/gi;
+const NEGATED_VOCAL_CUE = /(?:\bno\b|\bnot\b|\bwithout\b|\bavoid(?:ing)?\b|\bexclude(?:d|ing)?\b|\bremove(?:d)?\b|\bsans\b|\bpas\s+de\b|\baucun(?:e)?\b|\bnon\b|\béviter\b|\bretirer\b)\s+(?:(?:any|the|a|male|female|lead|background|les?|des)\s+){0,2}$/i;
+
+function findInstrumentalVocalCue(style: string): string | null {
+  for (const match of style.matchAll(VOCAL_STYLE_CUE)) {
+    const index = match.index ?? 0;
+    const prefix = style.slice(Math.max(0, index - 40), index);
+    if (!NEGATED_VOCAL_CUE.test(prefix)) return match[0];
+  }
+  return null;
+}
+
 /** Onglet Create : formulaire de génération, réglages avancés et reprise. */
 type CreateWorkspaceProps = {
   advancedSettingsPage: AdvancedSettingsPage;
@@ -49,6 +61,9 @@ export function CreateWorkspace({
   showFormErrors,
 }: CreateWorkspaceProps) {
   const generationBlockedReason = primaryFormError(formFieldErrors);
+  const instrumentalVocalCue = form.instrumentalMode
+    ? findInstrumentalVocalCue(form.style)
+    : null;
   return (
     <section
       className="song-workspace-panel song-create-panel"
@@ -122,6 +137,11 @@ export function CreateWorkspace({
                       : "form.style.hint",
                   )}
                 </span>
+                {instrumentalVocalCue && (
+                  <span className="hint warn instrumental-style-warning" role="status" aria-live="polite">
+                    {t("form.style.instrumentalVocalWarning", { cue: instrumentalVocalCue })}
+                  </span>
+                )}
                 {showFormErrors && formFieldErrors.style && (
                   <span className="hint error" role="alert">
                     {formFieldErrors.style}

@@ -293,6 +293,7 @@
   "form.style": "Style et ambiance",
   "form.style.hint": "Décrivez les instruments, l’énergie et la voix que vous imaginez.",
   "form.style.hintInstrumental": "Décrivez les instruments, l’énergie et l’ambiance — sans voix chantée.",
+  "form.style.instrumentalVocalWarning": "Le style contient « {cue} », une indication de voix ou de chant. Retirez-la pour éviter une consigne contraire au mode Instrumental.",
   "form.instrumental": "Instrumental",
   "form.instrumental.hint": "Les paroles ne sont pas utilisées et le moteur reçoit une consigne pour ne pas chanter. Après la génération, Song Maker retire la partie chantée détectée ; quelques résidus peuvent rester. Vos paroles restent conservées dans le projet.",
   "form.instrumental.active": "Mode instrumental : paroles ignorées, puis retrait des voix après génération.",
