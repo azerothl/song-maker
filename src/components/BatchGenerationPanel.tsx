@@ -401,6 +401,7 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
                 <BatchTaskRow
                   key={task.taskId}
                   task={task}
+                  onCancel={() => api.cancelBatchTask(batch.batchId, task.taskId).then(() => undefined)}
                   onOpen={() => {
                     if (task.projectId) void openProject(task.projectId);
                   }}
@@ -414,8 +415,10 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
   );
 }
 
-export function BatchTaskRow({ task, onOpen }: { task: BatchTask; onOpen: () => void }) {
+export function BatchTaskRow({ task, onOpen, onCancel }: { task: BatchTask; onOpen: () => void; onCancel?: () => Promise<void> }) {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const canCancel = ["queued", "retry_wait", "preparing", "running", "publishing"].includes(task.state);
   return (
     <li>
       <span>
@@ -426,6 +429,17 @@ export function BatchTaskRow({ task, onOpen }: { task: BatchTask; onOpen: () => 
           <summary>{t("batch.errorDetails")}</summary>
           <p>{task.lastError}</p>
         </details>
+      )}
+      {canCancel && onCancel && (
+        <button type="button" className="linkish" disabled={cancelling}
+          aria-label={t("batch.cancelTakeLabel", { title: task.title, number: task.variantIndex })}
+          onClick={() => {
+            setCancelling(true);
+            void onCancel().catch(error => useAppStore.getState().setError(String(error)))
+              .finally(() => setCancelling(false));
+          }}>
+          {t("batch.cancelTake")}
+        </button>
       )}
       {task.state === "succeeded" && task.projectId && (
         <span className="batch-task-actions">

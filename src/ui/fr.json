@@ -108,6 +108,8 @@
   "batch.pause": "Mettre en pause",
   "batch.resume": "Reprendre",
   "batch.cancel": "Annuler le lot",
+  "batch.cancelTake": "Annuler cette prise",
+  "batch.cancelTakeLabel": "Annuler la prise {number} de {title}",
   "batch.retryFailed": "Relancer les échecs",
   "batch.export": "Exporter les résultats prêts",
   "batch.listen": "Écouter",

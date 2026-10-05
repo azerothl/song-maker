@@ -308,3 +308,9 @@ Le test d’export vérifie le refus d’un résultat absent, un vrai petit WAV 
 « Reprendre » remet maintenant les états `interrupted` et `retry_wait` en file avant de redémarrer l’ordonnanceur. La tentative augmente une fois, les paramètres et la seed restent conservés. Les réussites, échecs et annulations sont inchangés ; les échecs restent soumis à la relance ciblée explicite. Un deuxième clic avant admission ne crée pas une nouvelle tentative supplémentaire. Le changement corrige le cas où le lot redémarrait mais terminait sans traiter ces prises, faute de worker ou de minuterie de reprise dans le nouveau processus.
 
 Le test persiste un lot de cinq états différents, exécute la même préparation que la commande UI et relit les tâches : seules interruption et attente de reprise changent, avec conservation des entrées. La reprise native après arrêt du processus reste à observer.
+
+### #368 — bouton d’annulation d’une seule prise
+
+La commande `cancel_batch_task` était disponible sans contrôle dans la vue batch. Chaque ligne en attente, attente de nouvelle tentative, préparation, génération ou publication présente maintenant « Annuler cette prise ». Le nom accessible précise le morceau et le numéro ; le bouton est bloqué pendant sa requête. Les lignes terminées et les annulations déjà demandées ne proposent pas cette action. Le contrôle appelle la commande existante avec les identifiants du lot et de la prise ; les erreurs rejoignent le message global.
+
+Trois tests ciblés frontend passent, dont le rendu réel du composant pour dix états et son nom accessible. Typecheck passe. Le clic sur une génération GPU depuis la fenêtre native reste à vérifier ; le rendu serveur ne prouve pas ce parcours.

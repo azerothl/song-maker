@@ -53,6 +53,8 @@
   "batch.pause": "Pause",
   "batch.resume": "Resume",
   "batch.cancel": "Cancel batch",
+  "batch.cancelTake": "Cancel this take",
+  "batch.cancelTakeLabel": "Cancel take {number} of {title}",
   "batch.retryFailed": "Retry failures",
   "batch.export": "Export ready results",
   "batch.listen": "Listen",
