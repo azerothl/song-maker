@@ -115,14 +115,15 @@ export function SettingsScreen() {
     system: t("settings.system.title"),
     engines: t("profiles.engines.title"),
   };
-  const separatorName =
+  const separatorSummaryKey =
     settings.stemSeparator === "htdemucs_6s"
-      ? "HTDemucs · 6 stems"
+      ? "settings.separator.summary.htdemucs_6s"
       : settings.stemSeparator === "bs_roformer"
-        ? "BS-RoFormer"
+        ? "settings.separator.summary.bs_roformer"
         : settings.stemSeparator === "mel_band_roformer"
-          ? "Mel-Band RoFormer"
-          : "HTDemucs · 4 stems";
+          ? "settings.separator.summary.mel_band_roformer"
+          : "settings.separator.summary.htdemucs";
+  const separatorName = t(separatorSummaryKey);
 
   return (
     <div className="panel settings">
