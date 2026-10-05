@@ -11,8 +11,71 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+#[cfg(windows)]
+struct ChildJob(windows_sys::Win32::Foundation::HANDLE);
+
+#[cfg(not(windows))]
+struct ChildJob;
+
+#[cfg(windows)]
+unsafe impl Send for ChildJob {}
+
+#[cfg(windows)]
+impl Drop for ChildJob {
+    fn drop(&mut self) {
+        unsafe {
+            windows_sys::Win32::Foundation::CloseHandle(self.0);
+        }
+    }
+}
+
+#[cfg(windows)]
+fn assign_child_to_kill_job(child: &Child) -> Result<ChildJob, String> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::System::JobObjects::{
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+        SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    };
+
+    let job = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
+    if job.is_null() {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+
+    let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { std::mem::zeroed() };
+    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    let configured = unsafe {
+        SetInformationJobObject(
+            job,
+            JobObjectExtendedLimitInformation,
+            (&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
+            std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+        )
+    };
+    if configured == 0 {
+        let error = std::io::Error::last_os_error();
+        unsafe { windows_sys::Win32::Foundation::CloseHandle(job) };
+        return Err(error.to_string());
+    }
+
+    let assigned = unsafe { AssignProcessToJobObject(job, child.as_raw_handle().cast()) };
+    if assigned == 0 {
+        let error = std::io::Error::last_os_error();
+        unsafe { windows_sys::Win32::Foundation::CloseHandle(job) };
+        return Err(error.to_string());
+    }
+    Ok(ChildJob(job))
+}
+
+#[cfg(not(windows))]
+fn assign_child_to_kill_job(_child: &Child) -> Result<ChildJob, String> {
+    Ok(ChildJob)
+}
+
 pub struct AudioCppServer {
     child: Mutex<Option<Child>>,
+    child_job: Mutex<Option<ChildJob>>,
     pub base_url: Mutex<String>,
     pub port: Mutex<u16>,
     worker_dir: Option<PathBuf>,
@@ -28,6 +91,7 @@ impl Default for AudioCppServer {
     fn default() -> Self {
         Self {
             child: Mutex::new(None),
+            child_job: Mutex::new(None),
             base_url: Mutex::new(format!("http://{DEFAULT_HOST}:{DEFAULT_PORT}")),
             port: Mutex::new(DEFAULT_PORT),
             worker_dir: None,
@@ -101,6 +165,7 @@ impl AudioCppServer {
     pub fn isolated(worker_dir: PathBuf) -> Self {
         Self {
             child: Mutex::new(None),
+            child_job: Mutex::new(None),
             base_url: Mutex::new(String::new()),
             port: Mutex::new(0),
             worker_dir: Some(worker_dir),
@@ -342,7 +407,7 @@ impl AudioCppServer {
     }
 
     pub fn ensure_started(&self, settings: &AppSettings) -> Result<String, String> {
-        {
+        let has_child = {
             let child = Self::lock(&self.child);
             if child.is_some() {
                 let port = *Self::lock(&self.port);
@@ -350,6 +415,11 @@ impl AudioCppServer {
                     return Ok(Self::lock(&self.base_url).clone());
                 }
             }
+            child.is_some()
+        };
+        if has_child {
+            // A dead or unhealthy child must be reaped before a replacement is started.
+            self.shutdown();
         }
 
         let cache = PathBuf::from(&settings.cache_dir);
@@ -391,12 +461,23 @@ impl AudioCppServer {
 
             match cmd.spawn() {
                 Ok(mut child) => {
+                    let child_job = match assign_child_to_kill_job(&child) {
+                        Ok(job) => job,
+                        Err(error) => {
+                            let _ = child.kill();
+                            let _ = child.wait();
+                            return Err(format!(
+                                "Impossible de protéger audiocpp_server contre un arrêt brutal de l’application : {error}"
+                            ));
+                        }
+                    };
                     match wait_for_server_health(&mut child, || {
                         Self::tcp_health(&settings.server_host, port)
                     }) {
                         Ok(()) => {
                             let url = format!("http://{}:{}", settings.server_host, port);
                             *Self::lock(&self.child) = Some(child);
+                            *Self::lock(&self.child_job) = Some(child_job);
                             *Self::lock(&self.base_url) = url.clone();
                             *Self::lock(&self.port) = port;
                             return Ok(url);
@@ -668,10 +749,48 @@ impl AudioCppServer {
             let _ = child.kill();
             let _ = child.wait();
         }
+        Self::lock(&self.child_job).take();
     }
 
     pub fn process_id(&self) -> Option<u32> {
         Self::lock(&self.child).as_ref().map(Child::id)
+    }
+}
+
+#[cfg(all(test, windows))]
+mod child_job_tests {
+    use super::assign_child_to_kill_job;
+    use std::process::{Child, Command, Stdio};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn closing_job_reaps_the_child_process() {
+        let mut command = Command::new("ping");
+        command
+            .args(["127.0.0.1", "-n", "60"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        let mut child = command.spawn().expect("start child process");
+        let job = assign_child_to_kill_job(&child).expect("assign process to kill-on-close job");
+        drop(job);
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if child.try_wait().expect("poll child").is_some() {
+                break;
+            }
+            if Instant::now() >= deadline {
+                terminate(&mut child);
+                panic!("job closure did not terminate the child process");
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    fn terminate(child: &mut Child) {
+        let _ = child.kill();
+        let _ = child.wait();
     }
 }
 

@@ -339,6 +339,10 @@ Le test d’export vérifie le refus d’un résultat absent, un vrai petit WAV 
 
 Le test persiste un lot de cinq états différents, exécute la même préparation que la commande UI et relit les tâches : seules interruption et attente de reprise changent, avec conservation des entrées. La reprise native après arrêt du processus reste à observer.
 
+### #368 — arrêter les workers après un arrêt brutal
+
+Chaque `audiocpp_server` lancé par l’application est maintenant affecté à un Job Object Windows configuré pour terminer ses processus quand le dernier handle se ferme. Une fermeture normale tue et attend toujours le serveur avant de libérer le groupe ; un enfant non sain est arrêté avant de tenter son remplacement. Le test Windows lance un processus témoin, ferme le groupe et constate sa fin. `cargo test --lib child_job_tests` et `cargo check --lib` passent sous Windows. Ce test contrôle le mécanisme du système, pas un crash de l’application pendant une inférence réelle. Il ne retrouve pas les processus orphelins créés par d’anciennes versions sans ce mécanisme ; les validations de lot et de reprise restent ouvertes dans #368.
+
 ### #368 — bouton d’annulation d’une seule prise
 
 La commande `cancel_batch_task` était disponible sans contrôle dans la vue batch. Chaque ligne en attente, attente de nouvelle tentative, préparation, génération ou publication présente maintenant « Annuler cette prise ». Le nom accessible précise le morceau et le numéro ; le bouton est bloqué pendant sa requête. Les lignes terminées et les annulations déjà demandées ne proposent pas cette action. Le contrôle appelle la commande existante avec les identifiants du lot et de la prise ; les erreurs rejoignent le message global.
