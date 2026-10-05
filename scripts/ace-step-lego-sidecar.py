@@ -157,11 +157,11 @@ def _run_via_acestep_api(
 def _inference_available() -> bool:
     if MOCK:
         return True
-    if _acestep_api_base():
-        return True
+    base = _acestep_api_base()
+    if not base:
+        return False
     try:
-        import acestep  # noqa: F401
-
+        _http_json("GET", f"{base}/health", timeout=1)
         return True
     except Exception:
         return False
@@ -223,7 +223,7 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path in {"/ready", "/health"}:
             code, body = _json_bytes(
                 {
-                    "ready": True,
+                    "ready": _inference_available(),
                     "mock": MOCK,
                     "inferenceAvailable": _inference_available(),
                     "outputKind": OUTPUT_KIND,

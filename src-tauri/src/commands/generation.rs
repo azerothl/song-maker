@@ -719,9 +719,11 @@ async fn run_generation(
                 // A queued interactive request must not start a server that a
                 // batch worker subsequently shuts down to release GPU memory.
                 let server_url = if use_lego {
+                    server.shutdown();
                     crate::ace_step_lego::ensure_started(lego_sidecar, &PathBuf::from(&runtime_settings.cache_dir)).await?;
                     crate::ace_step_lego::base_url()
                 } else {
+                    lego_sidecar.shutdown();
                     server.ensure_started(&runtime_settings)?
                 };
                 if let Some(worker_id) = worker_id {

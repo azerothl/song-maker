@@ -75,6 +75,7 @@ pub async fn restart_audio_runtime(state: tauri::State<'_, AppState>) -> Result<
         return Err("Impossible de relancer le runtime pendant une installation de modèle.".into());
     }
     let settings = load_settings()?;
+    state.ace_step_lego.shutdown();
     state.server.shutdown();
     state.server.ensure_started(&settings)
 }
@@ -256,6 +257,7 @@ pub async fn update_settings(
             || o.yue2_ar_lora_scale != s.yue2_ar_lora_scale
             || o.yue2_nar_lora_scale != s.yue2_nar_lora_scale
     }) {
+        state.ace_step_lego.shutdown();
         state.server.shutdown();
     }
     Ok(s)
@@ -352,6 +354,7 @@ pub async fn install_bs_roformer(
         Ok(path) => {
             // Rewrite audiocpp config so bs_roformer is registered; restart pick-up on next sep.
             let _ = crate::audiocpp::AudioCppServer::write_config(&settings);
+            state.ace_step_lego.shutdown();
             state.server.shutdown();
             Ok(path)
         }
@@ -423,6 +426,7 @@ pub async fn install_mel_band_roformer(
     match result {
         Ok(path) => {
             let _ = crate::audiocpp::AudioCppServer::write_config(&settings);
+            state.ace_step_lego.shutdown();
             state.server.shutdown();
             Ok(path)
         }

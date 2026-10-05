@@ -67,12 +67,14 @@ pub struct AceStepLegoStatus {
 
 pub struct AceStepLegoSidecar {
     child: Mutex<Option<Child>>,
+    engine: Mutex<Option<Child>>,
 }
 
 impl Default for AceStepLegoSidecar {
     fn default() -> Self {
         Self {
             child: Mutex::new(None),
+            engine: Mutex::new(None),
         }
     }
 }
@@ -96,6 +98,12 @@ impl AceStepLegoSidecar {
     }
 
     pub fn shutdown(&self) {
+        if let Ok(mut guard) = self.engine.lock() {
+            if let Some(mut child) = guard.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
         if let Ok(mut guard) = self.child.lock() {
             if let Some(mut child) = guard.take() {
                 let _ = child.kill();
@@ -174,11 +182,17 @@ fn http_ready_sync() -> bool {
     if stream.write_all(req.as_bytes()).is_err() {
         return false;
     }
-    let mut buf = [0u8; 128];
-    let Ok(n) = stream.read(&mut buf) else {
+    let mut buf = Vec::new();
+    let Ok(_) = stream.take(65536).read_to_end(&mut buf) else {
         return false;
     };
-    String::from_utf8_lossy(&buf[..n]).contains(" 200 ")
+    let response = String::from_utf8_lossy(&buf);
+    response.contains(" 200 ")
+        && response
+            .split("\r\n\r\n")
+            .nth(1)
+            .and_then(|body| serde_json::from_str::<serde_json::Value>(body).ok())
+            .is_some_and(|body| body["ready"] == true && body["engineId"] == ENGINE_ID)
 }
 
 async fn http_ready_async() -> bool {
@@ -189,12 +203,17 @@ async fn http_ready_async() -> bool {
     else {
         return false;
     };
-    client
-        .get(&url)
-        .send()
+    let Ok(response) = client.get(&url).send().await else {
+        return false;
+    };
+    if !response.status().is_success() {
+        return false;
+    }
+    response
+        .json::<serde_json::Value>()
         .await
         .ok()
-        .is_some_and(|r| r.status().is_success())
+        .is_some_and(|body| body["ready"] == true && body["engineId"] == ENGINE_ID)
 }
 
 pub fn status(
@@ -210,7 +229,13 @@ pub fn status(
     let mock = std::env::var("SONG_MAKER_ACE_STEP_LEGO_MOCK")
         .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes"))
         .unwrap_or(false);
-    let inference_available = mock || venv_present;
+    let inference_available = mock
+        || ready
+        || (venv_present
+            && std::fs::read_to_string(venv_dir(cache).join("installation-verified.json"))
+                .ok()
+                .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                .is_some_and(|receipt| receipt["gitSource"] == ACE_STEP_LEGO_GIT));
     let message_fr = if ready {
         "Sidecar Lego joignable (sortie éventuellement fusionnée, pas un stem dry garanti).".into()
     } else if venv_present {
@@ -245,7 +270,12 @@ fn emit(app: &AppHandle, progress: InstallProgress) {
     let _ = app.emit("setup-progress", &progress);
 }
 
-fn spawn_sidecar(python: &Path, script: &Path, mock: bool) -> Result<Child, String> {
+fn spawn_sidecar(
+    python: &Path,
+    script: &Path,
+    mock: bool,
+    api_base: Option<&str>,
+) -> Result<Child, String> {
     let mut cmd = Command::new(python);
     cmd.arg(script)
         .env("ACE_STEP_LEGO_BIND_HOST", ACE_STEP_LEGO_BIND_HOST)
@@ -255,6 +285,9 @@ fn spawn_sidecar(python: &Path, script: &Path, mock: bool) -> Result<Child, Stri
         )
         .stdout(Stdio::null())
         .stderr(Stdio::null());
+    if let Some(base) = api_base {
+        cmd.env("ACESTEP_API_BASE", base);
+    }
     if mock {
         cmd.env("SONG_MAKER_ACE_STEP_LEGO_MOCK", "1");
     }
@@ -339,8 +372,96 @@ pub async fn install(
             ));
         }
     }
+    if !mock {
+        let verified = Command::new(&python)
+            .args(["-c", "import acestep.api_server"])
+            .output()
+            .map_err(|e| format!("Vérification du moteur Lego : {e}"))?;
+        if !verified.status.success() {
+            return Err(format!(
+                "Installation Lego incomplète : {}",
+                String::from_utf8_lossy(&verified.stderr)
+            ));
+        }
+        std::fs::write(
+            venv.join("installation-verified.json"),
+            json!({"gitSource": ACE_STEP_LEGO_GIT}).to_string(),
+        )
+        .map_err(|e| e.to_string())?;
+    }
     emit(&app, InstallProgress::complete());
     Ok(python.display().to_string())
+}
+
+async fn start_local_engine(
+    sidecar: &AceStepLegoSidecar,
+    python: &Path,
+    cache: &Path,
+) -> Result<String, String> {
+    sidecar.shutdown();
+    let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).map_err(|e| e.to_string())?;
+    let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+    drop(listener);
+    let log =
+        std::fs::File::create(venv_dir(cache).join("engine.log")).map_err(|e| e.to_string())?;
+    let mut cmd = Command::new(python);
+    cmd.args([
+        "-m",
+        "acestep.api_server",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        &port.to_string(),
+        "--no-init",
+    ])
+    .env("ACESTEP_CONFIG_PATH", "acestep-v15-base")
+    .env("ACESTEP_INIT_LLM", "false")
+    .env("ACESTEP_USE_FLASH_ATTENTION", "false")
+    .env("ACESTEP_COMPILE_MODEL", "false")
+    .env("ACESTEP_OFFLOAD_TO_CPU", "true")
+    .stdout(log.try_clone().map_err(|e| e.to_string())?)
+    .stderr(log);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000);
+    }
+    *sidecar
+        .engine
+        .lock()
+        .map_err(|_| "Verrou moteur Lego indisponible")? = Some(
+        cmd.spawn()
+            .map_err(|e| format!("Démarrage moteur Lego : {e}"))?,
+    );
+    let base = format!("http://127.0.0.1:{port}");
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .map_err(|e| e.to_string())?;
+    for _ in 0..120 {
+        if client
+            .get(format!("{base}/health"))
+            .send()
+            .await
+            .ok()
+            .is_some_and(|r| r.status().is_success())
+        {
+            return Ok(base);
+        }
+        let alive = sidecar
+            .engine
+            .lock()
+            .ok()
+            .and_then(|mut g| g.as_mut().map(|c| matches!(c.try_wait(), Ok(None))))
+            .unwrap_or(false);
+        if !alive {
+            sidecar.shutdown();
+            return Err("Le moteur Lego s’est arrêté. Consultez tools/ace-step-lego/engine.log dans le cache.".into());
+        }
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+    sidecar.shutdown();
+    Err("Le moteur Lego ne répond pas. Consultez son journal dans le cache.".into())
 }
 
 pub async fn ensure_started(sidecar: &AceStepLegoSidecar, cache: &Path) -> Result<String, String> {
@@ -378,6 +499,17 @@ pub async fn ensure_started(sidecar: &AceStepLegoSidecar, cache: &Path) -> Resul
     }
     let python = python_bin(cache);
     let script = sidecar_script_path(cache);
+    let api_base = if mock {
+        None
+    } else if let Ok(base) = std::env::var("ACESTEP_API_BASE") {
+        if base.trim().is_empty() {
+            Some(start_local_engine(sidecar, &python, cache).await?)
+        } else {
+            Some(base)
+        }
+    } else {
+        Some(start_local_engine(sidecar, &python, cache).await?)
+    };
     {
         let mut guard = sidecar
             .child
@@ -387,17 +519,19 @@ pub async fn ensure_started(sidecar: &AceStepLegoSidecar, cache: &Path) -> Resul
             let _ = old.kill();
             let _ = old.wait();
         }
-        *guard = Some(spawn_sidecar(&python, &script, mock)?);
+        *guard = Some(spawn_sidecar(&python, &script, mock, api_base.as_deref())?);
     }
     for _ in 0..80 {
         if http_ready_async().await {
             return Ok(base_url());
         }
         if !sidecar.is_child_alive() {
+            sidecar.shutdown();
             return Err("SERVICE_UNAVAILABLE:ACE_STEP_LEGO_EXITED".into());
         }
         tokio::time::sleep(Duration::from_millis(250)).await;
     }
+    sidecar.shutdown();
     Err("SERVICE_UNAVAILABLE:ACE_STEP_LEGO_NOT_READY".into())
 }
 

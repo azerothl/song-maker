@@ -219,3 +219,12 @@ Deuxième essai réel, même configuration/seed : `job-31f57c5d-730b-4b1d-a86b-8
 Le chemin Tauri d’import utilisait `wav_duration_ms(...).unwrap_or(0)` et déclarait toujours 48 kHz / stéréo. Un fichier tronqué pouvait donc dépasser le contrôle sommaire RIFF/WAVE, être activé ou porter de fausses métadonnées. L’import décode maintenant les échantillons du WAV en mémoire avant création de la prise : en-tête, durée positive et totalité des données sont vérifiés. Le résultat conserve la fréquence et les canaux réels. Les fichiers invalides ne créent aucun dossier de génération et ne remplacent pas la prise active.
 
 Test Rust : vrai WAV PCM mono 22 050 Hz / 1 s correctement mesuré, version tronquée et faux RIFF refusés. Suite Rust globale : 145 tests réussis / 1 ignoré avant le dernier garde de durée sous la milliseconde ; régression ciblée relancée après ce garde. L’application Windows a été retrouvée et observée, mais le parcours complet d’import du worker dans l’interface reste à vérifier ; cette observation n’est pas présentée comme une validation de ce parcours.
+
+
+### #325 — démarrage local du moteur Lego
+
+Le service Rust démarre désormais le serveur REST officiel ACE-Step Base dans l’environnement installé, sur un port local attribué, puis démarre la passerelle Lego. Il conserve les deux processus et les arrête ensemble lors de la fermeture/libération du moteur et des échecs de démarrage. Un serveur externe explicitement configuré reste utilisable. Le paquet Python est figé au commit upstream `ca1e85fe9430179831e6bc6be790c332190a3866`.
+
+La présence du venv ne suffit plus à annoncer la capacité : une installation doit avoir réussi l’import du serveur et laissé un reçu correspondant à cette version. La disponibilité du service contrôle son identité et son champ `ready`; la passerelle sonde réellement `/health` du moteur. Le serveur démarre sans charger les modèles, puis l’amont télécharge/charge les poids lors de la première tâche. Cela ne prouve pas la présence des poids ni une inférence réussie.
+
+Validation : compilation Rust et trois régressions Python sur la disponibilité (sans serveur, serveur inaccessible, serveur joignable). Installation complète, génération audio conditionnée sur GPU et insertion/écoute dans l’interface restent à vérifier ; #325 reste ouvert. Les poids amont utilisent encore leur mécanisme de téléchargement et ne sont pas figés par cette correction.
