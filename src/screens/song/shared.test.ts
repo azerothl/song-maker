@@ -124,13 +124,13 @@ describe("validateFormFields", () => {
     assert.equal(validateFormFields(form({ targetDurationSec: 210 })).duration, undefined);
   });
 
-  it("refuse audio_input / inpainting tant que YuE2 ne les consomme pas", () => {
+  it("oriente les morceaux importés vers Reprise sans jargon moteur", () => {
     const errors = validateFormFields(
       form({ audioInputPath: "/tmp/ref.wav", inpaintStartMs: 0, inpaintEndMs: 2000 }),
     );
-    assert.match(errors.audioInput ?? "", /ne permet pas de modifier/);
+    assert.match(errors.audioInput ?? "", /ne peut pas modifier un morceau importé/);
     assert.match(errors.audioInput ?? "", /Reprise/);
-    assert.doesNotMatch(errors.audioInput ?? "", /audio_input|décodeur|inpainting/);
+    assert.doesNotMatch(errors.audioInput ?? "", /audio_input|décodeur|inpainting|transcription/);
   });
 });
 
