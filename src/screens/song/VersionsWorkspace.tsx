@@ -3,6 +3,7 @@ import { AceStepAbPanel } from "../../components/AceStepAbPanel";
 import { CandidateCompare } from "../../components/CandidateCompare";
 import { VersionHistory } from "../../components/VersionHistory";
 import { api } from "../../lib/api";
+import { shouldOfferTakeContinuation } from "../../lib/takeContinuation";
 import {
   assignTakeOrdinals,
   resolveTakeTitle,
@@ -126,6 +127,9 @@ export function VersionsWorkspace({
     }
     return labels;
   })();
+  const activeTake = generations.find(
+    (generation) => generation.id === project.activeGenerationId,
+  );
 
   async function activateTake(genId: string) {
     await api.useGeneration(project.id, genId);
@@ -170,8 +174,11 @@ export function VersionsWorkspace({
         />
       </details>
 
-      {generations.find((g) => g.id === project.activeGenerationId)
-        ?.semanticTruncated && (
+      {activeTake &&
+        shouldOfferTakeContinuation({
+          instrumentalMode: project.instrumentalMode,
+          semanticTruncated: activeTake.semanticTruncated,
+        }) && (
         <section
           className="continuation-panel"
           aria-labelledby="continue-title"
@@ -193,14 +200,10 @@ export function VersionsWorkspace({
             disabled={
               busy ||
               !continuationLyrics.trim() ||
-              !generations.find((g) => g.id === project.activeGenerationId)
-                ?.canContinue
+              !activeTake.canContinue
             }
             onClick={() => {
-              const active = generations.find(
-                (g) => g.id === project.activeGenerationId,
-              );
-              if (active) void onContinue(active.id);
+              void onContinue(activeTake.id);
             }}
           >
             {t("generations.continue")}
