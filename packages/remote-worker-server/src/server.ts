@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { checkRemoteDuration, generationContract, wavMetadata } from "./generation-contract.js";
 
 export type WorkerConfig = {
   host: string;
@@ -551,6 +552,7 @@ export class RemoteGpuWorkerServer {
     let wav: Buffer;
     let abc: string;
     let provenance: Record<string, unknown>;
+    let durationCompliance: ReturnType<typeof checkRemoteDuration> | null = null;
 
     if (this.config.simulate || !this.config.audiocppUrl) {
       wav = buildMinimalWav(0.25);
@@ -563,15 +565,16 @@ export class RemoteGpuWorkerServer {
       };
     } else {
       const req = (envelope.request ?? {}) as {
+        targetDurationSec?: number;
+        preferFullLyrics?: boolean;
+        instrumentalMode?: boolean;
         style?: string;
         lyrics?: string;
         cot?: string;
         seed?: number | null;
       };
-      const lyrics =
-        typeof req.lyrics === "string"
-          ? req.lyrics
-          : envelope.artifacts?.lyrics ?? "[Verse]\n";
+      const contract = generationContract(req, envelope.artifacts?.lyrics ?? "");
+      const lyrics = contract.lyrics;
       const body = {
         model: job.kind === "htdemucs_separate" ? "htdemucs" : "yue2",
         request:
@@ -586,6 +589,8 @@ export class RemoteGpuWorkerServer {
                   num_inference_steps: 8,
                   guidance_scale: 1.5,
                   export_semantic: true,
+                  semantic_min_tokens: contract.minimum,
+                  semantic_max_tokens: contract.maximum,
                   ...(envelope.artifacts?.abc
                     ? { abc: envelope.artifacts.abc }
                     : {}),
@@ -621,6 +626,15 @@ export class RemoteGpuWorkerServer {
       if (wav.length < 12 || wav.subarray(0, 4).toString() !== "RIFF") {
         throw new Error("audiocpp returned non-WAV audio");
       }
+      const actual = wavMetadata(wav);
+      if (job.kind === "yue2_generate" && contract.fixedDuration) {
+        try {
+          durationCompliance = checkRemoteDuration(actual.durationMs, contract.durationSec * 1000);
+        } catch (error) {
+          await writeFile(join(jobDir, "audio-unpublished.wav"), wav);
+          throw error;
+        }
+      }
       abc =
         (typeof json.score === "string" && json.score) ||
         (typeof json.abc === "string" && json.abc) ||
@@ -641,6 +655,7 @@ export class RemoteGpuWorkerServer {
     await writeFile(wavPath, wav);
     await writeFile(abcPath, abc, "utf8");
     const audioSha = sha256Hex(wav);
+    const audioMetadata = wavMetadata(wav);
     const scoreSha = sha256Hex(Buffer.from(abc, "utf8"));
     const result = {
       schema: "songmaker.generation.result",
@@ -651,8 +666,7 @@ export class RemoteGpuWorkerServer {
       finishedAt: new Date().toISOString(),
       audio: {
         path: "audio.wav",
-        sampleRate: 48000,
-        channels: 2,
+        ...audioMetadata,
         sha256: audioSha,
       },
       score: { path: "score.abc", sha256: scoreSha },
@@ -663,6 +677,7 @@ export class RemoteGpuWorkerServer {
         contentSha256: job.payloadSha256,
       },
       error: null,
+      durationCompliance,
     };
     const resultRaw = Buffer.from(JSON.stringify(result, null, 2), "utf8");
     await writeFile(resultPath, resultRaw);

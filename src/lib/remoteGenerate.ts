@@ -16,6 +16,7 @@ import {
 import { api } from "./api";
 import type { FormInput } from "./types";
 import { generationLyrics } from "./generationLyrics";
+import { remoteResultError } from "./remoteResult";
 
 export const REMOTE_PREFS_KEY = "song-maker.remote-worker.prefs";
 
@@ -209,6 +210,17 @@ export async function runRemoteGenerationToProject(
       error: handle.error ?? "échec distant",
     };
   }
+
+  const result = await client.downloadArtifact(handle.id, "result.json");
+  if (!result.ok) {
+    return { ok: false, jobId: handle.id, status: "failed", error: "Le résultat du worker est indisponible. Cette prise n’est pas importée." };
+  }
+  const resultSha = await sha256Hex(result.bytes);
+  if (result.sha256 && result.sha256 !== resultSha) {
+    return { ok: false, jobId: handle.id, status: "failed", error: "Le résultat du worker est corrompu. Cette prise n’est pas importée." };
+  }
+  const resultError = remoteResultError(result.bytes);
+  if (resultError) return { ok: false, jobId: handle.id, status: "failed", error: resultError };
 
   const audio = await client.downloadArtifact(handle.id, "audio.wav");
   if (!audio.ok) {
