@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
   api,
+  type BatchError,
   type BatchPreview,
   type BatchSnapshot,
   type BatchTask,
@@ -66,12 +67,80 @@ function lotLabel(state: string): string {
   }
 }
 
+function batchErrorFieldLabel(field: string): string {
+  switch (field) {
+    case "title": return t("batch.error.field.title");
+    case "style": return t("batch.error.field.style");
+    case "lyrics": return t("batch.error.field.lyrics");
+    case "targetDurationSec": return t("batch.error.field.duration");
+    case "generations": return t("batch.error.field.generations");
+    case "tempoBpm": return t("batch.error.field.tempo");
+    case "singingLanguage": return t("batch.error.field.language");
+    case "instrumentalMode": return t("batch.error.field.instrumental");
+    case "preferFullLyrics": return t("batch.error.field.lyricsPreference");
+    case "key": return t("batch.error.field.key");
+    case "meter": return t("batch.error.field.meter");
+    default: return t("batch.error.field.songSettings");
+  }
+}
+
+function batchSongErrorHint(field: string, error: BatchError): string {
+  if (field === "title") return t("batch.error.invalidTitle");
+  if (field === "style") return t("batch.error.invalidStyle");
+  if (field === "lyrics") return t("batch.error.invalidLyrics");
+  if (field === "targetDurationSec") return t("batch.error.invalidDuration");
+  if (field === "generations") return t("batch.error.invalidGenerations");
+  if (field === "tempoBpm") return t("batch.error.invalidTempo");
+  if (field === "singingLanguage") return t("batch.error.invalidLanguage");
+  if (field === "id" && error.messageFr.includes("dupliqué")) return t("batch.error.duplicateId");
+  if (field === "id") return t("batch.error.invalidId");
+  if (field === "seed") return t("batch.error.invalidSeed");
+  if (field === "key" || field === "meter") return t("batch.error.invalidMusicSetting");
+  return t("batch.error.invalidSongSetting");
+}
+
+function presentBatchError(error: BatchError): { location: string; message: string } {
+  const songPath = /^songs\[(\d+)\]\.([^.]+)$/.exec(error.path);
+  if (songPath) {
+    const field = songPath[2];
+    return {
+      location: t("batch.error.songLocation", {
+        number: Number(songPath[1]) + 1,
+        field: batchErrorFieldLabel(field),
+      }),
+      message: batchSongErrorHint(field, error),
+    };
+  }
+
+  const lowerMessage = error.messageFr.toLowerCase();
+  if (error.path === "$" || error.path.startsWith("$:") || error.path.startsWith("$.")) {
+    const message = lowerMessage.includes("volumineux")
+      ? t("batch.error.fileTooLarge")
+      : lowerMessage.includes("utf-8")
+        ? t("batch.error.fileEncoding")
+        : t("batch.error.invalidFile");
+    return { location: t("batch.error.fileLocation"), message };
+  }
+  if (error.path === "songs") {
+    const message = lowerMessage.includes("au moins")
+      ? t("batch.error.noSongs")
+      : lowerMessage.includes("1000 morceaux")
+        ? t("batch.error.tooManySongs")
+        : t("batch.error.tooManyTakes");
+    return { location: t("batch.error.songsLocation"), message };
+  }
+  if (error.path === "name") {
+    return { location: t("batch.error.fileNameLocation"), message: t("batch.error.invalidFileName") };
+  }
+  return { location: t("batch.error.fileLocation"), message: t("batch.error.invalidFileSettings") };
+}
+
 export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const setError = useAppStore((s) => s.setError);
   const openProject = useAppStore((s) => s.openProject);
   const refreshLibrary = useAppStore((s) => s.refreshLibrary);
   const [preview, setPreview] = useState<BatchPreview | null>(null);
-  const [errors, setErrors] = useState<{ path: string; messageFr: string }[]>([]);
+  const [errors, setErrors] = useState<BatchError[]>([]);
   const [batches, setBatches] = useState<BatchSnapshot[]>([]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -252,12 +321,24 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
         <div className="batch-errors" role="alert">
           <p>{t("batch.errors")}</p>
           <ul>
-            {errors.map((err) => (
-              <li key={`${err.path}:${err.messageFr}`}>
-                {err.path} : {err.messageFr}
-              </li>
-            ))}
+            {errors.map((err) => {
+              const presented = presentBatchError(err);
+              return (
+                <li key={`${err.path}:${err.messageFr}`}>
+                  <strong>{presented.location} :</strong> {presented.message}
+                </li>
+              );
+            })}
           </ul>
+          <p>{t("batch.error.importHelp")}</p>
+          <details>
+            <summary>{t("batch.error.supportDetails")}</summary>
+            <ul>
+              {errors.map((err) => (
+                <li key={`support:${err.path}:${err.messageFr}`}>{err.path} : {err.messageFr}</li>
+              ))}
+            </ul>
+          </details>
         </div>
       )}
       {preview && (
