@@ -184,6 +184,12 @@ Les métadonnées distinguent maintenant poids `.pt` amont, adaptateur combiné 
 
 Vérification des dépôts amont : [CHNSN sur Hugging Face](https://huggingface.co/becausereasons/yue2-chnsn-chanson-francaise) documente quatre checkpoints combinant planner et decoder ; [realaudio v4](https://huggingface.co/Mothersuperior/yue2-mothersuperior-realaudio-tokenizer-v4) publie le NAR LoRA et la tête tokenizer séparément au format `.pt`. Ces observations justifient leur exclusion des slots de téléchargement YuE2 de Song Maker ; elles ne valident pas une future intégration.
 
+### #391 — fermer l’assistant de mix local
+
+L’assistant expose maintenant une croix de fermeture accessible et le même bouton d’ouverture fait bascule : un second clic referme l’assistant. Échap garde son comportement existant. Fermer l’assistant laisse ouverte la fenêtre Réglages du mix sous-jacente ; aucun contrôle de mix n’est recouvert après fermeture. Les titres et libellés FR/EN sont renseignés.
+
+Test navigateur ciblé : les deux façons de fermer fonctionnent, les réglages restent visibles ; les tests existants vérifient aussi Échap sur l’assistant et l’avis de séparation imbriqué. Les sept tests de ce parcours passent, ainsi que TypeScript.
+
 Le test d’activation réutilise uniquement le projet de contrôle de six minutes. Les changements de réglages ne prouvent pas à eux seuls que le moteur a appliqué l’adaptateur : le résultat de cette génération et l’état final du réglage sont consignés après l’appel. Les packs realaudio et chanson restent non validés ; #386 n’est pas fermé.
 
 ### Génération effective avec l’adaptateur et import externe

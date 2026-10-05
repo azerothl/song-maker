@@ -333,6 +333,8 @@
   "phase3.mix.targetVolume": "Volume",
   "phase3.mix.targetPan": "Pan",
   "qwen.mix.manual": "Manual settings and advanced diagnostics",
+  "qwen.mix.title": "Local mix assistant",
+  "qwen.mix.close": "Close mix assistant",
   "qwen.mix.undo": "Undo assistant settings",
   "qwen.mix.modelMissing": "The configured model is missing. Install it on the local LLM server and try again.",
   "qwen.mix.needStems": "Decoded audio tracks are required to measure their levels.",

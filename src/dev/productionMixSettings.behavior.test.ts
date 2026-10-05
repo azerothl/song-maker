@@ -40,6 +40,30 @@ after(async () => {
 });
 
 describe("production mix settings comportement (#225)", () => {
+  it("ferme l’assistant par sa croix ou le même déclencheur sans fermer les réglages", { timeout: IT_TIMEOUT_MS }, async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    try {
+      await page.goto(`${BASE}#confortable-12`, { waitUntil: "networkidle" });
+      await page.click('[data-testid="production-mix-settings-trigger"]');
+      const settings = page.locator('[data-testid="production-mix-settings-popin"]');
+      await settings.waitFor();
+      const trigger = page.getByRole("button", { name: "Assistant de mix", exact: true });
+      await trigger.click();
+      const assistant = page.locator(".mix-assist-popin");
+      await assistant.waitFor();
+      await trigger.click();
+      assert.equal(await assistant.count(), 0);
+      assert.equal(await settings.isVisible(), true);
+      await trigger.click();
+      await assistant.waitFor();
+      await assistant.getByRole("button", { name: "Fermer l’assistant de mix" }).click();
+      assert.equal(await assistant.count(), 0);
+      assert.equal(await settings.isVisible(), true);
+    } finally {
+      await page.close();
+    }
+  });
+
   it("offers separation before a mix exists (#380)", { timeout: IT_TIMEOUT_MS }, async () => {
     const page = await browser.newPage();
     try {

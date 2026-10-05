@@ -73,6 +73,7 @@ import {
   type ProductionClipViewPrefs,
 } from "../../lib/productionClipViewPrefs";
 import { MixAssistPanel } from "../../components/MixAssistPanel";
+import { PopinCloseButton } from "../../components/PopinCloseButton";
 import type { ScoreGate } from "../../lib/score";
 import type { PlaybackView } from "../../components/AudioPlayer";
 import { separationAudioDurationSec } from "../../lib/separationDuration";
@@ -271,7 +272,7 @@ export function ProductionWorkspace({
   const openMixAssistFrom = (button: HTMLButtonElement | null) => {
     if (!button) return;
     mixAssistBtnRef.current = button;
-    setMixAssistOpen(true);
+    setMixAssistOpen((open) => !open);
   };
 
 
@@ -1139,6 +1140,10 @@ export function ProductionWorkspace({
           >
             <header className="anchored-popin-header">
               <h3 id={mixAssistTitleId}>{t("qwen.mix.title")}</h3>
+              <PopinCloseButton
+                label={t("qwen.mix.close")}
+                onClick={() => setMixAssistOpen(false)}
+              />
             </header>
             <QwenMixAssistant
               mix={mix}

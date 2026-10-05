@@ -1667,6 +1667,7 @@
   "qwen.mix.analyze": "Proposer des réglages avec l’assistant",
   "qwen.mix.empty": "Aucun changement proposé.",
   "qwen.mix.title": "Assistant de mix local",
+  "qwen.mix.close": "Fermer l’assistant de mix",
   "qwen.mix.server": "Serveur LLM",
   "qwen.mix.provider": "Fournisseur",
   "qwen.mix.provider.ollama": "Ollama",
