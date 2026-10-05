@@ -1380,7 +1380,7 @@ Pas d’import MIDI. Pas de piano roll.
 - guitare et piano, marqués moins fiables ;
 - export de stems déjà couvert par les fichiers du dossier ; des présets de mix peuvent s’y ajouter ;
 - séparateur interchangeable, si un second provider existe alors — candidat documenté : BS-RoFormer (`bs_roformer`) via audio.cpp ;
-- packs LoRA optionnels, hors installeur du premier build : AR instrumental et NAR « realaudio » (CC BY-NC), chargés via `yue2.ar_lora` / `yue2.nar_lora` en SafeTensors non ComfyUI.
+- packs LoRA optionnels, hors installeur du premier build : AR instrumental (CC BY-NC), fichier BF16 non ComfyUI avec révision et SHA épinglés. NAR « realaudio » reste informatif jusqu’à validation du chargement complet de l’adaptateur et de sa tête tokenizer ; l’installation n’est pas proposée. Le moteur accepte les options `yue2.ar_lora` / `yue2.nar_lora`.
 
 ### Phase 4 — Agent et collaboration
 
@@ -1389,7 +1389,7 @@ Pas d’import MIDI. Pas de piano roll.
 - worker GPU distant ;
 - intégration hôte (Akasha, DeclUI) selon le §18.5 ;
 - synchronisation optionnelle ;
-- catalogue de packs LoRA de style (ex. chanson), seulement s’ils chargent via les session options audio.cpp, avec le même écran licences CC BY-NC.
+- catalogue unique de packs LoRA, avec licence CC BY-NC, inventaire installé et activation persistée distincts. L’import de fichiers externes est visible en tête de page. Les styles chanson française et rock industriel sont informatifs, sans bouton d’installation utilisable tant que leur format n’est pas confirmé avec le moteur épinglé (#386).
 
 ### Pistes de développement
 

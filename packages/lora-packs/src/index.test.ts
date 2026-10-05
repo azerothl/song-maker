@@ -72,7 +72,7 @@ describe("lora-packs registry", () => {
     }
 
     const allowed = await requestOptionalLoraDownload(
-      "becausereasons-chnsn-chanson-francaise",
+      "mothersuperior-instrumental-ar",
       { ccByNcAccepted: true, allowCommercialRedistribution: false },
     );
     expect(allowed.ok).toBe(true);
@@ -96,7 +96,10 @@ describe("lora-packs registry", () => {
   });
 
   it("maps local paths to yue2.ar_lora / yue2.nar_lora session options with scales", () => {
-    const pack = getLoraPack("becausereasons-chnsn-chanson-francaise");
+    const pack = { ...getLoraPack("mothersuperior-instrumental-ar")!, files: [
+      { slot: "ar" as const, filename: "fixture_ar.safetensors" },
+      { slot: "nar" as const, filename: "fixture_nar.safetensors" },
+    ] };
     expect(pack).toBeDefined();
     const options = buildYue2LoraSessionOptions(pack!, {
       ar: "/cache/chnsn_ar.safetensors",
@@ -155,6 +158,8 @@ describe("lora-packs registry", () => {
     );
     expect(result.ok).toBe(true);
     expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toContain("/resolve/947f2f4b28978b2b6c3e316e6a87925c76bf3c4b/ar_lora_inst_v3abc.bf16.safetensors");
+    expect(calls[0]?.sha).toBe("e408fd3148b75b1165f7ddbf63db575d83bb6402a0b5f876fcb767dbcb2c5414");
     expect(result.savedPaths?.[0]).toContain("models/lora/");
   });
 });

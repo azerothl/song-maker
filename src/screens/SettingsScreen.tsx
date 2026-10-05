@@ -248,7 +248,6 @@ export function SettingsScreen() {
         ))}
       {page === "lora" && (
         <div className="settings-lora-pages">
-          <Phase3SettingsPanel view="lora" />
           <Phase4SettingsPanel view="lora" />
         </div>
       )}

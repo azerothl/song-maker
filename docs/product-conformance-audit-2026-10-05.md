@@ -155,3 +155,33 @@ Projet de contrôle `ed0f9a91-8d79-493c-a51b-e7b4d7f5f229`, créé via l’inter
 Limite observée : les deux dernières minutes de cet essai sont très faibles (niveau moyen original -55,6 dB ; instrumental -58,5 dB, contre -15,4 / -19,2 dB pour les deux premières minutes). La conformité de longueur du fichier ne certifie donc pas six minutes de musique continue. Aucun jugement d’écoute humaine ni garantie d’absence de chant résiduel n’est acquis. #377 et #385 restent ouverts. Le mode instrumental natif ACE-Step, le worker distant et la continuité musicale longue restent à vérifier.
 
 Tests Rust : 143 réussis, 1 ignoré. Frontend : 488 réussis. Build et TypeScript réussis, avertissement de taille du bundle conservé.
+
+### Reprise du lot court après correction des workers
+
+Le premier essai batch 30 / 60 s a échoué avec `unknown model id: htdemucs`, car la configuration isolée filtrait le séparateur. Aucun fichier original n’a été activé comme instrumental. Les workers déclarent maintenant générateur + HTDemucs, toujours avec un seul modèle chargé à la fois ; un test de configuration couvre ce contrat.
+
+Lot `b15a8620-f30e-4115-b8d8-1f2dc306969a`, relance native des échecs après correction `99538c3` : deux prises prêtes, zéro échec. Les `gen-001` échouées restent conservées ; les `gen-002` de tentative 2 produisent 29 998 / 59 998 ms après exclusion de la piste voix, avec originaux conservés et `durationCompliance.matches=true`. Les brouillons non vides restent exclus. Cet essai est séquentiel, YuE2 Q4. Tests Rust : 144 réussis / 1 ignoré.
+
+## LoRA : parcours et téléchargements (#384, #386)
+
+La page native présentait deux catalogues, deux cases de licence et des descriptions de développeur, tandis que l’import et l’inventaire local étaient en bas. Elle ne permettait pas de voir clairement installé / activé. Le téléchargement des trois packs présentés comme vérifiés utilisait des noms absents des dépôts Hugging Face.
+
+La page utilise désormais un seul catalogue. En premier : fichiers installés, état réel d’activation dans les réglages, bouton Ajouter un fichier LoRA et explication de l’import externe. Les choix de fichier restent visibles ; les intensités et les détails de source sont repliés. Activer un pack est désactivé tant que ses fichiers locaux sont absents. Les états ne confondent pas sélection en cours, activation enregistrée et chargement en mémoire.
+
+Le pack instrumental référence `ar_lora_inst_v3abc.bf16.safetensors`, révision `947f2f4b28978b2b6c3e316e6a87925c76bf3c4b`, SHA `e408fd3148b75b1165f7ddbf63db575d83bb6402a0b5f876fcb767dbcb2c5414`. Les fichiers factices `instrumental_ar`, `realaudio_nar_v4`, `chnsn_ar` et `chnsn_nar` sont retirés. Les packs realaudio et chanson française sont informatifs jusqu’à vérification de leur contrat complet : têtes tokenizer séparées pour realaudio, variantes cabaret / Montmartre / rive gauche / grand boulevard pour chanson française. Les boutons d’installation correspondants sont indisponibles. Cela réduit les capacités annoncées à ce qui est étayé, sans réaliser leur chargement manquant.
+
+Sources consultées : API HF des [instrumentaux](https://huggingface.co/api/models/Mothersuperior/YuE2-instrumental-cot-full-loras?blobs=true), [realaudio](https://huggingface.co/api/models/Mothersuperior/yue2-mothersuperior-realaudio-tokenizer-v4?blobs=true) et [chanson française](https://huggingface.co/api/models/becausereasons/yue2-chnsn-chanson-francaise?blobs=true), le 5 octobre 2026. Le [contrat audio.cpp v0.8.2](https://github.com/0xShug0/audio.cpp/blob/v0.8.2/src/models/yue2/session.cpp) accepte AR et NAR ; sa documentation recommande le plan complet pour l’adaptateur instrumental.
+
+### Vérification Windows du catalogue
+
+Depuis Paramètres → LoRA et styles, l’import externe et l’état vide sont visibles avant le catalogue. Un seul consentement CC BY-NC est affiché. Le pack instrumental passe de Non installé à Installé — non activé après le bouton Installer le pack. Le fichier réellement écrit a l’empreinte attendue `e408fd…5414`. Le bouton Activer devient disponible ; son utilisation enregistre le chemin dans le profil Hobby, avec intensité AR 1, et l’inventaire comme le catalogue affichent Activé pour la prochaine génération. L’activation canonique Windows est rapprochée des fichiers locaux sans afficher un second choix de chemin absolu.
+
+Le test d’activation réutilise uniquement le projet de contrôle de six minutes. Les changements de réglages ne prouvent pas à eux seuls que le moteur a appliqué l’adaptateur : le résultat de cette génération et l’état final du réglage sont consignés après l’appel. Les packs realaudio et chanson restent non validés ; #386 n’est pas fermé.
+
+### Génération effective avec l’adaptateur et import externe
+
+La prise native `gen-002` du projet de contrôle termine le 5 octobre à 07:20:40 UTC : 359 998 ms, SHA audio `34549d09043f8cb8c0a8cd274f70a54cea2953910cacb496a789aa7c8b8aee6b`, avec AR instrumental d’intensité 1 dans la requête et dans `session_options` de la configuration audio.cpp. Les trames restent 9 000 / 9 000 ; la piste voix est exclue du rendu et l’original conservé. Les trois portions successives de deux minutes du fichier final présentent des niveaux moyens -16,2 / -17,1 / -18,2 dB, sans la chute presque silencieuse observée dans `gen-001`. Les seeds diffèrent : ce résultat ne constitue pas une comparaison causale contrôlée, ni une garantie d’absence de voix résiduelle ou de qualité musicale.
+
+Après l’essai, Désactiver les LoRA rétablit les deux choix à Aucun adaptateur dans l’interface et les réglages persistés. Le pack téléchargé reste installé, non activé. L’import externe est aussi exécuté depuis le bouton Ajouter un fichier LoRA, avec une copie du vrai fichier vérifié : il apparaît dans la bibliothèque locale comme installé et non activé, et n’active aucun adaptateur. La copie de contrôle importée est ensuite retirée ; le fichier du catalogue reste disponible.
+
+Validation finale des changements LoRA : frontend 489/489, paquet LoRA 8/8, TypeScript et build réussis ; Rust 144 réussis / 1 ignoré lors de la correction précédente. Avertissement de taille du bundle conservé. #384 et #386 restent ouverts pour la confirmation du parcours utilisateur et la validation des autres packs. #377 et #385 restent ouverts pour les validations acoustiques et les autres moteurs. La génération native longue avec le pack est une preuve supplémentaire, pas une résolution universelle.

@@ -42,6 +42,8 @@ export type LoraPack = {
   displayName: string;
   /** HF repo id, e.g. Mothersuperior/... */
   repo: string;
+  /** Immutable HF revision for verified downloads. */
+  revision?: string;
   license: LoraLicenseId;
   /** Trigger token when the pack documents one (e.g. chnsn). */
   trigger?: string;
