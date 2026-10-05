@@ -27,7 +27,13 @@ import { api } from "../lib/api";
 import { REMOTE_PREFS_KEY } from "../lib/remoteGenerate";
 import type { LocalLoraAdapter } from "../lib/types";
 import { t } from "../ui/i18n";
-import { adapterActive, adapterPath, packLibraryState } from "../lib/loraLibrary";
+import {
+  adapterActive,
+  adapterFilename,
+  adapterPath,
+  loraPackForLocalAdapter,
+  packLibraryState,
+} from "../lib/loraLibrary";
 
 const PREFS_KEY = REMOTE_PREFS_KEY;
 
@@ -38,6 +44,17 @@ function packDescription(id: string): string {
     case "becausereasons-chnsn-chanson-francaise": return t("phase4.lora.description.becausereasons-chnsn-chanson-francaise");
     default: return t("phase4.lora.description.monsterovich-industrial-rock");
   }
+}
+
+function packDisplayName(pack: LoraPack): string {
+  const keys: Record<string, Parameters<typeof t>[0]> = {
+    "mothersuperior-instrumental-ar": "phase4.lora.packName.instrumental",
+    "mothersuperior-realaudio-nar-v4": "phase4.lora.packName.voiceUnavailable",
+    "becausereasons-chnsn-chanson-francaise": "phase4.lora.packName.chansonUnavailable",
+    "monsterovich-industrial-rock": "phase4.lora.packName.industrialUnavailable",
+  };
+  const key = keys[pack.id];
+  return key ? t(key) : pack.displayName;
 }
 
 function loadPrefs(): RemoteWorkerPreferences {
@@ -553,10 +570,15 @@ export function Phase4SettingsPanel({
         <p className="hint">{t("phase4.lora.importHint")}</p>
         {localLoras.length === 0 ? <p role="status">{t("phase4.lora.empty")}</p> : (
           <ul className="phase3-lora-list">
-            {localLoras.map(adapter => <li key={adapter.path}>
-              <strong>{adapter.name}</strong>{" · "}
-              <span>{t(settings && adapterActive(adapter.path, settings) ? "phase4.lora.active" : "phase4.lora.installed")}</span>
-            </li>)}
+            {localLoras.map((adapter) => {
+              const pack = loraPackForLocalAdapter(adapter, stylePacks);
+              const label = pack ? packDisplayName(pack) : adapterFilename(adapter.name);
+              return <li key={adapter.path}>
+                <strong>{label}</strong>{" · "}
+                <span>{t(settings && adapterActive(adapter.path, settings) ? "phase4.lora.active" : "phase4.lora.installed")}</span>
+                <details><summary>{t("phase4.lora.fileDetails")}</summary><code>{adapter.name}</code></details>
+              </li>;
+            })}
           </ul>
         )}
         {(localLoras.length > 0 || arLora || narLora) && <>
@@ -566,16 +588,22 @@ export function Phase4SettingsPanel({
           {t("phase4.lora.arPath")}
           <select value={adapterPath(arLora)} onChange={(e) => setArLora(e.target.value)}>
             <option value="">{t("phase4.lora.none")}</option>
-            {arLora && !localLoras.some((adapter) => adapterPath(adapter.path) === adapterPath(arLora)) && <option value={adapterPath(arLora)}>{arLora.split(/[/\\]/).pop()}</option>}
-            {localLoras.map((adapter) => <option key={adapter.path} value={adapterPath(adapter.path)}>{adapter.name}</option>)}
+            {arLora && !localLoras.some((adapter) => adapterPath(adapter.path) === adapterPath(arLora)) && <option value={adapterPath(arLora)}>{adapterFilename(arLora)}</option>}
+            {localLoras.map((adapter) => {
+              const pack = loraPackForLocalAdapter(adapter, stylePacks);
+              return <option key={adapter.path} value={adapterPath(adapter.path)}>{pack ? packDisplayName(pack) : adapterFilename(adapter.name)}</option>;
+            })}
           </select>
         </label>
         <label className="invariant-level">
           {t("phase4.lora.narPath")}
           <select value={adapterPath(narLora)} onChange={(e) => setNarLora(e.target.value)}>
             <option value="">{t("phase4.lora.none")}</option>
-            {narLora && !localLoras.some((adapter) => adapterPath(adapter.path) === adapterPath(narLora)) && <option value={adapterPath(narLora)}>{narLora.split(/[/\\]/).pop()}</option>}
-            {localLoras.map((adapter) => <option key={adapter.path} value={adapterPath(adapter.path)}>{adapter.name}</option>)}
+            {narLora && !localLoras.some((adapter) => adapterPath(adapter.path) === adapterPath(narLora)) && <option value={adapterPath(narLora)}>{adapterFilename(narLora)}</option>}
+            {localLoras.map((adapter) => {
+              const pack = loraPackForLocalAdapter(adapter, stylePacks);
+              return <option key={adapter.path} value={adapterPath(adapter.path)}>{pack ? packDisplayName(pack) : adapterFilename(adapter.name)}</option>;
+            })}
           </select>
         </label>
         <details><summary>{t("phase4.lora.intensity")}</summary>
@@ -620,7 +648,7 @@ export function Phase4SettingsPanel({
           return (
           <li key={pack.id}>
             <div>
-              <strong>{pack.displayName}</strong>
+              <strong>{packDisplayName(pack)}</strong>
               <p>{packDescription(pack.id)}</p>
               <p role="status">{t(!installable ? "phase4.lora.notReady" : local.active ? "phase4.lora.active" : local.installed ? "phase4.lora.installed" : "phase4.lora.notInstalled")}</p>
               <details><summary>{t("phase4.lora.sourceDetails")}</summary>

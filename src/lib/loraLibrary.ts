@@ -8,6 +8,21 @@ export function adapterPath(path: string): string {
   return /^[a-z]:\//i.test(normalized) ? normalized.toLowerCase() : normalized;
 }
 
+export function loraPackForLocalAdapter(
+  adapter: Pick<LocalLoraAdapter, "name">,
+  packs: readonly LoraPack[],
+): LoraPack | undefined {
+  const relativeName = adapter.name.replace(/\\/g, "/").replace(/^\/+/, "").toLowerCase();
+  return packs.find((pack) => pack.files.some((file) =>
+    `${pack.id}/${file.filename}`.toLowerCase() === relativeName,
+  ));
+}
+
+export function adapterFilename(name: string): string {
+  const filename = name.split(/[\\/]/).pop() ?? name;
+  return filename.replace(/\.safetensors$/i, "");
+}
+
 export function adapterActive(path: string, settings: LoraSelection): boolean {
   if (!path.trim()) return false;
   return (adapterPath(path) === adapterPath(settings.yue2ArLora ?? "") && (settings.yue2ArLoraScale ?? 1) > 0)

@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { getLoraPack } from "@song-maker/lora-packs";
-import { adapterActive, adapterPath, packLibraryState } from "./loraLibrary";
+import {
+  adapterActive,
+  adapterFilename,
+  adapterPath,
+  loraPackForLocalAdapter,
+  packLibraryState,
+} from "./loraLibrary";
 
 it("matches canonical Windows paths without confusing files in other folders", () => {
   const pack = getLoraPack("mothersuperior-instrumental-ar")!;
@@ -15,4 +21,18 @@ it("matches canonical Windows paths without confusing files in other folders", (
   assert.deepEqual(packLibraryState(pack, files, { ...settings, yue2ArLora: path, yue2ArLoraScale: 0 }), { installed: true, active: false });
   assert.equal(adapterActive("", settings), false);
   assert.equal(adapterPath("/Models/A.safetensors"), "/Models/A.safetensors");
+});
+
+it("matches catalog LoRAs by relative filename and shortens imported filenames", () => {
+  const pack = getLoraPack("mothersuperior-instrumental-ar")!;
+  assert.equal(
+    loraPackForLocalAdapter({ name: `${pack.id}\\${pack.files[0].filename}` }, [pack])?.id,
+    pack.id,
+  );
+  assert.equal(
+    loraPackForLocalAdapter({ name: `other\\${pack.files[0].filename}` }, [pack]),
+    undefined,
+  );
+  assert.equal(adapterFilename("custom\\warm-piano.safetensors"), "warm-piano");
+  assert.equal(adapterFilename("C:/models/custom-style.SAFETENSORS"), "custom-style");
 });
