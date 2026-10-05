@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
+import { auditPromptDiversity, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
 
 const server = new McpServer({ name: 'song-maker-yue2', version: '0.1.0' });
 const reply = value => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
@@ -35,18 +35,38 @@ server.registerTool('start_song', {
     cot: z.enum(['full', 'melody', 'off']).default('full'),
     instrumentalMode: z.boolean().default(false),
     seed: z.number().int().min(0).max(4294967295).optional(),
+    creativeDirection: z.object({
+      scene: z.string().max(240).optional(),
+      groove: z.string().max(240).optional(),
+      foreground: z.string().max(240).optional(),
+      harmony: z.string().max(240).optional(),
+      arrangement: z.string().max(240).optional(),
+      motif: z.string().max(240).optional(),
+    }).optional(),
   },
 }, call(async args => startJob([normalizeSong({ ...args, id: '01' })], args.outputDirectory)));
 
 server.registerTool('start_batch', {
-  description: 'Lit un lot Song Maker V1 du workspace et lance les chansons l’une après l’autre en arrière-plan. Les lots sont protégés par un verrou GPU partagé. Les WAV sont nommés 01 - Titre.wav, etc. Ne remplace aucun export existant.',
+  description: 'Lit un lot Song Maker V1 du workspace. Passe dryRun=true pour auditer les prompts sans utiliser le GPU. Par défaut, les lots doivent fournir scene, groove, foreground, harmony, arrangement et motif par titre; les doublons exacts sont refusés. Le job se met en pause après chaque piste pour son contrôle audio; resume_job confirme la validation et lance la piste suivante. Les exports suspects restent en pause qualité. Les WAV sont nommés 01 - Titre.wav, etc. Ne remplace aucun export existant.',
   inputSchema: {
     batchFile: z.string().min(1),
-    outputDirectory: z.string().min(1),
+    outputDirectory: z.string().min(1).optional(),
+    dryRun: z.boolean().default(false),
+    reviewBeforeNext: z.boolean().default(true),
+    requireCreativeDirection: z.boolean().default(true),
   },
-}, call(async ({ batchFile, outputDirectory }) => {
+}, call(async ({ batchFile, outputDirectory, dryRun, reviewBeforeNext, requireCreativeDirection }) => {
   const songs = parseBatch(await readFile(insideWorkspace(batchFile), 'utf8'));
-  return startJob(songs, outputDirectory);
+  const promptAudit = auditPromptDiversity(songs);
+  if (dryRun) return promptAudit;
+  if (!outputDirectory) throw new Error('outputDirectory est requis pour lancer le lot.');
+  if (requireCreativeDirection && promptAudit.underSpecified.length) {
+    throw new Error(`Le lot doit préciser les six axes de creativeDirection pour chaque titre. Titres incomplets : ${promptAudit.underSpecified.map(song => `${song.id} (${song.title})`).join(', ')}.`);
+  }
+  if (requireCreativeDirection && promptAudit.exactDuplicates.length) {
+    throw new Error(`Le lot contient des prompts de direction identiques : ${promptAudit.exactDuplicates.map(pair => `${pair.first}/${pair.second}`).join(', ')}.`);
+  }
+  return startJob(songs, outputDirectory, { reviewBeforeNext });
 }));
 
 server.registerTool('job_status', {
@@ -57,11 +77,15 @@ server.registerTool('job_status', {
   const job = await getJob(jobId);
   return { id: job.id, state: job.state, total: job.songs.length, current: job.current,
     completed: job.completed, failures: job.failures || [], error: job.error, outputDirectory: job.outputDirectory,
+    engine: job.engine || null, warnings: job.warnings || [], promptAudit: job.promptAudit || null,
+    reviewBeforeNext: job.reviewBeforeNext || false, reviewRequired: job.reviewRequired || null,
+    reviewWorkerActive: job.reviewWorkerActive || false,
+    reviewAcknowledgedAt: job.reviewAcknowledgedAt || null,
     createdAt: job.createdAt, finishedAt: job.finishedAt || null, safetyStoppedAt: job.safetyStoppedAt || null };
 }));
 
 server.registerTool('resume_job', {
-  description: 'Reprend un job arrêté par les limites de température ou de VRAM, depuis le morceau interrompu. Le GPU est contrôlé avant la reprise.',
+  description: 'Reprend un job arrêté par les limites GPU, ou confirme la validation de la piste affichée dans reviewRequired avant de lancer la suivante. Consulte job_status et vérifie le WAV avant de reprendre.',
   inputSchema: { jobId: z.string().uuid() },
 }, call(async ({ jobId }) => resumeJob(jobId)));
 
