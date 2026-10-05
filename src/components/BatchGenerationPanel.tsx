@@ -116,6 +116,7 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
   }, [open, refreshBatches, refreshLibrary]);
 
   async function onImport() {
+    setError(null);
     setBusy(true);
     setNotice(null);
     setErrors([]);
@@ -185,6 +186,7 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
 
   async function onVerifyParallelism() {
     if (!preview) return;
+    setError(null);
     setBusy(true);
     setNotice(t("batch.verifyRunning"));
     try {
