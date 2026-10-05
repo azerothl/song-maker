@@ -25,6 +25,9 @@ export type LoraCompatibilityStatus =
 /** Unfused only is loadable; ComfyUI / fused layouts are rejected. */
 export type LoraLayout =
   | "unfused_safetensors"
+  | "upstream_state_dict"
+  | "combined_planner_decoder"
+  | "unknown"
   | "comfyui"
   | "fused_merged";
 

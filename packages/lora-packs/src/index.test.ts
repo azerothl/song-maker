@@ -39,6 +39,7 @@ describe("lora-packs registry", () => {
   it("marks industrial-rock unverified and excludes it from installable packs", () => {
     const industrial = getLoraPack("monsterovich-industrial-rock");
     expect(industrial?.compatibilityStatus).toBe("unverified");
+    expect(industrial?.files).toEqual([]);
     expect(compatibilityLabelFr("unverified")).toContain("informatif");
     expect(
       listInstallableLoraPacks().some(
@@ -50,6 +51,20 @@ describe("lora-packs registry", () => {
         (p) => p.compatibilityStatus === "verified",
       ),
     ).toBe(true);
+  });
+
+  it("does not invent runtime slots for upstream packs with unsupported layouts", () => {
+    const realaudio = getLoraPack("mothersuperior-realaudio-nar-v4");
+    const chanson = getLoraPack("becausereasons-chnsn-chanson-francaise");
+    expect(realaudio?.layout).toBe("upstream_state_dict");
+    expect(realaudio?.files).toEqual([]);
+    expect(realaudio?.notes).toContain("tokenizer_head_joint_v4.pt");
+    expect(chanson?.layout).toBe("combined_planner_decoder");
+    expect(chanson?.files).toEqual([]);
+    expect(chanson?.notes).toContain("chnsn_montmartre.safetensors");
+    expect(listInstallableLoraPacks().map((pack) => pack.id)).toEqual([
+      "mothersuperior-instrumental-ar",
+    ]);
   });
 
   it("blocks download without CC BY-NC acceptance", async () => {

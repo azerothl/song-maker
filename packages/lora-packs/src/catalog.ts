@@ -27,14 +27,16 @@ export const LORA_PACK_CATALOG: readonly LoraPack[] = [
   {
     id: "mothersuperior-realaudio-nar-v4",
     kind: "nar_realaudio",
-    displayName: "YuE2 realaudio tokenizer v4 (NAR)",
+    displayName: "Rendu des voix (indisponible)",
     repo: "Mothersuperior/yue2-mothersuperior-realaudio-tokenizer-v4",
     license: "cc-by-nc-4.0",
-    layout: "unfused_safetensors",
+    layout: "upstream_state_dict",
     compatibilityStatus: "unverified",
-    files: [{ slot: "nar", filename: "nar_lora_joint_v4.bf16.safetensors" }],
+    // Upstream publishes .pt state dicts and also needs a separate tokenizer
+    // head. Neither can be represented as the pinned runtime's lone NAR slot.
+    files: [],
     includedInFirstBuildInstaller: false,
-    notes: "NAR adapter and tokenizer head are separate upstream files. Complete pinned-runtime loading contract not verified; installation unavailable.",
+    notes: "Upstream assets are nar_lora_joint_v4.pt and tokenizer_head_joint_v4.pt (separate .pt files). The pinned runtime loader and complete NAR + tokenizer contract have not been validated; no download or activation is offered.",
   },
   {
     id: "becausereasons-chnsn-chanson-francaise",
@@ -43,14 +45,14 @@ export const LORA_PACK_CATALOG: readonly LoraPack[] = [
     repo: "becausereasons/yue2-chnsn-chanson-francaise",
     license: "cc-by-nc-4.0",
     trigger: "chnsn",
-    layout: "unfused_safetensors",
+    layout: "combined_planner_decoder",
     compatibilityStatus: "unverified",
-    files: [
-      { slot: "ar", filename: "chnsn_cabaret.safetensors" },
-    ],
+    // Each upstream checkpoint includes both the AR planner and decoder;
+    // the current API takes these in separate AR/NAR slots.
+    files: [],
     includedInFirstBuildInstaller: false,
     notes:
-      "Upstream offers chanson variants rather than the AR/NAR files previously listed. Layout not verified; installation unavailable.",
+      "Upstream publishes chnsn_montmartre.safetensors, chnsn_cabaret.safetensors, chnsn_rive_gauche.safetensors and chnsn_grand_boulevard.safetensors. Each patches planner and decoder together, unlike separate runtime AR/NAR inputs; no download or activation is offered.",
   },
   {
     id: "monsterovich-industrial-rock",
@@ -58,12 +60,9 @@ export const LORA_PACK_CATALOG: readonly LoraPack[] = [
     displayName: "Industrial rock",
     repo: "monsterovich/yue2-industrial-rock-lora",
     license: "cc-by-nc-4.0",
-    layout: "unfused_safetensors",
+    layout: "unknown",
     compatibilityStatus: "unverified",
-    files: [
-      { slot: "ar", filename: "industrial_rock_ar.safetensors" },
-      { slot: "nar", filename: "industrial_rock_nar.safetensors" },
-    ],
+    files: [],
     includedInFirstBuildInstaller: false,
     notes:
       "Community style — informative only until unfused layout and hashes are verified for audio.cpp. Not offered for download/activate.",

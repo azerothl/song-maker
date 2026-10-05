@@ -1064,11 +1064,11 @@
   "phase4.lora.installed": "Installed — inactive",
   "phase4.lora.active": "Enabled for the next generation",
   "phase4.lora.notInstalled": "Not installed",
-  "phase4.lora.notReady": "Compatibility pending — installation unavailable",
+  "phase4.lora.notReady": "Not available to install in Song Maker",
   "phase4.lora.sourceDetails": "Source and technical details",
   "phase4.lora.trigger": "Word to include in the style: {trigger}",
-  "phase4.lora.description.mothersuperior-instrumental-ar": "Encourages instrumental music. Use with the full musical plan.",
-  "phase4.lora.description.mothersuperior-realaudio-nar-v4": "Changes sound rendering. Complete support in this engine still needs verification.",
-  "phase4.lora.description.becausereasons-chnsn-chanson-francaise": "French chanson variants. The file format needs verification before installation.",
-  "phase4.lora.description.monsterovich-industrial-rock": "Industrial rock style. Compatibility with YuE2 still needs verification."
+  "phase4.lora.description.mothersuperior-instrumental-ar": "Helps YuE2 compose without singing. This pack can be installed after accepting its license.",
+  "phase4.lora.description.mothersuperior-realaudio-nar-v4": "Improves vocal rendering. It needs several components that Song Maker cannot yet load together, so it is not available to download here.",
+  "phase4.lora.description.becausereasons-chnsn-chanson-francaise": "French chanson styles with vocals. Its files combine parts that Song Maker cannot load separately yet, so no download is offered.",
+  "phase4.lora.description.monsterovich-industrial-rock": "Industrial rock style. No verified compatible file is available in Song Maker."
 }

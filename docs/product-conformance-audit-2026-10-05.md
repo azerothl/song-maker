@@ -176,6 +176,14 @@ Sources consultées : API HF des [instrumentaux](https://huggingface.co/api/mode
 
 Depuis Paramètres → LoRA et styles, l’import externe et l’état vide sont visibles avant le catalogue. Un seul consentement CC BY-NC est affiché. Le pack instrumental passe de Non installé à Installé — non activé après le bouton Installer le pack. Le fichier réellement écrit a l’empreinte attendue `e408fd…5414`. Le bouton Activer devient disponible ; son utilisation enregistre le chemin dans le profil Hobby, avec intensité AR 1, et l’inventaire comme le catalogue affichent Activé pour la prochaine génération. L’activation canonique Windows est rapprochée des fichiers locaux sans afficher un second choix de chemin absolu.
 
+### #386 — inventaire des packs non installables
+
+Nouvelle vérification des dépôts HF officiels : le pack realaudio fournit `nar_lora_joint_v4.pt` et `tokenizer_head_joint_v4.pt`, tandis que la chanson française publie quatre variantes safetensors qui chacune combinent planner et decoder. Ces deux contrats ne correspondent pas aux emplacements YuE2 séparés pris en charge par l’application. J’ai supprimé leurs fausses entrées slot/fichier du catalogue, ainsi que les noms industriels non vérifiés ; seuls les fichiers locaux attestés de l’adaptateur instrumental restent installables.
+
+Les métadonnées distinguent maintenant poids `.pt` amont, adaptateur combiné et format inconnu. Dans Paramètres, chaque indisponibilité est expliquée en français et en anglais avec des mots compréhensibles, sans promettre l’installation d’un composant incomplet. Le rendu du composant confirme trois lignes indisponibles et un seul bouton d’installation pour le pack raccordé. Les 9 tests du package LoRA, le test de rendu UI en deux langues, TypeScript et build passent. L’installation réelle du seul pack disponible est documentée plus haut ; les autres layouts restent indisponibles.
+
+Vérification des dépôts amont : [CHNSN sur Hugging Face](https://huggingface.co/becausereasons/yue2-chnsn-chanson-francaise) documente quatre checkpoints combinant planner et decoder ; [realaudio v4](https://huggingface.co/Mothersuperior/yue2-mothersuperior-realaudio-tokenizer-v4) publie le NAR LoRA et la tête tokenizer séparément au format `.pt`. Ces observations justifient leur exclusion des slots de téléchargement YuE2 de Song Maker ; elles ne valident pas une future intégration.
+
 Le test d’activation réutilise uniquement le projet de contrôle de six minutes. Les changements de réglages ne prouvent pas à eux seuls que le moteur a appliqué l’adaptateur : le résultat de cette génération et l’état final du réglage sont consignés après l’appel. Les packs realaudio et chanson restent non validés ; #386 n’est pas fermé.
 
 ### Génération effective avec l’adaptateur et import externe
