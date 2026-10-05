@@ -9,7 +9,10 @@ use std::path::{Path, PathBuf};
 
 #[tauri::command]
 pub async fn get_health(state: tauri::State<'_, AppState>) -> Result<HealthSnapshot, String> {
-    let url = state.server.base_url.lock().ok().map(|u| u.clone());
+    let url = state
+        .batch_workers
+        .runtime_url()
+        .or_else(|| state.server.base_url.lock().ok().map(|u| u.clone()));
     let mut health = crate::health::check_health(url.as_deref());
     if health.server_healthy {
         if let Some(url) = url.as_deref() {
@@ -70,6 +73,9 @@ pub async fn install_required_assets(
     pack: String,
     accepted_license: bool,
 ) -> Result<String, String> {
+    if super::batch_cmds::resources_pinned() || state.batch_workers.busy() {
+        return Err("Terminez ou annulez le lot avant de modifier les modèles installés.".into());
+    }
     crate::installer::install(app, state, pack, accepted_license).await
 }
 
@@ -82,7 +88,7 @@ pub async fn install_mix_only_assets(
 }
 
 #[tauri::command]
-pub fn update_settings(
+pub async fn update_settings(
     state: tauri::State<'_, AppState>,
     settings: AppSettings,
 ) -> Result<AppSettings, String> {
@@ -180,7 +186,30 @@ pub fn update_settings(
         }
     }
     let old = load_settings().ok();
+    let resources_changed = old.as_ref().is_some_and(|old| {
+        super::batch_cmds::batch_generation_settings(old)
+            != super::batch_cmds::batch_generation_settings(&s)
+            || old.stem_separator != s.stem_separator
+    });
+    let _guard = if resources_changed {
+        if super::batch_cmds::resources_pinned()
+            || state.batch_workers.busy()
+            || !state
+                .batch_inflight
+                .lock()
+                .expect("batch inflight")
+                .is_empty()
+        {
+            return Err("Attendez la fin du lot ou de la vérification avant de modifier le moteur ou les modèles.".into());
+        }
+        Some(state.queue.try_acquire_runtime_restart().await?)
+    } else {
+        None
+    };
     save_settings(&s)?;
+    if resources_changed {
+        *state.batch_workers.proof.lock().expect("capacity proof") = None;
+    }
     if old.as_ref().is_some_and(|o| {
         o.generation_engine != s.generation_engine
             || o.yue2_ar_lora != s.yue2_ar_lora

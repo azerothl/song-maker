@@ -63,7 +63,7 @@
   "batch.parallel": "Requested concurrent generations",
   "batch.errors": "Import errors",
   "batch.empty": "No batches. Import a UTF-8 JSON file to plan takes.",
-  "batch.honest": "Import song titles, styles and lyrics in a JSON file. Takes are generated one at a time; each is available to listen to as soon as it is ready.",
+  "batch.honest": "Import song titles, styles and lyrics in a JSON file. Listen to each take as soon as it is ready. Available concurrency is checked before launch.",
   "batch.state.ready": "ready",
   "batch.state.running": "running",
   "batch.state.queued": "queued",
@@ -1032,10 +1032,16 @@
   "batch.instrumentalLyrics": "Instrumental: lyrics will not be used.",
   "batch.lyricsUnavailable": "Import the file again to view lyrics from this older preview.",
   "batch.showFolder": "Show in folder",
-  "batch.capacityOne": "This configuration can generate one take at a time.",
+  "batch.capacityOne": "One take at a time; two can be enabled after a check on this computer.",
   "settings.model.licenseDetails": "Read the license notice",
   "batch.retryHint": "Retry failed or interrupted takes.",
   "batch.exportHint": "Export successfully generated takes.",
   "form.language.instrumental": "Singing language is not used in instrumental mode.",
-  "form.duration.instrumentalHint": "Duration guides the model; the song’s actual duration may vary."
+  "form.duration.instrumentalHint": "Duration guides the model; the song’s actual duration may vary.",
+  "batch.verifyParallel": "Check two simultaneous generations",
+  "batch.verifyHint": "This check generates two additional takes. It applies to takes with the same style, lyrics and settings, for the current session.",
+  "batch.verifyRunning": "Checking: two takes will be created in the library. Keep the application open.",
+  "batch.starting": "Preparing the batch…",
+  "batch.errorDetails": "Show why this take failed",
+  "batch.liveParallel": "Simultaneous takes in this batch: {count}"
 }

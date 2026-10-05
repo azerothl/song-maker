@@ -195,6 +195,8 @@ pub fn update_mix(
 #[tauri::command]
 pub fn save_mix_version(id: String) -> Result<MixDoc, String> {
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     let current_id = doc
         .active_mix_id

@@ -15,6 +15,13 @@ pub struct AudioCppServer {
     child: Mutex<Option<Child>>,
     pub base_url: Mutex<String>,
     pub port: Mutex<u16>,
+    worker_dir: Option<PathBuf>,
+}
+
+impl Drop for AudioCppServer {
+    fn drop(&mut self) {
+        self.shutdown();
+    }
 }
 
 impl Default for AudioCppServer {
@@ -23,6 +30,7 @@ impl Default for AudioCppServer {
             child: Mutex::new(None),
             base_url: Mutex::new(format!("http://{DEFAULT_HOST}:{DEFAULT_PORT}")),
             port: Mutex::new(DEFAULT_PORT),
+            worker_dir: None,
         }
     }
 }
@@ -85,6 +93,29 @@ impl AudioCppServer {
         let bin_dir = binaries_dir(&cache);
         crate::paths::ensure_dir(&bin_dir).map_err(|e| e.to_string())?;
         let config_path = bin_dir.join("audiocpp-server.json");
+        Self::write_config_at(settings, &config_path, false)?;
+        Ok(config_path)
+    }
+
+    /// Each batch attempt owns its configuration and logs; weights are read-only.
+    pub fn isolated(worker_dir: PathBuf) -> Self {
+        Self {
+            child: Mutex::new(None),
+            base_url: Mutex::new(String::new()),
+            port: Mutex::new(0),
+            worker_dir: Some(worker_dir),
+        }
+    }
+
+    fn write_config_at(
+        settings: &AppSettings,
+        config_path: &Path,
+        isolated: bool,
+    ) -> Result<(), String> {
+        if let Some(parent) = config_path.parent() {
+            crate::paths::ensure_dir(parent).map_err(|e| e.to_string())?;
+        }
+        let cache = PathBuf::from(&settings.cache_dir);
         let htd = htdemucs_path(&cache);
         let mut yue2 = json!({
             "id": "yue2",
@@ -173,19 +204,22 @@ impl AudioCppServer {
                 "busy_timeout_ms": YUE2_BUSY_TIMEOUT_MS
             }));
         }
+        if isolated {
+            models.retain(|model| model["id"] == settings.generation_engine);
+        }
         let cfg = json!({
             "host": settings.server_host,
             "port": settings.server_port,
             "backend": crate::pins::backend_name(),
             "device": 0,
             "lazy_load": true,
-            "max_loaded_models": MAX_LOADED_MODELS,
+            "max_loaded_models": if isolated { 1 } else { MAX_LOADED_MODELS },
             "idle_unload_ms": 0,
             "busy_timeout_ms": BUSY_TIMEOUT_MS,
             "models": models
         });
-        crate::paths::atomic_write_json(&config_path, &cfg)?;
-        Ok(config_path)
+        crate::paths::atomic_write_json(config_path, &cfg)?;
+        Ok(())
     }
 
     pub(crate) fn find_server_binary(cache: &Path) -> Result<PathBuf, String> {
@@ -292,9 +326,9 @@ impl AudioCppServer {
             .get("data")
             .and_then(Value::as_array)
             .and_then(|models| {
-                models.iter().find(|model| {
-                    model.get("id").and_then(Value::as_str) == Some(model_id)
-                })
+                models
+                    .iter()
+                    .find(|model| model.get("id").and_then(Value::as_str) == Some(model_id))
             })
             .and_then(|model| model.get("loaded"))
             .and_then(Value::as_bool);
@@ -320,7 +354,18 @@ impl AudioCppServer {
         for _ in 0..10 {
             let mut settings_try = settings.clone();
             settings_try.server_port = port;
-            let config = Self::write_config(&settings_try)?;
+            // Never accept the health response of an unrelated process on this port.
+            if std::net::TcpListener::bind((&*settings_try.server_host, port)).is_err() {
+                port = port.checked_add(1).ok_or("Aucun port audio disponible")?;
+                continue;
+            }
+            let config = if let Some(dir) = &self.worker_dir {
+                let path = dir.join("audiocpp-server.json");
+                Self::write_config_at(&settings_try, &path, true)?;
+                path
+            } else {
+                Self::write_config(&settings_try)?
+            };
 
             let mut cmd = Command::new(&bin);
             cmd.arg("--config")
@@ -329,13 +374,20 @@ impl AudioCppServer {
                 .arg(crate::pins::backend_name())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());
+            if let Some(dir) = &self.worker_dir {
+                cmd.stdout(Stdio::from(
+                    std::fs::File::create(dir.join("stdout.log")).map_err(|e| e.to_string())?,
+                ));
+                cmd.stderr(Stdio::from(
+                    std::fs::File::create(dir.join("stderr.log")).map_err(|e| e.to_string())?,
+                ));
+            }
 
             match cmd.spawn() {
                 Ok(mut child) => {
-                    match wait_for_server_health(
-                        &mut child,
-                        || Self::tcp_health(&settings.server_host, port),
-                    ) {
+                    match wait_for_server_health(&mut child, || {
+                        Self::tcp_health(&settings.server_host, port)
+                    }) {
                         Ok(()) => {
                             let url = format!("http://{}:{}", settings.server_host, port);
                             *Self::lock(&self.child) = Some(child);
@@ -608,7 +660,12 @@ impl AudioCppServer {
         }
         if let Some(mut child) = Self::lock(&self.child).take() {
             let _ = child.kill();
+            let _ = child.wait();
         }
+    }
+
+    pub fn process_id(&self) -> Option<u32> {
+        Self::lock(&self.child).as_ref().map(Child::id)
     }
 }
 

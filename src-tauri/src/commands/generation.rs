@@ -16,6 +16,15 @@ use crate::paths::{atomic_write_json, ensure_dir, next_folder_id, now_iso};
 use crate::pins::*;
 use serde_json::json;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+pub(crate) struct GenerationWorker {
+    pub server: Arc<AudioCppServer>,
+    pub queue: crate::queue::JobQueue,
+    pub settings: AppSettings,
+    pub id: String,
+    pub cancelled: Arc<std::sync::atomic::AtomicBool>,
+}
 
 struct AceStepTaskOptions<'a> {
     tempo_bpm: Option<u32>,
@@ -140,6 +149,7 @@ pub async fn start_generation(
         engine,
         None,
         false,
+        None,
     )
     .await
     .map(|result| result.project)
@@ -165,7 +175,19 @@ pub async fn generate_instrumental_part(
     }
     form.instrumental_mode = true;
     form.continuation_generation_id = None;
-    run_generation(state, id, form, None, None, None, engine, Some(role), true).await
+    run_generation(
+        state,
+        id,
+        form,
+        None,
+        None,
+        None,
+        engine,
+        Some(role),
+        true,
+        None,
+    )
+    .await
 }
 
 /// Versions creates alternatives without replacing the arrangement before selection.
@@ -181,7 +203,28 @@ pub async fn generate_comparison_take(
         return Err("Utilisez Ajouter une piste pour le modèle guidé par l’audio.".into());
     }
     form.continuation_generation_id = None;
-    run_generation(state, id, form, abc, None, None, engine, None, true).await
+    run_generation(state, id, form, abc, None, None, engine, None, true, None).await
+}
+
+pub(crate) async fn generate_worker_take(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    form: FormInput,
+    worker: &GenerationWorker,
+) -> Result<InstrumentalPartResult, String> {
+    run_generation(
+        state,
+        id,
+        form,
+        None,
+        None,
+        None,
+        Some(worker.settings.generation_engine.clone()),
+        None,
+        true,
+        Some(worker),
+    )
+    .await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -195,8 +238,12 @@ async fn run_generation(
     engine: Option<String>,
     instrumental_role: Option<String>,
     preserve_project: bool,
+    worker: Option<&GenerationWorker>,
 ) -> Result<InstrumentalPartResult, String> {
-    let mut settings = load_settings()?;
+    let mut settings = match worker {
+        Some(worker) => worker.settings.clone(),
+        None => load_settings()?,
+    };
     let requested_engine =
         resolve_generation_engine(engine.as_deref(), &settings.generation_engine)?;
     let style_sent =
@@ -346,13 +393,37 @@ async fn run_generation(
     doc.prefer_full_lyrics = form.prefer_full_lyrics;
     doc.instrumental_mode = form.instrumental_mode;
     doc.updated_at = now_iso();
+    if !preserve_project {
+        crate::project_transaction::with_lock(&folder, || {
+            let mut latest = load_project(&folder)?;
+            latest.title = doc.title.clone();
+            latest.style = doc.style.clone();
+            latest.lyrics = doc.lyrics.clone();
+            latest.cot = doc.cot.clone();
+            latest.singing_language = doc.singing_language.clone();
+            latest.tempo_bpm = doc.tempo_bpm;
+            latest.key = doc.key.clone();
+            latest.meter = doc.meter.clone();
+            latest.target_duration_sec = doc.target_duration_sec;
+            latest.prefer_full_lyrics = doc.prefer_full_lyrics;
+            latest.instrumental_mode = doc.instrumental_mode;
+            latest.updated_at = doc.updated_at.clone();
+            save_project(&folder, &latest)?;
+            doc = latest;
+            Ok(())
+        })?;
+    }
     let (lora_provenance, lora_warnings) = if use_ace_step || use_lego {
         (json!({}), Vec::new())
     } else {
         resolve_lora_provenance_for_generation(&mut settings)
     };
     let seed = normalize_seed(form.seed.unwrap_or_else(random_seed));
-    let gen_id = next_folder_id(&folder.join("generations"), "gen-")?;
+    let gen_id = crate::project_transaction::with_lock(&folder, || {
+        let id = next_folder_id(&folder.join("generations"), "gen-")?;
+        ensure_dir(&folder.join("generations").join(&id)).map_err(|e| e.to_string())?;
+        Ok(id)
+    })?;
     let gen_dir = folder.join("generations").join(&gen_id);
     ensure_dir(&gen_dir).map_err(|e| e.to_string())?;
 
@@ -478,7 +549,9 @@ async fn run_generation(
         }),
     )?;
 
-    let queue = state.queue.clone();
+    let queue = worker
+        .map(|worker| worker.queue.clone())
+        .unwrap_or_else(|| state.queue.clone());
     let queue_ref = queue.clone();
     let lego_source = if use_lego {
         if let Some(path) = form
@@ -501,16 +574,13 @@ async fn run_generation(
     } else {
         None
     };
-    if use_lego {
-        let cache = PathBuf::from(&settings.cache_dir);
-        crate::ace_step_lego::ensure_started(&state.ace_step_lego, &cache).await?;
-    }
-    let server_url = if use_lego {
-        crate::ace_step_lego::base_url()
-    } else {
-        let s = settings.clone();
-        state.server.ensure_started(&s)?
-    };
+    let server = worker
+        .map(|worker| worker.server.as_ref())
+        .unwrap_or(&state.server);
+    let worker_id = worker.map(|worker| worker.id.clone());
+    let worker_cancelled = worker.map(|worker| worker.cancelled.clone());
+    let runtime_settings = settings.clone();
+    let lego_sidecar = &state.ace_step_lego;
 
     let out_wav = gen_dir.join("audio.wav");
     let cot = form.cot.clone();
@@ -552,6 +622,22 @@ async fn run_generation(
                 "Génération en cours"
             },
             async move {
+                let cancelled = || queue_ref.cancel_requested() || worker_cancelled.as_ref().is_some_and(|flag|flag.load(std::sync::atomic::Ordering::Acquire));
+                if cancelled() { return Err("cancelled".into()); }
+                // Startup and model residency belong inside the resource guard.
+                // A queued interactive request must not start a server that a
+                // batch worker subsequently shuts down to release GPU memory.
+                let server_url = if use_lego {
+                    crate::ace_step_lego::ensure_started(lego_sidecar, &PathBuf::from(&runtime_settings.cache_dir)).await?;
+                    crate::ace_step_lego::base_url()
+                } else {
+                    server.ensure_started(&runtime_settings)?
+                };
+                if let Some(worker_id) = worker_id {
+                    let mut request = request;
+                    request["worker"] = json!({"id": worker_id, "baseUrl": server_url, "processId": server.process_id()});
+                    atomic_write_json(&gen_dir_for_job.join("request.json"), &request)?;
+                }
                 atomic_write_json(&gen_dir_for_job.join("job.json"), &json!({
                     "id": gen_id_for_job,
                     "projectId": project_id_for_job,
@@ -570,6 +656,7 @@ async fn run_generation(
                     },
                     Some(project_id_for_job.clone()),
                 );
+                if cancelled() { return Err("cancelled".into()); }
                 if use_lego {
                     let started = now_iso();
                     let src = lego_source.ok_or_else(|| "source Lego manquante".to_string())?;
@@ -584,7 +671,7 @@ async fn run_generation(
                     )
                     .await;
                     let finished = now_iso();
-                    if queue_ref.cancel_requested() {
+                    if cancelled() {
                         return Err("cancelled".into());
                     }
                     match lego_result {
@@ -678,7 +765,7 @@ async fn run_generation(
                 let started = now_iso();
                 let api_result = AudioCppServer::run_task(&server_url, body).await;
                 let finished = now_iso();
-                if queue_ref.cancel_requested() {
+                if cancelled() {
                     let result = json!({
                         "schema": SCHEMA_GEN_RESULT,
                         "schemaVersion": SCHEMA_VERSION,
@@ -898,6 +985,9 @@ async fn run_generation(
             generation_id: gen_id,
         });
     }
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
+    doc = load_project(&folder)?;
     doc.active_generation_id = Some(gen_id.clone());
     doc.active_separation_id = None;
     doc.active_mix_id = None;

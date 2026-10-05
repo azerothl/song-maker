@@ -64,7 +64,6 @@ pub async fn start_separation(
         // Full SHA check before real separation — no fake success on corrupt weights.
         crate::bs_roformer::verify_sha256(&cache)?;
         // Reload server config so bs_roformer is registered.
-        state.server.shutdown();
     }
     if separator == "mel_band_roformer" {
         let cache = PathBuf::from(&settings.cache_dir);
@@ -76,14 +75,10 @@ pub async fn start_separation(
             ));
         }
         crate::mel_band_roformer::verify_sha256(&cache)?;
-        state.server.shutdown();
     }
 
-    let server_url = if separator == "htdemucs_6s" {
-        None
-    } else {
-        Some(state.server.ensure_started(&settings)?)
-    };
+    let server = &state.server;
+    let runtime_settings = settings.clone();
     let queue = state.queue.clone();
     let queue_ref = queue.clone();
 
@@ -108,6 +103,14 @@ pub async fn start_separation(
 
     let separator_result = queue
         .run_exclusive(Some(id.clone()), "Séparation en cours", async move {
+            if matches!(model_id.as_str(), "bs_roformer" | "mel_band_roformer") {
+                server.shutdown();
+            }
+            let server_url = if model_id == "htdemucs_6s" {
+                None
+            } else {
+                Some(server.ensure_started(&runtime_settings)?)
+            };
             atomic_write_json(
                 &sep_dir_clone.join("job.json"),
                 &json!({
@@ -301,6 +304,9 @@ pub async fn start_separation(
         }),
     )?;
 
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
+    doc = load_project(&folder)?;
     let mix_id = next_folder_id(&folder.join("mixes"), "mix-v")?;
     let mut mix = new_mix_from_separation(&mix_id, &sep_id, &stem_meta);
     // Carry over user/custom tracks from the previous active mix (import/record).
@@ -489,6 +495,8 @@ pub fn list_separation_versions_cmd(id: String) -> Result<Vec<SeparationVersionS
 #[tauri::command]
 pub fn activate_separation_version(id: String, separation_id: String) -> Result<MixDoc, String> {
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     let sep_dir = folder.join("separations").join(&separation_id);
     if !sep_dir.join("separation.json").is_file() {

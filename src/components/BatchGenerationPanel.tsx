@@ -163,6 +163,7 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
     if (!preview) return;
     setBusy(true);
     setErrors([]);
+    setNotice(t("batch.starting"));
     try {
       const planned = await api.updateBatchPreview(preview.startToken, {
         generations,
@@ -177,6 +178,7 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
       setPreview(next);
       await api.startBatch(next.startToken, next.revision);
       setPreview(null);
+      setNotice(null);
       await refreshBatches();
       await refreshLibrary();
     } catch (e) {
@@ -184,6 +186,21 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onVerifyParallelism() {
+    if (!preview) return;
+    setBusy(true);
+    setNotice(t("batch.verifyRunning"));
+    try {
+      const result = await api.verifyBatchParallelism(preview.startToken);
+      if (result.preview) setPreview(result.preview);
+      setNotice(result.messageFr);
+      await refreshLibrary();
+    } catch (error) {
+      setNotice(null);
+      setError(String(error));
+    } finally { setBusy(false); }
   }
 
   async function onRetry(batch: BatchSnapshot) {
@@ -259,6 +276,10 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
           <p className="hint">
             {preview.admittedParallel === 1 ? t("batch.capacityOne") : `${t("batch.capacity")} : ${preview.capacityReasonFr}`}
           </p>
+          <button type="button" className="btn" disabled={busy || preview.taskCount < 2} onClick={() => void onVerifyParallelism()}>
+            {t("batch.verifyParallel")}
+          </button>
+          <p className="hint">{t("batch.verifyHint")}</p>
           {preview.launchBlockFr && <p className="hint">{preview.launchBlockFr}</p>}
           <label>
             {t("batch.generations")}
@@ -326,6 +347,10 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
                   {t("batch.state.running")}{" "}
                   {batch.counts.running} · {t("batch.state.queued")} {batch.counts.queued}
                 </p>
+              )}
+              <p>{t("batch.liveParallel", { count: batch.effectiveParallel ?? 1 })}</p>
+              {(batch.effectiveParallel ?? 1) < (batch.requestedParallel ?? 1) && batch.capacityReasonFr && (
+                <p className="hint">{batch.capacityReasonFr}</p>
               )}
             </header>
             <div className="batch-actions">
@@ -395,8 +420,13 @@ export function BatchTaskRow({ task, onOpen }: { task: BatchTask; onOpen: () => 
     <li>
       <span>
         {task.title} · {t("batch.takeNumber", { number: task.variantIndex })} · {taskLabel(task.state)}
-        {task.lastError ? ` — ${task.lastError}` : ""}
       </span>
+      {task.lastError && (
+        <details className="hint">
+          <summary>{t("batch.errorDetails")}</summary>
+          <p>{task.lastError}</p>
+        </details>
+      )}
       {task.state === "succeeded" && task.projectId && (
         <span className="batch-task-actions">
           <button type="button" className="linkish" disabled={!task.audioPath} aria-expanded={previewOpen} onClick={() => setPreviewOpen(!previewOpen)}>

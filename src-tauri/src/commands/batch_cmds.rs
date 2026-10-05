@@ -1,5 +1,4 @@
-//! Import JSON, file persistante et exécution série (#368).
-//! Capacité GPU admise = 1 (file `JobQueue` exclusive). Pas de pool audiocpp isolé.
+//! Import JSON, persistent queue and isolated batch workers (#368).
 
 use super::AppState;
 use crate::batch::{
@@ -8,7 +7,7 @@ use crate::batch::{
     save_task, task_to_form, BatchError, BatchOptionSet, PendingImport, PlannedTask,
     ADMITTED_PARALLEL, EXAMPLE_JSON, MAX_FILE_BYTES,
 };
-use crate::commands::generation::generate_comparison_take;
+use crate::commands::generation::generate_worker_take;
 use crate::commands::projects::{create_project, save_project_form};
 use crate::library::{
     library_row_from_project, load_project, load_settings, project_folder, save_project,
@@ -36,11 +35,25 @@ fn emit_batch(app: &AppHandle, batch_id: &str, snapshot: &serde_json::Value) {
     );
 }
 
+pub(crate) fn resources_pinned() -> bool {
+    list_batch_summaries()
+        .map(|lots| {
+            lots.iter().any(|lot| {
+                matches!(
+                    lot["state"].as_str(),
+                    Some("running" | "pausing" | "paused" | "cancelling" | "interrupted")
+                )
+            })
+        })
+        .unwrap_or(true)
+}
+
 fn validate_ok(preview: crate::batch::BatchPreview) -> serde_json::Value {
+    let admitted = preview.admitted_parallel;
     json!({
         "ok": true,
         "preview": preview,
-        "admittedParallel": ADMITTED_PARALLEL,
+        "admittedParallel": admitted,
     })
 }
 
@@ -119,6 +132,7 @@ pub fn validate_batch_import(
         Ok(file) => match plan_batch(&file, None, None) {
             Err(errors) => Ok(validate_err(errors)),
             Ok(preview) => {
+                let preview = super::batch_capacity::apply_capacity(&state, preview);
                 let raw_text = String::from_utf8(raw).map_err(|e| e.to_string())?;
                 let out = validate_ok(preview.clone());
                 store_pending(&state, file, raw_text, preview);
@@ -147,6 +161,7 @@ pub fn update_batch_preview(
     match plan_batch(&pending.file, Some(&ov), overrides.max_parallel_generations) {
         Err(errors) => Ok(validate_err(errors)),
         Ok(mut preview) => {
+            preview = super::batch_capacity::apply_capacity(&state, preview);
             preview.revision = pending.preview.revision.saturating_add(1);
             let out = validate_ok(preview.clone());
             state
@@ -222,7 +237,9 @@ pub async fn start_batch(
             .launch_block_fr
             .unwrap_or_else(|| "Lancement bloqué : capacité GPU insuffisante.".into()));
     }
+    let _preparation = state.batch_workers.prepare();
     let settings = load_settings()?;
+    super::batch_capacity::verify_before_start(&state, &pending.preview)?;
     if !matches!(settings.generation_engine.as_str(), "yue2" | "ace_step") {
         return Err("Choisissez YuE2 ou ACE-Step dans Paramètres avant de lancer ce lot.".into());
     }
@@ -236,6 +253,9 @@ pub async fn start_batch(
     let mut plan = load_plan(&batch_id)?;
     plan["generationSettings"] = batch_generation_settings(&settings);
     plan["profileId"] = json!(crate::profiles::active_profile_id());
+    if pending.preview.effective_parallel > 1 {
+        plan["capacityKey"] = super::batch_capacity::capacity_key(&pending.preview)?;
+    }
     atomic_write_json(&batches_root().join(&batch_id).join("plan.json"), &plan)?;
     started.insert(start_token.clone(), batch_id.clone());
     state
@@ -316,14 +336,22 @@ pub fn cancel_batch(
     })?;
     let mut tasks = load_live_tasks(&batch_id)?;
     for task in &mut tasks {
-        if matches!(task.state.as_str(), "queued" | "retry_wait") {
+        if matches!(task.state.as_str(), "queued" | "retry_wait" | "interrupted") {
             task.state = "cancelled".into();
             save_task(&batch_id, task)?;
         } else if matches!(task.state.as_str(), "running" | "preparing" | "publishing") {
             task.state = "cancel_requested".into();
             save_task(&batch_id, task)?;
-            let _ = state.queue.request_cancel();
+            state.batch_workers.cancel(&batch_id, None);
         }
+    }
+    if !state
+        .batch_inflight
+        .lock()
+        .expect("batch inflight")
+        .contains(&batch_id)
+    {
+        finalize_batch(&batch_id, &load_live_tasks(&batch_id)?);
     }
     let snap = batch_snapshot(&batch_id)?;
     emit_batch(&app, &batch_id, &snap);
@@ -349,7 +377,7 @@ pub fn cancel_batch_task(
         "running" | "preparing" | "publishing" => {
             task.state = "cancel_requested".into();
             save_task(&batch_id, task)?;
-            let _ = state.queue.request_cancel();
+            state.batch_workers.cancel(&batch_id, Some(&task_id));
         }
         _ => {}
     }
@@ -408,27 +436,43 @@ fn is_transient(err: &str) -> bool {
         || lower.contains("connection")
         || lower.contains("worker")
         || lower.contains("refus de connexion")
+        || lower.contains("error sending request")
 }
 
 async fn run_batch_loop(app: AppHandle, batch_id: String) {
+    let mut jobs = tokio::task::JoinSet::new();
     loop {
         let Ok(man) = load_manifest(&batch_id) else {
             break;
         };
-        let cancel = man
-            .get("cancelRequested")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-        let pause = man
-            .get("pauseRequested")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        let cancel = man["cancelRequested"].as_bool().unwrap_or(false);
+        let pause = man["pauseRequested"].as_bool().unwrap_or(false);
         let Ok(mut tasks) = load_live_tasks(&batch_id) else {
             break;
         };
-        let on_error = load_plan_on_error(&batch_id);
-        let retry_max = load_plan_retry_max(&batch_id);
-
+        let state = app.state::<AppState>();
+        let plan = load_plan(&batch_id).unwrap_or_default();
+        let verified = super::batch_capacity::verified_for_plan(&state, &batch_id);
+        let requested = plan["effectiveParallel"].as_u64().unwrap_or(1) as usize;
+        let limit = if verified { requested.clamp(1, 2) } else { 1 };
+        if man.get("effectiveParallel").and_then(|v| v.as_u64()) != Some(limit as u64) {
+            let _ = patch_manifest(&batch_id, |m| {
+                m["effectiveParallel"] = json!(limit);
+                m["capacityReasonFr"] = if requested > limit {
+                    json!("Une prise à la fois : la vérification pour deux prises simultanées n’est plus valable dans cette session.")
+                } else {
+                    plan["capacityReasonFr"].clone()
+                };
+            });
+        }
+        let capacity_lost = requested > limit && plan["parallelismPolicy"] == "requireRequested";
+        if capacity_lost && !pause && !cancel {
+            let _ = patch_manifest(&batch_id, |m| {
+                m["pauseRequested"] = json!(true);
+                m["state"] = json!("pausing");
+                m["capacityReasonFr"] = json!("La simultanéité doit être vérifiée à nouveau avant de reprendre avec cette exigence.");
+            });
+        }
         if cancel {
             for task in &mut tasks {
                 if matches!(task.state.as_str(), "queued" | "retry_wait") {
@@ -436,88 +480,117 @@ async fn run_batch_loop(app: AppHandle, batch_id: String) {
                     let _ = save_task(&batch_id, task);
                 }
             }
-            let still_active = tasks
-                .iter()
-                .any(|t| matches!(t.state.as_str(), "running" | "preparing" | "publishing"));
-            if !still_active {
-                let _ = patch_manifest(&batch_id, |m| {
-                    m["state"] = json!("cancelled");
-                    m["cancelRequested"] = json!(false);
+        }
+        if !pause && !cancel && !capacity_lost {
+            for task in tasks.iter_mut().filter(|t| t.state == "queued") {
+                if jobs.len() >= limit {
+                    break;
+                }
+                task.state = "preparing".into();
+                if save_task(&batch_id, task).is_err() {
+                    break;
+                }
+                let task = task.clone();
+                let task_app = app.clone();
+                let task_batch = batch_id.clone();
+                jobs.spawn(async move {
+                    run_attempt(task_app, task_batch, task).await;
                 });
-                if let Ok(snap) = batch_snapshot(&batch_id) {
-                    emit_batch(&app, &batch_id, &snap);
-                }
-                break;
             }
         }
-
-        if pause && !cancel {
-            let still_active = tasks
-                .iter()
-                .any(|t| matches!(t.state.as_str(), "running" | "preparing" | "publishing"));
-            if !still_active {
-                if tasks.iter().any(|task| batch_task_pending(&task.state)) {
-                    let _ = patch_manifest(&batch_id, |m| {
-                        m["state"] = json!("paused");
-                    });
-                } else {
-                    finalize_batch(&batch_id, &tasks);
-                }
-                if let Ok(snap) = batch_snapshot(&batch_id) {
-                    emit_batch(&app, &batch_id, &snap);
-                }
-                break;
+        if jobs.is_empty() {
+            if cancel {
+                finalize_batch(&batch_id, &tasks);
+            } else if (pause || capacity_lost) && tasks.iter().any(|t| batch_task_pending(&t.state))
+            {
+                let _ = patch_manifest(&batch_id, |m| m["state"] = json!("paused"));
+            } else {
+                finalize_batch(&batch_id, &tasks);
             }
-        }
-
-        let next = tasks.iter().position(|t| t.state == "queued");
-        let Some(idx) = next else {
-            finalize_batch(&batch_id, &tasks);
             if let Ok(snap) = batch_snapshot(&batch_id) {
                 emit_batch(&app, &batch_id, &snap);
             }
             break;
-        };
-        if pause || cancel {
-            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
-            continue;
         }
-
-        let mut task = tasks[idx].clone();
-        if let Err(e) = run_one_task(&app, &batch_id, &mut task).await {
-            task.last_error = Some(e.clone());
-            let attempts_used = task.attempt.max(1);
-            if is_transient(&e) && attempts_used < retry_max {
-                let wait = 2u64.saturating_pow(attempts_used.min(4));
-                task.state = "retry_wait".into();
-                let _ = save_task(&batch_id, &task);
-                tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
-                let still_waiting = load_live_tasks(&batch_id)
-                    .ok()
-                    .and_then(|tasks| tasks.into_iter().find(|live| live.task_id == task.task_id))
-                    .is_some_and(|live| live.state == "retry_wait");
-                let cancelled = load_manifest(&batch_id)
-                    .ok()
-                    .and_then(|man| man.get("cancelRequested").and_then(|value| value.as_bool()))
-                    .unwrap_or(true);
-                if still_waiting && !cancelled {
-                    task.attempt = attempts_used.saturating_add(1);
-                    task.state = "queued".into();
+        if let Some(Err(error)) = jobs.join_next().await {
+            let _ = patch_manifest(&batch_id, |m| {
+                m["pauseRequested"] = json!(true);
+                m["state"] = json!("pausing");
+                m["error"] = json!(format!("Une tâche a été interrompue : {error}"));
+            });
+            let active_ids: Vec<_> = load_live_tasks(&batch_id)
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|task| task.state == "running" || task.state == "preparing")
+                .collect();
+            // Surviving workers drain before recovery marks their task states.
+            while jobs.join_next().await.is_some() {}
+            for mut task in active_ids {
+                let current = load_live_tasks(&batch_id)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .find(|t| t.task_id == task.task_id);
+                if current.is_some_and(|t| matches!(t.state.as_str(), "running" | "preparing")) {
+                    task.state = "interrupted".into();
                     let _ = save_task(&batch_id, &task);
-                }
-            } else {
-                task.state = "failed".into();
-                let _ = save_task(&batch_id, &task);
-                if on_error == "pause" {
-                    let _ = patch_manifest(&batch_id, |m| {
-                        m["pauseRequested"] = json!(true);
-                        m["state"] = json!("pausing");
-                    });
                 }
             }
         }
         if let Ok(snap) = batch_snapshot(&batch_id) {
             emit_batch(&app, &batch_id, &snap);
+        }
+    }
+    // Never drop a running worker future while its child process still owns GPU memory.
+    while jobs.join_next().await.is_some() {}
+}
+
+async fn run_attempt(app: AppHandle, batch_id: String, mut task: PlannedTask) {
+    if let Err(e) = run_one_task(&app, &batch_id, &mut task).await {
+        task.last_error = Some(e.clone());
+        let lower = e.to_lowercase();
+        if lower.contains("oom") || lower.contains("out of memory") || lower.contains("mémoire") {
+            *app.state::<AppState>()
+                .batch_workers
+                .proof
+                .lock()
+                .expect("capacity proof") = None;
+            let _ = patch_manifest(&batch_id, |m| {
+                m["effectiveParallel"] = json!(1);
+                m["capacityReasonFr"] = json!(
+                    "Mémoire insuffisante : une prise à la fois après la fin des tâches en cours."
+                );
+            });
+        }
+        let attempts_used = task.attempt.max(1);
+        if is_transient(&e) && attempts_used < load_plan_retry_max(&batch_id) {
+            task.state = "retry_wait".into();
+            let _ = save_task(&batch_id, &task);
+            tokio::time::sleep(std::time::Duration::from_secs(
+                2u64.saturating_pow(attempts_used.min(4)),
+            ))
+            .await;
+            let still_waiting = load_live_tasks(&batch_id)
+                .ok()
+                .and_then(|tasks| tasks.into_iter().find(|live| live.task_id == task.task_id))
+                .is_some_and(|live| live.state == "retry_wait");
+            let cancelled = load_manifest(&batch_id)
+                .ok()
+                .and_then(|m| m["cancelRequested"].as_bool())
+                .unwrap_or(true);
+            if still_waiting && !cancelled {
+                task.attempt = attempts_used.saturating_add(1);
+                task.state = "queued".into();
+                let _ = save_task(&batch_id, &task);
+            }
+        } else {
+            task.state = "failed".into();
+            let _ = save_task(&batch_id, &task);
+            if load_plan_on_error(&batch_id) == "pause" {
+                let _ = patch_manifest(&batch_id, |m| {
+                    m["pauseRequested"] = json!(true);
+                    m["state"] = json!("pausing");
+                });
+            }
         }
     }
 }
@@ -587,14 +660,41 @@ async fn run_one_task(
     save_task(batch_id, task)?;
     let form = task_to_form(task);
     let state = app.state::<AppState>();
+    let verified = super::batch_capacity::verified_for_plan(&state, batch_id);
+    let lease = state
+        .batch_workers
+        .acquire(&state, batch_id, &task.task_id, settings, verified)
+        .await?;
+    if verified && !super::batch_capacity::verified_for_plan(&state, batch_id) {
+        task.state = "queued".into();
+        save_task(batch_id, task)?;
+        return Ok(());
+    }
+    // Cancellation/pause can arrive while this task waits for another lot or an
+    // interactive job to release the GPU. Never start inference in that case.
+    let live = load_live_tasks(batch_id)?;
+    let cancelled = live
+        .iter()
+        .find(|t| t.task_id == task.task_id)
+        .is_some_and(|t| matches!(t.state.as_str(), "cancelled" | "cancel_requested"));
+    let manifest = load_manifest(batch_id)?;
+    if cancelled || manifest["cancelRequested"].as_bool().unwrap_or(false) {
+        task.state = "cancelled".into();
+        save_task(batch_id, task)?;
+        return Ok(());
+    }
+    if manifest["pauseRequested"].as_bool().unwrap_or(false) {
+        task.state = "queued".into();
+        save_task(batch_id, task)?;
+        return Ok(());
+    }
     task.state = "running".into();
     save_task(batch_id, task)?;
-    let result = generate_comparison_take(
-        state,
+    let result = generate_worker_take(
+        app.state::<AppState>(),
         project_id.clone(),
         form,
-        None,
-        Some(settings.generation_engine),
+        &lease.worker,
     )
     .await;
     let live = load_live_tasks(batch_id).unwrap_or_default();
@@ -670,6 +770,8 @@ fn restore_smallest_active(batch_id: &str, song_id: &str, project_id: &str) {
         return;
     };
     let folder = project_folder(project_id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let Ok(mut doc) = load_project(&folder) else {
         return;
     };
@@ -695,7 +797,7 @@ fn batch_task_pending(state: &str) -> bool {
     )
 }
 
-fn batch_generation_settings(settings: &AppSettings) -> serde_json::Value {
+pub(crate) fn batch_generation_settings(settings: &AppSettings) -> serde_json::Value {
     // Only generation configuration is persisted; assistant credentials are excluded.
     json!({
         "engine": settings.generation_engine,

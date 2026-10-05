@@ -32,7 +32,7 @@ describe("batch generation (#368)", () => {
     assert.match(panel, /batch\.honest/);
     assert.doesNotMatch(panel, /deux inférences se chevauchent/);
     assert.equal(
-      fr["batch.honest"].includes("une par une"),
+      fr["batch.honest"].includes("simultanéité"),
       true,
     );
     assert.ok("batch.open" in enApp);

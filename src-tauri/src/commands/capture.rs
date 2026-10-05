@@ -260,6 +260,8 @@ pub async fn import_user_audio_track(
 
     tokio::task::spawn_blocking(move || {
         let folder = project_folder(&id);
+        let project_lock = crate::project_transaction::lock_for(&folder);
+        let _project_guard = project_lock.lock();
         let mut doc = load_project(&folder)?;
         ingest_user_audio_file(
             &folder,
@@ -285,6 +287,8 @@ pub async fn import_generation_as_user_track(
 ) -> Result<MixDoc, String> {
     tokio::task::spawn_blocking(move || {
         let folder = project_folder(&id);
+        let project_lock = crate::project_transaction::lock_for(&folder);
+        let _project_guard = project_lock.lock();
         let mut doc = load_project(&folder)?;
         let gen_id = generation_id.trim();
         if gen_id.is_empty() {
@@ -397,6 +401,8 @@ pub fn finalize_user_audio_capture(
         return Err("Identifiant de session de capture invalide.".into());
     }
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     let capture = capture_session_file(&folder, &session_id)
         .ok_or_else(|| "Session de capture introuvable.".to_string())?;
@@ -460,6 +466,8 @@ pub fn finalize_user_audio_capture_takes(
         }
     }
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     let name = req
         .display_name

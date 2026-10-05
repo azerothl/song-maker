@@ -13,6 +13,8 @@ use serde_json::json;
 #[tauri::command]
 pub fn use_generation(id: String, gen_id: String) -> Result<ProjectDoc, String> {
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     let gen_dir = folder.join("generations").join(&gen_id);
     if !gen_dir.exists() {
@@ -31,6 +33,8 @@ pub fn use_generation(id: String, gen_id: String) -> Result<ProjectDoc, String> 
 #[tauri::command]
 pub fn rename_generation(id: String, gen_id: String, name: String) -> Result<ProjectDoc, String> {
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     let gen_dir = folder.join("generations").join(&gen_id);
     if !gen_dir.exists() {
@@ -74,6 +78,8 @@ pub fn import_remote_generation(
 ) -> Result<RemoteImportResult, String> {
     use base64::Engine;
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     let gens = folder.join("generations");
     ensure_dir(&gens).map_err(|e| e.to_string())?;

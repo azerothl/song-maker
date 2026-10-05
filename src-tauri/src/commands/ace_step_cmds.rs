@@ -31,6 +31,9 @@ pub async fn install_ace_step(
     state: tauri::State<'_, AppState>,
     license_accepted: bool,
 ) -> Result<String, String> {
+    if super::batch_cmds::resources_pinned() || state.batch_workers.busy() {
+        return Err("Terminez ou annulez le lot avant de modifier les modèles installés.".into());
+    }
     use std::sync::atomic::Ordering;
     if !license_accepted {
         return Err(

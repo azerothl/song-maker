@@ -72,3 +72,50 @@ Les nouveaux lots enregistrent le profil et les réglages de génération (moteu
 - Workflow de release analysé comme YAML ; publication/signature non exécutée.
 
 Les corrections sont locales jusqu'à publication. Aucun ticket matériel, modèle ou release n'est clos sur la seule base de ces modifications.
+
+## Suite : moteurs batch isolés et simultanéité mesurée
+
+Le travail suivant poursuit #368. Les changements sont locaux sur `codex/product-conformance`.
+
+- Chaque tentative utilise un processus, une configuration, un port, une file et des journaux propres. Le processus est arrêté et attendu avant de rendre son permis, y compris après une erreur HTTP.
+- Un verrou de ressources commun exclut génération interactive et séparation pendant les appels batch. Une demande interactive en attente passe avant les nouveaux workers batch.
+- L’annulation cible les workers du lot ou de la prise demandés.
+- Réservation des dossiers de génération sous verrou de projet ; publication relisant le document courant. Les writers formulaire, versions, partitions, mix et import/capture participent au verrou.
+- L’interface propose une vérification explicite de deux générations simultanées, créant deux prises supplémentaires. Une configuration non mesurée reste à une prise ; aucune capacité n’est déduite des seuls gigaoctets annoncés.
+- La preuve conserve les empreintes des fichiers du moteur/modèle/adaptateurs, le matériel, le profil, le contenu et les options. Elle est volontairement limitée au contenu et aux réglages vérifiés, pour la session en cours.
+
+### Observations natives Windows
+
+Lot d’isolation `d53e4c6d-845b-4bdf-9b9a-0a98e9b6cee7`, projet `e09ef56d-4c3b-4488-a5bf-7bd1582a7ad9` : deux prises de 29 998 ms, seeds 70/71, processus 52008/47048, dossiers distincts, lot terminé. Cet essai était séquentiel.
+
+Vérification `capacity-570b6f24-aa49-4609-914f-35abd0e30234`, YuE2 Q4, RTX 4080 SUPER, instrumental 30 s :
+
+- Deux processus distincts, 60932 et 25460, configurations aux ports 18100 et 18120.
+- Prise A : 05:44:39 → 05:45:05 UTC, WAV 29 998 ms.
+- Prise B : 05:44:40 → 05:44:59 UTC, WAV 29 998 ms.
+- 49 échantillons de mémoire ; minimum libre 6 560 Mio, supérieur à la réserve de 2 048 Mio.
+- Rapport `measurement.json` : `verified=true`, `overlap=true`. L’aperçu natif passe de 1 à 2 disponibles et le bouton Lancer devient utilisable à deux.
+- Résultats de vérification dans les projets `ce3c6667-929d-40ba-b25f-4e1adfd635f9` et `40fd54b6-127e-4b86-ab16-c12f1fea8157`.
+
+Ce résultat ne valide ni ACE-Step en parallèle, ni des morceaux aux options/contenus différents, ni le multi-GPU. Le maintien de capacité après redémarrage, la réconciliation de publication après crash et l’alternance stricte entre plusieurs lots restent à compléter ; #368 reste ouvert.
+
+Validation de cette suite : TypeScript et build réussis ; frontend 488/488 ; Rust 135 réussis et 1 ignoré. Le warning de taille du bundle reste présent.
+
+### Correction de la collision de ports et validation du lot complet
+
+Le premier lot simultané `25d9cbd4-4545-4276-9898-a7d69a38fb23` a révélé une collision : deux workers choisissaient 18080 avant le démarrage des serveurs. Une prise réussissait, la seconde perdait sa connexion lorsque le premier processus s’arrêtait. La réservation est désormais faite sous le verrou du pool, avec des plages distinctes.
+
+Une nouvelle mesure `capacity-fa08fcff-d204-4c72-853d-f0e0c0e016f3` a validé deux appels simultanés. Lot natif suivant `e5a9cac0-4b61-4562-8437-60ae97b0e64a`, projet `dc60f178-eaac-47a1-9db1-19aad7eae0c0` :
+
+- Prises 1/2, seeds 80/81 : processus 64324/45572, ports 18080/18120. Début commun 05:57:07 UTC ; fin 05:57:32 / 05:57:26.
+- Pause demandée depuis l’interface pendant ces deux prises : elles terminent, les deux suivantes restent en attente, lot en pause à 05:57:35.
+- Reprise depuis l’interface : prises 3/4 seulement, seeds 82/83, processus 59128/7768, ports 18080/18120 ; 05:57:56 → 05:58:17 / 05:58:15.
+- Quatre WAV de 29 998 ms ; lot terminé à 05:58:20, quatre prises prêtes, zéro échec.
+- Lecture native de la prise 1 pendant les prises 3/4 : lecteur observé à 0:29 / 0:29, sans retour toutes les deux secondes.
+- Après redémarrage, Relancer les échecs sur le premier lot conserve `gen-001` (tentative 1) et réussit la seconde tâche dans `gen-003` (tentative 2). L’interface affiche une prise simultanée et explique que la mesure doit être renouvelée.
+
+Les formulaires et changements de profil sont protégés tant qu’un lot non terminé conserve ces ressources, y compris en pause. Les erreurs détaillées sont repliées. L’affichage de capacité lit les changements du lot, au lieu de reprendre uniquement le plan initial.
+
+Limites supplémentaires : le verrou d’import/capture couvre encore l’ingestion de fichiers ; certains installateurs de modèles optionnels ne participent pas encore à la protection des ressources du batch. Les modifications externes des fichiers modèle entre deux tâches ne sont pas revalidées par empreinte complète à chaque tentative. L’état moteur dans la barre latérale a été raccordé aux workers actifs, mais son affichage pendant l’inférence n’a pas été observé dans ce dernier essai.
+
+Validation finale : build réussi, frontend 488/488, Rust 135 réussis / 1 ignoré, diff sans erreur d’espacement. Aucune livraison distante ni fermeture de #368.

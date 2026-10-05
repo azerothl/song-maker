@@ -812,13 +812,37 @@ pub fn load_live_tasks(batch_id: &str) -> Result<Vec<PlannedTask>, String> {
 
 pub fn save_task(batch_id: &str, task: &PlannedTask) -> Result<(), String> {
     let dir = batches_root().join(batch_id);
+    let registry_lock = crate::project_transaction::lock_for(&dir);
+    let _registry_guard = registry_lock.lock();
+    let mut task = task.clone();
+    let task_path = dir.join("tasks").join(format!("{}.json", task.task_id));
+    if let Ok(text) = std::fs::read_to_string(&task_path) {
+        if let Ok(current) = serde_json::from_str::<PlannedTask>(&text) {
+            if current.state == "succeeded" && task.state != "succeeded" {
+                return Ok(());
+            }
+            if matches!(current.state.as_str(), "cancelled" | "cancel_requested")
+                && task.state != "cancel_requested"
+            {
+                task.state = if matches!(
+                    task.state.as_str(),
+                    "succeeded" | "failed" | "retry_wait" | "queued" | "cancelled"
+                ) {
+                    "cancelled"
+                } else {
+                    "cancel_requested"
+                }
+                .into();
+            }
+        }
+    }
     atomic_write_json(
         &dir.join("tasks").join(format!("{}.json", task.task_id)),
-        task,
+        &task,
     )?;
     let mut plan = load_plan(batch_id)?;
     if let Some(arr) = plan.get_mut("tasks").and_then(|t| t.as_array_mut()) {
-        let value = serde_json::to_value(task).map_err(|e| e.to_string())?;
+        let value = serde_json::to_value(&task).map_err(|e| e.to_string())?;
         for item in arr.iter_mut() {
             if item.get("taskId").and_then(|v| v.as_str()) == Some(&task.task_id) {
                 *item = value.clone();
@@ -832,6 +856,9 @@ pub fn patch_manifest(
     batch_id: &str,
     patch: impl FnOnce(&mut serde_json::Value),
 ) -> Result<serde_json::Value, String> {
+    let dir = batches_root().join(batch_id);
+    let registry_lock = crate::project_transaction::lock_for(&dir);
+    let _registry_guard = registry_lock.lock();
     let mut man = load_manifest(batch_id)?;
     patch(&mut man);
     man["updatedAt"] = json!(now_iso());
@@ -893,8 +920,8 @@ pub fn batch_snapshot(batch_id: &str) -> Result<serde_json::Value, String> {
         "updatedAt": man.get("updatedAt").cloned(),
         "requestedParallel": plan.get("requestedParallel"),
         "admittedParallel": plan.get("admittedParallel"),
-        "effectiveParallel": plan.get("effectiveParallel"),
-        "capacityReasonFr": plan.get("capacityReasonFr"),
+        "effectiveParallel": man.get("effectiveParallel").or_else(|| plan.get("effectiveParallel")),
+        "capacityReasonFr": man.get("capacityReasonFr").or_else(|| plan.get("capacityReasonFr")),
         "onError": plan.get("onError"),
         "retryMaxAttempts": plan.get("retryMaxAttempts"),
         "counts": {
@@ -1287,5 +1314,46 @@ mod tests {
         assert!(
             !batches_root().exists() || std::fs::read_dir(batches_root()).unwrap().next().is_none()
         );
+    }
+
+    #[test]
+    fn concurrent_task_publications_preserve_every_plan_entry() {
+        let _docs = crate::test_docs_env::guard::TempDocs::new("batch-concurrent-publish");
+        let preview = preview_example();
+        let id = persist_new_batch(&preview, EXAMPLE_JSON, &preview.tasks).unwrap();
+        std::thread::scope(|scope| {
+            for mut task in preview.tasks.clone() {
+                let batch_id = &id;
+                scope.spawn(move || {
+                    task.state = "succeeded".into();
+                    save_task(batch_id, &task).unwrap();
+                });
+            }
+        });
+        let plan = load_plan(&id).unwrap();
+        assert!(plan["tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|task| task["state"] == "succeeded"));
+    }
+
+    #[test]
+    fn stale_completion_cannot_undo_cancellation_or_cancel_a_published_take() {
+        let _docs = crate::test_docs_env::guard::TempDocs::new("batch-cancel-publish");
+        let preview = preview_example();
+        let id = persist_new_batch(&preview, EXAMPLE_JSON, &preview.tasks).unwrap();
+        let mut task = preview.tasks[0].clone();
+        task.state = "cancel_requested".into();
+        save_task(&id, &task).unwrap();
+        task.state = "succeeded".into();
+        save_task(&id, &task).unwrap();
+        assert_eq!(load_live_tasks(&id).unwrap()[0].state, "cancelled");
+        task = preview.tasks[1].clone();
+        task.state = "succeeded".into();
+        save_task(&id, &task).unwrap();
+        task.state = "cancel_requested".into();
+        save_task(&id, &task).unwrap();
+        assert_eq!(load_live_tasks(&id).unwrap()[1].state, "succeeded");
     }
 }

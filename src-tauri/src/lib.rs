@@ -6,6 +6,7 @@ mod ace_step_lego;
 mod audiocpp;
 mod basicpitch;
 mod batch;
+mod batch_workers;
 mod bs_roformer;
 mod commands;
 mod declui_host;
@@ -26,6 +27,7 @@ mod pins;
 mod profile_switch;
 mod profiles;
 mod project_sync;
+mod project_transaction;
 mod queue;
 mod rbitnet;
 mod resample;
@@ -132,6 +134,7 @@ pub fn run() {
             commands::batch_cmds::validate_batch_import,
             commands::batch_cmds::update_batch_preview,
             commands::batch_cmds::start_batch,
+            commands::batch_capacity::verify_batch_parallelism,
             commands::batch_cmds::list_batches,
             commands::batch_cmds::get_batch_status,
             commands::batch_cmds::pause_batch,

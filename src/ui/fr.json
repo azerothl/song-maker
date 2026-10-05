@@ -118,7 +118,7 @@
   "batch.parallel": "Générations simultanées demandées",
   "batch.errors": "Erreurs d’import",
   "batch.empty": "Aucun lot. Importez un JSON UTF-8 pour planifier des prises.",
-  "batch.honest": "Importez les titres, styles et paroles de vos morceaux dans un fichier JSON. Les prises sont générées une par une ; vous pouvez écouter chacune dès qu’elle est prête.",
+  "batch.honest": "Importez les titres, styles et paroles de vos morceaux dans un fichier JSON. Vous pouvez écouter chaque prise dès qu’elle est prête. La simultanéité disponible est vérifiée avant le lancement.",
   "batch.state.ready": "prêtes",
   "batch.state.running": "en cours",
   "batch.state.queued": "en attente",
@@ -1737,10 +1737,16 @@
   "batch.instrumentalLyrics": "Instrumental : les paroles ne seront pas utilisées.",
   "batch.lyricsUnavailable": "Réimportez le fichier pour consulter les paroles de cet ancien aperçu.",
   "batch.showFolder": "Afficher dans le dossier",
-  "batch.capacityOne": "Une prise peut être générée à la fois sur cette configuration.",
+  "batch.capacityOne": "Une prise à la fois ; deux peuvent être activées après une vérification sur cette machine.",
   "settings.model.licenseDetails": "Lire l’avis de licence",
   "batch.retryHint": "Relance les prises en échec ou interrompues.",
   "batch.exportHint": "Exporte les prises dont la génération a réussi.",
   "form.language.instrumental": "La langue du chant n’est pas utilisée en mode instrumental.",
-  "form.duration.instrumentalHint": "La durée guide le modèle ; la durée réelle du morceau peut varier."
+  "form.duration.instrumentalHint": "La durée guide le modèle ; la durée réelle du morceau peut varier.",
+  "batch.verifyParallel": "Vérifier deux générations simultanées",
+  "batch.verifyHint": "Cette vérification génère deux prises supplémentaires. Elle s’applique aux prises ayant les mêmes style, paroles et réglages, pour la session en cours.",
+  "batch.verifyRunning": "Vérification en cours : deux prises seront créées dans la bibliothèque. Gardez l’application ouverte.",
+  "batch.starting": "Préparation du lot…",
+  "batch.errorDetails": "Voir la raison de l’échec",
+  "batch.liveParallel": "Prises simultanées dans ce lot : {count}"
 }
