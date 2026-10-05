@@ -235,7 +235,7 @@ export function AudioPlayer({
           <div className="player-times" aria-label={t("player.seek")}>
             <PlaybackTime seconds={snap.current} className="player-time" />
             <span className="player-time-sep">/</span>
-            <span className="player-time">{formatTime(snap.duration)}</span>
+            <span className="player-time">{formatTime(Math.round(snap.duration))}</span>
           </div>
           <span className="path" title={snap.label}>
             {snap.label || t("library.dash")}

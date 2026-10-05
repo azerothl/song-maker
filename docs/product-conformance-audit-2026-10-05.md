@@ -139,3 +139,19 @@ Vérification visuelle native : notices repliées, message d’erreur dans la pa
 ### Limites restantes
 
 La récupération concerne les nouveaux workers qui enregistrent une tentative ; les anciennes sorties sans ce lien restent interrompues. Les anciennes configurations de lot ne possèdent pas les nouvelles empreintes. La suppression des processus orphelins après un arrêt forcé, l’équité stricte entre lots, ACE-Step simultané, les contenus hétérogènes et le multi-GPU restent ouverts. Une modification externe après la dernière vérification ne peut pas être empêchée par le verrou applicatif. Aucune validation native d’import/capture concurrente dans cette passe. #368 et #378 restent ouverts et les changements sont locaux.
+
+## Push et suite instrumental / durée (#377, #385)
+
+Les commits `c0dde3a`, `ff952ff`, `b6c18bd` et `7c9c8d4` sont poussés sur `codex/product-conformance`. Les tickets concernés possèdent désormais les liens vers ces commits. Aucun ticket n’est fermé par ce push.
+
+Les prises récentes `gen-007` et `gen-008` du projet The Room Keeps Warm demandent 360 s en instrumental, sans paroles envoyées, et produisent 75 278 / 109 798 ms. La borne minimale de 200 trames autorisait l’arrêt à partir de 8 s. La durée fixe impose maintenant minimum = maximum = durée × 25 ; le WAV est vérifié avant publication, avec 250 ms de tolérance. Un échec conserve les fichiers et laisse la prise active intacte. Les continuations incluent leur préfixe. Aucun silence ni boucle n’est ajouté pour ajuster le fichier.
+
+L’instrumental YuE2 / ACE-Step audio conserve l’original puis retire la piste voix via HTDemucs et rend batterie + basse + autres. Le formulaire annonce cette étape. Le composant est vérifié par SHA et appartient à l’empreinte du lot ; une séparation échouée ne publie pas le fichier original. Les artefacts décrivent la méthode, les pistes exclues et le hash original. Partition seule et Lego ne passent pas par cette étape. La séparation reste une estimation et peut laisser des résidus.
+
+### Vérification Windows
+
+Projet de contrôle `ed0f9a91-8d79-493c-a51b-e7b4d7f5f229`, créé via l’interface Windows, YuE2 Q4, seed aléatoire, instrumental, plan complet, 360 s : requête 9 000 / 9 000 trames, fichier final 359 998 ms, original et stems conservés ; `durationCompliance.matches=true`. Le lecteur progresse jusqu’à 0:13 sans redémarrer toutes les deux secondes. L’arrondi de la durée totale du lecteur affiche désormais 6:00, au lieu de 5:59 pour deux millisecondes de différence.
+
+Limite observée : les deux dernières minutes de cet essai sont très faibles (niveau moyen original -55,6 dB ; instrumental -58,5 dB, contre -15,4 / -19,2 dB pour les deux premières minutes). La conformité de longueur du fichier ne certifie donc pas six minutes de musique continue. Aucun jugement d’écoute humaine ni garantie d’absence de chant résiduel n’est acquis. #377 et #385 restent ouverts. Le mode instrumental natif ACE-Step, le worker distant et la continuité musicale longue restent à vérifier.
+
+Tests Rust : 143 réussis, 1 ignoré. Frontend : 488 réussis. Build et TypeScript réussis, avertissement de taille du bundle conservé.

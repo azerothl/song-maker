@@ -480,7 +480,9 @@ Le libellé de `off` dans le formulaire : « avancé : pas de partition en retou
 
 ### 8.2 Contrat du formulaire
 
-audio.cpp accepte, pour YuE2, `style`, les paroles, `cot`, `abc` / `abc_file`, `seed`, `num_inference_steps`, `guidance_scale` (alias `cfg_scale`), `semantic_min_tokens`, `semantic_max_tokens`, `export_semantic` et les options d’échantillonnage. Le formulaire traduit la durée cible en bornes sémantiques ; il ne promet pas une durée exacte du WAV.
+audio.cpp accepte, pour YuE2, `style`, les paroles, `cot`, `abc` / `abc_file`, `seed`, `num_inference_steps`, `guidance_scale` (alias `cfg_scale`), `semantic_min_tokens`, `semantic_max_tokens`, `export_semantic` et les options d’échantillonnage. En durée fixe (dont instrumental), les deux bornes valent `durée × 25` afin d’empêcher un arrêt prématuré. Le WAV est mesuré avant publication : tolérance 250 ms, sinon prise conservée mais non activée et échec explicite. Aucun remplissage par silence ni répétition automatique. En priorité aux paroles, la durée reste une cible avec marge. Pour une continuation, la durée attendue inclut le préfixe existant.
+
+Le mode instrumental ne se limite pas aux paroles vides : YuE2 peut produire une voix même sans texte. Après génération audio YuE2 ou ACE-Step, Song Maker conserve `audio-original.wav`, sépare avec HTDemucs, puis publie la somme batterie + basse + autres sans la piste voix. L’étape est annoncée dans le formulaire et le statut. Les artefacts et hashes sont consignés dans `result.json.instrumentalProcessing`. Les poids HTDemucs sont vérifiés avant génération et font partie de l’empreinte batch. Une séparation échouée ne publie pas l’original comme instrumental. La séparation reste une estimation : des résidus de voix sont possibles et l’absence de chant doit être contrôlée à l’écoute. Lego et partition seule n’utilisent pas cette étape.
 
 | Champ | Règle | Où il va |
 |---|---|---|

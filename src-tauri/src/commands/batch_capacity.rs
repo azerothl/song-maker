@@ -36,6 +36,8 @@ fn weights(settings: &crate::models::AppSettings) -> Vec<std::path::PathBuf> {
     {
         files.push(path.into());
     }
+    // Instrumental takes also run vocal removal on the same worker.
+    files.push(crate::paths::htdemucs_path(cache));
     if let Ok(bin) = crate::audiocpp::AudioCppServer::find_server_binary(cache) {
         files.push(bin);
     }
