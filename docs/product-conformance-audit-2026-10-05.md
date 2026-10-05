@@ -302,3 +302,9 @@ Validation finale : les quatre tests du gestionnaire, les deux tests de ressourc
 L’export relit les tâches persistées et réserve un nouveau dossier avec UUID par `create_dir`, y compris lorsque plusieurs exports surviennent dans la même seconde. Il vérifie chaque résultat publié avant copie, propage les erreurs de copie et ne compte une prise prête qu’après copie réussie. Un fichier manquant/corrompu ou une référence de résultat absente provoque une erreur indiquant le dossier incomplet ; les fichiers déjà copiés restent conservés. Aucun nouvel audio n’est généré par l’export.
 
 Le test d’export vérifie le refus d’un résultat absent, un vrai petit WAV et son empreinte après copie, deux exports distincts sans modifier le premier, le compteur du bilan et le refus d’un WAV corrompu. La vérification native du dialogue et du dossier exporté reste à faire.
+
+### #368 — reprendre les prises interrompues après redémarrage
+
+« Reprendre » remet maintenant les états `interrupted` et `retry_wait` en file avant de redémarrer l’ordonnanceur. La tentative augmente une fois, les paramètres et la seed restent conservés. Les réussites, échecs et annulations sont inchangés ; les échecs restent soumis à la relance ciblée explicite. Un deuxième clic avant admission ne crée pas une nouvelle tentative supplémentaire. Le changement corrige le cas où le lot redémarrait mais terminait sans traiter ces prises, faute de worker ou de minuterie de reprise dans le nouveau processus.
+
+Le test persiste un lot de cinq états différents, exécute la même préparation que la commande UI et relit les tâches : seules interruption et attente de reprise changent, avec conservation des entrées. La reprise native après arrêt du processus reste à observer.

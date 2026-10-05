@@ -316,6 +316,7 @@ pub async fn resume_batch(
     batch_id: String,
 ) -> Result<serde_json::Value, String> {
     let _configuration = super::settings::guard_model_snapshot(&state)?;
+    prepare_batch_resume(&batch_id)?;
     patch_manifest(&batch_id, |man| {
         man["pauseRequested"] = json!(false);
         man["cancelRequested"] = json!(false);
@@ -325,6 +326,20 @@ pub async fn resume_batch(
     let snap = batch_snapshot(&batch_id)?;
     emit_batch(&app, &batch_id, &snap);
     Ok(snap)
+}
+
+fn prepare_batch_resume(batch_id: &str) -> Result<(), String> {
+    for mut task in load_live_tasks(batch_id)? {
+        // A restarted app has no live retry timer or worker for these states.
+        // Explicit resume authorizes another attempt with the same resolved inputs.
+        if matches!(task.state.as_str(), "interrupted" | "retry_wait") {
+            task.attempt = task.attempt.saturating_add(1);
+            task.state = "queued".into();
+            task.last_error = None;
+            save_task(batch_id, &task)?;
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -978,4 +993,45 @@ mod selection_tests {
         assert!(!select_batch_default(&mut active, &Some("gen-002".into())));
         assert_eq!(active.as_deref(), Some("gen-user-choice"));
     }
+}
+#[cfg(test)]
+#[test]
+fn resume_requeues_only_interrupted_and_retry_wait_preserving_inputs() {
+    let _docs = crate::test_docs_env::guard::TempDocs::new("batch-resume");
+    let file =
+        crate::batch::parse_batch_bytes(crate::batch::EXAMPLE_JSON.as_bytes(), "resume").unwrap();
+    let mut preview = crate::batch::plan_batch(&file, None, None).unwrap();
+    for (task, state) in preview.tasks.iter_mut().zip([
+        "succeeded",
+        "failed",
+        "cancelled",
+        "interrupted",
+        "retry_wait",
+    ]) {
+        task.state = state.into();
+        task.attempt = 2;
+        task.last_error = Some("previous attempt".into());
+    }
+    let id = crate::batch::persist_new_batch(&preview, crate::batch::EXAMPLE_JSON, &preview.tasks)
+        .unwrap();
+    prepare_batch_resume(&id).unwrap();
+    let tasks = crate::batch::load_live_tasks(&id).unwrap();
+    for (before, after) in preview.tasks.iter().zip(&tasks) {
+        assert_eq!(before.seed, after.seed);
+        assert_eq!(before.style, after.style);
+        assert_eq!(before.lyrics, after.lyrics);
+        assert_eq!(before.target_duration_sec, after.target_duration_sec);
+        if matches!(before.state.as_str(), "interrupted" | "retry_wait") {
+            assert_eq!(after.state, "queued");
+            assert_eq!(after.attempt, 3);
+            assert!(after.last_error.is_none());
+        } else {
+            assert_eq!(before.state, after.state);
+            assert_eq!(before.attempt, after.attempt);
+            assert_eq!(before.last_error, after.last_error);
+        }
+    }
+    // A second resume before admission must not add another attempt.
+    prepare_batch_resume(&id).unwrap();
+    assert_eq!(crate::batch::load_live_tasks(&id).unwrap()[3].attempt, 3);
 }
