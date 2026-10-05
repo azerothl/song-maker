@@ -297,7 +297,7 @@
   "form.instrumental": "Instrumental",
   "form.instrumental.hint": "Les paroles restent dans le projet et ne sont pas envoyées. Une voix peut malgré tout s’entendre dans le résultat.",
   "form.instrumental.active": "Les paroles restent enregistrées et ne sont pas utilisées. Une voix peut encore s’entendre.",
-  "form.audioInput.incapacity": "Le moteur choisi ne peut pas modifier un morceau importé. Pour analyser l’audio et en créer une nouvelle version, ouvrez Partition, puis Reprise.",
+  "form.audioInput.incapacity": "La modification directe d’un morceau importé n’est pas encore disponible. Pour en créer une nouvelle version à partir de cet audio, ouvrez Partition, puis Reprise.",
   "form.instrumental.summary": "Instrumental",
   "form.lyrics": "Paroles",
   "form.lyrics.optional": "Paroles conservées (non utilisées)",
