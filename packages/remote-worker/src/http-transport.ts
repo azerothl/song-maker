@@ -175,11 +175,10 @@ export class FetchRemoteHttpTransport implements RemoteHttpTransport {
         handle.error = json.error;
       }
       return { ok: true, handle };
-    } catch (e) {
+    } catch {
       return fail(
         "rejected",
-        `Submit injoignable (${e instanceof Error ? e.message : String(e)}). ` +
-          "Échec explicite — génération locale non lancée automatiquement.",
+        "Impossible de joindre le moteur distant. Vérifiez son adresse et sa disponibilité.",
       );
     }
   }
@@ -218,10 +217,10 @@ export class FetchRemoteHttpTransport implements RemoteHttpTransport {
         handle.error = json.error;
       }
       return { ok: true, handle };
-    } catch (e) {
+    } catch {
       return fail(
         jobId,
-        `Poll injoignable (${e instanceof Error ? e.message : String(e)}).`,
+        "La connexion au moteur distant a été interrompue. Vérifiez qu’il est disponible avant de réessayer.",
       );
     }
   }
@@ -251,10 +250,10 @@ export class FetchRemoteHttpTransport implements RemoteHttpTransport {
         error: json?.error ?? "cancelled",
       };
       return { ok: true, handle };
-    } catch (e) {
+    } catch {
       return fail(
         jobId,
-        `Cancel injoignable (${e instanceof Error ? e.message : String(e)}).`,
+        "Impossible d’annuler cette génération à distance pour le moment.",
       );
     }
   }
@@ -292,10 +291,10 @@ export class FetchRemoteHttpTransport implements RemoteHttpTransport {
         sha256,
         contentType: res.headers.get("content-type") ?? "application/octet-stream",
       };
-    } catch (e) {
+    } catch {
       return {
         ok: false,
-        error: `Artifact injoignable (${e instanceof Error ? e.message : String(e)}).`,
+        error: "Impossible de télécharger le résultat depuis le moteur distant. Vérifiez la connexion avant de réessayer.",
       };
     }
   }

@@ -42,6 +42,12 @@ included/excluded roles. It does not certify the administrator's model hash.
 The simulated WAV is only a contract-test fixture and bypasses
 the musical duration check; it is not a real generation validation.
 
+Browser clients need CORS for preflighted requests and checksum access. The
+reference worker allows any origin by default; bearer-token authentication is
+still required for jobs. Deployments can restrict browser origins with
+`SONG_MAKER_REMOTE_WORKER_CORS_ORIGINS`, a comma-separated list of exact
+origins. The worker never enables cookie credentials.
+
 ## Tests
 
 ```bash

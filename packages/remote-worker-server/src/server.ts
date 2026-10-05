@@ -20,6 +20,8 @@ export type WorkerConfig = {
   deleteAfterDownload: boolean;
   /** Data directory for job artifacts. */
   dataDir: string;
+  /** Browser origins allowed to call this bearer-token protected API. */
+  corsAllowedOrigins: string[];
   /**
    * audiocpp_server base URL (e.g. http://127.0.0.1:8090).
    * When unset, YuE2 runs in simulate mode (minimal WAV + ABC).
@@ -40,6 +42,7 @@ export function defaultConfig(overrides: Partial<WorkerConfig> = {}): WorkerConf
     retentionHours: overrides.retentionHours ?? 24,
     deleteAfterDownload: overrides.deleteAfterDownload ?? true,
     dataDir: overrides.dataDir ?? join(tmpdir(), "song-maker-remote-worker"),
+    corsAllowedOrigins: overrides.corsAllowedOrigins ?? ["*"],
     audiocppUrl: overrides.audiocppUrl ?? null,
     simulate: overrides.simulate ?? !overrides.audiocppUrl,
   };
@@ -261,6 +264,8 @@ export class RemoteGpuWorkerServer {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
     const path = url.pathname;
 
+    if (!this.applyCors(req, res)) return;
+
     if (req.method === "GET" && path === "/v1/health") {
       // Health may be unauthenticated for load balancers; still no secrets.
       sendJson(res, 200, {
@@ -309,6 +314,41 @@ export class RemoteGpuWorkerServer {
     }
 
     sendJson(res, 404, { status: "failed", error: "not_found" });
+  }
+
+  private applyCors(req: IncomingMessage, res: ServerResponse): boolean {
+    const origin = req.headers.origin;
+    if (origin) {
+      const allowAnyOrigin = this.config.corsAllowedOrigins.includes("*");
+      if (!allowAnyOrigin && !this.config.corsAllowedOrigins.includes(origin)) {
+        sendJson(res, 403, { status: "failed", error: "origin_not_allowed" });
+        return false;
+      }
+      res.setHeader(
+        "access-control-allow-origin",
+        allowAnyOrigin ? "*" : origin,
+      );
+      if (!allowAnyOrigin) res.setHeader("vary", "Origin");
+      res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+      res.setHeader(
+        "access-control-allow-headers",
+        "Accept, Authorization, Content-Type",
+      );
+      res.setHeader("access-control-expose-headers", "X-Content-SHA256");
+      res.setHeader("access-control-max-age", "600");
+    }
+
+    if (req.method === "OPTIONS") {
+      if (!new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`).pathname.startsWith("/v1/")) {
+        sendJson(res, 404, { status: "failed", error: "not_found" });
+        return false;
+      }
+      res.writeHead(204, { "cache-control": "no-store" });
+      res.end();
+      return false;
+    }
+
+    return true;
   }
 
   private async handleSubmit(

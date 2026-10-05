@@ -98,6 +98,7 @@ export function SongScreen() {
   const [remotePayload, setRemotePayload] = useState<BuiltRemotePayload | null>(
     null,
   );
+  const [remoteProgress, setRemoteProgress] = useState<string | null>(null);
   const [advancedSettingsPage, setAdvancedSettingsPage] =
     useState<AdvancedSettingsPage>(null);
   const [workspace, setWorkspace] = useState<SongWorkspace>("create");
@@ -501,6 +502,7 @@ export function SongScreen() {
   async function onConfirmRemoteGenerate() {
     if (!project || !remotePrefs || !remotePayload) return;
     setBusy(true);
+    setRemoteProgress(t("phase4.remote.progress"));
     setError(null);
     try {
       const outcome = await runRemoteGenerationToProject(
@@ -508,22 +510,27 @@ export function SongScreen() {
         remotePrefs,
         remotePayload,
         {
-          onStatus: (h) => {
-            setError(`Worker distant: ${h.status} (${h.id})`);
+          onStatus: (handle) => {
+            if (handle.status === "queued" || handle.status === "running") {
+              setRemoteProgress(t("phase4.remote.progress"));
+            } else if (handle.status === "succeeded") {
+              setRemoteProgress(t("phase4.remote.importing"));
+            }
           },
         },
       );
       setRemoteConfirmOpen(false);
       if (outcome.ok) {
+        setRemoteProgress(null);
         setError(null);
         await openProject(project.id);
       } else {
-        setError(
-          `${outcome.status}: ${outcome.error} — génération locale non démarrée.`,
-        );
+        setRemoteProgress(null);
+        setError(t("phase4.remote.notAdded", { reason: outcome.error }));
       }
     } catch (e) {
-      setError(String(e));
+      setRemoteProgress(null);
+      setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -827,6 +834,11 @@ export function SongScreen() {
                 {job.label || t("job.generating")}
               </p>
             )}
+            {remoteProgress && (
+              <p className="song-job-banner" role="status" aria-live="polite">
+                {remoteProgress}
+              </p>
+            )}
           </div>
           <nav
             className="song-workspace-tabs"
@@ -992,7 +1004,10 @@ export function SongScreen() {
           prefs={remotePrefs}
           payloadPreview={remotePayload}
           busy={busy}
-          onCancel={() => setRemoteConfirmOpen(false)}
+          onCancel={() => {
+            setRemoteConfirmOpen(false);
+            setRemoteProgress(null);
+          }}
           onConfirm={onConfirmRemoteGenerate}
         />
       )}
