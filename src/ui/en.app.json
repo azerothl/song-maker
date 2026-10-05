@@ -168,7 +168,7 @@
   "form.style.hintInstrumental": "Describe the instruments, energy, and mood — with no sung vocals.",
   "form.style.instrumentalVocalWarning": "The style includes “{cue}”, a voice or singing cue. Remove it to avoid conflicting instructions in Instrumental mode.",
   "form.instrumental": "Instrumental",
-  "form.instrumental.hint": "Lyrics are not used, and the model is asked not to sing. After generation, Song Maker removes detected singing; some vocal traces may remain. Your lyrics stay saved in the project.",
+  "form.instrumental.hint": "Your lyrics stay in the project but will not be used here. The result may still contain vocals.",
   "form.instrumental.active": "Instrumental mode: lyrics are ignored, then vocals are removed after generation.",
   "form.audioInput.incapacity": "The selected engine cannot edit an imported song. To analyze the audio and create a new version, open Score, then Reprise.",
   "form.instrumental.summary": "Instrumental",
