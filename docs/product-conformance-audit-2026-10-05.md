@@ -320,3 +320,9 @@ Trois tests ciblés frontend passent, dont le rendu réel du composant pour dix 
 Le bouton Lancer recalculait implicitement les paramètres et les seeds juste avant le démarrage. Il transmet maintenant directement le token et la révision de l’aperçu examiné. Modifier le nombre de prises ou la simultanéité bloque Lancer et Vérifier la simultanéité jusqu’à une actualisation explicite de l’aperçu ; un message FR/EN explique cette étape. Le backend conserve ses vérifications de ressources au lancement.
 
 Typecheck et tests ciblés passent. La régression de contrat vérifie que le lancement n’appelle plus le recalcul et utilise le token affiché ; elle ne prouve pas un clic natif ni une inférence GPU. Le parcours natif de modification → aperçu → lancement reste à observer.
+
+### #368 — remplacer atomiquement l’aperçu et invalider son ancien token
+
+L’actualisation vérifie désormais sous le même verrou que le lancement que le token et la révision sont toujours courants, puis remplace l’entrée dans une seule section critique. Deux actualisations concurrentes ne peuvent donc pas conserver deux plans lançables issus du même aperçu. Le résultat tardif d’une vérification GPU suit le même chemin et reçoit un nouveau token ; il ne remplace pas un aperçu modifié ou déjà consommé.
+
+Le test de remplacement couvre un remplacement valide, l’ancien token, une ancienne révision et un token consommé. Il vérifie qu’une seule entrée subsiste après remplacement ; il ne mesure pas un double clic natif.

@@ -366,15 +366,22 @@ pub async fn verify_batch_parallelism(
     if verified {
         *state.batch_workers.proof.lock().expect("capacity proof") = Some(report);
     }
+    let previous_revision = pending.preview.revision;
     let mut preview = apply_capacity(&state, pending.preview);
     preview.revision += 1;
-    state
-        .pending_batches
-        .lock()
-        .expect("pending batches")
-        .get_mut(&start_token)
-        .ok_or("Aperçu périmé")?
-        .preview = preview.clone();
+    preview.start_token = uuid::Uuid::new_v4().to_string();
+    let _starts = state.started_batch_tokens.lock().expect("started tokens");
+    let mut registry = state.pending_batches.lock().expect("pending batches");
+    super::batch_cmds::replace_pending_preview(
+        &mut registry,
+        &start_token,
+        previous_revision,
+        crate::batch::PendingImport {
+            file: pending.file,
+            input_raw: pending.input_raw,
+            preview: preview.clone(),
+        },
+    )?;
     Ok(
         json!({"ok":true,"preview":preview,"messageFr":if verified {"Deux prises simultanées vérifiées. Les prises de vérification sont disponibles dans la bibliothèque."} else {"Vérification non concluante : une prise à la fois est conservée. Les résultats et le rapport restent disponibles."}}),
     )

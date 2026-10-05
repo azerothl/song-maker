@@ -164,15 +164,39 @@ pub fn update_batch_preview(
             preview = super::batch_capacity::apply_capacity(&state, preview);
             preview.revision = pending.preview.revision.saturating_add(1);
             let out = validate_ok(preview.clone());
-            state
-                .pending_batches
-                .lock()
-                .expect("pending batches")
-                .remove(&start_token);
-            store_pending(&state, pending.file, pending.input_raw, preview);
+            // Serialize with start_batch, which consumes the token after publishing its plan.
+            let _starts = state.started_batch_tokens.lock().expect("started tokens");
+            let mut registry = state.pending_batches.lock().expect("pending batches");
+            replace_pending_preview(
+                &mut registry,
+                &start_token,
+                pending.preview.revision,
+                PendingImport {
+                    file: pending.file,
+                    input_raw: pending.input_raw,
+                    preview,
+                },
+            )?;
             Ok(out)
         }
     }
+}
+
+pub(super) fn replace_pending_preview(
+    registry: &mut std::collections::BTreeMap<String, PendingImport>,
+    previous_token: &str,
+    previous_revision: u32,
+    replacement: PendingImport,
+) -> Result<(), String> {
+    if !registry
+        .get(previous_token)
+        .is_some_and(|pending| pending.preview.revision == previous_revision)
+    {
+        return Err("Aperçu périmé : les réglages ont déjà changé ou le lot a été lancé.".into());
+    }
+    registry.remove(previous_token);
+    registry.insert(replacement.preview.start_token.clone(), replacement);
+    Ok(())
 }
 
 fn assign_projects(tasks: &mut [PlannedTask]) -> Result<(), String> {
@@ -1034,4 +1058,44 @@ fn resume_requeues_only_interrupted_and_retry_wait_preserving_inputs() {
     // A second resume before admission must not add another attempt.
     prepare_batch_resume(&id).unwrap();
     assert_eq!(crate::batch::load_live_tasks(&id).unwrap()[3].attempt, 3);
+}
+
+#[cfg(test)]
+#[test]
+fn preview_replacement_rejects_stale_and_consumed_tokens() {
+    let file = crate::batch::parse_batch_bytes(EXAMPLE_JSON.as_bytes(), "preview").unwrap();
+    let preview = plan_batch(&file, None, None).unwrap();
+    let pending = PendingImport {
+        file,
+        input_raw: EXAMPLE_JSON.into(),
+        preview,
+    };
+    let old_token = pending.preview.start_token.clone();
+    let old_revision = pending.preview.revision;
+    let mut registry = std::collections::BTreeMap::new();
+    registry.insert(old_token.clone(), pending.clone());
+    let mut next = pending.clone();
+    next.preview.start_token = uuid::Uuid::new_v4().to_string();
+    next.preview.revision += 1;
+    replace_pending_preview(&mut registry, &old_token, old_revision, next.clone()).unwrap();
+    assert_eq!(registry.len(), 1);
+    assert!(!registry.contains_key(&old_token));
+    assert!(
+        replace_pending_preview(&mut registry, &old_token, old_revision, pending.clone()).is_err()
+    );
+    assert!(replace_pending_preview(
+        &mut registry,
+        &next.preview.start_token,
+        old_revision,
+        pending.clone()
+    )
+    .is_err());
+    registry.clear();
+    assert!(replace_pending_preview(
+        &mut registry,
+        &next.preview.start_token,
+        next.preview.revision,
+        pending
+    )
+    .is_err());
 }
