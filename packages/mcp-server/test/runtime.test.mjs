@@ -4,7 +4,8 @@ import test from 'node:test';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import { cliArgs, acquireGpuLock, insideWorkspace, normalizeSong, outputName, parseBatch,
-  publishExclusive, releaseGpuLock, semanticBudget, workspaceRoot } from '../src/runtime.mjs';
+  assertGpuSafe, gpuLimits, inferenceThreads, parseGpuTelemetry, publishExclusive, releaseGpuLock, semanticBudget,
+  workspaceRoot } from '../src/runtime.mjs';
 
 const basic = { id: '01', title: 'Soft Morning', style: 'chill soul', lyrics: '[Verse]\nA quiet room', seed: 42 };
 
@@ -16,6 +17,7 @@ test('batch defaults feed YuE2 arguments and output names', () => {
   const args = cliArgs(song, { modelDir: 'model', modelName: 'yue2-3b-q4_0.gguf' }, 'out.wav');
   assert.ok(args.includes('yue2.model_gguf=yue2-3b-q4_0.gguf'));
   assert.ok(args.includes('style=English, chill soul'));
+  assert.ok(args.includes('--threads'));
   assert.deepEqual(semanticBudget(song), [9000, 11250]);
 });
 
@@ -34,6 +36,24 @@ test('batch rejects modes this headless runner cannot honor', () => {
   assert.equal(parseBatch(JSON.stringify({ schemaVersion: 1, onError: 'continue', songs: [basic] })).length, 1);
   assert.throws(() => parseBatch(JSON.stringify({ schemaVersion: 1,
     defaults: { generations: 2 }, songs: [basic] })));
+});
+
+test('inference CPU threads use a bounded default and validate overrides', () => {
+  assert.ok(inferenceThreads() >= 1 && inferenceThreads() <= 8);
+  assert.equal(inferenceThreads('6'), 6);
+  assert.throws(() => inferenceThreads('0'), /entre 1 et 64/);
+  assert.throws(() => inferenceThreads('many'), /entre 1 et 64/);
+});
+
+test('GPU preflight enforces temperature, VRAM, and a conservative limit', () => {
+  const telemetry = parseGpuTelemetry('NVIDIA GeForce RTX 4090, 48, 18000\n');
+  assert.equal(telemetry.name, 'NVIDIA GeForce RTX 4090');
+  assert.deepEqual(gpuLimits('yue2-3b-q4_0.gguf'), { maxTemperature: 80, minimumFreeMemoryMiB: 8192 });
+  assert.deepEqual(gpuLimits('yue2-3b-q8_0.gguf'), { maxTemperature: 80, minimumFreeMemoryMiB: 12288 });
+  assert.doesNotThrow(() => assertGpuSafe(telemetry, gpuLimits('q4')));
+  assert.throws(() => assertGpuSafe({ ...telemetry, temperature: 80 }, gpuLimits('q4')), { code: 'GPU_SAFETY_STOP' });
+  assert.throws(() => assertGpuSafe({ ...telemetry, freeMemoryMiB: 7000 }, gpuLimits('q4')), { code: 'GPU_MEMORY_LOW' });
+  assert.throws(() => gpuLimits('q4', '90'), /entre 65 et 85/);
 });
 
 test('GPU lock rejects a concurrent job and releases for the next job', async () => {

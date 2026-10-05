@@ -1,12 +1,14 @@
-import { spawn } from 'node:child_process';
+import { execFile as execFileCallback, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, realpathSync } from 'node:fs';
 import { link, mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const execFile = promisify(execFileCallback);
 export const workspaceRoot = path.resolve(process.env.SONG_MAKER_WORKSPACE_ROOT || process.cwd());
 const jobsDir = path.join(workspaceRoot, '.song-maker-mcp', 'jobs');
 const gpuLockPath = path.join(workspaceRoot, '.song-maker-mcp', 'gpu.lock');
@@ -128,6 +130,17 @@ export function semanticBudget(song) {
   return [min, Math.max(min, maxSeconds * 25)];
 }
 
+export function inferenceThreads(value = process.env.SONG_MAKER_THREADS) {
+  if (value !== undefined && value !== '') {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 64) {
+      throw new Error('SONG_MAKER_THREADS doit être un entier entre 1 et 64.');
+    }
+    return parsed;
+  }
+  return Math.max(1, Math.min(8, os.availableParallelism?.() || os.cpus().length || 1));
+}
+
 export function cliArgs(song, runtime, destination) {
   const [min, max] = semanticBudget(song);
   let style = song.style;
@@ -139,6 +152,7 @@ export function cliArgs(song, runtime, destination) {
   const meter = song.meter ? `${song.meter.numerator}/${song.meter.denominator}` : null;
   if (meter && !style.includes(meter)) style += `, ${meter}`;
   return ['--task', 'gen', '--family', 'yue2', '--model', runtime.modelDir, '--backend', 'cuda',
+    '--threads', String(inferenceThreads()),
     '--session-option', `yue2.model_gguf=${runtime.modelName}`,
     '--request-option', `style=${style}`, '--request-option', `cot=${song.cot}`,
     '--request-option', `semantic_min_tokens=${min}`, '--request-option', `semantic_max_tokens=${max}`,
@@ -155,20 +169,100 @@ export async function runCli(song, destination, runtime = runtimeStatus()) {
   await mkdir(path.dirname(destination), { recursive: true });
   const temporary = destination + '.partial.wav';
   if (existsSync(temporary)) throw new Error(`Export partiel déjà présent : ${temporary}`);
+  const limits = gpuLimits(runtime.modelName);
+  assertGpuSafe(await readGpuTelemetry(), limits);
   let tail = '';
-  const code = await new Promise((resolve, reject) => {
-    const child = spawn(runtime.binary, cliArgs(song, runtime, temporary), { windowsHide: true, shell: false });
-    child.on('error', reject);
-    for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => {
-      tail = (tail + chunk.toString()).slice(-6000);
+  try {
+    const code = await new Promise((resolve, reject) => {
+      const child = spawn(runtime.binary, cliArgs(song, runtime, temporary), { windowsHide: true, shell: false });
+      let monitorBusy = false;
+      let safetyError = null;
+      const monitor = setInterval(() => {
+        if (monitorBusy || safetyError) return;
+        monitorBusy = true;
+        readGpuTelemetry()
+          .then(telemetry => assertGpuSafe(telemetry, limits, false))
+          .catch(error => {
+            safetyError = error.code === 'GPU_SAFETY_STOP' ? error : Object.assign(error, { code: 'GPU_SAFETY_STOP' });
+            child.kill();
+          })
+          .finally(() => { monitorBusy = false; });
+      }, 3000);
+      monitor.unref();
+      child.on('error', error => { clearInterval(monitor); reject(error); });
+      for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => {
+        tail = (tail + chunk.toString()).slice(-6000);
+      });
+      child.on('close', code => {
+        clearInterval(monitor);
+        if (safetyError) reject(safetyError);
+        else resolve(code);
+      });
     });
-    child.on('close', resolve);
-  });
-  if (code !== 0) throw new Error(`YuE2 a échoué (code ${code}) : ${tail.slice(-1000)}`);
-  const size = (await stat(temporary)).size;
-  if (size < 1024) throw new Error('YuE2 n’a pas produit un WAV valide.');
-  await publishExclusive(temporary, destination);
-  return { destination, bytes: size };
+    if (code !== 0) throw new Error(`YuE2 a échoué (code ${code}) : ${tail.slice(-1000)}`);
+    const size = (await stat(temporary)).size;
+    if (size < 1024) throw new Error('YuE2 n’a pas produit un WAV valide.');
+    await publishExclusive(temporary, destination);
+    return { destination, bytes: size };
+  } catch (error) {
+    await unlink(temporary).catch(() => {});
+    throw error;
+  }
+}
+
+export function gpuLimits(modelName, maxTemperature = process.env.SONG_MAKER_GPU_MAX_TEMP_C || '80') {
+  const temperature = Number(maxTemperature);
+  if (!Number.isFinite(temperature) || temperature < 65 || temperature > 85) {
+    throw new Error('SONG_MAKER_GPU_MAX_TEMP_C doit être entre 65 et 85 °C.');
+  }
+  return { maxTemperature: temperature, minimumFreeMemoryMiB: modelName?.includes('q8_0') ? 12 * 1024 : 8 * 1024 };
+}
+
+export function parseGpuTelemetry(output) {
+  const first = String(output).trim().split(/\r?\n/)[0];
+  const fields = first?.split(',').map(value => value.trim()) || [];
+  const temperature = Number(fields[1]);
+  const freeMemoryMiB = Number(fields[2]);
+  if (!fields[0] || !Number.isFinite(temperature) || !Number.isFinite(freeMemoryMiB)) {
+    throw new Error('nvidia-smi ne retourne pas la température et la mémoire libre du GPU.');
+  }
+  return { name: fields[0], temperature, freeMemoryMiB };
+}
+
+export function assertGpuSafe(telemetry, limits, checkMemory = true) {
+  if (telemetry.temperature >= limits.maxTemperature) {
+    const error = new Error(`Arrêt de sécurité : GPU à ${telemetry.temperature} °C (seuil ${limits.maxTemperature} °C). Laisse refroidir la carte puis reprends le job.`);
+    error.code = 'GPU_SAFETY_STOP';
+    throw error;
+  }
+  if (checkMemory && telemetry.freeMemoryMiB < limits.minimumFreeMemoryMiB) {
+    const error = new Error(`VRAM libre insuffisante : ${Math.round(telemetry.freeMemoryMiB / 1024)} Gio, minimum ${Math.round(limits.minimumFreeMemoryMiB / 1024)} Gio pour ce modèle.`);
+    error.code = 'GPU_MEMORY_LOW';
+    throw error;
+  }
+}
+
+export async function readGpuTelemetry() {
+  const executable = process.env.SONG_MAKER_NVIDIA_SMI || 'nvidia-smi';
+  try {
+    const { stdout } = await execFile(executable, [
+      '--query-gpu=name,temperature.gpu,memory.free', '--format=csv,noheader,nounits',
+    ], { timeout: 4000, windowsHide: true, maxBuffer: 16 * 1024 });
+    return parseGpuTelemetry(stdout);
+  } catch (error) {
+    throw Object.assign(new Error(`Impossible de lire les capteurs NVIDIA avec nvidia-smi : ${error?.message || error}`),
+      { code: 'GPU_SAFETY_STOP' });
+  }
+}
+
+export async function gpuStatus(modelName = runtimeStatus().modelName) {
+  const limits = gpuLimits(modelName);
+  const telemetry = await readGpuTelemetry();
+  let safe = true;
+  let reason = null;
+  try { assertGpuSafe(telemetry, limits); }
+  catch (error) { safe = false; reason = error.message; }
+  return { ...telemetry, ...limits, safe, reason };
 }
 
 export async function publishExclusive(temporary, destination) {
@@ -252,24 +346,12 @@ export async function releaseGpuLock(jobId, lockPath = gpuLockPath) {
   }
 }
 
-export async function startJob(songs, outputDirectory) {
-  const runtime = runtimeStatus();
-  if (!runtime.ready) throw new Error(`Runtime incomplet : ${runtime.missing.join(', ')}`);
-  if (process.env.SONG_MAKER_YUE2_NONCOMMERCIAL !== '1') {
-    throw new Error('Accepte la licence non commerciale via SONG_MAKER_YUE2_NONCOMMERCIAL=1 avant de générer.');
-  }
-  const output = insideWorkspace(outputDirectory);
-  await mkdir(output, { recursive: true });
-  for (let i = 0; i < songs.length; i++) {
-    if (existsSync(path.join(output, outputName(songs[i], i)))) throw new Error(`Fichier déjà présent : ${outputName(songs[i], i)}`);
-  }
-  await mkdir(jobsDir, { recursive: true });
-  const job = { id: randomUUID(), state: 'queued', outputDirectory: output, songs,
-    current: 0, completed: [], failures: [], error: null, createdAt: new Date().toISOString() };
+async function launchJob(job) {
   const lock = await acquireGpuLock(job.id);
+  let worker;
   try {
     await saveJob(job);
-    const worker = spawn(process.execPath, [path.join(here, 'worker.mjs'), job.id], {
+    worker = spawn(process.execPath, [path.join(here, 'worker.mjs'), job.id], {
       detached: true, stdio: 'ignore', windowsHide: true,
       env: { ...process.env, SONG_MAKER_WORKSPACE_ROOT: workspaceRoot },
     });
@@ -280,6 +362,7 @@ export async function startJob(songs, outputDirectory) {
     await updateGpuLock(lock, worker.pid);
     worker.unref();
   } catch (error) {
+    worker?.kill();
     await releaseGpuLock(job.id);
     job.state = 'failed';
     job.error = String(error?.message || error);
@@ -287,7 +370,42 @@ export async function startJob(songs, outputDirectory) {
     await saveJob(job);
     throw error;
   }
-  return { id: job.id, state: job.state, total: songs.length, outputDirectory: output };
+  return { id: job.id, state: job.state, total: job.songs.length, outputDirectory: job.outputDirectory };
+}
+
+export async function startJob(songs, outputDirectory) {
+  const runtime = runtimeStatus();
+  if (!runtime.ready) throw new Error(`Runtime incomplet : ${runtime.missing.join(', ')}`);
+  inferenceThreads();
+  if (process.env.SONG_MAKER_YUE2_NONCOMMERCIAL !== '1') {
+    throw new Error('Accepte la licence non commerciale via SONG_MAKER_YUE2_NONCOMMERCIAL=1 avant de générer.');
+  }
+  assertGpuSafe(await readGpuTelemetry(), gpuLimits(runtime.modelName));
+  const output = insideWorkspace(outputDirectory);
+  await mkdir(output, { recursive: true });
+  for (let i = 0; i < songs.length; i++) {
+    if (existsSync(path.join(output, outputName(songs[i], i)))) throw new Error(`Fichier déjà présent : ${outputName(songs[i], i)}`);
+  }
+  await mkdir(jobsDir, { recursive: true });
+  const job = { id: randomUUID(), state: 'queued', outputDirectory: output, songs,
+    current: 0, completed: [], failures: [], error: null, createdAt: new Date().toISOString() };
+  return launchJob(job);
+}
+
+export async function resumeJob(id) {
+  const job = await getJob(id);
+  if (job.state !== 'paused_safety') throw new Error('Seuls les jobs arrêtés par la protection GPU peuvent être repris.');
+  const runtime = runtimeStatus();
+  if (!runtime.ready) throw new Error(`Runtime incomplet : ${runtime.missing.join(', ')}`);
+  inferenceThreads();
+  if (process.env.SONG_MAKER_YUE2_NONCOMMERCIAL !== '1') {
+    throw new Error('Accepte la licence non commerciale via SONG_MAKER_YUE2_NONCOMMERCIAL=1 avant de générer.');
+  }
+  assertGpuSafe(await readGpuTelemetry(), gpuLimits(runtime.modelName));
+  job.state = 'queued';
+  job.error = null;
+  job.finishedAt = null;
+  return launchJob(job);
 }
 
 export async function runJob(id) {
@@ -305,13 +423,21 @@ export async function runJob(id) {
         const result = await runCli(job.songs[i], destination, runtime);
         job.completed.push(result);
       } catch (error) {
+        if (error.code === 'GPU_SAFETY_STOP' || error.code === 'GPU_MEMORY_LOW') {
+          job.state = 'paused_safety';
+          job.error = String(error?.message || error);
+          job.safetyStoppedAt = new Date().toISOString();
+          await saveJob(job);
+          break;
+        }
         job.failures.push({ songId: job.songs[i].id, title: job.songs[i].title,
           error: String(error?.message || error) });
       }
+      if (job.state === 'paused_safety') break;
       job.current = i + 1;
       await saveJob(job);
     }
-    job.state = job.failures.length ? 'completed_with_errors' : 'completed';
+    if (job.state !== 'paused_safety') job.state = job.failures.length ? 'completed_with_errors' : 'completed';
   } catch (error) {
     job.state = 'failed';
     job.error = String(error?.message || error);
