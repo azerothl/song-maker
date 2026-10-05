@@ -530,6 +530,13 @@ async fn run_generation(
         resolve_generation_engine(engine.as_deref(), &settings.generation_engine)?;
     let style_sent =
         validate_form_for_engine(&form, &requested_engine).map_err(|e| e.to_string())?;
+    // Empty lyrics alone do not stop music models from hallucinating vocals.
+    // Make instrumental intent explicit in the model prompt as well.
+    let style_sent = if form.instrumental_mode {
+        format!("{style_sent}; instrumental only, no vocals, no singing, no spoken voice")
+    } else {
+        style_sent
+    };
     let target_duration_sec =
         validate_target_duration(form.target_duration_sec).map_err(|e| e.to_string())?;
     let lyrics_sent = generation_lyrics(&form).to_string();

@@ -129,7 +129,7 @@
   "form.style.hint": "Describe the instruments, energy, and voice you have in mind.",
   "form.style.hintInstrumental": "Describe the instruments, energy, and mood — with no sung vocals.",
   "form.instrumental": "Instrumental",
-  "form.instrumental.hint": "Lyrics are not used. After generation, Song Maker removes the detected singing; some vocal traces may remain. Your lyrics stay saved in the project.",
+  "form.instrumental.hint": "Lyrics are not used, and the model is asked not to sing. After generation, Song Maker removes detected singing; some vocal traces may remain. Your lyrics stay saved in the project.",
   "form.instrumental.active": "Instrumental mode: lyrics are ignored, then vocals are removed after generation.",
   "form.audioInput.incapacity": "The selected engine cannot edit an imported song. To analyze the audio and create a new version, open Score, then Reprise.",
   "form.instrumental.summary": "Instrumental",
