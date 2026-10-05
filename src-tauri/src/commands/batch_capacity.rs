@@ -421,11 +421,19 @@ pub async fn verify_batch_parallelism(
     } else {
         "Vérification non concluante : une prise à la fois est conservée. Les résultats et le rapport restent disponibles."
     };
-    let message = match restore_audio_server.restore() {
-        Ok(()) => message.to_string(),
-        Err(_) => format!(
+    let audio_engine_restart_failed = restore_audio_server.restore().is_err();
+    let message = if audio_engine_restart_failed {
+        format!(
             "{message} Le moteur audio n’a pas pu redémarrer ; relancez-le avec le bouton de la barre latérale."
-        ),
+        )
+    } else {
+        message.to_string()
     };
-    Ok(json!({"ok":true,"preview":preview,"messageFr":message}))
+    Ok(json!({
+        "ok": true,
+        "preview": preview,
+        "messageFr": message,
+        "verified": verified,
+        "audioEngineRestartFailed": audio_engine_restart_failed
+    }))
 }

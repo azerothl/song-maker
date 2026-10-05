@@ -261,7 +261,11 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
     try {
       const result = await api.verifyBatchParallelism(preview.startToken);
       if (result.preview) setPreview(result.preview);
-      setNotice(result.messageFr);
+      const verified = result.verified ?? (result.preview?.admittedParallel ?? 1) > 1;
+      const message = t(verified ? "batch.verifySucceeded" : "batch.verifyFailed");
+      setNotice(result.audioEngineRestartFailed
+        ? `${message} ${t("batch.audioEngineRestartFailed")}`
+        : message);
       await refreshLibrary();
     } catch (error) {
       setNotice(null);
@@ -308,7 +312,7 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
             void api
               .downloadBatchExample()
               .then((path) => {
-                if (path) setNotice(path);
+                if (path) setNotice(t("batch.exampleDownloaded"));
               })
               .catch((e) => setError(String(e)))
           }
@@ -352,13 +356,24 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
             })}
           </p>
           <p className="hint">
-            {preview.admittedParallel === 1 ? t("batch.capacityOne") : `${t("batch.capacity")} : ${preview.capacityReasonFr}`}
+            {preview.admittedParallel === 1
+              ? t("batch.capacityOne")
+              : preview.admittedParallel < preview.requestedParallel
+                ? t("batch.capacityReduced", {
+                    requested: preview.requestedParallel,
+                    available: preview.admittedParallel,
+                  })
+                : t("batch.capacityAvailable", { count: preview.admittedParallel })}
           </p>
           <button type="button" className="btn" disabled={busy || previewDirty || preview.taskCount < 2} onClick={() => void onVerifyParallelism()}>
             {t("batch.verifyParallel")}
           </button>
           <p className="hint">{t("batch.verifyHint")}</p>
-          {preview.launchBlockFr && <p className="hint">{preview.launchBlockFr}</p>}
+          {!preview.canLaunch && (
+            <p className="hint">
+              {t("batch.launchBlocked", { available: preview.admittedParallel })}
+            </p>
+          )}
           <label>
             {t("batch.generations")}
             <input
@@ -430,8 +445,13 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
                 </p>
               )}
               <p>{t("batch.liveParallel", { count: batch.effectiveParallel ?? 1 })}</p>
-              {(batch.effectiveParallel ?? 1) < (batch.requestedParallel ?? 1) && batch.capacityReasonFr && (
-                <p className="hint">{batch.capacityReasonFr}</p>
+              {(batch.effectiveParallel ?? 1) < (batch.requestedParallel ?? 1) && (
+                <p className="hint">
+                  {t("batch.capacityReducedRunning", {
+                    requested: batch.requestedParallel ?? 1,
+                    available: batch.effectiveParallel ?? 1,
+                  })}
+                </p>
               )}
             </header>
             <div className="batch-actions">

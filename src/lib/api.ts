@@ -478,7 +478,11 @@ export const api = {
     ),
   validateBatchImport: () => invoke<BatchValidateResult>("validate_batch_import"),
   verifyBatchParallelism: (startToken: string) =>
-    invoke<BatchValidateResult & {messageFr: string}>("verify_batch_parallelism", {startToken}),
+    invoke<BatchValidateResult & {
+      messageFr: string;
+      verified?: boolean;
+      audioEngineRestartFailed?: boolean;
+    }>("verify_batch_parallelism", {startToken}),
   updateBatchPreview: (
     startToken: string,
     overrides: { generations?: number | null; maxParallelGenerations?: number | null },

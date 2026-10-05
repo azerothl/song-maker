@@ -41,10 +41,12 @@ describe("batch generation (#368)", () => {
     assert.match(screen, /BatchGenerationPanel/);
     assert.match(panel, /batch\.honest/);
     assert.doesNotMatch(panel, /deux inférences se chevauchent/);
-    assert.equal(
-      fr["batch.honest"].includes("simultanéité"),
-      true,
-    );
+    assert.equal(fr["batch.honest"].includes("simultanéité"), false);
+    assert.doesNotMatch(panel, /preview\.capacityReasonFr|batch\.capacityReasonFr|result\.messageFr|preview\.launchBlockFr/);
+    for (const key of ["batch.capacityAvailable", "batch.capacityReduced", "batch.launchBlocked", "batch.verifySucceeded", "batch.verifyFailed"]) {
+      assert.ok(key in fr);
+      assert.ok(key in enApp);
+    }
     assert.ok("batch.open" in enApp);
     assert.doesNotMatch(fr["candidates.foldSummary"], /parallèle/i);
     assert.doesNotMatch(enApp["candidates.foldSummary"], /parallel/i);
