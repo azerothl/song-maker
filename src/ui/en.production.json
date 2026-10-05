@@ -36,7 +36,7 @@
   "phase3.mix.truePeak": "True peak",
   "phase3.mix.loudnessNote": "Measured on the rendered mix (clips + production). Measurement only — no automatic normalization.",
   "phase3.mix.loudnessMeasuring": "Measuring…",
-  "phase3.mix.loudnessNeedStems": "Stems required to measure the rendered mix.",
+  "phase3.mix.loudnessNeedStems": "Separate the song into tracks to measure the rendered mix.",
   "phase3.mix.loudnessDuration": "Duration",
   "phase3.mix.param.thresholdDb": "Threshold (dB)",
   "phase3.mix.param.ratio": "Ratio",
