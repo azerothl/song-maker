@@ -268,7 +268,6 @@ export function SongScreen() {
 
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-      throw e;
     } finally {
       setBusy(false);
     }
