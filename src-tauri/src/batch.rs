@@ -829,48 +829,47 @@ pub fn recover_batches() -> Result<(), String> {
 }
 
 pub fn export_ready_results(batch_id: &str, dest: &Path) -> Result<PathBuf, String> {
-    let dir = batches_root().join(batch_id);
-    let plan: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(dir.join("plan.json")).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
+    let tasks = load_live_tasks(batch_id)?;
     let stamp = now_iso().replace(':', "");
-    let out = dest.join(format!("batch-{batch_id}-{stamp}"));
-    ensure_dir(&out).map_err(|e| e.to_string())?;
-    let tasks = plan
-        .get("tasks")
-        .and_then(|t| t.as_array())
-        .cloned()
-        .unwrap_or_default();
+    let out = dest.join(format!("batch-{batch_id}-{stamp}-{}", uuid::Uuid::new_v4()));
+    // Reserve a fresh directory atomically; never merge with an earlier export.
+    std::fs::create_dir(&out)
+        .map_err(|e| format!("Impossible de créer le dossier d’export : {e}"))?;
     let mut ready = 0u32;
     let mut failed = 0u32;
     for task in &tasks {
-        let song = task
-            .get("songId")
-            .and_then(|v| v.as_str())
-            .unwrap_or("song");
-        let idx = task
-            .get("variantIndex")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-        let state = task.get("state").and_then(|v| v.as_str()).unwrap_or("");
-        let song_dir = out.join(song).join(format!("prise-{idx}"));
-        if state == "succeeded" {
+        let song_dir = out
+            .join(&task.song_id)
+            .join(format!("prise-{}", task.variant_index));
+        if task.state == "succeeded" {
+            let (Some(pid), Some(gid)) = (&task.project_id, &task.generation_id) else {
+                return Err(format!(
+                    "{} : la prise prête ne référence aucun résultat. Export incomplet : {}",
+                    task.title,
+                    out.display()
+                ));
+            };
+            let wav = crate::commands::shared::published_generation_wav(
+                &crate::library::project_folder(pid),
+                gid,
+            )
+            .map_err(|error| {
+                format!(
+                    "{} : {error} Export incomplet : {}",
+                    task.title,
+                    out.display()
+                )
+            })?;
+            ensure_dir(&song_dir).map_err(|e| e.to_string())?;
+            std::fs::copy(&wav, song_dir.join("audio.wav")).map_err(|e| {
+                format!(
+                    "{} : copie impossible ({e}). Export incomplet : {}",
+                    task.title,
+                    out.display()
+                )
+            })?;
             ready += 1;
-            if let (Some(pid), Some(gid)) = (
-                task.get("projectId").and_then(|v| v.as_str()),
-                task.get("generationId").and_then(|v| v.as_str()),
-            ) {
-                let wav = crate::library::project_folder(pid)
-                    .join("generations")
-                    .join(gid)
-                    .join("audio.wav");
-                if wav.is_file() {
-                    ensure_dir(&song_dir).map_err(|e| e.to_string())?;
-                    let _ = std::fs::copy(&wav, song_dir.join("audio.wav"));
-                }
-            }
-        } else if state == "failed" || state == "interrupted" {
+        } else if task.state == "failed" || task.state == "interrupted" {
             failed += 1;
         }
     }
@@ -1402,6 +1401,68 @@ mod tests {
             .iter()
             .filter(|t| t.task_id != running.task_id)
             .all(|t| t.state == "queued"));
+    }
+
+    #[test]
+    fn batch_export_uses_fresh_folders_and_refuses_missing_published_audio() {
+        let _docs = crate::test_docs_env::guard::TempDocs::new("batch-export");
+        crate::profiles::init_profile_system().unwrap();
+        let project =
+            crate::commands::projects::create_project(crate::models::CreateProjectInput {
+                title: "Export fixture".into(),
+            })
+            .unwrap();
+        let mut preview = preview_example();
+        preview.tasks.truncate(1);
+        let task = &mut preview.tasks[0];
+        task.project_id = Some(project.id.clone());
+        task.generation_id = Some("gen-001".into());
+        task.state = "succeeded".into();
+        let id = persist_new_batch(&preview, EXAMPLE_JSON, &preview.tasks).unwrap();
+        let dest = batches_root().join("export-fixture");
+        ensure_dir(&dest).unwrap();
+        assert!(export_ready_results(&id, &dest).is_err());
+        let gen_dir = crate::library::project_folder(&project.id).join("generations/gen-001");
+        ensure_dir(&gen_dir).unwrap();
+        let wav = gen_dir.join("audio.wav");
+        let mut writer = hound::WavWriter::create(
+            &wav,
+            hound::WavSpec {
+                channels: 1,
+                sample_rate: 16000,
+                bits_per_sample: 16,
+                sample_format: hound::SampleFormat::Int,
+            },
+        )
+        .unwrap();
+        for _ in 0..1600 {
+            writer.write_sample(12i16).unwrap();
+        }
+        writer.finalize().unwrap();
+        let sha = crate::hashutil::sha256_file(&wav).unwrap();
+        atomic_write_json(
+            &gen_dir.join("result.json"),
+            &json!({
+                "state":"generated", "audio":{"path":"audio.wav", "sha256":sha}
+            }),
+        )
+        .unwrap();
+        let first = export_ready_results(&id, &dest).unwrap();
+        let exported = first
+            .join(&preview.tasks[0].song_id)
+            .join("prise-1/audio.wav");
+        assert_eq!(crate::hashutil::sha256_file(&exported).unwrap(), sha);
+        std::fs::write(first.join("keep.txt"), "keep").unwrap();
+        let second = export_ready_results(&id, &dest).unwrap();
+        assert_ne!(first, second);
+        assert_eq!(
+            std::fs::read_to_string(first.join("keep.txt")).unwrap(),
+            "keep"
+        );
+        let summary: serde_json::Value = read_json(&second.join("batch-summary.json")).unwrap();
+        assert_eq!(summary["ready"], 1);
+        std::fs::write(&wav, b"broken").unwrap();
+        assert!(export_ready_results(&id, &dest).is_err());
     }
 
     fn finished_attempt_fixture() -> (String, PlannedTask, PathBuf) {

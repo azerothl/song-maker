@@ -296,3 +296,9 @@ Le verrou GPU partagé est remplacé par une admission qui conserve l’exclusiv
 Les contrôles couvrent deux prises actives à drainer avant une action interactive, le tour batch entre deux actions interactives, les annulations des deux types, le refus d’une relance qui doublerait la file et le réveil d’un futur suspendu. L’annulation d’une admission partielle utilise maintenant ce même gestionnaire réel. Ces tests ne constituent pas encore une observation native de l’alternance pendant une inférence GPU.
 
 Validation finale : les quatre tests du gestionnaire, les deux tests de ressources de la file et les cinq tests de contrôle batch passent. Suite Rust complète : 160 réussis, un ignoré dépendant d’un modèle externe ; Clippy strict et formatage passent. CI du précédent commit `65e298e` : backend et site réussis, frontend encore en cours au moment du contrôle.
+
+### #368 — export sans écrasement ni faux succès
+
+L’export relit les tâches persistées et réserve un nouveau dossier avec UUID par `create_dir`, y compris lorsque plusieurs exports surviennent dans la même seconde. Il vérifie chaque résultat publié avant copie, propage les erreurs de copie et ne compte une prise prête qu’après copie réussie. Un fichier manquant/corrompu ou une référence de résultat absente provoque une erreur indiquant le dossier incomplet ; les fichiers déjà copiés restent conservés. Aucun nouvel audio n’est généré par l’export.
+
+Le test d’export vérifie le refus d’un résultat absent, un vrai petit WAV et son empreinte après copie, deux exports distincts sans modifier le premier, le compteur du bilan et le refus d’un WAV corrompu. La vérification native du dialogue et du dossier exporté reste à faire.
