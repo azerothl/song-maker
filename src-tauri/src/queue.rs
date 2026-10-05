@@ -10,12 +10,12 @@ pub struct JobQueue {
     inner: Arc<Mutex<QueueInner>>,
     waiting: Arc<AtomicUsize>,
     gate: Arc<tokio::sync::Mutex<()>>,
-    device: Arc<tokio::sync::RwLock<()>>,
+    device: Arc<crate::device_admission::DeviceAdmission>,
 }
 
 pub struct RuntimeRestartGuard {
     _serial: tokio::sync::OwnedMutexGuard<()>,
-    _device: tokio::sync::OwnedRwLockWriteGuard<()>,
+    _device: crate::device_admission::DeviceGuard,
 }
 
 struct QueueInner {
@@ -32,7 +32,7 @@ impl Default for JobQueue {
             })),
             waiting: Arc::new(AtomicUsize::new(0)),
             gate: Arc::new(tokio::sync::Mutex::new(())),
-            device: Arc::new(tokio::sync::RwLock::new(())),
+            device: Arc::new(crate::device_admission::DeviceAdmission::default()),
         }
     }
 }
@@ -52,19 +52,17 @@ impl JobQueue {
         }
         let device = self
             .device
-            .clone()
-            .try_write_owned()
-            .map_err(|_| "Une génération du lot utilise le moteur audio.".to_string())?;
+            .try_interactive()
+            .ok_or_else(|| "Une tâche audio utilise ou attend le moteur audio.".to_string())?;
         Ok(RuntimeRestartGuard {
             _serial: permit,
             _device: device,
         })
     }
 
-    /// Readers represent isolated batch workers; interactive jobs use a writer.
-    /// Tokio gives a waiting writer priority over later readers.
-    pub async fn acquire_batch_device(&self) -> tokio::sync::OwnedRwLockReadGuard<()> {
-        self.device.clone().read_owned().await
+    /// Interactive jobs are exclusive; after one, admit waiting batch work.
+    pub async fn acquire_batch_device(&self) -> crate::device_admission::DeviceGuard {
+        self.device.batch().await
     }
 
     pub fn status(&self) -> JobStatus {
@@ -149,7 +147,7 @@ impl JobQueue {
             project_id.clone(),
         );
         let _permit = self.gate.lock().await;
-        let _device = self.device.write().await;
+        let _device = self.device.interactive().await;
         self.waiting.fetch_sub(1, Ordering::SeqCst);
         {
             let mut g = self.inner.lock();

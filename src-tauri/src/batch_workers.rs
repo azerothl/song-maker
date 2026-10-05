@@ -40,7 +40,7 @@ impl Default for BatchWorkers {
 pub struct WorkerLease<'a> {
     pub worker: GenerationWorker,
     pool: &'a BatchWorkers,
-    _device: tokio::sync::OwnedRwLockReadGuard<()>,
+    _device: crate::device_admission::DeviceGuard,
     _permit: tokio::sync::OwnedSemaphorePermit,
 }
 
@@ -98,7 +98,7 @@ impl BatchWorkers {
             .map_err(|e| e.to_string())?;
         let device = state.queue.acquire_batch_device().await;
         turn.admitted();
-        // Interactive jobs acquire the device writer before starting their runtime.
+        // Interactive jobs hold an exclusive device admission before starting their runtime.
         state.server.shutdown();
         let id = uuid::Uuid::new_v4().to_string();
         let folder = crate::batch::batches_root()

@@ -12,6 +12,7 @@ mod bs_roformer;
 mod commands;
 mod declui_host;
 mod demucs_onnx;
+mod device_admission;
 mod form;
 mod hashutil;
 mod health;

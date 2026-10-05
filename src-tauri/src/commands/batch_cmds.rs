@@ -885,8 +885,8 @@ mod selection_tests {
             Arc,
         };
         let pool = Arc::new(tokio::sync::Semaphore::new(2));
-        let device = Arc::new(tokio::sync::RwLock::new(()));
-        let interactive = device.clone().write_owned().await;
+        let device = Arc::new(crate::device_admission::DeviceAdmission::default());
+        let interactive = device.interactive().await;
         let stopped = Arc::new(AtomicBool::new(false));
         let signal = stopped.clone();
         let admission_pool = pool.clone();
@@ -895,7 +895,7 @@ mod selection_tests {
             wait_for_batch_admission(
                 async move {
                     let permit = admission_pool.acquire_many_owned(2).await.unwrap();
-                    let device = admission_device.read_owned().await;
+                    let device = admission_device.batch().await;
                     (permit, device)
                 },
                 || Ok(signal.load(Ordering::Acquire)),
@@ -920,9 +920,9 @@ mod selection_tests {
         );
         assert_eq!(pool.available_permits(), 2);
         // Cancellation does not release or interrupt the unrelated interactive job.
-        assert!(device.clone().try_read_owned().is_err());
+        assert!(device.try_interactive().is_none());
         drop(interactive);
-        assert!(device.try_read_owned().is_ok());
+        assert!(device.try_interactive().is_some());
     }
 
     #[tokio::test]
