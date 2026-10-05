@@ -80,10 +80,7 @@ pub fn use_generation(id: String, gen_id: String) -> Result<ProjectDoc, String> 
     let project_lock = crate::project_transaction::lock_for(&folder);
     let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
-    let gen_dir = folder.join("generations").join(&gen_id);
-    if !gen_dir.exists() {
-        return Err("Génération introuvable.".into());
-    }
+    super::shared::published_generation_wav(&folder, &gen_id)?;
     doc.active_generation_id = Some(gen_id);
     doc.active_separation_id = None;
     doc.active_mix_id = None;

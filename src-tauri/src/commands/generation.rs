@@ -1362,6 +1362,7 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
             .unwrap_or("")
             .to_string();
         let audio = entry.path().join("audio.wav");
+        let published_audio = state == "generated" && audio.is_file();
         let semantic_frames = std::fs::read(entry.path().join("semantic.json"))
             .ok()
             .and_then(|bytes| serde_json::from_slice::<Vec<u32>>(&bytes).ok());
@@ -1380,13 +1381,14 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
                 .get("parentGenerationId")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
-            audio_path: if audio.is_file() {
+            audio_path: if published_audio {
                 Some(audio.display().to_string())
             } else {
                 None
             },
             semantic_truncated,
-            can_continue: semantic_truncated == Some(true)
+            can_continue: published_audio
+                && semantic_truncated == Some(true)
                 && semantic_frames.as_ref().is_some_and(|frames| {
                     !frames.is_empty() && frames.iter().all(|&frame| frame < 32768)
                 }),

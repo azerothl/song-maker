@@ -442,5 +442,7 @@
   "settings.model.lego.available": "Lego is installed. It will start automatically when you create a part guided by your song.",
   "settings.model.lego.incomplete": "The Lego installation is incomplete. Run the installation again to repair it.",
   "settings.model.lego.absent": "Lego is not installed yet.",
-  "settings.model.lego.firstUse": "On your first creation, missing models are downloaded automatically. Allow several gigabytes and extra preparation time."
+  "settings.model.lego.firstUse": "On your first creation, missing models are downloaded automatically. Allow several gigabytes and extra preparation time.",
+  "versions.cancelled.title": "Generation cancelled",
+  "versions.failed.title": "Generation failed. You can try again."
 }

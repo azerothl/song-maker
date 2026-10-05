@@ -221,9 +221,6 @@ export function VersionsWorkspace({
           mixes={mixes}
           project={project}
           busy={busy}
-          onListen={(genId) => {
-            void activateTake(genId);
-          }}
           onActivateTake={activateTake}
           onRetryTake={onRetryTake}
           canRetryTake={canRetryTake}

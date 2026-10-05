@@ -264,3 +264,15 @@ Validation de cette étape : 7 tests Rust Lego passent, dont l’annulation d’
 L’attente de démarrage et l’appel de génération Lego contrôlent désormais l’annulation toutes les 200 ms. Quand le moteur Base appartient à l’application, les deux processus (moteur et passerelle) sont arrêtés et la requête est abandonnée ; la prise est enregistrée annulée, sans audio publié ni import dans le mix. Le moteur pourra être relancé lors de la demande suivante. Pour un serveur configuré et géré extérieurement, le client attend son résultat terminal et ne le publie pas si l’utilisateur a annulé : l’API amont n’offre pas de route d’annulation, et le verrou de ressources est conservé pendant cette attente.
 
 Tests ciblés : neuf tests Lego passent, avec un vrai processus Python arrêté sans attendre sa fin prévue à 120 secondes, et une vérification de l’attente terminale pour le cas externe. Ces tests ne constituent pas une annulation native observée pendant une inférence GPU ; celle-ci reste à vérifier avec le parcours complet. Le message global de demande d’annulation n’affirme plus que tout calcul GPU doit forcément aller jusqu’au bout.
+
+### #383 / #381 / #379 — écouter dans l’historique sans activer une prise
+
+Le bouton « Écouter » de l’historique appelait encore la restauration de génération, qui détache le mix et la séparation actifs. Il ouvre désormais le lecteur de préécoute indépendant ; seule l’action explicite « Revenir à cette version » restaure une prise.
+
+Vérification native Windows, projet de contrôle `dc60f178-eaac-47a1-9db1-19aad7eae0c0` : écoute de Prise 3 observée à 0:08 puis à la fin 0:29, pendant que le lecteur principal reste sur gen-002 à 0:00. SHA-256 du document avant/après identique : `7BCCB8A1CA93D96BA9CE2AADFD3C836A1420A84FAB613488B0CD194CB286077F`. Ce contrôle prouve la continuité du lecteur et la conservation de la génération active ; ce projet n’avait pas de mix rempli. Frontend courant dans la fenêtre Tauri de développement, pas un nouvel installateur publié.
+
+### #325 / #382 / #378 — refuser les prises non publiées
+
+L’historique distingue annulation et échec, et ne propose plus les fichiers audio laissés par une prise non terminée. La restauration et l’import comme piste exigent un résultat `generated`, un WAV non vide et une empreinte correspondant au résultat publié, avant toute modification du projet. Les fichiers sources sont conservés. Le contrôle Rust couvre un WAV valide, les états annulé/échoué/interrompu/en cours, un identifiant invalide et un fichier corrompu ; cette garde n’a pas été vérifiée dans un exécutable natif reconstruit.
+
+Validation : typecheck réussi, 11 tests d’historique et le test Rust de publication réussis ; formatage Rust global et Clippy strict réussis. CI du commit précédent `1e2fd3d` : jobs TypeScript, Rust et site réussis (run 37304301833). Les tickets restent ouverts pour les critères et la livraison encore manquants.

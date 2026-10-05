@@ -321,15 +321,7 @@ pub async fn import_generation_as_user_track(
         let folder = project_folder(&id);
         let mut doc = load_project(&folder)?;
         let gen_id = generation_id.trim();
-        if gen_id.is_empty() {
-            return Err("Identifiant de génération manquant.".into());
-        }
-        let wav = folder.join("generations").join(gen_id).join("audio.wav");
-        if !wav.is_file() {
-            return Err(format!(
-                "WAV de génération introuvable (generations/{gen_id}/audio.wav)."
-            ));
-        }
+        let wav = super::shared::published_generation_wav(&folder, gen_id)?;
         let name = display_name
             .as_deref()
             .map(str::trim)
