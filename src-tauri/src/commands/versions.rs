@@ -127,7 +127,7 @@ pub fn import_remote_generation(
         let score_sha = sha256_file(&score_path)?;
         json!({ "path": "score.abc", "sha256": score_sha })
     } else {
-        json!({ "path": "score.abc", "sha256": null })
+        serde_json::Value::Null
     };
 
     let duration = wav_duration_ms(&out_wav).unwrap_or(0);

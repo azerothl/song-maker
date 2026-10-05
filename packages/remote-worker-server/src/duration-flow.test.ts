@@ -12,9 +12,15 @@ it.each([30, 1])("validates the full encrypted HTTP duration flow with a %i-seco
   const upstream = createServer(async (req, res) => {
     const chunks: Buffer[] = [];
     for await (const chunk of req) chunks.push(Buffer.from(chunk));
-    observed = JSON.parse(Buffer.concat(chunks).toString());
+    const body = JSON.parse(Buffer.concat(chunks).toString());
+    if (body.model === "yue2") observed = body;
     res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ audio: buildMinimalWav(outputSeconds).toString("base64"), abc: "X:1\nK:C\nC|" }));
+    if (body.model === "htdemucs") {
+      const silence = buildMinimalWav(outputSeconds);
+      silence.fill(0, 44);
+      res.end(JSON.stringify({ named_audio_outputs: ["drums", "bass", "other", "vocals"].map(id => ({ id,
+        audio: (id === "vocals" ? buildMinimalWav(outputSeconds) : silence).toString("base64") })) }));
+    } else res.end(JSON.stringify({ audio: buildMinimalWav(outputSeconds).toString("base64") }));
   });
   await new Promise<void>(resolve => upstream.listen(0, "127.0.0.1", resolve));
   const address = upstream.address() as { port: number };
@@ -35,7 +41,7 @@ it.each([30, 1])("validates the full encrypted HTTP duration flow with a %i-seco
         ciphertextBase64: encrypted.toString("base64"), ivBase64: iv.toString("base64") }) });
     expect(submitted.status).toBe(202);
     const { id } = await submitted.json() as { id: string };
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 6000; i++) {
       if (["succeeded", "failed"].includes(worker.server.getJob(id)!.status)) break;
       await new Promise(resolve => setTimeout(resolve, 10));
     }
@@ -47,6 +53,16 @@ it.each([30, 1])("validates the full encrypted HTTP duration flow with a %i-seco
       const result = JSON.parse(await readFile(job.artifacts["result.json"]!.path, "utf8"));
       expect(result.audio.durationMs).toBe(30000);
       expect(result.durationCompliance.matches).toBe(true);
+      expect(result.score).toBeNull();
+      expect(job.artifacts["score.abc"]).toBeUndefined();
+      const score = await fetch(`${worker.baseUrl}/v1/jobs/${id}/artifacts/score.abc`, { headers });
+      expect(score.status).toBe(404);
+      expect(result.instrumentalProcessing.excludedStems).toEqual(["vocals"]);
+      const final = await readFile(job.artifacts["audio.wav"]!.path);
+      // FFmpeg writes extra RIFF chunks; locate data rather than assuming offset 44.
+      const data = final.indexOf(Buffer.from("data")) + 8;
+      expect(final.subarray(data).every(value => value === 0)).toBe(true);
+      expect(await readFile(join(dataDir, id, "audio-original.wav"))).toEqual(buildMinimalWav(30));
     } else {
       expect(job.status).toBe("failed");
       expect(job.error).toContain("n’est pas publiée");
@@ -60,4 +76,4 @@ it.each([30, 1])("validates the full encrypted HTTP duration flow with a %i-seco
     await new Promise<void>(resolve => upstream.close(() => resolve()));
     await rm(dataDir, { recursive: true, force: true });
   }
-});
+}, 90_000);
