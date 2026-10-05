@@ -166,7 +166,7 @@
   "form.style": "Style and mood",
   "form.style.hint": "Describe the instruments, energy, and voice you have in mind.",
   "form.style.hintInstrumental": "Describe the instruments, energy, and mood — with no sung vocals.",
-  "form.style.instrumentalVocalWarning": "The style includes “{cue}”, a voice or singing cue. Remove it to avoid conflicting instructions in Instrumental mode.",
+  "form.style.instrumentalVocalWarning": "Voice and singing cues are ignored for this instrumental take. The style saved in your project stays unchanged.",
   "form.instrumental": "Instrumental",
   "form.instrumental.hint": "Your lyrics stay in the project and are not sent. A voice may still be heard in the result.",
   "form.instrumental.active": "Your lyrics stay saved and are not used. A voice may still be heard.",

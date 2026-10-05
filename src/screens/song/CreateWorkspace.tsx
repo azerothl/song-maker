@@ -20,7 +20,7 @@ import {
   type AdvancedSettingsPage, FormFieldErrors
 } from "./shared";
 
-const VOCAL_STYLE_CUE = /\b(vocal(?:s|ist|ists)?|voices?|sing(?:ing|er|ers)?|sung|growl(?:s|ing|ed)?|spoken(?:\s+word)?|choir|rap(?:ping)?|chant(?:er|é|ée|eur|euse)?|voix|paroles|chanteur|chanteuse)\b/gi;
+const VOCAL_STYLE_CUE = /\b(vocal(?:s|ist|ists)?|voices?|sing(?:ing|er|ers)?|sung|growl(?:s|ing|ed)?|spoken(?:\s+word)?|choir|rapping|rapper(?:s)?|chant(?:er|é|ée|eur|euse)?|voix|paroles|chanteur|chanteuse)\b/gi;
 const NEGATED_VOCAL_CUE = /(?:\bno\b|\bnot\b|\bwithout\b|\bavoid(?:ing)?\b|\bexclude(?:d|ing)?\b|\bremove(?:d)?\b|\bsans\b|\bpas\s+de\b|\baucun(?:e)?\b|\bnon\b|\béviter\b|\bretirer\b)\s+(?:(?:any|the|a|male|female|lead|background|les?|des)\s+){0,2}$/i;
 
 function findInstrumentalVocalCue(style: string): string | null {
@@ -139,7 +139,7 @@ export function CreateWorkspace({
                 </span>
                 {instrumentalVocalCue && (
                   <span className="hint warn instrumental-style-warning" role="status" aria-live="polite">
-                    {t("form.style.instrumentalVocalWarning", { cue: instrumentalVocalCue })}
+                    {t("form.style.instrumentalVocalWarning")}
                   </span>
                 )}
                 {showFormErrors && formFieldErrors.style && (

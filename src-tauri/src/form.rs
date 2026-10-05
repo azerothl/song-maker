@@ -2,6 +2,8 @@ use crate::models::{FormInput, KeySig, Meter};
 use crate::pins::{
     normalize_target_duration_sec, DURATION_SEC_MAX, DURATION_SEC_MIN, DURATION_SEC_STEP,
 };
+use regex::Regex;
+use std::sync::OnceLock;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -116,6 +118,41 @@ pub fn validate_style(style: &str) -> Result<(), FormError> {
     Ok(())
 }
 
+/// Remove explicit voice/chant directions from the effective prompt of an
+/// instrumental take. The project keeps the user's original style text.
+fn instrumental_style_without_vocal_cues(style: &str) -> String {
+    static VOCAL_CUES: OnceLock<Regex> = OnceLock::new();
+    let cues = VOCAL_CUES.get_or_init(|| {
+        Regex::new(
+            r"(?iux)
+            (?:\b(?:with|and|no|not|without|avoiding?|excluding?|removed?|sans|avec|pas(?:\s+de)?|aucun(?:e)?|non|éviter|retirer)\s+)?
+            (?:\b(?:a|an|the|some|any|un|une|la|le|les|des|du|de|male|female|masculin(?:e)?|féminin(?:e)?|lead|backing|background|spoken|word|human|choral|layered|powerful|soft|gentle|whispered|raspy|sung|singing|vocal)\s+){0,4}
+            (?:
+                vocal(?:s|ist|ists)?|voices?|sing(?:ing|er|ers)?|sung|growl(?:s|ing|ed)?|
+                spoken(?:\s+word)?|choir|rapping|rapper(?:s)?|ad[\s-]?libs?|
+                chant(?:er|é|ée|eur|euse)?|voix|paroles|chanteur|chanteuse
+            )
+            (?:\s+(?:female|male|féminin(?:e)?|masculin(?:e)?))?\b",
+        )
+        .expect("instrumental vocal-cue expression is valid")
+    });
+
+    let filtered = cues.replace_all(style, "");
+    let mut cleaned = filtered.split_whitespace().collect::<Vec<_>>().join(" ");
+    for (repeated, single) in [(", ,", ","), ("; ;", ";"), ("/ /", "/")] {
+        while cleaned.contains(repeated) {
+            cleaned = cleaned.replace(repeated, single);
+        }
+    }
+    cleaned = cleaned
+        .replace(" ,", ",")
+        .replace(" ;", ";")
+        .replace(" /", "/");
+    cleaned
+        .trim_matches(|ch: char| ch.is_whitespace() || matches!(ch, ',' | ';' | '/'))
+        .to_string()
+}
+
 pub fn validate_cot(cot: &str) -> Result<(), FormError> {
     match cot {
         "full" | "melody" | "off" => Ok(()),
@@ -180,7 +217,11 @@ pub fn assemble_style_sent(input: &FormInput) -> Result<String, FormError> {
     }
 
     let mut parts: Vec<String> = Vec::new();
-    let style = input.style.trim().to_string();
+    let style = if input.instrumental_mode {
+        instrumental_style_without_vocal_cues(input.style.trim())
+    } else {
+        input.style.trim().to_string()
+    };
 
     let style_lower = style.to_lowercase();
     let push_unique = |parts: &mut Vec<String>, fragment: String| {
@@ -202,7 +243,9 @@ pub fn assemble_style_sent(input: &FormInput) -> Result<String, FormError> {
             push_unique(&mut parts, l.to_string());
         }
     }
-    parts.push(style);
+    if !style.is_empty() {
+        parts.push(style);
+    }
 
     if input.instrumental_mode {
         push_unique(&mut parts, "instrumental".into());
@@ -366,6 +409,68 @@ mod tests {
         assert!(!style.contains("French"));
         input.instrumental_mode = false;
         assert_eq!(generation_lyrics(&input), "[Verse]\nParoles conservées");
+    }
+
+    #[test]
+    fn instrumental_prompt_ignores_vocal_cues_without_changing_saved_style() {
+        let style = "indie rock with a female singer, warm analogue synths, no choir";
+        let input = FormInput {
+            title: "Night Drive".into(),
+            style: style.into(),
+            lyrics: "Draft lyrics remain in the project".into(),
+            cot: "full".into(),
+            singing_language: Some("French".into()),
+            tempo_bpm: None,
+            key: None,
+            meter: None,
+            seed: None,
+            target_duration_sec: 180,
+            prefer_full_lyrics: true,
+            instrumental_mode: true,
+            continuation_generation_id: None,
+            audio_input_path: None,
+            inpaint_start_ms: None,
+            inpaint_end_ms: None,
+        };
+
+        let prompt = assemble_style_sent(&input).unwrap();
+        assert!(prompt.contains("indie rock"));
+        assert!(prompt.contains("warm analogue synths"));
+        assert!(prompt.contains("instrumental"));
+        assert!(prompt.contains("no vocals"));
+        assert!(!prompt.contains("female"));
+        assert!(!prompt.contains("singer"));
+        assert!(!prompt.contains("choir"));
+        assert!(!prompt.contains("French"));
+        assert_eq!(input.style, style);
+        assert_eq!(input.lyrics, "Draft lyrics remain in the project");
+    }
+
+    #[test]
+    fn instrumental_rap_style_keeps_the_genre_and_removes_only_singing_cues() {
+        let input = FormInput {
+            title: "Instrumental beat".into(),
+            style: "rap beat, rapping, deep bass".into(),
+            lyrics: String::new(),
+            cot: "full".into(),
+            singing_language: None,
+            tempo_bpm: None,
+            key: None,
+            meter: None,
+            seed: None,
+            target_duration_sec: 180,
+            prefer_full_lyrics: true,
+            instrumental_mode: true,
+            continuation_generation_id: None,
+            audio_input_path: None,
+            inpaint_start_ms: None,
+            inpaint_end_ms: None,
+        };
+
+        let prompt = assemble_style_sent(&input).unwrap();
+        assert!(prompt.contains("rap beat"));
+        assert!(prompt.contains("deep bass"));
+        assert!(!prompt.contains("rapping"));
     }
 
     #[test]

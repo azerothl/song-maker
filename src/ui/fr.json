@@ -293,7 +293,7 @@
   "form.style": "Style et ambiance",
   "form.style.hint": "Décrivez les instruments, l’énergie et la voix que vous imaginez.",
   "form.style.hintInstrumental": "Décrivez les instruments, l’énergie et l’ambiance — sans voix chantée.",
-  "form.style.instrumentalVocalWarning": "Le style contient « {cue} », une indication de voix ou de chant. Retirez-la pour éviter une consigne contraire au mode Instrumental.",
+  "form.style.instrumentalVocalWarning": "Les indications de voix et de chant sont ignorées pour cette génération instrumentale. Le style enregistré dans le projet reste inchangé.",
   "form.instrumental": "Instrumental",
   "form.instrumental.hint": "Les paroles restent dans le projet et ne sont pas envoyées. Une voix peut malgré tout s’entendre dans le résultat.",
   "form.instrumental.active": "Les paroles restent enregistrées et ne sont pas utilisées. Une voix peut encore s’entendre.",
