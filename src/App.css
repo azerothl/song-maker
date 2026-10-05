@@ -935,6 +935,22 @@ option {
   color: var(--accent-cyan, #7ad7ff);
   font-size: 0.88rem;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.song-job-cancel {
+  min-height: 1.9rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.82rem;
+}
+
+.song-job-cancel-message {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted, #aeb9c6);
+  font-size: 0.8rem;
 }
 
 .song-workspace-tabs {

@@ -117,13 +117,13 @@ impl JobQueue {
         g.cancel_requested = false;
     }
 
-    pub fn request_cancel(&self) -> String {
+    pub fn request_cancel(&self) -> bool {
         let mut g = self.inner.lock();
         if g.current.is_some() {
             g.cancel_requested = true;
-            return "Annulation demandée. Les fichiers déjà créés sont conservés.".into();
+            return true;
         }
-        "Rien à annuler.".into()
+        false
     }
 
     pub fn cancel_requested(&self) -> bool {
@@ -156,7 +156,7 @@ impl JobQueue {
         self.set_state("preparing", label, project_id.clone());
         let result = work.await;
         match &result {
-            Ok(_) => {}
+            Ok(_) => self.set_state("completed", "Terminé", project_id.clone()),
             Err(e) if e == "cancelled" => {
                 self.set_state("cancelled", "Annulé", project_id);
             }
@@ -188,8 +188,24 @@ mod resource_tests {
         let second = JobQueue::default();
         first.set_state("generating", "A", None);
         second.set_state("generating", "B", None);
-        first.request_cancel();
+        assert!(first.request_cancel());
         assert!(first.cancel_requested());
         assert!(!second.cancel_requested());
+        assert!(!JobQueue::default().request_cancel());
+    }
+
+    #[tokio::test]
+    async fn completed_work_is_no_longer_reported_as_running() {
+        let queue = JobQueue::default();
+        queue
+            .run_exclusive(Some("project".into()), "Génération en cours", async {
+                Ok::<_, String>(())
+            })
+            .await
+            .unwrap();
+
+        let status = queue.status();
+        assert_eq!(status.state, "completed");
+        assert_eq!(status.project_id.as_deref(), Some("project"));
     }
 }

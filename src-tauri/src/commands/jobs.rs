@@ -7,6 +7,6 @@ pub fn get_job_status(state: tauri::State<'_, AppState>) -> JobStatus {
 }
 
 #[tauri::command]
-pub fn cancel_job(state: tauri::State<'_, AppState>) -> String {
+pub fn cancel_job(state: tauri::State<'_, AppState>) -> bool {
     state.queue.request_cancel()
 }

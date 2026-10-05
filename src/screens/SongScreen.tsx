@@ -56,11 +56,15 @@ export function SongScreen() {
   const playbackSources = useAppStore((s) => s.playbackSources);
   const setError = useAppStore((s) => s.setError);
   const openProject = useAppStore((s) => s.openProject);
+  const refreshJob = useAppStore((s) => s.refreshJob);
   const job = useAppStore((s) => s.job);
   const setProfileOperationBusy = useAppStore((s) => s.setProfileOperationBusy);
 
   const [pendingPart, setPendingPart] = useState<{ projectId: string; generationId: string; audioPath: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [cancelRequestPending, setCancelRequestPending] = useState(false);
+  const [cancelRequested, setCancelRequested] = useState(false);
+  const [cancelMessage, setCancelMessage] = useState<string | null>(null);
   const [legoSidecarReady, setLegoSidecarReady] = useState(false);
   const [legoLicenseAccepted, setLegoLicenseAccepted] = useState(false);
   useEffect(() => {
@@ -131,6 +135,34 @@ export function SongScreen() {
     useState<ScoreDocument | null>(null);
   const saveTimer = useRef<number | null>(null);
   const mixTimer = useRef<number | null>(null);
+  const canCancelCurrentJob = Boolean(
+    project &&
+      job?.projectId === project.id &&
+      ["preparing", "generating", "separating", "importing_tracks"].includes(job.state),
+  );
+
+  useEffect(() => {
+    if (!canCancelCurrentJob) {
+      setCancelRequested(false);
+      setCancelRequestPending(false);
+      setCancelMessage(null);
+    }
+  }, [canCancelCurrentJob]);
+
+  async function onCancelCurrentJob() {
+    if (!canCancelCurrentJob || cancelRequestPending || cancelRequested) return;
+    setCancelRequestPending(true);
+    try {
+      const requested = await api.cancelJob();
+      setCancelRequested(requested);
+      setCancelMessage(t(requested ? "cancel.message" : "cancel.none"));
+      await refreshJob();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setCancelRequestPending(false);
+    }
+  }
 
   async function onImportUserAudio() {
     if (!project || importingAudio) return;
@@ -830,9 +862,28 @@ export function SongScreen() {
               <ProfileKindBadge />
             </h1>
             {job && job.state !== "idle" && (
-              <p className="song-job-banner" role="status" aria-live="polite">
-                {job.label || t("job.generating")}
-              </p>
+              <div className="song-job-banner" role="status" aria-live="polite">
+                <span>
+                  {job.state === "completed"
+                    ? t("job.completed")
+                    : job.state === "cancelled"
+                      ? t("job.cancelled")
+                      : job.label || t("job.generating")}
+                </span>
+                {canCancelCurrentJob && (
+                  <button
+                    type="button"
+                    className="btn ghost song-job-cancel"
+                    disabled={cancelRequestPending || cancelRequested}
+                    onClick={() => void onCancelCurrentJob()}
+                  >
+                    {cancelRequestPending ? t("job.canceling") : t("job.cancel")}
+                  </button>
+                )}
+              </div>
+            )}
+            {cancelMessage && canCancelCurrentJob && (
+              <p className="song-job-cancel-message" role="status">{cancelMessage}</p>
             )}
             {remoteProgress && (
               <p className="song-job-banner" role="status" aria-live="polite">

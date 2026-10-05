@@ -130,7 +130,7 @@ export const api = {
   deleteProject: (id: string) => invoke<void>("delete_project", { id }),
   revealProject: (id: string) => invoke<string>("reveal_project", { id }),
   getJobStatus: () => invoke<JobStatus>("get_job_status"),
-  cancelJob: () => invoke<string>("cancel_job"),
+  cancelJob: () => invoke<boolean>("cancel_job"),
   startGeneration: (
     id: string,
     form: FormInput,

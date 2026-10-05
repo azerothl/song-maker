@@ -441,15 +441,35 @@ export function Sidebar() {
           </SidebarRow>
         )}
         {job && job.state !== "idle" && (
-          <SidebarRow tip={job.label}>
+          <SidebarRow
+            tip={
+              job.state === "completed"
+                ? t("job.completed")
+                : job.state === "cancelled"
+                  ? t("job.cancelled")
+                  : job.label
+            }
+          >
             <div
               className="sidebar-meta-row job-step"
               role="group"
-              aria-label={job.label}
+              aria-label={
+                job.state === "completed"
+                  ? t("job.completed")
+                  : job.state === "cancelled"
+                    ? t("job.cancelled")
+                    : job.label
+              }
               tabIndex={collapsed ? 0 : undefined}
             >
               <IconJob />
-              <span className="sidebar-label">{job.label}</span>
+              <span className="sidebar-label">
+                {job.state === "completed"
+                  ? t("job.completed")
+                  : job.state === "cancelled"
+                    ? t("job.cancelled")
+                    : job.label}
+              </span>
             </div>
           </SidebarRow>
         )}
