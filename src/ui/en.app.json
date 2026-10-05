@@ -117,7 +117,7 @@
   "workspace.score.mode.edit": "Edit",
   "workspace.score.mode.reprise": "Cover",
   "workspace.score.mode.nav": "Score modes",
-  "workspace.score.repriseHint": "To start from existing audio, open Cover (SheetSage2).",
+  "workspace.score.repriseHint": "To start from existing audio, open Cover.",
   "workspace.score.openReprise": "Open Cover",
   "workspace.production.title": "Production",
   "workspace.versions.title": "Versions",

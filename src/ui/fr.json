@@ -172,7 +172,7 @@
   "workspace.score.mode.edit": "Éditer",
   "workspace.score.mode.reprise": "Reprise",
   "workspace.score.mode.nav": "Modes partition",
-  "workspace.score.repriseHint": "Pour partir d’un audio existant, ouvrez Reprise (SheetSage2).",
+  "workspace.score.repriseHint": "Pour partir d’un audio existant, ouvrez Reprise.",
   "workspace.score.openReprise": "Ouvrir Reprise",
   "workspace.production.title": "Production",
   "production.fx.line.title": "Ligne d’effets : {track}",
