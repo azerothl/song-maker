@@ -92,7 +92,7 @@
   "batch.lot.completed_with_errors": "completed with errors",
   "batch.lot.interrupted": "interrupted",
   "batch.lot.failed": "batch failed",
-  "batch.done": "{ready} takes ready, {failed} failed out of {total}",
+  "batch.done": "Ready: {ready} · Failed: {failed} · Interrupted: {interrupted} · Cancelled: {cancelled} · Total: {total}",
   "batch.songs": "Songs",
   "batch.takes": "Takes",
   "status.empty": "empty",

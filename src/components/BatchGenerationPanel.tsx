@@ -337,6 +337,8 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
                   {t("batch.done", {
                     ready: batch.counts.ready,
                     failed: batch.counts.failed,
+                    interrupted: batch.counts.interrupted,
+                    cancelled: batch.counts.cancelled,
                     total: batch.counts.total,
                   })}
                   {" · "}

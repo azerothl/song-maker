@@ -147,7 +147,7 @@
   "batch.lot.completed_with_errors": "terminé avec erreurs",
   "batch.lot.interrupted": "interrompu",
   "batch.lot.failed": "échec du lot",
-  "batch.done": "Prises prêtes : {ready} · Échecs : {failed} · Total : {total}",
+  "batch.done": "Prêtes : {ready} · Échecs : {failed} · Interrompues : {interrupted} · Annulées : {cancelled} · Total : {total}",
   "batch.songs": "Morceaux",
   "batch.takes": "Prises",
   "status.empty": "vide",
