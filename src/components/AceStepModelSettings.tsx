@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
   ACE_STEP_CONTRACT_BODY_EN,
@@ -24,6 +24,8 @@ import { profileLocale, t } from "../ui/i18n";
 
 export function AceStepModelSettings() {
   const settings = useAppStore((s) => s.settings);
+  const settingsModelSection = useAppStore((s) => s.settingsModelSection);
+  const modelSectionFocused = useRef(false);
   const profilesState = useAppStore((s) => s.profilesState);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
   const refreshProfiles = useAppStore((s) => s.refreshProfiles);
@@ -38,6 +40,7 @@ export function AceStepModelSettings() {
   const [legoNotice, setLegoNotice] = useState<string | null>(null);
   const [legoInfo, setLegoInfo] = useState<{
     ready: boolean;
+    inferenceAvailable: boolean;
     venvPresent: boolean;
     licenseAccepted: boolean;
     licenseNoticeFr: string;
@@ -47,7 +50,9 @@ export function AceStepModelSettings() {
     hfRepo: string;
     gitSource: string;
   } | null>(null);
+  const [legoProgress, setLegoProgress] = useState<InstallProgress | null>(null);
   const [legoInstalling, setLegoInstalling] = useState(false);
+  const [legoLoading, setLegoLoading] = useState(true);
   const [legoLicenseRead, setLegoLicenseRead] = useState(false);
   const english = profileLocale() === "en";
   const selected = settings?.generationEngine === "ace_step";
@@ -65,6 +70,7 @@ export function AceStepModelSettings() {
   useEffect(() => {
     if (!isTauriRuntime()) {
       setLoading(false);
+      setLegoLoading(false);
       return;
     }
     let cancelled = false;
@@ -86,11 +92,25 @@ export function AceStepModelSettings() {
       })
       .catch(() => {
         /* Lego is optional; status failure is not a Turbo install error. */
+      }).finally(() => {
+        if (!cancelled) setLegoLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, [activeProfile?.id, settings?.cacheDir]);
+
+  useEffect(() => {
+    if (!settingsModelSection || loading || legoLoading || modelSectionFocused.current) return;
+    const frame = requestAnimationFrame(() => {
+      const heading = document.getElementById(settingsModelSection === "lego" ? "ace-step-lego-title" : "ace-step-model-title");
+      if (!heading) return;
+      modelSectionFocused.current = true;
+      heading.scrollIntoView({ block: "start" });
+      heading.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [settingsModelSection, loading, legoLoading]);
 
   useEffect(() => {
     setLicenseRead(false);
@@ -105,6 +125,16 @@ export function AceStepModelSettings() {
       unlisten = release;
     });
     return () => unlisten?.();
+  }, []);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen<InstallProgress>("ace-step-lego-progress", event => {
+      setLegoProgress(event.payload);
+    }).then(release => { if (disposed) release(); else unlisten = release; });
+    return () => { disposed = true; unlisten?.(); };
   }, []);
 
   const updateEngine = async (generationEngine: NonNullable<AppSettings["generationEngine"]>) => {
@@ -167,7 +197,7 @@ export function AceStepModelSettings() {
 
   return (
     <section className="settings-detail-page ace-step-model-settings" aria-labelledby="ace-step-model-title">
-      <h2 id="ace-step-model-title">{t("settings.model.engine.title")}</h2>
+      <h2 id="ace-step-model-title" tabIndex={-1}>{t("settings.model.engine.title")}</h2>
       <p className="settings-intro">{t("settings.model.engine.intro")}</p>
       <fieldset className="settings-engine-options">
         <legend>{t("settings.model.engine.choose")}</legend>
@@ -201,15 +231,16 @@ export function AceStepModelSettings() {
         </label>
       </fieldset>
 
-      <p className="hint" role="note">{t("settings.model.engine.pythonYue2")}</p>
-
       {selected ? (
         <p className="hint" role="note">{t("settings.model.engine.aceStepLimits")}</p>
       ) : null}
 
       <div className="ace-step-download">
         <h3>{t("settings.model.engine.optionalDownload")}</h3>
-        <p>{english ? info?.licenseNoticeEn : info?.licenseNoticeFr}</p>
+        <details open={!settings.aceStepLicenseAccepted}>
+          <summary>{t("settings.model.licenseDetails")}</summary>
+          <p>{english ? info?.licenseNoticeEn : info?.licenseNoticeFr}</p>
+        </details>
         {loading ? <p className="hint">{t("settings.model.engine.checking")}</p> : null}
         {!isTauriRuntime() ? (
           <p className="hint">{t("settings.model.engine.desktopOnly")}</p>
@@ -256,6 +287,7 @@ export function AceStepModelSettings() {
         ) : null}
         <details>
           <summary>{t("settings.model.engine.pinDetails")}</summary>
+          <p className="hint" role="note">{t("settings.model.engine.pythonYue2")}</p>
           <p>{info?.repo} · {info?.revision}</p>
           <p>{info?.gguf} · SHA-256 {info?.sha256}</p>
           <p>
@@ -300,14 +332,16 @@ export function AceStepModelSettings() {
       ) : null}
 
       <div className="ace-step-download" aria-labelledby="ace-step-lego-title">
-        <h3 id="ace-step-lego-title">{t("settings.model.lego.title")}</h3>
+        <h3 id="ace-step-lego-title" tabIndex={-1}>{t("settings.model.lego.title")}</h3>
         <p>{t("settings.model.lego.intro")}</p>
+        <p className="hint">{t("settings.model.lego.firstUse")}</p>
         <p className="hint" role="note">
-          {english
-            ? t("settings.model.lego.vram")
-            : (legoInfo?.vramNoteFr ?? t("settings.model.lego.vram"))}
+          {t("settings.model.lego.vram")}
         </p>
-        <p>{english ? legoInfo?.licenseNoticeEn : legoInfo?.licenseNoticeFr}</p>
+        <details open={!settings.aceStepLegoLicenseAccepted}>
+          <summary>{t("settings.model.licenseDetails")}</summary>
+          <p>{english ? legoInfo?.licenseNoticeEn : legoInfo?.licenseNoticeFr}</p>
+        </details>
         {!settings.aceStepLegoLicenseAccepted ? (
           <label className="settings-license-accept">
             <input
@@ -328,10 +362,12 @@ export function AceStepModelSettings() {
             disabled={
               !isTauriRuntime()
               || legoInstalling
+              || legoLoading
               || !(settings.aceStepLegoLicenseAccepted || legoLicenseRead)
             }
             onClick={() => {
               setLegoInstalling(true);
+              setLegoProgress(null);
               setLegoNotice(null);
               void runtimeApi
                 .installAceStepLego(
@@ -347,7 +383,7 @@ export function AceStepModelSettings() {
           >
             {legoInstalling
               ? t("settings.model.lego.installing")
-              : t("settings.model.lego.install")}
+              : t(legoInfo?.inferenceAvailable ? "settings.model.lego.reinstall" : "settings.model.lego.install")}
           </button>
           {legoInstalling ? (
             <button
@@ -359,8 +395,17 @@ export function AceStepModelSettings() {
             </button>
           ) : null}
         </div>
-        {legoInfo ? (
-          <p className="hint">{legoInfo.messageFr}</p>
+        {legoInstalling && (
+          <div className="settings-engine-progress" role="status" aria-live="polite">
+            <progress aria-label={t("settings.model.lego.installing")} />
+            <span>{legoProgress?.label ?? t("settings.model.lego.installing")}</span>
+          </div>
+        )}
+        {legoLoading ? <p className="hint">{t("settings.model.engine.checking")}</p> : null}
+        {legoInfo && !legoInstalling ? (
+          <p className="hint" role="status">{t(legoInfo.inferenceAvailable
+            ? "settings.model.lego.available" : legoInfo.venvPresent
+              ? "settings.model.lego.incomplete" : "settings.model.lego.absent")}</p>
         ) : null}
         {legoNotice ? (
           <p className="settings-engine-error" role="alert">{legoNotice}</p>

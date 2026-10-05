@@ -2,7 +2,9 @@ use super::shared::write_checksums;
 use super::AppState;
 use crate::abc_metadata::{write_aligned_score_abc, AbcAlignRequest};
 use crate::audiocpp::AudioCppServer;
-use crate::form::{guidance_scale, validate_form_for_engine, validate_target_duration};
+use crate::form::{
+    generation_lyrics, guidance_scale, validate_form_for_engine, validate_target_duration,
+};
 use crate::hashutil::{normalize_seed, random_seed, sha256_file};
 use crate::library::{
     library_row_from_project, load_project, load_settings, project_folder, save_project,
@@ -14,6 +16,92 @@ use crate::paths::{atomic_write_json, ensure_dir, next_folder_id, now_iso};
 use crate::pins::*;
 use serde_json::json;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+/// Resample / HTDemucs alignment only — not a YuE2 wall-clock contract.
+const STEM_ALIGN_TOLERANCE_MS: i64 = 250;
+
+fn check_stem_alignment(duration_ms: i64, source_ms: i64) -> Result<(), String> {
+    if duration_ms <= 0 {
+        return Err("Piste instrumentale vide après retrait des voix.".into());
+    }
+    if (duration_ms - source_ms).abs() > STEM_ALIGN_TOLERANCE_MS {
+        return Err(format!(
+            "Le retrait des voix a changé la durée ({:.2} s au lieu de {:.2} s). L’original est conservé.",
+            duration_ms as f64 / 1000.0,
+            source_ms as f64 / 1000.0
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod stem_align_tests {
+    use super::check_stem_alignment;
+
+    #[test]
+    fn codec_rounding_is_accepted() {
+        assert!(check_stem_alignment(359_998, 360_000).is_ok());
+        assert!(check_stem_alignment(0, 360_000).is_err());
+        assert!(check_stem_alignment(361_000, 360_000).is_err());
+    }
+}
+
+/// Keep the generator output and publish only the accompaniment. Empty lyrics
+/// do not prevent a music model from hallucinating vocals.
+async fn remove_generated_vocals(
+    server_url: &str,
+    gen_dir: &Path,
+) -> Result<serde_json::Value, String> {
+    let raw = gen_dir.join("audio-original.wav");
+    std::fs::copy(gen_dir.join("audio.wav"), &raw).map_err(|e| e.to_string())?;
+    let sep_dir = gen_dir.join("instrumental");
+    ensure_dir(&sep_dir).map_err(|e| e.to_string())?;
+    let input = sep_dir.join("input-44100.wav");
+    crate::resample::resample_soxr(&raw, &input, SEPARATOR_SAMPLE_RATE)?;
+    let response = AudioCppServer::run_task(
+        server_url,
+        json!({
+            "model": "htdemucs", "request": {"audio": input.display().to_string()}
+        }),
+    )
+    .await?;
+    AudioCppServer::write_named_audio_outputs(&response, &sep_dir)?;
+    let mut stems = Vec::new();
+    let original_duration = wav_duration_ms(&raw)?;
+    for role in ["drums", "bass", "other"] {
+        let source = super::shared::find_stem_file(&sep_dir, role)?;
+        let path = sep_dir.join(format!("{role}-48000.wav"));
+        crate::resample::resample_soxr(&source, &path, SAMPLE_RATE)?;
+        let duration = wav_duration_ms(&path)?;
+        check_stem_alignment(duration, original_duration)?;
+        stems.push((
+            role.to_string(),
+            PathBuf::from(format!("instrumental/{role}-48000.wav")),
+            sha256_file(&path)?,
+            duration,
+        ));
+    }
+    let mix = crate::mix::new_mix_from_separation("instrumental", "instrumental", &stems);
+    let rendered = gen_dir.join("audio-instrumental.wav");
+    let trim = crate::mix::render_mix(&mix, gen_dir, &rendered)?;
+    check_stem_alignment(wav_duration_ms(&rendered)?, original_duration)?;
+    std::fs::copy(&rendered, gen_dir.join("audio.wav")).map_err(|e| e.to_string())?;
+    Ok(
+        json!({"method":"htdemucs-accompaniment", "modelSha256":HTDEMUCS_SHA,
+        "originalPath":"audio-original.wav", "originalSha256":sha256_file(&raw)?,
+        "includedStems":["drums","bass","other"], "excludedStems":["vocals"],
+        "peakTrimDb":trim, "residualVocalsPossible":true}),
+    )
+}
+
+pub(crate) struct GenerationWorker {
+    pub server: Arc<AudioCppServer>,
+    pub queue: crate::queue::JobQueue,
+    pub settings: AppSettings,
+    pub id: String,
+    pub cancelled: Arc<std::sync::atomic::AtomicBool>,
+}
 
 struct AceStepTaskOptions<'a> {
     tempo_bpm: Option<u32>,
@@ -125,15 +213,126 @@ pub async fn start_generation(
     engine: Option<String>,
     instrumental_role: Option<String>,
 ) -> Result<ProjectDoc, String> {
-    let mut settings = load_settings()?;
+    if instrumental_role.is_some() {
+        return Err("Utilisez la commande d’ajout de partie instrumentale.".into());
+    }
+    run_generation(
+        state,
+        id,
+        form,
+        abc,
+        stop_after,
+        source_generation_id,
+        engine,
+        None,
+        false,
+        None,
+    )
+    .await
+    .map(|result| result.project)
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstrumentalPartResult {
+    pub(crate) project: ProjectDoc,
+    pub(crate) generation_id: String,
+}
+
+#[tauri::command]
+pub async fn generate_instrumental_part(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    mut form: FormInput,
+    engine: Option<String>,
+    role: String,
+) -> Result<InstrumentalPartResult, String> {
+    if !matches!(role.as_str(), "bass" | "drums" | "other") {
+        return Err("Choisissez basse, batterie ou autre instrument.".into());
+    }
+    form.instrumental_mode = true;
+    form.continuation_generation_id = None;
+    run_generation(
+        state,
+        id,
+        form,
+        None,
+        None,
+        None,
+        engine,
+        Some(role),
+        true,
+        None,
+    )
+    .await
+}
+
+/// Versions creates alternatives without replacing the arrangement before selection.
+#[tauri::command]
+pub async fn generate_comparison_take(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    mut form: FormInput,
+    abc: Option<String>,
+    engine: Option<String>,
+) -> Result<InstrumentalPartResult, String> {
+    if engine.as_deref() == Some("ace_step_lego") {
+        return Err("Utilisez Ajouter une piste pour le modèle guidé par l’audio.".into());
+    }
+    form.continuation_generation_id = None;
+    run_generation(state, id, form, abc, None, None, engine, None, true, None).await
+}
+
+pub(crate) async fn generate_worker_take(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    form: FormInput,
+    worker: &GenerationWorker,
+) -> Result<InstrumentalPartResult, String> {
+    run_generation(
+        state,
+        id,
+        form,
+        None,
+        None,
+        None,
+        Some(worker.settings.generation_engine.clone()),
+        None,
+        true,
+        Some(worker),
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_generation(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    form: FormInput,
+    abc: Option<String>,
+    stop_after: Option<String>,
+    source_generation_id: Option<String>,
+    engine: Option<String>,
+    instrumental_role: Option<String>,
+    preserve_project: bool,
+    worker: Option<&GenerationWorker>,
+) -> Result<InstrumentalPartResult, String> {
+    let mut settings = match worker {
+        Some(worker) => worker.settings.clone(),
+        None => load_settings()?,
+    };
     let requested_engine =
         resolve_generation_engine(engine.as_deref(), &settings.generation_engine)?;
     let style_sent =
         validate_form_for_engine(&form, &requested_engine).map_err(|e| e.to_string())?;
     let target_duration_sec =
         validate_target_duration(form.target_duration_sec).map_err(|e| e.to_string())?;
-    let (mut semantic_min_tokens, mut semantic_max_tokens) =
-        semantic_token_budget(target_duration_sec, &form.lyrics, form.prefer_full_lyrics);
+    let lyrics_sent = generation_lyrics(&form).to_string();
+    let (mut semantic_min_tokens, mut semantic_max_tokens) = semantic_token_budget(
+        target_duration_sec,
+        &lyrics_sent,
+        form.prefer_full_lyrics && !form.instrumental_mode,
+    );
     let stop_after_abc = match stop_after
         .as_deref()
         .map(str::trim)
@@ -153,6 +352,16 @@ pub async fn start_generation(
         .filter(|s| !s.is_empty());
     let use_ace_step = requested_engine == "ace_step";
     let use_lego = requested_engine == "ace_step_lego";
+    let remove_vocals = form.instrumental_mode && !use_lego && !stop_after_abc;
+    if remove_vocals {
+        let weights = crate::paths::htdemucs_path(Path::new(&settings.cache_dir));
+        if !weights.is_file() {
+            return Err("Pour créer un instrumental sans chant, installez les composants audio dans Paramètres → Modèle (séparation des voix).".into());
+        }
+        if sha256_file(&weights)? != HTDEMUCS_SHA {
+            return Err("Le composant de retrait des voix est incomplet. Réinstallez les composants audio dans Paramètres → Modèle.".into());
+        }
+    }
     if use_ace_step {
         if !settings.ace_step_license_accepted {
             return Err(
@@ -246,7 +455,9 @@ pub async fn start_generation(
         if let Some(abc) = resolved.parent_score_abc {
             abc_trimmed = Some(abc);
         }
-        semantic_min_tokens = semantic_min_tokens.max(resolved.frame_count as u32);
+        semantic_min_tokens = semantic_min_tokens
+            .saturating_add(resolved.frame_count as u32)
+            .min(resolved.token_ceiling as u32);
         semantic_max_tokens = semantic_max_tokens
             .saturating_add(resolved.frame_count as u32)
             .min(resolved.token_ceiling as u32)
@@ -271,18 +482,42 @@ pub async fn start_generation(
     doc.prefer_full_lyrics = form.prefer_full_lyrics;
     doc.instrumental_mode = form.instrumental_mode;
     doc.updated_at = now_iso();
+    if !preserve_project {
+        crate::project_transaction::with_lock(&folder, || {
+            let mut latest = load_project(&folder)?;
+            latest.title = doc.title.clone();
+            latest.style = doc.style.clone();
+            latest.lyrics = doc.lyrics.clone();
+            latest.cot = doc.cot.clone();
+            latest.singing_language = doc.singing_language.clone();
+            latest.tempo_bpm = doc.tempo_bpm;
+            latest.key = doc.key.clone();
+            latest.meter = doc.meter.clone();
+            latest.target_duration_sec = doc.target_duration_sec;
+            latest.prefer_full_lyrics = doc.prefer_full_lyrics;
+            latest.instrumental_mode = doc.instrumental_mode;
+            latest.updated_at = doc.updated_at.clone();
+            save_project(&folder, &latest)?;
+            doc = latest;
+            Ok(())
+        })?;
+    }
     let (lora_provenance, lora_warnings) = if use_ace_step || use_lego {
         (json!({}), Vec::new())
     } else {
         resolve_lora_provenance_for_generation(&mut settings)
     };
     let seed = normalize_seed(form.seed.unwrap_or_else(random_seed));
-    let gen_id = next_folder_id(&folder.join("generations"), "gen-")?;
+    let gen_id = crate::project_transaction::with_lock(&folder, || {
+        let id = next_folder_id(&folder.join("generations"), "gen-")?;
+        ensure_dir(&folder.join("generations").join(&id)).map_err(|e| e.to_string())?;
+        Ok(id)
+    })?;
     let gen_dir = folder.join("generations").join(&gen_id);
     ensure_dir(&gen_dir).map_err(|e| e.to_string())?;
 
     let lyrics_path = gen_dir.join("lyrics.txt");
-    std::fs::write(&lyrics_path, &form.lyrics).map_err(|e| e.to_string())?;
+    std::fs::write(&lyrics_path, &lyrics_sent).map_err(|e| e.to_string())?;
 
     let abc_path_rel = if let Some(ref abc_text) = abc_trimmed {
         std::fs::write(gen_dir.join("input.abc"), abc_text).map_err(|e| e.to_string())?;
@@ -379,8 +614,10 @@ pub async fn start_generation(
         "numInferenceSteps": NUM_INFERENCE_STEPS,
         "guidanceScale": guidance_scale(&form.cot),
         "targetDurationSec": target_duration_sec,
-        "preferFullLyrics": form.prefer_full_lyrics,
+        "preferFullLyrics": form.prefer_full_lyrics && !form.instrumental_mode,
         "instrumentalMode": form.instrumental_mode,
+        "draftLyricsUsed": !form.instrumental_mode,
+        "instrumentalProcessing": if remove_vocals { Some("htdemucs-accompaniment") } else { None },
         "instrumentalRole": instrumental_role,
         "legoTrackName": lego_role,
         "outputKind": if use_lego { Some(crate::ace_step_lego::OUTPUT_KIND) } else { None },
@@ -402,7 +639,9 @@ pub async fn start_generation(
         }),
     )?;
 
-    let queue = state.queue.clone();
+    let queue = worker
+        .map(|worker| worker.queue.clone())
+        .unwrap_or_else(|| state.queue.clone());
     let queue_ref = queue.clone();
     let lego_source = if use_lego {
         if let Some(path) = form
@@ -425,31 +664,31 @@ pub async fn start_generation(
     } else {
         None
     };
-    if use_lego {
-        let cache = PathBuf::from(&settings.cache_dir);
-        crate::ace_step_lego::ensure_started(&state.ace_step_lego, &cache).await?;
-    }
-    let server_url = if use_lego {
-        crate::ace_step_lego::base_url()
-    } else {
-        let s = settings.clone();
-        state.server.ensure_started(&s)?
-    };
+    let server = worker
+        .map(|worker| worker.server.as_ref())
+        .unwrap_or(&state.server);
+    let worker_id = worker.map(|worker| worker.id.clone());
+    let worker_cancelled = worker.map(|worker| worker.cancelled.clone());
+    let runtime_settings = settings.clone();
+    let lego_sidecar = &state.ace_step_lego;
 
     let out_wav = gen_dir.join("audio.wav");
     let cot = form.cot.clone();
-    let lyrics_for_req = form.lyrics.clone();
+    let lyrics_for_req = lyrics_sent.clone();
     let ace_request_for_job = use_ace_step.then(|| {
         ace_step_task_request(
             &style_sent,
-            &form.lyrics,
+            &lyrics_sent,
             seed,
             target_duration_sec,
             AceStepTaskOptions {
                 tempo_bpm: form.tempo_bpm,
                 key: form.key.as_ref(),
                 meter: form.meter.as_ref(),
-                language: form.singing_language.as_deref(),
+                language: form
+                    .singing_language
+                    .as_deref()
+                    .filter(|_| !form.instrumental_mode),
             },
         )
     });
@@ -473,6 +712,28 @@ pub async fn start_generation(
                 "Génération en cours"
             },
             async move {
+                let cancelled = || queue_ref.cancel_requested() || worker_cancelled.as_ref().is_some_and(|flag|flag.load(std::sync::atomic::Ordering::Acquire));
+                if cancelled() { return Err("cancelled".into()); }
+                // Startup and model residency belong inside the resource guard.
+                // A queued interactive request must not start a server that a
+                // batch worker subsequently shuts down to release GPU memory.
+                let server_url = if use_lego {
+                    server.shutdown();
+                    crate::ace_step_lego::with_local_cancellation(
+                        lego_sidecar,
+                        crate::ace_step_lego::ensure_started(lego_sidecar, &PathBuf::from(&runtime_settings.cache_dir)),
+                        &cancelled,
+                    ).await?;
+                    crate::ace_step_lego::base_url()
+                } else {
+                    lego_sidecar.shutdown();
+                    server.ensure_started(&runtime_settings)?
+                };
+                if let Some(worker_id) = worker_id {
+                    let mut request = request;
+                    request["worker"] = json!({"id": worker_id, "baseUrl": server_url, "processId": server.process_id()});
+                    atomic_write_json(&gen_dir_for_job.join("request.json"), &request)?;
+                }
                 atomic_write_json(&gen_dir_for_job.join("job.json"), &json!({
                     "id": gen_id_for_job,
                     "projectId": project_id_for_job,
@@ -491,21 +752,25 @@ pub async fn start_generation(
                     },
                     Some(project_id_for_job.clone()),
                 );
+                if cancelled() { return Err("cancelled".into()); }
                 if use_lego {
                     let started = now_iso();
                     let src = lego_source.ok_or_else(|| "source Lego manquante".to_string())?;
                     let instruction = lego_instruction
                         .unwrap_or_else(|| "Generate the instrument track.".into());
-                    let lego_result = crate::ace_step_lego::run_lego(
+                    let lego_result = crate::ace_step_lego::with_local_cancellation(
+                        lego_sidecar,
+                        crate::ace_step_lego::run_lego(
                         &src,
                         &out_wav,
                         &style_for_lego,
                         &instruction,
                         seed,
-                    )
-                    .await;
+                    ),
+                        &cancelled,
+                    ).await;
                     let finished = now_iso();
-                    if queue_ref.cancel_requested() {
+                    if cancelled() {
                         return Err("cancelled".into());
                     }
                     match lego_result {
@@ -599,7 +864,7 @@ pub async fn start_generation(
                 let started = now_iso();
                 let api_result = AudioCppServer::run_task(&server_url, body).await;
                 let finished = now_iso();
-                if queue_ref.cancel_requested() {
+                if cancelled() {
                     let result = json!({
                         "schema": SCHEMA_GEN_RESULT,
                         "schemaVersion": SCHEMA_VERSION,
@@ -722,7 +987,12 @@ pub async fn start_generation(
                             atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
                             return Err(err);
                         }
-                        let duration = wav_duration_ms(&out_wav).unwrap_or(0);
+                        let instrumental_processing = if remove_vocals {
+                            queue_ref.set_state("generating", "Retrait des voix pour le morceau instrumental", Some(project_id_for_job.clone()));
+                            Some(remove_generated_vocals(&server_url, &gen_dir_for_job).await?)
+                        } else { None };
+                        if cancelled() { return Err("cancelled".into()); }
+                        let duration = wav_duration_ms(&out_wav)?;
                         let audio_sha = sha256_file(&out_wav)?;
                         let score = if score_path.exists() {
                             json!({
@@ -739,7 +1009,7 @@ pub async fn start_generation(
                             "state": "generated",
                             "decode": "unsupported",
                             "startedAt": started,
-                            "finishedAt": finished,
+                            "finishedAt": now_iso(),
                             "audio": {
                                 "path": "audio.wav",
                                 "sampleRate": SAMPLE_RATE,
@@ -750,6 +1020,7 @@ pub async fn start_generation(
                             "score": score,
                             "semanticTruncated": semantic_truncated,
                             "semanticPath": if has_semantic { Some("semantic.json") } else { None },
+                            "instrumentalProcessing": instrumental_processing,
                             "error": null
                         });
                         atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
@@ -797,6 +1068,17 @@ pub async fn start_generation(
             duration
         }
         Err(error) => {
+            // Validation/postprocessing errors must never leave a successful
+            // result that crash recovery or the take list could reactivate.
+            atomic_write_json(
+                &gen_dir.join("result.json"),
+                &json!({
+                    "schema":SCHEMA_GEN_RESULT, "schemaVersion":SCHEMA_VERSION, "id":gen_id,
+                    "state":if error == "cancelled" { "cancelled" } else { "failed" },
+                    "finishedAt":now_iso(), "audio":null, "score":null, "error":error,
+                    "unpublishedAudioPath": if gen_dir.join("audio.wav").exists() { Some("audio.wav") } else { None }
+                }),
+            )?;
             atomic_write_json(
                 &gen_dir.join("job.json"),
                 &json!({
@@ -811,12 +1093,20 @@ pub async fn start_generation(
             return Err(error);
         }
     };
-    doc.active_generation_id = Some(gen_id.clone());
-    if !use_lego {
-        // New Créer take replaces the arrangement. Lego add-track keeps mix/stems.
-        doc.active_separation_id = None;
-        doc.active_mix_id = None;
+    if preserve_project {
+        // Publish only the new generation. Import or explicit selection owns
+        // changing the latest mix; edits made while generating remain intact.
+        return Ok(InstrumentalPartResult {
+            project: load_project(&folder)?,
+            generation_id: gen_id,
+        });
     }
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
+    doc = load_project(&folder)?;
+    doc.active_generation_id = Some(gen_id.clone());
+    doc.active_separation_id = None;
+    doc.active_mix_id = None;
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
     let mut row = library_row_from_project(&folder, &doc);
@@ -824,7 +1114,10 @@ pub async fn start_generation(
         row.duration_ms = Some(duration);
     }
     upsert_library_row(&row)?;
-    Ok(doc)
+    Ok(InstrumentalPartResult {
+        project: doc,
+        generation_id: gen_id,
+    })
 }
 
 /// Render audio from an existing generation's immutable `score.abc`.
@@ -953,7 +1246,11 @@ fn verify_cache_file_sha256(path: &Path, expected: &str) -> Result<(), String> {
 /// Opt-in download into the user cache (LoRA packs). Requires CC BY-NC acceptance.
 /// Never called by the first-build installer. Verifies SHA-256 when the catalog provides one.
 #[tauri::command]
-pub async fn download_cache_file(req: DownloadCacheFileRequest) -> Result<String, String> {
+pub async fn download_cache_file(
+    state: tauri::State<'_, AppState>,
+    req: DownloadCacheFileRequest,
+) -> Result<String, String> {
+    let _resources = super::settings::guard_model_install(&state).await?;
     let settings = load_settings()?;
     if !settings.cc_by_nc_accepted {
         return Err("Accepter CC BY-NC 4.0 avant tout téléchargement optionnel de LoRA.".into());
@@ -1058,6 +1355,7 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
             .unwrap_or("")
             .to_string();
         let audio = entry.path().join("audio.wav");
+        let published_audio = state == "generated" && audio.is_file();
         let semantic_frames = std::fs::read(entry.path().join("semantic.json"))
             .ok()
             .and_then(|bytes| serde_json::from_slice::<Vec<u32>>(&bytes).ok());
@@ -1076,13 +1374,14 @@ pub fn list_generations(id: String) -> Result<Vec<GenerationSummary>, String> {
                 .get("parentGenerationId")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
-            audio_path: if audio.is_file() {
+            audio_path: if published_audio {
                 Some(audio.display().to_string())
             } else {
                 None
             },
             semantic_truncated,
-            can_continue: semantic_truncated == Some(true)
+            can_continue: published_audio
+                && semantic_truncated == Some(true)
                 && semantic_frames.as_ref().is_some_and(|frames| {
                     !frames.is_empty() && frames.iter().all(|&frame| frame < 32768)
                 }),

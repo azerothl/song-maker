@@ -40,6 +40,17 @@ after(async () => {
 });
 
 describe("production mix settings comportement (#225)", () => {
+  it("offers separation before a mix exists (#380)", { timeout: IT_TIMEOUT_MS }, async () => {
+    const page = await browser.newPage();
+    try {
+      await page.goto(`${BASE}#no-mix`, { waitUntil: "networkidle" });
+      assert.equal(await page.getByTestId("production-mix-settings-trigger").isDisabled(), true);
+      const separate = page.getByTestId("production-separate-trigger");
+      assert.equal(await separate.isEnabled(), true);
+      await separate.click();
+      await page.locator(".separation-recommend-popin").waitFor();
+    } finally { await page.close(); }
+  });
   it("EN: mounted popover and Clips controls expose translated accessible names (#255)",
     { timeout: IT_TIMEOUT_MS }, async () => {
       const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });

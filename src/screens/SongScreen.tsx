@@ -1,4 +1,5 @@
 import { api } from "../lib/api";
+import { TakePreviewPlayer } from "../components/TakePreviewPlayer";
 import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
 import { buildGenerationPayload, loadRemotePrefs, runRemoteGenerationToProject } from "../lib/remoteGenerate";
 import { CreateWorkspace } from "./song/CreateWorkspace";
@@ -40,6 +41,7 @@ import {
 export function SongScreen() {
   const project = useAppStore((s) => s.project);
   const form = useAppStore((s) => s.form);
+  const settings = useAppStore((s) => s.settings);
   const setForm = useAppStore((s) => s.setForm);
   const mix = useAppStore((s) => s.mix);
   const setMix = useAppStore((s) => s.setMix);
@@ -55,6 +57,7 @@ export function SongScreen() {
   const job = useAppStore((s) => s.job);
   const setProfileOperationBusy = useAppStore((s) => s.setProfileOperationBusy);
 
+  const [pendingPart, setPendingPart] = useState<{ projectId: string; generationId: string; audioPath: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [legoSidecarReady, setLegoSidecarReady] = useState(false);
   const [legoLicenseAccepted, setLegoLicenseAccepted] = useState(false);
@@ -76,7 +79,7 @@ export function SongScreen() {
     return () => {
       cancelled = true;
     };
-  }, [project?.id]);
+  }, [project?.id, settings?.cacheDir, settings?.aceStepLegoLicenseAccepted]);
   useEffect(() => {
     setProfileOperationBusy(busy);
     return () => setProfileOperationBusy(false);
@@ -197,19 +200,27 @@ export function SongScreen() {
         lyrics: "",
         instrumentalMode: true,
       };
-      const doc = await api.startGeneration(
+      const result = await api.generateInstrumentalPart(
         project.id,
         nextForm,
-        null,
+        plan.role,
         plan.conditioning === "mix_stems"
-          ? { engine: "ace_step_lego", instrumentalRole: plan.role }
-          : { instrumentalRole: plan.role },
+          ? "ace_step_lego"
+          : undefined,
       );
-      const genId = doc.activeGenerationId;
+      const genId = result.generationId;
       if (!genId) {
         throw new Error(
           "Génération sans identifiant actif — piste non ajoutée à l’arrangement.",
         );
+      }
+      if (plan.conditioning === "mix_stems") {
+        const takes = await api.listGenerations(project.id);
+        const audioPath = takes.find(take => take.id === genId)?.audioPath;
+        if (!audioPath) throw new Error(t("production.instrumental.previewMissing"));
+        await openProject(project.id);
+        setPendingPart({ projectId: project.id, generationId: genId, audioPath, name: plan.displayName });
+        return;
       }
       const nextMix = await api.importGenerationAsUserTrack(
         project.id,
@@ -217,15 +228,26 @@ export function SongScreen() {
         plan.displayName,
       );
       await onUserTrackAdded(nextMix);
-      if (plan.conditioning === "mix_stems") {
-        setError(plan.leftoverNotesFr);
-      }
+
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       throw e;
     } finally {
       setBusy(false);
     }
+  }
+
+  async function acceptPendingPart(muteExisting: boolean) {
+    if (!pendingPart || pendingPart.projectId !== project?.id || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const nextMix = await api.importGenerationAsUserTrack(project.id, pendingPart.generationId, pendingPart.name, muteExisting);
+      setPendingPart(null);
+      await onUserTrackAdded(nextMix);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally { setBusy(false); }
   }
 
   async function onExport(format: "wav" | "flac" | "mp3") {
@@ -610,7 +632,7 @@ export function SongScreen() {
           i === 0 || form.seed == null
             ? form
             : { ...form, seed: null };
-        await api.startGeneration(project.id, formForCall, scoreGate.abc);
+        await api.generateComparisonTake(project.id, formForCall, scoreGate.abc);
       }
       await openProject(project.id);
     } catch (e) {
@@ -630,9 +652,7 @@ export function SongScreen() {
     setBusy(true);
     setError(null);
     try {
-      await api.startGeneration(project.id, form, scoreGate.abc, {
-        engine: "ace_step",
-      });
+      await api.generateComparisonTake(project.id, form, scoreGate.abc, "ace_step");
       await openProject(project.id);
     } catch (e) {
       setError(String(e));
@@ -828,6 +848,20 @@ export function SongScreen() {
           />
         </div>
       </header>
+
+      {pendingPart?.projectId === project.id && (
+        <section className="panel" aria-label={t("production.instrumental.previewTitle")}>
+          <h2>{t("production.instrumental.previewTitle")}</h2>
+          <p>{t("production.instrumental.previewHelp")}</p>
+          <TakePreviewPlayer audioPath={pendingPart.audioPath} label={pendingPart.name} />
+          <div className="actions">
+            <button type="button" disabled={busy} onClick={() => void acceptPendingPart(false)}>{t("production.instrumental.addSeparate")}</button>
+            <button type="button" disabled={busy} onClick={() => void acceptPendingPart(true)}>{t("production.instrumental.useFullMix")}</button>
+            <button type="button" disabled={busy} onClick={() => setPendingPart(null)}>{t("production.instrumental.keepForLater")}</button>
+          </div>
+          <p className="hint">{t("production.instrumental.fullMixHelp")}</p>
+        </section>
+      )}
 
       <div className="song-workspace-body">
         {workspace === "create" && (

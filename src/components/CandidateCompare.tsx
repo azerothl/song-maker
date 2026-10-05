@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import type { GenerationSummary } from "../lib/types";
 import { candidateGenerateLabel } from "./candidateLabels";
 import { t } from "../ui/i18n";
+import { TakePreviewPlayer } from "./TakePreviewPlayer";
 
 type Props = {
   generations: GenerationSummary[];
@@ -55,6 +56,7 @@ export function CandidateCompare({
   const [error, setError] = useState<string | null>(null);
 
   const ready = generations.filter((g) => g.state === "generated" && g.audioPath);
+  const selectedTake = view?.candidates.find((c) => c.id === view.selectedId);
 
   function openFromReady() {
     setError(null);
@@ -123,7 +125,7 @@ export function CandidateCompare({
                 <span>
                   {c.label ?? c.id}
                   {active && (
-                    <em className="gen-active"> · {t("generations.playing")}</em>
+                    <em className="gen-active"> · {t("versions.activeBadge")}</em>
                   )}
                 </span>
                 <div className="btn-row">
@@ -154,6 +156,7 @@ export function CandidateCompare({
       )}
 
       {view && view.selectedId && (
+        <div>
         <p className="hint ok">
           {t("candidates.selected", {
             id:
@@ -161,6 +164,8 @@ export function CandidateCompare({
               view.selectedId,
           })}
         </p>
+        {selectedTake && <TakePreviewPlayer audioPath={selectedTake.audioPath} label={selectedTake.label ?? selectedTake.id} />}
+        </div>
       )}
       {view && !view.selectedId && (
         <p className="hint">{t("candidates.noAutoWinner")}</p>

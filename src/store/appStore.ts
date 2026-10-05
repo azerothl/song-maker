@@ -18,6 +18,9 @@ import type { ProfilesState } from "../lib/profilesTypes";
 type AppStore = {
   screen: Screen;
   setScreen: (s: Screen) => void;
+  settingsInitialPage: "home" | "model";
+  settingsModelSection: "lego" | "ace_step" | null;
+  openModelSettings: (section?: "lego" | "ace_step") => void;
   health: HealthSnapshot | null;
   settings: AppSettings | null;
   job: JobStatus | null;
@@ -80,7 +83,10 @@ function asScoreDocument(raw: unknown): ScoreDocument | null {
 
 export const useAppStore = create<AppStore>((set, get) => ({
   screen: "splash",
-  setScreen: (screen) => set({ screen }),
+  setScreen: (screen) => set({ screen, settingsInitialPage: "home", settingsModelSection: null }),
+  settingsInitialPage: "home",
+  settingsModelSection: null,
+  openModelSettings: (section) => set({ screen: "settings", settingsInitialPage: "model", settingsModelSection: section ?? null }),
   health: null,
   settings: null,
   job: null,

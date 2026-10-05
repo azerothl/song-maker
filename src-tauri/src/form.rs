@@ -32,6 +32,15 @@ pub fn validate_title(title: &str) -> Result<(), FormError> {
     Ok(())
 }
 
+/// Keep draft lyrics in the project, but never send them for an instrumental take.
+pub fn generation_lyrics(input: &FormInput) -> &str {
+    if input.instrumental_mode {
+        ""
+    } else {
+        &input.lyrics
+    }
+}
+
 pub fn validate_lyrics(lyrics: &str, instrumental_mode: bool) -> Result<(), FormError> {
     let t = lyrics.trim();
     if t.chars().count() > 4000 {
@@ -62,7 +71,11 @@ pub fn validate_draft_form(input: &FormInput) -> Result<(), FormError> {
             "Les paroles sont limitées à 4000 caractères.".into(),
         ));
     }
-    if let Some(ref lang) = input.singing_language {
+    if let Some(lang) = input
+        .singing_language
+        .as_ref()
+        .filter(|_| !input.instrumental_mode)
+    {
         let l = lang.trim();
         if !l.is_empty() && l.chars().count() > 40 {
             return Err(FormError::Message(
@@ -142,7 +155,11 @@ pub fn validate_meter(meter: &Meter) -> Result<(), FormError> {
 /// Assemble le style envoyé au moteur, sans doubler un fragment déjà présent.
 pub fn assemble_style_sent(input: &FormInput) -> Result<String, FormError> {
     validate_style(&input.style)?;
-    if let Some(ref lang) = input.singing_language {
+    if let Some(lang) = input
+        .singing_language
+        .as_ref()
+        .filter(|_| !input.instrumental_mode)
+    {
         let l = lang.trim();
         if !l.is_empty() && l.chars().count() > 40 {
             return Err(FormError::Message(
@@ -175,13 +192,22 @@ pub fn assemble_style_sent(input: &FormInput) -> Result<String, FormError> {
         }
     };
 
-    if let Some(ref lang) = input.singing_language {
+    if let Some(lang) = input
+        .singing_language
+        .as_ref()
+        .filter(|_| !input.instrumental_mode)
+    {
         let l = lang.trim();
         if !l.is_empty() {
             push_unique(&mut parts, l.to_string());
         }
     }
     parts.push(style);
+
+    if input.instrumental_mode {
+        push_unique(&mut parts, "instrumental".into());
+        push_unique(&mut parts, "no vocals".into());
+    }
 
     if let Some(bpm) = input.tempo_bpm {
         push_unique(&mut parts, format!("{bpm} BPM"));
@@ -312,7 +338,7 @@ mod tests {
     fn accepts_empty_lyrics_in_instrumental_mode() {
         validate_lyrics("", true).unwrap();
         validate_lyrics("   ", true).unwrap();
-        let input = FormInput {
+        let mut input = FormInput {
             title: "Night Drive".into(),
             style: "synthwave instrumental, no vocals".into(),
             lyrics: String::new(),
@@ -332,6 +358,14 @@ mod tests {
         };
         assemble_style_sent(&input).unwrap();
         validate_form(&input).unwrap();
+        input.lyrics = "[Verse]\nParoles conservées".into();
+        input.singing_language = Some("French".into());
+        assert_eq!(generation_lyrics(&input), "");
+        let style = assemble_style_sent(&input).unwrap();
+        assert!(style.contains("no vocals"));
+        assert!(!style.contains("French"));
+        input.instrumental_mode = false;
+        assert_eq!(generation_lyrics(&input), "[Verse]\nParoles conservées");
     }
 
     #[test]

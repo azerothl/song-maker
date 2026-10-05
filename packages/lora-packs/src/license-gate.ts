@@ -186,7 +186,7 @@ export function planOptionalLoraDownload(
   const files: LoraDownloadPlanFile[] = pack.files.map((f) => ({
     slot: f.slot,
     filename: f.filename,
-    url: `https://huggingface.co/${pack.repo}/resolve/main/${f.filename}`,
+    url: `https://huggingface.co/${pack.repo}/resolve/${pack.revision ?? "main"}/${f.filename}`,
     relativeCachePath: `models/lora/${pack.id}/${f.filename}`,
     ...(f.sha256 ? { sha256: f.sha256 } : {}),
   }));

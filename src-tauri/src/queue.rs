@@ -10,6 +10,12 @@ pub struct JobQueue {
     inner: Arc<Mutex<QueueInner>>,
     waiting: Arc<AtomicUsize>,
     gate: Arc<tokio::sync::Mutex<()>>,
+    device: Arc<crate::device_admission::DeviceAdmission>,
+}
+
+pub struct RuntimeRestartGuard {
+    _serial: tokio::sync::OwnedMutexGuard<()>,
+    _device: crate::device_admission::DeviceGuard,
 }
 
 struct QueueInner {
@@ -26,15 +32,14 @@ impl Default for JobQueue {
             })),
             waiting: Arc::new(AtomicUsize::new(0)),
             gate: Arc::new(tokio::sync::Mutex::new(())),
+            device: Arc::new(crate::device_admission::DeviceAdmission::default()),
         }
     }
 }
 
 impl JobQueue {
     /// Hold the audio queue while the managed runtime is restarted.
-    pub async fn try_acquire_runtime_restart(
-        &self,
-    ) -> Result<tokio::sync::OwnedMutexGuard<()>, String> {
+    pub async fn try_acquire_runtime_restart(&self) -> Result<RuntimeRestartGuard, String> {
         let permit = self.gate.clone().try_lock_owned().map_err(|_| {
             "Impossible de relancer le runtime pendant une tâche audio.".to_string()
         })?;
@@ -45,7 +50,19 @@ impl JobQueue {
         ) {
             return Err("Impossible de relancer le runtime pendant une tâche audio.".into());
         }
-        Ok(permit)
+        let device = self
+            .device
+            .try_interactive()
+            .ok_or_else(|| "Une tâche audio utilise ou attend le moteur audio.".to_string())?;
+        Ok(RuntimeRestartGuard {
+            _serial: permit,
+            _device: device,
+        })
+    }
+
+    /// Interactive jobs are exclusive; after one, admit waiting batch work.
+    pub async fn acquire_batch_device(&self) -> crate::device_admission::DeviceGuard {
+        self.device.batch().await
     }
 
     pub fn status(&self) -> JobStatus {
@@ -104,7 +121,7 @@ impl JobQueue {
         let mut g = self.inner.lock();
         if g.current.is_some() {
             g.cancel_requested = true;
-            return "Annulation demandée. L’appel GPU déjà lancé va jusqu’au bout ; les fichiers déjà écrits restent.".into();
+            return "Annulation demandée. Les fichiers déjà créés sont conservés.".into();
         }
         "Rien à annuler.".into()
     }
@@ -130,6 +147,7 @@ impl JobQueue {
             project_id.clone(),
         );
         let _permit = self.gate.lock().await;
+        let _device = self.device.interactive().await;
         self.waiting.fetch_sub(1, Ordering::SeqCst);
         {
             let mut g = self.inner.lock();
@@ -145,5 +163,33 @@ impl JobQueue {
             Err(e) => self.set_error(e.clone()),
         }
         result
+    }
+}
+
+#[cfg(test)]
+mod resource_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn interactive_runtime_waits_for_every_batch_worker() {
+        let queue = JobQueue::default();
+        let first = queue.acquire_batch_device().await;
+        let second = queue.acquire_batch_device().await;
+        assert!(queue.try_acquire_runtime_restart().await.is_err());
+        drop(first);
+        assert!(queue.try_acquire_runtime_restart().await.is_err());
+        drop(second);
+        assert!(queue.try_acquire_runtime_restart().await.is_ok());
+    }
+
+    #[test]
+    fn cancelling_one_worker_does_not_cancel_another() {
+        let first = JobQueue::default();
+        let second = JobQueue::default();
+        first.set_state("generating", "A", None);
+        second.set_state("generating", "B", None);
+        first.request_cancel();
+        assert!(first.cancel_requested());
+        assert!(!second.cancel_requested());
     }
 }

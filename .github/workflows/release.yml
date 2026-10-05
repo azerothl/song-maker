@@ -208,6 +208,31 @@ jobs:
             throw "Windows Authenticode signing is required for releases. Configure repository variables WINDOWS_SIGNING_ENDPOINT, WINDOWS_SIGNING_ACCOUNT, WINDOWS_SIGNING_PROFILE and secrets AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID. Missing: $($missing -join ', ')"
           }
 
+      - name: Require macOS signing and notarization credentials
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [[ -z "${!name}" ]]; then missing+=("$name"); fi
+          done
+          if (( ${#missing[@]} )); then
+            printf 'macOS release requires signing and notarization. Missing names: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+          if [[ "$APPLE_SIGNING_IDENTITY" == "-" ]]; then
+            printf 'Ad-hoc signing is not accepted for a release.\n' >&2
+            exit 1
+          fi
+
       - name: Install Azure Artifact Signing CLI
         if: matrix.name == 'Windows x64'
         run: cargo install artifact-signing-cli --locked --version 0.11.0
@@ -243,7 +268,12 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_SIGNING_IDENTITY: "-"
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -257,6 +287,37 @@ jobs:
           uploadUpdaterJson: true
           retryAttempts: 3
           args: ${{ matrix.args }} ${{ matrix.signingArgs }}
+
+      - name: Verify published Windows build signatures
+        if: matrix.name == 'Windows x64'
+        shell: pwsh
+        run: |
+          $bundleRoot = Join-Path $env:GITHUB_WORKSPACE "src-tauri/target/release/bundle"
+          $appBinary = Join-Path $env:GITHUB_WORKSPACE "src-tauri/target/release/song-maker.exe"
+          $installers = @(Get-ChildItem -LiteralPath $bundleRoot -Recurse -File | Where-Object { $_.Extension -in '.exe', '.msi' })
+          if ($installers.Count -eq 0) { throw "No Windows installer was produced." }
+          $targets = @($appBinary) + @($installers.FullName)
+          foreach ($target in $targets) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $target
+            if ($signature.Status -ne 'Valid') { throw "Invalid Authenticode signature: $target ($($signature.Status))" }
+          }
+
+      - name: Verify notarized macOS bundles
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r -d '' bundle; do
+            codesign --verify --deep --strict --verbose=2 "$bundle"
+            xcrun stapler validate "$bundle"
+            spctl --assess --type execute --verbose=2 "$bundle"
+            count=$((count + 1))
+          done < <(find src-tauri/target -type d -path '*/release/bundle/macos/*.app' -print0)
+          if (( count == 0 )); then
+            printf 'No macOS app bundle was produced.\n' >&2
+            exit 1
+          fi
 
       - name: Remove generated signing configuration
         if: always() && matrix.name == 'Windows x64'

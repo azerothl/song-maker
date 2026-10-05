@@ -2,7 +2,7 @@
 
 **Issue :** [#100](https://github.com/azerothl/song-maker/issues/100)  
 **Dépendance :** [#93](https://github.com/azerothl/song-maker/issues/93) (moteur audio temps réel / capture basse latence)  
-**Date :** 2026-09-28
+**Date :** 2026-09-28 ; état de la pile actualisé le 2026-10-05
 
 ## Décision
 
@@ -10,13 +10,13 @@
 
 Raisons principales :
 
-1. Le produit n’a **pas** encore choisi de moteur audio temps réel natif (#93 ouvert ; hors périmètre VST3 explicite).
+1. La capture native cpal existe (#330/#342), mais elle ne partage pas un graphe DSP natif avec le lecteur et les effets.
 2. La pile actuelle (Web Audio + bake offline TypeScript + MediaRecorder) **ne fournit pas** de callback audio hôte apte à charger des `.vst3`.
-3. Le critère d’acceptation « prototype Windows : charger / jouer / restaurer » **n’est pas validable** dans l’environnement d’agent Linux cloud ; aucun prototype trompeur n’est livré.
+3. Le spike Windows sait scanner et charger une factory. Il ne traite pas l’audio et ne restaure pas un état de plugin : le critère « charger / jouer / restaurer » reste incomplet.
 4. La spécification produit classe encore les plugins VST/AU comme **hors produit** (`specs/SONG_MAKER_SPEC.md` §4).
 5. Les effets natifs de `@song-maker/mix-production` couvrent déjà le rack in-app (EQ, dynamique, réverb, etc.) pour le parcours générer → séparer → mixer.
 
-**Ne pas intégrer** reste l’issue probable si #93 reste centré WebView, ou si l’audience n’exige pas de plugins tiers. La décision sera **réévaluée** seulement après choix moteur (#93) **et** validation Windows dédiée.
+La capture native est désormais présente, mais le graphe DSP duplex requis reste à construire (#330/#342). La décision sera réévaluée après intégration de ce graphe et validation Windows dédiée.
 
 **Contrainte produit :** aucun contrôle UI VST3 n’est présenté comme disponible.
 
@@ -35,11 +35,11 @@ La décision « différer l’hôte » ci-dessus reste la vérité produit.
 | Shell | Tauri 2 | IPC, fichiers, spawn | Non |
 | Lecture | Web Audio (`playback.ts`) | Transport stems / WAV | Soft RT navigateur, pas de graphe plugin |
 | FX production | `mix-production` (TS, bake offline) | Écoute + export | Offline in-process |
-| Capture | `getUserMedia` + MediaRecorder | Prises utilisateur | Latence WebView documentée |
+| Capture | cpal natif, repli `getUserMedia` + MediaRecorder | Prises utilisateur | WASAPI partagé, sans graphe DSP duplex |
 | Mix/export Rust | hound, ffmpeg/soxr | Mixdown / normalize | Offline |
 | ML | audiocpp | Génération / stems / transcription | Pas un moteur device |
 
-Pas de `cpal`, JUCE, PortAudio, ASIO ni SDK VST3 dans le dépôt.
+cpal est présent pour la capture. Pas de graphe hôte VST3, de JUCE, de PortAudio, d’ASIO ni de SDK VST3 intégré au produit.
 
 ## Comparaison d’options (Win + Linux, Tauri)
 
@@ -88,11 +88,11 @@ Pas de `cpal`, JUCE, PortAudio, ASIO ni SDK VST3 dans le dépôt.
 
 | Critère #100 | Statut ici |
 |---|---|
-| Proto Windows load / play / restore | **Non réalisé** — agent Linux uniquement ; pas de runner Windows ni SDK/hôte VST3 dans le dépôt. |
+| Proto Windows load / play / restore | **Incomplet** — scan et factory dans un spike Windows ; lecture DSP et restauration non implémentées. |
 | Voie Linux testée | **Limites documentées** : libs ALSA/JACK peuvent être présentes sur une machine de build, mais **sans** session PipeWire/GUI plugin, **sans** inventaire commercial de `.vst3` Linux, et **sans** moteur RT produit, un proto Linux ne vaudrait pas validation produit. Wine n’est **pas** une stratégie produit. |
 | UI VST3 « disponible » | **Absente** — à conserver jusqu’à validation réelle. |
 
-Un proto ultérieur ne doit démarrer que si : (1) #93 livre un chemin RT natif Windows, (2) le spec réouvre VST/AU, (3) un runner Windows dédié existe hors CI cloud Linux.
+Le prochain prototype doit traiter et restaurer l'état d'un plugin réel, s'intégrer au mix et conserver une preuve Windows. Le scan et le chargement de factory ne suffisent pas.
 
 ## Licence et distribution (points de vigilance)
 
@@ -106,7 +106,7 @@ Song Maker vise génération + séparation + mix assisté, pas un DAW générali
 
 ## Prochaines étapes (si réouverture)
 
-1. Trancher #93 (API device Win+Linux, buffers, monitoring).
+1. Réunir lecture du mix, capture native, buffers et monitoring dans un graphe cohérent (#330/#342).
 2. Si moteur natif retenu : spike Windows isolé (charge + process + state restore d’un plugin de test, hors UI produit).
 3. Documenter isolation crash, scan, presets, automation, sauvegarde projet.
 4. Mettre à jour le spec (retirer VST/AU du hors-produit **seulement** après spike vert).
@@ -118,5 +118,5 @@ Song Maker vise génération + séparation + mix assisté, pas un DAW générali
 |---|---|
 | Intégrer maintenant ? | **Non** |
 | Différer ? | **Oui** (décision retenue) |
-| Ne pas intégrer ? | Option finale probable si #93 reste WebView-centric |
+| Ne pas intégrer ? | Décision produit à confirmer ; la capture CPAL ne suffit pas à héberger des plugins |
 | Livrable #100 | Cette étude + comparaison A/B/C ; proto Windows reporté |

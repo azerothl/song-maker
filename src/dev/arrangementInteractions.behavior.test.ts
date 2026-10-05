@@ -126,7 +126,8 @@ it("marker keyboard boundaries, fine steps and deletion keep clips unchanged",as
   await page.keyboard.press("Delete");
   assert.equal(await flag.count(),0);
   assert.match(await page.getByTestId("arrangement-status").innerText(),/My chorus.*deleted/);
-  assert.equal(await page.locator(".clip-marker-add").evaluate(el=>el===document.activeElement),true);
+  // Focus is restored on the next animation frame after the marker is removed.
+  await page.waitForFunction(()=>document.querySelector(".clip-marker-add")===document.activeElement);
   assert.deepEqual(await page.evaluate(()=>(window as unknown as {__arrangementMix:{tracks:unknown}}).__arrangementMix.tracks),before);
  }finally{await page.close();}
 });

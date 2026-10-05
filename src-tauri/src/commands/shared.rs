@@ -76,3 +76,85 @@ pub(crate) fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {
     }
     Ok(())
 }
+
+/// A file left by a failed or cancelled job is not a published take.
+pub(crate) fn published_generation_wav(
+    folder: &std::path::Path,
+    gen_id: &str,
+) -> Result<std::path::PathBuf, String> {
+    let suffix = gen_id.strip_prefix("gen-").unwrap_or("");
+    if suffix.is_empty() || !suffix.bytes().all(|b| b.is_ascii_digit()) {
+        return Err("Identifiant de prise invalide.".into());
+    }
+    let dir = folder.join("generations").join(gen_id);
+    let result: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(dir.join("result.json"))
+            .map_err(|_| "Cette prise n’est pas terminée.".to_string())?,
+    )
+    .map_err(|_| "Le résultat de cette prise est illisible.".to_string())?;
+    if result["state"] != "generated" || result["audio"]["path"] != "audio.wav" {
+        return Err(
+            "Cette prise n’a pas de résultat audio utilisable. Le morceau reste inchangé.".into(),
+        );
+    }
+    let wav = dir.join("audio.wav");
+    let reader = hound::WavReader::open(&wav)
+        .map_err(|_| "Le fichier audio de cette prise est illisible.".to_string())?;
+    if reader.spec().sample_rate == 0 || reader.spec().channels == 0 || reader.duration() == 0 {
+        return Err("Le fichier audio de cette prise est vide.".into());
+    }
+    // Compare the publication hash without decoding every sample again when
+    // selecting a long take. Generation/import already validates the samples.
+    let sha = crate::hashutil::sha256_file(&wav)?;
+    if result["audio"]["sha256"].as_str() != Some(sha.as_str()) {
+        return Err(
+            "Le fichier audio de cette prise a changé ou est incomplet. Le morceau reste inchangé."
+                .into(),
+        );
+    }
+    Ok(wav)
+}
+
+#[cfg(test)]
+mod published_take_tests {
+    use super::*;
+    #[test]
+    fn unpublished_audio_cannot_be_imported() {
+        let root = std::env::temp_dir().join(format!("take-publish-{}", uuid::Uuid::new_v4()));
+        let dir = root.join("generations/gen-001");
+        std::fs::create_dir_all(&dir).unwrap();
+        let wav = dir.join("audio.wav");
+        let spec = hound::WavSpec {
+            channels: 1,
+            sample_rate: 16000,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut writer = hound::WavWriter::create(&wav, spec).unwrap();
+        for _ in 0..1600 {
+            writer.write_sample(0i16).unwrap();
+        }
+        writer.finalize().unwrap();
+        let sha = crate::hashutil::sha256_file(&wav).unwrap();
+        for state in ["cancelled", "failed", "interrupted", "generating"] {
+            std::fs::write(
+                dir.join("result.json"),
+                serde_json::json!({"state":state,"audio":{"path":"audio.wav","sha256":sha}})
+                    .to_string(),
+            )
+            .unwrap();
+            assert!(published_generation_wav(&root, "gen-001").is_err());
+        }
+        std::fs::write(
+            dir.join("result.json"),
+            serde_json::json!({"state":"generated","audio":{"path":"audio.wav","sha256":sha}})
+                .to_string(),
+        )
+        .unwrap();
+        assert_eq!(published_generation_wav(&root, "gen-001").unwrap(), wav);
+        assert!(published_generation_wav(&root, "../gen-001").is_err());
+        std::fs::write(&wav, b"partial audio").unwrap();
+        assert!(published_generation_wav(&root, "gen-001").is_err());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+}

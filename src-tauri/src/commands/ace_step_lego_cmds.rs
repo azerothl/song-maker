@@ -31,6 +31,7 @@ pub async fn install_ace_step_lego(
     state: tauri::State<'_, AppState>,
     license_accepted: bool,
 ) -> Result<String, String> {
+    let _resources = super::settings::guard_model_install(&state).await?;
     if !license_accepted {
         return Err(
             "Lisez et acceptez l’avis ACE-Step 1.5 Base (Lego) avant le téléchargement.".into(),

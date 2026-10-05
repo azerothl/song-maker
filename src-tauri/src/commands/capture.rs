@@ -198,7 +198,19 @@ fn rollback_ingested_asset(folder: &Path, asset: &IngestedUserAudio) {
     );
 }
 
-/// Copy (optional) + normalize + append user MixTrack. Never mutates existing stems.
+struct AudioPlacement {
+    start_ms: i64,
+    mute_existing: bool,
+}
+
+fn mute_existing_tracks(mix: &mut MixDoc) {
+    for track in &mut mix.tracks {
+        track.mute = true;
+        track.solo = false;
+    }
+}
+
+/// Copy (optional) + normalize + append user MixTrack. Existing audio is retained.
 fn ingest_user_audio_file(
     folder: &Path,
     doc: &mut ProjectDoc,
@@ -206,20 +218,38 @@ fn ingest_user_audio_file(
     display_name: &str,
     copy_original: bool,
     original_ext: Option<&str>,
-    start_ms: i64,
+    placement: AudioPlacement,
 ) -> Result<MixDoc, String> {
     let asset =
         prepare_user_audio_asset(folder, source, display_name, copy_original, original_ext)?;
 
-    let (mut mix, mix_path) = load_or_create_active_mix(folder, doc)?;
+    let project_lock = crate::project_transaction::lock_for(folder);
+    let _project_guard = project_lock.lock();
+    *doc = match load_project(folder) {
+        Ok(doc) => doc,
+        Err(error) => {
+            rollback_ingested_asset(folder, &asset);
+            return Err(error);
+        }
+    };
+    let (mut mix, mix_path) = match load_or_create_active_mix(folder, doc) {
+        Ok(mix) => mix,
+        Err(error) => {
+            rollback_ingested_asset(folder, &asset);
+            return Err(error);
+        }
+    };
     let track_count_before = mix.tracks.len();
+    if placement.mute_existing {
+        mute_existing_tracks(&mut mix);
+    }
     append_user_audio_track(
         &mut mix,
         &asset.normalized_rel,
         &asset.sha,
         asset.duration_ms,
         display_name,
-        start_ms.max(0),
+        placement.start_ms.max(0),
     );
     if let Err(e) = atomic_write_json(&mix_path, &mix) {
         mix.tracks.truncate(track_count_before);
@@ -268,7 +298,10 @@ pub async fn import_user_audio_track(
             &display_name,
             true,
             Some(&ext),
-            0,
+            AudioPlacement {
+                start_ms: 0,
+                mute_existing: false,
+            },
         )
         .map(Some)
     })
@@ -282,27 +315,31 @@ pub async fn import_generation_as_user_track(
     id: String,
     generation_id: String,
     display_name: Option<String>,
+    mute_existing: Option<bool>,
 ) -> Result<MixDoc, String> {
     tokio::task::spawn_blocking(move || {
         let folder = project_folder(&id);
         let mut doc = load_project(&folder)?;
         let gen_id = generation_id.trim();
-        if gen_id.is_empty() {
-            return Err("Identifiant de génération manquant.".into());
-        }
-        let wav = folder.join("generations").join(gen_id).join("audio.wav");
-        if !wav.is_file() {
-            return Err(format!(
-                "WAV de génération introuvable (generations/{gen_id}/audio.wav)."
-            ));
-        }
+        let wav = super::shared::published_generation_wav(&folder, gen_id)?;
         let name = display_name
             .as_deref()
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .unwrap_or("Partie instrumentale")
             .to_string();
-        ingest_user_audio_file(&folder, &mut doc, &wav, &name, true, Some("wav"), 0)
+        ingest_user_audio_file(
+            &folder,
+            &mut doc,
+            &wav,
+            &name,
+            true,
+            Some("wav"),
+            AudioPlacement {
+                start_ms: 0,
+                mute_existing: mute_existing.unwrap_or(false),
+            },
+        )
     })
     .await
     .map_err(|e| format!("Import génération interrompu : {e}"))?
@@ -422,7 +459,10 @@ pub fn finalize_user_audio_capture(
         &name,
         true,
         Some(ext),
-        start_ms.unwrap_or(0).max(0),
+        AudioPlacement {
+            start_ms: start_ms.unwrap_or(0).max(0),
+            mute_existing: false,
+        },
     ) {
         Ok(mix) => {
             // Original copy lives under originals/; drop capture temp.
@@ -460,7 +500,7 @@ pub fn finalize_user_audio_capture_takes(
         }
     }
     let folder = project_folder(&id);
-    let mut doc = load_project(&folder)?;
+    let _ = load_project(&folder)?;
     let name = req
         .display_name
         .as_deref()
@@ -524,6 +564,17 @@ pub fn finalize_user_audio_capture_takes(
         })
         .collect();
 
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
+    let mut doc = match load_project(&folder) {
+        Ok(doc) => doc,
+        Err(error) => {
+            for asset in &assets {
+                rollback_ingested_asset(&folder, asset);
+            }
+            return Err(error);
+        }
+    };
     let (mut mix, mix_path) = match load_or_create_active_mix(&folder, &mut doc) {
         Ok(v) => v,
         Err(e) => {
@@ -557,6 +608,31 @@ pub fn finalize_user_audio_capture_takes(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn complete_song_keeps_existing_audio_and_enables_only_new_track() {
+        let mut mix = empty_mix("preview-test");
+        append_user_audio_track(
+            &mut mix,
+            "original.wav",
+            "original-sha",
+            30000,
+            "Original",
+            500,
+        );
+        mix.tracks[0].solo = true;
+        let clips_before = serde_json::to_value(&mix.tracks[0].clips).unwrap();
+        mute_existing_tracks(&mut mix);
+        append_user_audio_track(&mut mix, "lego.wav", "lego-sha", 29960, "Lego", 0);
+        assert_eq!(mix.tracks.len(), 2);
+        assert!(mix.tracks[0].mute);
+        assert!(!mix.tracks[0].solo);
+        assert!(!mix.tracks[1].mute);
+        assert_eq!(
+            serde_json::to_value(&mix.tracks[0].clips).unwrap(),
+            clips_before
+        );
+    }
 
     #[test]
     fn session_file_prefers_wav_over_webm() {

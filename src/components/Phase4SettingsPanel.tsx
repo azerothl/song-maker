@@ -6,7 +6,7 @@ import {
   type HostModeResult,
 } from "@song-maker/akasha-declui";
 import {
-  listStyleLoraPacks,
+  LORA_PACK_CATALOG,
   gateLoraPackAccess,
   planOptionalLoraDownload,
   requestOptionalLoraDownload,
@@ -27,8 +27,18 @@ import { api } from "../lib/api";
 import { REMOTE_PREFS_KEY } from "../lib/remoteGenerate";
 import type { LocalLoraAdapter } from "../lib/types";
 import { t } from "../ui/i18n";
+import { adapterActive, adapterPath, packLibraryState } from "../lib/loraLibrary";
 
 const PREFS_KEY = REMOTE_PREFS_KEY;
+
+function packDescription(id: string): string {
+  switch (id) {
+    case "mothersuperior-instrumental-ar": return t("phase4.lora.description.mothersuperior-instrumental-ar");
+    case "mothersuperior-realaudio-nar-v4": return t("phase4.lora.description.mothersuperior-realaudio-nar-v4");
+    case "becausereasons-chnsn-chanson-francaise": return t("phase4.lora.description.becausereasons-chnsn-chanson-francaise");
+    default: return t("phase4.lora.description.monsterovich-industrial-rock");
+  }
+}
 
 function loadPrefs(): RemoteWorkerPreferences {
   try {
@@ -71,6 +81,7 @@ export function Phase4SettingsPanel({
   const [hostToken, setHostToken] = useState("");
   const [styleNotice, setStyleNotice] = useState<string | null>(null);
   const [styleBusyId, setStyleBusyId] = useState<string | null>(null);
+  const [styleOperation, setStyleOperation] = useState<"download" | "activate" | null>(null);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
   const [arLora, setArLora] = useState("");
   const [narLora, setNarLora] = useState("");
@@ -81,7 +92,7 @@ export function Phase4SettingsPanel({
   const [importingLoras, setImportingLoras] = useState(false);
 
   const bridge = useMemo(() => getSharedAkashaHostBridge(), []);
-  const stylePacks = useMemo(() => listStyleLoraPacks(), []);
+  const stylePacks = LORA_PACK_CATALOG;
 
   useEffect(() => {
     const mode = bridge.getMode();
@@ -281,6 +292,7 @@ export function Phase4SettingsPanel({
   };
 
   const onDownloadStyle = async (pack: LoraPack) => {
+    setStyleOperation("download");
     setStyleBusyId(pack.id);
     setStyleNotice(null);
     try {
@@ -294,9 +306,8 @@ export function Phase4SettingsPanel({
         setStyleNotice(result.message);
         return;
       }
-      const paths = result.savedPaths?.join("\n") ?? "";
       setStyleNotice(
-        `${t("phase3.lora.downloadOk")}\n${paths}\n\n${result.plan?.noticeFr ?? ""}\n\n${t("phase4.styleLora.downloadHintActivate")}`,
+        t("phase4.styleLora.downloadHintActivate"),
       );
       const adapters = await api.listLoraAdapters();
       setLocalLoras(adapters);
@@ -309,6 +320,7 @@ export function Phase4SettingsPanel({
 
   const onActivateStyle = async (pack: LoraPack) => {
     if (!settings) return;
+    setStyleOperation("activate");
     setStyleBusyId(pack.id);
     setStyleNotice(null);
     try {
@@ -378,16 +390,16 @@ export function Phase4SettingsPanel({
   return (
     <section
       className="phase4-panel"
-      aria-labelledby={`phase4-settings-title-${view}`}
+      aria-labelledby={view === "lora" ? "lora-library-title" : `phase4-settings-title-${view}`}
     >
-      <h2 id={`phase4-settings-title-${view}`}>
+      {view !== "lora" && <h2 id={`phase4-settings-title-${view}`}>
         {view === "remote"
           ? t("phase4.remote.title")
           : view === "host"
             ? t("phase4.host.title")
             : t("phase4.styleLora.title")}
-      </h2>
-      <p className="hint">{t("phase4.settings.intro")}</p>
+      </h2>}
+      {view !== "lora" && <p className="hint">{t("phase4.settings.intro")}</p>}
 
       {view === "remote" && (
         <div className="settings-page-content">
@@ -530,6 +542,58 @@ export function Phase4SettingsPanel({
       {view === "lora" && (
         <div className="settings-page-content">
       <p className="hint">{t("phase4.styleLora.intro")}</p>
+      <div className="phase4-lora-active">
+        <h2 id="lora-library-title">{t("phase4.lora.activeTitle")}</h2>
+        <div className="btn-row">
+          <button type="button" className="btn" disabled={importingLoras} onClick={() => void importLoras()}>
+            {importingLoras ? t("phase4.lora.importing") : t("phase4.lora.import")}
+          </button>
+          <button type="button" className="btn ghost" disabled={importingLoras} onClick={() => void api.listLoraAdapters().then(setLocalLoras).catch((e) => setLoraNotice(String(e)))}>{t("phase4.lora.reload")}</button>
+        </div>
+        <p className="hint">{t("phase4.lora.importHint")}</p>
+        {localLoras.length === 0 ? <p role="status">{t("phase4.lora.empty")}</p> : (
+          <ul className="phase3-lora-list">
+            {localLoras.map(adapter => <li key={adapter.path}>
+              <strong>{adapter.name}</strong>{" · "}
+              <span>{t(settings && adapterActive(adapter.path, settings) ? "phase4.lora.active" : "phase4.lora.installed")}</span>
+            </li>)}
+          </ul>
+        )}
+        {(localLoras.length > 0 || arLora || narLora) && <>
+        <h3>{t("phase4.lora.useTitle")}</h3>
+        <p className="hint">{t("phase4.lora.localHint")}</p>
+        <label className="invariant-level">
+          {t("phase4.lora.arPath")}
+          <select value={adapterPath(arLora)} onChange={(e) => setArLora(e.target.value)}>
+            <option value="">{t("phase4.lora.none")}</option>
+            {arLora && !localLoras.some((adapter) => adapterPath(adapter.path) === adapterPath(arLora)) && <option value={adapterPath(arLora)}>{arLora.split(/[/\\]/).pop()}</option>}
+            {localLoras.map((adapter) => <option key={adapter.path} value={adapterPath(adapter.path)}>{adapter.name}</option>)}
+          </select>
+        </label>
+        <label className="invariant-level">
+          {t("phase4.lora.narPath")}
+          <select value={adapterPath(narLora)} onChange={(e) => setNarLora(e.target.value)}>
+            <option value="">{t("phase4.lora.none")}</option>
+            {narLora && !localLoras.some((adapter) => adapterPath(adapter.path) === adapterPath(narLora)) && <option value={adapterPath(narLora)}>{narLora.split(/[/\\]/).pop()}</option>}
+            {localLoras.map((adapter) => <option key={adapter.path} value={adapterPath(adapter.path)}>{adapter.name}</option>)}
+          </select>
+        </label>
+        <details><summary>{t("phase4.lora.intensity")}</summary>
+        <label className="invariant-level">
+          {t("phase4.lora.arScale")}
+          <input type="number" min={0} max={2} step={0.05} value={arScale} onChange={(e) => setArScale(Number(e.target.value))} />
+        </label>
+        <label className="invariant-level">
+          {t("phase4.lora.narScale")}
+          <input type="number" min={0} max={2} step={0.05} value={narScale} onChange={(e) => setNarScale(Number(e.target.value))} />
+        </label>
+        </details>
+        <div className="btn-row"><button type="button" className="btn ghost" onClick={() => void onDeactivateStyle()}>{t("phase4.styleLora.deactivate")}</button></div>
+        <button type="button" className="btn" onClick={() => void saveLoraSettings()}>{t("phase4.lora.save")}</button>
+        </>}
+        {loraNotice && <p className="hint" role="status">{loraNotice}</p>}
+      </div>
+      <h2>{t("phase4.lora.catalogTitle")}</h2>
       <p className="hint">
         {t("phase4.styleLora.licenseNotice")}{" "}
         <span className="nc-model-badge" data-testid="style-lora-nc-badge">
@@ -548,85 +612,36 @@ export function Phase4SettingsPanel({
         />
         {t("phase3.lora.ccGate")}
       </label>
-      <div className="phase4-lora-active">
-        <h4>{t("phase4.lora.activeTitle")}</h4>
-        <p className="hint">{t("phase4.lora.localHint")}</p>
-        <label className="invariant-level">
-          {t("phase4.lora.arPath")}
-          <select value={arLora} onChange={(e) => setArLora(e.target.value)}>
-            <option value="">{t("phase4.lora.none")}</option>
-            {arLora && !localLoras.some((adapter) => adapter.path === arLora) && <option value={arLora}>{arLora}</option>}
-            {localLoras.map((adapter) => <option key={adapter.path} value={adapter.path}>{adapter.name}</option>)}
-          </select>
-        </label>
-        <label className="invariant-level">
-          {t("phase4.lora.arScale")}
-          <input type="number" min={0} max={2} step={0.05} value={arScale} onChange={(e) => setArScale(Number(e.target.value))} />
-        </label>
-        <label className="invariant-level">
-          {t("phase4.lora.narPath")}
-          <select value={narLora} onChange={(e) => setNarLora(e.target.value)}>
-            <option value="">{t("phase4.lora.none")}</option>
-            {narLora && !localLoras.some((adapter) => adapter.path === narLora) && <option value={narLora}>{narLora}</option>}
-            {localLoras.map((adapter) => <option key={adapter.path} value={adapter.path}>{adapter.name}</option>)}
-          </select>
-        </label>
-        <label className="invariant-level">
-          {t("phase4.lora.narScale")}
-          <input type="number" min={0} max={2} step={0.05} value={narScale} onChange={(e) => setNarScale(Number(e.target.value))} />
-        </label>
-        <div className="btn-row">
-          <button type="button" className="btn" disabled={importingLoras} onClick={() => void importLoras()}>
-            {importingLoras ? t("phase4.lora.importing") : t("phase4.lora.import")}
-          </button>
-          <button type="button" className="btn ghost" disabled={importingLoras} onClick={() => void api.listLoraAdapters().then(setLocalLoras).catch((e) => setLoraNotice(String(e)))}>{t("phase4.lora.reload")}</button>
-          <button type="button" className="btn ghost" onClick={() => void onDeactivateStyle()}>
-            {t("phase4.styleLora.deactivate")}
-          </button>
-          <span className="hint">{t("phase4.lora.count", { count: String(localLoras.length) })}</span>
-        </div>
-        <p className="hint">{t("phase4.lora.importHint")}</p>
-        <button type="button" className="btn" onClick={() => void saveLoraSettings()}>{t("phase4.lora.save")}</button>
-        {loraNotice && <p className="hint" role="status">{loraNotice}</p>}
-      </div>
       <ul className="phase3-lora-list">
         {stylePacks.map((pack) => {
           const installable = pack.compatibilityStatus === "verified";
           const busy = styleBusyId === pack.id;
+          const local = settings ? packLibraryState(pack, localLoras, settings) : { installed: false, active: false };
           return (
           <li key={pack.id}>
             <div>
               <strong>{pack.displayName}</strong>
-              <span className="hint">
-                {" "}
-                · {compatibilityLabelFr(pack.compatibilityStatus)} · {pack.license} · {pack.repo}
-              </span>
-              {pack.trigger && (
-                <span className="hint"> · trigger « {pack.trigger} »</span>
-              )}
-              <br />
-              <span className="hint">{pack.notes}</span>
+              <p>{packDescription(pack.id)}</p>
+              <p role="status">{t(!installable ? "phase4.lora.notReady" : local.active ? "phase4.lora.active" : local.installed ? "phase4.lora.installed" : "phase4.lora.notInstalled")}</p>
+              <details><summary>{t("phase4.lora.sourceDetails")}</summary>
+                <p>{compatibilityLabelFr(pack.compatibilityStatus)} · {pack.license}</p>
+                <a href={`https://huggingface.co/${pack.repo}`} target="_blank" rel="noreferrer">{pack.repo}</a>
+                {pack.trigger && <p>{t("phase4.lora.trigger", { trigger: pack.trigger })}</p>}
+                {installable && <button type="button" className="btn ghost" disabled={Boolean(styleBusyId)} onClick={() => onPlanStyle(pack)}>{t("phase3.lora.planDownload")}</button>}
+              </details>
             </div>
-            <div className="btn-row">
-              <button
-                type="button"
-                className="btn"
-                disabled={busy || !installable}
-                onClick={() => onPlanStyle(pack)}
-              >
-                {t("phase3.lora.planDownload")}
-              </button>
+            {installable && <div className="btn-row">
               <button
                 type="button"
                 className="btn primary"
                 disabled={
-                  busy ||
-                  !installable ||
+                  Boolean(styleBusyId) ||
+                  local.installed ||
                   !settings?.ccByNcAccepted
                 }
                 onClick={() => void onDownloadStyle(pack)}
               >
-                {busy
+                {busy && styleOperation === "download"
                   ? t("phase3.lora.downloading")
                   : t("phase3.lora.download")}
               </button>
@@ -634,22 +649,22 @@ export function Phase4SettingsPanel({
                 type="button"
                 className="btn"
                 disabled={
-                  busy ||
-                  !installable ||
+                  Boolean(styleBusyId) ||
+                  !local.installed || local.active ||
                   !settings?.ccByNcAccepted
                 }
                 onClick={() => void onActivateStyle(pack)}
               >
-                {t("phase4.styleLora.activate")}
+                {t(busy && styleOperation === "activate" ? "phase4.lora.activating" : "phase4.styleLora.activate")}
               </button>
-            </div>
+            </div>}
           </li>
           );
         })}
       </ul>
-      {styleNotice && (
-        <pre className="phase3-download-notice">{styleNotice}</pre>
-      )}
+      {styleNotice && (styleNotice.includes("\n") ? (
+        <details><summary>{t("phase4.lora.sourceDetails")}</summary><pre className="phase3-download-notice">{styleNotice}</pre></details>
+      ) : <p role="status">{styleNotice}</p>)}
         </div>
       )}
     </section>
