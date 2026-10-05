@@ -1,4 +1,4 @@
-use super::shared::write_checksums;
+use super::shared::{normalize_stem_separator, write_checksums};
 use super::AppState;
 use crate::abc_metadata::{write_aligned_score_abc, AbcAlignRequest};
 use crate::audiocpp::AudioCppServer;
@@ -80,6 +80,139 @@ fn check_stem_alignment(duration_ms: i64, source_ms: i64) -> Result<(), String> 
     Ok(())
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum InstrumentalSeparatorProvider {
+    AudioCpp,
+    HtDemucsOnnx,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct InstrumentalSeparatorPlan {
+    id: &'static str,
+    sha256: &'static str,
+    provider: InstrumentalSeparatorProvider,
+    output_roles: &'static [&'static str],
+    included_stems: &'static [&'static str],
+}
+
+fn instrumental_separator_plan(raw: &str) -> InstrumentalSeparatorPlan {
+    match normalize_stem_separator(raw) {
+        "bs_roformer" => InstrumentalSeparatorPlan {
+            id: "bs_roformer",
+            sha256: BS_ROFORMER_SHA,
+            provider: InstrumentalSeparatorProvider::AudioCpp,
+            output_roles: &["other"],
+            included_stems: &["instrumental"],
+        },
+        "mel_band_roformer" => InstrumentalSeparatorPlan {
+            id: "mel_band_roformer",
+            sha256: MEL_BAND_ROFORMER_SHA,
+            provider: InstrumentalSeparatorProvider::AudioCpp,
+            output_roles: &["other"],
+            included_stems: &["instrumental"],
+        },
+        "htdemucs_6s" => InstrumentalSeparatorPlan {
+            id: "htdemucs_6s",
+            sha256: crate::demucs_onnx::MODEL_SHA256,
+            provider: InstrumentalSeparatorProvider::HtDemucsOnnx,
+            output_roles: &["drums", "bass", "other", "guitar", "piano"],
+            included_stems: &["drums", "bass", "other", "guitar", "piano"],
+        },
+        _ => InstrumentalSeparatorPlan {
+            id: "htdemucs",
+            sha256: HTDEMUCS_SHA,
+            provider: InstrumentalSeparatorProvider::AudioCpp,
+            output_roles: &["drums", "bass", "other"],
+            included_stems: &["drums", "bass", "other"],
+        },
+    }
+}
+
+#[cfg(test)]
+mod instrumental_separator_tests {
+    use super::{instrumental_separator_plan, InstrumentalSeparatorProvider};
+
+    #[test]
+    fn instrumental_generation_uses_the_selected_separator() {
+        let cases = [
+            (
+                "htdemucs",
+                "htdemucs",
+                InstrumentalSeparatorProvider::AudioCpp,
+                &["drums", "bass", "other"][..],
+            ),
+            (
+                "bs_roformer",
+                "bs_roformer",
+                InstrumentalSeparatorProvider::AudioCpp,
+                &["other"][..],
+            ),
+            (
+                "mel_band_roformer",
+                "mel_band_roformer",
+                InstrumentalSeparatorProvider::AudioCpp,
+                &["other"][..],
+            ),
+            (
+                "htdemucs_6s",
+                "htdemucs_6s",
+                InstrumentalSeparatorProvider::HtDemucsOnnx,
+                &["drums", "bass", "other", "guitar", "piano"][..],
+            ),
+        ];
+        for (selected, expected_id, expected_provider, expected_roles) in cases {
+            let plan = instrumental_separator_plan(selected);
+            assert_eq!(plan.id, expected_id);
+            assert_eq!(plan.provider, expected_provider);
+            assert_eq!(plan.output_roles, expected_roles);
+            assert!(plan.included_stems.iter().all(|role| *role != "vocals"));
+        }
+    }
+}
+
+fn validate_instrumental_separator(
+    settings: &AppSettings,
+    plan: InstrumentalSeparatorPlan,
+) -> Result<(), String> {
+    let cache = Path::new(&settings.cache_dir);
+    match plan.id {
+        "htdemucs" => {
+            let weights = crate::paths::htdemucs_path(cache);
+            if !weights.is_file() {
+                return Err("Pour créer un instrumental, installez les composants audio dans Paramètres → Modèle (séparation des voix).".into());
+            }
+            if sha256_file(&weights)? != plan.sha256 {
+                return Err("Le composant de retrait des voix est incomplet. Réinstallez les composants audio dans Paramètres → Modèle.".into());
+            }
+        }
+        "bs_roformer" => {
+            if !crate::paths::bs_roformer_weights_present(cache) {
+                return Err("BS-RoFormer doit être installé dans Paramètres → Production audio avant de générer un instrumental.".into());
+            }
+            crate::bs_roformer::verify_sha256(cache)?;
+        }
+        "mel_band_roformer" => {
+            if !crate::paths::mel_band_roformer_weights_present(cache) {
+                return Err("Mel-Band RoFormer doit être installé dans Paramètres → Production audio avant de générer un instrumental.".into());
+            }
+            crate::mel_band_roformer::verify_sha256(cache)?;
+        }
+        "htdemucs_6s" => {
+            if !crate::demucs_onnx::is_installed(cache) {
+                return Err("Le runtime HTDemucs 6 stems doit être installé dans Paramètres → Production audio avant de générer un instrumental.".into());
+            }
+        }
+        _ => unreachable!("separator plan is normalized"),
+    }
+    Ok(())
+}
+
+impl InstrumentalSeparatorPlan {
+    fn method(self) -> String {
+        format!("{}-accompaniment", self.id)
+    }
+}
+
 #[cfg(test)]
 mod stem_align_tests {
     use super::check_stem_alignment;
@@ -95,7 +228,10 @@ mod stem_align_tests {
 /// Keep the generator output and publish only the accompaniment. Empty lyrics
 /// do not prevent a music model from hallucinating vocals.
 async fn remove_generated_vocals(
+    server: &AudioCppServer,
     server_url: &str,
+    settings: &AppSettings,
+    plan: InstrumentalSeparatorPlan,
     gen_dir: &Path,
 ) -> Result<serde_json::Value, String> {
     let raw = gen_dir.join("audio-original.wav");
@@ -104,17 +240,41 @@ async fn remove_generated_vocals(
     ensure_dir(&sep_dir).map_err(|e| e.to_string())?;
     let input = sep_dir.join("input-44100.wav");
     crate::resample::resample_soxr(&raw, &input, SEPARATOR_SAMPLE_RATE)?;
-    let response = AudioCppServer::run_task(
-        server_url,
-        json!({
-            "model": "htdemucs", "request": {"audio": input.display().to_string()}
-        }),
-    )
-    .await?;
-    AudioCppServer::write_named_audio_outputs(&response, &sep_dir)?;
+    match plan.provider {
+        InstrumentalSeparatorProvider::AudioCpp => {
+            // RoFormer separates with its own weights. Restart the shared server
+            // after generation so the generation model can be unloaded first.
+            let separator_url = if matches!(plan.id, "bs_roformer" | "mel_band_roformer") {
+                server.shutdown();
+                server.ensure_started(settings)?
+            } else {
+                server_url.to_string()
+            };
+            let response = AudioCppServer::run_task(
+                &separator_url,
+                json!({
+                    "model": plan.id,
+                    "request": {"audio": input.display().to_string()}
+                }),
+            )
+            .await?;
+            AudioCppServer::write_named_audio_outputs(&response, &sep_dir)?;
+            if matches!(plan.id, "bs_roformer" | "mel_band_roformer") {
+                super::shared::alias_instrumental_to_other(&sep_dir)?;
+            }
+        }
+        InstrumentalSeparatorProvider::HtDemucsOnnx => {
+            crate::demucs_onnx::separate(
+                PathBuf::from(&settings.cache_dir),
+                input,
+                sep_dir.clone(),
+            )
+            .await?;
+        }
+    }
     let mut stems = Vec::new();
     let original_duration = wav_duration_ms(&raw)?;
-    for role in ["drums", "bass", "other"] {
+    for role in plan.output_roles {
         let source = super::shared::find_stem_file(&sep_dir, role)?;
         let path = sep_dir.join(format!("{role}-48000.wav"));
         crate::resample::resample_soxr(&source, &path, SAMPLE_RATE)?;
@@ -133,9 +293,9 @@ async fn remove_generated_vocals(
     check_stem_alignment(wav_duration_ms(&rendered)?, original_duration)?;
     std::fs::copy(&rendered, gen_dir.join("audio.wav")).map_err(|e| e.to_string())?;
     Ok(
-        json!({"method":"htdemucs-accompaniment", "modelSha256":HTDEMUCS_SHA,
+        json!({"method":plan.method(), "separatorId":plan.id, "modelSha256":plan.sha256,
         "originalPath":"audio-original.wav", "originalSha256":sha256_file(&raw)?,
-        "includedStems":["drums","bass","other"], "excludedStems":["vocals"],
+        "includedStems":plan.included_stems, "excludedStems":["vocals"],
         "peakTrimDb":trim, "residualVocalsPossible":true}),
     )
 }
@@ -401,15 +561,13 @@ async fn run_generation(
     let use_ace_step = requested_engine == "ace_step";
     let use_lego = requested_engine == "ace_step_lego";
     let remove_vocals = form.instrumental_mode && !use_lego && !stop_after_abc;
-    if remove_vocals {
-        let weights = crate::paths::htdemucs_path(Path::new(&settings.cache_dir));
-        if !weights.is_file() {
-            return Err("Pour créer un instrumental sans chant, installez les composants audio dans Paramètres → Modèle (séparation des voix).".into());
-        }
-        if sha256_file(&weights)? != HTDEMUCS_SHA {
-            return Err("Le composant de retrait des voix est incomplet. Réinstallez les composants audio dans Paramètres → Modèle.".into());
-        }
-    }
+    let instrumental_separator = if remove_vocals {
+        let plan = instrumental_separator_plan(&settings.stem_separator);
+        validate_instrumental_separator(&settings, plan)?;
+        Some(plan)
+    } else {
+        None
+    };
     if use_ace_step {
         if !settings.ace_step_license_accepted {
             return Err(
@@ -668,7 +826,7 @@ async fn run_generation(
         "preferFullLyrics": form.prefer_full_lyrics && !form.instrumental_mode,
         "instrumentalMode": form.instrumental_mode,
         "draftLyricsUsed": !form.instrumental_mode,
-        "instrumentalProcessing": if remove_vocals { Some("htdemucs-accompaniment") } else { None },
+        "instrumentalProcessing": instrumental_separator.map(InstrumentalSeparatorPlan::method),
         "expectedDurationMs": if fixed_duration { Some(expected_duration_ms) } else { None },
         "instrumentalRole": instrumental_role,
         "legoTrackName": lego_role,
@@ -1053,9 +1211,9 @@ async fn run_generation(
                                 return Err(err);
                             }
                         }
-                        let instrumental_processing = if remove_vocals {
+                        let instrumental_processing = if let Some(plan) = instrumental_separator {
                             queue_ref.set_state("generating", "Retrait des voix pour le morceau instrumental", Some(project_id_for_job.clone()));
-                            Some(remove_generated_vocals(&server_url, &gen_dir_for_job).await?)
+                            Some(remove_generated_vocals(server, &server_url, &runtime_settings, plan, &gen_dir_for_job).await?)
                         } else { None };
                         if cancelled() { return Err("cancelled".into()); }
                         let duration = wav_duration_ms(&out_wav)?;

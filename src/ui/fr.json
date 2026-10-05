@@ -995,6 +995,7 @@
   "phase3.settings.title": "Séparation des pistes",
   "phase3.settings.intro": "Choisissez comment extraire la voix et les instruments du morceau.",
   "phase3.separator.title": "Méthode de séparation",
+  "phase3.separator.instrumentalHint": "Ce choix sert aussi à retirer la voix après une génération en mode instrumental.",
   "phase3.separator.bsMissing": "BS-RoFormer doit être installé pour être utilisé.",
   "phase3.separator.bsInstall": "Installer BS-RoFormer (opt-in)",
   "phase3.separator.bsInstalling": "Téléchargement BS-RoFormer…",

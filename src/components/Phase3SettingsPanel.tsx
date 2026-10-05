@@ -316,6 +316,7 @@ export function Phase3SettingsPanel({
       {view === "separation" && (
         <>
       <h3>{t("phase3.separator.title")}</h3>
+      <p className="hint">{t("phase3.separator.instrumentalHint")}</p>
       <details className="advanced-details"><summary>{t("settings.separator.technicalDetails")}</summary><p className="hint">{phase3?.honestyFr}</p></details>
       <div className="phase3-provider-list">
         {providers.map((p) => {

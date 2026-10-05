@@ -208,7 +208,9 @@ impl AudioCppServer {
             // Instrumental generation finishes by removing the vocal stem.
             // max_loaded_models=1 still unloads generation weights before sep.
             models.retain(|model| {
-                model["id"] == settings.generation_engine || model["id"] == "htdemucs"
+                model["id"] == settings.generation_engine
+                    || model["id"] == "htdemucs"
+                    || model["id"] == settings.stem_separator
             });
         }
         let cfg = json!({
@@ -694,6 +696,32 @@ mod semantic_metadata_tests {
         assert!(models.iter().any(|model| model["id"] == "htdemucs"));
         assert!(models.iter().any(|model| model["id"] == "yue2"));
         assert_eq!(models.len(), 2);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn isolated_worker_registers_selected_roformer_for_instrumental_cleanup() {
+        let dir = std::env::temp_dir().join(format!(
+            "song-maker-roformer-config-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let cache = dir.join("cache");
+        let settings_dir = dir.join("settings");
+        std::fs::create_dir_all(&settings_dir).unwrap();
+        let mut settings = crate::library::default_settings();
+        settings.cache_dir = cache.display().to_string();
+        settings.stem_separator = "bs_roformer".into();
+        let model = crate::paths::bs_roformer_path(&cache);
+        std::fs::create_dir_all(model.parent().unwrap()).unwrap();
+        std::fs::write(&model, b"test fixture").unwrap();
+
+        let path = settings_dir.join("server.json");
+        AudioCppServer::write_config_at(&settings, &path, true).unwrap();
+        let config: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        let models = config["models"].as_array().unwrap();
+        assert!(models.iter().any(|model| model["id"] == "bs_roformer"));
+        assert_eq!(config["max_loaded_models"], 1);
         let _ = std::fs::remove_dir_all(dir);
     }
 

@@ -765,6 +765,7 @@
   "phase3.settings.title": "Track separation",
   "phase3.settings.intro": "Choose how to extract vocals and instruments from the song.",
   "phase3.separator.title": "Separation method",
+  "phase3.separator.instrumentalHint": "This choice is also used to remove vocals after an instrumental generation.",
   "phase3.separator.bsMissing": "Install BS-RoFormer to use it.",
   "phase3.separator.bsInstall": "Install BS-RoFormer (opt-in)",
   "phase3.separator.bsInstalling": "Downloading BS-RoFormer…",
