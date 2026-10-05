@@ -6,6 +6,20 @@ import { DEFAULT_PRODUCTION_CLIP_VIEW_PREFS } from "./productionClipViewPrefs";
 import { t } from "../ui/i18n";
 
 describe("production mix settings structure (#225)", () => {
+  it("keeps separation available in Production before a mix exists (#380)", () => {
+    const src = readFileSync("src/screens/song/ProductionWorkspace.tsx", "utf8");
+    const toolbar = src.match(
+      /<div className="production-main-toolbar-actions">([\s\S]*?)<\/div>/,
+    )?.[1];
+    const screen = readFileSync("src/screens/SongScreen.tsx", "utf8");
+    assert.ok(toolbar, "primary Production toolbar is rendered");
+    assert.match(toolbar, /data-testid="production-separate-trigger"/);
+    assert.match(src, /const separateDisabled = !project\.activeGenerationId \|\| busy/);
+    assert.match(src, /production\.separate\.disabledNoGeneration/);
+    assert.match(src, /<SeparationRecommendDialog/);
+    assert.match(screen, /window\.confirm\(t\("separate\.again\.confirm"\)\)/);
+  });
+
   it("ProductionWorkspace exposes mix settings trigger with dialog popup", () => {
     const src = readFileSync("src/screens/song/ProductionWorkspace.tsx", "utf8");
     assert.match(src, /production-mix-settings-trigger/);

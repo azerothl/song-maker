@@ -240,6 +240,14 @@ Le client vérifie maintenant que `result.json` est complet (version de schéma,
 
 Validation de ce complément : 3 tests ciblés sur le manifeste distant, `pnpm typecheck` réussi, tests HTTP chiffrés worker sur la durée et l’absence de partition réussis (3 tests). La vérification native du refus simulate, de la prise active conservée et de l’affichage après import réel n’a pas encore été observée ; #388 et #389 restent donc ouverts.
 
+## Comparateurs et action de séparation en Production (#379, #380, #381)
+
+Le comparateur de moteurs et celui des prises utilisent maintenant `TakePreviewPlayer`. Le lecteur ne réassigne pas la source quand le parent reçoit un nouvel objet de génération, garde pause/recherche et position, arrête les autres préécoutes, et annonce une erreur si le fichier n’est plus lisible. Un test navigateur avec un WAV de contrôle, plus de 20 mises à jour du parent, bascule YuE2/ACE-Step, pause, recherche et écoute du comparateur multi-prises réussit ; l’écoute n’active pas une prise. Cela valide le navigateur de test, pas encore l’application Tauri installée.
+
+Production affiche désormais « Séparer les pistes » dans sa barre d’action principale, même sans mix ; le bouton est désactivé avec une explication si aucune prise active n’est disponible ou si l’application est occupée. Il ouvre le choix du séparateur. Après la création de stems, « Séparer à nouveau » conserve sa confirmation. Huit tests de structure du parcours Production passent. La vérification visuelle Windows de ce parcours n’est pas faite.
+
+#379, #380 et #381 restent ouverts jusqu’aux observations natives demandées. Le comportement de comparaison et d’écoute est couvert dans le test navigateur ciblé ; l’accessibilité réelle du bouton de séparation et les états d’erreur du lecteur restent à vérifier dans l’application installée.
+
 
 ### #325 — démarrage local du moteur Lego
 
