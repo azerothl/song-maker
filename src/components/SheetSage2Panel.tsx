@@ -15,7 +15,7 @@ import {
 import type { FormInput, InstallProgress, MixDoc } from "../lib/types";
 import { api } from "../lib/api";
 import { isTauriRuntime, runtimeApi } from "../lib/runtimeHost";
-import { t } from "../ui/i18n";
+import { profileLocale, t } from "../ui/i18n";
 import { AbcStaffView } from "./AbcStaffView";
 
 export type SheetSage2PanelProps = {
@@ -38,15 +38,7 @@ export type SheetSage2PanelProps = {
 type SourceChoice = "mixdown" | string;
 
 type SheetsageInstallInfo = {
-  gguf: string;
-  sha256: string;
   bytes: number;
-  repo: string;
-  remotePath: string;
-  url: string;
-  licenseNoticeFr: string;
-  path: string;
-  available: boolean;
 };
 
 /**
@@ -71,6 +63,7 @@ export function SheetSage2Panel({
   const [nVoices, setNVoices] = useState(2);
   const [progress, setProgress] = useState<SheetsageProgress | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [noticeDetails, setNoticeDetails] = useState<string | null>(null);
   const [proposedAbc, setProposedAbc] = useState<string>("");
   const [confirmed, setConfirmed] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
@@ -114,7 +107,6 @@ export function SheetSage2Panel({
           ? p.acceleration
           : "unknown",
     });
-    setNotice(p.messageFr);
   };
 
   useEffect(() => {
@@ -129,7 +121,8 @@ export function SheetSage2Panel({
         if (!cancelled) setInstallInfo(info);
       } catch (e) {
         if (!cancelled) {
-          setNotice(e instanceof Error ? e.message : String(e));
+          setNotice(t("sheetsage.error.check"));
+          setNoticeDetails(e instanceof Error ? e.message : String(e));
         }
       }
     })();
@@ -271,23 +264,27 @@ export function SheetSage2Panel({
   const onInstallWeights = async () => {
     if (!isTauriRuntime()) {
       setNotice(t("sheetsage.install.needDesktop"));
+      setNoticeDetails(null);
       return;
     }
     if (!licenseAccepted) {
       setNotice(t("sheetsage.install.needLicense"));
+      setNoticeDetails(null);
       return;
     }
     setInstalling(true);
     setNotice(null);
+    setNoticeDetails(null);
     setInstallProgress(null);
     try {
-      const path = await runtimeApi.installSheetsage2();
-      setNotice(t("sheetsage.install.done").replace("{path}", path));
+      await runtimeApi.installSheetsage2();
+      setNotice(t("sheetsage.install.done"));
       const info = await runtimeApi.sheetsageInstallInfo();
       setInstallInfo(info);
       await refreshProbe();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : String(e));
+      setNotice(t("sheetsage.error.install"));
+      setNoticeDetails(e instanceof Error ? e.message : String(e));
     } finally {
       setInstalling(false);
     }
@@ -296,16 +293,19 @@ export function SheetSage2Panel({
   const onCancelInstall = async () => {
     if (!isTauriRuntime()) return;
     try {
-      const msg = await runtimeApi.cancelSheetsage2Install();
-      setNotice(msg);
+      await runtimeApi.cancelSheetsage2Install();
+      setNotice(t("sheetsage.install.cancelRequested"));
+      setNoticeDetails(null);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : String(e));
+      setNotice(t("sheetsage.error.cancel"));
+      setNoticeDetails(e instanceof Error ? e.message : String(e));
     }
   };
 
   const onTranscribe = async () => {
     setTranscribing(true);
     setNotice(null);
+    setNoticeDetails(null);
     setProposedAbc("");
     setConfirmed(false);
     setProgress(null);
@@ -322,10 +322,26 @@ export function SheetSage2Panel({
         signal: ac.signal,
         onProgress: setProgress,
       });
-      setNotice(result.messageFr);
+      const resultMessageKey = {
+        ok: "sheetsage.result.ok",
+        not_implemented: "sheetsage.result.unavailable",
+        cancelled: "sheetsage.result.cancelled",
+        failed: "sheetsage.result.failed",
+        license_not_accepted: "sheetsage.result.license",
+        missing_runtime: "sheetsage.result.runtime",
+      } satisfies Record<SheetsageTranscribeResult["status"], string>;
+      setNotice(t(resultMessageKey[result.status] as Parameters<typeof t>[0]));
+      setNoticeDetails(
+        result.status === "ok" || result.status === "cancelled"
+          ? null
+          : result.messageFr,
+      );
       if (result.status === "ok" && result.abc) {
         setProposedAbc(result.abc);
       }
+    } catch (e) {
+      setNotice(t("sheetsage.error.transcribe"));
+      setNoticeDetails(e instanceof Error ? e.message : String(e));
     } finally {
       setTranscribing(false);
     }
@@ -335,10 +351,12 @@ export function SheetSage2Panel({
     abortRef.current?.abort();
     if (jobIdRef.current && isTauriRuntime()) {
       try {
-        const msg = await runtimeApi.sheetsageCancel(jobIdRef.current);
-        setNotice(msg);
+        await runtimeApi.sheetsageCancel(jobIdRef.current);
+        setNotice(t("sheetsage.result.cancelled"));
+        setNoticeDetails(null);
       } catch (e) {
-        setNotice(e instanceof Error ? e.message : String(e));
+        setNotice(t("sheetsage.error.cancel"));
+        setNoticeDetails(e instanceof Error ? e.message : String(e));
       }
     }
   };
@@ -346,22 +364,21 @@ export function SheetSage2Panel({
   const onConfirmScore = () => {
     const gate = assertAbcConfirmedForYue2(proposedAbc);
     if (!gate.ok) {
-      setNotice(gate.messageFr);
+      setNotice(t("sheetsage.score.invalid"));
+      setNoticeDetails(gate.messageFr);
       setConfirmed(false);
       return;
     }
     setConfirmed(true);
-    setNotice(gate.messageFr);
+    setNotice(null);
+    setNoticeDetails(null);
   };
 
   const onGenerate = () => {
     const gate = assertAbcConfirmedForYue2(proposedAbc);
     if (!gate.ok || !confirmed) {
-      setNotice(
-        confirmed
-          ? gate.messageFr
-          : t("sheetsage.needConfirm"),
-      );
+      setNotice(confirmed ? t("sheetsage.score.invalid") : t("sheetsage.needConfirm"));
+      setNoticeDetails(confirmed ? gate.messageFr : null);
       return;
     }
     void onConfirmGenerate(proposedAbc.trim(), mode);
@@ -378,9 +395,10 @@ export function SheetSage2Panel({
     readiness.status === "missing_weights";
   const canTranscribe =
     licenseAccepted && readiness.canAttemptTranscribe && !installing;
+  const locale = profileLocale();
   const bytesLabel = installInfo
-    ? `${(installInfo.bytes / 1e9).toFixed(1)} Go`
-    : "~2,7 Go";
+    ? `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(installInfo.bytes / 1e9)} ${locale === "en" ? "GB" : "Go"}`
+    : locale === "en" ? "2.7 GB" : "2,7 Go";
 
   return (
     <section
@@ -390,27 +408,18 @@ export function SheetSage2Panel({
     >
       {!hideTitle && <h3 id="sheetsage-title">{t("sheetsage.title")}</h3>}
       <p className="hint">{t("sheetsage.intro")}</p>
-      <ol className="sheetsage-steps hint">
-        <li>{t("sheetsage.step.source")}</li>
-        <li>{t("sheetsage.step.mode")}</li>
-        <li>{t("sheetsage.step.transcribe")}</li>
-        <li>{t("sheetsage.step.edit")}</li>
-        <li>{t("sheetsage.step.scoreDraft")}</li>
-        <li>{t("sheetsage.step.confirm")}</li>
-        <li>{t("sheetsage.step.generate")}</li>
-      </ol>
       <p className="hint warn" role="note">
-        {REINTERPRETATION_DISCLAIMER_FR}{" "}
+        {t("sheetsage.reinterpretation")}{" "}
         {t("sheetsage.licenseLimits")}{" "}
-        <span className="nc-model-badge" data-testid="sheetsage-nc-badge">
-          <span className="sep-license-icon" aria-hidden="true">
-            ⊘
-          </span>
-          {t("sheetsage.license.badge")}
-        </span>
       </p>
-      {readiness.status !== "license_not_accepted" && (
-        <p className="hint">{readiness.messageFr}</p>
+      {licenseAccepted && readiness.status === "insufficient_disk" && (
+        <p className="hint warn" role="status">{t("sheetsage.readiness.insufficientDisk")}</p>
+      )}
+      {licenseAccepted && readiness.status === "missing_binary" && (
+        <p className="hint warn" role="status">{t("sheetsage.readiness.missingBinary")}</p>
+      )}
+      {licenseAccepted && readiness.status === "not_implemented" && (
+        <p className="hint warn" role="status">{t("sheetsage.readiness.unavailable")}</p>
       )}
 
       <label className="phase3-check">
@@ -427,16 +436,7 @@ export function SheetSage2Panel({
 
       {showInstall && (
         <div className="phase3-bs-install">
-          <p className="hint">{t("sheetsage.install.hint")}</p>
-          {installInfo && (
-            <p className="hint">
-              {installInfo.licenseNoticeFr}
-              <br />
-              {t("sheetsage.install.meta")
-                .replace("{size}", bytesLabel)
-                .replace("{sha}", installInfo.sha256.slice(0, 12))}
-            </p>
-          )}
+          <p className="hint">{t("sheetsage.install.hint", { size: bytesLabel })}</p>
           <div className="btn-row">
             <button
               type="button"
@@ -460,17 +460,18 @@ export function SheetSage2Panel({
           </div>
           {installProgress && (
             <p className="hint">
-              {installProgress.label}
               {installProgress.totalBytes
-                ? ` (${Math.min(
-                    100,
-                    Math.round(
-                      (installProgress.receivedBytes /
-                        installProgress.totalBytes) *
-                        100,
+                ? t("sheetsage.install.progress", {
+                    percent: Math.min(
+                      100,
+                      Math.round(
+                        (installProgress.receivedBytes /
+                          installProgress.totalBytes) *
+                          100,
+                      ),
                     ),
-                  )} %)`
-                : ""}
+                  })
+                : t("sheetsage.install.installing")}
             </p>
           )}
         </div>
@@ -546,7 +547,7 @@ export function SheetSage2Panel({
       </div>
       {progress && (
         <p className="hint">
-          {progress.messageFr}
+          {t(`sheetsage.progress.${progress.phase}` as Parameters<typeof t>[0])}
           {progress.fraction != null
             ? ` (${Math.round(progress.fraction * 100)} %)`
             : ""}
@@ -610,11 +611,22 @@ export function SheetSage2Panel({
           {t("sheetsage.generateYue2")}
         </button>
       </div>
+      {!confirmed && <p className="hint">{t("sheetsage.needConfirm")}</p>}
       <p className="hint">{t("sheetsage.scoreDraftHint")}</p>
       {confirmed && (
         <p className="hint ok">{t("sheetsage.confirmed", { style: form.style || "—" })}</p>
       )}
-      {notice && <pre className="phase3-download-notice">{notice}</pre>}
+      {notice && (
+        <div className="phase3-download-notice" role="status" aria-live="polite">
+          <p>{notice}</p>
+          {noticeDetails && (
+            <details>
+              <summary>{t("sheetsage.detailsForSupport")}</summary>
+              <pre>{noticeDetails}</pre>
+            </details>
+          )}
+        </div>
+      )}
     </section>
   );
 }

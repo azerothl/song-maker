@@ -903,7 +903,7 @@ option {
   gap: 0.85rem;
   padding: 1rem 1.5rem 0.9rem;
   border-bottom: 1px solid var(--line);
-  background: rgba(14, 17, 22, 0.72);
+  background: var(--bg0);
   position: sticky;
   top: 0;
   z-index: 5;
