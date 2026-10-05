@@ -241,3 +241,10 @@ Les WAV Lego invalides/vides/tronqués sont désormais rejetés au lieu de deven
 CI du précédent push : échec de formatage du pin corrigé ; FFmpeg est désormais installé explicitement avant les tests de retrait de voix, avec affichage de l’erreur du job en cas d’échec. Nouvelle validation GitHub à suivre.
 
 Contrôles complémentaires : formatage global et Clippy strict passent après suppression de trois emprunts superflus dans `form.rs`. Les 16 tests du worker passent localement, dont le traitement instrumental FFmpeg. Le serveur réel de contrôle (PID 36468) a été arrêté après la tâche ; son absence a été vérifiée.
+
+
+### #325 / #382 — écouter avant d’intégrer une sortie Lego
+
+Le parcours ne superpose plus automatiquement la sortie Lego aux pistes existantes. Après génération, il affiche un lecteur de la prise et trois choix : ajouter une piste séparée, utiliser comme morceau complet, garder dans les versions. Le mode morceau complet coupe les pistes existantes (et retire leurs solos), conserve leurs clips/fichiers/positions, puis ajoute la nouvelle piste active dans la même écriture du mix. Le mode piste séparée conserve l’ajout habituel. La prise demeure dans l’historique même si l’utilisateur ne l’importe pas.
+
+Les labels et l’explication sont disponibles en français et anglais. Compilation et Clippy passent ; deux tests capture passent, dont la conservation des clips et la non-superposition en mode morceau complet. Le parcours visuel natif et l’écoute musicale restent à vérifier : aucune clôture du ticket sur cette seule preuve de code/tests.

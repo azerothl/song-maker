@@ -228,11 +228,13 @@ export const api = {
     id: string,
     generationId: string,
     displayName?: string | null,
+    muteExisting = false,
   ) =>
     invoke<MixDoc>("import_generation_as_user_track", {
       id,
       generationId,
       displayName: displayName ?? null,
+      muteExisting,
     }),
   beginUserAudioCapture: (id: string) =>
     invoke<{ sessionId: string; relativePath: string }>(

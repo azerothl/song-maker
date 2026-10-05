@@ -1772,5 +1772,12 @@
   "phase4.lora.description.mothersuperior-instrumental-ar": "Favorise la musique instrumentale. À utiliser avec le plan musical complet.",
   "phase4.lora.description.mothersuperior-realaudio-nar-v4": "Modifie le rendu sonore. Son utilisation complète avec ce moteur reste à vérifier.",
   "phase4.lora.description.becausereasons-chnsn-chanson-francaise": "Variantes de chanson française. Le format des fichiers reste à vérifier avant installation.",
-  "phase4.lora.description.monsterovich-industrial-rock": "Style rock industriel. La compatibilité avec YuE2 reste à vérifier."
+  "phase4.lora.description.monsterovich-industrial-rock": "Style rock industriel. La compatibilité avec YuE2 reste à vérifier.",
+  "production.instrumental.previewTitle": "Écouter la nouvelle partie",
+  "production.instrumental.previewHelp": "Le résultat peut contenir uniquement la nouvelle partie, ou aussi votre morceau d’origine. Écoutez-le avant de l’intégrer.",
+  "production.instrumental.addSeparate": "Ajouter comme piste séparée",
+  "production.instrumental.useFullMix": "Utiliser comme morceau complet",
+  "production.instrumental.keepForLater": "Garder dans les versions",
+  "production.instrumental.fullMixHelp": "« Morceau complet » coupe les autres pistes pour éviter de les doubler. Elles sont conservées et peuvent être réactivées.",
+  "production.instrumental.previewMissing": "Le fichier de la nouvelle partie est introuvable. Votre arrangement est conservé."
 }

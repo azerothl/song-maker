@@ -430,5 +430,12 @@
   "production.mixSettings.needTracks": "Separate the song or add a track to adjust the mix.",
   "production.instrumental.installRequired": "To guide a track with your audio, install ACE-Step Base Lego and accept its licence. Takes are generated one at a time.",
   "production.instrumental.openSettings": "Install the audio model",
-  "production.instrumental.needAudio": "Separate the song or import a track to use your audio."
+  "production.instrumental.needAudio": "Separate the song or import a track to use your audio.",
+  "production.instrumental.previewTitle": "Listen to the new part",
+  "production.instrumental.previewHelp": "The result may contain only the new part, or also your original song. Listen before adding it.",
+  "production.instrumental.addSeparate": "Add as a separate track",
+  "production.instrumental.useFullMix": "Use as the complete song",
+  "production.instrumental.keepForLater": "Keep in versions",
+  "production.instrumental.fullMixHelp": "“Complete song” mutes the other tracks to avoid doubling them. They are kept and can be enabled again.",
+  "production.instrumental.previewMissing": "The new part’s audio file could not be found. Your arrangement is preserved."
 }
