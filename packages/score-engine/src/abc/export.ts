@@ -110,28 +110,33 @@ function notesToBars(
 
     const tokens: string[] = [];
     let fill = cursor;
-    for (const note of inBar) {
-      if (note.startTick > fill) {
-        const restUnits = (note.startTick - fill) / unitTicks;
-        if (restUnits > 0 && Number.isInteger(restUnits)) {
-          tokens.push(restToken(restUnits));
-        }
+    while (fill < barEnd) {
+      const note = inBar.find((candidate) => candidate.startTick === fill);
+      if (note) {
+        const sym = chordAtTick(chords, note.startTick);
+        tokens.push(renderNote(note, unit, sym, includeChords));
+        fill = note.startTick + note.durationTick;
+        continue;
       }
-      const sym = chordAtTick(chords, note.startTick);
-      tokens.push(renderNote(note, unit, sym, includeChords));
-      fill = note.startTick + note.durationTick;
-    }
-    if (fill < barEnd) {
-      const restUnits = (barEnd - fill) / unitTicks;
-      if (restUnits > 0 && Number.isInteger(restUnits)) {
-        // Prefer chord-on-rest if a chord sits at fill
-        const sym = chordAtTick(chords, fill);
-        if (includeChords && sym) {
-          tokens.push(`"${sym}"${restToken(restUnits)}`);
-        } else {
-          tokens.push(restToken(restUnits));
-        }
+
+      const nextNote = inBar.find((candidate) => candidate.startTick > fill)?.startTick ?? barEnd;
+      const nextChord = includeChords
+        ? chords
+            .filter((chord) => chord.tick > fill && chord.tick < barEnd)
+            .reduce((next, chord) => Math.min(next, chord.tick), barEnd)
+        : barEnd;
+      const next = Math.min(nextNote, nextChord, barEnd);
+      const restTicks = next - fill;
+      if (restTicks <= 0 || restTicks % unitTicks !== 0) {
+        throw new ScoreEngineError(
+          "unaligned_duration",
+          `accord ou silence non aligné à la grille ABC au tick ${fill}`,
+        );
       }
+      const sym = chordAtTick(chords, fill);
+      const restUnits = restTicks / unitTicks;
+      tokens.push(`${includeChords && sym ? `"${sym}"` : ""}${restToken(restUnits)}`);
+      fill = next;
     }
 
     bars.push(tokens.join("") || restToken(unitsPerBar));

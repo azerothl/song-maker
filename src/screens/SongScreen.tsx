@@ -7,7 +7,7 @@ import { CreateWorkspace } from "./song/CreateWorkspace";
 import { matchesGenerateShortcut } from "./song/createWorkspaceLayout";
 import { ensureProductionOverlay, normalizeProductionOverlay, setProductionDiskPersist, setProductionOverlay, setProductionProjectScope, setProductionTempoBpm, undoProductionOverlay, redoProductionOverlay } from "../lib/productionState";
 import { exportProjectAudio } from "../lib/exportMix";
-import { generateScoreOnly, renderNFromScore } from "../lib/scoreOnlyApi";
+import { generateInstrumentalComparisonTake, generateInstrumentalTake, generateScoreOnly, renderNFromScore } from "../lib/scoreOnlyApi";
 import { importAbcText, importMidiBytes, prepareAbcForGeneration, type ScoreDocument } from "../lib/score";
 import { midiBytesToUint8Array } from "../lib/basicPitchProduct";
 import {
@@ -476,7 +476,14 @@ export function SongScreen() {
 
   async function onGenerateLocal() {
     if (!project) return;
-    await api.startGeneration(project.id, form, scoreGate.abc);
+    if (form.instrumentalMode && settings?.generationEngine !== "ace_step") {
+      if (form.cot === "off") {
+        throw new Error(t("form.instrumental.scoreRequired"));
+      }
+      await generateInstrumentalTake(project.id, form, scoreGate.abc);
+    } else {
+      await api.startGeneration(project.id, form, scoreGate.abc);
+    }
     await openProject(project.id);
   }
 
@@ -489,6 +496,11 @@ export function SongScreen() {
     try {
       const prefs = loadRemotePrefs();
       if (prefs.remoteEnabled) {
+        if (form.instrumentalMode && settings?.generationEngine !== "ace_step") {
+          setRemoteProgress(t("generation.instrumentalLocal"));
+          await onGenerateLocal();
+          return;
+        }
         const authToken = prefs.accessToken;
         const payload = await buildGenerationPayload(
           project.id,
@@ -506,6 +518,7 @@ export function SongScreen() {
       setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
+      setRemoteProgress(null);
     }
   }
 
@@ -658,8 +671,7 @@ export function SongScreen() {
     setBusy(true);
     setError(null);
     try {
-      await api.startGeneration(project.id, form, scoreGate.abc);
-      await openProject(project.id);
+      await onGenerateLocal();
     } catch (e) {
       setError(generationErrorMessage(e));
     } finally {
@@ -684,7 +696,11 @@ export function SongScreen() {
           i === 0 || form.seed == null
             ? form
             : { ...form, seed: null };
-        await api.generateComparisonTake(project.id, formForCall, scoreGate.abc);
+        if (form.instrumentalMode && settings?.generationEngine !== "ace_step") {
+          await generateInstrumentalComparisonTake(project.id, formForCall, scoreGate.abc);
+        } else {
+          await api.generateComparisonTake(project.id, formForCall, scoreGate.abc);
+        }
       }
       await openProject(project.id);
     } catch (e) {

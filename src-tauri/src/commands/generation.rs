@@ -480,12 +480,13 @@ pub async fn generate_comparison_take(
     mut form: FormInput,
     abc: Option<String>,
     engine: Option<String>,
+    stop_after: Option<String>,
 ) -> Result<InstrumentalPartResult, String> {
     if engine.as_deref() == Some("ace_step_lego") {
         return Err("Utilisez Ajouter une piste pour le modèle guidé par l’audio.".into());
     }
     form.continuation_generation_id = None;
-    run_generation(state, id, form, abc, None, None, engine, None, true, None).await
+    run_generation(state, id, form, abc, stop_after, None, engine, None, true, None).await
 }
 
 pub(crate) async fn generate_worker_take(

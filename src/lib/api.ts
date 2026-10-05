@@ -166,8 +166,9 @@ export const api = {
     form: FormInput,
     abc?: string | null,
     engine?: "yue2" | "ace_step",
+    stopAfter?: "abc" | null,
   ) => invoke<{ project: ProjectDoc; generationId: string }>("generate_comparison_take", {
-    id, form, abc: abc ?? null, engine: engine ?? null,
+    id, form, abc: abc ?? null, engine: engine ?? null, stopAfter: stopAfter ?? null,
   }),
   /** Render audio from an existing gen's immutable score.abc (parent = source). */
   renderFromGeneration: (
