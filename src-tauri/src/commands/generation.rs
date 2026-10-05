@@ -720,7 +720,11 @@ async fn run_generation(
                 // batch worker subsequently shuts down to release GPU memory.
                 let server_url = if use_lego {
                     server.shutdown();
-                    crate::ace_step_lego::ensure_started(lego_sidecar, &PathBuf::from(&runtime_settings.cache_dir)).await?;
+                    crate::ace_step_lego::with_local_cancellation(
+                        lego_sidecar,
+                        crate::ace_step_lego::ensure_started(lego_sidecar, &PathBuf::from(&runtime_settings.cache_dir)),
+                        &cancelled,
+                    ).await?;
                     crate::ace_step_lego::base_url()
                 } else {
                     lego_sidecar.shutdown();
@@ -755,14 +759,17 @@ async fn run_generation(
                     let src = lego_source.ok_or_else(|| "source Lego manquante".to_string())?;
                     let instruction = lego_instruction
                         .unwrap_or_else(|| "Generate the instrument track.".into());
-                    let lego_result = crate::ace_step_lego::run_lego(
+                    let lego_result = crate::ace_step_lego::with_local_cancellation(
+                        lego_sidecar,
+                        crate::ace_step_lego::run_lego(
                         &src,
                         &out_wav,
                         &style_for_lego,
                         &instruction,
                         seed,
-                    )
-                    .await;
+                    ),
+                        &cancelled,
+                    ).await;
                     let finished = now_iso();
                     if cancelled() {
                         return Err("cancelled".into());

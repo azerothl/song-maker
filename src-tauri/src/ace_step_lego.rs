@@ -591,6 +591,40 @@ pub async fn ensure_started(sidecar: &AceStepLegoSidecar, cache: &Path) -> Resul
     Err("SERVICE_UNAVAILABLE:ACE_STEP_LEGO_NOT_READY".into())
 }
 
+/// Stop an app-owned local engine on cancellation. For an externally managed
+/// server, retain the resource guard until its request finishes: its API has no
+/// cancellation endpoint and Song Maker must not terminate another process.
+pub async fn with_local_cancellation<T>(
+    sidecar: &AceStepLegoSidecar,
+    work: impl std::future::Future<Output = Result<T, String>>,
+    cancelled: impl Fn() -> bool,
+) -> Result<T, String> {
+    tokio::pin!(work);
+    loop {
+        tokio::select! {
+            result = &mut work => {
+                if cancelled() {
+                    if sidecar.engine.lock().map(|engine| engine.is_some()).unwrap_or(false) {
+                        sidecar.shutdown();
+                    }
+                    return Err("cancelled".into());
+                }
+                if result.is_err() { sidecar.shutdown(); }
+                return result;
+            }
+            _ = tokio::time::sleep(Duration::from_millis(200)) => {
+                if cancelled() {
+                    let owns_engine = sidecar.engine.lock().map(|engine| engine.is_some()).unwrap_or(false);
+                    if owns_engine {
+                        sidecar.shutdown();
+                        return Err("cancelled".into());
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub fn lego_request_body(
     src: &Path,
     dest: &Path,
@@ -723,6 +757,44 @@ Un stem MIT sur un mix YuE2 reste soumis au NC du mix."
 mod tests {
     use super::*;
     use crate::pins::{CHANNELS, SAMPLE_RATE};
+
+    #[tokio::test]
+    async fn inference_cancel_terminates_owned_engine_without_waiting_for_result() {
+        let (python, prefix) = python_bootstrap().expect("Python required for cancellation test");
+        let mut command = Command::new(python);
+        command
+            .args(prefix)
+            .args(["-c", "import time; time.sleep(120)"]);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x0800_0000);
+        }
+        let sidecar = AceStepLegoSidecar::default();
+        *sidecar.engine.lock().unwrap() = Some(command.spawn().unwrap());
+        let started = std::time::Instant::now();
+        let result = with_local_cancellation::<()>(&sidecar, std::future::pending(), || true).await;
+        assert_eq!(result.unwrap_err(), "cancelled");
+        assert!(sidecar.engine.lock().unwrap().is_none());
+        assert!(started.elapsed() < Duration::from_secs(10));
+    }
+
+    #[tokio::test]
+    async fn external_cancellation_waits_for_terminal_result() {
+        let sidecar = AceStepLegoSidecar::default();
+        let started = std::time::Instant::now();
+        let result = with_local_cancellation(
+            &sidecar,
+            async {
+                tokio::time::sleep(Duration::from_millis(300)).await;
+                Ok(())
+            },
+            || true,
+        )
+        .await;
+        assert_eq!(result.unwrap_err(), "cancelled");
+        assert!(started.elapsed() >= Duration::from_millis(300));
+    }
 
     #[tokio::test]
     async fn installation_cancel_stops_the_running_process() {

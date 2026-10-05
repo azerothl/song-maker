@@ -123,7 +123,7 @@ impl JobQueue {
         let mut g = self.inner.lock();
         if g.current.is_some() {
             g.cancel_requested = true;
-            return "Annulation demandée. L’appel GPU déjà lancé va jusqu’au bout ; les fichiers déjà écrits restent.".into();
+            return "Annulation demandée. Les fichiers déjà créés sont conservés.".into();
         }
         "Rien à annuler.".into()
     }

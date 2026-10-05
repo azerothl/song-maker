@@ -257,3 +257,10 @@ Paramètres affiche désormais un suivi de progression Lego, les états absent/i
 L’installation utilise maintenant une attente asynchrone qui contrôle l’annulation toutes les 200 ms, conserve les diagnostics dans `tools/ace-step-lego/installation.log` et termine le groupe de processus de l’installateur (taskkill /T sur Windows, groupe Unix dédié). Le reçu de disponibilité est publié uniquement après la sortie réussie de l’installateur qui vérifie l’import API. Ce changement porte sur l’installation, pas encore sur l’annulation d’une inférence Lego en cours.
 
 Validation de cette étape : 7 tests Rust Lego passent, dont l’annulation d’un processus Python réel prévu pour dormir 120 secondes (test terminé en moins de 10 secondes). Typecheck, formatage global et Clippy strict passent.
+
+
+### #325 — annulation d’une inférence Lego locale
+
+L’attente de démarrage et l’appel de génération Lego contrôlent désormais l’annulation toutes les 200 ms. Quand le moteur Base appartient à l’application, les deux processus (moteur et passerelle) sont arrêtés et la requête est abandonnée ; la prise est enregistrée annulée, sans audio publié ni import dans le mix. Le moteur pourra être relancé lors de la demande suivante. Pour un serveur configuré et géré extérieurement, le client attend son résultat terminal et ne le publie pas si l’utilisateur a annulé : l’API amont n’offre pas de route d’annulation, et le verrou de ressources est conservé pendant cette attente.
+
+Tests ciblés : neuf tests Lego passent, avec un vrai processus Python arrêté sans attendre sa fin prévue à 120 secondes, et une vérification de l’attente terminale pour le cas externe. Ces tests ne constituent pas une annulation native observée pendant une inférence GPU ; celle-ci reste à vérifier avec le parcours complet. Le message global de demande d’annulation n’affirme plus que tout calcul GPU doit forcément aller jusqu’au bout.
