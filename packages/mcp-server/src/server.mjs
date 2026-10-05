@@ -66,6 +66,10 @@ server.registerTool('start_batch', {
   if (requireCreativeDirection && promptAudit.exactDuplicates.length) {
     throw new Error(`Le lot contient des prompts de direction identiques : ${promptAudit.exactDuplicates.map(pair => `${pair.first}/${pair.second}`).join(', ')}.`);
   }
+  if (requireCreativeDirection && promptAudit.similarPairs.length) {
+    const examples = promptAudit.similarPairs.slice(0, 10).map(pair => `${pair.first}/${pair.second} (${pair.similarity})`);
+    throw new Error(`Le lot contient ${promptAudit.similarPairs.length} paires de directions lexicalement proches (seuil 0,65), par exemple ${examples.join(', ')}. Varie les scènes, grooves, timbres, harmonies, arrangements et motifs avant de lancer.`);
+  }
   return startJob(songs, outputDirectory, { reviewBeforeNext });
 }));
 

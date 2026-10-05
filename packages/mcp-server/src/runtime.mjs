@@ -281,7 +281,7 @@ export function auditPromptDiversity(songs) {
     similarPairs: similarPairs.sort((a, b) => b.similarity - a.similarity).slice(0, 50),
     repeatedDirections,
     similarityMethod: 'Jaccard lexical sur les détails distinctifs, seuil 0,65 ; indicateur de formulation, pas une analyse audio.',
-    recommendation: 'Pour chaque morceau, renseigner au moins 3 axes différents : scène, groove, timbre au premier plan, harmonie, arc d’arrangement et motif signature.',
+    recommendation: 'Renseigner les six axes pour chaque morceau et reformuler toute paire lexicale trop proche avant de lancer la génération.',
   };
 }
 
