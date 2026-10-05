@@ -6,6 +6,7 @@ mod ace_step_lego;
 mod audiocpp;
 mod basicpitch;
 mod batch;
+mod batch_admission;
 mod batch_workers;
 mod bs_roformer;
 mod commands;

@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 pub struct BatchWorkers {
+    admission: crate::batch_admission::BatchAdmission,
     permits: Arc<tokio::sync::Semaphore>,
     active: Mutex<HashMap<String, ActiveWorker>>,
     pub proof: Mutex<Option<serde_json::Value>>,
@@ -26,6 +27,7 @@ struct ActiveWorker {
 impl Default for BatchWorkers {
     fn default() -> Self {
         Self {
+            admission: crate::batch_admission::BatchAdmission::default(),
             // No parallel capacity is inferred from the advertised VRAM size.
             permits: Arc::new(tokio::sync::Semaphore::new(2)),
             active: Mutex::new(HashMap::new()),
@@ -86,6 +88,7 @@ impl BatchWorkers {
         mut settings: AppSettings,
         verified_parallel: bool,
     ) -> Result<WorkerLease<'a>, String> {
+        let turn = self.admission.turn(batch_id).await;
         // Unmeasured workloads consume the entire pool, including across lots.
         let permit = self
             .permits
@@ -94,6 +97,7 @@ impl BatchWorkers {
             .await
             .map_err(|e| e.to_string())?;
         let device = state.queue.acquire_batch_device().await;
+        turn.admitted();
         // Interactive jobs acquire the device writer before starting their runtime.
         state.server.shutdown();
         let id = uuid::Uuid::new_v4().to_string();
