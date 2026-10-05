@@ -33,7 +33,7 @@ server.registerTool('start_song', {
 }, call(async args => startJob([normalizeSong({ ...args, id: '01' })], args.outputDirectory)));
 
 server.registerTool('start_batch', {
-  description: 'Lit un lot Song Maker V1 du workspace et lance les chansons l’une après l’autre en arrière-plan. Les WAV sont nommés 01 - Titre.wav, etc. Ne remplace aucun export existant.',
+  description: 'Lit un lot Song Maker V1 du workspace et lance les chansons l’une après l’autre en arrière-plan. Les lots sont protégés par un verrou GPU partagé. Les WAV sont nommés 01 - Titre.wav, etc. Ne remplace aucun export existant.',
   inputSchema: {
     batchFile: z.string().min(1),
     outputDirectory: z.string().min(1),
@@ -50,7 +50,7 @@ server.registerTool('job_status', {
 }, call(async ({ jobId }) => {
   const job = await getJob(jobId);
   return { id: job.id, state: job.state, total: job.songs.length, current: job.current,
-    completed: job.completed, error: job.error, outputDirectory: job.outputDirectory,
+    completed: job.completed, failures: job.failures || [], error: job.error, outputDirectory: job.outputDirectory,
     createdAt: job.createdAt, finishedAt: job.finishedAt || null };
 }));
 

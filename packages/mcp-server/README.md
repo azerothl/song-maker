@@ -30,9 +30,9 @@ SONG_MAKER_WORKSPACE_ROOT = "C:/chemin/nexus42"
 SONG_MAKER_YUE2_NONCOMMERCIAL = "1"
 ```
 
-Redémarre la session Codex pour charger les outils. `runtime_status` vérifie les fichiers. `start_song` lance un titre. `start_batch` prend le chemin d'un `song-maker.batch.json` dans le workspace et un dossier de sortie, puis retourne un identifiant. `job_status` suit les exports WAV. Les chansons d'un lot tournent l'une après l'autre ; évite de lancer deux lots en même temps sur le même GPU. Les fichiers terminés sont conservés si une chanson échoue. Le lot ne remplace jamais un fichier existant. La durée demandée (30 à 360 s) est indicative : YuE2 peut produire un morceau plus court ou plus long.
+Redémarre la session Codex pour charger les outils. `runtime_status` vérifie les fichiers. `start_song` lance un titre. `start_batch` prend le chemin d'un `song-maker.batch.json` dans le workspace et un dossier de sortie, puis retourne un identifiant. `job_status` suit les exports WAV et les éventuels échecs par chanson. Un verrou partagé empêche deux jobs de lancer YuE2 simultanément sur le GPU, y compris depuis deux appels MCP. Les fichiers terminés sont conservés si une chanson échoue. Le lot ne remplace jamais un fichier existant. La durée demandée (30 à 360 s) est indicative : YuE2 peut produire un morceau plus court ou plus long.
 
-Le runner de lots prend en charge une prise par chanson, un seul flux GPU, l'arrêt à la première erreur et aucune relance automatique. Il refuse un batch qui demande d'autres modes, plutôt que d'ignorer silencieusement ces paramètres.
+Le runner de lots prend en charge une prise par chanson, un seul flux GPU, la politique V1 `onError: continue` (valeur par défaut incluse) et aucune relance automatique. Il refuse les lots `onError: pause`, parallèles ou avec retry, car il ne fournit pas de reprise ni de parallélisme. Les erreurs d’une chanson sont rapportées par `job_status`, puis le lot continue.
 
 Exemple pour Nexus : `batchFile = "mixes/rb-soul-chill/01/song-maker.batch.json"` et `outputDirectory = "mixes/rb-soul-chill/01/audio"`.
 

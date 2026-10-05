@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, realpathSync } from 'node:fs';
-import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { link, mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const workspaceRoot = path.resolve(process.env.SONG_MAKER_WORKSPACE_ROOT || process.cwd());
 const jobsDir = path.join(workspaceRoot, '.song-maker-mcp', 'jobs');
+const gpuLockPath = path.join(workspaceRoot, '.song-maker-mcp', 'gpu.lock');
 const requiredSidecars = [
   'yue2-model-config.json', 'yue2-generation-config.json',
   'yue2-qwen.tiktoken', 'yue2-vae-config.json',
@@ -98,9 +99,10 @@ export function parseBatch(raw) {
   if (batch.schemaVersion !== 1 || !Array.isArray(batch.songs) || !batch.songs.length || batch.songs.length > 1000) {
     throw new Error('Lot Song Maker V1 invalide.');
   }
-  if ((batch.maxParallelGenerations ?? 1) !== 1 || batch.onError === 'continue' ||
+  const onError = batch.onError ?? 'continue';
+  if ((batch.maxParallelGenerations ?? 1) !== 1 || onError !== 'continue' ||
       (batch.retry?.maxAttempts ?? 1) !== 1) {
-    throw new Error('Le MCP exécute une génération à la fois, arrête le lot à la première erreur et ne retente pas automatiquement.');
+    throw new Error('Le MCP exécute un flux GPU, continue après les erreurs de chanson et ne retente pas automatiquement. Il refuse les lots en pause, parallèles ou avec retry.');
   }
   const songs = batch.songs.map(song => normalizeSong(song, batch.defaults));
   if (new Set(songs.map(song => song.id)).size !== songs.length || songs.some(song => !song.id)) {
@@ -165,8 +167,21 @@ export async function runCli(song, destination, runtime = runtimeStatus()) {
   if (code !== 0) throw new Error(`YuE2 a échoué (code ${code}) : ${tail.slice(-1000)}`);
   const size = (await stat(temporary)).size;
   if (size < 1024) throw new Error('YuE2 n’a pas produit un WAV valide.');
-  await rename(temporary, destination);
+  await publishExclusive(temporary, destination);
   return { destination, bytes: size };
+}
+
+export async function publishExclusive(temporary, destination) {
+  try {
+    await link(temporary, destination);
+  } catch (error) {
+    if (error?.code === 'EEXIST') {
+      await unlink(temporary).catch(() => {});
+      throw new Error(`Export déjà présent : ${destination}`, { cause: error });
+    }
+    throw error;
+  }
+  await unlink(temporary);
 }
 
 async function saveJob(job) {
@@ -179,6 +194,62 @@ async function saveJob(job) {
 export async function getJob(id) {
   if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('Identifiant de lot invalide.');
   return JSON.parse(await readFile(path.join(jobsDir, `${id}.json`), 'utf8'));
+}
+
+async function processIsAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === 'EPERM';
+  }
+}
+
+export async function acquireGpuLock(jobId, lockPath = gpuLockPath) {
+  await mkdir(path.dirname(lockPath), { recursive: true });
+  const record = { jobId, pid: null, createdAt: new Date().toISOString() };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await writeFile(lockPath, JSON.stringify(record), { flag: 'wx' });
+      return record;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
+    }
+
+    let active;
+    try { active = JSON.parse(await readFile(lockPath, 'utf8')); }
+    catch { throw new Error('Le verrou GPU existe mais est illisible ; inspecte .song-maker-mcp/gpu.lock avant de le supprimer.'); }
+    const lockAge = Date.now() - Date.parse(active.createdAt || 0);
+    if (await processIsAlive(active.pid) || (!active.pid && lockAge < 120_000)) {
+      throw new Error(`Le GPU est déjà occupé par le job ${active.jobId || 'inconnu'}. Attends sa fin avant d’en lancer un autre.`);
+    }
+
+    const stalePath = `${lockPath}.stale-${randomUUID()}`;
+    try {
+      await rename(lockPath, stalePath);
+      await unlink(stalePath);
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+  }
+  throw new Error('Impossible de réserver le GPU. Réessaie dans un instant.');
+}
+
+async function updateGpuLock(record, pid, lockPath = gpuLockPath) {
+  record.pid = pid;
+  const temporary = `${lockPath}.${record.jobId}.tmp`;
+  await writeFile(temporary, JSON.stringify(record), 'utf8');
+  await rename(temporary, lockPath);
+}
+
+export async function releaseGpuLock(jobId, lockPath = gpuLockPath) {
+  try {
+    const lock = JSON.parse(await readFile(lockPath, 'utf8'));
+    if (lock.jobId === jobId) await unlink(lockPath);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
 }
 
 export async function startJob(songs, outputDirectory) {
@@ -194,17 +265,28 @@ export async function startJob(songs, outputDirectory) {
   }
   await mkdir(jobsDir, { recursive: true });
   const job = { id: randomUUID(), state: 'queued', outputDirectory: output, songs,
-    current: 0, completed: [], error: null, createdAt: new Date().toISOString() };
-  await saveJob(job);
-  const worker = spawn(process.execPath, [path.join(here, 'worker.mjs'), job.id], {
-    detached: true, stdio: 'ignore', windowsHide: true,
-    env: { ...process.env, SONG_MAKER_WORKSPACE_ROOT: workspaceRoot },
-  });
-  await new Promise((resolve, reject) => {
-    worker.once('spawn', resolve);
-    worker.once('error', reject);
-  });
-  worker.unref();
+    current: 0, completed: [], failures: [], error: null, createdAt: new Date().toISOString() };
+  const lock = await acquireGpuLock(job.id);
+  try {
+    await saveJob(job);
+    const worker = spawn(process.execPath, [path.join(here, 'worker.mjs'), job.id], {
+      detached: true, stdio: 'ignore', windowsHide: true,
+      env: { ...process.env, SONG_MAKER_WORKSPACE_ROOT: workspaceRoot },
+    });
+    await new Promise((resolve, reject) => {
+      worker.once('spawn', resolve);
+      worker.once('error', reject);
+    });
+    await updateGpuLock(lock, worker.pid);
+    worker.unref();
+  } catch (error) {
+    await releaseGpuLock(job.id);
+    job.state = 'failed';
+    job.error = String(error?.message || error);
+    job.finishedAt = new Date().toISOString();
+    await saveJob(job);
+    throw error;
+  }
   return { id: job.id, state: job.state, total: songs.length, outputDirectory: output };
 }
 
@@ -219,16 +301,23 @@ export async function runJob(id) {
       job.current = i;
       await saveJob(job);
       const destination = path.join(job.outputDirectory, outputName(job.songs[i], i));
-      const result = await runCli(job.songs[i], destination, runtime);
-      job.completed.push(result);
+      try {
+        const result = await runCli(job.songs[i], destination, runtime);
+        job.completed.push(result);
+      } catch (error) {
+        job.failures.push({ songId: job.songs[i].id, title: job.songs[i].title,
+          error: String(error?.message || error) });
+      }
       job.current = i + 1;
       await saveJob(job);
     }
-    job.state = 'completed';
+    job.state = job.failures.length ? 'completed_with_errors' : 'completed';
   } catch (error) {
     job.state = 'failed';
     job.error = String(error?.message || error);
+  } finally {
+    job.finishedAt = new Date().toISOString();
+    try { await saveJob(job); }
+    finally { await releaseGpuLock(id); }
   }
-  job.finishedAt = new Date().toISOString();
-  await saveJob(job);
 }
