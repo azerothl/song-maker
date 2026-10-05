@@ -6,6 +6,7 @@ import {
   type BatchSnapshot,
   type BatchTask,
 } from "../lib/api";
+import { generationErrorMessage } from "../lib/generationError";
 import { isTauriRuntime } from "../lib/runtimeHost";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
@@ -422,7 +423,7 @@ export function BatchTaskRow({ task, onOpen, onCancel }: { task: BatchTask; onOp
       {task.lastError && (
         <details className="hint">
           <summary>{t("batch.errorDetails")}</summary>
-          <p>{task.lastError}</p>
+          <p>{generationErrorMessage(task.lastError)}</p>
         </details>
       )}
       {canCancel && onCancel && (

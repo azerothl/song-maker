@@ -1,4 +1,5 @@
 import { api } from "../lib/api";
+import { generationErrorMessage } from "../lib/generationError";
 import { TakePreviewPlayer } from "../components/TakePreviewPlayer";
 import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
 import { buildGenerationPayload, loadRemotePrefs, runRemoteGenerationToProject } from "../lib/remoteGenerate";
@@ -467,7 +468,7 @@ export function SongScreen() {
       }
       await onGenerateLocal();
     } catch (e) {
-      setError(String(e));
+      setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -540,7 +541,7 @@ export function SongScreen() {
       setContinuationLyrics("");
       await openProject(project.id);
     } catch (e) {
-      setError(String(e));
+      setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -609,7 +610,7 @@ export function SongScreen() {
       await api.startGeneration(project.id, form, scoreGate.abc);
       await openProject(project.id);
     } catch (e) {
-      setError(String(e));
+      setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -636,7 +637,7 @@ export function SongScreen() {
       }
       await openProject(project.id);
     } catch (e) {
-      setError(String(e));
+      setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -655,7 +656,7 @@ export function SongScreen() {
       await api.generateComparisonTake(project.id, form, scoreGate.abc, "ace_step");
       await openProject(project.id);
     } catch (e) {
-      setError(String(e));
+      setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
     }

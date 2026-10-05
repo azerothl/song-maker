@@ -20,6 +20,51 @@ use std::sync::Arc;
 
 /// Resample / HTDemucs alignment only — not a YuE2 wall-clock contract.
 const STEM_ALIGN_TOLERANCE_MS: i64 = 250;
+const REQUESTED_DURATION_TOLERANCE_MS: i64 = 250;
+
+fn check_requested_duration(duration_ms: i64, expected_ms: i64) -> Result<(), String> {
+    if duration_ms <= 0 || (duration_ms - expected_ms).abs() > REQUESTED_DURATION_TOLERANCE_MS {
+        return Err(format!(
+            "GENERATION_DURATION_MISMATCH|{expected_ms}|{duration_ms}"
+        ));
+    }
+    Ok(())
+}
+
+fn record_generation_failure(
+    gen_dir: &Path,
+    generation_id: &str,
+    started_at: &str,
+    error: &str,
+) -> Result<(), String> {
+    let result = json!({
+        "schema": SCHEMA_GEN_RESULT,
+        "schemaVersion": SCHEMA_VERSION,
+        "id": generation_id,
+        "state": "failed",
+        "decode": "unsupported",
+        "startedAt": started_at,
+        "finishedAt": now_iso(),
+        "audio": null,
+        "score": null,
+        "error": error
+    });
+    atomic_write_json(&gen_dir.join("result.json"), &result)
+}
+
+#[cfg(test)]
+mod requested_duration_tests {
+    use super::check_requested_duration;
+
+    #[test]
+    fn accepts_codec_rounding_but_rejects_short_or_long_audio() {
+        assert!(check_requested_duration(359_998, 360_000).is_ok());
+        assert!(check_requested_duration(75_278, 360_000).is_err());
+        assert!(check_requested_duration(109_798, 360_000).is_err());
+        assert!(check_requested_duration(0, 30_000).is_err());
+        assert!(check_requested_duration(361_000, 360_000).is_err());
+    }
+}
 
 fn check_stem_alignment(duration_ms: i64, source_ms: i64) -> Result<(), String> {
     if duration_ms <= 0 {
@@ -333,6 +378,9 @@ async fn run_generation(
         &lyrics_sent,
         form.prefer_full_lyrics && !form.instrumental_mode,
     );
+    let fixed_duration =
+        requested_engine == "yue2" && (!form.prefer_full_lyrics || form.instrumental_mode);
+    let mut expected_duration_ms = i64::from(target_duration_sec) * 1000;
     let stop_after_abc = match stop_after
         .as_deref()
         .map(str::trim)
@@ -454,6 +502,9 @@ async fn run_generation(
         )?;
         if let Some(abc) = resolved.parent_score_abc {
             abc_trimmed = Some(abc);
+        }
+        if fixed_duration {
+            expected_duration_ms += resolved.frame_count as i64 * 1000 / i64::from(SEMANTIC_HZ);
         }
         semantic_min_tokens = semantic_min_tokens
             .saturating_add(resolved.frame_count as u32)
@@ -618,6 +669,7 @@ async fn run_generation(
         "instrumentalMode": form.instrumental_mode,
         "draftLyricsUsed": !form.instrumental_mode,
         "instrumentalProcessing": if remove_vocals { Some("htdemucs-accompaniment") } else { None },
+        "expectedDurationMs": if fixed_duration { Some(expected_duration_ms) } else { None },
         "instrumentalRole": instrumental_role,
         "legoTrackName": lego_role,
         "outputKind": if use_lego { Some(crate::ace_step_lego::OUTPUT_KIND) } else { None },
@@ -987,12 +1039,38 @@ async fn run_generation(
                             atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
                             return Err(err);
                         }
+                        if fixed_duration {
+                            let generated_duration = wav_duration_ms(&out_wav)?;
+                            if let Err(err) =
+                                check_requested_duration(generated_duration, expected_duration_ms)
+                            {
+                                record_generation_failure(
+                                    &gen_dir_for_job,
+                                    &gen_id_for_job,
+                                    &started,
+                                    &err,
+                                )?;
+                                return Err(err);
+                            }
+                        }
                         let instrumental_processing = if remove_vocals {
                             queue_ref.set_state("generating", "Retrait des voix pour le morceau instrumental", Some(project_id_for_job.clone()));
                             Some(remove_generated_vocals(&server_url, &gen_dir_for_job).await?)
                         } else { None };
                         if cancelled() { return Err("cancelled".into()); }
                         let duration = wav_duration_ms(&out_wav)?;
+                        if fixed_duration {
+                            if let Err(err) = check_requested_duration(duration, expected_duration_ms)
+                            {
+                                record_generation_failure(
+                                    &gen_dir_for_job,
+                                    &gen_id_for_job,
+                                    &started,
+                                    &err,
+                                )?;
+                                return Err(err);
+                            }
+                        }
                         let audio_sha = sha256_file(&out_wav)?;
                         let score = if score_path.exists() {
                             json!({
@@ -1021,6 +1099,16 @@ async fn run_generation(
                             "semanticTruncated": semantic_truncated,
                             "semanticPath": if has_semantic { Some("semantic.json") } else { None },
                             "instrumentalProcessing": instrumental_processing,
+                            "durationCompliance": if fixed_duration {
+                                Some(json!({
+                                    "expectedMs": expected_duration_ms,
+                                    "actualMs": duration,
+                                    "toleranceMs": REQUESTED_DURATION_TOLERANCE_MS,
+                                    "matches": true
+                                }))
+                            } else {
+                                None
+                            },
                             "error": null
                         });
                         atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;

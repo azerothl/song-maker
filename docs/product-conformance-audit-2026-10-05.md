@@ -354,3 +354,15 @@ Typecheck et tests ciblés passent. La régression de contrat vérifie que le la
 L’actualisation vérifie désormais sous le même verrou que le lancement que le token et la révision sont toujours courants, puis remplace l’entrée dans une seule section critique. Deux actualisations concurrentes ne peuvent donc pas conserver deux plans lançables issus du même aperçu. Le résultat tardif d’une vérification GPU suit le même chemin et reçoit un nouveau token ; il ne remplace pas un aperçu modifié ou déjà consommé.
 
 Le test de remplacement couvre un remplacement valide, l’ancien token, une ancienne révision et un token consommé. Il vérifie qu’une seule entrée subsiste après remplacement ; il ne mesure pas un double clic natif.
+
+### #385 — vérifier la durée réelle des instrumentaux YuE2
+
+Le budget YuE2 demandait déjà le nombre exact de trames pour une durée fixe, mais la longueur du WAV n’était plus contrôlée avant publication. La génération comparait désormais le WAV réel à la durée demandée, avec une tolérance de 250 ms, avant et après le retrait des voix. En cas d’écart, `result.json` indique l’échec et ne publie aucun audio ; les fichiers de la tentative sont conservés pour diagnostic et la version active n’est pas remplacée. La durée visée, y compris le préfixe d’une continuation, est écrite dans `request.json`; les résultats conformes consignent leur contrôle dans `durationCompliance`.
+
+Le message d’erreur affiche la durée obtenue et la cible, en français ou en anglais, avec une consigne de relance. Le test Rust couvre les deux durées courtes signalées (75 278 ms et 109 798 ms pour 360 s), un WAV vide, une durée trop longue et l’arrondi codec de 359 998 ms. Le test de traduction FR/EN, le typecheck TypeScript et le formatage du fichier Rust passent. Ce contrôle empêche de présenter une durée fausse comme réussie ; il ne rend pas le moteur capable de produire systématiquement six minutes. Pas de nouvelle écoute/inférence Windows dans cette vérification : ticket ouvert.
+
+### #378 / #384 — simplifier les explications visibles
+
+Le message d’audio importé oriente maintenant vers Partition → Reprise sans parler de décodeur ni de transcription. La Production décrit le cas comme des instruments qui ne sont pas encore séparés. Les paramètres du modèle Song Maker ne présentent plus les noms de composants, la radio inutilisable ni l’état interne du runtime ; ils indiquent simplement que ce moteur n’est pas disponible et proposent les moteurs utilisables. La page de styles décrit l’effet des deux choix en termes de style musical et de sonorité, sans AR/NAR dans les champs. Le mode instrumental prévient qu’un peu de chant peut rester, au lieu de promettre un retrait parfait.
+
+Ces textes français et anglais sont rendus par les parcours Créer, Production et Paramètres. Vérification source et typecheck effectués ; aucun nouveau contrôle visuel dans l’application native pour ces changements. Les critères de revue utilisateur débutant restent ouverts.

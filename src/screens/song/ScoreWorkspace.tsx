@@ -5,6 +5,7 @@ import { ScoreOnlyGenerate } from "../../components/ScoreOnlyGenerate";
 import { ScorePanel } from "../../components/ScorePanel";
 import { SheetSage2Panel } from "../../components/SheetSage2Panel";
 import { api } from "../../lib/api";
+import { generationErrorMessage } from "../../lib/generationError";
 import { t } from "../../ui/i18n";
 import type { FormInput, GenerationSummary, MixDoc, ProjectDoc } from "../../lib/types";
 import type { ScoreDocument } from "../../lib/score";
@@ -204,7 +205,7 @@ export function ScoreWorkspace({
                 );
                 await openProject(project.id);
               } catch (e) {
-                setError(String(e));
+                setError(generationErrorMessage(e));
               } finally {
                 setBusy(false);
               }
