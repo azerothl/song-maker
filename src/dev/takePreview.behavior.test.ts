@@ -42,3 +42,19 @@ it("comparative media survives polling, pause, seek and source switches (#379)",
     assert.equal(await page.locator("#used").textContent(), "", "batch listen does not open or activate the project");
   } finally { await page.close(); }
 });
+
+it("shows a readable alert when a take audio file is missing (#381)", { timeout: 15000 }, async () => {
+  const page = await browser.newPage();
+  try {
+    await page.route("http://127.0.0.1:5281/missing-audio.wav", route =>
+      route.fulfill({ status: 404, contentType: "text/plain", body: "Not Found" }),
+    );
+    await page.goto("http://127.0.0.1:5281/product-audit-capture.html?missing=1");
+    const alert = page.getByRole("alert");
+    await alert.waitFor({ state: "visible" });
+    assert.equal(
+      await alert.textContent(),
+      "Cette prise ne peut pas être lue. Vérifiez que le fichier audio est encore disponible.",
+    );
+  } finally { await page.close(); }
+});

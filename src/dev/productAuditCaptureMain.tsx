@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { AceStepAbPanel } from "../components/AceStepAbPanel";
 import { CandidateCompare } from "../components/CandidateCompare";
 import { BatchTaskRow } from "../components/BatchGenerationPanel";
+import { TakePreviewPlayer } from "../components/TakePreviewPlayer";
 import type { GenerationSummary } from "../lib/types";
 
 // Real media clocks are needed to catch a restart caused by parent polling.
@@ -29,6 +30,7 @@ const generations: GenerationSummary[] = [
 function Harness() {
   const [poll, setPoll] = useState(0);
   const [used, setUsed] = useState("");
+  const showMissingPreview = new URLSearchParams(window.location.search).has("missing");
   useEffect(() => { const id = setInterval(() => setPoll(value => value + 1), 100); return () => clearInterval(id); }, []);
   const refreshed = generations.map(generation => ({ ...generation }));
   return <main>
@@ -36,6 +38,7 @@ function Harness() {
     <AceStepAbPanel generations={refreshed} busy={false} onGenerateAceStep={async () => {}} />
     <CandidateCompare generations={refreshed} activeId="gen-001" busy={false} candidateCount={2} onCandidateCount={() => {}} onGenerateBatch={async () => {}} onUse={setUsed} />
     <ul id="batch" className="batch-tasks"><BatchTaskRow task={{ taskId: "take-2", songId: "song", variantIndex: 2, seed: 2, title: "Batch demo", projectId: "project", generationId: "gen-002", audioPath: generations[1].audioPath, state: "succeeded" }} onOpen={() => setUsed("opened")} /></ul>
+    {showMissingPreview && <TakePreviewPlayer audioPath="http://127.0.0.1:5281/missing-audio.wav" label="prise introuvable" />}
   </main>;
 }
 createRoot(document.getElementById("root")!).render(<Harness />);
