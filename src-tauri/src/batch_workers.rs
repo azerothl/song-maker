@@ -120,6 +120,7 @@ impl BatchWorkers {
             &serde_json::json!({
                 "workerId": id, "batchId": batch_id, "taskId": task_id,
                 "startedAt": crate::paths::now_iso(),
+                "attempt": crate::batch::load_live_tasks(batch_id)?.iter().find(|task| task.task_id == task_id).map(|task| task.attempt),
             }),
         )?;
         active.insert(

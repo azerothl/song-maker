@@ -31,6 +31,7 @@ pub async fn install_ace_step(
     state: tauri::State<'_, AppState>,
     license_accepted: bool,
 ) -> Result<String, String> {
+    let _resources = super::settings::guard_model_install(&state).await?;
     if super::batch_cmds::resources_pinned() || state.batch_workers.busy() {
         return Err("Terminez ou annulez le lot avant de modifier les modèles installés.".into());
     }

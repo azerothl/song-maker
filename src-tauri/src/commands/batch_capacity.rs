@@ -56,15 +56,43 @@ pub(super) fn capacity_key(preview: &BatchPreview) -> Result<Value, String> {
     {
         return Err("La vérification simultanée couvre actuellement plusieurs prises aux mêmes style, paroles et réglages. Ce lot contient des réglages différents : il sera généré une prise à la fois.".into());
     }
-    let files: Vec<_> = weights(&settings).iter().map(|path| {
-        let metadata = std::fs::metadata(path).ok();
-        json!({"path":path, "bytes":metadata.as_ref().map(|m|m.len()),
-            "modified":metadata.and_then(|m|m.modified().ok()).and_then(|d|d.duration_since(std::time::UNIX_EPOCH).ok()).map(|d|d.as_nanos().to_string())})
-    }).collect();
+    let files = asset_fingerprints(&settings);
     Ok(
         json!({"settings":batch_generation_settings(&settings), "profile":crate::profiles::active_profile_id(),
         "gpu":crate::health::detect_gpu(), "files":files, "workload":workload}),
     )
+}
+
+pub(super) fn asset_fingerprints(settings: &crate::models::AppSettings) -> Value {
+    json!(weights(settings).iter().map(|path| {
+        let metadata = std::fs::metadata(path).ok();
+        json!({"path":path, "bytes":metadata.as_ref().map(|m|m.len()),
+            "modified":metadata.and_then(|m|m.modified().ok()).and_then(|d|d.duration_since(std::time::UNIX_EPOCH).ok()).map(|d|d.as_nanos().to_string())})
+    }).collect::<Vec<_>>())
+}
+
+fn proof_matches_settings(proof: &Value, settings: &crate::models::AppSettings) -> bool {
+    proof["key"]["settings"] == batch_generation_settings(settings)
+        && proof["key"]["profile"] == json!(crate::profiles::active_profile_id())
+        && proof["key"]["files"] == asset_fingerprints(settings)
+}
+
+pub(super) async fn verify_attempt_assets(state: &AppState, batch_id: &str) -> bool {
+    let proof = state
+        .batch_workers
+        .proof
+        .lock()
+        .expect("capacity proof")
+        .clone();
+    if !verified_for_plan(state, batch_id) {
+        return false;
+    }
+    let actual = tokio::task::spawn_blocking(hashes).await;
+    let verified = matches!(actual, Ok(Ok(ref hashes)) if proof.as_ref().is_some_and(|p| p["hashes"] == *hashes));
+    if !verified {
+        *state.batch_workers.proof.lock().expect("capacity proof") = None;
+    }
+    verified
 }
 
 fn workload(task: &crate::batch::PlannedTask) -> Value {
@@ -77,6 +105,25 @@ fn workload(task: &crate::batch::PlannedTask) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generation_asset_fingerprints_detect_replaced_and_removed_weights() {
+        let _docs = crate::test_docs_env::guard::TempDocs::new("batch-asset-stamp");
+        let root =
+            std::env::temp_dir().join(format!("song-maker-asset-stamp-{}", uuid::Uuid::new_v4()));
+        let mut settings = crate::library::default_settings();
+        settings.cache_dir = root.display().to_string();
+        let folder = crate::paths::yue2_dir(&root);
+        std::fs::create_dir_all(&folder).unwrap();
+        let model = folder.join("test.gguf");
+        std::fs::write(&model, b"first").unwrap();
+        let first = asset_fingerprints(&settings);
+        std::fs::write(&model, b"second replacement").unwrap();
+        assert_ne!(first, asset_fingerprints(&settings));
+        std::fs::remove_file(&model).unwrap();
+        assert_ne!(first, asset_fingerprints(&settings));
+        std::fs::remove_dir_all(&root).unwrap();
+    }
 
     #[test]
     fn capacity_measurements_do_not_extrapolate_to_other_content_or_duration() {
@@ -131,7 +178,16 @@ pub(super) fn verified_for_plan(state: &AppState, batch_id: &str) -> bool {
     let Ok(plan) = crate::batch::load_plan(batch_id) else {
         return false;
     };
-    let proof = state.batch_workers.proof.lock().expect("capacity proof");
+    let Ok(settings) = load_settings() else {
+        return false;
+    };
+    let mut proof = state.batch_workers.proof.lock().expect("capacity proof");
+    if proof
+        .as_ref()
+        .is_some_and(|p| !proof_matches_settings(p, &settings))
+    {
+        *proof = None;
+    }
     proof
         .as_ref()
         .is_some_and(|proof| plan["capacityKey"] == proof["key"])
@@ -186,6 +242,7 @@ pub async fn verify_batch_parallelism(
     state: tauri::State<'_, AppState>,
     start_token: String,
 ) -> Result<Value, String> {
+    let _configuration = super::settings::guard_model_snapshot(&state)?;
     let pending = state
         .pending_batches
         .lock()

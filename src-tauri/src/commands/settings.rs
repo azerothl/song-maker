@@ -7,6 +7,42 @@ use crate::pins::*;
 use serde_json::json;
 use std::path::{Path, PathBuf};
 
+/// Hold configuration admission and the audio runtime through the entire download.
+pub(crate) async fn guard_model_install(
+    state: &AppState,
+) -> Result<
+    (
+        tokio::sync::OwnedRwLockWriteGuard<()>,
+        crate::queue::RuntimeRestartGuard,
+    ),
+    String,
+> {
+    let configuration = try_model_change(state)?;
+    if super::batch_cmds::resources_pinned() || state.batch_workers.busy() {
+        return Err("Terminez ou annulez le lot avant de modifier les modèles installés.".into());
+    }
+    let runtime = state.queue.try_acquire_runtime_restart().await?;
+    *state.batch_workers.proof.lock().expect("capacity proof") = None;
+    Ok((configuration, runtime))
+}
+
+pub(crate) fn try_model_change(
+    state: &AppState,
+) -> Result<tokio::sync::OwnedRwLockWriteGuard<()>, String> {
+    state.model_resources.clone().try_write_owned().map_err(|_| {
+        "Attendez la fin de l’installation ou de la préparation du lot avant de modifier les réglages.".into()
+    })
+}
+
+pub(crate) fn guard_model_snapshot(
+    state: &AppState,
+) -> Result<tokio::sync::OwnedRwLockReadGuard<()>, String> {
+    state.model_resources.clone().try_read_owned().map_err(|_| {
+        "Attendez la fin de l’installation ou du changement de profil avant de lancer le lot."
+            .into()
+    })
+}
+
 #[tauri::command]
 pub async fn get_health(state: tauri::State<'_, AppState>) -> Result<HealthSnapshot, String> {
     let url = state
@@ -73,6 +109,7 @@ pub async fn install_required_assets(
     pack: String,
     accepted_license: bool,
 ) -> Result<String, String> {
+    let _resources = super::settings::guard_model_install(&state).await?;
     if super::batch_cmds::resources_pinned() || state.batch_workers.busy() {
         return Err("Terminez ou annulez le lot avant de modifier les modèles installés.".into());
     }
@@ -84,6 +121,7 @@ pub async fn install_mix_only_assets(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    let _resources = super::settings::guard_model_install(&state).await?;
     crate::installer::install_mix_only(app, state).await
 }
 
@@ -92,6 +130,7 @@ pub async fn update_settings(
     state: tauri::State<'_, AppState>,
     settings: AppSettings,
 ) -> Result<AppSettings, String> {
+    let _configuration = try_model_change(&state)?;
     let mut s = settings;
     let cache = PathBuf::from(&s.cache_dir);
     s.stem_separator = normalize_stem_separator(&s.stem_separator).to_string();
@@ -273,7 +312,10 @@ fn require_separator_license(settings: &AppSettings, id: &str) -> Result<(), Str
 }
 
 #[tauri::command]
-pub async fn install_htdemucs_6s_runtime() -> Result<String, String> {
+pub async fn install_htdemucs_6s_runtime(
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let _resources = super::settings::guard_model_install(&state).await?;
     let settings = load_settings()?;
     require_separator_license(&settings, "htdemucs_6s")?;
     crate::demucs_onnx::install(PathBuf::from(settings.cache_dir)).await
@@ -286,6 +328,7 @@ pub async fn install_bs_roformer(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    let _resources = super::settings::guard_model_install(&state).await?;
     use std::sync::atomic::Ordering;
     if state.bs_roformer_installing.swap(true, Ordering::AcqRel) {
         return Err("Un téléchargement BS-RoFormer est déjà en cours.".into());
@@ -348,6 +391,7 @@ pub async fn install_mel_band_roformer(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    let _resources = super::settings::guard_model_install(&state).await?;
     use std::sync::atomic::Ordering;
     if state
         .mel_band_roformer_installing
@@ -460,6 +504,7 @@ fn list_lora_adapters_at(root: &Path) -> Result<Vec<LocalLoraAdapter>, String> {
 #[tauri::command]
 pub async fn import_lora_adapters(
     app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
 ) -> Result<Option<Vec<LocalLoraAdapter>>, String> {
     use tauri_plugin_dialog::DialogExt;
 
@@ -472,6 +517,7 @@ pub async fn import_lora_adapters(
         return Ok(None);
     };
 
+    let _resources = guard_model_install(&state).await?;
     let settings = load_settings()?;
     let lora_root = PathBuf::from(settings.cache_dir)
         .join("models")
@@ -538,7 +584,20 @@ pub async fn import_lora_adapters(
 }
 
 #[tauri::command]
-pub fn confirm_model_pack(pack: String) -> Result<AppSettings, String> {
+pub fn confirm_model_pack(
+    state: tauri::State<'_, AppState>,
+    pack: String,
+) -> Result<AppSettings, String> {
+    let _configuration = try_model_change(&state)?;
+    if super::batch_cmds::resources_pinned()
+        || state.batch_workers.busy()
+        || matches!(
+            state.queue.status().state.as_str(),
+            "queued" | "preparing" | "generating" | "separating" | "importing_tracks"
+        )
+    {
+        return Err("Terminez les générations et les lots avant de changer de modèle.".into());
+    }
     let mut s = load_settings().unwrap_or_else(|_| default_settings());
     match pack.as_str() {
         "q8" => {
@@ -555,4 +614,28 @@ pub fn confirm_model_pack(pack: String) -> Result<AppSettings, String> {
     }
     save_settings(&s)?;
     Ok(s)
+}
+
+#[cfg(test)]
+mod resource_tests {
+    use super::*;
+
+    #[test]
+    fn preparation_blocks_model_change_until_snapshot_is_released() {
+        let state = AppState::default();
+        let snapshot = guard_model_snapshot(&state).unwrap();
+        assert!(try_model_change(&state).is_err());
+        drop(snapshot);
+        assert!(try_model_change(&state).is_ok());
+    }
+
+    #[test]
+    fn installation_blocks_batch_admission_and_profile_changes() {
+        let state = AppState::default();
+        let install = try_model_change(&state).unwrap();
+        assert!(guard_model_snapshot(&state).is_err());
+        assert!(try_model_change(&state).is_err());
+        drop(install);
+        assert!(guard_model_snapshot(&state).is_ok());
+    }
 }

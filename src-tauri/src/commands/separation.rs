@@ -339,25 +339,28 @@ pub async fn start_separation(
         .unwrap_or(0) as f64
         / 1000.0;
     if audio_sec > 0.5 && wall_ms > 0.0 {
-        let mut next_settings = settings.clone();
-        let sample = wall_ms / audio_sec;
-        let entry = next_settings
-            .separator_time_stats
-            .entry(separator.to_string())
-            .or_insert_with(|| crate::models::SeparatorTimeStat {
-                ms_per_audio_sec: sample,
-                samples: 0,
-            });
-        if entry.samples == 0 {
-            entry.ms_per_audio_sec = sample;
-            entry.samples = 1;
-        } else {
-            let n = entry.samples + 1;
-            entry.ms_per_audio_sec =
-                (entry.ms_per_audio_sec * f64::from(entry.samples) + sample) / f64::from(n);
-            entry.samples = n;
+        if let Ok(_configuration) = super::settings::try_model_change(&state) {
+            if let Ok(mut next_settings) = load_settings() {
+                let sample = wall_ms / audio_sec;
+                let entry = next_settings
+                    .separator_time_stats
+                    .entry(separator.to_string())
+                    .or_insert_with(|| crate::models::SeparatorTimeStat {
+                        ms_per_audio_sec: sample,
+                        samples: 0,
+                    });
+                if entry.samples == 0 {
+                    entry.ms_per_audio_sec = sample;
+                    entry.samples = 1;
+                } else {
+                    let n = entry.samples + 1;
+                    entry.ms_per_audio_sec =
+                        (entry.ms_per_audio_sec * f64::from(entry.samples) + sample) / f64::from(n);
+                    entry.samples = n;
+                }
+                let _ = save_settings(&next_settings);
+            }
         }
-        let _ = save_settings(&next_settings);
     }
 
     state.queue.set_state("completed", "Terminé", Some(id));

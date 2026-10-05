@@ -237,6 +237,7 @@ pub async fn start_batch(
             .launch_block_fr
             .unwrap_or_else(|| "Lancement bloqué : capacité GPU insuffisante.".into()));
     }
+    let _configuration = super::settings::guard_model_snapshot(&state)?;
     let _preparation = state.batch_workers.prepare();
     let settings = load_settings()?;
     super::batch_capacity::verify_before_start(&state, &pending.preview)?;
@@ -253,6 +254,7 @@ pub async fn start_batch(
     let mut plan = load_plan(&batch_id)?;
     plan["generationSettings"] = batch_generation_settings(&settings);
     plan["profileId"] = json!(crate::profiles::active_profile_id());
+    plan["generationAssets"] = super::batch_capacity::asset_fingerprints(&settings);
     if pending.preview.effective_parallel > 1 {
         plan["capacityKey"] = super::batch_capacity::capacity_key(&pending.preview)?;
     }
@@ -313,6 +315,7 @@ pub async fn resume_batch(
     state: tauri::State<'_, AppState>,
     batch_id: String,
 ) -> Result<serde_json::Value, String> {
+    let _configuration = super::settings::guard_model_snapshot(&state)?;
     patch_manifest(&batch_id, |man| {
         man["pauseRequested"] = json!(false);
         man["cancelRequested"] = json!(false);
@@ -393,6 +396,7 @@ pub async fn retry_batch_tasks(
     batch_id: String,
     task_ids: Vec<String>,
 ) -> Result<serde_json::Value, String> {
+    let _configuration = super::settings::guard_model_snapshot(&state)?;
     let mut tasks = load_live_tasks(&batch_id)?;
     for task in &mut tasks {
         if task_ids.contains(&task.task_id)
@@ -613,7 +617,7 @@ fn load_plan_retry_max(batch_id: &str) -> u32 {
         .unwrap_or(1) as u32
 }
 
-fn finalize_batch(batch_id: &str, tasks: &[PlannedTask]) {
+pub(crate) fn finalize_batch(batch_id: &str, tasks: &[PlannedTask]) {
     let failed = tasks.iter().any(|t| {
         matches!(
             t.state.as_str(),
@@ -650,6 +654,12 @@ async fn run_one_task(
     {
         return Err("Les réglages du moteur ont changé depuis le lancement de ce lot, ou ce lot ancien ne les conserve pas. Rétablissez les réglages initiaux ou importez un nouveau lot.".into());
     }
+    if plan
+        .get("generationAssets")
+        .is_some_and(|assets| *assets != super::batch_capacity::asset_fingerprints(&settings))
+    {
+        return Err("Les fichiers du moteur ou du modèle ont changé depuis le lancement du lot. Rétablissez les fichiers initiaux ou importez un nouveau lot.".into());
+    }
     let Some(project_id) = task.project_id.clone() else {
         return Err("Projet manquant pour la tâche.".into());
     };
@@ -665,7 +675,7 @@ async fn run_one_task(
         .batch_workers
         .acquire(&state, batch_id, &task.task_id, settings, verified)
         .await?;
-    if verified && !super::batch_capacity::verified_for_plan(&state, batch_id) {
+    if verified && !super::batch_capacity::verify_attempt_assets(&state, batch_id).await {
         task.state = "queued".into();
         save_task(batch_id, task)?;
         return Ok(());
@@ -758,7 +768,7 @@ fn tag_generation_request(
     let _ = atomic_write_json(&path, &value);
 }
 
-fn restore_smallest_active(batch_id: &str, song_id: &str, project_id: &str) {
+pub(crate) fn restore_smallest_active(batch_id: &str, song_id: &str, project_id: &str) {
     let Ok(tasks) = load_live_tasks(batch_id) else {
         return;
     };

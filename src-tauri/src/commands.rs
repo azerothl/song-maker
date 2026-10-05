@@ -59,6 +59,7 @@ pub struct AppState {
     pub started_batch_tokens: Mutex<BTreeMap<String, String>>,
     pub batch_inflight: Mutex<HashSet<String>>,
     pub batch_workers: crate::batch_workers::BatchWorkers,
+    pub model_resources: std::sync::Arc<tokio::sync::RwLock<()>>,
 }
 
 #[derive(Default)]
@@ -108,6 +109,7 @@ impl Default for AppState {
             started_batch_tokens: Mutex::new(BTreeMap::new()),
             batch_inflight: Mutex::new(HashSet::new()),
             batch_workers: crate::batch_workers::BatchWorkers::default(),
+            model_resources: std::sync::Arc::new(tokio::sync::RwLock::new(())),
         }
     }
 }

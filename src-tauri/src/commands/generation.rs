@@ -1130,7 +1130,11 @@ fn verify_cache_file_sha256(path: &Path, expected: &str) -> Result<(), String> {
 /// Opt-in download into the user cache (LoRA packs). Requires CC BY-NC acceptance.
 /// Never called by the first-build installer. Verifies SHA-256 when the catalog provides one.
 #[tauri::command]
-pub async fn download_cache_file(req: DownloadCacheFileRequest) -> Result<String, String> {
+pub async fn download_cache_file(
+    state: tauri::State<'_, AppState>,
+    req: DownloadCacheFileRequest,
+) -> Result<String, String> {
+    let _resources = super::settings::guard_model_install(&state).await?;
     let settings = load_settings()?;
     if !settings.cc_by_nc_accepted {
         return Err("Accepter CC BY-NC 4.0 avant tout téléchargement optionnel de LoRA.".into());

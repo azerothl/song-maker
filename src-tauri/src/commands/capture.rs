@@ -211,7 +211,22 @@ fn ingest_user_audio_file(
     let asset =
         prepare_user_audio_asset(folder, source, display_name, copy_original, original_ext)?;
 
-    let (mut mix, mix_path) = load_or_create_active_mix(folder, doc)?;
+    let project_lock = crate::project_transaction::lock_for(folder);
+    let _project_guard = project_lock.lock();
+    *doc = match load_project(folder) {
+        Ok(doc) => doc,
+        Err(error) => {
+            rollback_ingested_asset(folder, &asset);
+            return Err(error);
+        }
+    };
+    let (mut mix, mix_path) = match load_or_create_active_mix(folder, doc) {
+        Ok(mix) => mix,
+        Err(error) => {
+            rollback_ingested_asset(folder, &asset);
+            return Err(error);
+        }
+    };
     let track_count_before = mix.tracks.len();
     append_user_audio_track(
         &mut mix,
@@ -260,8 +275,6 @@ pub async fn import_user_audio_track(
 
     tokio::task::spawn_blocking(move || {
         let folder = project_folder(&id);
-        let project_lock = crate::project_transaction::lock_for(&folder);
-        let _project_guard = project_lock.lock();
         let mut doc = load_project(&folder)?;
         ingest_user_audio_file(
             &folder,
@@ -287,8 +300,6 @@ pub async fn import_generation_as_user_track(
 ) -> Result<MixDoc, String> {
     tokio::task::spawn_blocking(move || {
         let folder = project_folder(&id);
-        let project_lock = crate::project_transaction::lock_for(&folder);
-        let _project_guard = project_lock.lock();
         let mut doc = load_project(&folder)?;
         let gen_id = generation_id.trim();
         if gen_id.is_empty() {
@@ -401,8 +412,6 @@ pub fn finalize_user_audio_capture(
         return Err("Identifiant de session de capture invalide.".into());
     }
     let folder = project_folder(&id);
-    let project_lock = crate::project_transaction::lock_for(&folder);
-    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     let capture = capture_session_file(&folder, &session_id)
         .ok_or_else(|| "Session de capture introuvable.".to_string())?;
@@ -466,9 +475,7 @@ pub fn finalize_user_audio_capture_takes(
         }
     }
     let folder = project_folder(&id);
-    let project_lock = crate::project_transaction::lock_for(&folder);
-    let _project_guard = project_lock.lock();
-    let mut doc = load_project(&folder)?;
+    let _ = load_project(&folder)?;
     let name = req
         .display_name
         .as_deref()
@@ -532,6 +539,17 @@ pub fn finalize_user_audio_capture_takes(
         })
         .collect();
 
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
+    let mut doc = match load_project(&folder) {
+        Ok(doc) => doc,
+        Err(error) => {
+            for asset in &assets {
+                rollback_ingested_asset(&folder, asset);
+            }
+            return Err(error);
+        }
+    };
     let (mut mix, mix_path) = match load_or_create_active_mix(&folder, &mut doc) {
         Ok(v) => v,
         Err(e) => {
