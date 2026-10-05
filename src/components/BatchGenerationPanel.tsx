@@ -76,6 +76,7 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
   const [notice, setNotice] = useState<string | null>(null);
   const [generations, setGenerations] = useState<number>(3);
   const [parallel, setParallel] = useState<number>(2);
+  const [previewDirty, setPreviewDirty] = useState(false);
 
   const refreshBatches = useCallback(async () => {
     if (!isTauriRuntime()) return;
@@ -127,6 +128,7 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
       }
       if (result.preview) {
         setPreview(result.preview);
+        setPreviewDirty(false);
         setParallel(result.preview.requestedParallel);
         const common = result.preview.songs[0]?.generations ?? 1;
         setGenerations(common);
@@ -151,7 +153,10 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
         setErrors(result.errors ?? []);
         return;
       }
-      if (result.preview) setPreview(result.preview);
+      if (result.preview) {
+        setPreview(result.preview);
+        setPreviewDirty(false);
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -160,23 +165,12 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
   }
 
   async function onLaunch() {
-    if (!preview) return;
+    if (!preview || previewDirty) return;
     setBusy(true);
     setErrors([]);
     setNotice(t("batch.starting"));
     try {
-      const planned = await api.updateBatchPreview(preview.startToken, {
-        generations,
-        maxParallelGenerations: parallel,
-      });
-      const next = planned.preview ?? preview;
-      if (!planned.ok || !next.canLaunch) {
-        setErrors(planned.errors ?? []);
-        if (planned.preview) setPreview(planned.preview);
-        return;
-      }
-      setPreview(next);
-      await api.startBatch(next.startToken, next.revision);
+      await api.startBatch(preview.startToken, preview.revision);
       setPreview(null);
       setNotice(null);
       await refreshBatches();
@@ -276,7 +270,7 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
           <p className="hint">
             {preview.admittedParallel === 1 ? t("batch.capacityOne") : `${t("batch.capacity")} : ${preview.capacityReasonFr}`}
           </p>
-          <button type="button" className="btn" disabled={busy || preview.taskCount < 2} onClick={() => void onVerifyParallelism()}>
+          <button type="button" className="btn" disabled={busy || previewDirty || preview.taskCount < 2} onClick={() => void onVerifyParallelism()}>
             {t("batch.verifyParallel")}
           </button>
           <p className="hint">{t("batch.verifyHint")}</p>
@@ -289,7 +283,7 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
               max={1000}
               value={generations}
               disabled={busy}
-              onChange={(e) => setGenerations(Number(e.target.value) || 1)}
+              onChange={(e) => { setGenerations(Number(e.target.value) || 1); setPreviewDirty(true); }}
             />
           </label>
           <label>
@@ -300,10 +294,11 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
               max={32}
               value={parallel}
               disabled={busy}
-              onChange={(e) => setParallel(Number(e.target.value) || 1)}
+              onChange={(e) => { setParallel(Number(e.target.value) || 1); setPreviewDirty(true); }}
             />
           </label>
           <button type="button" className="btn" disabled={busy} onClick={() => void onOverride()}>{t("batch.refreshPreview")}</button>
+          {previewDirty && <p className="hint" role="status">{t("batch.refreshRequired")}</p>}
           <h3>{t("batch.songs")}</h3>
           <ul>
             {preview.songs.map((song) => (
@@ -320,7 +315,7 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
           <button
             type="button"
             className="btn primary"
-            disabled={busy || !preview.canLaunch}
+            disabled={busy || previewDirty || !preview.canLaunch}
             onClick={() => void onLaunch()}
           >
             {t("batch.launch")}

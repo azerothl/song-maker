@@ -53,6 +53,7 @@
   "batch.pause": "Pause",
   "batch.resume": "Resume",
   "batch.cancel": "Cancel batch",
+  "batch.refreshRequired": "Refresh the preview to review your new settings before starting the batch.",
   "batch.cancelTake": "Cancel this take",
   "batch.cancelTakeLabel": "Cancel take {number} of {title}",
   "batch.retryFailed": "Retry failures",

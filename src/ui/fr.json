@@ -108,6 +108,7 @@
   "batch.pause": "Mettre en pause",
   "batch.resume": "Reprendre",
   "batch.cancel": "Annuler le lot",
+  "batch.refreshRequired": "Actualisez l’aperçu pour vérifier vos nouveaux réglages avant de lancer le lot.",
   "batch.cancelTake": "Annuler cette prise",
   "batch.cancelTakeLabel": "Annuler la prise {number} de {title}",
   "batch.retryFailed": "Relancer les échecs",

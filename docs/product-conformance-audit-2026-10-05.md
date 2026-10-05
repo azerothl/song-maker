@@ -314,3 +314,9 @@ Le test persiste un lot de cinq états différents, exécute la même préparati
 La commande `cancel_batch_task` était disponible sans contrôle dans la vue batch. Chaque ligne en attente, attente de nouvelle tentative, préparation, génération ou publication présente maintenant « Annuler cette prise ». Le nom accessible précise le morceau et le numéro ; le bouton est bloqué pendant sa requête. Les lignes terminées et les annulations déjà demandées ne proposent pas cette action. Le contrôle appelle la commande existante avec les identifiants du lot et de la prise ; les erreurs rejoignent le message global.
 
 Trois tests ciblés frontend passent, dont le rendu réel du composant pour dix états et son nom accessible. Typecheck passe. Le clic sur une génération GPU depuis la fenêtre native reste à vérifier ; le rendu serveur ne prouve pas ce parcours.
+
+### #368 — lancer exactement le plan affiché
+
+Le bouton Lancer recalculait implicitement les paramètres et les seeds juste avant le démarrage. Il transmet maintenant directement le token et la révision de l’aperçu examiné. Modifier le nombre de prises ou la simultanéité bloque Lancer et Vérifier la simultanéité jusqu’à une actualisation explicite de l’aperçu ; un message FR/EN explique cette étape. Le backend conserve ses vérifications de ressources au lancement.
+
+Typecheck et tests ciblés passent. La régression de contrat vérifie que le lancement n’appelle plus le recalcul et utilise le token affiché ; elle ne prouve pas un clic natif ni une inférence GPU. Le parcours natif de modification → aperçu → lancement reste à observer.
