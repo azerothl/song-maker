@@ -945,10 +945,10 @@
   "settings.model.engine.originalSource": "Carte du modèle d’origine",
   "settings.model.engine.convertedSource": "Dépôt de la conversion GGUF",
   "settings.model.lego.title": "Ajouter une piste depuis le mix (ACE-Step 1.5 Base Lego)",
-  "settings.model.lego.intro": "Créez une nouvelle piste à partir de l’audio de votre arrangement. Ce modèle supplémentaire doit être installé séparément. Il demande au moins 12 Go de mémoire GPU conseillés. Sa licence est MIT ; un morceau créé avec YuE2 reste réservé aux usages non commerciaux.",
+  "settings.model.lego.intro": "Créez une nouvelle partie qui suit le morceau de votre arrangement. Lego s’installe séparément. Sa licence est MIT ; un morceau créé avec YuE2 reste réservé aux usages non commerciaux.",
   "settings.model.lego.vram": "Prévoyez au moins 12 Go de mémoire GPU. Les modèles de génération sont utilisés un à la fois.",
   "settings.model.lego.accepted": "Avis Lego accepté pour ce profil.",
-  "settings.model.lego.install": "Installer le modèle pour guider une piste avec l’audio",
+  "settings.model.lego.install": "Installer Lego",
   "settings.model.lego.installing": "Installation Lego…",
   "settings.audioAndLora": "Séparation audio et packs LoRA",
   "settings.audioAndLoraHint": "Réglages facultatifs pour isoler les pistes et installer des adaptateurs de style.",
@@ -1779,5 +1779,10 @@
   "production.instrumental.useFullMix": "Utiliser comme morceau complet",
   "production.instrumental.keepForLater": "Garder dans les versions",
   "production.instrumental.fullMixHelp": "« Morceau complet » coupe les autres pistes pour éviter de les doubler. Elles sont conservées et peuvent être réactivées.",
-  "production.instrumental.previewMissing": "Le fichier de la nouvelle partie est introuvable. Votre arrangement est conservé."
+  "production.instrumental.previewMissing": "Le fichier de la nouvelle partie est introuvable. Votre arrangement est conservé.",
+  "settings.model.lego.reinstall": "Réparer ou réinstaller Lego",
+  "settings.model.lego.available": "Lego est installé. Il démarrera automatiquement lorsque vous créerez une partie guidée par votre morceau.",
+  "settings.model.lego.incomplete": "L’installation de Lego est incomplète. Relancez l’installation pour la réparer.",
+  "settings.model.lego.absent": "Lego n’est pas encore installé.",
+  "settings.model.lego.firstUse": "Lors de la première création, les modèles manquants sont téléchargés automatiquement. Prévoyez plusieurs gigaoctets et un délai supplémentaire."
 }

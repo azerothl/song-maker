@@ -40,6 +40,7 @@ export function AceStepModelSettings() {
   const [legoNotice, setLegoNotice] = useState<string | null>(null);
   const [legoInfo, setLegoInfo] = useState<{
     ready: boolean;
+    inferenceAvailable: boolean;
     venvPresent: boolean;
     licenseAccepted: boolean;
     licenseNoticeFr: string;
@@ -49,6 +50,7 @@ export function AceStepModelSettings() {
     hfRepo: string;
     gitSource: string;
   } | null>(null);
+  const [legoProgress, setLegoProgress] = useState<InstallProgress | null>(null);
   const [legoInstalling, setLegoInstalling] = useState(false);
   const [legoLoading, setLegoLoading] = useState(true);
   const [legoLicenseRead, setLegoLicenseRead] = useState(false);
@@ -123,6 +125,16 @@ export function AceStepModelSettings() {
       unlisten = release;
     });
     return () => unlisten?.();
+  }, []);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen<InstallProgress>("ace-step-lego-progress", event => {
+      setLegoProgress(event.payload);
+    }).then(release => { if (disposed) release(); else unlisten = release; });
+    return () => { disposed = true; unlisten?.(); };
   }, []);
 
   const updateEngine = async (generationEngine: NonNullable<AppSettings["generationEngine"]>) => {
@@ -322,6 +334,7 @@ export function AceStepModelSettings() {
       <div className="ace-step-download" aria-labelledby="ace-step-lego-title">
         <h3 id="ace-step-lego-title" tabIndex={-1}>{t("settings.model.lego.title")}</h3>
         <p>{t("settings.model.lego.intro")}</p>
+        <p className="hint">{t("settings.model.lego.firstUse")}</p>
         <p className="hint" role="note">
           {t("settings.model.lego.vram")}
         </p>
@@ -349,10 +362,12 @@ export function AceStepModelSettings() {
             disabled={
               !isTauriRuntime()
               || legoInstalling
+              || legoLoading
               || !(settings.aceStepLegoLicenseAccepted || legoLicenseRead)
             }
             onClick={() => {
               setLegoInstalling(true);
+              setLegoProgress(null);
               setLegoNotice(null);
               void runtimeApi
                 .installAceStepLego(
@@ -368,7 +383,7 @@ export function AceStepModelSettings() {
           >
             {legoInstalling
               ? t("settings.model.lego.installing")
-              : t("settings.model.lego.install")}
+              : t(legoInfo?.inferenceAvailable ? "settings.model.lego.reinstall" : "settings.model.lego.install")}
           </button>
           {legoInstalling ? (
             <button
@@ -380,8 +395,17 @@ export function AceStepModelSettings() {
             </button>
           ) : null}
         </div>
-        {legoInfo ? (
-          <p className="hint">{legoInfo.messageFr}</p>
+        {legoInstalling && (
+          <div className="settings-engine-progress" role="status" aria-live="polite">
+            <progress aria-label={t("settings.model.lego.installing")} />
+            <span>{legoProgress?.label ?? t("settings.model.lego.installing")}</span>
+          </div>
+        )}
+        {legoLoading ? <p className="hint">{t("settings.model.engine.checking")}</p> : null}
+        {legoInfo && !legoInstalling ? (
+          <p className="hint" role="status">{t(legoInfo.inferenceAvailable
+            ? "settings.model.lego.available" : legoInfo.venvPresent
+              ? "settings.model.lego.incomplete" : "settings.model.lego.absent")}</p>
         ) : null}
         {legoNotice ? (
           <p className="settings-engine-error" role="alert">{legoNotice}</p>

@@ -41,6 +41,7 @@ import {
 export function SongScreen() {
   const project = useAppStore((s) => s.project);
   const form = useAppStore((s) => s.form);
+  const settings = useAppStore((s) => s.settings);
   const setForm = useAppStore((s) => s.setForm);
   const mix = useAppStore((s) => s.mix);
   const setMix = useAppStore((s) => s.setMix);
@@ -78,7 +79,7 @@ export function SongScreen() {
     return () => {
       cancelled = true;
     };
-  }, [project?.id]);
+  }, [project?.id, settings?.cacheDir, settings?.aceStepLegoLicenseAccepted]);
   useEffect(() => {
     setProfileOperationBusy(busy);
     return () => setProfileOperationBusy(false);

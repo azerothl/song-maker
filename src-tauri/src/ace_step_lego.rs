@@ -301,6 +301,81 @@ fn spawn_sidecar(
         .map_err(|e| format!("Impossible de démarrer le sidecar Lego : {e}"))
 }
 
+struct InstallerProcess(Child);
+
+impl Drop for InstallerProcess {
+    fn drop(&mut self) {
+        if !matches!(self.0.try_wait(), Ok(None)) {
+            return;
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            let _ = Command::new("taskkill")
+                .args(["/PID", &self.0.id().to_string(), "/T", "/F"])
+                .creation_flags(0x0800_0000)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+        #[cfg(unix)]
+        {
+            // Each installer has its own process group, including uv/build children.
+            unsafe {
+                libc::kill(-(self.0.id() as i32), libc::SIGKILL);
+            }
+        }
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+async fn run_install_command(
+    mut command: Command,
+    cancel: &AtomicBool,
+    log_path: &Path,
+) -> Result<(), String> {
+    let log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)
+        .map_err(|e| e.to_string())?;
+    command
+        .stdout(log.try_clone().map_err(|e| e.to_string())?)
+        .stderr(log);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+    let mut child = InstallerProcess(
+        command
+            .spawn()
+            .map_err(|e| format!("Installation Lego : {e}"))?,
+    );
+    loop {
+        if cancel.load(Ordering::SeqCst) {
+            return Err("Installation Lego annulée.".into());
+        }
+        if let Some(status) = child.0.try_wait().map_err(|e| e.to_string())? {
+            return if status.success() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "Installation Lego interrompue. Détails : {}",
+                    log_path.display()
+                ))
+            };
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+}
+
 pub async fn install(
     app: AppHandle,
     cache: PathBuf,
@@ -325,18 +400,10 @@ pub async fn install(
     }
     let python = python_bin(&cache);
     if !python.is_file() {
-        let output = Command::new(&bootstrap)
-            .args(&prefix)
-            .args(["-m", "venv"])
-            .arg(&venv)
-            .output()
-            .map_err(|e| format!("Création du venv Lego : {e}"))?;
-        if !output.status.success() {
-            return Err(format!(
-                "Création du venv Lego impossible : {}",
-                String::from_utf8_lossy(&output.stderr)
-            ));
-        }
+        let mut command = Command::new(&bootstrap);
+        command.args(&prefix).args(["-m", "venv"]).arg(&venv);
+        ensure_dir(&venv).map_err(|e| e.to_string())?;
+        run_install_command(command, &cancel, &venv.join("installation.log")).await?;
     }
     write_sidecar_script(&cache)?;
     emit(
@@ -364,32 +431,16 @@ pub async fn install(
             .rsplit('@')
             .next()
             .ok_or("Révision Lego absente")?;
-        let output = Command::new(&python)
-            .arg(&installer)
-            .arg(&venv)
-            .arg(revision)
-            .output()
-            .map_err(|e| format!("Installation ACE-Step Base : {e}"))?;
-        if !output.status.success() {
-            return Err(format!(
-                "Installation ACE-Step 1.5 Base a échoué : {}",
-                String::from_utf8_lossy(&output.stderr)
-            ));
+        let mut command = Command::new(&python);
+        command.arg(&installer).arg(&venv).arg(revision);
+        let receipt = venv.join("installation-verified.json");
+        if receipt.is_file() {
+            std::fs::remove_file(&receipt).map_err(|e| e.to_string())?;
         }
-    }
-    if !mock {
-        let verified = Command::new(&python)
-            .args(["-c", "import acestep.api_server"])
-            .output()
-            .map_err(|e| format!("Vérification du moteur Lego : {e}"))?;
-        if !verified.status.success() {
-            return Err(format!(
-                "Installation Lego incomplète : {}",
-                String::from_utf8_lossy(&verified.stderr)
-            ));
-        }
+        run_install_command(command, &cancel, &venv.join("installation.log")).await?;
+        // The installer checks the API import before it exits successfully.
         std::fs::write(
-            venv.join("installation-verified.json"),
+            &receipt,
             json!({"gitSource": ACE_STEP_LEGO_GIT}).to_string(),
         )
         .map_err(|e| e.to_string())?;
@@ -672,6 +723,29 @@ Un stem MIT sur un mix YuE2 reste soumis au NC du mix."
 mod tests {
     use super::*;
     use crate::pins::{CHANNELS, SAMPLE_RATE};
+
+    #[tokio::test]
+    async fn installation_cancel_stops_the_running_process() {
+        let (python, prefix) =
+            python_bootstrap().expect("Python required for Lego cancellation test");
+        let mut command = Command::new(python);
+        command
+            .args(prefix)
+            .args(["-c", "import time; time.sleep(120)"]);
+        let log = std::env::temp_dir().join(format!("lego-cancel-{}.log", uuid::Uuid::new_v4()));
+        let cancel = Arc::new(AtomicBool::new(false));
+        let signal = cancel.clone();
+        let timer = tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            signal.store(true, Ordering::SeqCst);
+        });
+        let started = std::time::Instant::now();
+        let result = run_install_command(command, &cancel, &log).await;
+        timer.await.unwrap();
+        assert!(result.unwrap_err().contains("annulée"));
+        assert!(started.elapsed() < Duration::from_secs(10));
+        std::fs::remove_file(log).unwrap();
+    }
 
     #[test]
     fn rejects_invalid_lego_audio() {

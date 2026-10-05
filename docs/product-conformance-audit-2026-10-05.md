@@ -248,3 +248,12 @@ Contrôles complémentaires : formatage global et Clippy strict passent après s
 Le parcours ne superpose plus automatiquement la sortie Lego aux pistes existantes. Après génération, il affiche un lecteur de la prise et trois choix : ajouter une piste séparée, utiliser comme morceau complet, garder dans les versions. Le mode morceau complet coupe les pistes existantes (et retire leurs solos), conserve leurs clips/fichiers/positions, puis ajoute la nouvelle piste active dans la même écriture du mix. Le mode piste séparée conserve l’ajout habituel. La prise demeure dans l’historique même si l’utilisateur ne l’importe pas.
 
 Les labels et l’explication sont disponibles en français et anglais. Compilation et Clippy passent ; deux tests capture passent, dont la conservation des clips et la non-superposition en mode morceau complet. Le parcours visuel natif et l’écoute musicale restent à vérifier : aucune clôture du ticket sur cette seule preuve de code/tests.
+
+
+### #325 / #378 — états d’installation et annulation Lego
+
+Paramètres affiche désormais un suivi de progression Lego, les états absent/incomplet/installé et l’action « réparer ou réinstaller » quand l’installation est vérifiée. Le premier téléchargement des poids est expliqué avant l’installation. Le statut de Production est actualisé lorsque le cache ou l’acceptation Lego change. Observation dans la fenêtre native Song Maker : nouveaux textes affichés, modèle installé manuellement mais sans reçu donc correctement présenté comme incomplet ; bouton désactivé tant que l’avis Lego n’est pas accepté. L’installation via le bouton n’a pas été exécutée : confirmation computer-use demandée pour cette installation Windows, en attente de réponse.
+
+L’installation utilise maintenant une attente asynchrone qui contrôle l’annulation toutes les 200 ms, conserve les diagnostics dans `tools/ace-step-lego/installation.log` et termine le groupe de processus de l’installateur (taskkill /T sur Windows, groupe Unix dédié). Le reçu de disponibilité est publié uniquement après la sortie réussie de l’installateur qui vérifie l’import API. Ce changement porte sur l’installation, pas encore sur l’annulation d’une inférence Lego en cours.
+
+Validation de cette étape : 7 tests Rust Lego passent, dont l’annulation d’un processus Python réel prévu pour dormir 120 secondes (test terminé en moins de 10 secondes). Typecheck, formatage global et Clippy strict passent.

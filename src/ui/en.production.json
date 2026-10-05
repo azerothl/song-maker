@@ -437,5 +437,10 @@
   "production.instrumental.useFullMix": "Use as the complete song",
   "production.instrumental.keepForLater": "Keep in versions",
   "production.instrumental.fullMixHelp": "“Complete song” mutes the other tracks to avoid doubling them. They are kept and can be enabled again.",
-  "production.instrumental.previewMissing": "The new part’s audio file could not be found. Your arrangement is preserved."
+  "production.instrumental.previewMissing": "The new part’s audio file could not be found. Your arrangement is preserved.",
+  "settings.model.lego.reinstall": "Repair or reinstall Lego",
+  "settings.model.lego.available": "Lego is installed. It will start automatically when you create a part guided by your song.",
+  "settings.model.lego.incomplete": "The Lego installation is incomplete. Run the installation again to repair it.",
+  "settings.model.lego.absent": "Lego is not installed yet.",
+  "settings.model.lego.firstUse": "On your first creation, missing models are downloaded automatically. Allow several gigabytes and extra preparation time."
 }

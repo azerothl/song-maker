@@ -42,6 +42,9 @@ walkdir = "2"
 base64 = "0.22"
 tauri-plugin-dialog = "2"
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 # Model integrity checks should stay usable in native development builds.
 [profile.dev.package.sha2]
 opt-level = 3
