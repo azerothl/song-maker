@@ -23,9 +23,9 @@ describe("remote duration contract", () => {
     expect(() => wavMetadata(wav.subarray(0, wav.length - 1))).toThrow();
     expect(() => wavMetadata(Buffer.from("RIFFxxxxWAVE"))).toThrow();
   });
-  it("refuses short or long outputs before publication, within desktop tolerance", () => {
+  it("accepts codec rounding when aligning stems to the source WAV", () => {
     expect(checkRemoteDuration(359998, 360000).matches).toBe(true);
-    expect(() => checkRemoteDuration(75278, 360000)).toThrow("n’est pas publiée");
-    expect(() => checkRemoteDuration(361000, 360000)).toThrow();
+    expect(() => checkRemoteDuration(0, 360000)).toThrow("retrait des voix");
+    expect(() => checkRemoteDuration(361000, 360000)).toThrow("retrait des voix");
   });
 });

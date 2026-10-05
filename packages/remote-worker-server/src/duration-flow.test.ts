@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { buildMinimalWav, createAndStartWorker, deriveAesKeyFromTokenNode } from "./server.js";
 
-it.each([30, 1])("validates the full encrypted HTTP duration flow with a %i-second engine output", async outputSeconds => {
+it.each([30, 1])("publishes encrypted HTTP YuE2 output of %i seconds without a wall-clock duration gate", async outputSeconds => {
   const token = "duration-flow-test-token";
   let observed: { request: { lyrics: string; options: Record<string, unknown> } } | undefined;
   const upstream = createServer(async (req, res) => {
@@ -48,29 +48,19 @@ it.each([30, 1])("validates the full encrypted HTTP duration flow with a %i-seco
     expect(observed!.request.lyrics).toBe("");
     expect(observed!.request.options).toMatchObject({ semantic_min_tokens: 750, semantic_max_tokens: 750 });
     const job = worker.server.getJob(id)!;
-    if (outputSeconds === 30) {
-      expect(job.status, job.error).toBe("succeeded");
-      const result = JSON.parse(await readFile(job.artifacts["result.json"]!.path, "utf8"));
-      expect(result.audio.durationMs).toBe(30000);
-      expect(result.durationCompliance.matches).toBe(true);
-      expect(result.score).toBeNull();
-      expect(job.artifacts["score.abc"]).toBeUndefined();
-      const score = await fetch(`${worker.baseUrl}/v1/jobs/${id}/artifacts/score.abc`, { headers });
-      expect(score.status).toBe(404);
-      expect(result.instrumentalProcessing.excludedStems).toEqual(["vocals"]);
-      const final = await readFile(job.artifacts["audio.wav"]!.path);
-      // FFmpeg writes extra RIFF chunks; locate data rather than assuming offset 44.
-      const data = final.indexOf(Buffer.from("data")) + 8;
-      expect(final.subarray(data).every(value => value === 0)).toBe(true);
-      expect(await readFile(join(dataDir, id, "audio-original.wav"))).toEqual(buildMinimalWav(30));
-    } else {
-      expect(job.status).toBe("failed");
-      expect(job.error).toContain("n’est pas publiée");
-      expect(job.artifacts).toEqual({});
-      expect(await readFile(join(dataDir, id, "audio-unpublished.wav"))).toEqual(buildMinimalWav(1));
-      const audio = await fetch(`${worker.baseUrl}/v1/jobs/${id}/artifacts/audio.wav`, { headers });
-      expect(audio.status).toBe(404);
-    }
+    expect(job.status, job.error).toBe("succeeded");
+    const result = JSON.parse(await readFile(job.artifacts["result.json"]!.path, "utf8"));
+    expect(result.audio.durationMs).toBe(outputSeconds * 1000);
+    expect(result.durationCompliance).toBeUndefined();
+    expect(result.score).toBeNull();
+    expect(job.artifacts["score.abc"]).toBeUndefined();
+    const score = await fetch(`${worker.baseUrl}/v1/jobs/${id}/artifacts/score.abc`, { headers });
+    expect(score.status).toBe(404);
+    expect(result.instrumentalProcessing.excludedStems).toEqual(["vocals"]);
+    const final = await readFile(job.artifacts["audio.wav"]!.path);
+    const data = final.indexOf(Buffer.from("data")) + 8;
+    expect(final.subarray(data).every(value => value === 0)).toBe(true);
+    expect(await readFile(join(dataDir, id, "audio-original.wav"))).toEqual(buildMinimalWav(outputSeconds));
   } finally {
     await worker.server.stop();
     await new Promise<void>(resolve => upstream.close(() => resolve()));

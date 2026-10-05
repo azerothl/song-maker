@@ -18,30 +18,33 @@ use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-const DURATION_TOLERANCE_MS: i64 = 250;
+/// Resample / HTDemucs alignment only — not a YuE2 wall-clock contract.
+const STEM_ALIGN_TOLERANCE_MS: i64 = 250;
 
-#[cfg(test)]
-mod duration_contract_tests {
-    use super::check_requested_duration;
-
-    #[test]
-    fn accepts_codec_rounding_but_rejects_the_reported_six_minute_outputs() {
-        assert!(check_requested_duration(359_998, 360_000).is_ok());
-        assert!(check_requested_duration(75_278, 360_000).is_err());
-        assert!(check_requested_duration(109_798, 360_000).is_err());
-        assert!(check_requested_duration(0, 30_000).is_err());
-        assert!(check_requested_duration(361_000, 360_000).is_err());
+fn check_stem_alignment(duration_ms: i64, source_ms: i64) -> Result<(), String> {
+    if duration_ms <= 0 {
+        return Err("Piste instrumentale vide après retrait des voix.".into());
     }
-}
-
-fn check_requested_duration(duration_ms: i64, expected_ms: i64) -> Result<(), String> {
-    if duration_ms <= 0 || (duration_ms - expected_ms).abs() > DURATION_TOLERANCE_MS {
+    if (duration_ms - source_ms).abs() > STEM_ALIGN_TOLERANCE_MS {
         return Err(format!(
-            "Le morceau dure {:.2} s au lieu des {:.2} s demandées. La prise est conservée, mais n’est pas activée. Relancez la génération.",
-            duration_ms as f64 / 1000.0, expected_ms as f64 / 1000.0
+            "Le retrait des voix a changé la durée ({:.2} s au lieu de {:.2} s). L’original est conservé.",
+            duration_ms as f64 / 1000.0,
+            source_ms as f64 / 1000.0
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod stem_align_tests {
+    use super::check_stem_alignment;
+
+    #[test]
+    fn codec_rounding_is_accepted() {
+        assert!(check_stem_alignment(359_998, 360_000).is_ok());
+        assert!(check_stem_alignment(0, 360_000).is_err());
+        assert!(check_stem_alignment(361_000, 360_000).is_err());
+    }
 }
 
 /// Keep the generator output and publish only the accompaniment. Empty lyrics
@@ -71,7 +74,7 @@ async fn remove_generated_vocals(
         let path = sep_dir.join(format!("{role}-48000.wav"));
         crate::resample::resample_soxr(&source, &path, SAMPLE_RATE)?;
         let duration = wav_duration_ms(&path)?;
-        check_requested_duration(duration, original_duration)?;
+        check_stem_alignment(duration, original_duration)?;
         stems.push((
             role.to_string(),
             PathBuf::from(format!("instrumental/{role}-48000.wav")),
@@ -82,7 +85,7 @@ async fn remove_generated_vocals(
     let mix = crate::mix::new_mix_from_separation("instrumental", "instrumental", &stems);
     let rendered = gen_dir.join("audio-instrumental.wav");
     let trim = crate::mix::render_mix(&mix, gen_dir, &rendered)?;
-    check_requested_duration(wav_duration_ms(&rendered)?, original_duration)?;
+    check_stem_alignment(wav_duration_ms(&rendered)?, original_duration)?;
     std::fs::copy(&rendered, gen_dir.join("audio.wav")).map_err(|e| e.to_string())?;
     Ok(
         json!({"method":"htdemucs-accompaniment", "modelSha256":HTDEMUCS_SHA,
@@ -359,8 +362,6 @@ async fn run_generation(
             return Err("Le composant de retrait des voix est incomplet. Réinstallez les composants audio dans Paramètres → Modèle.".into());
         }
     }
-    let fixed_duration = !form.prefer_full_lyrics || form.instrumental_mode;
-    let mut expected_duration_ms = i64::from(target_duration_sec) * 1000;
     if use_ace_step {
         if !settings.ace_step_license_accepted {
             return Err(
@@ -454,7 +455,6 @@ async fn run_generation(
         if let Some(abc) = resolved.parent_score_abc {
             abc_trimmed = Some(abc);
         }
-        expected_duration_ms += resolved.frame_count as i64 * 1000 / i64::from(SEMANTIC_HZ);
         semantic_min_tokens = semantic_min_tokens
             .saturating_add(resolved.frame_count as u32)
             .min(resolved.token_ceiling as u32);
@@ -618,7 +618,6 @@ async fn run_generation(
         "instrumentalMode": form.instrumental_mode,
         "draftLyricsUsed": !form.instrumental_mode,
         "instrumentalProcessing": if remove_vocals { Some("htdemucs-accompaniment") } else { None },
-        "expectedDurationMs": if fixed_duration { Some(expected_duration_ms) } else { None },
         "instrumentalRole": instrumental_role,
         "legoTrackName": lego_role,
         "outputKind": if use_lego { Some(crate::ace_step_lego::OUTPUT_KIND) } else { None },
@@ -988,17 +987,12 @@ async fn run_generation(
                             atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;
                             return Err(err);
                         }
-                        let generated_duration = wav_duration_ms(&out_wav)?;
-                        if fixed_duration {
-                            check_requested_duration(generated_duration, expected_duration_ms)?;
-                        }
                         let instrumental_processing = if remove_vocals {
                             queue_ref.set_state("generating", "Retrait des voix pour le morceau instrumental", Some(project_id_for_job.clone()));
                             Some(remove_generated_vocals(&server_url, &gen_dir_for_job).await?)
                         } else { None };
                         if cancelled() { return Err("cancelled".into()); }
                         let duration = wav_duration_ms(&out_wav)?;
-                        if fixed_duration { check_requested_duration(duration, expected_duration_ms)?; }
                         let audio_sha = sha256_file(&out_wav)?;
                         let score = if score_path.exists() {
                             json!({
@@ -1027,7 +1021,6 @@ async fn run_generation(
                             "semanticTruncated": semantic_truncated,
                             "semanticPath": if has_semantic { Some("semantic.json") } else { None },
                             "instrumentalProcessing": instrumental_processing,
-                            "durationCompliance": if fixed_duration { Some(json!({"expectedMs":expected_duration_ms, "actualMs":duration, "toleranceMs":DURATION_TOLERANCE_MS, "matches":true})) } else { None },
                             "error": null
                         });
                         atomic_write_json(&gen_dir_for_job.join("result.json"), &result)?;

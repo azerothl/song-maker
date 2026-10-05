@@ -1,4 +1,4 @@
-/** Keep the remote YuE2 request consistent with the desktop duration contract. */
+/** Keep the remote YuE2 request consistent with the desktop token budget. */
 export function generationContract(request: Record<string, unknown>, fallbackLyrics = "") {
   const requested = request.targetDurationSec ?? 180;
   if (typeof requested !== "number" || !Number.isInteger(requested) || requested < 30 || requested > 360) {
@@ -41,9 +41,12 @@ export function wavMetadata(wav: Buffer) {
   return { sampleRate, channels, durationMs: Math.round(dataBytes / blockAlign / sampleRate * 1000) };
 }
 
+/** Resample / HTDemucs alignment only — not a YuE2 wall-clock contract. */
 export function checkRemoteDuration(actualMs: number, expectedMs: number) {
-  if (Math.abs(actualMs - expectedMs) > 250) {
-    throw new Error(`Le morceau distant dure ${Math.round(actualMs / 1000)} s au lieu des ${expectedMs / 1000} s demandées. Cette prise n’est pas publiée ; relancez la génération.`);
+  if (actualMs <= 0 || Math.abs(actualMs - expectedMs) > 250) {
+    throw new Error(
+      `Le retrait des voix a changé la durée (${Math.round(actualMs / 1000)} s au lieu de ${expectedMs / 1000} s). L’original est conservé.`,
+    );
   }
   return { expectedMs, actualMs, toleranceMs: 250, matches: true };
 }

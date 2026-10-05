@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { checkRemoteDuration, generationContract, wavMetadata } from "./generation-contract.js";
+import { generationContract, wavMetadata } from "./generation-contract.js";
 import { remoteInstrumental } from "./instrumental.js";
 import { extractRemoteScore } from "./score-artifact.js";
 
@@ -554,7 +554,6 @@ export class RemoteGpuWorkerServer {
     let wav: Buffer;
     let abc: string | null;
     let provenance: Record<string, unknown>;
-    let durationCompliance: ReturnType<typeof checkRemoteDuration> | null = null;
     let instrumentalProcessing: Awaited<ReturnType<typeof remoteInstrumental>>["processing"] | null = null;
 
     if (this.config.simulate || !this.config.audiocppUrl) {
@@ -631,13 +630,8 @@ export class RemoteGpuWorkerServer {
         throw new Error("audiocpp returned non-WAV audio");
       }
       const actual = wavMetadata(wav);
-      if (job.kind === "yue2_generate" && contract.fixedDuration) {
-        try {
-          durationCompliance = checkRemoteDuration(actual.durationMs, contract.durationSec * 1000);
-        } catch (error) {
-          await writeFile(join(jobDir, "audio-unpublished.wav"), wav);
-          throw error;
-        }
+      if (actual.durationMs <= 0) {
+        throw new Error("Le moteur distant n’a pas produit d’audio.");
       }
       abc = extractRemoteScore(json, envelope.artifacts?.abc);
       provenance = { provider: "audiocpp", endpoint: this.config.audiocppUrl };
@@ -645,7 +639,6 @@ export class RemoteGpuWorkerServer {
         const instrumental = await remoteInstrumental(wav, jobDir, this.config.audiocppUrl, () => job.cancelRequested);
         wav = instrumental.wav;
         instrumentalProcessing = instrumental.processing;
-        durationCompliance = checkRemoteDuration(wavMetadata(wav).durationMs, contract.durationSec * 1000);
       }
     }
 
@@ -683,7 +676,6 @@ export class RemoteGpuWorkerServer {
         contentSha256: job.payloadSha256,
       },
       error: null,
-      durationCompliance,
       instrumentalProcessing,
     };
     const resultRaw = Buffer.from(JSON.stringify(result, null, 2), "utf8");

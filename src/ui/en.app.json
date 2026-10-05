@@ -1040,7 +1040,7 @@
   "batch.retryHint": "Retry failed or interrupted takes.",
   "batch.exportHint": "Export successfully generated takes.",
   "form.language.instrumental": "Singing language is not used in instrumental mode.",
-  "form.duration.instrumentalHint": "The file duration is checked before the song is accepted.",
+  "form.duration.instrumentalHint": "Target length only; YuE2 may run shorter or longer.",
   "batch.verifyParallel": "Check two simultaneous generations",
   "batch.verifyHint": "This check generates two additional takes. It applies to takes with the same style, lyrics and settings, for the current session.",
   "batch.verifyRunning": "Checking: two takes will be created in the library. Keep the application open.",
