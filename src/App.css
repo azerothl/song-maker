@@ -4542,6 +4542,24 @@ details[open] > summary {
   width: 100%;
 }
 
+/* Keep the final action in flow: a sticky footer can cover advanced settings. */
+.song-create-generate.song-actions-sticky {
+  position: static;
+}
+
+.take-preview-player {
+  width: min(100%, 32rem);
+  min-width: 0;
+  flex: 0 0 min(100%, 32rem);
+}
+
+.take-preview-player audio {
+  display: block;
+  width: 100%;
+  max-width: 32rem;
+  min-height: 54px;
+}
+
 .song-create-generate-btn {
   width: 100%;
   min-height: 44px;
@@ -8093,3 +8111,4 @@ details[open] > summary {
   flex-direction: column;
   gap: 0.35rem;
 }
+.batch-lyrics { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }

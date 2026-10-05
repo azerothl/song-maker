@@ -398,11 +398,14 @@ export function SeparationRecommendDialog({
         {license && (showLicenseNotice || showAccept || !runnable) && (
           <div className="sep-install">
             {showLicenseNotice && (
-              <SeparatorLicenseNotice
-                licenseId={opt.id}
-                className={`hint warn sep-rec-notice${spotlightLayout ? "" : ""}`}
-                data-testid={`sep-rec-notice-${opt.id}`}
-              />
+              <details className="sep-license-details">
+                <summary>{t("separate.recommend.licenseDetails")}</summary>
+                <SeparatorLicenseNotice
+                  licenseId={opt.id}
+                  className="hint warn sep-rec-notice"
+                  data-testid={`sep-rec-notice-${opt.id}`}
+                />
+              </details>
             )}
             <div
               className={

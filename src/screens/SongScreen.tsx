@@ -197,15 +197,15 @@ export function SongScreen() {
         lyrics: "",
         instrumentalMode: true,
       };
-      const doc = await api.startGeneration(
+      const result = await api.generateInstrumentalPart(
         project.id,
         nextForm,
-        null,
+        plan.role,
         plan.conditioning === "mix_stems"
-          ? { engine: "ace_step_lego", instrumentalRole: plan.role }
-          : { instrumentalRole: plan.role },
+          ? "ace_step_lego"
+          : undefined,
       );
-      const genId = doc.activeGenerationId;
+      const genId = result.generationId;
       if (!genId) {
         throw new Error(
           "Génération sans identifiant actif — piste non ajoutée à l’arrangement.",
@@ -218,7 +218,7 @@ export function SongScreen() {
       );
       await onUserTrackAdded(nextMix);
       if (plan.conditioning === "mix_stems") {
-        setError(plan.leftoverNotesFr);
+        setError(t("production.instrumental.legoHonesty"));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -610,7 +610,7 @@ export function SongScreen() {
           i === 0 || form.seed == null
             ? form
             : { ...form, seed: null };
-        await api.startGeneration(project.id, formForCall, scoreGate.abc);
+        await api.generateComparisonTake(project.id, formForCall, scoreGate.abc);
       }
       await openProject(project.id);
     } catch (e) {
@@ -630,9 +630,7 @@ export function SongScreen() {
     setBusy(true);
     setError(null);
     try {
-      await api.startGeneration(project.id, form, scoreGate.abc, {
-        engine: "ace_step",
-      });
+      await api.generateComparisonTake(project.id, form, scoreGate.abc, "ace_step");
       await openProject(project.id);
     } catch (e) {
       setError(String(e));

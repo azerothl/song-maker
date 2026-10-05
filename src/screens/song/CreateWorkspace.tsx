@@ -12,6 +12,7 @@ import {
   METERS,
   snapDurationSec,
   soundSummaryValue,
+  primaryFormError,
   TONIC_LABELS,
   TONICS,
   workspaceIntro,
@@ -47,6 +48,7 @@ export function CreateWorkspace({
   setForm,
   showFormErrors,
 }: CreateWorkspaceProps) {
+  const generationBlockedReason = primaryFormError(formFieldErrors);
   return (
     <section
       className="song-workspace-panel song-create-panel"
@@ -134,6 +136,7 @@ export function CreateWorkspace({
                 )}
                 <textarea
                   value={form.lyrics}
+                  disabled={form.instrumentalMode}
                   onChange={(e) => setForm({ lyrics: e.target.value })}
                   rows={8}
                   placeholder={
@@ -176,17 +179,6 @@ export function CreateWorkspace({
                     <small>{t("form.instrumental.hint")}</small>
                   </span>
                 </label>
-                {form.instrumentalMode && (
-                  <p className="hint ok" role="status">
-                    {t("form.instrumental.active")}
-                  </p>
-                )}
-                <p className="hint warn" role="note">
-                  {t("form.audioInput.incapacity")}
-                </p>
-                <p className="hint" role="note">
-                  {t("form.houseModel.unavailable")}
-                </p>
                 <button
                   type="button"
                   className="form-advanced-entry"
@@ -204,20 +196,19 @@ export function CreateWorkspace({
               </div>
 
               <div className="song-actions song-actions-sticky song-create-generate">
+                {generationBlockedReason && <p className="hint" id="create-generation-reason">{generationBlockedReason}</p>}
                 {scoreGate.error && (
                   <p className="hint error">{scoreGate.error}</p>
                 )}
                 {scoreDocument && !scoreGate.error && (
                   <p className="hint ok">{t("score.willSendAbc")}</p>
                 )}
-                {!scoreDocument && (
-                  <p className="hint">{t("score.phase1Path")}</p>
-                )}
                 <div className="btn-row song-actions-primary">
                   <button
                     type="button"
                     className="btn primary song-create-generate-btn"
-                    disabled={busy || Boolean(scoreGate.error)}
+                    disabled={busy || Boolean(scoreGate.error) || Boolean(generationBlockedReason)}
+                    aria-describedby={generationBlockedReason ? "create-generation-reason" : undefined}
                     onClick={() => void onGenerate()}
                     aria-keyshortcuts="Control+Enter"
                   >
@@ -298,12 +289,13 @@ export function CreateWorkspace({
                   <input
                     placeholder={t("form.language.placeholder")}
                     value={form.singingLanguage ?? ""}
+                    disabled={form.instrumentalMode}
                     onChange={(e) =>
                       setForm({ singingLanguage: e.target.value || null })
                     }
                     maxLength={40}
                   />
-                  <span className="hint">{t("form.language.hint")}</span>
+                  <span className="hint">{t(form.instrumentalMode ? "form.language.instrumental" : "form.language.hint")}</span>
                 </label>
                 <label className="form-field">
                   {t("form.tempo")}
@@ -364,12 +356,14 @@ export function CreateWorkspace({
                 )}
                 <p className="hint">
                   {t(
-                    form.preferFullLyrics
+                    form.instrumentalMode
+                      ? "form.duration.instrumentalHint"
+                      : form.preferFullLyrics
                       ? "form.duration.hint"
                       : "form.duration.strictActiveHint",
                   )}
                 </p>
-                <fieldset className="duration-policy">
+                {!form.instrumentalMode && <fieldset className="duration-policy">
                   <legend className="sr-only">
                     {t("form.duration.policy")}
                   </legend>
@@ -399,7 +393,7 @@ export function CreateWorkspace({
                       <small>{t("form.duration.strictHint")}</small>
                     </span>
                   </label>
-                </fieldset>
+                </fieldset>}
               </div>
             </fieldset>
           </section>

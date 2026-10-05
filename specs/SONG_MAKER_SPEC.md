@@ -486,8 +486,8 @@ audio.cpp accepte, pour YuE2, `style`, les paroles, `cot`, `abc` / `abc_file`, `
 |---|---|---|
 | Titre | Obligatoire. 1 à 120 caractères. Interdits : `/ \ : * ? " < > \|` et le point final. | `project.json` `title`. Pas envoyé au modèle. |
 | Style | Obligatoire. 1 à 1000 caractères, après assemblage. | `style` de la requête. |
-| Mode instrumental | Case à cocher, désactivée par défaut. Persistée dans `project.json` (`instrumentalMode`) et `request.json`. | Si activé : paroles facultatives ; chaîne vide après trim acceptée. |
-| Paroles | Hors mode instrumental : obligatoire, non vides après trim, 1 à 4000 caractères. En mode instrumental : 0 à 4000 caractères. | fichier `lyrics.txt`, envoyé comme paroles (peut être vide). |
+| Mode instrumental | Case à cocher, désactivée par défaut. Persistée dans `project.json` (`instrumentalMode`) et `request.json`. | Si activé : toujours envoyer une chaîne vide, même si le projet contient des paroles. Ne pas ajouter la langue du chant au style. |
+| Paroles | Hors mode instrumental : obligatoire, non vides après trim, 1 à 4000 caractères. En mode instrumental : conserver le brouillon et désactiver son édition. | `lyrics.txt` et la requête restent vides en instrumental ; les paroles du projet sont conservées pour revenir au mode chanté. |
 | `cot` | Obligatoire. Défaut `full`. Valeurs `full`, `melody`, `off`. | `cot` de la requête. |
 | Langue du chant | Facultative. Texte libre, 1 à 40 caractères si présente. Pas de liste de codes. | Préfixée au style : `"{langue}, {style}"`. Jamais un champ `lang`. |
 | Tempo | Facultatif. Entier 40 à 220. | Suffixé au style : `", {n} BPM"`. Stocké dans `project.json`. Pas un contrôle du WAV. |
@@ -512,7 +512,7 @@ Le bouton Générer est inactif tant que le titre, le style et les paroles ne pa
 
 ### 8.3 Structure des paroles
 
-Balises autorisées dans le texte envoyé : `[Intro]`, `[Verse]`, `[Verse 2]`, `[Pre-Chorus]`, `[Chorus]`, `[Bridge]`, `[Outro]`, `[Instrumental]`. Toute autre ligne entre crochets est refusée avant l’appel, avec la ligne citée.
+Balises libres dans le texte envoyé, notamment `[Intro]`, `[Verse]`, `[Verse 2]`, `[Pre-Chorus]`, `[Chorus]`, `[Bridge]`, `[Outro]`, `[Instrumental]`, `[Solo]` et `[Breakdown]`. Le formulaire ne refuse pas une balise inconnue. En instrumental, aucune balise ni parole du brouillon n’est transmise.
 
 `[Instrumental]` est une balise de section. Ce n’est pas le mode instrumental (case à cocher) et ce n’est pas le LoRA instrumental. Le mode instrumental envoie une chaîne de paroles vide (ou des balises de structure sans texte chanté) ; la balise seule n’active pas ce mode.
 

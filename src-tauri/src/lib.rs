@@ -127,6 +127,8 @@ pub fn run() {
             commands::jobs::cancel_job,
             // Génération
             commands::generation::start_generation,
+            commands::generation::generate_instrumental_part,
+            commands::generation::generate_comparison_take,
             commands::batch_cmds::validate_batch_import,
             commands::batch_cmds::update_batch_preview,
             commands::batch_cmds::start_batch,

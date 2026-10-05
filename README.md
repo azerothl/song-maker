@@ -25,7 +25,7 @@ Au **premier lancement**, un écran d’assistant dédié vérifie GPU / composa
 
 Song Maker propose aussi les mises à jour au démarrage (depuis la version **0.1.1**). Les versions antérieures doivent d’abord être mises à jour manuellement depuis les Releases. Détails : [`docs/auto-updates.md`](docs/auto-updates.md).
 
-Les installeurs Windows déjà publiés ne sont pas signés Authenticode. Pour les prochaines releases, le workflow exige la configuration Microsoft Artifact Signing et bloque le build Windows si elle manque ; voir le [guide de signature Windows](docs/windows-code-signing.md). SmartScreen peut encore afficher un avertissement sur les premières versions signées. Sur macOS, le binaire n’est pas notarié : autoriser l’app dans Réglages Système → Confidentialité et sécurité au premier lancement.
+Les installeurs Windows déjà publiés ne sont pas signés Authenticode. Pour les prochaines releases, le workflow exige la configuration Microsoft Artifact Signing et bloque le build Windows si elle manque ; voir le [guide de signature Windows](docs/windows-code-signing.md). SmartScreen peut encore afficher un avertissement sur les premières versions signées. Les binaires macOS déjà publiés ne sont pas notariés : autoriser l’app dans Réglages Système → Confidentialité et sécurité au premier lancement. Le workflow des prochaines releases exige désormais certificat et notarisation Apple ; voir le [guide macOS](docs/macos-code-signing.md). Aucune nouvelle release signée/notariée n’est attestée par cette configuration seule.
 
 ## Ce qui est livré aujourd’hui
 
@@ -39,7 +39,7 @@ Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau
 - **Mode instrumental** : paroles facultatives (chaîne vide acceptée) — ce n’est **pas** le LoRA instrumental YuE2 CC BY-NC.
 - Modes `cot` (`full` / `melody` / `off`), durée cible indicative (bornes de tokens, pas une durée musicale garantie), multi-candidats **séquentiels** (N appels locaux successifs, pas un échantillonnage parallèle natif), seed écrit.
 - Continuation mid-song (`semantic_prefix` / `continuationGenerationId`) et génération partition seule (`stop_after=abc`).
-- YuE2 **ne consomme pas** d’audio en entrée (`audio_input`) : pas d’inpainting ni de référence audio directe. Une génération = un nouvel appel. L’onglet Créer l’affiche explicitement ; un payload `audio_input` / masque d’inpainting est **refusé** avant l’appel GPU. Le moteur XOR global (`generation_engine`) reste YuE2 par défaut ; ACE-Step **Turbo** GGUF est un opt-in texte→musique distinct, **pas** Lego.
+- YuE2 **ne consomme pas** d’audio en entrée (`audio_input`) : pas d’inpainting ni de référence audio directe. Une génération = un nouvel appel. Cette limite est indiquée dans les parcours audio concernés ; un payload `audio_input` / masque d’inpainting est **refusé** avant l’appel GPU. Le moteur XOR global (`generation_engine`) reste YuE2 par défaut ; ACE-Step **Turbo** GGUF est un opt-in texte→musique distinct, **pas** Lego.
 
 ### Partition / Reprise
 
@@ -65,7 +65,7 @@ Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau
 - Historique lisible des **prises** (noms, dates, pastilles Musique / Partition / Mix, filiation en mots) — les identifiants `gen-*` restent dans Détails. Comparateur multi-candidats, restauration réversible, événements de séparation (« Revenir à la séparation précédente »).
 - Invariants de partition avant régénération (`@song-maker/partition-invariants`).
 - **Worker GPU distant** : client + serveur de référence HTTP, **désactivé par défaut** (local-first, consentement + rétention). Voir [`docs/remote-worker-contract.md`](docs/remote-worker-contract.md).
-- **Akasha / DeclUI** : hôte **embarqué** opt-in (`127.0.0.1`, `GET /v1/host/discover`) ; découverte HTTP externe inchangée. Sans hôte joignable = `unavailable`. La génération YuE2 reste desktop.
+- **Akasha / DeclUI** : hôte **embarqué** opt-in (`127.0.0.1`, `GET /v1/host/discover`) ; découverte HTTP externe inchangée. Le serveur embarqué expose seulement `list_projects` ; il ne constitue pas un hôte musique complet. Un hôte sans les capacités musique requises reste `unavailable`, sans badge connecté. Génération, séparation et export restent desktop.
 - Synchro projet optionnelle (NAS/USB ou HTTP auto-hébergé) — jamais obligatoire. Voir [`docs/project-sync-contract.md`](docs/project-sync-contract.md).
 - Packs LoRA style (opt-in) et **pilote** d’entraînement NAR local — voir [`docs/lora-training-pilot.md`](docs/lora-training-pilot.md).
 

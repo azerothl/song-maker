@@ -54,13 +54,7 @@ pub fn discover_payload() -> Value {
             "id": "song-maker-music",
             "kind": "music",
             "version": 1,
-            "capabilities": [
-                "generate_yue2",
-                "separate_stems",
-                "export_mix",
-                "list_projects",
-                "apply_style_lora"
-            ]
+            "capabilities": ["list_projects"]
         },
         "declUiSurfaces": [
             { "id": "library", "declaration": "songmaker.library.v1" },

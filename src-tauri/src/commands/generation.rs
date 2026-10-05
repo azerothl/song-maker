@@ -2,7 +2,9 @@ use super::shared::write_checksums;
 use super::AppState;
 use crate::abc_metadata::{write_aligned_score_abc, AbcAlignRequest};
 use crate::audiocpp::AudioCppServer;
-use crate::form::{guidance_scale, validate_form_for_engine, validate_target_duration};
+use crate::form::{
+    generation_lyrics, guidance_scale, validate_form_for_engine, validate_target_duration,
+};
 use crate::hashutil::{normalize_seed, random_seed, sha256_file};
 use crate::library::{
     library_row_from_project, load_project, load_settings, project_folder, save_project,
@@ -125,6 +127,75 @@ pub async fn start_generation(
     engine: Option<String>,
     instrumental_role: Option<String>,
 ) -> Result<ProjectDoc, String> {
+    if instrumental_role.is_some() {
+        return Err("Utilisez la commande d’ajout de partie instrumentale.".into());
+    }
+    run_generation(
+        state,
+        id,
+        form,
+        abc,
+        stop_after,
+        source_generation_id,
+        engine,
+        None,
+        false,
+    )
+    .await
+    .map(|result| result.project)
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstrumentalPartResult {
+    pub(crate) project: ProjectDoc,
+    pub(crate) generation_id: String,
+}
+
+#[tauri::command]
+pub async fn generate_instrumental_part(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    mut form: FormInput,
+    engine: Option<String>,
+    role: String,
+) -> Result<InstrumentalPartResult, String> {
+    if !matches!(role.as_str(), "bass" | "drums" | "other") {
+        return Err("Choisissez basse, batterie ou autre instrument.".into());
+    }
+    form.instrumental_mode = true;
+    form.continuation_generation_id = None;
+    run_generation(state, id, form, None, None, None, engine, Some(role), true).await
+}
+
+/// Versions creates alternatives without replacing the arrangement before selection.
+#[tauri::command]
+pub async fn generate_comparison_take(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    mut form: FormInput,
+    abc: Option<String>,
+    engine: Option<String>,
+) -> Result<InstrumentalPartResult, String> {
+    if engine.as_deref() == Some("ace_step_lego") {
+        return Err("Utilisez Ajouter une piste pour le modèle guidé par l’audio.".into());
+    }
+    form.continuation_generation_id = None;
+    run_generation(state, id, form, abc, None, None, engine, None, true).await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_generation(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    form: FormInput,
+    abc: Option<String>,
+    stop_after: Option<String>,
+    source_generation_id: Option<String>,
+    engine: Option<String>,
+    instrumental_role: Option<String>,
+    preserve_project: bool,
+) -> Result<InstrumentalPartResult, String> {
     let mut settings = load_settings()?;
     let requested_engine =
         resolve_generation_engine(engine.as_deref(), &settings.generation_engine)?;
@@ -132,8 +203,12 @@ pub async fn start_generation(
         validate_form_for_engine(&form, &requested_engine).map_err(|e| e.to_string())?;
     let target_duration_sec =
         validate_target_duration(form.target_duration_sec).map_err(|e| e.to_string())?;
-    let (mut semantic_min_tokens, mut semantic_max_tokens) =
-        semantic_token_budget(target_duration_sec, &form.lyrics, form.prefer_full_lyrics);
+    let lyrics_sent = generation_lyrics(&form).to_string();
+    let (mut semantic_min_tokens, mut semantic_max_tokens) = semantic_token_budget(
+        target_duration_sec,
+        &lyrics_sent,
+        form.prefer_full_lyrics && !form.instrumental_mode,
+    );
     let stop_after_abc = match stop_after
         .as_deref()
         .map(str::trim)
@@ -282,7 +357,7 @@ pub async fn start_generation(
     ensure_dir(&gen_dir).map_err(|e| e.to_string())?;
 
     let lyrics_path = gen_dir.join("lyrics.txt");
-    std::fs::write(&lyrics_path, &form.lyrics).map_err(|e| e.to_string())?;
+    std::fs::write(&lyrics_path, &lyrics_sent).map_err(|e| e.to_string())?;
 
     let abc_path_rel = if let Some(ref abc_text) = abc_trimmed {
         std::fs::write(gen_dir.join("input.abc"), abc_text).map_err(|e| e.to_string())?;
@@ -379,8 +454,9 @@ pub async fn start_generation(
         "numInferenceSteps": NUM_INFERENCE_STEPS,
         "guidanceScale": guidance_scale(&form.cot),
         "targetDurationSec": target_duration_sec,
-        "preferFullLyrics": form.prefer_full_lyrics,
+        "preferFullLyrics": form.prefer_full_lyrics && !form.instrumental_mode,
         "instrumentalMode": form.instrumental_mode,
+        "draftLyricsUsed": !form.instrumental_mode,
         "instrumentalRole": instrumental_role,
         "legoTrackName": lego_role,
         "outputKind": if use_lego { Some(crate::ace_step_lego::OUTPUT_KIND) } else { None },
@@ -438,18 +514,21 @@ pub async fn start_generation(
 
     let out_wav = gen_dir.join("audio.wav");
     let cot = form.cot.clone();
-    let lyrics_for_req = form.lyrics.clone();
+    let lyrics_for_req = lyrics_sent.clone();
     let ace_request_for_job = use_ace_step.then(|| {
         ace_step_task_request(
             &style_sent,
-            &form.lyrics,
+            &lyrics_sent,
             seed,
             target_duration_sec,
             AceStepTaskOptions {
                 tempo_bpm: form.tempo_bpm,
                 key: form.key.as_ref(),
                 meter: form.meter.as_ref(),
-                language: form.singing_language.as_deref(),
+                language: form
+                    .singing_language
+                    .as_deref()
+                    .filter(|_| !form.instrumental_mode),
             },
         )
     });
@@ -811,12 +890,17 @@ pub async fn start_generation(
             return Err(error);
         }
     };
-    doc.active_generation_id = Some(gen_id.clone());
-    if !use_lego {
-        // New Créer take replaces the arrangement. Lego add-track keeps mix/stems.
-        doc.active_separation_id = None;
-        doc.active_mix_id = None;
+    if preserve_project {
+        // Publish only the new generation. Import or explicit selection owns
+        // changing the latest mix; edits made while generating remain intact.
+        return Ok(InstrumentalPartResult {
+            project: load_project(&folder)?,
+            generation_id: gen_id,
+        });
     }
+    doc.active_generation_id = Some(gen_id.clone());
+    doc.active_separation_id = None;
+    doc.active_mix_id = None;
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
     let mut row = library_row_from_project(&folder, &doc);
@@ -824,7 +908,10 @@ pub async fn start_generation(
         row.duration_ms = Some(duration);
     }
     upsert_library_row(&row)?;
-    Ok(doc)
+    Ok(InstrumentalPartResult {
+        project: doc,
+        generation_id: gen_id,
+    })
 }
 
 /// Render audio from an existing generation's immutable `score.abc`.

@@ -307,7 +307,7 @@ export function primaryFormError(errors: FormFieldErrors): string | null {
 export function soundSummaryValue(form: FormInput): string {
   const parts = [
     form.instrumentalMode ? t("form.instrumental.summary") : null,
-    form.singingLanguage
+    !form.instrumentalMode && form.singingLanguage
       ? t("form.advanced.summaryLang", { value: form.singingLanguage })
       : null,
     form.tempoBpm != null
@@ -316,7 +316,7 @@ export function soundSummaryValue(form: FormInput): string {
     t("form.advanced.summaryDuration", {
       duration: formatDurationLabel(form.targetDurationSec),
     }),
-    form.preferFullLyrics
+    form.instrumentalMode ? null : form.preferFullLyrics
       ? t("form.advanced.summaryPreferLyrics")
       : t("form.advanced.summaryStrict"),
   ].filter(Boolean);

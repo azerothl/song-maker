@@ -15,6 +15,7 @@ import {
 } from "@song-maker/remote-worker";
 import { api } from "./api";
 import type { FormInput } from "./types";
+import { generationLyrics } from "./generationLyrics";
 
 export const REMOTE_PREFS_KEY = "song-maker.remote-worker.prefs";
 
@@ -62,16 +63,16 @@ export async function buildGenerationPayload(
     request: {
       title: form.title,
       style: form.style,
-      lyrics: form.lyrics,
+      lyrics: generationLyrics(form),
       cot: form.cot,
       seed: form.seed ?? null,
       targetDurationSec: form.targetDurationSec,
-      preferFullLyrics: form.preferFullLyrics,
+      preferFullLyrics: form.preferFullLyrics && !form.instrumentalMode,
       instrumentalMode: form.instrumentalMode,
       hasAbc: Boolean(abc),
     },
     artifacts: {
-      lyrics: form.lyrics,
+      lyrics: generationLyrics(form),
       ...(abc ? { abc } : {}),
     },
   });

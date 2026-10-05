@@ -7,12 +7,12 @@ export function HouseModelSettings() {
   const status = houseModelStatus(health?.houseModelRuntime);
 
   return (
-    <section
+    <details
       className="house-model-settings"
       data-testid="house-model-settings"
       aria-labelledby="house-model-title"
     >
-      <h3 id="house-model-title">{t("settings.model.house.title")}</h3>
+      <summary id="house-model-title">{t("settings.model.house.title")}</summary>
       <p className="hint">{t("settings.model.house.intro")}</p>
       <fieldset className="settings-engine-options">
         <legend>{t("settings.model.house.choose")}</legend>
@@ -36,6 +36,6 @@ export function HouseModelSettings() {
       <p className="hint" role="note">
         {status.messageFr}
       </p>
-    </section>
+    </details>
   );
 }

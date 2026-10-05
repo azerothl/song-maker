@@ -153,6 +153,22 @@ export const api = {
       engine: options?.engine ?? null,
       instrumentalRole: options?.instrumentalRole ?? null,
     }),
+  generateInstrumentalPart: (
+    id: string,
+    form: FormInput,
+    role: "bass" | "drums" | "other",
+    engine?: "ace_step_lego",
+  ) => invoke<{ project: ProjectDoc; generationId: string }>("generate_instrumental_part", {
+    id, form, role, engine: engine ?? null,
+  }),
+  generateComparisonTake: (
+    id: string,
+    form: FormInput,
+    abc?: string | null,
+    engine?: "yue2" | "ace_step",
+  ) => invoke<{ project: ProjectDoc; generationId: string }>("generate_comparison_take", {
+    id, form, abc: abc ?? null, engine: engine ?? null,
+  }),
   /** Render audio from an existing gen's immutable score.abc (parent = source). */
   renderFromGeneration: (
     id: string,
@@ -493,6 +509,9 @@ export type BatchSongPreview = {
   stylePreview: string;
   generations: number;
   lyricsChars: number;
+  lyrics?: string;
+  style?: string;
+  instrumentalMode?: boolean;
 };
 
 export type BatchTask = {
@@ -503,6 +522,7 @@ export type BatchTask = {
   title: string;
   projectId?: string | null;
   generationId?: string | null;
+  audioPath?: string | null;
   state: string;
   lastError?: string | null;
 };

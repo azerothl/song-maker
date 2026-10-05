@@ -73,6 +73,7 @@ function CaptureSidebar() {
 function ProductionCaptureApp() {
   const [captureBusy, setCaptureBusy] = useState(false);
   const capturePrefs = useCaptureHashPrefs();
+  const noMix = globalThis.location.hash.includes("no-mix");
   useEffect(() => {
     if (!import.meta.env.VITE_CAPTURE) return;
     window.__productionCaptureSetBusy = (next: boolean) => setCaptureBusy(next);
@@ -216,8 +217,8 @@ function ProductionCaptureApp() {
                 instrumentalMode: false,
               }}
               importingAudio={false}
-              listeningMix={mixState}
-              mix={mixState}
+              listeningMix={noMix ? null : mixState}
+              mix={noMix ? null : mixState}
               mixSavedAt={mixSavedAt}
               onExport={async () => {}}
               onImportUserAudio={async () => {}}

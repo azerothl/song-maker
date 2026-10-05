@@ -51,7 +51,7 @@ export function SettingsScreen() {
     if (hash.includes("engines") || hash.includes("moteurs")) return "engines";
     return null;
   };
-  const [page, setPage] = useState<SettingsPage>(captureSettingsPage() ?? "home");
+  const [page, setPage] = useState<SettingsPage>(captureSettingsPage() ?? useAppStore.getState().settingsInitialPage);
   const [loraProbe, setLoraProbe] = useState<LoraTrainerProbe | null>(null);
   const [loraProbing, setLoraProbing] = useState(true);
   const [loraPanelStatus, setLoraPanelStatus] =

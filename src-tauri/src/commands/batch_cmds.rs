@@ -3,17 +3,18 @@
 
 use super::AppState;
 use crate::batch::{
-    batch_snapshot, export_ready_results, list_batch_summaries, load_live_tasks, load_manifest,
-    parse_batch_bytes, patch_manifest, persist_new_batch, plan_batch, save_task, task_to_form,
-    BatchError, BatchOptionSet, PendingImport, PlannedTask, ADMITTED_PARALLEL, EXAMPLE_JSON,
-    MAX_FILE_BYTES,
+    batch_snapshot, batches_root, export_ready_results, list_batch_summaries, load_live_tasks,
+    load_manifest, load_plan, parse_batch_bytes, patch_manifest, persist_new_batch, plan_batch,
+    save_task, task_to_form, BatchError, BatchOptionSet, PendingImport, PlannedTask,
+    ADMITTED_PARALLEL, EXAMPLE_JSON, MAX_FILE_BYTES,
 };
-use crate::commands::generation::start_generation;
+use crate::commands::generation::generate_comparison_take;
 use crate::commands::projects::{create_project, save_project_form};
 use crate::library::{
-    library_row_from_project, load_project, project_folder, save_project, upsert_library_row,
+    library_row_from_project, load_project, load_settings, project_folder, save_project,
+    upsert_library_row,
 };
-use crate::models::CreateProjectInput;
+use crate::models::{AppSettings, CreateProjectInput};
 use crate::paths::atomic_write_json;
 use serde::Deserialize;
 use serde_json::json;
@@ -202,15 +203,14 @@ pub async fn start_batch(
     start_token: String,
     revision: u32,
 ) -> Result<serde_json::Value, String> {
-    {
-        let started = state.started_batch_tokens.lock().expect("started tokens");
-        if let Some(id) = started.get(&start_token) {
-            return Ok(json!({ "batchId": id, "idempotent": true }));
-        }
+    let mut started = state.started_batch_tokens.lock().expect("started tokens");
+    if let Some(id) = started.get(&start_token) {
+        return Ok(json!({ "batchId": id, "idempotent": true }));
     }
     let pending = {
-        let mut g = state.pending_batches.lock().expect("pending batches");
-        g.remove(&start_token)
+        let g = state.pending_batches.lock().expect("pending batches");
+        g.get(&start_token)
+            .cloned()
             .ok_or_else(|| "Aperçu périmé. Réimportez le fichier.".to_string())?
     };
     if pending.preview.revision != revision {
@@ -222,14 +222,28 @@ pub async fn start_batch(
             .launch_block_fr
             .unwrap_or_else(|| "Lancement bloqué : capacité GPU insuffisante.".into()));
     }
+    let settings = load_settings()?;
+    if !matches!(settings.generation_engine.as_str(), "yue2" | "ace_step") {
+        return Err("Choisissez YuE2 ou ACE-Step dans Paramètres avant de lancer ce lot.".into());
+    }
     let mut tasks = pending.preview.tasks.clone();
+    for task in &tasks {
+        crate::form::validate_form_for_engine(&task_to_form(task), &settings.generation_engine)
+            .map_err(|error| format!("{} : {error}", task.title))?;
+    }
     assign_projects(&mut tasks)?;
     let batch_id = persist_new_batch(&pending.preview, &pending.input_raw, &tasks)?;
+    let mut plan = load_plan(&batch_id)?;
+    plan["generationSettings"] = batch_generation_settings(&settings);
+    plan["profileId"] = json!(crate::profiles::active_profile_id());
+    atomic_write_json(&batches_root().join(&batch_id).join("plan.json"), &plan)?;
+    started.insert(start_token.clone(), batch_id.clone());
     state
-        .started_batch_tokens
+        .pending_batches
         .lock()
-        .expect("started tokens")
-        .insert(start_token, batch_id.clone());
+        .expect("pending batches")
+        .remove(&start_token);
+    drop(started);
     spawn_runner(app.clone(), &state, batch_id.clone());
     let snap = batch_snapshot(&batch_id)?;
     emit_batch(&app, &batch_id, &snap);
@@ -259,10 +273,15 @@ pub fn get_batch_status(batch_id: String) -> Result<serde_json::Value, String> {
 
 #[tauri::command]
 pub fn pause_batch(app: AppHandle, batch_id: String) -> Result<serde_json::Value, String> {
-    patch_manifest(&batch_id, |man| {
-        man["pauseRequested"] = json!(true);
-        man["state"] = json!("pausing");
-    })?;
+    let tasks = load_live_tasks(&batch_id)?;
+    if tasks.iter().any(|task| batch_task_pending(&task.state)) {
+        patch_manifest(&batch_id, |man| {
+            man["pauseRequested"] = json!(true);
+            man["state"] = json!("pausing");
+        })?;
+    } else {
+        finalize_batch(&batch_id, &tasks);
+    }
     let snap = batch_snapshot(&batch_id)?;
     emit_batch(&app, &batch_id, &snap);
     Ok(snap)
@@ -437,9 +456,13 @@ async fn run_batch_loop(app: AppHandle, batch_id: String) {
                 .iter()
                 .any(|t| matches!(t.state.as_str(), "running" | "preparing" | "publishing"));
             if !still_active {
-                let _ = patch_manifest(&batch_id, |m| {
-                    m["state"] = json!("paused");
-                });
+                if tasks.iter().any(|task| batch_task_pending(&task.state)) {
+                    let _ = patch_manifest(&batch_id, |m| {
+                        m["state"] = json!("paused");
+                    });
+                } else {
+                    finalize_batch(&batch_id, &tasks);
+                }
                 if let Ok(snap) = batch_snapshot(&batch_id) {
                     emit_batch(&app, &batch_id, &snap);
                 }
@@ -469,7 +492,15 @@ async fn run_batch_loop(app: AppHandle, batch_id: String) {
                 task.state = "retry_wait".into();
                 let _ = save_task(&batch_id, &task);
                 tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
-                if task.state == "retry_wait" {
+                let still_waiting = load_live_tasks(&batch_id)
+                    .ok()
+                    .and_then(|tasks| tasks.into_iter().find(|live| live.task_id == task.task_id))
+                    .is_some_and(|live| live.state == "retry_wait");
+                let cancelled = load_manifest(&batch_id)
+                    .ok()
+                    .and_then(|man| man.get("cancelRequested").and_then(|value| value.as_bool()))
+                    .unwrap_or(true);
+                if still_waiting && !cancelled {
                     task.attempt = attempts_used.saturating_add(1);
                     task.state = "queued".into();
                     let _ = save_task(&batch_id, &task);
@@ -539,6 +570,13 @@ async fn run_one_task(
     batch_id: &str,
     task: &mut PlannedTask,
 ) -> Result<(), String> {
+    let plan = load_plan(batch_id)?;
+    let settings = load_settings()?;
+    if plan.get("generationSettings") != Some(&batch_generation_settings(&settings))
+        || plan.get("profileId") != Some(&json!(crate::profiles::active_profile_id()))
+    {
+        return Err("Les réglages du moteur ont changé depuis le lancement de ce lot, ou ce lot ancien ne les conserve pas. Rétablissez les réglages initiaux ou importez un nouveau lot.".into());
+    }
     let Some(project_id) = task.project_id.clone() else {
         return Err("Projet manquant pour la tâche.".into());
     };
@@ -551,15 +589,12 @@ async fn run_one_task(
     let state = app.state::<AppState>();
     task.state = "running".into();
     save_task(batch_id, task)?;
-    let result = start_generation(
+    let result = generate_comparison_take(
         state,
         project_id.clone(),
         form,
         None,
-        None,
-        None,
-        None,
-        None,
+        Some(settings.generation_engine),
     )
     .await;
     let live = load_live_tasks(batch_id).unwrap_or_default();
@@ -568,8 +603,8 @@ async fn run_one_task(
         .find(|t| t.task_id == task.task_id)
         .is_some_and(|t| t.state == "cancel_requested");
     match result {
-        Ok(doc) => {
-            let gen_id = doc.active_generation_id.clone();
+        Ok(result) => {
+            let gen_id = Some(result.generation_id);
             if cancelled {
                 task.state = "cancelled".into();
                 task.generation_id = gen_id;
@@ -638,7 +673,79 @@ fn restore_smallest_active(batch_id: &str, song_id: &str, project_id: &str) {
     let Ok(mut doc) = load_project(&folder) else {
         return;
     };
-    doc.active_generation_id = best.generation_id.clone();
+    if !select_batch_default(&mut doc.active_generation_id, &best.generation_id) {
+        return;
+    }
     let _ = save_project(&folder, &doc);
     let _ = upsert_library_row(&library_row_from_project(&folder, &doc));
+}
+
+fn select_batch_default(active: &mut Option<String>, candidate: &Option<String>) -> bool {
+    if active.is_some() || candidate.is_none() {
+        return false;
+    }
+    *active = candidate.clone();
+    true
+}
+
+fn batch_task_pending(state: &str) -> bool {
+    matches!(
+        state,
+        "queued" | "retry_wait" | "preparing" | "running" | "publishing" | "cancel_requested"
+    )
+}
+
+fn batch_generation_settings(settings: &AppSettings) -> serde_json::Value {
+    // Only generation configuration is persisted; assistant credentials are excluded.
+    json!({
+        "engine": settings.generation_engine,
+        "cacheDir": settings.cache_dir,
+        "binaryTag": settings.binary_tag,
+        "binaryArchive": settings.binary_archive,
+        "binarySha256": settings.binary_sha256,
+        "modelPack": settings.model_pack,
+        "modelGguf": settings.model_gguf,
+        "modelSha256": settings.model_sha256,
+        "localYue2Enabled": settings.local_yue2_enabled,
+        "arLora": settings.yue2_ar_lora,
+        "narLora": settings.yue2_nar_lora,
+        "arLoraScale": settings.yue2_ar_lora_scale,
+        "narLoraScale": settings.yue2_nar_lora_scale,
+    })
+}
+
+#[cfg(test)]
+mod selection_tests {
+    use super::{batch_generation_settings, batch_task_pending, select_batch_default};
+
+    #[test]
+    fn batch_configuration_tracks_generation_changes_only() {
+        let mut settings = crate::library::default_settings();
+        let original = batch_generation_settings(&settings);
+        settings.mix_llm_provider = "external".into();
+        assert_eq!(original, batch_generation_settings(&settings));
+        settings.generation_engine = "ace_step".into();
+        assert_ne!(original, batch_generation_settings(&settings));
+        settings.generation_engine = "yue2".into();
+        settings.yue2_ar_lora = Some("models/lora/another.gguf".into());
+        assert_ne!(original, batch_generation_settings(&settings));
+    }
+
+    #[test]
+    fn a_finished_batch_has_no_work_to_pause() {
+        for state in ["succeeded", "failed", "cancelled", "interrupted"] {
+            assert!(!batch_task_pending(state));
+        }
+        assert!(batch_task_pending("queued"));
+        assert!(batch_task_pending("running"));
+    }
+
+    #[test]
+    fn later_batch_results_preserve_the_user_selection() {
+        let mut active = None;
+        assert!(select_batch_default(&mut active, &Some("gen-001".into())));
+        active = Some("gen-user-choice".into());
+        assert!(!select_batch_default(&mut active, &Some("gen-002".into())));
+        assert_eq!(active.as_deref(), Some("gen-user-choice"));
+    }
 }

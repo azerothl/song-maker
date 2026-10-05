@@ -20,7 +20,7 @@ pub const MAX_FILE_BYTES: u64 = 10 * 1024 * 1024;
 pub const MAX_TASKS: u32 = 10_000;
 pub const ADMITTED_PARALLEL: u32 = 1;
 pub const ADMITTED_REASON_FR: &str =
-    "2 demandées, 1 disponible : capacité GPU non validée pour deux moteurs isolés.";
+    "Le parallélisme GPU n’est pas encore disponible : les prises sont générées une par une.";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -170,6 +170,12 @@ pub struct BatchSongPreview {
     pub style_preview: String,
     pub generations: u32,
     pub lyrics_chars: usize,
+    #[serde(default)]
+    pub lyrics: String,
+    #[serde(default)]
+    pub style: String,
+    #[serde(default)]
+    pub instrumental_mode: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -453,6 +459,9 @@ pub fn plan_batch(
             style_preview: style.chars().take(80).collect(),
             generations: resolved.generations,
             lyrics_chars: song.lyrics.chars().count(),
+            lyrics: song.lyrics.clone(),
+            style: style.to_string(),
+            instrumental_mode: resolved.instrumental_mode,
         });
         for v in 1..=resolved.generations {
             tasks.push(PlannedTask {
@@ -501,10 +510,12 @@ pub fn plan_batch(
     let mut launch_block = None;
     if policy == "requireRequested" && requested > admitted {
         can_launch = false;
-        launch_block = Some(ADMITTED_REASON_FR.to_string());
+        launch_block = Some(format!(
+            "{requested} demandées, {admitted} disponible. {ADMITTED_REASON_FR}"
+        ));
     }
     let capacity_reason = if requested > admitted {
-        ADMITTED_REASON_FR.to_string()
+        format!("{requested} demandées, {admitted} disponible. {ADMITTED_REASON_FR}")
     } else {
         format!("{effective} génération(s) simultanée(s) admise(s).")
     };
@@ -851,6 +862,27 @@ pub fn batch_snapshot(batch_id: &str) -> Result<serde_json::Value, String> {
             _ => {}
         }
     }
+    let tasks_with_audio: Vec<_> = tasks
+        .iter()
+        .map(|task| {
+            let mut value = serde_json::to_value(task).expect("serializable batch task");
+            let audio = task
+                .project_id
+                .as_ref()
+                .zip(task.generation_id.as_ref())
+                .filter(|_| task.state == "succeeded")
+                .map(|(project, generation)| {
+                    crate::library::project_folder(project)
+                        .join("generations")
+                        .join(generation)
+                        .join("audio.wav")
+                })
+                .filter(|path| path.is_file())
+                .map(|path| path.display().to_string());
+            value["audioPath"] = json!(audio);
+            value
+        })
+        .collect();
     Ok(json!({
         "batchId": batch_id,
         "name": man.get("name").cloned().unwrap_or(json!("")),
@@ -874,7 +906,7 @@ pub fn batch_snapshot(batch_id: &str) -> Result<serde_json::Value, String> {
             "cancelled": cancelled,
             "total": tasks.len() as u32,
         },
-        "tasks": tasks,
+        "tasks": tasks_with_audio,
     }))
 }
 
@@ -1131,6 +1163,8 @@ mod tests {
         let p = preview_example();
         assert_eq!(p.song_count, 2);
         assert_eq!(p.task_count, 5);
+        assert_eq!(p.songs[0].lyrics, p.tasks[0].lyrics);
+        assert_eq!(p.songs[0].style, p.tasks[0].style);
         let nuit: Vec<_> = p.tasks.iter().filter(|t| t.song_id == "nuit").collect();
         assert_eq!(nuit.len(), 3);
         assert_eq!(nuit[0].seed, 42);

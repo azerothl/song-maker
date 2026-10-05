@@ -528,7 +528,7 @@ export default function App() {
   return (
     <div className="app-shell" data-locale={locale}>
       <Sidebar />
-      <main className="main">
+      <main className="main" key={screen}>
         {availableUpdate && (
           <UpdateNotice
             update={availableUpdate}

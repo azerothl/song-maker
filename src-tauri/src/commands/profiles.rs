@@ -91,6 +91,14 @@ pub(crate) fn create_profile_inner(
     name: String,
     kind: String,
 ) -> Result<ProfileSummary, String> {
+    if !state
+        .batch_inflight
+        .lock()
+        .map_err(|_| "État des lots indisponible")?
+        .is_empty()
+    {
+        return Err("Mettez le lot en pause avant de créer un profil.".into());
+    }
     let job = state.queue.status();
     let export_busy = state
         .profile_export_busy
@@ -159,6 +167,14 @@ pub fn rename_profile(id: String, name: String) -> Result<(), String> {
 }
 
 pub(crate) fn activate_profile_inner(state: &AppState, id: String) -> Result<(), String> {
+    if !state
+        .batch_inflight
+        .lock()
+        .map_err(|_| "État des lots indisponible")?
+        .is_empty()
+    {
+        return Err("Mettez le lot en pause avant de changer de profil.".into());
+    }
     let job = state.queue.status();
     let export_busy = state
         .profile_export_busy
@@ -251,6 +267,22 @@ mod tests {
             migration_banner_dismissed: true,
         })
         .unwrap();
+    }
+
+    #[test]
+    fn profiles_are_blocked_between_batch_tasks_when_queue_is_idle() {
+        let state = AppState::default();
+        state
+            .batch_inflight
+            .lock()
+            .unwrap()
+            .insert("active-batch".into());
+        assert!(activate_profile_inner(&state, "other-profile".into())
+            .unwrap_err()
+            .contains("lot en pause"));
+        assert!(create_profile_inner(&state, "New".into(), "hobby".into())
+            .unwrap_err()
+            .contains("lot en pause"));
     }
 
     #[test]

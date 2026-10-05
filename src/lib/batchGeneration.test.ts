@@ -32,9 +32,11 @@ describe("batch generation (#368)", () => {
     assert.match(panel, /batch\.honest/);
     assert.doesNotMatch(panel, /deux inférences se chevauchent/);
     assert.equal(
-      fr["batch.honest"].includes("Capacité admise : 1"),
+      fr["batch.honest"].includes("une par une"),
       true,
     );
     assert.ok("batch.open" in enApp);
+    assert.doesNotMatch(fr["candidates.foldSummary"], /parallèle/i);
+    assert.doesNotMatch(enApp["candidates.foldSummary"], /parallel/i);
   });
 });
