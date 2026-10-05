@@ -119,3 +119,23 @@ Les formulaires et changements de profil sont protégés tant qu’un lot non te
 Limites supplémentaires : le verrou d’import/capture couvre encore l’ingestion de fichiers ; certains installateurs de modèles optionnels ne participent pas encore à la protection des ressources du batch. Les modifications externes des fichiers modèle entre deux tâches ne sont pas revalidées par empreinte complète à chaque tentative. L’état moteur dans la barre latérale a été raccordé aux workers actifs, mais son affichage pendant l’inférence n’a pas été observé dans ce dernier essai.
 
 Validation finale : build réussi, frontend 488/488, Rust 135 réussis / 1 ignoré, diff sans erreur d’espacement. Aucune livraison distante ni fermeture de #368.
+
+## Suite : protection des ressources, reprise et simplification des paramètres
+
+### Corrections locales
+
+- Admission commune aux installations, aux changements de profil/réglages et au lancement/vérification/reprise des lots. Le verrou couvre les téléchargements complets : assets requis, mix, ACE-Step, Lego, SheetSage2, BS/Mel RoFormer, HTDemucs 6 pistes, Rbitnet et adaptateurs LoRA. Les nouvelles signatures Tauri conservent les arguments de l’interface.
+- Les plans nouveaux conservent les chemins, tailles et dates des fichiers du moteur/modèle. Une modification détectée interrompt la prise avec un message de remise en état. Pour les prises autorisées en parallèle, une empreinte SHA-256 complète est revérifiée après admission et avant l’inférence ; la preuve est invalidée si elle ne correspond plus.
+- Le worker enregistre le numéro de tentative. La récupération au démarrage rapproche worker, tâche, tentative, seed et résultat. Elle contrôle la durée réelle et l’empreinte WAV, et l’empreinte de partition lorsqu’elle est déclarée. Un résultat unique valide redevient une prise prête sans la régénérer ; résultats incomplets ou ambigus restent interrompus. Une annulation persistée garde la priorité. Le choix de version de l’utilisateur est conservé.
+- Import et capture audio préparent les fichiers avant le verrou de projet, puis relisent le document courant pour publier. Les statistiques de séparation relisent les réglages au lieu de republier une ancienne copie.
+- Paramètres : outils avancés dans une section repliable ; descriptions plus simples en français et anglais. Dans Séparation, les limites techniques, sources, longues notices et empreintes sont repliées ; choix, résumé des pistes et conditions de licence restent accessibles. Les erreurs de cette page sont locales, annoncées et amenées dans la zone visible.
+
+### Essai natif Windows et tests
+
+Lot `f6dc1f9e-bead-4027-af58-c9642ba6a721`, Audit protection modeles 2026-10-05, quatre prises instrumentales de 30 s demandées, seed initial 90. Pause depuis l’interface pendant la première prise : une prise prête et trois en attente. Pendant le lot, la barre latérale affiche YuE2 Q4 « En mémoire » et moteur actif. Après la pause, le bouton Installer Mel-Band RoFormer refuse l’installation avec « Terminez ou annulez le lot avant de modifier les modèles installés. » Aucun téléchargement n’est lancé. Annulation native des trois prises restantes, première prise conservée.
+
+Vérification visuelle native : notices repliées, message d’erreur dans la page, accueil des paramètres allégé et ouverture de Réglages avancés. Build et TypeScript réussis ; frontend 488/488 ; Rust 141 réussis et 1 ignoré. Les tests de récupération simulent les fichiers d’une publication interrompue, une annulation, un fichier audio corrompu et une tentative différente ; ils ne constituent pas un arrêt forcé natif pendant une inférence.
+
+### Limites restantes
+
+La récupération concerne les nouveaux workers qui enregistrent une tentative ; les anciennes sorties sans ce lien restent interrompues. Les anciennes configurations de lot ne possèdent pas les nouvelles empreintes. La suppression des processus orphelins après un arrêt forcé, l’équité stricte entre lots, ACE-Step simultané, les contenus hétérogènes et le multi-GPU restent ouverts. Une modification externe après la dernière vérification ne peut pas être empêchée par le verrou applicatif. Aucune validation native d’import/capture concurrente dans cette passe. #368 et #378 restent ouverts et les changements sont locaux.

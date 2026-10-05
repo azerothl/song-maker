@@ -185,7 +185,17 @@ export function SettingsScreen() {
               onClick={() => setPage("lora")}
             />
             <SettingsCard
-              title={pageTitle.loraTrain}
+              title={pageTitle.system}
+              description={t("settings.card.system")}
+              value={health?.gpuName ?? t("nav.gpuAbsent")}
+              onClick={() => setPage("system")}
+            />
+          </nav>
+          <details className="advanced-details">
+            <summary>{t("settings.advanced")}</summary>
+            <nav className="settings-card-grid" aria-label={t("settings.advanced")}>
+            <SettingsCard
+              title={t("settings.card.loraTrainTitle")}
               description={t("settings.card.loraTrain")}
               value={loraCardValue}
               onClick={() => setPage("loraTrain")}
@@ -208,13 +218,9 @@ export function SettingsScreen() {
               value={t("settings.card.optional")}
               onClick={() => setPage("host")}
             />
-            <SettingsCard
-              title={pageTitle.system}
-              description={t("settings.card.system")}
-              value={health?.gpuName ?? t("nav.gpuAbsent")}
-              onClick={() => setPage("system")}
-            />
+
           </nav>
+          </details>
           <button
             type="button"
             className="btn ghost settings-licenses-link"
