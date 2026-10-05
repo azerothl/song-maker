@@ -5,9 +5,10 @@ use super::{
     AppState,
 };
 use crate::{
+    audiocpp::AudioCppServer,
     batch::{task_to_form, BatchPreview},
     library::{load_settings, project_folder},
-    models::CreateProjectInput,
+    models::{AppSettings, CreateProjectInput},
 };
 use serde_json::{json, Value};
 use std::sync::{
@@ -15,6 +16,38 @@ use std::sync::{
     Arc,
 };
 use tauri::Manager;
+
+struct RestoreAudioServer<'a> {
+    server: &'a AudioCppServer,
+    settings: &'a AppSettings,
+    needed: bool,
+}
+
+impl<'a> RestoreAudioServer<'a> {
+    fn new(server: &'a AudioCppServer, settings: &'a AppSettings) -> Self {
+        Self {
+            server,
+            settings,
+            needed: server.process_id().is_some(),
+        }
+    }
+
+    fn restore(&mut self) -> Result<(), String> {
+        if !self.needed {
+            return Ok(());
+        }
+        self.needed = false;
+        self.server.ensure_started(self.settings).map(|_| ())
+    }
+}
+
+impl Drop for RestoreAudioServer<'_> {
+    fn drop(&mut self) {
+        if self.needed {
+            let _ = self.server.ensure_started(self.settings);
+        }
+    }
+}
 
 fn weights(settings: &crate::models::AppSettings) -> Vec<std::path::PathBuf> {
     let cache = std::path::Path::new(&settings.cache_dir);
@@ -260,6 +293,7 @@ pub async fn verify_batch_parallelism(
     let _permit = state.batch_workers.acquire_probe().await?;
     let _device = state.queue.try_acquire_runtime_restart().await?;
     let settings = load_settings()?;
+    let mut restore_audio_server = RestoreAudioServer::new(&state.server, &settings);
     state.server.shutdown();
     *state.batch_workers.proof.lock().expect("capacity proof") = None;
     let pinned_hashes = hashes()?;
@@ -382,7 +416,16 @@ pub async fn verify_batch_parallelism(
             preview: preview.clone(),
         },
     )?;
-    Ok(
-        json!({"ok":true,"preview":preview,"messageFr":if verified {"Deux prises simultanées vérifiées. Les prises de vérification sont disponibles dans la bibliothèque."} else {"Vérification non concluante : une prise à la fois est conservée. Les résultats et le rapport restent disponibles."}}),
-    )
+    let message = if verified {
+        "Deux prises simultanées vérifiées. Les prises de vérification sont disponibles dans la bibliothèque."
+    } else {
+        "Vérification non concluante : une prise à la fois est conservée. Les résultats et le rapport restent disponibles."
+    };
+    let message = match restore_audio_server.restore() {
+        Ok(()) => message.to_string(),
+        Err(_) => format!(
+            "{message} Le moteur audio n’a pas pu redémarrer ; relancez-le avec le bouton de la barre latérale."
+        ),
+    };
+    Ok(json!({"ok":true,"preview":preview,"messageFr":message}))
 }
