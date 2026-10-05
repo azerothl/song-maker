@@ -6880,6 +6880,25 @@ details[open] > summary {
   flex-wrap: wrap;
 }
 
+.score-version-label {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.score-version-label details {
+  margin-top: 0.25rem;
+}
+
+.score-version-label summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.score-version-label p {
+  overflow-wrap: anywhere;
+}
+
 .version-branch {
   color: var(--muted);
   min-width: 1rem;
