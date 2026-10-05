@@ -1,8 +1,8 @@
 import {
   licenseStatusIcon,
-  licenseStatusLabelFr,
   type LicenseStatusKind,
   type SeparatorLicenseInfo,
+  type StemProviderId,
 } from "@song-maker/stem-providers";
 import { t } from "../ui/i18n";
 
@@ -29,20 +29,42 @@ function statusClass(status: LicenseStatusKind): string {
   }
 }
 
+export function separatorLicenseStatusText(status: LicenseStatusKind): string {
+  switch (status) {
+    case "verified": return t("separate.license.status.verified");
+    case "unverified": return t("separate.license.status.unverified");
+    case "non_commercial": return t("separate.license.status.nonCommercial");
+    case "excluded": return t("separate.license.status.excluded");
+  }
+}
+
+export function separatorLicenseBadgeText(id: StemProviderId): string {
+  switch (id) {
+    case "htdemucs": return t("separate.license.badge.htdemucs");
+    case "htdemucs_6s": return t("separate.license.badge.htdemucs6s");
+    case "bs_roformer": return t("separate.license.badge.bsRoformer");
+    case "mel_band_roformer": return t("separate.license.badge.melRoformer");
+  }
+}
+
 /**
  * Licence badge with status icon + label (#167).
  * Status is never colour-only: icon + text always present.
  */
 export function SeparatorLicenseBadge({ license, className }: Props) {
   const icon = licenseStatusIcon(license.status);
-  const statusLabel = licenseStatusLabelFr(license.status);
+  const statusLabel = separatorLicenseStatusText(license.status);
+  const badgeText = separatorLicenseBadgeText(license.id);
+  const readDate = license.readDate
+    ? t("separate.license.readDate").replace("{date}", license.readDate)
+    : null;
   const classes = [statusClass(license.status), className]
     .filter(Boolean)
     .join(" ");
   const title = [
     statusLabel,
-    license.badgeFr,
-    license.readDate ? `lu le ${license.readDate}` : null,
+    badgeText,
+    readDate,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -61,7 +83,7 @@ export function SeparatorLicenseBadge({ license, className }: Props) {
       <span className="sep-license-sep" aria-hidden="true">
         ·
       </span>
-      <span className="sep-license-text">{license.badgeFr}</span>
+      <span className="sep-license-text">{badgeText}</span>
       {license.status === "non_commercial" ? (
         <>
           <span className="sep-license-sep" aria-hidden="true">
@@ -73,7 +95,7 @@ export function SeparatorLicenseBadge({ license, className }: Props) {
       {license.readDate ? (
         <span className="sep-license-date">
           {" "}
-          ({t("separate.license.readDate").replace("{date}", license.readDate)})
+          ({readDate})
         </span>
       ) : null}
     </span>
