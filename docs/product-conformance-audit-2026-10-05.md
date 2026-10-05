@@ -234,6 +234,12 @@ Le chemin Tauri d’import utilisait `wav_duration_ms(...).unwrap_or(0)` et déc
 
 Test Rust : vrai WAV PCM mono 22 050 Hz / 1 s correctement mesuré, version tronquée et faux RIFF refusés. Suite Rust globale : 145 tests réussis / 1 ignoré avant le dernier garde de durée sous la milliseconde ; régression ciblée relancée après ce garde. L’application Windows a été retrouvée et observée, mais le parcours complet d’import du worker dans l’interface reste à vérifier ; cette observation n’est pas présentée comme une validation de ce parcours.
 
+## Garde d’import et partition distante après fusion de #387
+
+Le client vérifie maintenant que `result.json` est complet (version de schéma, état, provenance réelle, manifeste audio et partition déclarée), que l’empreinte de cet artefact correspond à son contenu, puis que l’empreinte du WAV correspond à la fois à l’en-tête HTTP et au manifeste. Un manifeste incomplet ou une fixture `simulate` est refusé avant l’import et ne peut donc pas activer une nouvelle prise. Si `score` vaut `null`, le client ne demande pas `score.abc` ; une partition n’est importée que si le manifeste la déclare et que ses deux empreintes correspondent. L’import audio reste possible lorsque la partition manque, et l’écran affiche « Aucune partition pour cette prise. »
+
+Validation de ce complément : 3 tests ciblés sur le manifeste distant, `pnpm typecheck` réussi, tests HTTP chiffrés worker sur la durée et l’absence de partition réussis (3 tests). La vérification native du refus simulate, de la prise active conservée et de l’affichage après import réel n’a pas encore été observée ; #388 et #389 restent donc ouverts.
+
 
 ### #325 — démarrage local du moteur Lego
 
