@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  AKASHA_HOST_TOKEN_ENV,
   getSharedAkashaHostBridge,
   type HostModeResult,
 } from "@song-maker/akasha-declui";
@@ -256,7 +255,7 @@ export function Phase4SettingsPanel({
       setEmbeddedHostUrl(status.url);
       setLocalServiceNotice(t("phase4.host.localServiceReady"));
     } catch (e) {
-      setLocalServiceNotice(String(e));
+      setLocalServiceNotice(t("phase4.host.localServiceStartFailed"));
     }
   };
 
@@ -266,7 +265,7 @@ export function Phase4SettingsPanel({
       setEmbeddedHostUrl(null);
       setLocalServiceNotice(t("phase4.host.localServiceStopped"));
     } catch (e) {
-      setLocalServiceNotice(String(e));
+      setLocalServiceNotice(t("phase4.host.localServiceStopFailed"));
     }
   };
 
@@ -553,7 +552,6 @@ export function Phase4SettingsPanel({
           type="password"
           autoComplete="off"
           value={hostToken}
-          placeholder={AKASHA_HOST_TOKEN_ENV}
           onChange={(e) => setHostToken(e.target.value)}
         />
       </label>

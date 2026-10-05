@@ -1335,6 +1335,8 @@
   "phase4.host.describe": "Détails techniques",
   "phase4.host.localServiceReady": "Accès local activé. Un outil compatible peut consulter la liste de vos morceaux ; les autres actions restent dans Song Maker.",
   "phase4.host.localServiceStopped": "Accès local désactivé.",
+  "phase4.host.localServiceStartFailed": "Impossible d’activer l’accès local. Réessayez.",
+  "phase4.host.localServiceStopFailed": "Impossible de désactiver l’accès local. Réessayez.",
   "phase4.host.localServiceAddress": "Adresse à utiliser dans votre outil compatible",
   "vst3.spike.title": "Spike VST3 (expérimental — pas un hôte DAW)",
   "vst3.spike.scan": "Scanner les dossiers .vst3",

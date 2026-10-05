@@ -984,6 +984,8 @@
   "phase4.host.describe": "Technical details",
   "phase4.host.localServiceReady": "Local access is enabled. A compatible tool can view your song list; other actions stay in Song Maker.",
   "phase4.host.localServiceStopped": "Local access is disabled.",
+  "phase4.host.localServiceStartFailed": "Could not enable local access. Try again.",
+  "phase4.host.localServiceStopFailed": "Could not disable local access. Try again.",
   "phase4.host.localServiceAddress": "Address to use in your compatible tool",
   "vst3.spike.title": "VST3 spike (experimental — not a DAW host)",
   "vst3.spike.scan": "Scan .vst3 folders",
