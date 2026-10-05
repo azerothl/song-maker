@@ -27,10 +27,14 @@ function invokeError(reason: unknown): string {
   return String(reason);
 }
 
+function packLabel(pack: ModelPack): string {
+  return t(pack === "q8" ? "settings.model.q8" : "settings.model.q4");
+}
+
 function downloadLabel(pack: ModelPack, installing: boolean): string {
   if (installing) return t("settings.model.downloading");
   return t("settings.model.downloadSize", {
-    pack: pack.toUpperCase(),
+    pack: packLabel(pack),
     size: formatBytesFr(packModelBytes(pack)),
   });
 }
@@ -117,24 +121,32 @@ export function Yue2PackSettings() {
       <p className="settings-intro">{t("settings.model.hint")}</p>
       {health == null ? (
         <p className="settings-current-model">
-          {t("settings.model.current")}: <strong>{settings.modelPack.toUpperCase()}</strong>
-          <span className="hint"> · {settings.modelGguf}</span>
+          {t("settings.model.current")}: <strong>{packLabel(parsePack(settings.modelPack))}</strong>
         </p>
       ) : modelReady ? (
         <p className="settings-current-model">
-          {t("settings.model.current")}: <strong>{settings.modelPack.toUpperCase()}</strong>
-          <span className="hint"> · {settings.modelGguf}</span>
+          {t("settings.model.current")}: <strong>{packLabel(parsePack(settings.modelPack))}</strong>
         </p>
       ) : (
         <p className="settings-current-model" role="status">
           {t("settings.model.missing")}
         </p>
       )}
+      {settings.modelGguf && (
+        <details className="advanced-details">
+          <summary>{t("settings.model.supportDetails")}</summary>
+          <code>{settings.modelGguf}</code>
+        </details>
+      )}
       {health && (
         <p className="hint">
           {t("settings.model.gpu", {
-            pack: health.suggestedPack.toUpperCase(),
-            vram: health.vramMib != null ? `${health.vramMib} MiB` : t("settings.model.unknown"),
+            pack: packLabel(parsePack(health.suggestedPack)),
+            vram: health.vramMib != null
+              ? t("settings.model.graphicsMemory", {
+                  value: Math.round(health.vramMib / 1024),
+                })
+              : t("settings.model.unknown"),
           })}
         </p>
       )}
