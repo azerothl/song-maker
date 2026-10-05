@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AKASHA_HOST_TOKEN_ENV,
-  AKASHA_HOST_URL_ENV,
   getSharedAkashaHostBridge,
   type HostModeResult,
 } from "@song-maker/akasha-declui";
@@ -85,6 +84,26 @@ function savePrefs(prefs: RemoteWorkerPreferences): void {
   localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 }
 
+function hostModeMessage(result: HostModeResult): string {
+  if (result.ok) return t("phase4.host.connected");
+  switch (result.errorCode) {
+    case "host_url_missing":
+      return t("phase4.host.error.urlMissing");
+    case "host_unreachable":
+      return t("phase4.host.error.unreachable");
+    case "auth_rejected":
+      return t("phase4.host.error.auth");
+    case "api_version_mismatch":
+      return t("phase4.host.error.version");
+    case "capability_denied":
+      return t("phase4.host.error.capabilities");
+    case "network_opt_out":
+      return t("phase4.host.error.optOut");
+    default:
+      return t("phase4.host.unavailable");
+  }
+}
+
 export function Phase4SettingsPanel({
   view,
 }: {
@@ -95,6 +114,8 @@ export function Phase4SettingsPanel({
   const [probeMsg, setProbeMsg] = useState<string | null>(null);
   const [hostResult, setHostResult] = useState<HostModeResult | null>(null);
   const [hostUrl, setHostUrl] = useState("");
+  const [embeddedHostUrl, setEmbeddedHostUrl] = useState<string | null>(null);
+  const [localServiceNotice, setLocalServiceNotice] = useState<string | null>(null);
   const [hostToken, setHostToken] = useState("");
   const [styleNotice, setStyleNotice] = useState<string | null>(null);
   const [styleBusyId, setStyleBusyId] = useState<string | null>(null);
@@ -126,6 +147,23 @@ export function Phase4SettingsPanel({
       hostUrl: bridge.getHostUrl(),
     });
   }, [bridge]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .embeddedDeclUiStatus()
+      .then((status) => {
+        if (!cancelled) {
+          setEmbeddedHostUrl(status.running ? status.url : null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setEmbeddedHostUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setArLora(settings?.yue2ArLora ?? "");
@@ -215,53 +253,37 @@ export function Phase4SettingsPanel({
   const onStartEmbeddedHost = async () => {
     try {
       const status = await api.startEmbeddedDeclUiHost();
-      if (status.url) {
-        setHostUrl(status.url);
-      }
-      setHostResult({
-        ok: false,
-        mode: "desktop",
-        messageFr: status.notesFr,
-        registration: bridge.describe(),
-        hostUrl: status.url,
-      });
+      setEmbeddedHostUrl(status.url);
+      setLocalServiceNotice(t("phase4.host.localServiceReady"));
     } catch (e) {
-      setHostResult({
-        ok: false,
-        mode: "unavailable",
-        messageFr: String(e),
-        registration: bridge.describe(),
-        hostUrl: null,
-      });
+      setLocalServiceNotice(String(e));
     }
   };
 
   const onStopEmbeddedHost = async () => {
     try {
       await api.stopEmbeddedDeclUiHost();
-      setHostResult(bridge.disableHostMode());
+      setEmbeddedHostUrl(null);
+      setLocalServiceNotice(t("phase4.host.localServiceStopped"));
     } catch (e) {
-      setHostResult({
-        ok: false,
-        mode: bridge.getMode(),
-        messageFr: String(e),
-        registration: bridge.describe(),
-        hostUrl: bridge.getHostUrl(),
-      });
+      setLocalServiceNotice(String(e));
     }
   };
 
   const onToggleHost = async (enable: boolean) => {
     if (enable) {
-      setHostResult(
-        await bridge.enableHostMode({
-          hostOptIn: true,
-          hostUrl: hostUrl.trim(),
-          accessToken: hostToken.trim() || null,
-        }),
-      );
+      const result = await bridge.enableHostMode({
+        hostOptIn: true,
+        hostUrl: hostUrl.trim(),
+        accessToken: hostToken.trim() || null,
+      });
+      setHostResult({ ...result, messageFr: hostModeMessage(result) });
     } else {
-      setHostResult(bridge.disableHostMode());
+      const result = bridge.disableHostMode();
+      setHostResult({
+        ...result,
+        messageFr: t("phase4.host.desktop"),
+      });
     }
   };
 
@@ -489,18 +511,33 @@ export function Phase4SettingsPanel({
         <button
           type="button"
           className="btn"
+          disabled={Boolean(embeddedHostUrl)}
           onClick={() => void onStartEmbeddedHost()}
         >
-          {t("phase4.host.embeddedStart")}
+          {embeddedHostUrl
+            ? t("phase4.host.localServiceActive")
+            : t("phase4.host.embeddedStart")}
         </button>
         <button
           type="button"
           className="btn ghost"
+          disabled={!embeddedHostUrl}
           onClick={() => void onStopEmbeddedHost()}
         >
           {t("phase4.host.embeddedStop")}
         </button>
       </div>
+      {localServiceNotice && (
+        <p className="hint" role="status">
+          {localServiceNotice}
+        </p>
+      )}
+      {embeddedHostUrl && (
+        <label className="invariant-level">
+          {t("phase4.host.localServiceAddress")}
+          <input type="url" value={embeddedHostUrl} readOnly />
+        </label>
+      )}
       <label className="invariant-level">
         {t("phase4.host.endpoint")}
         <input
@@ -521,10 +558,7 @@ export function Phase4SettingsPanel({
         />
       </label>
       <p className="hint">
-        {t("phase4.host.envHint", {
-          urlEnv: AKASHA_HOST_URL_ENV,
-          tokenEnv: AKASHA_HOST_TOKEN_ENV,
-        })}
+        {t("phase4.host.envHint")}
       </p>
       <div className="btn-row">
         <button
