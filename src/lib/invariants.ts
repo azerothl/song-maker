@@ -8,6 +8,7 @@ import {
   type ScoreEventSnapshot,
 } from "@song-maker/partition-invariants";
 import type { ScoreDocument } from "./score";
+import { t } from "../ui/i18n";
 
 export {
   CONSERVATION_LEVEL_LABELS_FR,
@@ -15,6 +16,18 @@ export {
   type ConservationLevel,
   type InvariantCheckResult,
 };
+
+export function conservationLevelLabel(level: ConservationLevel): string {
+  switch (level) {
+    case "exact_pitches": return t("phase4.level.exactPitches");
+    case "pitches_and_rhythms": return t("phase4.level.pitchesAndRhythms");
+    case "contour_only": return t("phase4.level.contourOnly");
+    case "limited_melodic_adaptation": return t("phase4.level.limitedAdaptation");
+    case "reharmonization": return t("phase4.level.reharmonization");
+    case "tempo_change": return t("phase4.level.tempoChange");
+    case "structure_change": return t("phase4.level.structureChange");
+  }
+}
 
 const checker = createPartitionInvariantChecker();
 
