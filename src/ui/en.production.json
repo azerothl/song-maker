@@ -112,7 +112,7 @@
   "mix.columns.tools": "Settings",
   "mix.importAudio": "Import audio track",
   "mix.importing": "Importing…",
-  "mix.importHint": "Add a track from a WAV, MP3, or FLAC file.",
+  "production.addTrack.menuHint": "Import an audio file, record a track, or create an instrumental part.",
   "mix.recordAudio": "Record a track",
   "mix.mute": "M",
   "mix.solo": "S",
