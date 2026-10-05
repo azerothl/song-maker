@@ -213,3 +213,9 @@ Le premier résultat publiait une partition fictive de 24 octets, fabriquée par
 ### Confirmation après correction de lecture ABC
 
 Deuxième essai réel, même configuration/seed : `job-31f57c5d-730b-4b1d-a86b-8478455d30cb`, 11:03:41 → 11:05:26 UTC. WAV final 29 999 ms, même SHA audio que le premier essai ; vraie partition ABC issue de l’artefact audio.cpp, 5 138 octets, SHA `b5fd4931ffebb7f4e789cc2299e8680f997380a498599caecef2ea87b1b740a2`. Le serveur de contrôle est arrêté après la fin, artefacts conservés sous TEMP. Validation finale : 16 tests worker réussis, build TypeScript réussi et cargo check réussi. L’import/affichage de ce résultat dans l’application reste à observer ; aucune écoute humaine ne certifie les résidus vocaux. #377 et #389 restent ouverts sur ces critères.
+
+## Import local du résultat distant : validation des données audio
+
+Le chemin Tauri d’import utilisait `wav_duration_ms(...).unwrap_or(0)` et déclarait toujours 48 kHz / stéréo. Un fichier tronqué pouvait donc dépasser le contrôle sommaire RIFF/WAVE, être activé ou porter de fausses métadonnées. L’import décode maintenant les échantillons du WAV en mémoire avant création de la prise : en-tête, durée positive et totalité des données sont vérifiés. Le résultat conserve la fréquence et les canaux réels. Les fichiers invalides ne créent aucun dossier de génération et ne remplacent pas la prise active.
+
+Test Rust : vrai WAV PCM mono 22 050 Hz / 1 s correctement mesuré, version tronquée et faux RIFF refusés. Suite Rust globale : 145 tests réussis / 1 ignoré avant le dernier garde de durée sous la milliseconde ; régression ciblée relancée après ce garde. L’application Windows a été retrouvée et observée, mais le parcours complet d’import du worker dans l’interface reste à vérifier ; cette observation n’est pas présentée comme une validation de ce parcours.
