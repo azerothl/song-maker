@@ -73,20 +73,10 @@ export function readCaptureLatency(
   };
 }
 
-/** Format for UI: "12 ms (base 5 + out 7)" or unavailable. */
+/** Format an estimated capture delay for the UI, or unavailable. */
 export function formatLatencyReading(reading: CaptureLatencyReading): string {
   if (reading.roundTripMs == null) {
     return "—";
   }
-  const parts: string[] = [];
-  if (reading.baseLatencySec != null) {
-    parts.push(`base ${Math.round(reading.baseLatencySec * 1000)}`);
-  }
-  if (reading.outputLatencySec != null) {
-    parts.push(`sortie ${Math.round(reading.outputLatencySec * 1000)}`);
-  }
-  if (parts.length === 0) {
-    return `${reading.roundTripMs} ms`;
-  }
-  return `${reading.roundTripMs} ms (${parts.join(" + ")} ms)`;
+  return `${reading.roundTripMs} ms`;
 }

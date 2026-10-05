@@ -9,10 +9,8 @@ import {
   type CaptureLatencyReading,
 } from "../lib/captureLatency";
 import {
-  formatNativeBackend,
   nativeRoundTripLabel,
   type CaptureEngine,
-  type NativeCaptureBackend,
   type NativeInputDevice,
 } from "../lib/nativeCapture";
 import type { MixDoc } from "../lib/types";
@@ -97,6 +95,17 @@ function mapGetUserMediaError(err: unknown): string {
   }
 }
 
+function displaySeconds(milliseconds: number): number {
+  return Number((milliseconds / 1000).toFixed(3));
+}
+
+function parseSecondsToMs(value: string, fallbackMs: number): number {
+  const seconds = Number(value);
+  return value.trim() && Number.isFinite(seconds)
+    ? Math.round(seconds * 1000)
+    : fallbackMs;
+}
+
 export function RecordTrackPanel({
   projectId,
   open,
@@ -108,8 +117,6 @@ export function RecordTrackPanel({
 }: Props) {
   const [phase, setPhase] = useState<CapturePhase>("idle");
   const [engine, setEngine] = useState<CaptureEngine>("webview");
-  const [nativeBackend, setNativeBackend] =
-    useState<NativeCaptureBackend | null>(null);
   const [nativeDevices, setNativeDevices] = useState<NativeInputDevice[]>([]);
   const [devices, setDevices] = useState<InputDevice[]>([]);
   const [deviceId, setDeviceId] = useState<string>("");
@@ -241,12 +248,6 @@ export function RecordTrackPanel({
   });
 
   const refreshDevices = useEffectEvent(async () => {
-    try {
-      const backend = await api.nativeCaptureBackend();
-      setNativeBackend(backend);
-    } catch {
-      setNativeBackend(null);
-    }
     let nativeList: NativeInputDevice[] = [];
     try {
       nativeList = (await api.listNativeCaptureDevices()) ?? [];
@@ -946,8 +947,8 @@ export function RecordTrackPanel({
           <span>{t("record.engine.webview")}</span>
         </label>
         <p className="hint">
-          {nativeBackend
-            ? `${formatNativeBackend(nativeBackend)}. ${nativeBackend.notesFr}`
+          {nativeDevices.length > 0
+            ? t("record.engine.nativeReady")
             : t("record.engine.nativeUnavailable")}
         </p>
       </fieldset>
@@ -1068,11 +1069,11 @@ export function RecordTrackPanel({
             <span>{t("record.loopLength")}</span>
             <input
               type="number"
-              min={500}
-              step={100}
-              value={loopBarsMs}
+              min={0.5}
+              step={0.001}
+              value={displaySeconds(loopBarsMs)}
               disabled={phase === "recording" || phase === "countdown"}
-              onChange={(e) => setLoopBarsMs(Number(e.target.value) || 8000)}
+              onChange={(e) => setLoopBarsMs(parseSecondsToMs(e.target.value, 8000))}
               onBlur={() => {
                 const bar = punchBarDurationMs(mix);
                 const n = Math.max(1, Math.round(loopBarsMs / bar));
@@ -1105,9 +1106,11 @@ export function RecordTrackPanel({
               <input
                 type="number"
                 min={0}
-                step={50}
-                value={punchInMs}
-                onChange={(e) => setPunchInMs(Number(e.target.value) || 0)}
+                step={0.001}
+                value={displaySeconds(punchInMs)}
+                onChange={(e) =>
+                  setPunchInMs(parseSecondsToMs(e.target.value, 0))
+                }
                 onBlur={() =>
                   setPunchInMs(snapPunchMs(punchInMs, punchGrid))
                 }
@@ -1118,9 +1121,11 @@ export function RecordTrackPanel({
               <input
                 type="number"
                 min={0}
-                step={50}
-                value={punchOutMs}
-                onChange={(e) => setPunchOutMs(Number(e.target.value) || 0)}
+                step={0.001}
+                value={displaySeconds(punchOutMs)}
+                onChange={(e) =>
+                  setPunchOutMs(parseSecondsToMs(e.target.value, 0))
+                }
                 onBlur={() => {
                   const win = snapPunchWindow(punchInMs, punchOutMs, punchGrid);
                   setPunchInMs(win.punchInMs);

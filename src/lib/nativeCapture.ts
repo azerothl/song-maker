@@ -51,5 +51,5 @@ export function formatNativeBackend(info: NativeCaptureBackend): string {
 
 export function nativeRoundTripLabel(ms: number | null | undefined): string {
   if (ms == null || !Number.isFinite(ms) || ms <= 0) return "—";
-  return `${Math.round(ms)} ms (tampon, aller-retour estimé)`;
+  return `${Math.round(ms)} ms`;
 }

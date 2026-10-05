@@ -20,7 +20,7 @@ describe("nativeCapture labels", () => {
       formatNativeBackend(info),
       "wasapi-shared (partagé, sans ASIO)",
     );
-    assert.equal(nativeRoundTripLabel(20), "20 ms (tampon, aller-retour estimé)");
+    assert.equal(nativeRoundTripLabel(20), "20 ms");
     assert.equal(nativeRoundTripLabel(null), "—");
   });
 });
