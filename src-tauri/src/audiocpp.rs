@@ -205,7 +205,11 @@ impl AudioCppServer {
             }));
         }
         if isolated {
-            models.retain(|model| model["id"] == settings.generation_engine);
+            // Instrumental generation finishes by removing the vocal stem.
+            // max_loaded_models=1 still unloads generation weights before sep.
+            models.retain(|model| {
+                model["id"] == settings.generation_engine || model["id"] == "htdemucs"
+            });
         }
         let cfg = json!({
             "host": settings.server_host,
@@ -675,6 +679,23 @@ mod semantic_metadata_tests {
     use serde_json::json;
     use std::process::{Child, Command, Stdio};
     use std::time::{Duration, Instant};
+
+    #[test]
+    fn isolated_worker_registers_vocal_removal_with_one_loaded_model() {
+        let settings = crate::library::default_settings();
+        let dir =
+            std::env::temp_dir().join(format!("song-maker-worker-config-{}", uuid::Uuid::new_v4()));
+        let path = dir.join("server.json");
+        AudioCppServer::write_config_at(&settings, &path, true).unwrap();
+        let config: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(config["max_loaded_models"], 1);
+        let models = config["models"].as_array().unwrap();
+        assert!(models.iter().any(|model| model["id"] == "htdemucs"));
+        assert!(models.iter().any(|model| model["id"] == "yue2"));
+        assert_eq!(models.len(), 2);
+        let _ = std::fs::remove_dir_all(dir);
+    }
 
     #[test]
     fn reads_v082_string_encoded_truncation_flag() {
