@@ -7288,6 +7288,55 @@ details[open] > summary {
   font-size: 1.2rem;
 }
 
+.separation-again-confirm {
+  box-sizing: border-box;
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg1);
+  color: var(--text);
+}
+
+.separation-again-confirm::backdrop {
+  background: rgba(8, 10, 18, 0.72);
+}
+
+.separation-again-confirm h2 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+}
+
+.separation-again-confirm p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.separation-again-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.separation-again-confirm-actions .btn {
+  min-height: 44px;
+}
+
+@media (max-width: 520px) {
+  .separation-again-confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .separation-again-confirm-actions .btn {
+    width: 100%;
+  }
+}
+
 @media (max-width: 900px) {
   .app-shell:not(:has(.splash)):not(:has(.setup-screen)):not(:has(.first-launch)) {
     grid-template-columns: var(--sidebar-width-collapsed) 1fr;

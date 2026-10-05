@@ -21,6 +21,7 @@ import { ProductionWorkspace } from "./song/ProductionWorkspace";
 import { ProfileKindBadge } from "../components/ProfileKindBadge";
 import { RegenerationGate } from "../components/RegenerationGate";
 import { RemoteGenerateConfirm } from "../components/RemoteGenerateConfirm";
+import { SeparationAgainConfirmDialog } from "../components/SeparationAgainConfirmDialog";
 import { ScoreWorkspace } from "./song/ScoreWorkspace";
 import { t } from "../ui/i18n";
 import { useAppStore } from "../store/appStore";
@@ -113,6 +114,8 @@ export function SongScreen() {
     separationId: string;
     mixId: string;
   } | null>(null);
+  const [separationAgainConfirmOpen, setSeparationAgainConfirmOpen] =
+    useState(false);
   const [importingAudio, setImportingAudio] = useState(false);
   const [transcribingTrackId, setTranscribingTrackId] = useState<string | null>(
     null,
@@ -547,13 +550,8 @@ export function SongScreen() {
     }
   }
 
-  async function onSeparate() {
+  async function runSeparation(isRepeat: boolean) {
     if (!project) return;
-    const hasAiStems = mix?.tracks.some((tr) => tr.aiSeparated) ?? false;
-    if (hasAiStems) {
-      const ok = window.confirm(t("separate.again.confirm"));
-      if (!ok) return;
-    }
     const prevSep = project.activeSeparationId ?? null;
     const prevMix = project.activeMixId ?? null;
     setBusy(true);
@@ -564,7 +562,7 @@ export function SongScreen() {
       await openProject(project.id);
       const info = await api.loadSeparationInfo(project.id);
       setSeparationInfo(info);
-      if (hasAiStems && prevSep && prevMix) {
+      if (isRepeat && prevSep && prevMix) {
         setSeparationUndo({ separationId: prevSep, mixId: prevMix });
       } else {
         setSeparationUndo(null);
@@ -574,6 +572,21 @@ export function SongScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onSeparate() {
+    if (!project) return;
+    const hasAiStems = mix?.tracks.some((track) => track.aiSeparated) ?? false;
+    if (hasAiStems) {
+      setSeparationAgainConfirmOpen(true);
+      return;
+    }
+    await runSeparation(false);
+  }
+
+  function confirmSeparationAgain() {
+    setSeparationAgainConfirmOpen(false);
+    void runSeparation(true);
   }
 
   async function onRevertSeparation() {
@@ -983,6 +996,12 @@ export function SongScreen() {
           onConfirm={onConfirmRemoteGenerate}
         />
       )}
+
+      <SeparationAgainConfirmDialog
+        open={separationAgainConfirmOpen}
+        onCancel={() => setSeparationAgainConfirmOpen(false)}
+        onConfirm={confirmSeparationAgain}
+      />
 
       {project && (
         <RegenerationGate

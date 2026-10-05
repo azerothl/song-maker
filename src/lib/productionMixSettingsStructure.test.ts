@@ -17,7 +17,16 @@ describe("production mix settings structure (#225)", () => {
     assert.match(src, /const separateDisabled = !project\.activeGenerationId \|\| busy/);
     assert.match(src, /production\.separate\.disabledNoGeneration/);
     assert.match(src, /<SeparationRecommendDialog/);
-    assert.match(screen, /window\.confirm\(t\("separate\.again\.confirm"\)\)/);
+    assert.match(screen, /setSeparationAgainConfirmOpen\(true\)/);
+    assert.match(screen, /<SeparationAgainConfirmDialog/);
+    assert.match(screen, /void runSeparation\(true\)/);
+    const repeatDialog = readFileSync(
+      "src/components/SeparationAgainConfirmDialog.tsx",
+      "utf8",
+    );
+    assert.match(repeatDialog, /dialog\.showModal\(\)/);
+    assert.match(repeatDialog, /separate\.again\.confirmCancel/);
+    assert.match(repeatDialog, /separate\.again\.confirmSubmit/);
   });
 
   it("ProductionWorkspace exposes mix settings trigger with dialog popup", () => {
