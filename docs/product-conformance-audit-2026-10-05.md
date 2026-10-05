@@ -276,3 +276,9 @@ Vérification native Windows, projet de contrôle `dc60f178-eaac-47a1-9db1-19aad
 L’historique distingue annulation et échec, et ne propose plus les fichiers audio laissés par une prise non terminée. La restauration et l’import comme piste exigent un résultat `generated`, un WAV non vide et une empreinte correspondant au résultat publié, avant toute modification du projet. Les fichiers sources sont conservés. Le contrôle Rust couvre un WAV valide, les états annulé/échoué/interrompu/en cours, un identifiant invalide et un fichier corrompu ; cette garde n’a pas été vérifiée dans un exécutable natif reconstruit.
 
 Validation : typecheck réussi, 11 tests d’historique et le test Rust de publication réussis ; formatage Rust global et Clippy strict réussis. CI du commit précédent `1e2fd3d` : jobs TypeScript, Rust et site réussis (run 37304301833). Les tickets restent ouverts pour les critères et la livraison encore manquants.
+
+### #368 — annuler ou mettre en pause une prise qui attend le GPU
+
+L’attente d’un permis de worker et du verrou GPU contrôle désormais les demandes de pause/annulation toutes les 200 ms, et avant la première admission. Elle retire la demande en attente, libère un éventuel permis déjà réservé et conserve la prise en attente en cas de pause ou annulée en cas d’annulation. Aucun processus d’inférence n’est démarré par cette attente. Le travail interactif qui détient déjà le GPU continue ; la demande n’attend plus sa fin pour constater l’annulation.
+
+Les tests utilisent les vrais sémaphores et verrous Tokio : annulation pendant une admission partielle, libération des deux permis, conservation du verrou interactif, refus avant admission, admission normale et propagation d’une erreur de lecture du contrôle. Le parcours natif avec plusieurs lots reste à observer. Cette correction ne réalise pas encore l’alternance équitable entre tous les lots et les demandes interactives exigée par la spec.

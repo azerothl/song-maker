@@ -671,10 +671,33 @@ async fn run_one_task(
     let form = task_to_form(task);
     let state = app.state::<AppState>();
     let verified = super::batch_capacity::verified_for_plan(&state, batch_id);
-    let lease = state
-        .batch_workers
-        .acquire(&state, batch_id, &task.task_id, settings, verified)
-        .await?;
+    let admission = wait_for_batch_admission(
+        state
+            .batch_workers
+            .acquire(&state, batch_id, &task.task_id, settings, verified),
+        || {
+            let manifest = load_manifest(batch_id)?;
+            let cancelled = load_live_tasks(batch_id)?.iter().any(|live| {
+                live.task_id == task.task_id
+                    && matches!(live.state.as_str(), "cancelled" | "cancel_requested")
+            });
+            Ok(cancelled
+                || manifest["cancelRequested"].as_bool().unwrap_or(false)
+                || manifest["pauseRequested"].as_bool().unwrap_or(false))
+        },
+    )
+    .await?;
+    let Some(lease) = admission else {
+        let manifest = load_manifest(batch_id)?;
+        let cancelled = load_live_tasks(batch_id)?.iter().any(|live| {
+            live.task_id == task.task_id
+                && matches!(live.state.as_str(), "cancelled" | "cancel_requested")
+        }) || manifest["cancelRequested"].as_bool().unwrap_or(false);
+        task.state = if cancelled { "cancelled" } else { "queued" }.into();
+        save_task(batch_id, task)?;
+        return Ok(());
+    };
+    let lease = lease?;
     if verified && !super::batch_capacity::verify_attempt_assets(&state, batch_id).await {
         task.state = "queued".into();
         save_task(batch_id, task)?;
@@ -738,6 +761,28 @@ async fn run_one_task(
             Ok(())
         }
         Err(e) => Err(e),
+    }
+}
+
+/// Drop only an admission waiter: no worker process has started at these await points.
+async fn wait_for_batch_admission<F, C, T>(admission: F, mut stop: C) -> Result<Option<T>, String>
+where
+    F: std::future::Future<Output = T>,
+    C: FnMut() -> Result<bool, String>,
+{
+    if stop()? {
+        return Ok(None);
+    }
+    tokio::pin!(admission);
+    let mut poll = tokio::time::interval(std::time::Duration::from_millis(200));
+    loop {
+        tokio::select! {
+            biased;
+            _ = poll.tick() => {
+                if stop()? { return Ok(None); }
+            }
+            result = &mut admission => return Ok(Some(result)),
+        }
     }
 }
 
@@ -828,7 +873,80 @@ pub(crate) fn batch_generation_settings(settings: &AppSettings) -> serde_json::V
 
 #[cfg(test)]
 mod selection_tests {
-    use super::{batch_generation_settings, batch_task_pending, select_batch_default};
+    use super::{
+        batch_generation_settings, batch_task_pending, select_batch_default,
+        wait_for_batch_admission,
+    };
+
+    #[tokio::test]
+    async fn cancellation_removes_waiter_and_releases_partial_admission() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        };
+        let pool = Arc::new(tokio::sync::Semaphore::new(2));
+        let device = Arc::new(tokio::sync::RwLock::new(()));
+        let interactive = device.clone().write_owned().await;
+        let stopped = Arc::new(AtomicBool::new(false));
+        let signal = stopped.clone();
+        let admission_pool = pool.clone();
+        let admission_device = device.clone();
+        let waiter = tokio::spawn(async move {
+            wait_for_batch_admission(
+                async move {
+                    let permit = admission_pool.acquire_many_owned(2).await.unwrap();
+                    let device = admission_device.read_owned().await;
+                    (permit, device)
+                },
+                || Ok(signal.load(Ordering::Acquire)),
+            )
+            .await
+        });
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while pool.available_permits() != 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        stopped.store(true, Ordering::Release);
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_secs(2), waiter)
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(pool.available_permits(), 2);
+        // Cancellation does not release or interrupt the unrelated interactive job.
+        assert!(device.clone().try_read_owned().is_err());
+        drop(interactive);
+        assert!(device.try_read_owned().is_ok());
+    }
+
+    #[tokio::test]
+    async fn batch_admission_stops_before_start_and_accepts_ready_work() {
+        assert!(
+            wait_for_batch_admission(std::future::ready(42), || Ok(true))
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            wait_for_batch_admission(std::future::ready(42), || Ok(false))
+                .await
+                .unwrap(),
+            Some(42)
+        );
+        assert!(
+            wait_for_batch_admission(std::future::pending::<()>(), || Err(
+                "manifest unreadable".into()
+            ))
+            .await
+            .is_err()
+        );
+    }
 
     #[test]
     fn batch_configuration_tracks_generation_changes_only() {
