@@ -4,9 +4,12 @@
 //! plante ou se bloque ne peut donc pas faire tomber la fenêtre Tauri. La première tranche est
 //! Windows/VST3 et ne revendique ni lecture temps réel, ni éditeur natif, ni AU.
 
-use crate::vst3_spike::{default_scan_roots, scan_roots, Vst3CatalogEntry};
+use crate::vst3_spike::Vst3CatalogEntry;
+#[cfg(windows)]
+use crate::vst3_spike::{default_scan_roots, scan_roots};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+#[cfg(windows)]
 use std::path::{Path, PathBuf};
 #[cfg(windows)]
 use std::process::{Command, Stdio};
@@ -59,6 +62,7 @@ pub struct Vst3ProcessedPcm {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg(windows)]
 struct WorkerRequest {
     operation: String,
     plugin_path: String,
@@ -96,6 +100,7 @@ fn error_response(error: impl Into<String>) -> WorkerResponse {
     }
 }
 
+#[cfg(windows)]
 fn plugin_path_in_scan_roots(path: &str) -> Result<PathBuf, String> {
     let path = PathBuf::from(path.trim());
     if !path
@@ -125,7 +130,9 @@ fn plugin_path_in_scan_roots(path: &str) -> Result<PathBuf, String> {
 #[tauri::command]
 pub fn vst3_list_plugins() -> Result<Vec<Vst3CatalogEntry>, String> {
     #[cfg(not(windows))]
-    return Err("L’hôte VST3 est actuellement disponible dans la version Windows.".into());
+    {
+        Err("L’hôte VST3 est actuellement disponible dans la version Windows.".into())
+    }
 
     #[cfg(windows)]
     {
@@ -143,7 +150,10 @@ pub fn vst3_plugin_parameters(
     parameters: BTreeMap<u32, f64>,
 ) -> Result<Vst3PluginDescription, String> {
     #[cfg(not(windows))]
-    return Err("L’hôte VST3 est actuellement disponible dans la version Windows.".into());
+    {
+        let _ = (path, parameters);
+        Err("L’hôte VST3 est actuellement disponible dans la version Windows.".into())
+    }
 
     #[cfg(windows)]
     {
@@ -183,7 +193,10 @@ pub fn vst3_process_pcm(
     pcm_le: Vec<u8>,
 ) -> Result<Vst3ProcessedPcm, String> {
     #[cfg(not(windows))]
-    return Err("L’hôte VST3 est actuellement disponible dans la version Windows.".into());
+    {
+        let _ = (path, parameters, sample_rate, peak_ceiling_db, pcm_le);
+        Err("L’hôte VST3 est actuellement disponible dans la version Windows.".into())
+    }
 
     #[cfg(windows)]
     {
@@ -191,7 +204,7 @@ pub fn vst3_process_pcm(
         if !(8_000..=192_000).contains(&sample_rate) {
             return Err("Fréquence d’échantillonnage non prise en charge.".into());
         }
-        if pcm_le.is_empty() || pcm_le.len() > MAX_PCM_BYTES || pcm_le.len() % 8 != 0 {
+        if pcm_le.is_empty() || pcm_le.len() > MAX_PCM_BYTES || !pcm_le.len().is_multiple_of(8) {
             return Err("Audio stéréo invalide ou trop volumineux pour le rendu VST3.".into());
         }
         if parameters.len() > 512
@@ -316,12 +329,13 @@ fn run_worker_in_dir(
 pub fn worker_exit(request_path: &str, response_path: &str) -> i32 {
     #[cfg(not(windows))]
     {
+        let _ = request_path;
         let response = error_response("L’hôte VST3 est uniquement compilé pour Windows.");
         let _ = std::fs::write(
             response_path,
             serde_json::to_vec(&response).unwrap_or_default(),
         );
-        return 2;
+        2
     }
 
     #[cfg(windows)]
@@ -420,7 +434,7 @@ fn run_worker_request(request: WorkerRequest) -> Result<WorkerResponse, String> 
         .as_deref()
         .ok_or("Audio de sortie manquant.")?;
     let input = std::fs::read(input_path).map_err(|e| format!("Lecture audio impossible : {e}"))?;
-    if input.is_empty() || input.len() % 8 != 0 {
+    if input.is_empty() || !input.len().is_multiple_of(8) {
         return Err("Audio stéréo source invalide.".into());
     }
     let frame_count = input.len() / 8;
