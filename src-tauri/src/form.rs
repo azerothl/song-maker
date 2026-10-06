@@ -289,7 +289,7 @@ pub fn refuse_unsupported_audio_input(input: &FormInput) -> Result<(), FormError
         return Ok(());
     }
     Err(FormError::Message(
-        "YuE2 / ACE-Step épinglés n’acceptent pas audio_input : pas de référence waveform ni d’inpainting d’une phrase. Ce n’est pas une reprise SheetSage2. Retirez la référence ou le masque.".into(),
+        "La modification directe d’un morceau importé n’est pas encore disponible. Pour créer une nouvelle version à partir de cet audio, ouvrez Partition, puis Reprise.".into(),
     ))
 }
 
@@ -308,7 +308,7 @@ pub fn validate_form_for_engine(input: &FormInput, engine: &str) -> Result<Strin
     if engine == "ace_step_lego" {
         if input.inpaint_start_ms.is_some() || input.inpaint_end_ms.is_some() {
             return Err(FormError::Message(
-                "Lego n’est pas de l’inpainting YuE2 : retirez la fenêtre de masque.".into(),
+                "L’ajout d’une piste utilise le mix complet. La modification d’une portion n’est pas disponible avec cette option.".into(),
             ));
         }
     } else {
@@ -494,8 +494,11 @@ mod tests {
             inpaint_end_ms: Some(4000),
         };
         let err = validate_form(&input).unwrap_err().to_string();
-        assert!(err.contains("audio_input"));
-        assert!(err.contains("SheetSage2"));
+        assert!(err.contains("morceau importé"));
+        assert!(err.contains("Partition, puis Reprise"));
+        assert!(!err.contains("audio_input"));
+        assert!(!err.contains("inpainting"));
+        assert!(!err.contains("SheetSage2"));
         input.audio_input_path = None;
         input.inpaint_start_ms = None;
         input.inpaint_end_ms = None;
@@ -503,7 +506,12 @@ mod tests {
         input.audio_input_path = Some("/tmp/mix.wav".into());
         validate_form_for_engine(&input, "ace_step_lego").unwrap();
         input.inpaint_start_ms = Some(0);
-        assert!(validate_form_for_engine(&input, "ace_step_lego").is_err());
+        let err = validate_form_for_engine(&input, "ace_step_lego")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("mix complet"));
+        assert!(err.contains("modification d’une portion"));
+        assert!(!err.contains("inpainting"));
     }
 
     #[test]
