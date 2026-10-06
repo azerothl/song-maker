@@ -258,7 +258,7 @@
   "production.instrumental.role.other": "Accompagnement",
   "production.instrumental.conditioning": "Guider la nouvelle piste avec",
   "production.instrumental.conditioning.meta": "Le style, le tempo et la tonalité du morceau",
-  "production.instrumental.conditioning.mix": "Le son du morceau (modèle à installer)",
+  "production.instrumental.conditioning.mix": "Le son du morceau",
   "production.instrumental.legoHonesty": "Le résultat peut contenir plusieurs instruments. La piste est ajoutée au début du morceau ; vous pouvez ensuite la déplacer. Les restrictions de licence du morceau d’origine restent applicables.",
   "production.instrumental.generate": "Générer et ajouter à l’arrangement",
   "production.instrumental.cancel": "Fermer",
