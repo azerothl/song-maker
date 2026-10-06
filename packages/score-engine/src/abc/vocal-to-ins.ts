@@ -64,6 +64,14 @@ export function convertVocalToIns(
   }
 
   const vocalNotes = [...vocal.notes].sort((a, b) => a.startTick - b.startTick);
+  // YuE2 may already return an instrumental score with an empty Vocal voice.
+  // Keep its ABC untouched: re-exporting a score with no vocal notes can
+  // normalize repeated chord annotations and falsely fail the preservation
+  // check, while there is nothing to move in the first place.
+  if (vocalNotes.length === 0) {
+    return { abc, movedNoteCount: 0 };
+  }
+
   const insNotes = [...(originalIns?.notes ?? [])].sort((a, b) => a.startTick - b.startTick);
   assertMonophonic(vocalNotes, "Vocal");
   assertMonophonic(insNotes, "Ins");

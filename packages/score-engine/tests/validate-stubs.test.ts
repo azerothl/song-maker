@@ -156,6 +156,21 @@ describe("Vocal → Ins", () => {
     assert.match(out, /V: Vocal[\s\S]*"C"z16\|/);
   });
 
+  it("conserve l'ABC quand la portée Vocal est déjà vide", () => {
+    const abc = [
+      "X:1", "T:Instrumental", "M:4/4", "L:1/16", "Q:1/4=88",
+      'V: Vocal clef=treble name="Vocal Melody" snm="Vocal"',
+      'V: Ins clef=treble name="Ins Melody" snm="Inst."', "K:G",
+      "% intro", "V: Vocal", '"G"z16|"G"z16|',
+      "V: Ins", "G4B4d4B4|G4B4d4B4|", "",
+    ].join("\n");
+
+    const result = convertVocalToIns(abc);
+
+    assert.equal(result.abc, abc);
+    assert.equal(result.movedNoteCount, 0);
+  });
+
   it("transfère la mélodie et conserve les parties instrumentales hors chevauchement", () => {
     const abc = [
       "X:1", "T:Test", "M:4/4", "L:1/16", "Q:1/4=88",

@@ -153,6 +153,29 @@ fn instrumental_style_without_vocal_cues(style: &str) -> String {
         .replace(" ,", ",")
         .replace(" ;", ";")
         .replace(" /", "/");
+    static DANGLING_CONJUNCTIONS: OnceLock<Regex> = OnceLock::new();
+    static PUNCTUATION_SPACING: OnceLock<Regex> = OnceLock::new();
+    static EMPTY_PUNCTUATION_FRAGMENT: OnceLock<Regex> = OnceLock::new();
+    let dangling_conjunctions = DANGLING_CONJUNCTIONS.get_or_init(|| {
+        Regex::new(r"(?i)\b(?:and|or|nor|et|ou|ni)\b(\s*[,;:.!?]|$)")
+            .expect("dangling conjunction expression is valid")
+    });
+    let punctuation_spacing = PUNCTUATION_SPACING.get_or_init(|| {
+        Regex::new(r"\s+([,;:.!?])").expect("punctuation spacing expression is valid")
+    });
+    let empty_punctuation_fragment = EMPTY_PUNCTUATION_FRAGMENT.get_or_init(|| {
+        Regex::new(r"[,;:]\s*[,.!?]").expect("empty punctuation expression is valid")
+    });
+    cleaned = dangling_conjunctions
+        .replace_all(&cleaned, "$1")
+        .into_owned();
+    cleaned = punctuation_spacing.replace_all(&cleaned, "$1").into_owned();
+    cleaned = empty_punctuation_fragment
+        .replace_all(&cleaned, "")
+        .into_owned();
+    cleaned = cleaned
+        .trim_end_matches(|ch: char| matches!(ch, ',' | ';' | ':' | '.' | '!' | '?'))
+        .to_string();
     cleaned
         .trim_matches(|ch: char| ch.is_whitespace() || matches!(ch, ',' | ';' | '/'))
         .to_string()
@@ -480,6 +503,39 @@ mod tests {
         assert!(prompt.contains("rap beat"));
         assert!(prompt.contains("deep bass"));
         assert!(!prompt.contains("rapping"));
+    }
+
+    #[test]
+    fn instrumental_style_removes_dangling_conjunctions_after_vocal_cues() {
+        let input = FormInput {
+            title: "Instrumental piano".into(),
+            style:
+                "Piano solo calme, mélodie simple et entièrement instrumentale, sans voix ni chant."
+                    .into(),
+            lyrics: String::new(),
+            cot: "full".into(),
+            singing_language: None,
+            tempo_bpm: None,
+            key: None,
+            meter: None,
+            seed: None,
+            target_duration_sec: 30,
+            prefer_full_lyrics: true,
+            instrumental_mode: true,
+            continuation_generation_id: None,
+            audio_input_path: None,
+            inpaint_start_ms: None,
+            inpaint_end_ms: None,
+        };
+
+        let prompt = assemble_style_sent(&input).unwrap();
+
+        assert_eq!(
+            prompt,
+            "Piano solo calme, mélodie simple et entièrement instrumentale, no vocals"
+        );
+        assert!(!prompt.contains("ni ."));
+        assert!(!prompt.contains(", ."));
     }
 
     #[test]
