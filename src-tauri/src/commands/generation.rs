@@ -203,10 +203,8 @@ fn instrumental_separator_plan(raw: &str) -> InstrumentalSeparatorPlan {
 }
 
 fn instrumental_vocal_pass_count(plan: InstrumentalSeparatorPlan) -> u8 {
-    if plan.id == "mel_band_roformer" {
-        2
-    } else {
-        1
+    match plan.provider {
+        InstrumentalSeparatorProvider::AudioCpp | InstrumentalSeparatorProvider::HtDemucsOnnx => 2,
     }
 }
 
@@ -251,14 +249,16 @@ mod instrumental_separator_tests {
             assert_eq!(plan.output_roles, expected_roles);
             assert!(plan.included_stems.iter().all(|role| *role != "vocals"));
         }
-        assert_eq!(
-            instrumental_vocal_pass_count(instrumental_separator_plan("mel_band_roformer")),
-            2
-        );
-        assert_eq!(
-            instrumental_vocal_pass_count(instrumental_separator_plan("htdemucs")),
-            1
-        );
+        for selected in [
+            "htdemucs",
+            "bs_roformer",
+            "mel_band_roformer",
+            "htdemucs_6s",
+        ] {
+            let plan = instrumental_separator_plan(selected);
+            assert_eq!(instrumental_vocal_pass_count(plan), 2, "{selected}");
+            assert_eq!(plan.id, selected);
+        }
     }
 }
 
@@ -387,36 +387,51 @@ async fn remove_generated_vocals(
     check_stem_alignment(wav_duration_ms(&rendered)?, original_duration)?;
     let mut final_trim = trim;
     let final_audio = if instrumental_vocal_pass_count(plan) > 1 {
-        let separator_url = separator_url.as_deref().ok_or_else(|| {
-            "Le second passage de séparation nécessite le moteur audio local.".to_string()
-        })?;
         let second_pass_dir = gen_dir.join("instrumental-pass-2");
         ensure_dir(&second_pass_dir).map_err(|e| e.to_string())?;
         let second_pass_input = second_pass_dir.join("input-44100.wav");
         crate::resample::resample_soxr(&rendered, &second_pass_input, SEPARATOR_SAMPLE_RATE)?;
-        let response = AudioCppServer::run_task(
-            separator_url,
-            json!({
-                "model": plan.id,
-                "request": {"audio": second_pass_input.display().to_string()}
-            }),
-        )
-        .await?;
-        AudioCppServer::write_named_audio_outputs(&response, &second_pass_dir)?;
-        super::shared::alias_instrumental_to_other(&second_pass_dir)?;
-
-        let second_pass_instrumental =
-            super::shared::find_stem_file(&second_pass_dir, "instrumental")?;
-        let second_pass_stem = second_pass_dir.join("other-48000.wav");
-        crate::resample::resample_soxr(&second_pass_instrumental, &second_pass_stem, SAMPLE_RATE)?;
-        let second_pass_duration = wav_duration_ms(&second_pass_stem)?;
-        check_stem_alignment(second_pass_duration, original_duration)?;
-        let second_pass_stems = vec![(
-            "other".to_string(),
-            PathBuf::from("instrumental-pass-2/other-48000.wav"),
-            sha256_file(&second_pass_stem)?,
-            second_pass_duration,
-        )];
+        match plan.provider {
+            InstrumentalSeparatorProvider::AudioCpp => {
+                let separator_url = separator_url.as_deref().ok_or_else(|| {
+                    "Le second passage de séparation nécessite le moteur audio local.".to_string()
+                })?;
+                let response = AudioCppServer::run_task(
+                    separator_url,
+                    json!({
+                        "model": plan.id,
+                        "request": {"audio": second_pass_input.display().to_string()}
+                    }),
+                )
+                .await?;
+                AudioCppServer::write_named_audio_outputs(&response, &second_pass_dir)?;
+                if matches!(plan.id, "bs_roformer" | "mel_band_roformer") {
+                    super::shared::alias_instrumental_to_other(&second_pass_dir)?;
+                }
+            }
+            InstrumentalSeparatorProvider::HtDemucsOnnx => {
+                crate::demucs_onnx::separate(
+                    PathBuf::from(&settings.cache_dir),
+                    second_pass_input,
+                    second_pass_dir.clone(),
+                )
+                .await?;
+            }
+        }
+        let mut second_pass_stems = Vec::new();
+        for role in plan.output_roles {
+            let source = super::shared::find_stem_file(&second_pass_dir, role)?;
+            let path = second_pass_dir.join(format!("{role}-48000.wav"));
+            crate::resample::resample_soxr(&source, &path, SAMPLE_RATE)?;
+            let duration = wav_duration_ms(&path)?;
+            check_stem_alignment(duration, original_duration)?;
+            second_pass_stems.push((
+                role.to_string(),
+                PathBuf::from(format!("instrumental-pass-2/{role}-48000.wav")),
+                sha256_file(&path)?,
+                duration,
+            ));
+        }
         let second_pass_mix = crate::mix::new_mix_from_separation(
             "instrumental-pass-2",
             "instrumental-pass-2",
