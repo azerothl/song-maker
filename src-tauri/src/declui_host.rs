@@ -66,7 +66,27 @@ pub fn discover_payload() -> Value {
     })
 }
 
-pub fn handle_request(method: &str, path: &str, body: &[u8]) -> (u16, Value) {
+#[cfg(test)]
+fn handle_request(method: &str, path: &str, body: &[u8]) -> (u16, Value) {
+    handle_request_with_origin(method, path, body, None)
+}
+
+fn handle_request_with_origin(
+    method: &str,
+    path: &str,
+    body: &[u8],
+    origin: Option<&str>,
+) -> (u16, Value) {
+    if origin.is_some_and(|value| !is_local_browser_origin(value)) {
+        return (
+            403,
+            json!({
+                "ok": false,
+                "errorCode": "origin_denied",
+                "messageFr": "Origine web non locale refusée par l’hôte DeclUI."
+            }),
+        );
+    }
     let path = path.split('?').next().unwrap_or(path);
     match (method, path) {
         ("OPTIONS", _) => (204, json!({})),
@@ -135,7 +155,54 @@ fn invoke(body: &[u8]) -> (u16, Value) {
     }
 }
 
-fn http_response(status: u16, body: &Value) -> Vec<u8> {
+fn is_local_browser_origin(origin: &str) -> bool {
+    let origin = origin.trim();
+    if matches!(
+        origin.to_ascii_lowercase().as_str(),
+        "tauri://localhost" | "http://tauri.localhost" | "https://tauri.localhost"
+    ) {
+        return true;
+    }
+
+    let Some((scheme, authority)) = origin.split_once("://") else {
+        return false;
+    };
+    if !scheme.eq_ignore_ascii_case("http") && !scheme.eq_ignore_ascii_case("https") {
+        return false;
+    }
+    if authority.is_empty() || authority.contains(['/', '?', '#', '@']) {
+        return false;
+    }
+
+    if let Some(bracketed) = authority.strip_prefix('[') {
+        let Some((host, suffix)) = bracketed.split_once(']') else {
+            return false;
+        };
+        return host == "::1" && valid_origin_port_suffix(suffix);
+    }
+
+    let mut parts = authority.splitn(2, ':');
+    let host = parts.next().unwrap_or_default();
+    let suffix = parts
+        .next()
+        .map(|port| format!(":{port}"))
+        .unwrap_or_default();
+    matches!(
+        host.to_ascii_lowercase().as_str(),
+        "localhost" | "127.0.0.1"
+    ) && valid_origin_port_suffix(&suffix)
+}
+
+fn valid_origin_port_suffix(suffix: &str) -> bool {
+    if suffix.is_empty() {
+        return true;
+    }
+    suffix
+        .strip_prefix(':')
+        .is_some_and(|port| !port.is_empty() && port.parse::<u16>().is_ok())
+}
+
+fn http_response(status: u16, body: &Value, origin: Option<&str>) -> Vec<u8> {
     let reason = match status {
         200 => "OK",
         204 => "No Content",
@@ -149,14 +216,13 @@ fn http_response(status: u16, body: &Value) -> Vec<u8> {
     } else {
         serde_json::to_vec(body).unwrap_or_else(|_| b"{}".to_vec())
     };
-    let mut out = format!(
-        "HTTP/1.1 {status} {reason}\r\n\
-         Access-Control-Allow-Origin: *\r\n\
-         Access-Control-Allow-Headers: Authorization, Content-Type\r\n\
-         Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
-         Connection: close\r\n"
-    )
-    .into_bytes();
+    let mut out = format!("HTTP/1.1 {status} {reason}\r\nConnection: close\r\n").into_bytes();
+    if let Some(origin) = origin {
+        out.extend_from_slice(format!("Access-Control-Allow-Origin: {origin}\r\n").as_bytes());
+        out.extend_from_slice(b"Vary: Origin\r\n");
+        out.extend_from_slice(b"Access-Control-Allow-Headers: Authorization, Content-Type\r\n");
+        out.extend_from_slice(b"Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n");
+    }
     if status != 204 {
         out.extend_from_slice(b"Content-Type: application/json; charset=utf-8\r\n");
         out.extend_from_slice(format!("Content-Length: {}\r\n", payload.len()).as_bytes());
@@ -183,7 +249,7 @@ async fn serve_one(mut socket: tokio::net::TcpStream, stop: Arc<AtomicBool>) {
             return;
         }
         if let Some(header_end) = find_header_end(&buf) {
-            let (method, path, content_length) = {
+            let (method, path, content_length, origin) = {
                 let header = match std::str::from_utf8(&buf[..header_end]) {
                     Ok(s) => s,
                     Err(_) => return,
@@ -194,13 +260,19 @@ async fn serve_one(mut socket: tokio::net::TcpStream, stop: Arc<AtomicBool>) {
                 let method = parts.next().unwrap_or("GET").to_string();
                 let path = parts.next().unwrap_or("/").to_string();
                 let mut content_length = 0usize;
+                let mut origin = None;
                 for line in lines {
                     let lower = line.to_ascii_lowercase();
                     if let Some(v) = lower.strip_prefix("content-length:") {
                         content_length = v.trim().parse().unwrap_or(0);
                     }
+                    if lower.starts_with("origin:") {
+                        origin = line
+                            .split_once(':')
+                            .map(|(_, value)| value.trim().to_string());
+                    }
                 }
-                (method, path, content_length)
+                (method, path, content_length, origin)
             };
             if content_length > MAX_BODY_BYTES {
                 return;
@@ -215,8 +287,14 @@ async fn serve_one(mut socket: tokio::net::TcpStream, stop: Arc<AtomicBool>) {
                 buf.extend_from_slice(&tmp[..n]);
             }
             let body = buf[body_start..body_start + content_length].to_vec();
-            let (status, json) = handle_request(&method, &path, &body);
-            let _ = socket.write_all(&http_response(status, &json)).await;
+            let (status, json) =
+                handle_request_with_origin(&method, &path, &body, origin.as_deref());
+            let allowed_origin = origin
+                .as_deref()
+                .filter(|value| is_local_browser_origin(value));
+            let _ = socket
+                .write_all(&http_response(status, &json, allowed_origin))
+                .await;
             return;
         }
     }
@@ -418,6 +496,46 @@ mod tests {
         let (status, body) = handle_request("GET", "/v1/host/discover", b"");
         assert_eq!(status, 200);
         assert_eq!(body["hostId"], "akasha");
+    }
+
+    #[test]
+    fn browser_origins_are_limited_to_loopback_and_tauri() {
+        for origin in [
+            "http://localhost:5173",
+            "https://localhost",
+            "http://127.0.0.1:3000",
+            "http://[::1]:3000",
+            "tauri://localhost",
+            "https://tauri.localhost",
+        ] {
+            assert!(is_local_browser_origin(origin), "{origin}");
+        }
+        for origin in [
+            "https://example.com",
+            "http://localhost.evil.example",
+            "https://127.0.0.1.evil.example",
+            "file://localhost",
+            "null",
+            "http://localhost:not-a-port",
+        ] {
+            assert!(!is_local_browser_origin(origin), "{origin}");
+        }
+    }
+
+    #[test]
+    fn remote_browser_origin_cannot_discover_local_projects() {
+        let (status, body) = handle_request_with_origin(
+            "GET",
+            "/v1/host/discover",
+            b"",
+            Some("https://example.com"),
+        );
+        assert_eq!(status, 403);
+        assert_eq!(body["errorCode"], "origin_denied");
+        assert_eq!(body["ok"], false);
+        assert!(http_response(status, &body, None)
+            .windows(b"Access-Control-Allow-Origin".len())
+            .all(|window| window != b"Access-Control-Allow-Origin"));
     }
 
     #[tokio::test]
