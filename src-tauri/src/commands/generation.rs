@@ -2,9 +2,7 @@ use super::shared::{normalize_stem_separator, write_checksums};
 use super::AppState;
 use crate::abc_metadata::{write_aligned_score_abc, AbcAlignRequest};
 use crate::audiocpp::AudioCppServer;
-use crate::form::{
-    generation_lyrics, guidance_scale, validate_form_for_engine, validate_target_duration,
-};
+use crate::form::{guidance_scale, validate_form_for_engine, validate_target_duration};
 use crate::hashutil::{normalize_seed, random_seed, sha256_file};
 use crate::library::{
     library_row_from_project, load_project, load_settings, project_folder, save_project,
@@ -391,6 +389,25 @@ struct AceStepTaskOptions<'a> {
     language: Option<&'a str>,
 }
 
+fn generation_lyrics_for_engine<'a>(
+    draft_lyrics: &'a str,
+    instrumental_mode: bool,
+    requested_engine: &str,
+    instrumental_adapter_active: bool,
+) -> (&'a str, bool) {
+    if !instrumental_mode {
+        return (draft_lyrics, false);
+    }
+
+    // ACE-Step's text-to-music route uses this marker for instrumental output.
+    // YuE2 only receives its marker with the verified instrumental adapter.
+    match requested_engine {
+        "ace_step" => ("[Instrumental]", true),
+        "yue2" if instrumental_adapter_active => ("[instrumental]", true),
+        _ => ("", false),
+    }
+}
+
 pub(crate) fn engine_id_from_generation_request(req: &serde_json::Value) -> String {
     if let Some(id) = req
         .get("model")
@@ -641,7 +658,13 @@ async fn run_generation(
     }
     let target_duration_sec =
         validate_target_duration(form.target_duration_sec).map_err(|e| e.to_string())?;
-    let lyrics_sent = generation_lyrics(&form, instrumental_adapter_active).to_string();
+    let (lyrics_for_engine, instrumental_marker_used) = generation_lyrics_for_engine(
+        &form.lyrics,
+        form.instrumental_mode,
+        &requested_engine,
+        instrumental_adapter_active,
+    );
+    let lyrics_sent = lyrics_for_engine.to_string();
     let (mut semantic_min_tokens, mut semantic_max_tokens) = semantic_token_budget(
         target_duration_sec,
         &lyrics_sent,
@@ -927,7 +950,12 @@ async fn run_generation(
         "targetDurationSec": target_duration_sec,
         "preferFullLyrics": form.prefer_full_lyrics && !form.instrumental_mode,
         "instrumentalMode": form.instrumental_mode,
-        "instrumentalMarkerUsed": instrumental_adapter_active,
+        "instrumentalMarkerUsed": instrumental_marker_used,
+        "instrumentalMarker": if instrumental_marker_used {
+            Some(lyrics_sent.as_str())
+        } else {
+            None::<&str>
+        },
         "draftLyricsUsed": !form.instrumental_mode,
         "instrumentalProcessing": instrumental_separator.map(InstrumentalSeparatorPlan::method),
         "expectedDurationMs": if fixed_duration { Some(expected_duration_ms) } else { None },
@@ -1886,6 +1914,29 @@ mod continuation_tests {
         assert_eq!(request["guidance_scale"], 1.0);
         assert_eq!(request["bpm"], 120);
         assert!(request.get("keyscale").is_none());
+        assert_eq!(request["lyrics"], "[Instrumental]");
+    }
+
+    #[test]
+    fn instrumental_lyrics_use_the_selected_engine_contract() {
+        let draft = "[Verse]\nParoles conservées dans le projet";
+
+        assert_eq!(
+            generation_lyrics_for_engine(draft, true, "ace_step", false),
+            ("[Instrumental]", true)
+        );
+        assert_eq!(
+            generation_lyrics_for_engine(draft, true, "yue2", true),
+            ("[instrumental]", true)
+        );
+        assert_eq!(
+            generation_lyrics_for_engine(draft, true, "yue2", false),
+            ("", false)
+        );
+        assert_eq!(
+            generation_lyrics_for_engine(draft, false, "ace_step", false),
+            (draft, false)
+        );
     }
 
     fn write_parent_gen(
