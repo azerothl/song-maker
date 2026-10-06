@@ -23,14 +23,14 @@ describe("commercial engines UI (#210 B3)", () => {
     }
   });
 
-  it("renders fixed reasons and SheetSage2 audio.cpp attribution in panel HTML", () => {
+  it("renders clear license notes and source attribution in panel HTML", () => {
     const html = renderToStaticMarkup(React.createElement(CommercialEnginesPanel));
     const sheetsage = buildCommercialEngineRowsUi().find((r) => r.id === "sheetsage2");
     assert.ok(sheetsage);
     assert.equal(sheetsage!.reasonLabel, "Usage non commercial uniquement.");
-    assert.match(sheetsage!.whyLabel, /audio\.cpp/i);
-    assert.match(sheetsage!.whyLabel, /model_licenses/i);
-    assert.match(sheetsage!.whyLabel, /sheetsage2/i);
+    assert.match(sheetsage!.whyLabel, /Fiche de licence consultée le/);
+    assert.match(sheetsage!.whyLabel, /licence du modèle d.{0,2}origine reste à vérifier/i);
+    assert.doesNotMatch(sheetsage!.whyLabel, /audio\.cpp|model_licenses|sheetsage2/i);
     assert.match(sheetsage!.whyLabel, /21\/09\/2026/);
     assert.ok(html.includes(sheetsage!.reasonLabel));
     assert.ok(html.includes(sheetsage!.whyLabel));
@@ -49,7 +49,7 @@ describe("commercial engines UI (#210 B3)", () => {
     const ace = rows.find((row) => row.id === "ace_step_1_5");
     assert.ok(ace);
     assert.equal(ace!.availability, "reserved");
-    assert.match(ace!.reservationNote ?? "", /conversion distribuée par audio\.cpp/i);
+    assert.match(ace!.reservationNote ?? "", /droits sur les morceaux générés restent à vérifier/i);
     assert.equal(ace!.sourceLinks.length, 7);
     const html = renderToStaticMarkup(React.createElement(CommercialEnginesPanel));
     assert.ok(html.includes("Carte ACE-Step"));
