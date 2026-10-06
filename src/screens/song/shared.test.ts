@@ -128,7 +128,7 @@ describe("validateFormFields", () => {
     const errors = validateFormFields(
       form({ audioInputPath: "/tmp/ref.wav", inpaintStartMs: 0, inpaintEndMs: 2000 }),
     );
-    assert.match(errors.audioInput ?? "", /ne peut pas modifier un morceau importé/);
+    assert.match(errors.audioInput ?? "", /modification directe d’un morceau importé n’est pas encore disponible/);
     assert.match(errors.audioInput ?? "", /Reprise/);
     assert.doesNotMatch(errors.audioInput ?? "", /audio_input|décodeur|inpainting|transcription/);
   });
