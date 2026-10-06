@@ -498,7 +498,7 @@ pub async fn start_generation(
         return Err("Utilisez la commande d’ajout de partie instrumentale.".into());
     }
     run_generation(
-        state,
+        state.inner(),
         id,
         form,
         abc,
@@ -534,7 +534,7 @@ pub async fn generate_instrumental_part(
     form.instrumental_mode = true;
     form.continuation_generation_id = None;
     run_generation(
-        state,
+        state.inner(),
         id,
         form,
         None,
@@ -563,7 +563,16 @@ pub async fn generate_comparison_take(
     }
     form.continuation_generation_id = None;
     run_generation(
-        state, id, form, abc, stop_after, None, engine, None, true, None,
+        state.inner(),
+        id,
+        form,
+        abc,
+        stop_after,
+        None,
+        engine,
+        None,
+        true,
+        None,
     )
     .await
 }
@@ -575,7 +584,7 @@ pub(crate) async fn generate_worker_take(
     worker: &GenerationWorker,
 ) -> Result<InstrumentalPartResult, String> {
     run_generation(
-        state,
+        state.inner(),
         id,
         form,
         None,
@@ -591,7 +600,7 @@ pub(crate) async fn generate_worker_take(
 
 #[allow(clippy::too_many_arguments)]
 async fn run_generation(
-    state: tauri::State<'_, AppState>,
+    state: &AppState,
     id: String,
     form: FormInput,
     abc: Option<String>,
@@ -1942,5 +1951,107 @@ mod continuation_tests {
             .unwrap_err();
         assert!(err.contains("tronquées"));
         let _ = fs::remove_dir_all(root);
+    }
+}
+
+#[cfg(test)]
+mod instrumental_failure_tests {
+    use super::{run_generation, GenerationWorker};
+    use crate::audiocpp::AudioCppServer;
+    use crate::commands::AppState;
+    use crate::library::{default_settings, project_folder, save_project};
+    use crate::models::{FormInput, ProjectDoc};
+    use crate::pins::{BIT_DEPTH, CHANNELS, SAMPLE_RATE, SCHEMA_PROJECT, SCHEMA_VERSION};
+    use crate::test_docs_env::guard::TempDocs;
+    use serde_json::json;
+    use std::fs;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn missing_vocal_separator_fails_without_touching_the_project() {
+        let docs = TempDocs::new("instrumental-part-preflight-failure");
+        let mut settings = default_settings();
+        settings.cache_dir = docs
+            .root
+            .join("cache-without-audio-models")
+            .display()
+            .to_string();
+        let project_id = "instrumental-failure-preserves-project";
+        let folder = project_folder(project_id);
+        fs::create_dir_all(&folder).unwrap();
+        let project: ProjectDoc = serde_json::from_value(json!({
+            "schema": SCHEMA_PROJECT,
+            "schemaVersion": SCHEMA_VERSION,
+            "id": project_id,
+            "title": "Projet source intact",
+            "createdAt": "2026-10-06T00:00:00Z",
+            "updatedAt": "2026-10-06T00:00:00Z",
+            "sampleRate": SAMPLE_RATE,
+            "channels": CHANNELS,
+            "bitDepth": BIT_DEPTH,
+            "style": "Style source",
+            "lyrics": "Paroles conservées",
+            "cot": "full",
+            "targetDurationSec": 30,
+            "preferFullLyrics": true,
+            "instrumentalMode": false,
+            "activeGenerationId": "gen-001",
+            "activeSeparationId": "sep-001",
+            "activeMixId": "mix-v001"
+        }))
+        .unwrap();
+        save_project(&folder, &project).unwrap();
+        let project_before = fs::read(folder.join("project.json")).unwrap();
+
+        let form = FormInput {
+            title: "Tentative de partie instrumentale".into(),
+            style: "Piano instrumental doux".into(),
+            lyrics: String::new(),
+            cot: "off".into(),
+            singing_language: None,
+            tempo_bpm: None,
+            key: None,
+            meter: None,
+            seed: Some(1234),
+            target_duration_sec: 30,
+            prefer_full_lyrics: false,
+            instrumental_mode: true,
+            continuation_generation_id: None,
+            audio_input_path: None,
+            inpaint_start_ms: None,
+            inpaint_end_ms: None,
+        };
+        let state = AppState::default();
+        let worker = GenerationWorker {
+            server: Arc::new(AudioCppServer::default()),
+            queue: crate::queue::JobQueue::default(),
+            settings,
+            id: "preflight-failure-test".into(),
+            cancelled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        };
+        let result = run_generation(
+            &state,
+            project_id.into(),
+            form,
+            None,
+            None,
+            None,
+            Some("yue2".into()),
+            Some("bass".into()),
+            true,
+            Some(&worker),
+        )
+        .await;
+        let error = match result {
+            Err(error) => error,
+            Ok(_) => panic!("la génération aurait dû échouer sans le séparateur"),
+        };
+
+        assert!(error.contains("installez les composants audio"), "{error}");
+        assert_eq!(
+            fs::read(folder.join("project.json")).unwrap(),
+            project_before
+        );
+        assert!(!folder.join("generations").exists());
     }
 }
