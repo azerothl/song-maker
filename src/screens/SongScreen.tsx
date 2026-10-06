@@ -59,6 +59,7 @@ export function SongScreen() {
   const refreshJob = useAppStore((s) => s.refreshJob);
   const job = useAppStore((s) => s.job);
   const setProfileOperationBusy = useAppStore((s) => s.setProfileOperationBusy);
+  const openLoraSettings = useAppStore((s) => s.openLoraSettings);
 
   const [pendingPart, setPendingPart] = useState<{ projectId: string; generationId: string; audioPath: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -964,10 +965,12 @@ export function SongScreen() {
             form={form}
             formFieldErrors={formFieldErrors}
             onGenerate={onGenerate}
+            onOpenInstrumentalSettings={openLoraSettings}
             scoreDocument={scoreDocument}
             scoreGate={scoreGate}
             setAdvancedSettingsPage={setAdvancedSettingsPage}
             setForm={setForm}
+            showInstrumentalPackGuidance={settings?.generationEngine === "yue2"}
             showFormErrors={showFormErrors}
           />
         )}

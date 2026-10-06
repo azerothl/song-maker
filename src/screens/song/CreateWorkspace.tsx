@@ -40,10 +40,12 @@ type CreateWorkspaceProps = {
   form: FormInput;
   formFieldErrors: FormFieldErrors;
   onGenerate: () => Promise<void>;
+  onOpenInstrumentalSettings: () => void;
   scoreDocument: ScoreDocument | null;
   scoreGate: ScoreGate;
   setAdvancedSettingsPage: Dispatch<SetStateAction<AdvancedSettingsPage>>;
   setForm: (patch: Partial<FormInput>) => void;
+  showInstrumentalPackGuidance: boolean;
   showFormErrors: boolean;
 };
 
@@ -54,10 +56,12 @@ export function CreateWorkspace({
   form,
   formFieldErrors,
   onGenerate,
+  onOpenInstrumentalSettings,
   scoreDocument,
   scoreGate,
   setAdvancedSettingsPage,
   setForm,
+  showInstrumentalPackGuidance,
   showFormErrors,
 }: CreateWorkspaceProps) {
   const generationBlockedReason = primaryFormError(formFieldErrors);
@@ -199,6 +203,18 @@ export function CreateWorkspace({
                     <small>{t("form.instrumental.hint")}</small>
                   </span>
                 </label>
+                {form.instrumentalMode && showInstrumentalPackGuidance && (
+                  <div className="hint instrumental-pack-guidance">
+                    <p>{t("form.instrumental.packHint")}</p>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={onOpenInstrumentalSettings}
+                    >
+                      {t("form.instrumental.openPackSettings")}
+                    </button>
+                  </div>
+                )}
                 <button
                   type="button"
                   className="form-advanced-entry"

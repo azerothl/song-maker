@@ -169,6 +169,8 @@
   "form.style.instrumentalVocalWarning": "Voice and singing cues are ignored for this instrumental take. The style saved in your project stays unchanged.",
   "form.instrumental": "Instrumental",
   "form.instrumental.hint": "Your lyrics stay in the project and are not sent. A voice may still be heard in the result.",
+  "form.instrumental.packHint": "For YuE2, the Instrumental pack may reduce leftover singing. It requires “Full analysis”, has a non-commercial license, and cannot guarantee a result with no vocals.",
+  "form.instrumental.openPackSettings": "View the pack and its license",
   "form.instrumental.active": "Your lyrics stay saved and are not used. A voice may still be heard.",
   "form.audioInput.incapacity": "You can’t edit an imported song directly yet. To create a new version from this audio, open Score, then Reprise.",
   "form.instrumental.summary": "Instrumental",

@@ -60,10 +60,12 @@ function CreateTabCaptureApp() {
           onGenerate={async () => {
             setShowFormErrors(true);
           }}
+          onOpenInstrumentalSettings={() => undefined}
           scoreDocument={scoreDocument}
           scoreGate={scoreGate}
           setAdvancedSettingsPage={setAdvancedSettingsPage}
           setForm={setForm}
+          showInstrumentalPackGuidance={false}
           showFormErrors={showFormErrors}
         />
       </main>

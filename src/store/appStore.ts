@@ -18,9 +18,10 @@ import type { ProfilesState } from "../lib/profilesTypes";
 type AppStore = {
   screen: Screen;
   setScreen: (s: Screen) => void;
-  settingsInitialPage: "home" | "model";
+  settingsInitialPage: "home" | "model" | "lora";
   settingsModelSection: "lego" | "ace_step" | null;
   openModelSettings: (section?: "lego" | "ace_step") => void;
+  openLoraSettings: () => void;
   health: HealthSnapshot | null;
   settings: AppSettings | null;
   job: JobStatus | null;
@@ -87,6 +88,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   settingsInitialPage: "home",
   settingsModelSection: null,
   openModelSettings: (section) => set({ screen: "settings", settingsInitialPage: "model", settingsModelSection: section ?? null }),
+  openLoraSettings: () => set({ screen: "settings", settingsInitialPage: "lora", settingsModelSection: null }),
   health: null,
   settings: null,
   job: null,
