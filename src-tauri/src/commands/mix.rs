@@ -116,6 +116,8 @@ pub fn update_mix(
     update: MixUpdate,
 ) -> Result<MixDoc, String> {
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let doc = load_project(&folder)?;
     let mix_id = doc
         .active_mix_id
@@ -651,12 +653,14 @@ fn export_pcm_audio_inner(
 
 #[tauri::command]
 pub fn undo_mix(state: tauri::State<'_, AppState>, id: String) -> Result<Option<MixDoc>, String> {
+    let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut g = state.undo.lock().unwrap();
     let entry = g.stacks.entry(id.clone()).or_default();
     let Some(prev) = entry.0.pop() else {
         return Ok(None);
     };
-    let folder = project_folder(&id);
     let doc = load_project(&folder)?;
     let mix_id = doc
         .active_mix_id
@@ -673,12 +677,14 @@ pub fn undo_mix(state: tauri::State<'_, AppState>, id: String) -> Result<Option<
 
 #[tauri::command]
 pub fn redo_mix(state: tauri::State<'_, AppState>, id: String) -> Result<Option<MixDoc>, String> {
+    let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut g = state.undo.lock().unwrap();
     let entry = g.stacks.entry(id.clone()).or_default();
     let Some(next) = entry.1.pop() else {
         return Ok(None);
     };
-    let folder = project_folder(&id);
     let doc = load_project(&folder)?;
     let mix_id = doc
         .active_mix_id

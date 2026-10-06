@@ -172,7 +172,7 @@ export function SongScreen() {
       const next = await api.importUserAudioTrack(project.id);
       if (next) {
         setMix(next);
-        await openProject(project.id);
+        await openProject(project.id, { preserveForm: true });
       }
     } catch (e) {
       setError(String(e));
@@ -183,7 +183,7 @@ export function SongScreen() {
 
   async function onUserTrackAdded(next: MixDoc) {
     setMix(next);
-    if (project) await openProject(project.id);
+    if (project) await openProject(project.id, { preserveForm: true });
   }
 
   async function onTranscribeBasicPitch(track: MixTrack) {
@@ -255,7 +255,7 @@ export function SongScreen() {
         const takes = await api.listGenerations(project.id);
         const audioPath = takes.find(take => take.id === genId)?.audioPath;
         if (!audioPath) throw new Error(t("production.instrumental.previewMissing"));
-        await openProject(project.id);
+        await openProject(project.id, { preserveForm: true });
         setPendingPart({ projectId: project.id, generationId: genId, audioPath, name: plan.displayName });
         return;
       }

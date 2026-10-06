@@ -44,7 +44,7 @@ type AppStore = {
   refreshSettings: () => Promise<void>;
   refreshJob: () => Promise<void>;
   refreshLibrary: (q?: string) => Promise<void>;
-  openProject: (id: string) => Promise<void>;
+  openProject: (id: string, options?: { preserveForm?: boolean }) => Promise<void>;
   setForm: (patch: Partial<FormInput>) => void;
   setMix: (mix: MixDoc | null) => void;
   setScoreDocument: (doc: ScoreDocument | null) => void;
@@ -134,7 +134,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const projects = await api.listProjects(q);
     set({ projects });
   },
-  openProject: async (id) => {
+  openProject: async (id, options) => {
     const project = await api.openProject(id);
     const mix = await api.loadMix(id);
     const generations = await api.listGenerations(id);
@@ -161,6 +161,23 @@ export const useAppStore = create<AppStore>((set, get) => ({
       }
       playbackSources = null;
     }
+    const form = options?.preserveForm
+      ? get().form
+      : {
+          title: project.title,
+          style: project.style,
+          lyrics: project.lyrics,
+          cot: project.cot,
+          singingLanguage: project.singingLanguage ?? null,
+          tempoBpm: project.tempoBpm ?? null,
+          key: project.key ?? null,
+          meter: project.meter ?? null,
+          seed: null,
+          targetDurationSec: normalizeDurationSec(project.targetDurationSec),
+          preferFullLyrics: project.preferFullLyrics ?? true,
+          instrumentalMode: project.instrumentalMode ?? false,
+          continuationGenerationId: null,
+        };
     set({
       project,
       mix,
@@ -169,21 +186,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       scoreDocument,
       audioPath,
       playbackSources,
-      form: {
-        title: project.title,
-        style: project.style,
-        lyrics: project.lyrics,
-        cot: project.cot,
-        singingLanguage: project.singingLanguage ?? null,
-        tempoBpm: project.tempoBpm ?? null,
-        key: project.key ?? null,
-        meter: project.meter ?? null,
-        seed: null,
-        targetDurationSec: normalizeDurationSec(project.targetDurationSec),
-        preferFullLyrics: project.preferFullLyrics ?? true,
-        instrumentalMode: project.instrumentalMode ?? false,
-        continuationGenerationId: null,
-      },
+      form,
       screen: "song",
       error: null,
     });
