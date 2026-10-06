@@ -355,7 +355,7 @@
   "mix.columns.track": "Track",
   "mix.columns.gain": "Gain",
   "mix.columns.pan": "Pan",
-  "mix.columns.ms": "M/S",
+  "mix.columns.ms": "Listen",
   "mix.columns.waveform": "Waveform",
   "mix.group.voix": "Vocals",
   "mix.group.rythmique": "Rhythm",
