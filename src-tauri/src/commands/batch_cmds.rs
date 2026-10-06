@@ -366,6 +366,14 @@ fn prepare_batch_resume(batch_id: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn batch_cancel_transition(state: &str) -> Option<&'static str> {
+    match state {
+        "queued" | "retry_wait" | "interrupted" => Some("cancelled"),
+        "running" | "preparing" | "publishing" => Some("cancel_requested"),
+        _ => None,
+    }
+}
+
 #[tauri::command]
 pub fn cancel_batch(
     app: AppHandle,
@@ -378,13 +386,12 @@ pub fn cancel_batch(
     })?;
     let mut tasks = load_live_tasks(&batch_id)?;
     for task in &mut tasks {
-        if matches!(task.state.as_str(), "queued" | "retry_wait" | "interrupted") {
-            task.state = "cancelled".into();
+        if let Some(next_state) = batch_cancel_transition(&task.state) {
+            task.state = next_state.into();
             save_task(&batch_id, task)?;
-        } else if matches!(task.state.as_str(), "running" | "preparing" | "publishing") {
-            task.state = "cancel_requested".into();
-            save_task(&batch_id, task)?;
-            state.batch_workers.cancel(&batch_id, None);
+            if next_state == "cancel_requested" {
+                state.batch_workers.cancel(&batch_id, None);
+            }
         }
     }
     if !state
@@ -968,8 +975,9 @@ pub(crate) fn batch_generation_settings(settings: &AppSettings) -> serde_json::V
 #[cfg(test)]
 mod selection_tests {
     use super::{
-        batch_generation_settings, batch_task_pending, reconcile_unexpected_worker_exit,
-        select_batch_default, wait_for_batch_admission, PlannedTask,
+        batch_cancel_transition, batch_generation_settings, batch_task_pending,
+        reconcile_unexpected_worker_exit, select_batch_default, wait_for_batch_admission,
+        PlannedTask,
     };
 
     #[tokio::test]
@@ -1075,6 +1083,23 @@ mod selection_tests {
             .unwrap();
         task.state = state.into();
         task
+    }
+
+    #[test]
+    fn cancelling_batch_preserves_finished_tasks_and_stops_only_pending_work() {
+        for state in ["queued", "retry_wait", "interrupted"] {
+            assert_eq!(batch_cancel_transition(state), Some("cancelled"), "{state}");
+        }
+        for state in ["running", "preparing", "publishing"] {
+            assert_eq!(
+                batch_cancel_transition(state),
+                Some("cancel_requested"),
+                "{state}"
+            );
+        }
+        for state in ["succeeded", "failed", "cancelled", "cancel_requested"] {
+            assert_eq!(batch_cancel_transition(state), None, "{state}");
+        }
     }
 
     #[test]
