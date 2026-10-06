@@ -65,6 +65,7 @@ function CreateTabCaptureApp() {
           scoreGate={scoreGate}
           setAdvancedSettingsPage={setAdvancedSettingsPage}
           setForm={setForm}
+          instrumentalPackState="unknown"
           showInstrumentalPackGuidance={false}
           showFormErrors={showFormErrors}
         />

@@ -28,7 +28,9 @@ import { useAppStore } from "../store/appStore";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { VersionsWorkspace } from "./song/VersionsWorkspace";
 import type { BuiltRemotePayload, RemoteWorkerPreferences } from "@song-maker/remote-worker";
+import { LORA_PACK_CATALOG } from "@song-maker/lora-packs";
 import type { FormInput, MixDoc, MixTrack, SeparationInfo } from "../lib/types";
+import { packLibraryState } from "../lib/loraLibrary";
 import {
   advancedSettingsSummary,
   primaryFormError,
@@ -68,6 +70,38 @@ export function SongScreen() {
   const [cancelMessage, setCancelMessage] = useState<string | null>(null);
   const [legoSidecarReady, setLegoSidecarReady] = useState(false);
   const [legoLicenseAccepted, setLegoLicenseAccepted] = useState(false);
+  const [instrumentalPackState, setInstrumentalPackState] =
+    useState<"active" | "installed" | "missing" | "unknown">("unknown");
+  useEffect(() => {
+    let cancelled = false;
+    const instrumentalPack = LORA_PACK_CATALOG.find(
+      (pack) => pack.id === "mothersuperior-instrumental-ar",
+    );
+    if (
+      !settings ||
+      settings.generationEngine !== "yue2" ||
+      !isTauriRuntime() ||
+      !instrumentalPack
+    ) {
+      setInstrumentalPackState("unknown");
+      return;
+    }
+    void api
+      .listLoraAdapters()
+      .then((adapters) => {
+        if (cancelled) return;
+        const state = packLibraryState(instrumentalPack, adapters, settings);
+        setInstrumentalPackState(
+          state.active ? "active" : state.installed ? "installed" : "missing",
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setInstrumentalPackState("unknown");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [settings]);
   useEffect(() => {
     if (!isTauriRuntime()) return;
     let cancelled = false;
@@ -970,6 +1004,7 @@ export function SongScreen() {
             scoreGate={scoreGate}
             setAdvancedSettingsPage={setAdvancedSettingsPage}
             setForm={setForm}
+            instrumentalPackState={instrumentalPackState}
             showInstrumentalPackGuidance={settings?.generationEngine === "yue2"}
             showFormErrors={showFormErrors}
           />

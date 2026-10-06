@@ -45,6 +45,7 @@ type CreateWorkspaceProps = {
   scoreGate: ScoreGate;
   setAdvancedSettingsPage: Dispatch<SetStateAction<AdvancedSettingsPage>>;
   setForm: (patch: Partial<FormInput>) => void;
+  instrumentalPackState: "active" | "installed" | "missing" | "unknown";
   showInstrumentalPackGuidance: boolean;
   showFormErrors: boolean;
 };
@@ -61,6 +62,7 @@ export function CreateWorkspace({
   scoreGate,
   setAdvancedSettingsPage,
   setForm,
+  instrumentalPackState,
   showInstrumentalPackGuidance,
   showFormErrors,
 }: CreateWorkspaceProps) {
@@ -205,13 +207,25 @@ export function CreateWorkspace({
                 </label>
                 {form.instrumentalMode && showInstrumentalPackGuidance && (
                   <div className="hint instrumental-pack-guidance">
-                    <p>{t("form.instrumental.packHint")}</p>
+                    <p>
+                      {t(
+                        instrumentalPackState === "active"
+                          ? "form.instrumental.packActive"
+                          : instrumentalPackState === "installed"
+                            ? "form.instrumental.packInstalled"
+                            : "form.instrumental.packHint",
+                      )}
+                    </p>
                     <button
                       type="button"
                       className="btn ghost"
                       onClick={onOpenInstrumentalSettings}
                     >
-                      {t("form.instrumental.openPackSettings")}
+                      {t(
+                        instrumentalPackState === "active"
+                          ? "form.instrumental.managePackSettings"
+                          : "form.instrumental.openPackSettings",
+                      )}
                     </button>
                   </div>
                 )}
