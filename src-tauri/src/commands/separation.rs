@@ -308,7 +308,21 @@ pub async fn start_separation(
     let _project_guard = project_lock.lock();
     doc = load_project(&folder)?;
     let mix_id = next_folder_id(&folder.join("mixes"), "mix-v")?;
-    let mut mix = new_mix_from_separation(&mix_id, &sep_id, &stem_meta);
+    let instrumental_source = std::fs::read_to_string(
+        folder
+            .join("generations")
+            .join(&gen_id)
+            .join("request.json"),
+    )
+    .ok()
+    .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+    .and_then(|request| {
+        request
+            .get("instrumentalMode")
+            .and_then(|value| value.as_bool())
+    })
+    .unwrap_or(false);
+    let mut mix = new_mix_from_separation(&mix_id, &sep_id, &stem_meta, instrumental_source);
     // Carry over user/custom tracks from the previous active mix (import/record).
     if let Some(prev_id) = &doc.active_mix_id {
         let prev_path = folder.join("mixes").join(format!("{prev_id}.json"));
@@ -663,6 +677,7 @@ mod separation_version_tests {
                 "abc".into(),
                 1000,
             )],
+            false,
         );
         atomic_write_json(&root.join("mixes/mix-v001.json"), &mix).unwrap();
         assert_eq!(
@@ -684,7 +699,7 @@ mod separation_version_tests {
         )
         .unwrap();
         ensure_dir(&root.join("mixes")).unwrap();
-        let mix = new_mix_from_separation("mix-v002", "sep-002", &[]);
+        let mix = new_mix_from_separation("mix-v002", "sep-002", &[], false);
         atomic_write_json(&root.join("mixes/mix-v002.json"), &mix).unwrap();
         let doc = ProjectDoc {
             schema: SCHEMA_PROJECT.into(),

@@ -363,7 +363,7 @@ async fn remove_generated_vocals(
             duration,
         ));
     }
-    let mix = crate::mix::new_mix_from_separation("instrumental", "instrumental", &stems);
+    let mix = crate::mix::new_mix_from_separation("instrumental", "instrumental", &stems, false);
     let rendered = gen_dir.join("audio-instrumental.wav");
     let trim = crate::mix::render_mix(&mix, gen_dir, &rendered)?;
     check_stem_alignment(wav_duration_ms(&rendered)?, original_duration)?;

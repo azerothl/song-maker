@@ -168,6 +168,7 @@ pub fn new_mix_from_separation(
     mix_id: &str,
     sep_id: &str,
     stem_paths: &[(String, PathBuf, String, i64)],
+    instrumental_source: bool,
 ) -> MixDoc {
     let mut tracks = Vec::new();
     // Only materialize tracks for stems that were actually produced.
@@ -223,7 +224,10 @@ pub fn new_mix_from_separation(
             name,
             gain_db: 0.0,
             pan: 0.0,
-            mute: false,
+            // Separators can classify residual bleed as vocals even when the
+            // source generation was instrumental. Keep that stem available,
+            // but do not reintroduce it into the default instrumental mix.
+            mute: instrumental_source && role == "vocals",
             solo: false,
             locked: false,
             ai_separated: true,
@@ -718,9 +722,11 @@ mod tests {
                 "abc".into(),
                 1000,
             )],
+            false,
         );
         assert_eq!(mix.tracks.len(), 1);
         assert!(mix.tracks[0].ai_separated);
+        assert!(!mix.tracks[0].mute);
         let user = append_user_audio_track(
             &mut mix,
             "user-audio/normalized/u1.wav",
@@ -745,6 +751,44 @@ mod tests {
         assert_eq!(punched.clips[0].start_ms, 1500);
         assert!(mix.tracks[0].ai_separated);
         assert_eq!(mix.tracks[0].role, "vocals");
+    }
+
+    #[test]
+    fn instrumental_separation_mutes_only_the_vocal_stem_by_default() {
+        let mix = new_mix_from_separation(
+            "mix-v2",
+            "sep-2",
+            &[
+                (
+                    "vocals".into(),
+                    PathBuf::from("separations/sep-2/vocals.wav"),
+                    "vocal-sha".into(),
+                    1000,
+                ),
+                (
+                    "other".into(),
+                    PathBuf::from("separations/sep-2/other.wav"),
+                    "other-sha".into(),
+                    1000,
+                ),
+            ],
+            true,
+        );
+
+        assert!(
+            mix.tracks
+                .iter()
+                .find(|track| track.role == "vocals")
+                .unwrap()
+                .mute
+        );
+        assert!(
+            !mix.tracks
+                .iter()
+                .find(|track| track.role == "other")
+                .unwrap()
+                .mute
+        );
     }
 
     #[test]
