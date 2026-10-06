@@ -129,6 +129,9 @@ export function ProductionMixSettingsPopin({
   const [measureError, setMeasureError] = useState<string | null>(null);
   const measureGen = useRef(0);
   const [vst3Plugins, setVst3Plugins] = useState<Vst3CatalogEntry[] | null>(null);
+  const [vst3PluginKinds, setVst3PluginKinds] = useState<
+    Record<string, "effect" | "instrument" | "incompatible">
+  >({});
   const [vst3Scanning, setVst3Scanning] = useState(false);
   const [vst3Error, setVst3Error] = useState<string | null>(null);
   const [vst3Description, setVst3Description] =
@@ -137,6 +140,7 @@ export function ProductionMixSettingsPopin({
     Record<string, number>
   >({});
   const [vst3Loading, setVst3Loading] = useState(false);
+  const [vst3EditorOpening, setVst3EditorOpening] = useState(false);
   const vst3InspectedPath = useRef<string | null>(null);
   const vst3FormatRequest = useRef(0);
   const vst3Insert = mix.vst3MasterInsert ?? null;
@@ -185,12 +189,30 @@ export function ProductionMixSettingsPopin({
     setVst3Loading(true);
     setVst3Error(null);
     void api
-      .vst3PluginParameters(path, vst3Insert.parameters)
+      .vst3PluginParameters(
+        path,
+        vst3Insert.parameters,
+        vst3Insert.stateB64,
+      )
       .then((description) => {
-        if (current) setVst3Description(description);
+        if (current) {
+          setVst3Description(description);
+          const kind = description.category.toLowerCase().includes("instrument") &&
+            description.audioInputs === 0 && description.audioOutputs > 0
+            ? "instrument"
+            : description.audioInputs > 0 && description.audioOutputs > 0 &&
+                !description.category.toLowerCase().includes("instrument")
+              ? "effect"
+              : "incompatible";
+          setVst3PluginKinds((items) => ({
+            ...items,
+            [path]: kind,
+          }));
+        }
       })
       .catch((e) => {
         if (current) {
+          setVst3PluginKinds((items) => ({ ...items, [path]: "incompatible" }));
           vst3InspectedPath.current = null;
           setVst3Description(null);
           setVst3Error(e instanceof Error ? e.message : String(e));
@@ -221,6 +243,7 @@ export function ProductionMixSettingsPopin({
     if (!plugin) return;
     const samePlugin = vst3Insert?.pluginPath === plugin.path;
     const savedParameters = samePlugin ? vst3Insert.parameters : {};
+    const savedState = samePlugin ? vst3Insert.stateB64 : undefined;
     setVst3Loading(true);
     setVst3Error(null);
     vst3FormatRequest.current++;
@@ -228,13 +251,28 @@ export function ProductionMixSettingsPopin({
       const description = await api.vst3PluginParameters(
         plugin.path,
         savedParameters,
+        savedState,
       );
-    const nextInsert = {
+      const kind = description.category.toLowerCase().includes("instrument") &&
+        description.audioInputs === 0 && description.audioOutputs > 0
+        ? "instrument"
+        : description.audioInputs > 0 && description.audioOutputs > 0 &&
+            !description.category.toLowerCase().includes("instrument")
+          ? "effect"
+          : "incompatible";
+      setVst3PluginKinds((items) => ({ ...items, [plugin.path]: kind }));
+      if (
+        kind !== "effect"
+      ) {
+        throw new Error(t("production.vst3.notEffect"));
+      }
+      const nextInsert = {
         pluginPath: plugin.path,
         pluginName: plugin.name,
         enabled: samePlugin ? vst3Insert.enabled : false,
-      parameters: savedParameters,
-    };
+        parameters: savedParameters,
+        stateB64: savedState,
+      };
       setVst3ParameterDrafts({});
       vst3InspectedPath.current = plugin.path;
       setVst3Description(description);
@@ -276,7 +314,11 @@ export function ProductionMixSettingsPopin({
     patchVst3Insert({ parameters });
     const request = ++vst3FormatRequest.current;
     void api
-      .vst3PluginParameters(vst3Insert.pluginPath, parameters)
+      .vst3PluginParameters(
+        vst3Insert.pluginPath,
+        parameters,
+        vst3Insert.stateB64,
+      )
       .then((description) => {
         if (request === vst3FormatRequest.current) {
           setVst3Description(description);
@@ -285,6 +327,37 @@ export function ProductionMixSettingsPopin({
       .catch((e) =>
         setVst3Error(e instanceof Error ? e.message : String(e)),
       );
+  };
+
+  const openVst3Editor = async () => {
+    if (!vst3Insert || vst3EditorOpening) return;
+    setVst3EditorOpening(true);
+    setVst3Error(null);
+    try {
+      const result = await api.vst3OpenPluginEditor(
+        vst3Insert.pluginPath,
+        vst3Insert.parameters,
+        vst3Insert.stateB64,
+      );
+      const parameters = Object.fromEntries(
+        Object.entries(result.parameters).map(([id, value]) => [String(id), value]),
+      );
+      patchVst3Insert({
+        parameters,
+        stateB64: result.pluginStateB64 ?? undefined,
+      });
+      const description = await api.vst3PluginParameters(
+        vst3Insert.pluginPath,
+        parameters,
+        result.pluginStateB64 ?? undefined,
+      );
+      setVst3Description(description);
+      setVst3ParameterDrafts({});
+    } catch (e) {
+      setVst3Error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVst3EditorOpening(false);
+    }
   };
 
   const showMixToolsEntry = showMixAssist || showProductionCopilot;
@@ -405,7 +478,7 @@ export function ProductionMixSettingsPopin({
                   {t("production.vst3.choose")}
                   <select
                     value={vst3Insert?.pluginPath ?? ""}
-                    disabled={vst3Scanning || vst3Loading}
+                    disabled={vst3Scanning || vst3Loading || vst3EditorOpening}
                     onChange={(event) =>
                       void selectVst3Plugin(event.currentTarget.value)
                     }
@@ -424,6 +497,9 @@ export function ProductionMixSettingsPopin({
                     {vst3Plugins.map((plugin) => (
                       <option key={plugin.path} value={plugin.path}>
                         {plugin.name}
+                        {vst3PluginKinds[plugin.path]
+                          ? ` · ${t(`production.vst3.kind.${vst3PluginKinds[plugin.path]}`)}`
+                          : ""}
                       </option>
                     ))}
                   </select>
@@ -439,12 +515,17 @@ export function ProductionMixSettingsPopin({
                         : ""}
                     </p>
                   )}
+                  {vst3Description?.name.toLowerCase().includes("anatomy") && (
+                    <p className="hint" role="note">
+                      {t("production.vst3.anatomyWorkflow")}
+                    </p>
+                  )}
                   <label className="production-vst3-enable">
                     <input
                       type="checkbox"
                       checked={vst3Insert.enabled}
                       disabled={
-                        !hasVst3Sources || vst3Loading || !vst3PluginAvailable
+                        !hasVst3Sources || vst3Loading || vst3EditorOpening || !vst3PluginAvailable
                       }
                       onChange={(event) =>
                         patchVst3Insert({ enabled: event.currentTarget.checked })
@@ -465,6 +546,16 @@ export function ProductionMixSettingsPopin({
                       {t("production.vst3.loading")}
                     </p>
                   )}
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={vst3Loading || vst3EditorOpening || !vst3PluginAvailable}
+                    onClick={() => void openVst3Editor()}
+                  >
+                    {vst3EditorOpening
+                      ? t("production.vst3.editorWaiting")
+                      : t("production.vst3.openEditor")}
+                  </button>
                   {vst3Description && (
                     <div className="production-vst3-parameters">
                       <p className="hint">{t("production.vst3.parametersHint")}</p>

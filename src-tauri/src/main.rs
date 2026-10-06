@@ -14,5 +14,10 @@ fn main() {
         let response = args.next().unwrap_or_default();
         std::process::exit(song_maker_lib::vst3_host_worker_exit(&request, &response));
     }
+    if command.as_deref() == Some("--vst3-editor-worker") {
+        let request = args.next().unwrap_or_default();
+        let response = args.next().unwrap_or_default();
+        std::process::exit(song_maker_lib::vst3_editor_worker_exit(&request, &response));
+    }
     song_maker_lib::run();
 }

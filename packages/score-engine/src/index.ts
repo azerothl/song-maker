@@ -2,6 +2,7 @@ export { INTERNAL_PPQ, TICKS_PER_SIXTEENTH, TICKS_PER_THIRTY_SECOND } from "./co
 export type {
   ScoreDocument,
   ScoreVoice,
+  ScoreVst3Instrument,
   ScoreVoiceRole,
   NoteEvent,
   TempoEvent,

@@ -52,6 +52,11 @@ pub fn vst3_host_worker_exit(request: &str, response: &str) -> i32 {
     vst3_host::worker_exit(request, response)
 }
 
+/// Entry point for the isolated native VST3 editor process.
+pub fn vst3_editor_worker_exit(request: &str, response: &str) -> i32 {
+    vst3_host::editor_worker_exit(request, response)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = profiles::init_profile_system();
@@ -119,6 +124,9 @@ pub fn run() {
             vst3_host::vst3_list_plugins,
             vst3_host::vst3_plugin_parameters,
             vst3_host::vst3_process_pcm,
+            vst3_host::vst3_open_plugin_editor,
+            commands::capture::vst3_render_midi_preview,
+            commands::capture::vst3_render_midi_to_mix_track,
             // Profils (#201)
             commands::profiles::get_profiles_state,
             commands::profiles::create_profile,

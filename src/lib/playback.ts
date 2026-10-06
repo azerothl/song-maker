@@ -384,6 +384,7 @@ export class MixPlaybackEngine {
           const processed = await api.vst3ProcessPcm({
             path: vst3.pluginPath,
             parameters: vst3.parameters,
+            pluginStateB64: vst3.stateB64,
             sampleRate:
               mix.sampleRate || this.decodedStems[0]?.sampleRate || 48_000,
             peakCeilingDb: mix.peakCeilingDb ?? -1,

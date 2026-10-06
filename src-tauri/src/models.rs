@@ -750,6 +750,9 @@ pub struct Vst3MasterInsert {
     pub enabled: bool,
     #[serde(default)]
     pub parameters: std::collections::BTreeMap<u32, f64>,
+    /// Opaque plugin-specific state, base64 encoded to keep the project JSON compact.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state_b64: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

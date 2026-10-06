@@ -10,6 +10,7 @@ use crate::paths::{
     atomic_write_json, default_cache_dir, ensure_dir, file_mtime_iso, next_folder_id, now_iso,
 };
 use crate::pins::BIT_DEPTH;
+use base64::Engine as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -165,6 +166,14 @@ pub fn update_mix(
                 .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
         {
             return Err("Réglages VST3 invalides.".into());
+        }
+        if let Some(state_b64) = config.state_b64.as_deref() {
+            let state = base64::engine::general_purpose::STANDARD
+                .decode(state_b64)
+                .map_err(|e| format!("État du plugin VST3 invalide : {e}"))?;
+            if state.len() > 24 * 1024 * 1024 {
+                return Err("L’état du plugin VST3 dépasse la taille maximale autorisée.".into());
+            }
         }
         mix.vst3_master_insert = Some(config);
     }
