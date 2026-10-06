@@ -857,6 +857,7 @@ mod tests {
         assert!(info.notes_fr.contains("Core Audio"));
         #[cfg(target_os = "linux")]
         assert!(info.notes_fr.contains("ALSA"));
+        #[cfg(windows)]
         assert!(info.notes_fr.contains("ASIO"));
     }
 
