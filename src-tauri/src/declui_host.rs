@@ -234,39 +234,62 @@ fn notes_fr() -> String {
 pub async fn embedded_declui_status(
     state: tauri::State<'_, EmbeddedDeclUiState>,
 ) -> Result<EmbeddedDeclUiStatus, String> {
-    let g = state.inner.lock().await;
-    Ok(match &*g {
-        Some(r) if !r.stop.load(Ordering::Relaxed) => EmbeddedDeclUiStatus {
-            running: true,
-            url: Some(r.url.clone()),
-            bind: "127.0.0.1".into(),
-            notes_fr: notes_fr(),
-        },
-        _ => EmbeddedDeclUiStatus {
-            running: false,
-            url: None,
-            bind: "127.0.0.1".into(),
-            notes_fr: notes_fr(),
-        },
-    })
+    Ok(embedded_declui_status_for(state.inner()).await)
+}
+
+async fn embedded_declui_status_for(state: &EmbeddedDeclUiState) -> EmbeddedDeclUiStatus {
+    let mut g = state.inner.lock().await;
+    match g.as_ref() {
+        Some(r) if !r.stop.load(Ordering::Acquire) && !r.join.is_finished() => {
+            EmbeddedDeclUiStatus {
+                running: true,
+                url: Some(r.url.clone()),
+                bind: "127.0.0.1".into(),
+                notes_fr: notes_fr(),
+            }
+        }
+        _ => {
+            if let Some(r) = g.take() {
+                r.stop.store(true, Ordering::Release);
+                r.join.abort();
+            }
+            EmbeddedDeclUiStatus {
+                running: false,
+                url: None,
+                bind: "127.0.0.1".into(),
+                notes_fr: notes_fr(),
+            }
+        }
+    }
 }
 
 #[tauri::command]
 pub async fn start_embedded_declui_host(
     state: tauri::State<'_, EmbeddedDeclUiState>,
 ) -> Result<EmbeddedDeclUiStatus, String> {
-    {
-        let g = state.inner.lock().await;
-        if let Some(r) = g.as_ref() {
-            if !r.stop.load(Ordering::Relaxed) {
-                return Ok(EmbeddedDeclUiStatus {
-                    running: true,
-                    url: Some(r.url.clone()),
-                    bind: "127.0.0.1".into(),
-                    notes_fr: notes_fr(),
-                });
-            }
+    start_embedded_declui_host_for(state.inner()).await
+}
+
+async fn start_embedded_declui_host_for(
+    state: &EmbeddedDeclUiState,
+) -> Result<EmbeddedDeclUiStatus, String> {
+    // Hold the state lock through bind and publication. Otherwise two concurrent
+    // starts can each open an ephemeral listener and the last one overwrites the
+    // only handle that `stop_embedded_declui_host` knows how to stop.
+    let mut g = state.inner.lock().await;
+    if let Some(r) = g.as_ref() {
+        if !r.stop.load(Ordering::Acquire) && !r.join.is_finished() {
+            return Ok(EmbeddedDeclUiStatus {
+                running: true,
+                url: Some(r.url.clone()),
+                bind: "127.0.0.1".into(),
+                notes_fr: notes_fr(),
+            });
         }
+    }
+    if let Some(r) = g.take() {
+        r.stop.store(true, Ordering::Release);
+        r.join.abort();
     }
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
@@ -280,6 +303,8 @@ pub async fn start_embedded_declui_host(
     let url = format!("http://127.0.0.1:{}", addr.port());
     let stop = Arc::new(AtomicBool::new(false));
     let stop_task = Arc::clone(&stop);
+    let connections = Arc::new(Mutex::new(Vec::<JoinHandle<()>>::new()));
+    let connections_task = Arc::clone(&connections);
     let join = tokio::spawn(async move {
         loop {
             if stop_task.load(Ordering::Relaxed) {
@@ -294,16 +319,23 @@ pub async fn start_embedded_declui_host(
                         continue;
                     }
                     let stop_conn = Arc::clone(&stop_task);
-                    tokio::spawn(async move {
+                    let connection = tokio::spawn(async move {
                         serve_one(socket, stop_conn).await;
                     });
+                    let mut active = connections_task.lock().await;
+                    active.retain(|task| !task.is_finished());
+                    active.push(connection);
                 }
                 Ok(Err(_)) => break,
                 Err(_) => continue,
             }
         }
+        stop_task.store(true, Ordering::Release);
+        let mut active = connections_task.lock().await;
+        for task in active.drain(..) {
+            task.abort();
+        }
     });
-    let mut g = state.inner.lock().await;
     *g = Some(Running {
         url: url.clone(),
         stop,
@@ -321,17 +353,27 @@ pub async fn start_embedded_declui_host(
 pub async fn stop_embedded_declui_host(
     state: tauri::State<'_, EmbeddedDeclUiState>,
 ) -> Result<EmbeddedDeclUiStatus, String> {
+    Ok(stop_embedded_declui_host_for(state.inner()).await)
+}
+
+async fn stop_embedded_declui_host_for(state: &EmbeddedDeclUiState) -> EmbeddedDeclUiStatus {
     let mut g = state.inner.lock().await;
     if let Some(r) = g.take() {
-        r.stop.store(true, Ordering::SeqCst);
-        r.join.abort();
+        r.stop.store(true, Ordering::Release);
+        let mut join = r.join;
+        if tokio::time::timeout(std::time::Duration::from_secs(1), &mut join)
+            .await
+            .is_err()
+        {
+            join.abort();
+        }
     }
-    Ok(EmbeddedDeclUiStatus {
+    EmbeddedDeclUiStatus {
         running: false,
         url: None,
         bind: "127.0.0.1".into(),
         notes_fr: notes_fr(),
-    })
+    }
 }
 
 #[cfg(test)]
@@ -376,5 +418,70 @@ mod tests {
         let (status, body) = handle_request("GET", "/v1/host/discover", b"");
         assert_eq!(status, 200);
         assert_eq!(body["hostId"], "akasha");
+    }
+
+    #[tokio::test]
+    async fn concurrent_starts_share_one_listener_and_stop_releases_it() {
+        let state = EmbeddedDeclUiState::default();
+        let (left, right) = tokio::join!(
+            start_embedded_declui_host_for(&state),
+            start_embedded_declui_host_for(&state),
+        );
+        let left = left.unwrap();
+        let right = right.unwrap();
+        assert_eq!(left.url, right.url);
+        assert!(left.running && right.running);
+
+        let stopped = stop_embedded_declui_host_for(&state).await;
+        assert!(!stopped.running);
+        assert_eq!(embedded_declui_status_for(&state).await.url, None);
+
+        let restarted = start_embedded_declui_host_for(&state).await.unwrap();
+        assert!(restarted.running);
+        stop_embedded_declui_host_for(&state).await;
+    }
+
+    #[tokio::test]
+    async fn status_clears_a_listener_task_that_has_exited() {
+        let state = EmbeddedDeclUiState::default();
+        let started = start_embedded_declui_host_for(&state).await.unwrap();
+        {
+            let guard = state.inner.lock().await;
+            guard.as_ref().unwrap().join.abort();
+        }
+        tokio::task::yield_now().await;
+
+        let status = embedded_declui_status_for(&state).await;
+        assert!(!status.running);
+        assert_eq!(status.url, None);
+        let restarted = start_embedded_declui_host_for(&state).await.unwrap();
+        assert!(restarted.running);
+        assert!(started.url.is_some());
+        stop_embedded_declui_host_for(&state).await;
+    }
+
+    #[tokio::test]
+    async fn loopback_discovery_is_served_and_listener_closes_on_stop() {
+        let state = EmbeddedDeclUiState::default();
+        let started = start_embedded_declui_host_for(&state).await.unwrap();
+        let address = started
+            .url
+            .as_deref()
+            .unwrap()
+            .trim_start_matches("http://");
+
+        let mut client = tokio::net::TcpStream::connect(address).await.unwrap();
+        client
+            .write_all(b"GET /v1/host/discover HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .unwrap();
+        let mut response = Vec::new();
+        client.read_to_end(&mut response).await.unwrap();
+        let response = String::from_utf8(response).unwrap();
+        assert!(response.starts_with("HTTP/1.1 200 OK"));
+        assert!(response.contains("\"hostId\":\"akasha\""));
+
+        stop_embedded_declui_host_for(&state).await;
+        assert!(tokio::net::TcpStream::connect(address).await.is_err());
     }
 }
