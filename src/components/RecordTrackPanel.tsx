@@ -336,6 +336,11 @@ export function RecordTrackPanel({
     rollingTakesRef.current = rollLoop;
     try {
       const stopped = await api.stopNativeCapture();
+      if (stopped.warning) {
+        const warning = t("record.err.partial");
+        setStatusMsg(warning);
+        onError(warning);
+      }
       takeIndexRef.current += 1;
       let reviewUrl = "";
       try {
@@ -351,7 +356,7 @@ export function RecordTrackPanel({
       };
       sessionIdRef.current = null;
       setPendingTakes((prev) => [...prev, take]);
-      if (rollingTakesRef.current && loopEnabledRef.current) {
+      if (rollingTakesRef.current && loopEnabledRef.current && !stopped.warning) {
         rollingTakesRef.current = false;
         nativeStopInFlightRef.current = false;
         await startRecording();
