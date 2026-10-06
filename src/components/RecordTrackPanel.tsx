@@ -900,12 +900,20 @@ export function RecordTrackPanel({
   if (!open) return null;
 
   const elapsedLabel = formatElapsed(elapsedMs);
+  const recordingAnnouncement = recordingStatusAnnouncement(
+    phase,
+    countdownLeft,
+    pendingTakes.length,
+  );
   const canPickDevice = phase === "idle" || phase === "arming";
   const punchInvalid =
     punchEnabled && punchOutMs > 0 && punchOutMs <= punchInMs;
 
   return (
     <section className="record-panel" aria-labelledby="record-panel-title">
+      <p className="sr-only" role="status">
+        {recordingAnnouncement}
+      </p>
       <header className="record-panel-header">
         <h3 id="record-panel-title">{t("record.title")}</h3>
         <button type="button" className="btn ghost" onClick={handleClose}>
@@ -1144,7 +1152,7 @@ export function RecordTrackPanel({
       <div className="record-vu" aria-hidden>
         <div className="record-vu-fill" style={{ width: `${level * 100}%` }} />
       </div>
-      <p className="record-elapsed" aria-live="polite">
+      <p className="record-elapsed">
         {phase === "countdown"
           ? t("record.countdown.left", { n: String(countdownLeft) })
           : t("record.elapsed", { time: elapsedLabel })}
@@ -1258,6 +1266,29 @@ export function RecordTrackPanel({
       )}
     </section>
   );
+}
+
+function recordingStatusAnnouncement(
+  phase: CapturePhase,
+  countdownLeft: number,
+  pendingTakeCount: number,
+): string {
+  switch (phase) {
+    case "countdown":
+      return t("record.countdown.left", { n: String(countdownLeft) });
+    case "recording":
+      return t("record.state.recording");
+    case "paused":
+      return t("record.state.paused");
+    case "review":
+      if (pendingTakeCount === 1) return t("record.state.readyOne");
+      if (pendingTakeCount > 1) {
+        return t("record.state.readyMany", { n: String(pendingTakeCount) });
+      }
+      return "";
+    default:
+      return "";
+  }
 }
 
 function formatElapsed(ms: number): string {
