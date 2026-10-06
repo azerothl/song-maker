@@ -122,6 +122,8 @@ export function LoraTrainingPanel({
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [files, setFiles] = useState<FileMeta[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionErrorDetail, setActionErrorDetail] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<LaunchTrainingResult | null>(
     null,
   );
@@ -262,6 +264,8 @@ export function LoraTrainingPanel({
     setLastResult(null);
     setLogLines([]);
     setNotice(null);
+    setActionError(null);
+    setActionErrorDetail(null);
   };
 
   const refreshLogs = async (jobId: string) => {
@@ -272,6 +276,8 @@ export function LoraTrainingPanel({
   const onLaunch = async () => {
     setBusy(true);
     setNotice(null);
+    setActionError(null);
+    setActionErrorDetail(null);
     try {
       const result = await launchTrainingJob(
         {
@@ -318,28 +324,57 @@ export function LoraTrainingPanel({
           }
         }
       }
+    } catch (error) {
+      setActionError(t("loraTrain.error.actionFailed"));
+      setActionErrorDetail(
+        error instanceof Error ? error.message : String(error),
+      );
     } finally {
       setBusy(false);
     }
   };
 
   const onCancel = async () => {
-    if (!lastResult) return;
-    if (isTauriRuntime()) {
-      const r = await runtimeApi.loraTrainCancelProcess(lastResult.jobId);
+    if (!lastResult || busy) return;
+    setBusy(true);
+    setActionError(null);
+    setActionErrorDetail(null);
+    try {
+      if (isTauriRuntime()) {
+        const r = await runtimeApi.loraTrainCancelProcess(lastResult.jobId);
+        setNotice(r.messageFr);
+      }
+      const r = await cancelTrainingJob(lastResult.jobId, store, jobsRoot);
       setNotice(r.messageFr);
+      await refreshLogs(lastResult.jobId);
+    } catch (error) {
+      setActionError(t("loraTrain.error.actionFailed"));
+      setActionErrorDetail(
+        error instanceof Error ? error.message : String(error),
+      );
+    } finally {
+      setBusy(false);
     }
-    const r = await cancelTrainingJob(lastResult.jobId, store, jobsRoot);
-    setNotice(r.messageFr);
-    await refreshLogs(lastResult.jobId);
   };
 
   const onCleanup = async () => {
-    if (!lastResult) return;
-    const r = await cleanupTrainingJob(lastResult.jobId, store, jobsRoot);
-    setNotice(r.messageFr);
-    setLastResult(null);
-    setLogLines([]);
+    if (!lastResult || busy) return;
+    setBusy(true);
+    setActionError(null);
+    setActionErrorDetail(null);
+    try {
+      const r = await cleanupTrainingJob(lastResult.jobId, store, jobsRoot);
+      setNotice(r.messageFr);
+      setLastResult(null);
+      setLogLines([]);
+    } catch (error) {
+      setActionError(t("loraTrain.error.actionFailed"));
+      setActionErrorDetail(
+        error instanceof Error ? error.message : String(error),
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -479,6 +514,15 @@ export function LoraTrainingPanel({
           {t("loraTrain.cleanup")}
         </button>
       </div>
+      {actionError && (
+        <p
+          className="hint error"
+          role="alert"
+          data-testid="lora-train-action-error"
+        >
+          {actionError}
+        </p>
+      )}
 
       {lastResult && (
         <p className="hint">
@@ -487,9 +531,12 @@ export function LoraTrainingPanel({
           })}
         </p>
       )}
-      {(notice || lastResult || logLines.length > 0) && (
+      {(notice || lastResult || logLines.length > 0 || actionErrorDetail) && (
         <details>
           <summary>{t("loraTrain.supportDetails")}</summary>
+          {actionErrorDetail && (
+            <pre className="phase3-download-notice">{actionErrorDetail}</pre>
+          )}
           {lastResult && (
             <p className="hint">
               {t("loraTrain.trainingId", { id: lastResult.jobId })}

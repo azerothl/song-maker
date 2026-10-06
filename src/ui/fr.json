@@ -1499,6 +1499,7 @@
   "loraTrain.qualityHint": "Le résultat dépend des enregistrements et de l’outil choisi. Cette fonction vise à créer un style musical ; elle ne reproduit pas une voix. Seule l’écoute permet d’évaluer le résultat.",
   "loraTrain.rightsHint": "Les fichiers restent sur cet ordinateur et ne sont pas envoyés à un service distant par défaut.",
   "loraTrain.error.probeFailed": "Song Maker n’a pas pu vérifier les outils nécessaires. Réessayez ou consultez les détails pour l’assistance.",
+  "loraTrain.error.actionFailed": "Cette action n’a pas abouti. Réessayez ou ouvrez les détails pour l’assistance.",
   "loraTrain.error.generic": "Vérifiez ce fichier et réessayez.",
   "loraTrain.error.emptyCorpus": "Ajoutez au moins un enregistrement audio.",
   "loraTrain.error.missingAudio": "Le fichier « {title} » est introuvable.",

@@ -1164,6 +1164,7 @@
   "loraTrain.qualityHint": "Results depend on the recordings and the tool you choose. This feature aims to create a musical style; it does not reproduce a voice. Listen to the result to judge its quality.",
   "loraTrain.rightsHint": "Files stay on this computer and are not sent to a remote service by default.",
   "loraTrain.error.probeFailed": "Song Maker could not check the required tools. Try again or open the support details.",
+  "loraTrain.error.actionFailed": "This action did not finish. Try again or open the support details.",
   "loraTrain.error.generic": "Check this file and try again.",
   "loraTrain.error.emptyCorpus": "Add at least one audio recording.",
   "loraTrain.error.missingAudio": "The file “{title}” could not be found.",
