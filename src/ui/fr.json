@@ -296,7 +296,7 @@
   "form.style.instrumentalVocalWarning": "Les indications de voix et de chant sont ignorées pour cette génération instrumentale. Le style enregistré dans le projet reste inchangé.",
   "form.instrumental": "Instrumental",
   "form.instrumental.hint": "Les paroles restent dans le projet et ne sont pas envoyées. Des voix peuvent encore s’entendre dans le morceau.",
-  "form.instrumental.vocalRemovalHelp": "Vous entendez encore des voix ? Choisissez comment les retirer après génération.",
+  "form.instrumental.vocalRemovalHelp": "Après génération, Song Maker tente de retirer les voix avec le réglage choisi. Certaines peuvent rester audibles.",
   "form.instrumental.vocalRemovalSettings": "Régler le retrait des voix",
   "form.instrumental.packHint": "Ce pack facultatif peut réduire le chant résiduel. Sa licence non commerciale s’affiche avant l’installation ; il demande « Analyse complète ».",
   "form.instrumental.packInstalled": "Le pack est installé mais désactivé. Activez-le dans ces réglages ; il demande aussi « Analyse complète ».",

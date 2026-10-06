@@ -169,7 +169,7 @@
   "form.style.instrumentalVocalWarning": "Voice and singing cues are ignored for this instrumental take. The style saved in your project stays unchanged.",
   "form.instrumental": "Instrumental",
   "form.instrumental.hint": "Your lyrics stay in the project and are not sent. Some vocals may still be heard in the song.",
-  "form.instrumental.vocalRemovalHelp": "Still hear vocals? Choose how they are removed after generation.",
+  "form.instrumental.vocalRemovalHelp": "After generation, Song Maker tries to remove vocals with the selected setting. Some may remain audible.",
   "form.instrumental.vocalRemovalSettings": "Adjust vocal removal",
   "form.instrumental.packHint": "This optional pack may reduce leftover singing. Its non-commercial license is shown before installation; it requires “Full analysis”.",
   "form.instrumental.packInstalled": "The pack is installed but turned off. Enable it in these settings; it also requires “Full analysis”.",
