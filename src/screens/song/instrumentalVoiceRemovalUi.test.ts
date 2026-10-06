@@ -9,7 +9,11 @@ import type { AdvancedSettingsPage } from "./shared";
 
 function renderCreateWorkspace(
   instrumentalMode: boolean,
-  options: { showVocalRemovalGuidance?: boolean; showInstrumentalPackGuidance?: boolean } = {},
+  options: {
+    showVocalRemovalGuidance?: boolean;
+    showInstrumentalPackGuidance?: boolean;
+    instrumentalPackState?: "active" | "installed" | "missing";
+  } = {},
 ) {
   const form: FormInput = {
     title: "Test",
@@ -43,7 +47,7 @@ function renderCreateWorkspace(
         React.SetStateAction<AdvancedSettingsPage>
       >,
       setForm: () => undefined,
-      instrumentalPackState: "missing",
+      instrumentalPackState: options.instrumentalPackState ?? "missing",
       showVocalRemovalGuidance: options.showVocalRemovalGuidance ?? true,
       showInstrumentalPackGuidance: options.showInstrumentalPackGuidance ?? true,
       showFormErrors: false,
@@ -55,7 +59,7 @@ describe("instrumental voice removal entry", () => {
   it("shows a plain-language route to vocal-removal settings for instrumentals", () => {
     const html = renderCreateWorkspace(true);
 
-    assert.match(html, /Song Maker tries to remove vocals|Song Maker tente de retirer les voix/);
+    assert.match(html, /Song Maker tries to remove vocals|Song Maker (?:tente|essaie) de retirer les voix/);
     assert.match(html, /Adjust vocal removal|Régler le retrait des voix/);
   });
 
@@ -73,6 +77,13 @@ describe("instrumental voice removal entry", () => {
 
     assert.match(html, /Régler le retrait des voix|Adjust vocal removal/);
     assert.doesNotMatch(html, /pack may reduce leftover singing|pack facultatif peut réduire le chant/);
+  });
+
+  it("does not repeat the vocal warning in the active instrumental setting status", () => {
+    const html = renderCreateWorkspace(true, { instrumentalPackState: "active" });
+
+    assert.match(html, /Le réglage instrumental sera appliqué à cette génération/);
+    assert.doesNotMatch(html, /voix résiduelles|Some vocals may still remain/i);
   });
 
   it("opens the separation settings page from the new action", () => {
