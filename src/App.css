@@ -1255,7 +1255,7 @@ option {
 .qwen-mix-license > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .qwen-mix-license pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.75rem; max-height: 16rem; overflow-y: auto; }
 .production-common-timeline {
-  --production-controls-width: calc(148px + 7.5rem + 88px + 2.25rem);
+  --production-controls-width: calc(148px + 4rem + 3.5rem + 158px + 32px + 2.25rem);
 }
 .production-common-timeline .common-track-lane { display: block; min-width: 0; }
 .production-playback-line { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent-cyan); z-index: 2; pointer-events: none; }
