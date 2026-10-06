@@ -12,6 +12,8 @@
 
 La version 1.1 ajoute une vision produit cible au §3.4. Elle ne réécrit pas le contrat historique du premier build ni ses critères d’acceptation. Pour connaître les capacités livrées aujourd’hui, consulter le [README](../README.md).
 
+**Évolution de périmètre (6 octobre 2026) :** l’ancien hors-périmètre VST/AU décrit plus bas est conservé comme historique du premier build. Une livraison VST3 Windows est maintenant prioritaire, d’abord sous forme d’effet master rendu hors ligne avec aperçu, export et état sauvegardé dans le projet. Ce parcours n’est pas encore livré. AU reste prévu avec une future version macOS. Suivi : [#326](https://github.com/azerothl/song-maker/issues/326).
+
 Les images de `specs/maquettes/` sont des références visuelles. Elles ne décrivent pas le produit.
 
 ## 1. Résumé exécutif

@@ -25,6 +25,9 @@ import type {
   SeparationInfo,
   SeparationVersionSummary,
   SetupGpuInfo,
+  Vst3CatalogEntry,
+  Vst3PluginDescription,
+  Vst3ProcessedPcm,
 } from "./types";
 
 export const api = {
@@ -77,6 +80,29 @@ export const api = {
     }>("vst3_spike_load", { path }),
   vst3SpikeAttach: (projectId: string, trackId: string, path: string) =>
     invoke<MixDoc>("vst3_spike_attach", { projectId, trackId, path }),
+  vst3ListPlugins: () => invoke<Vst3CatalogEntry[]>("vst3_list_plugins"),
+  vst3PluginParameters: (
+    path: string,
+    parameters: Record<string, number> = {},
+  ) =>
+    invoke<Vst3PluginDescription>("vst3_plugin_parameters", {
+      path,
+      parameters,
+    }),
+  vst3ProcessPcm: (request: {
+    path: string;
+    parameters: Record<string, number>;
+    sampleRate: number;
+    peakCeilingDb: number;
+    pcmLe: number[];
+  }) =>
+    invoke<Vst3ProcessedPcm>("vst3_process_pcm", {
+      path: request.path,
+      parameters: request.parameters,
+      sampleRate: request.sampleRate,
+      peakCeilingDb: request.peakCeilingDb,
+      pcmLe: request.pcmLe,
+    }),
   getPhase3Status: () => invoke<Phase3Status>("get_phase3_status"),
   installHtDemucs6sRuntime: () =>
     invoke<string>("install_htdemucs_6s_runtime"),
@@ -220,6 +246,8 @@ export const api = {
       tempoMap?: MixDoc["tempoMap"];
       timeSignatures?: MixDoc["timeSignatures"];
       markers?: MixDoc["markers"];
+      vst3MasterInsert?: NonNullable<MixDoc["vst3MasterInsert"]>;
+      clearVst3MasterInsert?: boolean;
     },
   ) => invoke<MixDoc>("update_mix", { id, update }),
   /** Native dialog → copy + normalize → append user MixTrack (#40). Null if cancelled. */

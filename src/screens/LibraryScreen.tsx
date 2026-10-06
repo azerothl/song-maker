@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ProjectSyncPanel } from "../components/ProjectSyncPanel";
 import { BatchGenerationPanel } from "../components/BatchGenerationPanel";
 import { api } from "../lib/api";
+import { exportProjectAudio } from "../lib/exportMix";
 import { useAppStore } from "../store/appStore";
 import { ProfileKindBadge } from "../components/ProfileKindBadge";
 import { t } from "../ui/i18n";
@@ -142,7 +143,19 @@ export function LibraryScreen() {
                       <button
                         type="button"
                         onClick={() =>
-                          void api.exportAudio(p.id, "wav").catch((e) => setError(String(e)))
+                          void (async () => {
+                            try {
+                              const mix = await api.loadMix(p.id);
+                              if (mix?.vst3MasterInsert?.enabled) {
+                                const sources = await api.playbackSources(p.id);
+                                await exportProjectAudio(p.id, "wav", mix, sources);
+                              } else {
+                                await api.exportAudio(p.id, "wav");
+                              }
+                            } catch (e) {
+                              setError(String(e));
+                            }
+                          })()
                         }
                       >
                         {t("library.export")}

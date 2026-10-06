@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useId,
   useRef,
   useState,
@@ -7,6 +8,7 @@ import {
 } from "react";
 import type { LoudnessReport } from "@song-maker/mix-production";
 import { AnchoredPopin } from "./AnchoredPopin";
+import { api } from "../lib/api";
 import { MixSlider } from "./MixSlider";
 import { PopinCloseButton } from "./PopinCloseButton";
 import {
@@ -17,7 +19,12 @@ import type { ProductionClipViewPrefs } from "../lib/productionClipViewPrefs";
 import type { ProductionDensityPreference } from "../lib/productionTrackLayout";
 import { bakeMixPcm, decodeMixStems } from "../lib/mixBridge";
 import { getProductionToolkit } from "../lib/productionState";
-import type { MixDoc, PlaybackSources } from "../lib/types";
+import type {
+  MixDoc,
+  PlaybackSources,
+  Vst3CatalogEntry,
+  Vst3PluginDescription,
+} from "../lib/types";
 import {
   formatGainDb,
   parseGainDb,
@@ -34,6 +41,7 @@ export type ProductionMixSettingsPopinProps = {
   effectiveDensityLabelKey: "mix.density.compact" | "mix.density.confortable";
   onDensityPreference: (next: ProductionDensityPreference) => void;
   mix: MixDoc;
+  onMixChange: (next: MixDoc, opts?: { persist?: boolean }) => void;
   onMasterGainChange: (gainDb: number, persist: boolean) => void;
   sources: PlaybackSources | null;
   tempoBpm?: number | null;
@@ -68,6 +76,10 @@ export function productionMixSettingsFieldAccessibleNames(
     t("mix.density.compact"),
     t("mix.density.confortable"),
     t("production.settings.master"),
+    t("production.vst3.legend"),
+    t("production.vst3.scan"),
+    t("production.vst3.enabled"),
+    t("production.vst3.remove"),
     t("phase3.mix.runLimiterMeter"),
     opts.hasAiStems ? t("separate.again") : t("separate.button"),
   ];
@@ -87,6 +99,7 @@ export function ProductionMixSettingsPopin({
   effectiveDensityLabelKey,
   onDensityPreference,
   mix,
+  onMixChange,
   onMasterGainChange,
   sources,
   tempoBpm = null,
@@ -115,6 +128,164 @@ export function ProductionMixSettingsPopin({
   const [measuring, setMeasuring] = useState(false);
   const [measureError, setMeasureError] = useState<string | null>(null);
   const measureGen = useRef(0);
+  const [vst3Plugins, setVst3Plugins] = useState<Vst3CatalogEntry[] | null>(null);
+  const [vst3Scanning, setVst3Scanning] = useState(false);
+  const [vst3Error, setVst3Error] = useState<string | null>(null);
+  const [vst3Description, setVst3Description] =
+    useState<Vst3PluginDescription | null>(null);
+  const [vst3ParameterDrafts, setVst3ParameterDrafts] = useState<
+    Record<string, number>
+  >({});
+  const [vst3Loading, setVst3Loading] = useState(false);
+  const vst3InspectedPath = useRef<string | null>(null);
+  const vst3FormatRequest = useRef(0);
+  const vst3Insert = mix.vst3MasterInsert ?? null;
+  const vst3Supported =
+    typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
+  const hasVst3Sources =
+    sources?.mode === "stems" && sources.stems.length > 0;
+  const vst3PluginAvailable =
+    !vst3Insert ||
+    vst3Plugins === null ||
+    vst3Plugins.some((plugin) => plugin.path === vst3Insert.pluginPath);
+
+  useEffect(() => {
+    if (!open || !vst3Supported || vst3Plugins !== null) return;
+    let current = true;
+    setVst3Scanning(true);
+    setVst3Error(null);
+    void api
+      .vst3ListPlugins()
+      .then((items) => {
+        if (current) setVst3Plugins(items);
+      })
+      .catch((e) => {
+        if (current) setVst3Error(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (current) setVst3Scanning(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [open, vst3Plugins, vst3Supported]);
+
+  useEffect(() => {
+    const path = vst3Insert?.pluginPath;
+    if (!open || !vst3Supported || !path) {
+      if (!path) {
+        vst3InspectedPath.current = null;
+        setVst3Description(null);
+      }
+      return;
+    }
+    if (vst3InspectedPath.current === path) return;
+    let current = true;
+    vst3InspectedPath.current = path;
+    setVst3Loading(true);
+    setVst3Error(null);
+    void api
+      .vst3PluginParameters(path, vst3Insert.parameters)
+      .then((description) => {
+        if (current) setVst3Description(description);
+      })
+      .catch((e) => {
+        if (current) {
+          vst3InspectedPath.current = null;
+          setVst3Description(null);
+          setVst3Error(e instanceof Error ? e.message : String(e));
+        }
+      })
+      .finally(() => {
+        if (current) setVst3Loading(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [open, vst3Insert?.pluginPath, vst3Supported]);
+
+  const scanVst3Plugins = async () => {
+    setVst3Scanning(true);
+    setVst3Error(null);
+    try {
+      setVst3Plugins(await api.vst3ListPlugins());
+    } catch (e) {
+      setVst3Error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVst3Scanning(false);
+    }
+  };
+
+  const selectVst3Plugin = async (path: string) => {
+    const plugin = vst3Plugins?.find((item) => item.path === path);
+    if (!plugin) return;
+    const samePlugin = vst3Insert?.pluginPath === plugin.path;
+    const savedParameters = samePlugin ? vst3Insert.parameters : {};
+    setVst3Loading(true);
+    setVst3Error(null);
+    vst3FormatRequest.current++;
+    try {
+      const description = await api.vst3PluginParameters(
+        plugin.path,
+        savedParameters,
+      );
+    const nextInsert = {
+        pluginPath: plugin.path,
+        pluginName: plugin.name,
+        enabled: samePlugin ? vst3Insert.enabled : false,
+      parameters: savedParameters,
+    };
+      setVst3ParameterDrafts({});
+      vst3InspectedPath.current = plugin.path;
+      setVst3Description(description);
+      onMixChange({ ...mix, vst3MasterInsert: nextInsert });
+    } catch (e) {
+      setVst3Error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVst3Loading(false);
+    }
+  };
+
+  const patchVst3Insert = (
+    patch: Partial<NonNullable<MixDoc["vst3MasterInsert"]>>,
+    persist = true,
+  ) => {
+    if (!vst3Insert) return;
+    onMixChange(
+      { ...mix, vst3MasterInsert: { ...vst3Insert, ...patch } },
+      { persist },
+    );
+  };
+
+  const draftVst3Parameter = (id: number, value: number) => {
+    setVst3ParameterDrafts((current) => ({
+      ...current,
+      [String(id)]: value,
+    }));
+  };
+
+  const commitVst3Parameter = (id: number, value: number) => {
+    if (!vst3Insert) return;
+    const key = String(id);
+    const parameters = { ...vst3Insert.parameters, [key]: value };
+    setVst3ParameterDrafts((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+    patchVst3Insert({ parameters });
+    const request = ++vst3FormatRequest.current;
+    void api
+      .vst3PluginParameters(vst3Insert.pluginPath, parameters)
+      .then((description) => {
+        if (request === vst3FormatRequest.current) {
+          setVst3Description(description);
+        }
+      })
+      .catch((e) =>
+        setVst3Error(e instanceof Error ? e.message : String(e)),
+      );
+  };
 
   const showMixToolsEntry = showMixAssist || showProductionCopilot;
   const dualMixTools = showMixAssist && showProductionCopilot;
@@ -207,6 +378,189 @@ export function ProductionMixSettingsPopin({
             variant="full"
             idPrefix="mix-settings-grid"
           />
+        </fieldset>
+
+        <fieldset className="production-mix-settings-field production-vst3-field">
+          <legend>{t("production.vst3.legend")}</legend>
+          <p className="hint">{t("production.vst3.hint")}</p>
+          {!vst3Supported ? (
+            <p className="hint">{t("production.vst3.notWindows")}</p>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="btn"
+                disabled={vst3Scanning}
+                onClick={() => void scanVst3Plugins()}
+              >
+                {vst3Scanning
+                  ? t("production.vst3.scanning")
+                  : t("production.vst3.scan")}
+              </button>
+              {vst3Plugins?.length === 0 && (
+                <p className="hint">{t("production.vst3.noPlugins")}</p>
+              )}
+              {vst3Plugins && vst3Plugins.length > 0 && (
+                <label className="production-vst3-select-label">
+                  {t("production.vst3.choose")}
+                  <select
+                    value={vst3Insert?.pluginPath ?? ""}
+                    disabled={vst3Scanning || vst3Loading}
+                    onChange={(event) =>
+                      void selectVst3Plugin(event.currentTarget.value)
+                    }
+                  >
+                    <option value="" disabled>
+                      {t("production.vst3.choose")}
+                    </option>
+                    {vst3Insert &&
+                      !vst3Plugins.some(
+                        (plugin) => plugin.path === vst3Insert.pluginPath,
+                      ) && (
+                        <option value={vst3Insert.pluginPath}>
+                          {vst3Insert.pluginName} — {t("production.vst3.missing")}
+                        </option>
+                      )}
+                    {vst3Plugins.map((plugin) => (
+                      <option key={plugin.path} value={plugin.path}>
+                        {plugin.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {vst3Insert && (
+                <>
+                  {vst3Description && (
+                    <p className="hint production-vst3-plugin-info">
+                      {vst3Description.vendor}
+                      {vst3Description.version
+                        ? ` · ${vst3Description.version}`
+                        : ""}
+                    </p>
+                  )}
+                  <label className="production-vst3-enable">
+                    <input
+                      type="checkbox"
+                      checked={vst3Insert.enabled}
+                      disabled={
+                        !hasVst3Sources || vst3Loading || !vst3PluginAvailable
+                      }
+                      onChange={(event) =>
+                        patchVst3Insert({ enabled: event.currentTarget.checked })
+                      }
+                    />
+                    {t("production.vst3.enabled")}
+                  </label>
+                  {!hasVst3Sources && (
+                    <p className="hint">{t("production.vst3.needsStems")}</p>
+                  )}
+                  {!vst3PluginAvailable && (
+                    <p className="hint error" role="alert">
+                      {t("production.vst3.missing")}
+                    </p>
+                  )}
+                  {vst3Loading && (
+                    <p className="hint" role="status">
+                      {t("production.vst3.loading")}
+                    </p>
+                  )}
+                  {vst3Description && (
+                    <div className="production-vst3-parameters">
+                      <p className="hint">{t("production.vst3.parametersHint")}</p>
+                      {vst3Description.parameters.filter(
+                        (parameter) =>
+                          parameter.canAutomate &&
+                          !parameter.readOnly &&
+                          !parameter.bypass,
+                      ).length === 0 ? (
+                        <p className="hint">{t("production.vst3.noParameters")}</p>
+                      ) : (
+                        vst3Description.parameters
+                          .filter(
+                            (parameter) =>
+                              parameter.canAutomate &&
+                              !parameter.readOnly &&
+                              !parameter.bypass,
+                          )
+                          .map((parameter) => {
+                            const value =
+                              vst3ParameterDrafts[String(parameter.id)] ??
+                              vst3Insert.parameters[String(parameter.id)] ??
+                              parameter.value;
+                            return (
+                              <label
+                                className="production-vst3-parameter"
+                                key={parameter.id}
+                              >
+                                <span>
+                                  {parameter.name}
+                                  <output>
+                                    {vst3ParameterDrafts[
+                                      String(parameter.id)
+                                    ] !== undefined
+                                      ? `${Math.round(value * 100)}%`
+                                      : parameter.formattedValue}
+                                  </output>
+                                </span>
+                                <input
+                                  type="range"
+                                  min={0}
+                                  max={1000}
+                                  step={1}
+                                  value={Math.round(value * 1000)}
+                                  aria-label={parameter.name}
+                                  disabled={vst3Loading}
+                                  onChange={(event) =>
+                                    draftVst3Parameter(
+                                      parameter.id,
+                                      Number(event.currentTarget.value) / 1000,
+                                    )
+                                  }
+                                  onPointerUp={(event) =>
+                                    commitVst3Parameter(
+                                      parameter.id,
+                                      Number(event.currentTarget.value) / 1000,
+                                    )
+                                  }
+                                  onKeyUp={(event) =>
+                                    commitVst3Parameter(
+                                      parameter.id,
+                                      Number(event.currentTarget.value) / 1000,
+                                    )
+                                  }
+                                />
+                              </label>
+                            );
+                          })
+                      )}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => {
+                      vst3InspectedPath.current = null;
+                      vst3FormatRequest.current++;
+                      setVst3ParameterDrafts({});
+                      setVst3Description(null);
+                      onMixChange({
+                        ...mix,
+                        vst3MasterInsert: null,
+                      });
+                    }}
+                  >
+                    {t("production.vst3.remove")}
+                  </button>
+                </>
+              )}
+              {vst3Error && (
+                <p className="hint error" role="alert">
+                  {vst3Error}
+                </p>
+              )}
+            </>
+          )}
         </fieldset>
 
         <fieldset className="production-mix-settings-field">
