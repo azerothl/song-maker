@@ -22,6 +22,7 @@ import {
 type ScoreWorkspaceProps = {
   busy: boolean;
   canGenerateScoreOnly: boolean;
+  scoreOnlyDisabledReason: string;
   form: FormInput;
   generations: GenerationSummary[];
   mix: MixDoc | null;
@@ -48,6 +49,7 @@ type ScoreWorkspaceProps = {
 export function ScoreWorkspace({
   busy,
   canGenerateScoreOnly,
+  scoreOnlyDisabledReason,
   form,
   generations,
   mix,
@@ -147,6 +149,7 @@ export function ScoreWorkspace({
           >
             <ScoreOnlyGenerate
               canGenerate={canGenerateScoreOnly}
+              disabledReason={scoreOnlyDisabledReason}
               busy={busy}
               onGenerateScoreOnly={onGenerateScoreOnly}
             />

@@ -354,6 +354,15 @@ export function SongScreen() {
   /** Score-only forbids external ABC and cot=off. */
   const canGenerateScoreOnly =
     !formError && form.cot !== "off" && !scoreGate.abc;
+  const scoreOnlyDisabledReason = busy
+    ? t("stopAfter.generateScoreOnlyBusy")
+    : formError
+      ? t("stopAfter.generateScoreOnlyFixFields")
+      : form.cot === "off"
+        ? t("stopAfter.generateScoreOnlyEnablePlan")
+        : scoreGate.abc
+          ? t("stopAfter.generateScoreOnlyAlreadyHasScore")
+          : t("stopAfter.generateScoreOnlyUnavailable");
 
   useEffect(() => {
     setShowFormErrors(false);
@@ -1014,6 +1023,7 @@ export function SongScreen() {
           <ScoreWorkspace
             busy={busy}
             canGenerateScoreOnly={canGenerateScoreOnly}
+            scoreOnlyDisabledReason={scoreOnlyDisabledReason}
             form={form}
             generations={generations}
             mix={mix}

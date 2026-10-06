@@ -5857,6 +5857,14 @@ details[open] > summary {
   font-weight: 600;
 }
 
+.score-panel-action-help {
+  flex: 0 0 100%;
+  max-width: 64rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
 .score-issues {
   list-style: none;
   margin: 0;
