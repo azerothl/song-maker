@@ -67,6 +67,7 @@ function CreateTabCaptureApp() {
           setAdvancedSettingsPage={setAdvancedSettingsPage}
           setForm={setForm}
           instrumentalPackState="unknown"
+          showVocalRemovalGuidance={false}
           showInstrumentalPackGuidance={false}
           showFormErrors={showFormErrors}
         />

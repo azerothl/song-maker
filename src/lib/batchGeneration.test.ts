@@ -47,6 +47,15 @@ describe("batch generation (#368)", () => {
       assert.ok(key in fr);
       assert.ok(key in enApp);
     }
+    for (const key of ["batch.capacityReducedRunningOne", "batch.capacityReducedRunningMany", "batch.liveParallelOne", "batch.liveParallelMany"]) {
+      assert.ok(key in fr);
+      assert.ok(key in enApp);
+    }
+    assert.match(panel, /batch\.liveParallelOne/);
+    assert.match(panel, /batch\.capacityReducedRunningOne/);
+    assert.match(fr["batch.capacityReducedRunningOne"], /aperçu d’un prochain lot/);
+    assert.doesNotMatch(fr["batch.capacityReducedRunningOne"], /résultats créés|avant de reprendre/i);
+    assert.match(enApp["batch.capacityReducedRunningOne"], /preview for a new batch/);
     assert.ok("batch.open" in enApp);
     assert.doesNotMatch(fr["candidates.foldSummary"], /parallèle/i);
     assert.doesNotMatch(enApp["candidates.foldSummary"], /parallel/i);

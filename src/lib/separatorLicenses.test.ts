@@ -14,18 +14,20 @@ import {
 import { t } from "../ui/i18n.ts";
 
 describe("separator licenses UI contract (#167)", () => {
-  it("Mel-Band « Kim Vocal » is non vérifié (no MIT / commercialOk from third-party conversion)", () => {
+  it("Mel-Band « Kim Vocal » license follows the author's current official model card", () => {
     const mel = separatorLicense("mel_band_roformer");
     assert.ok(mel);
-    assert.equal(mel.status, "unverified");
-    assert.match(mel.badgeFr, /source primaire/i);
-    assert.equal(licenseStatusLabelFr(mel.status), "non vérifié");
+    assert.equal(mel.status, "verified");
+    assert.match(mel.badgeFr, /MIT/i);
+    assert.equal(licenseStatusLabelFr(mel.status), "vérifié");
     assert.doesNotMatch(mel.sourceUrl, /mlx-community/);
-    assert.match(mel.noticeFr, /non vérifié/i);
+    assert.match(mel.sourceUrl, /KimberleyJSN\/melbandroformer/);
+    assert.match(mel.noticeFr, /données d’entraînement ne sont pas documentées/i);
     assert.match(mel.noticeFr, /Kim Vocal »/);
     assert.doesNotMatch(mel.noticeFr, /Kim Vocal 2/);
-    assert.equal(mel.readDate, "2026-09-29");
+    assert.equal(mel.readDate, "2026-10-06");
     assert.equal(canDownloadSeparator("mel_band_roformer", {}), false);
+    assert.equal(canDownloadSeparator("mel_band_roformer", { mel_band_roformer: true }), true);
   });
 
   it("BS-RoFormer ep368 badge is non vérifié", () => {

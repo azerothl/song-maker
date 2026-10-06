@@ -128,8 +128,10 @@ describe("validateFormFields", () => {
     const errors = validateFormFields(
       form({ audioInputPath: "/tmp/ref.wav", inpaintStartMs: 0, inpaintEndMs: 2000 }),
     );
-    assert.match(errors.audioInput ?? "", /ne peut pas modifier un morceau importé/);
+    assert.match(errors.audioInput ?? "", /remplacer une seule partie d’un morceau importé/);
     assert.match(errors.audioInput ?? "", /Reprise/);
+    assert.match(errors.audioInput ?? "", /transforme d’abord l’audio en partition/);
+    assert.match(errors.audioInput ?? "", /ne guide pas directement la génération/);
     assert.doesNotMatch(errors.audioInput ?? "", /audio_input|décodeur|inpainting|transcription/);
   });
 });
