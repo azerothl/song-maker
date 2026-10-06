@@ -654,6 +654,8 @@
   "record.err.recorder": "L’enregistrement a échoué.",
   "record.err.empty": "Aucun son n’a été enregistré.",
   "record.err.noSession": "Aucun enregistrement actif.",
+  "record.err.pauseFailed": "Impossible de mettre l’enregistrement en pause. Il continue ; réessayez ou arrêtez la prise.",
+  "record.err.resumeFailed": "Impossible de reprendre l’enregistrement. Il reste en pause ; réessayez ou arrêtez la prise.",
   "record.err.start": "Impossible de démarrer l’enregistrement : {detail}",
   "record.err.finalize": "Impossible de terminer l’enregistrement : {detail}",
   "waveform.label": "Forme d’onde",

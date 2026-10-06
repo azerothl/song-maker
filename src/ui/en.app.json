@@ -504,6 +504,8 @@
   "record.err.recorder": "Recording failed.",
   "record.err.empty": "No sound was recorded.",
   "record.err.noSession": "No recording is active.",
+  "record.err.pauseFailed": "Could not pause recording. It is still running; try again or stop the take.",
+  "record.err.resumeFailed": "Could not resume recording. It is still paused; try again or stop the take.",
   "record.err.start": "Could not start recording: {detail}",
   "record.err.nativeUnavailable": "No device is available for recording in the app. Try browser mode.",
   "record.err.nativeStart": "Could not start recording in the app: {detail}",

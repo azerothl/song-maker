@@ -143,6 +143,7 @@ export function RecordTrackPanel({
   const [elapsedMs, setElapsedMs] = useState(0);
   const [pendingTakes, setPendingTakes] = useState<PendingTake[]>([]);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [nativeControlBusy, setNativeControlBusy] = useState(false);
 
   useEffect(() => {
     if (!import.meta.env.VITE_CAPTURE) return;
@@ -187,6 +188,7 @@ export function RecordTrackPanel({
   const punchWindowMsRef = useRef(0);
   const engineRef = useRef<CaptureEngine>("webview");
   const nativeStopInFlightRef = useRef(false);
+  const nativeControlBusyRef = useRef(false);
   const takeIndexRef = useRef(0);
   const rollingTakesRef = useRef(false);
   const countdownTimerRef = useRef<number | null>(null);
@@ -754,12 +756,24 @@ export function RecordTrackPanel({
     }
   }
 
-  function pauseRecording() {
+  async function pauseRecording() {
     if (engineRef.current === "native") {
-      void api.pauseNativeCapture(true).then(() => {
+      if (nativeControlBusyRef.current) return;
+      nativeControlBusyRef.current = true;
+      setNativeControlBusy(true);
+      setStatusMsg(null);
+      try {
+        await api.pauseNativeCapture(true);
         pauseStartedRef.current = Date.now();
         setPhase("paused");
-      });
+      } catch {
+        const message = t("record.err.pauseFailed");
+        setStatusMsg(message);
+        onError(message);
+      } finally {
+        nativeControlBusyRef.current = false;
+        setNativeControlBusy(false);
+      }
       return;
     }
     const rec = recorderRef.current;
@@ -769,15 +783,27 @@ export function RecordTrackPanel({
     setPhase("paused");
   }
 
-  function resumeRecording() {
+  async function resumeRecording() {
     if (engineRef.current === "native") {
-      if (pauseStartedRef.current != null) {
-        pausedAccumRef.current += Date.now() - pauseStartedRef.current;
-        pauseStartedRef.current = null;
-      }
-      void api.pauseNativeCapture(false).then(() => {
+      if (nativeControlBusyRef.current) return;
+      nativeControlBusyRef.current = true;
+      setNativeControlBusy(true);
+      setStatusMsg(null);
+      try {
+        await api.pauseNativeCapture(false);
+        if (pauseStartedRef.current != null) {
+          pausedAccumRef.current += Date.now() - pauseStartedRef.current;
+          pauseStartedRef.current = null;
+        }
         setPhase("recording");
-      });
+      } catch {
+        const message = t("record.err.resumeFailed");
+        setStatusMsg(message);
+        onError(message);
+      } finally {
+        nativeControlBusyRef.current = false;
+        setNativeControlBusy(false);
+      }
       return;
     }
     const rec = recorderRef.current;
@@ -1201,10 +1227,10 @@ export function RecordTrackPanel({
         )}
         {phase === "recording" && (
           <>
-            <button type="button" className="btn" onClick={pauseRecording}>
+            <button type="button" className="btn" disabled={nativeControlBusy} onClick={pauseRecording}>
               {t("record.pause")}
             </button>
-            <button type="button" className="btn" onClick={stopRecording}>
+            <button type="button" className="btn" disabled={nativeControlBusy} onClick={stopRecording}>
               {t("record.stop")}
             </button>
           </>
@@ -1214,11 +1240,12 @@ export function RecordTrackPanel({
             <button
               type="button"
               className="btn primary"
+              disabled={nativeControlBusy}
               onClick={resumeRecording}
             >
               {t("record.resume")}
             </button>
-            <button type="button" className="btn" onClick={stopRecording}>
+            <button type="button" className="btn" disabled={nativeControlBusy} onClick={stopRecording}>
               {t("record.stop")}
             </button>
           </>
