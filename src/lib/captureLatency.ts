@@ -1,8 +1,8 @@
 /**
  * WebView capture latency estimate + stability tradeoffs (issue #93).
  *
- * Native WASAPI / ASIO exclusive paths are still out of scope — cpal shared
- * WASAPI (Win) / ALSA / Core Audio sit behind the same UI as a native engine.
+ * Native capture timing remains an estimate. WASAPI exclusive capture is
+ * available on Windows; this does not measure speaker-to-microphone latency.
  */
 
 export type CaptureLatencyPreference = "stable" | "balanced" | "low";

@@ -49,6 +49,7 @@ windows-sys = { version = "0.61", features = [
   "Win32_Security",
   "Win32_System_JobObjects",
 ] }
+wasapi = "0.25"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
