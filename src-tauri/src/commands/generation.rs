@@ -2072,7 +2072,10 @@ mod continuation_tests {
 
 #[cfg(test)]
 mod instrumental_failure_tests {
-    use super::{record_failed_generation, run_generation, GenerationWorker};
+    use super::{
+        check_requested_duration, record_failed_generation, record_generation_failure,
+        run_generation, GenerationWorker,
+    };
     use crate::audiocpp::AudioCppServer;
     use crate::commands::AppState;
     use crate::library::{default_settings, project_folder, save_project};
@@ -2166,6 +2169,91 @@ mod instrumental_failure_tests {
         assert_eq!(fs::read(separation_file).unwrap(), separation_marker);
         assert_eq!(fs::read(mix_file).unwrap(), mix_marker);
         assert!(gen_dir.join("audio.wav").is_file());
+
+        drop(docs);
+    }
+
+    #[test]
+    fn duration_mismatch_keeps_existing_version_and_failed_audio_for_diagnostics() {
+        let docs = TempDocs::new("duration-mismatch-preserves-active-version");
+        let project_id = "duration-mismatch-preserves-project";
+        let folder = project_folder(project_id);
+        fs::create_dir_all(&folder).unwrap();
+        let project: ProjectDoc = serde_json::from_value(json!({
+            "schema": SCHEMA_PROJECT,
+            "schemaVersion": SCHEMA_VERSION,
+            "id": project_id,
+            "title": "Projet avec version active",
+            "createdAt": "2026-10-06T00:00:00Z",
+            "updatedAt": "2026-10-06T00:00:00Z",
+            "sampleRate": SAMPLE_RATE,
+            "channels": CHANNELS,
+            "bitDepth": BIT_DEPTH,
+            "style": "Style source",
+            "lyrics": "Paroles conservées",
+            "cot": "full",
+            "targetDurationSec": 30,
+            "preferFullLyrics": true,
+            "instrumentalMode": false,
+            "activeGenerationId": "gen-001",
+            "activeSeparationId": "sep-001",
+            "activeMixId": "mix-v001"
+        }))
+        .unwrap();
+        save_project(&folder, &project).unwrap();
+        let project_before = fs::read(folder.join("project.json")).unwrap();
+
+        let separation_marker = b"existing stems stay available";
+        let mix_marker = b"existing mix stays available";
+        let separation_file = folder.join("separations/sep-001/stems.marker");
+        let mix_file = folder.join("mixes/mix-v001/mix.marker");
+        fs::create_dir_all(separation_file.parent().unwrap()).unwrap();
+        fs::create_dir_all(mix_file.parent().unwrap()).unwrap();
+        fs::write(&separation_file, separation_marker).unwrap();
+        fs::write(&mix_file, mix_marker).unwrap();
+
+        let generation_id = "gen-002";
+        let gen_dir = folder.join("generations").join(generation_id);
+        fs::create_dir_all(&gen_dir).unwrap();
+        let audio_path = gen_dir.join("audio.wav");
+        let mut writer = hound::WavWriter::create(
+            &audio_path,
+            hound::WavSpec {
+                channels: 1,
+                sample_rate: 48_000,
+                bits_per_sample: 16,
+                sample_format: hound::SampleFormat::Int,
+            },
+        )
+        .unwrap();
+        for _ in 0..(29_700 * 48) {
+            writer.write_sample(0i16).unwrap();
+        }
+        writer.finalize().unwrap();
+        let rejected_audio = fs::read(&audio_path).unwrap();
+        let actual_duration_ms = crate::mix::wav_duration_ms(&audio_path).unwrap();
+        let error = check_requested_duration(actual_duration_ms, 30_000).unwrap_err();
+        assert!(error.contains("GENERATION_DURATION_MISMATCH|30000|29700"));
+
+        record_generation_failure(&gen_dir, generation_id, "2026-10-06T00:00:00Z", &error).unwrap();
+        record_failed_generation(&gen_dir, generation_id, project_id, "generation", &error)
+            .unwrap();
+
+        let failed_result: serde_json::Value =
+            serde_json::from_slice(&fs::read(gen_dir.join("result.json")).unwrap()).unwrap();
+        let failed_job: serde_json::Value =
+            serde_json::from_slice(&fs::read(gen_dir.join("job.json")).unwrap()).unwrap();
+        assert_eq!(failed_result["state"], "failed");
+        assert!(failed_result["audio"].is_null());
+        assert_eq!(failed_result["unpublishedAudioPath"], "audio.wav");
+        assert_eq!(failed_job["state"], "failed");
+        assert_eq!(fs::read(&audio_path).unwrap(), rejected_audio);
+        assert_eq!(
+            fs::read(folder.join("project.json")).unwrap(),
+            project_before
+        );
+        assert_eq!(fs::read(separation_file).unwrap(), separation_marker);
+        assert_eq!(fs::read(mix_file).unwrap(), mix_marker);
 
         drop(docs);
     }
