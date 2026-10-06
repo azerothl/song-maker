@@ -303,20 +303,22 @@ pub async fn verify_batch_parallelism(
         .join(&probe_id);
     let mut workers = Vec::new();
     let mut forms = Vec::new();
-    let mut projects = Vec::new();
+    let mut project_ids = Vec::new();
+    let first_seed = pending.preview.tasks[0].seed;
+    let probe_title = format!(
+        "Vérification simultanéité {}",
+        crate::paths::now_iso().replace(':', "-")
+    );
+    let mut first_form = task_to_form(&pending.preview.tasks[0]);
+    first_form.title = probe_title.clone();
+    let mut second_form = first_form.clone();
+    second_form.seed = Some((first_seed.wrapping_add(1)) & 0xFFFF_FFFF);
+    let project = super::projects::create_project(CreateProjectInput { title: probe_title })?;
+    super::projects::save_project_form(project.id.clone(), first_form.clone())?;
+    project_ids.push(project.id);
+    forms.push(first_form);
+    forms.push(second_form);
     for index in 0..2 {
-        let mut form = task_to_form(&pending.preview.tasks[index]);
-        form.title = format!(
-            "Vérification simultanéité {} prise {}",
-            crate::paths::now_iso().replace(':', "-"),
-            index + 1
-        );
-        let doc = super::projects::create_project(CreateProjectInput {
-            title: form.title.clone(),
-        })?;
-        super::projects::save_project_form(doc.id.clone(), form.clone())?;
-        projects.push(doc.id);
-        forms.push(form);
         let mut worker_settings = settings.clone();
         worker_settings.server_port = 18100 + index as u16 * 20;
         workers.push(GenerationWorker {
@@ -346,13 +348,13 @@ pub async fn verify_batch_parallelism(
     let (a, b) = tokio::join!(
         generate_worker_take(
             app.state::<AppState>(),
-            projects[0].clone(),
+            project_ids[0].clone(),
             forms[0].clone(),
             &workers[0]
         ),
         generate_worker_take(
             app.state::<AppState>(),
-            projects[1].clone(),
+            project_ids[0].clone(),
             forms[1].clone(),
             &workers[1]
         )
@@ -362,27 +364,26 @@ pub async fn verify_batch_parallelism(
     for worker in &workers {
         worker.server.shutdown();
     }
-    let read_result = |index: usize,
-                       result: &Result<super::generation::InstrumentalPartResult, String>|
-     -> Option<Value> {
-        let take = result.as_ref().ok()?;
-        serde_json::from_str(
-            &std::fs::read_to_string(
-                project_folder(&projects[index])
-                    .join("generations")
-                    .join(&take.generation_id)
-                    .join("result.json"),
+    let read_result =
+        |result: &Result<super::generation::InstrumentalPartResult, String>| -> Option<Value> {
+            let take = result.as_ref().ok()?;
+            serde_json::from_str(
+                &std::fs::read_to_string(
+                    project_folder(&project_ids[0])
+                        .join("generations")
+                        .join(&take.generation_id)
+                        .join("result.json"),
+                )
+                .ok()?,
             )
-            .ok()?,
-        )
-        .ok()
-    };
-    let ra = read_result(0, &a);
-    let rb = read_result(1, &b);
-    for (index, result) in [&a, &b].into_iter().enumerate() {
-        if let Ok(result) = result {
-            super::versions::use_generation(projects[index].clone(), result.generation_id.clone())?;
-        }
+            .ok()
+        };
+    let ra = read_result(&a);
+    let rb = read_result(&b);
+    if let Ok(result) = &a {
+        super::versions::use_generation(project_ids[0].clone(), result.generation_id.clone())?;
+    } else if let Ok(result) = &b {
+        super::versions::use_generation(project_ids[0].clone(), result.generation_id.clone())?;
     }
     let overlap = ra.as_ref().zip(rb.as_ref()).is_some_and(|(a, b)| {
         a["state"] == "generated"
@@ -395,7 +396,7 @@ pub async fn verify_batch_parallelism(
         && free_min.is_some_and(|free| free >= 2048)
         && capacity_key(&pending.preview)? == key
         && hashes()? == pinned_hashes;
-    let report = json!({"key":key,"hashes":pinned_hashes,"verified":verified,"freeVramMinMib":free_min,"samples":samples,"overlap":overlap,"projects":projects,"results":[ra,rb],"errors":[a.err(),b.err()],"recordedAt":crate::paths::now_iso()});
+    let report = json!({"key":key,"hashes":pinned_hashes,"verified":verified,"freeVramMinMib":free_min,"samples":samples,"overlap":overlap,"projects":project_ids,"seeds":[forms[0].seed,forms[1].seed],"results":[ra,rb],"errors":[a.err(),b.err()],"recordedAt":crate::paths::now_iso()});
     crate::paths::atomic_write_json(&probe_root.join("measurement.json"), &report)?;
     if verified {
         *state.batch_workers.proof.lock().expect("capacity proof") = Some(report);
@@ -417,9 +418,9 @@ pub async fn verify_batch_parallelism(
         },
     )?;
     let message = if verified {
-        "Deux prises simultanées vérifiées. Les prises de vérification sont disponibles dans la bibliothèque."
+        "Deux prises simultanées du même morceau vérifiées. Elles sont disponibles dans un même projet de la bibliothèque."
     } else {
-        "Vérification non concluante : une prise à la fois est conservée. Les résultats et le rapport restent disponibles."
+        "Vérification non concluante : une prise à la fois est conservée. Les résultats du même morceau et le rapport restent disponibles."
     };
     let audio_engine_restart_failed = restore_audio_server.restore().is_err();
     let message = if audio_engine_restart_failed {
