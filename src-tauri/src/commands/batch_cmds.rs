@@ -571,18 +571,7 @@ async fn run_batch_loop(app: AppHandle, batch_id: String) {
                     let Some(task) = tasks.iter_mut().find(|task| task.task_id == task_id) else {
                         return false;
                     };
-                    if task.state == "cancel_requested" {
-                        task.state = "cancelled".into();
-                    } else if matches!(task.state.as_str(), "preparing" | "running" | "publishing") {
-                        task.state = "failed".into();
-                        task.last_error = Some(
-                            "La génération s’est arrêtée sans résultat. Les autres générations continuent.".into(),
-                        );
-                    } else {
-                        // The task may have completed its persistent state update before a
-                        // non-essential follow-up panicked. Preserve that terminal state.
-                        return true;
-                    }
+                    reconcile_unexpected_worker_exit(task);
                     save_task(&batch_id, task).is_ok()
                 });
 
@@ -944,6 +933,19 @@ fn batch_task_pending(state: &str) -> bool {
     )
 }
 
+fn reconcile_unexpected_worker_exit(task: &mut PlannedTask) {
+    if task.state == "cancel_requested" {
+        task.state = "cancelled".into();
+    } else if batch_task_pending(&task.state) {
+        task.state = "failed".into();
+        task.last_error = Some(
+            "La génération s’est arrêtée sans résultat. Les autres générations continuent.".into(),
+        );
+    }
+    // Keep an already terminal state: the worker may have saved it before a
+    // non-essential follow-up panicked.
+}
+
 pub(crate) fn batch_generation_settings(settings: &AppSettings) -> serde_json::Value {
     // Only generation configuration is persisted; assistant credentials are excluded.
     json!({
@@ -966,8 +968,8 @@ pub(crate) fn batch_generation_settings(settings: &AppSettings) -> serde_json::V
 #[cfg(test)]
 mod selection_tests {
     use super::{
-        batch_generation_settings, batch_task_pending, select_batch_default,
-        wait_for_batch_admission,
+        batch_generation_settings, batch_task_pending, reconcile_unexpected_worker_exit,
+        select_batch_default, wait_for_batch_admission, PlannedTask,
     };
 
     #[tokio::test]
@@ -1060,6 +1062,49 @@ mod selection_tests {
         }
         assert!(batch_task_pending("queued"));
         assert!(batch_task_pending("running"));
+    }
+
+    fn task_with_state(state: &str) -> PlannedTask {
+        let file = crate::batch::parse_batch_bytes(crate::batch::EXAMPLE_JSON.as_bytes(), "panic")
+            .unwrap();
+        let mut task = crate::batch::plan_batch(&file, None, None)
+            .unwrap()
+            .tasks
+            .into_iter()
+            .next()
+            .unwrap();
+        task.state = state.into();
+        task
+    }
+
+    #[test]
+    fn unexpected_worker_exit_fails_pending_states_including_retry_wait() {
+        for state in ["queued", "retry_wait", "preparing", "running", "publishing"] {
+            let mut task = task_with_state(state);
+            reconcile_unexpected_worker_exit(&mut task);
+
+            assert_eq!(task.state, "failed", "state before worker exit: {state}");
+            assert_eq!(
+                task.last_error.as_deref(),
+                Some(
+                    "La génération s’est arrêtée sans résultat. Les autres générations continuent."
+                )
+            );
+            assert!(!batch_task_pending(&task.state));
+        }
+    }
+
+    #[test]
+    fn unexpected_worker_exit_respects_cancel_and_existing_terminal_states() {
+        let mut cancelled = task_with_state("cancel_requested");
+        reconcile_unexpected_worker_exit(&mut cancelled);
+        assert_eq!(cancelled.state, "cancelled");
+
+        let mut succeeded = task_with_state("succeeded");
+        succeeded.last_error = Some("already persisted".into());
+        reconcile_unexpected_worker_exit(&mut succeeded);
+        assert_eq!(succeeded.state, "succeeded");
+        assert_eq!(succeeded.last_error.as_deref(), Some("already persisted"));
     }
 
     #[test]
