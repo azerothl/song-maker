@@ -1147,6 +1147,8 @@
   "sheetsage.result.license": "Accept the license before using this feature.",
   "sheetsage.result.runtime": "The audio tools are stopped. Start them from the sidebar, then try again.",
   "sheetsage.error.check": "Unable to check the required components. Try again.",
+  "sheetsage.error.audioPreparation": "Unable to prepare the song audio. Check that it is accessible, then try again.",
+  "sheetsage.error.audioMissing": "No audio is available. Choose an audio track or export the song, then try again.",
   "sheetsage.error.install": "Unable to download the module. Check your connection, then try again.",
   "sheetsage.error.transcribe": "Unable to create the score. Check that the audio is accessible, then try again.",
   "sheetsage.error.cancel": "Unable to cancel the action. Try again.",

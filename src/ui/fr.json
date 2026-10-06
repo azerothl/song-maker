@@ -1475,6 +1475,8 @@
   "sheetsage.result.license": "Acceptez la licence avant d’utiliser cette fonction.",
   "sheetsage.result.runtime": "Les outils audio sont arrêtés. Démarrez-les depuis la barre latérale, puis réessayez.",
   "sheetsage.error.check": "Impossible de vérifier les éléments nécessaires. Réessayez.",
+  "sheetsage.error.audioPreparation": "Impossible de préparer l’audio du morceau. Vérifiez qu’il est accessible, puis réessayez.",
+  "sheetsage.error.audioMissing": "Aucun audio accessible. Choisissez une piste audio ou exportez le morceau, puis réessayez.",
   "sheetsage.error.install": "Impossible de télécharger le module. Vérifiez votre connexion, puis réessayez.",
   "sheetsage.error.transcribe": "Impossible de créer la partition. Vérifiez que l’audio est accessible, puis réessayez.",
   "sheetsage.error.cancel": "Impossible d’annuler l’action. Réessayez.",
