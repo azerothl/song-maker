@@ -909,6 +909,7 @@ export function ProductionWorkspace({
                             }
                             aria-pressed={tr.mute}
                             aria-label={t("mix.muteNamed", { track: tr.name })}
+                            title={t("mix.muteNamed", { track: tr.name })}
                             onClick={() =>
                               scheduleMixUpdate(patchTrack(mix, tr.id, { mute: !tr.mute }))
                             }
@@ -926,6 +927,7 @@ export function ProductionWorkspace({
                             }
                             aria-pressed={tr.solo}
                             aria-label={t("mix.soloNamed", { track: tr.name })}
+                            title={t("mix.soloNamed", { track: tr.name })}
                             onClick={() =>
                               scheduleMixUpdate(patchTrack(mix, tr.id, { solo: !tr.solo }))
                             }
@@ -1022,6 +1024,7 @@ export function ProductionWorkspace({
                               }
                               aria-pressed={gMute}
                               aria-label={t("mix.group.muteNamed", { group: groupName })}
+                              title={t("mix.group.muteNamed", { group: groupName })}
                               onClick={() => {
                                 scheduleMixUpdate(
                                   patchTracks(mix, trackIds, { mute: !gMute }),
@@ -1041,6 +1044,7 @@ export function ProductionWorkspace({
                               }
                               aria-pressed={gSolo}
                               aria-label={t("mix.group.soloNamed", { group: groupName })}
+                              title={t("mix.group.soloNamed", { group: groupName })}
                               onClick={() => {
                                 scheduleMixUpdate(
                                   patchTracks(mix, trackIds, { solo: !gSolo }),
