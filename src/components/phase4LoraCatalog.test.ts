@@ -15,8 +15,8 @@ it("explains unavailable LoRA packs in French and English without offering broke
     },
   });
   for (const [locale, notReady, realAudio, chanson] of [
-    ["fr", "Installation indisponible dans Song Maker", "Améliore le rendu des voix", "Styles de chanson française"],
-    ["en", "Not available to install in Song Maker", "Improves vocal rendering", "French chanson styles"],
+    ["fr", "Non installable dans Song Maker", "Améliore le rendu des voix", "Styles de chanson française"],
+    ["en", "Cannot be installed in Song Maker", "Improves vocal rendering", "French chanson styles"],
   ] as const) {
     setAppLocale(locale);
     const html = renderToStaticMarkup(createElement(Phase4SettingsPanel, { view: "lora" }));
@@ -28,5 +28,5 @@ it("explains unavailable LoRA packs in French and English without offering broke
     assert.ok(html.includes("aucun téléchargement n’est proposé") || html.includes("no download is offered"));
   }
   setAppLocale("fr");
-  delete (globalThis as typeof globalThis & { localStorage?: unknown }).localStorage;
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: undefined });
 });

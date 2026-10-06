@@ -47,16 +47,16 @@ describe("settings YuE2 download", () => {
 
       const download = page.getByTestId("settings-yue2-download");
       await download.waitFor({ state: "visible" });
-      assert.match(await download.innerText(), /Télécharger Q4/);
+      assert.match(await download.innerText(), /Télécharger Version légère et rapide/);
       assert.equal(await download.isDisabled(), true);
       assert.match(await page.locator("body").innerText(), /Aucun modèle téléchargé/);
 
-      await page.getByRole("button", { name: "Choisir Q8" }).click();
+      await page.getByRole("button", { name: "Version plus détaillée", exact: true }).click();
       assert.equal(
-        await page.getByRole("button", { name: "Choisir Q8" }).getAttribute("aria-pressed"),
+        await page.getByRole("button", { name: "Version plus détaillée", exact: true }).getAttribute("aria-pressed"),
         "true",
       );
-      assert.match(await download.innerText(), /Télécharger Q8/);
+      assert.match(await download.innerText(), /Télécharger Version plus détaillée/);
       assert.doesNotMatch(await page.locator("body").innerText(), /Ce pack est déjà sur cet ordinateur/);
 
       await page.getByRole("checkbox", { name: /licence YuE2/ }).check();

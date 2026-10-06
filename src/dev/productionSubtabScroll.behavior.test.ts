@@ -278,7 +278,7 @@ describe("Production commune (#223, #230)", () => {
         await page.locator(".production-main-toolbar [data-capture-export-trigger]").click();
         const exportDialog = page.getByRole("dialog");
         await exportDialog.waitFor();
-        await exportDialog.getByText("Paquet de projet portable (ZIP)").click();
+        await exportDialog.getByRole("radio", { name: "Archive du projet (ZIP)" }).check();
         await page.getByTestId("portable-package-panel").waitFor();
         await page.keyboard.press("Escape");
 
