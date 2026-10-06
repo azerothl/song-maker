@@ -35,9 +35,14 @@ pub fn validate_title(title: &str) -> Result<(), FormError> {
 }
 
 /// Keep draft lyrics in the project, but never send them for an instrumental take.
-pub fn generation_lyrics(input: &FormInput) -> &str {
+/// audio.cpp v0.8.2 uses this marker with the verified instrumental AR adapter.
+pub fn generation_lyrics(input: &FormInput, instrumental_adapter_active: bool) -> &str {
     if input.instrumental_mode {
-        ""
+        if instrumental_adapter_active {
+            "[instrumental]"
+        } else {
+            ""
+        }
     } else {
         &input.lyrics
     }
@@ -403,12 +408,16 @@ mod tests {
         validate_form(&input).unwrap();
         input.lyrics = "[Verse]\nParoles conservées".into();
         input.singing_language = Some("French".into());
-        assert_eq!(generation_lyrics(&input), "");
+        assert_eq!(generation_lyrics(&input, false), "");
+        assert_eq!(generation_lyrics(&input, true), "[instrumental]");
         let style = assemble_style_sent(&input).unwrap();
         assert!(style.contains("no vocals"));
         assert!(!style.contains("French"));
         input.instrumental_mode = false;
-        assert_eq!(generation_lyrics(&input), "[Verse]\nParoles conservées");
+        assert_eq!(
+            generation_lyrics(&input, true),
+            "[Verse]\nParoles conservées"
+        );
     }
 
     #[test]

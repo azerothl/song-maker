@@ -21,6 +21,28 @@ use std::sync::Arc;
 /// Resample / HTDemucs alignment only — not a YuE2 wall-clock contract.
 const STEM_ALIGN_TOLERANCE_MS: i64 = 250;
 const REQUESTED_DURATION_TOLERANCE_MS: i64 = 250;
+const INSTRUMENTAL_AR_ADAPTER_FILENAME: &str = "ar_lora_inst_v3abc.bf16.safetensors";
+const INSTRUMENTAL_AR_ADAPTER_SHA256: &str =
+    "e408fd3148b75b1165f7ddbf63db575d83bb6402a0b5f876fcb767dbcb2c5414";
+
+fn uses_verified_instrumental_ar_adapter(provenance: &serde_json::Value) -> bool {
+    let Some(adapter) = provenance.pointer("/adapters/ar") else {
+        return false;
+    };
+    let filename_matches = adapter
+        .get("filename")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|filename| filename == INSTRUMENTAL_AR_ADAPTER_FILENAME);
+    let hash_matches = adapter
+        .get("sha256")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|sha| sha.eq_ignore_ascii_case(INSTRUMENTAL_AR_ADAPTER_SHA256));
+    let enabled = adapter
+        .get("scale")
+        .and_then(serde_json::Value::as_f64)
+        .is_some_and(|scale| scale > 0.0);
+    filename_matches && hash_matches && enabled
+}
 
 fn check_requested_duration(duration_ms: i64, expected_ms: i64) -> Result<(), String> {
     if duration_ms <= 0 || (duration_ms - expected_ms).abs() > REQUESTED_DURATION_TOLERANCE_MS {
@@ -63,6 +85,60 @@ mod requested_duration_tests {
         assert!(check_requested_duration(109_798, 360_000).is_err());
         assert!(check_requested_duration(0, 30_000).is_err());
         assert!(check_requested_duration(361_000, 360_000).is_err());
+    }
+}
+
+#[cfg(test)]
+mod instrumental_adapter_tests {
+    use super::uses_verified_instrumental_ar_adapter;
+    use serde_json::json;
+
+    #[test]
+    fn only_the_enabled_catalog_instrumental_adapter_is_recognized() {
+        let valid = json!({
+            "adapters": {
+                "ar": {
+                    "filename": "ar_lora_inst_v3abc.bf16.safetensors",
+                    "sha256": "e408fd3148b75b1165f7ddbf63db575d83bb6402a0b5f876fcb767dbcb2c5414",
+                    "scale": 1.0
+                }
+            }
+        });
+        assert!(uses_verified_instrumental_ar_adapter(&valid));
+
+        let uppercase_hash = json!({
+            "adapters": {
+                "ar": {
+                    "filename": "ar_lora_inst_v3abc.bf16.safetensors",
+                    "sha256": "E408FD3148B75B1165F7DDBF63DB575D83BB6402A0B5F876FCB767DBCB2C5414",
+                    "scale": 0.5
+                }
+            }
+        });
+        assert!(uses_verified_instrumental_ar_adapter(&uppercase_hash));
+
+        let wrong_hash = json!({
+            "adapters": {
+                "ar": {
+                    "filename": "ar_lora_inst_v3abc.bf16.safetensors",
+                    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "scale": 1.0
+                }
+            }
+        });
+        assert!(!uses_verified_instrumental_ar_adapter(&wrong_hash));
+
+        let disabled = json!({
+            "adapters": {
+                "ar": {
+                    "filename": "ar_lora_inst_v3abc.bf16.safetensors",
+                    "sha256": "e408fd3148b75b1165f7ddbf63db575d83bb6402a0b5f876fcb767dbcb2c5414",
+                    "scale": 0.0
+                }
+            }
+        });
+        assert!(!uses_verified_instrumental_ar_adapter(&disabled));
+        assert!(!uses_verified_instrumental_ar_adapter(&json!({})));
     }
 }
 
@@ -486,7 +562,10 @@ pub async fn generate_comparison_take(
         return Err("Utilisez Ajouter une piste pour le modèle guidé par l’audio.".into());
     }
     form.continuation_generation_id = None;
-    run_generation(state, id, form, abc, stop_after, None, engine, None, true, None).await
+    run_generation(
+        state, id, form, abc, stop_after, None, engine, None, true, None,
+    )
+    .await
 }
 
 pub(crate) async fn generate_worker_take(
@@ -538,9 +617,22 @@ async fn run_generation(
     } else {
         style_sent
     };
+    let use_ace_step = requested_engine == "ace_step";
+    let use_lego = requested_engine == "ace_step_lego";
+    let (lora_provenance, lora_warnings) = if use_ace_step || use_lego {
+        (json!({}), Vec::new())
+    } else {
+        resolve_lora_provenance_for_generation(&mut settings)
+    };
+    let instrumental_adapter_active = requested_engine == "yue2"
+        && form.instrumental_mode
+        && uses_verified_instrumental_ar_adapter(&lora_provenance);
+    if instrumental_adapter_active && form.cot != "full" {
+        return Err("L’adaptateur instrumental YuE2 nécessite « Analyse complète ». Choisissez ce réglage ou désactivez l’adaptateur dans Paramètres → Modèle.".into());
+    }
     let target_duration_sec =
         validate_target_duration(form.target_duration_sec).map_err(|e| e.to_string())?;
-    let lyrics_sent = generation_lyrics(&form).to_string();
+    let lyrics_sent = generation_lyrics(&form, instrumental_adapter_active).to_string();
     let (mut semantic_min_tokens, mut semantic_max_tokens) = semantic_token_budget(
         target_duration_sec,
         &lyrics_sent,
@@ -566,8 +658,6 @@ async fn run_generation(
         .as_ref()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    let use_ace_step = requested_engine == "ace_step";
-    let use_lego = requested_engine == "ace_step_lego";
     let remove_vocals = form.instrumental_mode && !use_lego && !stop_after_abc;
     let instrumental_separator = if remove_vocals {
         let plan = instrumental_separator_plan(&settings.stem_separator);
@@ -719,11 +809,6 @@ async fn run_generation(
             Ok(())
         })?;
     }
-    let (lora_provenance, lora_warnings) = if use_ace_step || use_lego {
-        (json!({}), Vec::new())
-    } else {
-        resolve_lora_provenance_for_generation(&mut settings)
-    };
     let seed = normalize_seed(form.seed.unwrap_or_else(random_seed));
     let gen_id = crate::project_transaction::with_lock(&folder, || {
         let id = next_folder_id(&folder.join("generations"), "gen-")?;
@@ -833,6 +918,7 @@ async fn run_generation(
         "targetDurationSec": target_duration_sec,
         "preferFullLyrics": form.prefer_full_lyrics && !form.instrumental_mode,
         "instrumentalMode": form.instrumental_mode,
+        "instrumentalMarkerUsed": instrumental_adapter_active,
         "draftLyricsUsed": !form.instrumental_mode,
         "instrumentalProcessing": instrumental_separator.map(InstrumentalSeparatorPlan::method),
         "expectedDurationMs": if fixed_duration { Some(expected_duration_ms) } else { None },
