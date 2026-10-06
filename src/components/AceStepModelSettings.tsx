@@ -287,7 +287,6 @@ export function AceStepModelSettings() {
         ) : null}
         <details>
           <summary>{t("settings.model.engine.pinDetails")}</summary>
-          <p className="hint" role="note">{t("settings.model.engine.pythonYue2")}</p>
           <p>{info?.repo} · {info?.revision}</p>
           <p>{info?.gguf} · SHA-256 {info?.sha256}</p>
           <p>

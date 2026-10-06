@@ -205,7 +205,11 @@ export function Yue2PackSettings() {
             ) : null}
             {!settings.acceptedSeparatorLicenses?.htdemucs ? (
               <>
-                <p className="hint">{t("firstLaunch.license.htdemucsNotice")}</p>
+                <p className="hint">{t("firstLaunch.license.htdemucsSummary")}</p>
+                <details>
+                  <summary>{t("firstLaunch.license.htdemucsDetails")}</summary>
+                  <p className="hint">{t("firstLaunch.license.htdemucsNotice")}</p>
+                </details>
                 <div className="settings-license-accept">
                   <input
                     id="settings-htdemucs-license"
@@ -220,7 +224,7 @@ export function Yue2PackSettings() {
                 </div>
                 <p className="hint">
                   <a href={HTDEMUCS_LICENSE_URL} target="_blank" rel="noreferrer">
-                    Demucs #327
+                    {t("firstLaunch.license.htdemucsSource")}
                   </a>
                 </p>
               </>

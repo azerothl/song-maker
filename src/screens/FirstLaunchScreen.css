@@ -5,3 +5,17 @@
   font-size: max(14px, 0.875rem);
   line-height: 1.35;
 }
+
+.first-launch .fl-license .fl-htdemucs-summary {
+  margin-block: 0.25rem;
+}
+
+.first-launch .fl-license .fl-htdemucs-details {
+  margin-block: 0.25rem 0.5rem;
+}
+
+.first-launch .fl-license .fl-htdemucs-details > summary {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-position: from-font;
+}
