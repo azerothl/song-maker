@@ -7,7 +7,10 @@ import { useAppStore } from "../../store/appStore";
 import { CreateWorkspace } from "./CreateWorkspace";
 import type { AdvancedSettingsPage } from "./shared";
 
-function renderCreateWorkspace(instrumentalMode: boolean) {
+function renderCreateWorkspace(
+  instrumentalMode: boolean,
+  options: { showVocalRemovalGuidance?: boolean; showInstrumentalPackGuidance?: boolean } = {},
+) {
   const form: FormInput = {
     title: "Test",
     style: "Piano",
@@ -41,7 +44,8 @@ function renderCreateWorkspace(instrumentalMode: boolean) {
       >,
       setForm: () => undefined,
       instrumentalPackState: "missing",
-      showInstrumentalPackGuidance: true,
+      showVocalRemovalGuidance: options.showVocalRemovalGuidance ?? true,
+      showInstrumentalPackGuidance: options.showInstrumentalPackGuidance ?? true,
       showFormErrors: false,
     }),
   );
@@ -51,7 +55,7 @@ describe("instrumental voice removal entry", () => {
   it("shows a plain-language route to vocal-removal settings for instrumentals", () => {
     const html = renderCreateWorkspace(true);
 
-    assert.match(html, /Still hear vocals\?|Vous entendez encore des voix \?/);
+    assert.match(html, /Song Maker tries to remove vocals|Song Maker tente de retirer les voix/);
     assert.match(html, /Adjust vocal removal|Régler le retrait des voix/);
   });
 
@@ -59,6 +63,16 @@ describe("instrumental voice removal entry", () => {
     const html = renderCreateWorkspace(false);
 
     assert.doesNotMatch(html, /Adjust vocal removal|Régler le retrait des voix/);
+  });
+
+  it("keeps voice-removal settings visible without YuE2 pack guidance", () => {
+    const html = renderCreateWorkspace(true, {
+      showVocalRemovalGuidance: true,
+      showInstrumentalPackGuidance: false,
+    });
+
+    assert.match(html, /Régler le retrait des voix|Adjust vocal removal/);
+    assert.doesNotMatch(html, /pack may reduce leftover singing|pack facultatif peut réduire le chant/);
   });
 
   it("opens the separation settings page from the new action", () => {
