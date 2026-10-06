@@ -160,7 +160,7 @@ fn instrumental_style_without_vocal_cues(style: &str) -> String {
         .replace_all(&cleaned, "")
         .into_owned();
     cleaned = cleaned
-        .trim_end_matches(|ch: char| matches!(ch, ',' | ';' | ':' | '.' | '!' | '?'))
+        .trim_end_matches([',', ';', ':', '.', '!', '?'])
         .to_string();
     cleaned
         .trim_matches(|ch: char| ch.is_whitespace() || matches!(ch, ',' | ';' | '/'))
