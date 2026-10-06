@@ -290,7 +290,7 @@
   "production.instrumental.role.other": "Accompaniment",
   "production.instrumental.conditioning": "Guide the new track with",
   "production.instrumental.conditioning.meta": "The song’s style, tempo and key",
-  "production.instrumental.conditioning.mix": "Sound from the song (model installation required)",
+  "production.instrumental.conditioning.mix": "Sound from the song",
   "production.instrumental.legoHonesty": "The result may contain several instruments. The track starts at the beginning of the song; you can move it afterwards. The original song’s licence restrictions still apply.",
   "production.instrumental.generate": "Generate and add to the arrangement",
   "production.instrumental.cancel": "Close",
