@@ -270,10 +270,17 @@ export function Sidebar() {
   const runtimeAction = health?.serverHealthy
     ? t("nav.runtimeRestart")
     : t("nav.runtimeStart");
-  const runtimeBusy = Boolean(
+  const jobIsActive = Boolean(
     job &&
       ["queued", "preparing", "generating", "separating", "importing_tracks"].includes(job.state),
   );
+  const runtimeBusy = jobIsActive;
+  const sidebarJob =
+    job &&
+    (jobIsActive ||
+      (job.state === "failed" && job.projectId === project?.id))
+      ? job
+      : null;
   const toggleLabel = collapsed ? t("nav.expandMenu") : t("nav.collapseMenu");
   const toggleTitle = collapsed
     ? toggleLabel
@@ -440,35 +447,35 @@ export function Sidebar() {
             )}
           </SidebarRow>
         )}
-        {job && job.state !== "idle" && (
+        {sidebarJob && (
           <SidebarRow
             tip={
-              job.state === "completed"
+              sidebarJob.state === "completed"
                 ? t("job.completed")
-                : job.state === "cancelled"
+                : sidebarJob.state === "cancelled"
                   ? t("job.cancelled")
-                  : job.label
+                  : sidebarJob.label
             }
           >
             <div
               className="sidebar-meta-row job-step"
               role="group"
               aria-label={
-                job.state === "completed"
+                sidebarJob.state === "completed"
                   ? t("job.completed")
-                  : job.state === "cancelled"
+                  : sidebarJob.state === "cancelled"
                     ? t("job.cancelled")
-                    : job.label
+                    : sidebarJob.label
               }
               tabIndex={collapsed ? 0 : undefined}
             >
               <IconJob />
               <span className="sidebar-label">
-                {job.state === "completed"
+                {sidebarJob.state === "completed"
                   ? t("job.completed")
-                  : job.state === "cancelled"
+                  : sidebarJob.state === "cancelled"
                     ? t("job.cancelled")
-                    : job.label}
+                    : sidebarJob.label}
               </span>
             </div>
           </SidebarRow>

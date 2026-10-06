@@ -176,6 +176,7 @@ export function SongScreen() {
       job?.projectId === project.id &&
       ["preparing", "generating", "separating", "importing_tracks"].includes(job.state),
   );
+  const projectJob = job?.projectId === project?.id ? job : null;
 
   useEffect(() => {
     if (!canCancelCurrentJob) {
@@ -921,14 +922,14 @@ export function SongScreen() {
               {project.title || t("form.createTitle")}
               <ProfileKindBadge />
             </h1>
-            {job && job.state !== "idle" && (
+            {projectJob && projectJob.state !== "idle" && (
               <div className="song-job-banner" role="status" aria-live="polite">
                 <span>
-                  {job.state === "completed"
+                  {projectJob.state === "completed"
                     ? t("job.completed")
-                    : job.state === "cancelled"
+                    : projectJob.state === "cancelled"
                       ? t("job.cancelled")
-                      : job.label || t("job.generating")}
+                      : projectJob.label || t("job.generating")}
                 </span>
                 {canCancelCurrentJob && (
                   <button
