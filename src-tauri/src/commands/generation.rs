@@ -1447,26 +1447,7 @@ async fn run_generation(
         Err(error) => {
             // Validation/postprocessing errors must never leave a successful
             // result that crash recovery or the take list could reactivate.
-            atomic_write_json(
-                &gen_dir.join("result.json"),
-                &json!({
-                    "schema":SCHEMA_GEN_RESULT, "schemaVersion":SCHEMA_VERSION, "id":gen_id,
-                    "state":if error == "cancelled" { "cancelled" } else { "failed" },
-                    "finishedAt":now_iso(), "audio":null, "score":null, "error":error,
-                    "unpublishedAudioPath": if gen_dir.join("audio.wav").exists() { Some("audio.wav") } else { None }
-                }),
-            )?;
-            atomic_write_json(
-                &gen_dir.join("job.json"),
-                &json!({
-                    "id": gen_id,
-                    "projectId": id,
-                    "kind": job_kind,
-                    "state": if error == "cancelled" { "cancelled" } else { "failed" },
-                    "error": error,
-                    "updatedAt": now_iso(),
-                }),
-            )?;
+            record_failed_generation(&gen_dir, &gen_id, &id, job_kind, &error)?;
             return Err(error);
         }
     };
@@ -1495,6 +1476,49 @@ async fn run_generation(
         project: doc,
         generation_id: gen_id,
     })
+}
+
+fn record_failed_generation(
+    gen_dir: &Path,
+    generation_id: &str,
+    project_id: &str,
+    job_kind: &str,
+    error: &str,
+) -> Result<(), String> {
+    let state = if error == "cancelled" {
+        "cancelled"
+    } else {
+        "failed"
+    };
+    atomic_write_json(
+        &gen_dir.join("result.json"),
+        &json!({
+            "schema": SCHEMA_GEN_RESULT,
+            "schemaVersion": SCHEMA_VERSION,
+            "id": generation_id,
+            "state": state,
+            "finishedAt": now_iso(),
+            "audio": null,
+            "score": null,
+            "error": error,
+            "unpublishedAudioPath": if gen_dir.join("audio.wav").exists() {
+                Some("audio.wav")
+            } else {
+                None
+            }
+        }),
+    )?;
+    atomic_write_json(
+        &gen_dir.join("job.json"),
+        &json!({
+            "id": generation_id,
+            "projectId": project_id,
+            "kind": job_kind,
+            "state": state,
+            "error": error,
+            "updatedAt": now_iso(),
+        }),
+    )
 }
 
 /// Render audio from an existing generation's immutable `score.abc`.
@@ -2007,7 +2031,7 @@ mod continuation_tests {
 
 #[cfg(test)]
 mod instrumental_failure_tests {
-    use super::{run_generation, GenerationWorker};
+    use super::{record_failed_generation, run_generation, GenerationWorker};
     use crate::audiocpp::AudioCppServer;
     use crate::commands::AppState;
     use crate::library::{default_settings, project_folder, save_project};
@@ -2017,6 +2041,93 @@ mod instrumental_failure_tests {
     use serde_json::json;
     use std::fs;
     use std::sync::Arc;
+
+    #[test]
+    fn postprocessing_failure_keeps_partial_audio_unpublished_and_preserves_project() {
+        let docs = TempDocs::new("instrumental-postprocessing-failure");
+        let project_id = "instrumental-postprocessing-preserves-project";
+        let folder = project_folder(project_id);
+        fs::create_dir_all(&folder).unwrap();
+        let project: ProjectDoc = serde_json::from_value(json!({
+            "schema": SCHEMA_PROJECT,
+            "schemaVersion": SCHEMA_VERSION,
+            "id": project_id,
+            "title": "Projet source intact",
+            "createdAt": "2026-10-06T00:00:00Z",
+            "updatedAt": "2026-10-06T00:00:00Z",
+            "sampleRate": SAMPLE_RATE,
+            "channels": CHANNELS,
+            "bitDepth": BIT_DEPTH,
+            "style": "Style source",
+            "lyrics": "Paroles conservées",
+            "cot": "full",
+            "targetDurationSec": 30,
+            "preferFullLyrics": true,
+            "instrumentalMode": false,
+            "activeGenerationId": "gen-001",
+            "activeSeparationId": "sep-001",
+            "activeMixId": "mix-v001"
+        }))
+        .unwrap();
+        save_project(&folder, &project).unwrap();
+        let project_before = fs::read(folder.join("project.json")).unwrap();
+
+        let separation_marker = b"existing stems stay available";
+        let mix_marker = b"existing mix stays available";
+        let separation_file = folder.join("separations/sep-001/stems.marker");
+        let mix_file = folder.join("mixes/mix-v001/mix.marker");
+        fs::create_dir_all(separation_file.parent().unwrap()).unwrap();
+        fs::create_dir_all(mix_file.parent().unwrap()).unwrap();
+        fs::write(&separation_file, separation_marker).unwrap();
+        fs::write(&mix_file, mix_marker).unwrap();
+
+        let generation_id = "gen-002";
+        let gen_dir = folder.join("generations").join(generation_id);
+        fs::create_dir_all(&gen_dir).unwrap();
+        fs::write(
+            gen_dir.join("audio.wav"),
+            b"generated before postprocessing failed",
+        )
+        .unwrap();
+        fs::write(
+            gen_dir.join("result.json"),
+            br#"{"state":"generated","audio":{"path":"audio.wav"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            gen_dir.join("job.json"),
+            br#"{"state":"running","kind":"lego_add_track"}"#,
+        )
+        .unwrap();
+
+        record_failed_generation(
+            &gen_dir,
+            generation_id,
+            project_id,
+            "lego_add_track",
+            "échec simulé pendant le post-traitement",
+        )
+        .unwrap();
+
+        let failed_result: serde_json::Value =
+            serde_json::from_slice(&fs::read(gen_dir.join("result.json")).unwrap()).unwrap();
+        let failed_job: serde_json::Value =
+            serde_json::from_slice(&fs::read(gen_dir.join("job.json")).unwrap()).unwrap();
+        assert_eq!(failed_result["state"], "failed");
+        assert!(failed_result["audio"].is_null());
+        assert_eq!(failed_result["unpublishedAudioPath"], "audio.wav");
+        assert_eq!(failed_job["state"], "failed");
+        assert_eq!(failed_job["kind"], "lego_add_track");
+        assert_eq!(
+            fs::read(folder.join("project.json")).unwrap(),
+            project_before
+        );
+        assert_eq!(fs::read(separation_file).unwrap(), separation_marker);
+        assert_eq!(fs::read(mix_file).unwrap(), mix_marker);
+        assert!(gen_dir.join("audio.wav").is_file());
+
+        drop(docs);
+    }
 
     #[tokio::test]
     async fn missing_vocal_separator_fails_without_touching_the_project() {
