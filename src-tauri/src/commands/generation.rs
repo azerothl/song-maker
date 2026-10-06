@@ -51,6 +51,44 @@ fn check_requested_duration(duration_ms: i64, expected_ms: i64) -> Result<(), St
     Ok(())
 }
 
+fn engine_requires_fixed_duration(
+    requested_engine: &str,
+    prefer_full_lyrics: bool,
+    instrumental_mode: bool,
+) -> bool {
+    match requested_engine {
+        // YuE2 preserves a duration range when the user prioritizes complete lyrics.
+        "yue2" => !prefer_full_lyrics || instrumental_mode,
+        // ACE-Step receives duration_seconds for every request; verify its actual WAV too.
+        "ace_step" => true,
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod fixed_duration_policy_tests {
+    use super::engine_requires_fixed_duration;
+
+    #[test]
+    fn ace_step_always_enforces_the_requested_duration() {
+        assert!(engine_requires_fixed_duration("ace_step", true, false));
+        assert!(engine_requires_fixed_duration("ace_step", false, false));
+        assert!(engine_requires_fixed_duration("ace_step", true, true));
+    }
+
+    #[test]
+    fn yue2_keeps_its_lyric_duration_policy() {
+        assert!(!engine_requires_fixed_duration("yue2", true, false));
+        assert!(engine_requires_fixed_duration("yue2", false, false));
+        assert!(engine_requires_fixed_duration("yue2", true, true));
+    }
+
+    #[test]
+    fn engines_without_a_duration_contract_are_not_marked_fixed() {
+        assert!(!engine_requires_fixed_duration("unknown", true, false));
+    }
+}
+
 fn record_generation_failure(
     gen_dir: &Path,
     generation_id: &str,
@@ -670,14 +708,11 @@ async fn run_generation(
         &lyrics_sent,
         form.prefer_full_lyrics && !form.instrumental_mode,
     );
-    let fixed_duration = match requested_engine.as_str() {
-        // YuE2 preserves a duration range when the user prioritizes complete lyrics.
-        // Instrumental output is always fixed length, regardless of that preference.
-        "yue2" => !form.prefer_full_lyrics || form.instrumental_mode,
-        // ACE-Step receives duration_seconds for every request; verify its actual WAV too.
-        "ace_step" => true,
-        _ => false,
-    };
+    let fixed_duration = engine_requires_fixed_duration(
+        &requested_engine,
+        form.prefer_full_lyrics,
+        form.instrumental_mode,
+    );
     let mut expected_duration_ms = i64::from(target_duration_sec) * 1000;
     let stop_after_abc = match stop_after
         .as_deref()
