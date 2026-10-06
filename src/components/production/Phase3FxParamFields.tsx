@@ -568,8 +568,6 @@ export function Phase3FxParamFields({
             />
             <span>{t("phase3.mix.voiceConvert.consent")}</span>
           </label>
-          <p className="hint">{t("phase3.mix.voiceConvert.loicConstraint")}</p>
-          <p className="hint">{t("phase3.mix.voiceConvert.legal")}</p>
           <label className="phase3-field">
             <span>{t("phase3.mix.voiceConvert.reference")}</span>
             <input
@@ -609,7 +607,7 @@ export function Phase3FxParamFields({
             </p>
           )}
           <label className="phase3-field">
-            <span>{t("phase3.mix.param.mix")}</span>
+            <span>{t("phase3.mix.voiceConvert.amount")}</span>
             <input
               type="number"
               step={0.05}
@@ -626,14 +624,6 @@ export function Phase3FxParamFields({
                 ? t("phase3.mix.voiceConvert.needsReference")
                 : t("phase3.mix.voiceConvert.ready")}
           </p>
-          <details>
-            <summary>{t("phase3.mix.voiceConvert.leftovers.title")}</summary>
-            <ul>
-              <li>{t("phase3.mix.voiceConvert.leftovers.model")}</li>
-              <li>{t("phase3.mix.voiceConvert.leftovers.neuralDenoise")}</li>
-              <li>{t("phase3.mix.voiceConvert.leftovers.weights")}</li>
-            </ul>
-          </details>
         </>
       );
     }
