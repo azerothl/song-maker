@@ -851,7 +851,12 @@ mod tests {
                 || info.host_api == "coreaudio"
                 || info.host_api == "unknown"
         );
+        #[cfg(windows)]
         assert!(info.notes_fr.contains("WASAPI"));
+        #[cfg(target_os = "macos")]
+        assert!(info.notes_fr.contains("Core Audio"));
+        #[cfg(target_os = "linux")]
+        assert!(info.notes_fr.contains("ALSA"));
         assert!(info.notes_fr.contains("ASIO"));
     }
 
