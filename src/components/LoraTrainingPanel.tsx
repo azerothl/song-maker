@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   MemoryTrainingJobStore,
-  QUALITY_DISCLAIMER_FR,
-  RIGHTS_DISCLAIMER_FR,
   cancelTrainingJob,
   cleanupTrainingJob,
   estimateTrainingResources,
@@ -10,6 +8,7 @@ import {
   launchTrainingJob,
   readTrainingLogs,
   validateCorpus,
+  type CorpusValidationIssue,
   type CorpusSong,
   type LaunchTrainingResult,
   type TrainingJobStore,
@@ -33,6 +32,54 @@ type FileMeta = {
   durationMs: number;
   contentSha256: string | null;
 };
+
+function corpusIssueMessage(
+  issue: CorpusValidationIssue,
+  songs: CorpusSong[],
+): string {
+  const title = issue.songId
+    ? songs.find((song) => song.songId === issue.songId)?.title ?? ""
+    : "";
+  switch (issue.code) {
+    case "empty_corpus":
+      return t("loraTrain.error.emptyCorpus");
+    case "missing_audio":
+      return t("loraTrain.error.missingAudio", { title });
+    case "unsupported_format":
+      return t("loraTrain.error.unsupportedFormat", { title });
+    case "duration_too_short":
+      return t("loraTrain.error.durationTooShort", { title });
+    case "duration_too_long":
+      return t("loraTrain.error.durationTooLong", { title });
+    case "duplicate_hash":
+    case "duplicate_path":
+      return t("loraTrain.error.duplicate");
+    case "insufficient_for_split":
+      return t("loraTrain.error.insufficientForSplit");
+    default:
+      return t("loraTrain.error.generic");
+  }
+}
+
+function trainingStatusKey(
+  status: LaunchTrainingResult["status"],
+): Parameters<typeof t>[0] {
+  switch (status) {
+    case "draft": return "loraTrain.status.draft";
+    case "validated": return "loraTrain.status.validated";
+    case "queued": return "loraTrain.status.queued";
+    case "running": return "loraTrain.status.running";
+    case "cancelled": return "loraTrain.status.cancelled";
+    case "failed": return "loraTrain.status.failed";
+    case "completed": return "loraTrain.status.completed";
+    case "not_implemented": return "loraTrain.status.notImplemented";
+    case "awaiting_adapter_validation": return "loraTrain.status.awaitingValidation";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
 
 function createHostDiskStore(): TrainingJobStore {
   return {
@@ -82,7 +129,7 @@ export function LoraTrainingPanel({
   const [busy, setBusy] = useState(false);
   const [localProbe, setLocalProbe] = useState<LoraTrainerProbe | null>(null);
   const [localProbing, setLocalProbing] = useState(probeProp === undefined);
-  const [probeNote, setProbeNote] = useState<string | null>(null);
+  const [probeError, setProbeError] = useState(false);
 
   const store = useMemo(() => {
     if (isTauriRuntime()) return createHostDiskStore();
@@ -104,15 +151,13 @@ export function LoraTrainingPanel({
 
   useEffect(() => {
     if (controlled) {
-      setProbeNote(probeProp?.messageFr ?? null);
+      setProbeError(false);
       setLocalProbing(false);
       return;
     }
     if (!isTauriRuntime()) {
-      setProbeNote(
-        "Hôte Tauri requis pour persistance disque et lancement du trainer.",
-      );
       setLocalProbe(null);
+      setProbeError(false);
       setLocalProbing(false);
       return;
     }
@@ -123,11 +168,11 @@ export function LoraTrainingPanel({
         const next = await runtimeApi.loraTrainProbe();
         if (cancelled) return;
         setLocalProbe(next);
-        setProbeNote(next.messageFr);
-      } catch (e) {
+        setProbeError(false);
+      } catch {
         if (!cancelled) {
           setLocalProbe(null);
-          setProbeNote(e instanceof Error ? e.message : String(e));
+          setProbeError(true);
         }
       } finally {
         if (!cancelled) setLocalProbing(false);
@@ -338,13 +383,14 @@ export function LoraTrainingPanel({
         <strong>{t(loraTrainStatusLabelKey(runtimeStatus))}</strong>
       </p>
       <p className="hint warn" role="note">
-        {QUALITY_DISCLAIMER_FR}
+        {t("loraTrain.qualityHint")}
       </p>
-      <p className="hint">{RIGHTS_DISCLAIMER_FR}</p>
-      {probeNote && <p className="hint">{probeNote}</p>}
-      <p className="hint">
-        {t("loraTrain.jobsRoot")}: {jobsRoot}
-      </p>
+      <p className="hint">{t("loraTrain.rightsHint")}</p>
+      {probeError && (
+        <p className="hint error" role="alert">
+          {t("loraTrain.error.probeFailed")}
+        </p>
+      )}
 
       <label className="phase3-check">
         <input
@@ -371,18 +417,22 @@ export function LoraTrainingPanel({
         <ul className="hint error">
           {validation.issues.map((issue) => (
             <li key={`${issue.code}-${issue.songId ?? ""}`}>
-              {issue.messageFr}
+              {corpusIssueMessage(issue, songs)}
             </li>
           ))}
         </ul>
       )}
 
       <dl className="kv">
-        <dt>{t("loraTrain.estimate.vram")}</dt>
-        <dd>
-          ~{Math.round(estimate.vramMib / 1024)} GiB{" "}
-          <span className="hint">({t("loraTrain.estimate.unmeasured")})</span>
-        </dd>
+        {kind === "yue2_gpu" && (
+          <>
+            <dt>{t("loraTrain.estimate.vram")}</dt>
+            <dd>
+              ~{Math.round(estimate.vramMib / 1024)} GiB{" "}
+              <span className="hint">({t("loraTrain.estimate.unmeasured")})</span>
+            </dd>
+          </>
+        )}
         <dt>{t("loraTrain.estimate.disk")}</dt>
         <dd>
           ~{Math.round(estimate.diskMib / 1024)} GiB{" "}
@@ -394,7 +444,7 @@ export function LoraTrainingPanel({
           <span className="hint">({t("loraTrain.estimate.unmeasured")})</span>
         </dd>
       </dl>
-      <p className="hint">{estimate.noteFr}</p>
+      <p className="hint">{t("loraTrain.estimate.note")}</p>
       <p className="hint">{t("loraTrain.noAutoActivate")}</p>
 
       <div className="btn-row">
@@ -432,17 +482,26 @@ export function LoraTrainingPanel({
 
       {lastResult && (
         <p className="hint">
-          {t("loraTrain.jobStatus", {
-            id: lastResult.jobId,
-            status: lastResult.status,
+          {t("loraTrain.trainingStatus", {
+            status: t(trainingStatusKey(lastResult.status)),
           })}
         </p>
       )}
-      {notice && <pre className="phase3-download-notice">{notice}</pre>}
-      {logLines.length > 0 && (
+      {(notice || lastResult || logLines.length > 0) && (
         <details>
-          <summary>{t("loraTrain.logs")}</summary>
-          <pre className="phase3-download-notice">{logLines.join("\n")}</pre>
+          <summary>{t("loraTrain.supportDetails")}</summary>
+          {lastResult && (
+            <p className="hint">
+              {t("loraTrain.trainingId", { id: lastResult.jobId })}
+            </p>
+          )}
+          <p className="hint">
+            {t("loraTrain.jobsRoot")}: {jobsRoot}
+          </p>
+          {notice && <pre className="phase3-download-notice">{notice}</pre>}
+          {logLines.length > 0 && (
+            <pre className="phase3-download-notice">{logLines.join("\n")}</pre>
+          )}
         </details>
       )}
     </section>
