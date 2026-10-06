@@ -1017,6 +1017,10 @@ export function SongScreen() {
             setAdvancedSettingsPage={setAdvancedSettingsPage}
             setForm={setForm}
             instrumentalPackState={instrumentalPackState}
+            showVocalRemovalGuidance={
+              settings?.generationEngine === "yue2" ||
+              settings?.generationEngine === "ace_step"
+            }
             showInstrumentalPackGuidance={settings?.generationEngine === "yue2"}
             showFormErrors={showFormErrors}
           />

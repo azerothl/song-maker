@@ -47,6 +47,7 @@ type CreateWorkspaceProps = {
   setAdvancedSettingsPage: Dispatch<SetStateAction<AdvancedSettingsPage>>;
   setForm: (patch: Partial<FormInput>) => void;
   instrumentalPackState: "active" | "installed" | "missing" | "unknown";
+  showVocalRemovalGuidance: boolean;
   showInstrumentalPackGuidance: boolean;
   showFormErrors: boolean;
 };
@@ -65,6 +66,7 @@ export function CreateWorkspace({
   setAdvancedSettingsPage,
   setForm,
   instrumentalPackState,
+  showVocalRemovalGuidance,
   showInstrumentalPackGuidance,
   showFormErrors,
 }: CreateWorkspaceProps) {
@@ -207,36 +209,45 @@ export function CreateWorkspace({
                     <small>{t("form.instrumental.hint")}</small>
                   </span>
                 </label>
-                {form.instrumentalMode && showInstrumentalPackGuidance && (
+                {form.instrumentalMode &&
+                  (showVocalRemovalGuidance || showInstrumentalPackGuidance) && (
                   <div className="hint instrumental-pack-guidance">
-                    <p>{t("form.instrumental.vocalRemovalHelp")}</p>
-                    <button
-                      type="button"
-                      className="btn ghost"
-                      onClick={onOpenVocalRemovalSettings}
-                    >
-                      {t("form.instrumental.vocalRemovalSettings")}
-                    </button>
-                    <p>
-                      {t(
-                        instrumentalPackState === "active"
-                          ? "form.instrumental.packActive"
-                          : instrumentalPackState === "installed"
-                            ? "form.instrumental.packInstalled"
-                            : "form.instrumental.packHint",
-                      )}
-                    </p>
-                    <button
-                      type="button"
-                      className="btn ghost"
-                      onClick={onOpenInstrumentalSettings}
-                    >
-                      {t(
-                        instrumentalPackState === "active"
-                          ? "form.instrumental.managePackSettings"
-                          : "form.instrumental.openPackSettings",
-                      )}
-                    </button>
+                    {showVocalRemovalGuidance && (
+                      <>
+                        <p>{t("form.instrumental.vocalRemovalHelp")}</p>
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          onClick={onOpenVocalRemovalSettings}
+                        >
+                          {t("form.instrumental.vocalRemovalSettings")}
+                        </button>
+                      </>
+                    )}
+                    {showInstrumentalPackGuidance && (
+                      <>
+                        <p>
+                          {t(
+                            instrumentalPackState === "active"
+                              ? "form.instrumental.packActive"
+                              : instrumentalPackState === "installed"
+                                ? "form.instrumental.packInstalled"
+                                : "form.instrumental.packHint",
+                          )}
+                        </p>
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          onClick={onOpenInstrumentalSettings}
+                        >
+                          {t(
+                            instrumentalPackState === "active"
+                              ? "form.instrumental.managePackSettings"
+                              : "form.instrumental.openPackSettings",
+                          )}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
                 <button

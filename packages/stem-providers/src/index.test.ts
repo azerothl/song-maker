@@ -215,13 +215,12 @@ describe("stem-providers", () => {
 
   it("types license status with icons, read dates, and cold-review labels (#167)", () => {
     const mel = separatorLicense("mel_band_roformer");
-    expect(mel?.status).toBe("unverified");
-    expect(mel?.badgeFr).toMatch(/source primaire/i);
-    expect(LICENSE_STATUS_LABEL_FR[mel!.status]).toBe("non vérifié");
-    expect(mel?.commercialOk).toBeUndefined();
+    expect(mel?.status).toBe("verified");
+    expect(mel?.badgeFr).toMatch(/MIT/i);
+    expect(LICENSE_STATUS_LABEL_FR[mel!.status]).toBe("vérifié");
     expect(mel?.sourceUrl).not.toMatch(/mlx-community/);
-    expect(mel?.noticeFr).toMatch(/non vérifié/i);
-    expect(mel?.readDate).toBe("2026-09-29");
+    expect(mel?.noticeFr).toMatch(/données d’entraînement ne sont pas documentées/i);
+    expect(mel?.readDate).toBe("2026-10-06");
 
     const bs = separatorLicense("bs_roformer");
     expect(bs?.status).toBe("unverified");

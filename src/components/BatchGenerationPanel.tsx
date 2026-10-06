@@ -444,13 +444,19 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
                   {batch.counts.running} · {t("batch.state.queued")} {batch.counts.queued}
                 </p>
               )}
-              <p>{t("batch.liveParallel", { count: batch.effectiveParallel ?? 1 })}</p>
+              <p>
+                {(batch.effectiveParallel ?? 1) === 1
+                  ? t("batch.liveParallelOne")
+                  : t("batch.liveParallelMany", { count: batch.effectiveParallel ?? 1 })}
+              </p>
               {(batch.effectiveParallel ?? 1) < (batch.requestedParallel ?? 1) && (
                 <p className="hint">
-                  {t("batch.capacityReducedRunning", {
-                    requested: batch.requestedParallel ?? 1,
-                    available: batch.effectiveParallel ?? 1,
-                  })}
+                  {(batch.effectiveParallel ?? 1) === 1
+                    ? t("batch.capacityReducedRunningOne", { requested: batch.requestedParallel ?? 1 })
+                    : t("batch.capacityReducedRunningMany", {
+                        requested: batch.requestedParallel ?? 1,
+                        available: batch.effectiveParallel ?? 1,
+                      })}
                 </p>
               )}
             </header>
@@ -536,7 +542,7 @@ export function BatchTaskRow({ task, onOpen, onCancel }: { task: BatchTask; onOp
           aria-label={t("batch.cancelTakeLabel", { title: task.title, number: task.variantIndex })}
           onClick={() => {
             setCancelling(true);
-            void onCancel().catch(error => useAppStore.getState().setError(String(error)))
+            void onCancel().catch(() => useAppStore.getState().setError(t("batch.cancelTakeError")))
               .finally(() => setCancelling(false));
           }}>
           {t("batch.cancelTake")}
