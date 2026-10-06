@@ -90,7 +90,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Entraînement LoRA NAR | Pilote CPU — LoRA YuE2 GPU : `scripts/lora-train-yue2-gpu.py` (CUDA) |
 | Capture basse latence | Natif cpal (WASAPI **partagé** / ALSA / Core Audio). Pas d’ASIO ni WASAPI exclusif. Repli WebView. |
 | Licences modèles | YuE2 & SheetSage2 : **CC BY-NC 4.0**. ACE-Step Turbo/Lego : carte **MIT** (Hobby + Commercial possibles pour ACE-Step) ; un mix YuE2 reste NC même si on y colle un stem MIT. |
-| Signature Windows / notarisation macOS | Workflow Windows configuré, signature réelle à valider avec Azure ; macOS non notarié |
+| Signature Windows / notarisation macOS | Workflows de signature configurés ; aucune release signée Authenticode ou notariée n’est encore attestée. Les artefacts déjà publiés restent non signés / non notariés. |
 | UI app bilingue | FR/EN dans Paramètres → Système (persistance locale) ; le site marketing a sa propre i18n |
 
 ## Stack
