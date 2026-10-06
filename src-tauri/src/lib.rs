@@ -236,6 +236,8 @@ pub fn run() {
                 state.server.shutdown();
                 state.rbitnet.shutdown();
                 state.ace_step_lego.shutdown();
+                let declui = app.state::<declui_host::EmbeddedDeclUiState>();
+                declui_host::shutdown_embedded_declui_host_on_exit(&declui);
             }
         });
 }

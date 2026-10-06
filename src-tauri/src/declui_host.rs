@@ -454,6 +454,11 @@ async fn stop_embedded_declui_host_for(state: &EmbeddedDeclUiState) -> EmbeddedD
     }
 }
 
+/// Close the loopback listener and active requests before the desktop runtime exits.
+pub(crate) fn shutdown_embedded_declui_host_on_exit(state: &EmbeddedDeclUiState) {
+    tauri::async_runtime::block_on(stop_embedded_declui_host_for(state));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
