@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { api } from "../lib/api";
+import { runNativeCaptureControl } from "../lib/nativeCaptureControl";
 import {
   formatLatencyReading,
   latencyHintForPreference,
@@ -759,21 +760,22 @@ export function RecordTrackPanel({
   async function pauseRecording() {
     if (engineRef.current === "native") {
       if (nativeControlBusyRef.current) return;
-      nativeControlBusyRef.current = true;
-      setNativeControlBusy(true);
       setStatusMsg(null);
-      try {
-        await api.pauseNativeCapture(true);
-        pauseStartedRef.current = Date.now();
-        setPhase("paused");
-      } catch {
-        const message = t("record.err.pauseFailed");
-        setStatusMsg(message);
-        onError(message);
-      } finally {
-        nativeControlBusyRef.current = false;
-        setNativeControlBusy(false);
-      }
+      await runNativeCaptureControl(() => api.pauseNativeCapture(true), {
+        onBusyChange: (busy) => {
+          nativeControlBusyRef.current = busy;
+          setNativeControlBusy(busy);
+        },
+        onSuccess: () => {
+          pauseStartedRef.current = Date.now();
+          setPhase("paused");
+        },
+        onFailure: () => {
+          const message = t("record.err.pauseFailed");
+          setStatusMsg(message);
+          onError(message);
+        },
+      });
       return;
     }
     const rec = recorderRef.current;
@@ -786,24 +788,25 @@ export function RecordTrackPanel({
   async function resumeRecording() {
     if (engineRef.current === "native") {
       if (nativeControlBusyRef.current) return;
-      nativeControlBusyRef.current = true;
-      setNativeControlBusy(true);
       setStatusMsg(null);
-      try {
-        await api.pauseNativeCapture(false);
-        if (pauseStartedRef.current != null) {
-          pausedAccumRef.current += Date.now() - pauseStartedRef.current;
-          pauseStartedRef.current = null;
-        }
-        setPhase("recording");
-      } catch {
-        const message = t("record.err.resumeFailed");
-        setStatusMsg(message);
-        onError(message);
-      } finally {
-        nativeControlBusyRef.current = false;
-        setNativeControlBusy(false);
-      }
+      await runNativeCaptureControl(() => api.pauseNativeCapture(false), {
+        onBusyChange: (busy) => {
+          nativeControlBusyRef.current = busy;
+          setNativeControlBusy(busy);
+        },
+        onSuccess: () => {
+          if (pauseStartedRef.current != null) {
+            pausedAccumRef.current += Date.now() - pauseStartedRef.current;
+            pauseStartedRef.current = null;
+          }
+          setPhase("recording");
+        },
+        onFailure: () => {
+          const message = t("record.err.resumeFailed");
+          setStatusMsg(message);
+          onError(message);
+        },
+      });
       return;
     }
     const rec = recorderRef.current;
