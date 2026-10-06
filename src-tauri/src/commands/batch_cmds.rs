@@ -484,6 +484,7 @@ fn is_transient(err: &str) -> bool {
 
 async fn run_batch_loop(app: AppHandle, batch_id: String) {
     let mut jobs = tokio::task::JoinSet::new();
+    let mut job_task_ids = HashMap::new();
     loop {
         let Ok(man) = load_manifest(&batch_id) else {
             break;
@@ -534,11 +535,13 @@ async fn run_batch_loop(app: AppHandle, batch_id: String) {
                     break;
                 }
                 let task = task.clone();
+                let task_id = task.task_id.clone();
                 let task_app = app.clone();
                 let task_batch = batch_id.clone();
-                jobs.spawn(async move {
+                let handle = jobs.spawn(async move {
                     run_attempt(task_app, task_batch, task).await;
                 });
+                job_task_ids.insert(handle.id(), task_id);
             }
         }
         if jobs.is_empty() {
@@ -555,36 +558,86 @@ async fn run_batch_loop(app: AppHandle, batch_id: String) {
             }
             break;
         }
-        if let Some(Err(error)) = jobs.join_next().await {
-            let _ = patch_manifest(&batch_id, |m| {
-                m["pauseRequested"] = json!(true);
-                m["state"] = json!("pausing");
-                m["error"] = json!(format!("Une tâche a été interrompue : {error}"));
-            });
-            let active_ids: Vec<_> = load_live_tasks(&batch_id)
-                .unwrap_or_default()
-                .into_iter()
-                .filter(|task| task.state == "running" || task.state == "preparing")
-                .collect();
-            // Surviving workers drain before recovery marks their task states.
-            while jobs.join_next().await.is_some() {}
-            for mut task in active_ids {
-                let current = load_live_tasks(&batch_id)
-                    .unwrap_or_default()
-                    .into_iter()
-                    .find(|t| t.task_id == task.task_id);
-                if current.is_some_and(|t| matches!(t.state.as_str(), "running" | "preparing")) {
-                    task.state = "interrupted".into();
-                    let _ = save_task(&batch_id, &task);
+        match jobs.join_next_with_id().await {
+            Some(Ok((id, _))) => {
+                job_task_ids.remove(&id);
+            }
+            Some(Err(error)) => {
+                let task_id = job_task_ids.remove(&error.id());
+                let isolated = task_id.as_deref().is_some_and(|task_id| {
+                    let Ok(mut tasks) = load_live_tasks(&batch_id) else {
+                        return false;
+                    };
+                    let Some(task) = tasks.iter_mut().find(|task| task.task_id == task_id) else {
+                        return false;
+                    };
+                    if task.state == "cancel_requested" {
+                        task.state = "cancelled".into();
+                    } else if matches!(task.state.as_str(), "preparing" | "running" | "publishing") {
+                        task.state = "failed".into();
+                        task.last_error = Some(
+                            "La génération s’est arrêtée sans résultat. Les autres générations continuent.".into(),
+                        );
+                    } else {
+                        // The task may have completed its persistent state update before a
+                        // non-essential follow-up panicked. Preserve that terminal state.
+                        return true;
+                    }
+                    save_task(&batch_id, task).is_ok()
+                });
+
+                if isolated {
+                    if load_plan_on_error(&batch_id) == "pause" {
+                        let _ = patch_manifest(&batch_id, |m| {
+                            m["pauseRequested"] = json!(true);
+                            m["state"] = json!("pausing");
+                        });
+                    }
+                } else {
+                    // Without a task identity, pause safely rather than finalizing a
+                    // batch whose persistent task state cannot be reconciled.
+                    let _ = patch_manifest(&batch_id, |m| {
+                        m["pauseRequested"] = json!(true);
+                        m["state"] = json!("pausing");
+                        m["error"] = json!(format!("Une tâche a été interrompue : {error}"));
+                    });
+                    let active_ids: Vec<_> = load_live_tasks(&batch_id)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|task| task.state == "running" || task.state == "preparing")
+                        .collect();
+                    // Surviving workers drain before recovery marks their task states.
+                    while let Some(joined) = jobs.join_next_with_id().await {
+                        if let Ok((id, _)) = joined {
+                            job_task_ids.remove(&id);
+                        }
+                    }
+                    for mut task in active_ids {
+                        let current = load_live_tasks(&batch_id)
+                            .unwrap_or_default()
+                            .into_iter()
+                            .find(|t| t.task_id == task.task_id);
+                        if current
+                            .is_some_and(|t| matches!(t.state.as_str(), "running" | "preparing"))
+                        {
+                            task.state = "interrupted".into();
+                            let _ = save_task(&batch_id, &task);
+                        }
+                    }
                 }
             }
+            None => {}
         }
         if let Ok(snap) = batch_snapshot(&batch_id) {
             emit_batch(&app, &batch_id, &snap);
         }
     }
     // Never drop a running worker future while its child process still owns GPU memory.
-    while jobs.join_next().await.is_some() {}
+    while let Some(joined) = jobs.join_next_with_id().await {
+        if let Ok((id, _)) = joined {
+            job_task_ids.remove(&id);
+        }
+    }
 }
 
 async fn run_attempt(app: AppHandle, batch_id: String, mut task: PlannedTask) {
