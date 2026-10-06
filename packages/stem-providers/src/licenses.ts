@@ -108,14 +108,13 @@ export const SEPARATOR_LICENSES: Record<StemProviderId, SeparatorLicenseInfo> = 
   },
   mel_band_roformer: {
     id: "mel_band_roformer",
-    status: "unverified",
-    readDate: "2026-09-29",
-    badgeFr: "source primaire absente",
+    status: "verified",
+    readDate: "2026-10-06",
+    badgeFr: "MIT (fiche officielle de l’autrice)",
     noticeFr:
-      "Mel-Band RoFormer « Kim Vocal » (GGUF Q8) : non vérifié. Aucune source primaire de licence des poids n’a été confirmée ici ; les conversions tierces (ex. mlx-community) ne suffisent pas à afficher MIT ni commercialOk. Opt-in hors installeur. Les poids sous licence non commerciale (Banquet, ADTOF) restent écartés du socle.",
-    sourceUrl:
-      "https://huggingface.co/audio-cpp/audio.cpp-gguf/tree/main/Mel-Band-RoFormer-GGUF",
-    sourceLabelFr: "audio-cpp/audio.cpp-gguf · Mel-Band-RoFormer (poids GGUF)",
+      "Le modèle Mel-Band RoFormer « Kim Vocal » est sous licence MIT, selon la fiche officielle de son autrice (22 avril 2026). Les données d’entraînement ne sont pas documentées. Vous pouvez télécharger ce modèle facultatif après avoir confirmé votre accord.",
+    sourceUrl: "https://huggingface.co/KimberleyJSN/melbandroformer",
+    sourceLabelFr: "Fiche officielle de l’autrice (MIT)",
     offered: true,
     requiresAcceptBeforeDownload: true,
   },
