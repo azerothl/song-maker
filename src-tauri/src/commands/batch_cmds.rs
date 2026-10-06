@@ -1107,6 +1107,48 @@ mod selection_tests {
         assert_eq!(succeeded.last_error.as_deref(), Some("already persisted"));
     }
 
+    #[tokio::test]
+    async fn panicked_worker_does_not_abort_sibling_or_fail_its_task() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        };
+
+        let mut jobs = tokio::task::JoinSet::new();
+        let panicked_id = jobs.spawn(async { panic!("injected worker panic") }).id();
+        let sibling_finished = Arc::new(AtomicBool::new(false));
+        let sibling_signal = sibling_finished.clone();
+        let sibling_id = jobs
+            .spawn(async move {
+                sibling_signal.store(true, Ordering::Release);
+            })
+            .id();
+        let mut panicked_task = task_with_state("running");
+        let mut sibling_task = task_with_state("running");
+        let mut saw_panic = false;
+        let mut saw_sibling_success = false;
+
+        while let Some(joined) = jobs.join_next_with_id().await {
+            match joined {
+                Ok((id, ())) if id == sibling_id => {
+                    sibling_task.state = "succeeded".into();
+                    saw_sibling_success = true;
+                }
+                Err(error) if error.id() == panicked_id => {
+                    reconcile_unexpected_worker_exit(&mut panicked_task);
+                    saw_panic = true;
+                }
+                result => panic!("unexpected worker result: {result:?}"),
+            }
+        }
+
+        assert!(saw_panic);
+        assert!(saw_sibling_success);
+        assert!(sibling_finished.load(Ordering::Acquire));
+        assert_eq!(panicked_task.state, "failed");
+        assert_eq!(sibling_task.state, "succeeded");
+    }
+
     #[test]
     fn later_batch_results_preserve_the_user_selection() {
         let mut active = None;
