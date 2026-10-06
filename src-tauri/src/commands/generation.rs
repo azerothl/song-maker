@@ -670,8 +670,14 @@ async fn run_generation(
         &lyrics_sent,
         form.prefer_full_lyrics && !form.instrumental_mode,
     );
-    let fixed_duration =
-        requested_engine == "yue2" && (!form.prefer_full_lyrics || form.instrumental_mode);
+    let fixed_duration = match requested_engine.as_str() {
+        // YuE2 preserves a duration range when the user prioritizes complete lyrics.
+        // Instrumental output is always fixed length, regardless of that preference.
+        "yue2" => !form.prefer_full_lyrics || form.instrumental_mode,
+        // ACE-Step receives duration_seconds for every request; verify its actual WAV too.
+        "ace_step" => true,
+        _ => false,
+    };
     let mut expected_duration_ms = i64::from(target_duration_sec) * 1000;
     let stop_after_abc = match stop_after
         .as_deref()
