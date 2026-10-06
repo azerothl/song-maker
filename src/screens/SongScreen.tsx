@@ -62,6 +62,7 @@ export function SongScreen() {
   const job = useAppStore((s) => s.job);
   const setProfileOperationBusy = useAppStore((s) => s.setProfileOperationBusy);
   const openLoraSettings = useAppStore((s) => s.openLoraSettings);
+  const openSeparationSettings = useAppStore((s) => s.openSeparationSettings);
 
   const [pendingPart, setPendingPart] = useState<{ projectId: string; generationId: string; audioPath: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1009,6 +1010,7 @@ export function SongScreen() {
             formFieldErrors={formFieldErrors}
             onGenerate={onGenerate}
             onOpenInstrumentalSettings={openLoraSettings}
+            onOpenVocalRemovalSettings={openSeparationSettings}
             scoreDocument={scoreDocument}
             scoreGate={scoreGate}
             setAdvancedSettingsPage={setAdvancedSettingsPage}

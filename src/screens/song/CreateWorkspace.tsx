@@ -41,6 +41,7 @@ type CreateWorkspaceProps = {
   formFieldErrors: FormFieldErrors;
   onGenerate: () => Promise<void>;
   onOpenInstrumentalSettings: () => void;
+  onOpenVocalRemovalSettings: () => void;
   scoreDocument: ScoreDocument | null;
   scoreGate: ScoreGate;
   setAdvancedSettingsPage: Dispatch<SetStateAction<AdvancedSettingsPage>>;
@@ -58,6 +59,7 @@ export function CreateWorkspace({
   formFieldErrors,
   onGenerate,
   onOpenInstrumentalSettings,
+  onOpenVocalRemovalSettings,
   scoreDocument,
   scoreGate,
   setAdvancedSettingsPage,
@@ -207,6 +209,14 @@ export function CreateWorkspace({
                 </label>
                 {form.instrumentalMode && showInstrumentalPackGuidance && (
                   <div className="hint instrumental-pack-guidance">
+                    <p>{t("form.instrumental.vocalRemovalHelp")}</p>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={onOpenVocalRemovalSettings}
+                    >
+                      {t("form.instrumental.vocalRemovalSettings")}
+                    </button>
                     <p>
                       {t(
                         instrumentalPackState === "active"

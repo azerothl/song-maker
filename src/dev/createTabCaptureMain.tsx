@@ -61,6 +61,7 @@ function CreateTabCaptureApp() {
             setShowFormErrors(true);
           }}
           onOpenInstrumentalSettings={() => undefined}
+          onOpenVocalRemovalSettings={() => undefined}
           scoreDocument={scoreDocument}
           scoreGate={scoreGate}
           setAdvancedSettingsPage={setAdvancedSettingsPage}
