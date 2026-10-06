@@ -1,4 +1,4 @@
-/** Honest audio_input / inpainting capability for pinned engines (#324). */
+/** User-facing limits for using imported audio during generation (#324). */
 export type AudioInputCapability = {
   supported: boolean;
   engine: string;
@@ -13,7 +13,7 @@ export function audioInputCapability(
     supported: false,
     engine: id,
     messageFr:
-      "YuE2 et ACE-Step Turbo épinglés ne consomment pas audio_input : pas de référence waveform, pas d’inpainting d’une phrase. Une génération = un nouvel appel. La reprise SheetSage2 (audio → ABC) n’est pas une entrée audio au décodeur. Lego (ACE-Step 1.5 Base, sidecar Python) n’est pas un audio_input YuE2 : il n’est appelé que pour ajouter une piste depuis le mix/stems.",
+      "Vous ne pouvez pas encore modifier une seule partie d’un morceau importé. Pour analyser l’audio et créer une nouvelle version, ouvrez Partition, puis Reprise.",
   };
 }
 
