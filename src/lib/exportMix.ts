@@ -38,8 +38,17 @@ export async function exportProjectAudio(
     pack?: "folder" | "zip";
   },
 ): Promise<string> {
+  const vst3Enabled = mix?.vst3MasterInsert?.enabled === true;
   if (
-    shouldUseProductionExport() &&
+    vst3Enabled &&
+    (!mix || !sources || sources.mode !== "stems" || sources.stems.length === 0)
+  ) {
+    throw new Error(
+      "Pour appliquer l’effet VST3, séparez d’abord la prise en pistes dans Production.",
+    );
+  }
+  if (
+    (shouldUseProductionExport() || vst3Enabled) &&
     mix &&
     sources &&
     sources.mode === "stems" &&
@@ -47,13 +56,26 @@ export async function exportProjectAudio(
   ) {
     const { stems, sampleRate } = await decodeMixStems(sources, mix);
     const baked = bakeMixPcm(mix, stems);
+    const renderSampleRate = mix.sampleRate || sampleRate;
+    const vst3Processed = vst3Enabled
+      ? await api.vst3ProcessPcm({
+          path: mix.vst3MasterInsert!.pluginPath,
+          parameters: mix.vst3MasterInsert!.parameters,
+          pluginStateB64: mix.vst3MasterInsert!.stateB64,
+          sampleRate: renderSampleRate,
+          peakCeilingDb: mix.peakCeilingDb ?? -1,
+          pcmLe: float32ToLeBytes(baked.pcm),
+        })
+      : null;
     return api.exportPcmAudio(projectId, {
       format,
-      pcmLe: float32ToLeBytes(baked.pcm),
-      sampleRate: mix.sampleRate || sampleRate,
+      pcmLe: vst3Processed?.pcmLe ?? float32ToLeBytes(baked.pcm),
+      sampleRate: renderSampleRate,
       channels: 2,
-      peakTrimDb: baked.peakTrimDb,
-      renderPath: `mix-production-ts/${baked.path}`,
+      peakTrimDb: baked.peakTrimDb + (vst3Processed?.peakTrimDb ?? 0),
+      renderPath: vst3Enabled
+        ? `mix-production-ts/vst3/${baked.path}`
+        : `mix-production-ts/${baked.path}`,
       matchMode: "approximate",
       bitDepth: options?.bitDepth,
       bitrateKbps: options?.bitrateKbps,
@@ -172,13 +194,27 @@ export async function exportAlignedStems(
     paths.push(path);
   }
   if (baked.master) {
+    const vst3Master =
+      mix.vst3MasterInsert?.enabled === true
+        ? await api.vst3ProcessPcm({
+            path: mix.vst3MasterInsert.pluginPath,
+            parameters: mix.vst3MasterInsert.parameters,
+            pluginStateB64: mix.vst3MasterInsert.stateB64,
+            sampleRate: baked.sampleRate,
+            peakCeilingDb: mix.peakCeilingDb ?? -1,
+            pcmLe: float32ToLeBytes(baked.master.pcm),
+          })
+        : null;
     const path = await api.exportPcmAudio(projectId, {
       format: opts.format,
-      pcmLe: float32ToLeBytes(baked.master.pcm),
+      pcmLe: vst3Master?.pcmLe ?? float32ToLeBytes(baked.master.pcm),
       sampleRate: baked.sampleRate,
       channels: 2,
-      peakTrimDb: baked.master.peakTrimDb,
-      renderPath: `mix-production-ts/stem/master`,
+      peakTrimDb:
+        baked.master.peakTrimDb + (vst3Master?.peakTrimDb ?? 0),
+      renderPath: vst3Master
+        ? `mix-production-ts/vst3/stem/master`
+        : `mix-production-ts/stem/master`,
       matchMode: "approximate",
       fileStem: "stem-master",
     });

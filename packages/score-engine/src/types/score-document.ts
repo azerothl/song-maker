@@ -68,6 +68,14 @@ export type NoteEvent = {
   tieEnd?: boolean;
 };
 
+/** VST3 instrument assigned to a score voice and rendered through MIDI. */
+export type ScoreVst3Instrument = {
+  pluginPath: string;
+  pluginName: string;
+  parameters: Record<string, number>;
+  stateB64?: string;
+};
+
 export type ScoreVoice = {
   id: string;
   name: string;
@@ -75,6 +83,8 @@ export type ScoreVoice = {
   notes: NoteEvent[];
   /** Explicit Ins/Vocal (or extra ABC name) for export (§7.6, #340). */
   abcVoice?: AbcVoiceTarget;
+  /** Optional offline VST3 instrument assignment. */
+  vst3Instrument?: ScoreVst3Instrument;
 };
 
 export type ScoreDocument = {

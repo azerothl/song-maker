@@ -878,6 +878,8 @@ export function SongScreen() {
           tempoMap: next.tempoMap ?? [],
           timeSignatures: next.timeSignatures ?? [],
           markers: next.markers ?? [],
+          vst3MasterInsert: next.vst3MasterInsert ?? undefined,
+          clearVst3MasterInsert: !next.vst3MasterInsert,
         })
         .then((m) => {
           setMix(m);

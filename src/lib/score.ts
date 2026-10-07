@@ -22,6 +22,7 @@ import {
   type ScoreDocumentDiff,
   type ScoreIssue,
   type ScoreVoiceRole,
+  type ScoreVst3Instrument,
   type SectionKind,
   type SongSection,
   type TransposeSelection,
@@ -37,11 +38,30 @@ export type {
   ScoreDocumentDiff,
   ScoreIssue,
   ScoreVoiceRole,
+  ScoreVst3Instrument,
   SongSection,
   SectionKind,
   TransposeSelection,
   AbcVoiceTarget,
 };
+
+export function setScoreVoiceVst3Instrument(
+  document: ScoreDocument,
+  voiceId: string,
+  instrument: ScoreVst3Instrument | null,
+): ScoreDocument {
+  return {
+    ...document,
+    version: document.version + 1,
+    voices: document.voices.map((voice) => {
+      if (voice.id !== voiceId) return voice;
+      const next = { ...voice };
+      if (instrument) next.vst3Instrument = instrument;
+      else delete next.vst3Instrument;
+      return next;
+    }),
+  };
+}
 
 export function importMidiBytes(
   bytes: Uint8Array,

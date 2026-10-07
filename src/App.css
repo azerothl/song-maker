@@ -1571,6 +1571,65 @@ option {
   margin-bottom: 0.35rem;
 }
 
+.production-vst3-field > .hint {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.production-vst3-select-label,
+.production-vst3-parameter {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.55rem;
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.production-vst3-select-label select {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.55rem;
+  color: var(--text);
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+}
+
+.production-vst3-plugin-info {
+  margin: 0.4rem 0;
+}
+
+.production-vst3-enable {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.production-vst3-parameters {
+  margin: 0.5rem 0;
+  padding: 0.6rem;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--bg1) 80%, transparent);
+}
+
+.production-vst3-parameter > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.production-vst3-parameter output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.production-vst3-parameter input[type="range"] {
+  width: 100%;
+  margin: 0;
+}
+
 .production-mix-settings-density {
   margin-bottom: 0.35rem;
 }
