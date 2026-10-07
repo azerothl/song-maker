@@ -15,15 +15,15 @@
   {
     "id": "mel_band_roformer_kimberley",
     "nom": "Mel-Band RoFormer « Kim Vocal » (KimberleyJSN/melbandroformer, MelBandRoformer.ckpt ; ce que référence audio.cpp via mlx-community/mel-roformer-mlx)",
-    "licence_poids": "MIT (carte HF de l'auteur, depuis le commit ac9b0614 du 2026-04-22 ; front matter seulement, sans fichier LICENSE ; historique : unknown → gpl-3.0 le 2025-06-17 → mit le 2026-04-22)",
-    "citation": "Carte HF (README de 20 octets) : « license: mit ». Discussion HF #1 (2024-08-20, KimberleyJSN) : « I released the model weights so people can use it for personal / research usage ». Discussion #2 (2025-06-03, KimberleyJSN) : « you have permission to use it any way you like ».",
-    "source_url": "https://huggingface.co/KimberleyJSN/melbandroformer (README, commits, discussions #1 #2 #4)",
+    "licence_poids": "MIT (fiche officielle de Kimberley Jensen, mise à jour par l’autrice dans le commit ac9b0614 du 2026-04-22 ; historique : licence inconnue → GPL-3.0 le 2025-06-17 → MIT le 2026-04-22)",
+    "citation": "Fiche officielle de l’autrice, licence MIT ; commit ac9b0614ab3cd7f77219e18ba494dfd93956c348 (2026-04-22) : métadonnée de licence mise à jour vers MIT. Le dépôt audio.cpp-gguf répertorie aussi le checkpoint dans son tableau Mel-Band RoFormer-GGUF sous MIT ; sa licence générale reste « other ».",
+    "source_url": "https://huggingface.co/KimberleyJSN/melbandroformer/commit/ac9b0614ab3cd7f77219e18ba494dfd93956c348 ; https://huggingface.co/audio-cpp/audio.cpp-gguf/tree/main/Mel-Band-RoFormer-GGUF",
     "licence_code": "Dépôt d'inférence GitHub KimberleyJensen/Mel-Band-Roformer-Vocal-Model : aucun fichier LICENSE (fichiers : README.md, configs, inference.py, requirements.txt, utils.py). Implémentation de référence citée : lucidrains/BS-RoFormer ; code d'entraînement : ZFTurbo/Music-Source-Separation-Training (MIT, « Copyright (c) 2024 Roman Solovyev (ZFTurbo) »).",
     "donnees_entrainement": "Non documentées. README GitHub : « This model performs slightly better than the paper equivalent due to training with more data. » ; remerciements : « aufr33 + Anjok + bascurtiz for helping contribute to the dataset ».",
-    "restriction_sorties": "Aucune restriction sur les sorties trouvée (carte HF, README GitHub, discussions HF #1 #2 #4). Mais la seule déclaration de l'auteure sur l'usage est « personal / research usage » (2024) ; la discussion #4 (2026-01-27, question sur un usage commercial) n'a aucune réponse visible ; le passage à MIT n'est accompagné d'aucun texte de l'auteure.",
-    "statut": "non vérifié",
-    "date_verification": "2026-09-30",
-    "raison_grise_fr": "Le fichier chargé par l'app est une conversion GGUF Q8 (audio-cpp/audio.cpp-gguf) dont le lien avec les poids de KimberleyJSN n'est documenté nulle part ; licence amont instable (unknown, personal/research, gpl-3.0, MIT) et sans fichier LICENSE."
+    "restriction_sorties": "Aucune condition distincte sur les sorties trouvée dans la fiche officielle consultée. La licence MIT s’applique aux poids ; ne pas en déduire une vérification des données d’entraînement ni une garantie sur chaque sortie générée.",
+    "statut": "vérifié",
+    "date_verification": "2026-10-06",
+    "raison_grise_fr": "Les poids sont sous MIT selon la fiche officielle de l’autrice (2026-04-22). Les données d'entraînement restent non documentées ; la licence des poids ne constitue pas une vérification distincte des données ni des sorties."
   },
   {
     "id": "bs_roformer_ep368",
