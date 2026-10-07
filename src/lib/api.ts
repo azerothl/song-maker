@@ -351,10 +351,15 @@ export const api = {
   nativeCaptureBackend: () => invoke<NativeCaptureBackend>("native_capture_backend"),
   listNativeCaptureDevices: () =>
     invoke<NativeInputDevice[]>("list_native_capture_devices"),
-  startNativeCapture: (id: string, deviceId?: string | null) =>
+  startNativeCapture: (
+    id: string,
+    deviceId?: string | null,
+    backend?: "shared" | "exclusive",
+  ) =>
     invoke<{ sessionId: string; relativePath: string }>("start_native_capture", {
       id,
       deviceId: deviceId ?? null,
+      backend: backend ?? "shared",
     }),
   pollNativeCapture: () => invoke<NativeCapturePoll | null>("poll_native_capture"),
   pauseNativeCapture: (paused: boolean) =>

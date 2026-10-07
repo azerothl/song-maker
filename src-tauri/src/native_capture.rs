@@ -1,6 +1,6 @@
 //! Native input capture via cpal (#330).
 //!
-//! Windows: WASAPI **shared** (cpal default). Not exclusive WASAPI, not ASIO.
+//! Windows: WASAPI shared (cpal default) or exclusive. Not ASIO.
 //! macOS: Core Audio. Linux: ALSA (often via PipeWire/Pulse compatibility).
 //! Round-trip figures are buffer-size estimates, not a speaker→mic loopback.
 
@@ -43,6 +43,7 @@ pub struct NativeInputDevice {
     pub channels: Option<u16>,
     pub buffer_frames: Option<u32>,
     pub estimated_round_trip_ms: Option<u32>,
+    pub wasapi_device_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -95,7 +96,26 @@ pub fn backend_info() -> NativeCaptureBackend {
         asio: false,
         platform: std::env::consts::OS.into(),
         round_trip_measured: false,
-        notes_fr: "Capture native cpal : WASAPI partagé sous Windows, Core Audio sous macOS, ALSA sous Linux. WASAPI exclusif et ASIO ne sont pas livrés. Latence = estimation taille de tampon, pas une boucle haut-parleur → micro.".into(),
+        notes_fr: backend_notes(),
+    }
+}
+
+fn backend_notes() -> String {
+    #[cfg(windows)]
+    {
+        "Windows : WASAPI partagé ou exclusif. ASIO n’est pas livré. Le délai affiché est une estimation de tampon, pas une mesure entrée-sortie.".into()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        "macOS : Core Audio. Le délai affiché est une estimation de tampon, pas une mesure entrée-sortie.".into()
+    }
+    #[cfg(target_os = "linux")]
+    {
+        "Linux : ALSA, souvent via PipeWire ou PulseAudio. Le délai affiché est une estimation de tampon, pas une mesure entrée-sortie.".into()
+    }
+    #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+    {
+        "Capture audio native indisponible sur cette plateforme.".into()
     }
 }
 
@@ -129,6 +149,8 @@ fn device_id(index: usize, name: &str) -> String {
 pub fn list_input_devices() -> Result<Vec<NativeInputDevice>, String> {
     let host = cpal::default_host();
     let default_name = host.default_input_device().and_then(|d| d.name().ok());
+    #[cfg(windows)]
+    let mut wasapi_ids_by_name = wasapi_capture_ids_by_name();
     let iter = host
         .input_devices()
         .map_err(|e| format!("Périphériques d’entrée natifs inaccessibles : {e}"))?;
@@ -154,6 +176,12 @@ pub fn list_input_devices() -> Result<Vec<NativeInputDevice>, String> {
             _ => None,
         };
         let is_default = default_name.as_ref().is_some_and(|d| d == &name);
+        #[cfg(windows)]
+        let wasapi_device_id = wasapi_ids_by_name
+            .get_mut(&name)
+            .and_then(|ids| ids.pop_front());
+        #[cfg(not(windows))]
+        let wasapi_device_id = None;
         out.push(NativeInputDevice {
             id: device_id(index, &name),
             name,
@@ -162,6 +190,7 @@ pub fn list_input_devices() -> Result<Vec<NativeInputDevice>, String> {
             channels,
             buffer_frames,
             estimated_round_trip_ms: estimated,
+            wasapi_device_id,
         });
     }
     Ok(out)
@@ -386,6 +415,194 @@ fn spawn_capture_thread(
     })
 }
 
+#[cfg(windows)]
+fn wasapi_capture_ids_by_name(
+) -> std::collections::HashMap<String, std::collections::VecDeque<String>> {
+    std::thread::spawn(|| {
+        use wasapi::{DeviceEnumerator, Direction};
+
+        if wasapi::initialize_mta().ok().is_err() {
+            return Vec::new();
+        }
+        let devices = (|| {
+            let enumerator = DeviceEnumerator::new().map_err(|e| e.to_string())?;
+            let collection = enumerator
+                .get_device_collection(&Direction::Capture)
+                .map_err(|e| e.to_string())?;
+            let mut devices = Vec::new();
+            for index in 0..collection.get_nbr_devices().map_err(|e| e.to_string())? {
+                let device = collection
+                    .get_device_at_index(index)
+                    .map_err(|e| e.to_string())?;
+                devices.push((
+                    device.get_friendlyname().map_err(|e| e.to_string())?,
+                    device.get_id().map_err(|e| e.to_string())?,
+                ));
+            }
+            Ok::<_, String>(devices)
+        })();
+        wasapi::deinitialize();
+        devices.unwrap_or_default()
+    })
+    .join()
+    .unwrap_or_default()
+    .into_iter()
+    .fold(
+        std::collections::HashMap::new(),
+        |mut by_name, (name, id)| {
+            by_name
+                .entry(name)
+                .or_insert_with(std::collections::VecDeque::new)
+                .push_back(id);
+            by_name
+        },
+    )
+}
+
+#[cfg(windows)]
+fn spawn_wasapi_exclusive_capture_thread(
+    endpoint_id: String,
+    stop: Arc<AtomicBool>,
+    paused: Arc<AtomicBool>,
+    peak: Arc<AtomicU32>,
+    frames: Arc<AtomicU64>,
+    abs_path: PathBuf,
+    sample_rate: Arc<Mutex<(u32, u16, u32)>>,
+) -> JoinHandle<Result<(), String>> {
+    thread::spawn(move || {
+        use wasapi::{DeviceEnumerator, Direction, SampleType, StreamMode, WaveFormat};
+
+        if wasapi::initialize_mta().ok().is_err() {
+            return Err("Impossible d’initialiser le moteur audio Windows.".into());
+        }
+        let result = (|| {
+            let enumerator =
+                DeviceEnumerator::new().map_err(|e| format!("Ouverture WASAPI : {e}"))?;
+            let device = enumerator
+                .get_device(&endpoint_id)
+                .map_err(|e| format!("Entrée WASAPI introuvable : {e}"))?;
+            let mut client = device
+                .get_iaudioclient()
+                .map_err(|e| format!("Ouverture de l’entrée WASAPI : {e}"))?;
+
+            let mut supported_format = None;
+            for (rate, channels) in [
+                (48_000usize, 2usize),
+                (44_100, 2),
+                (48_000, 1),
+                (44_100, 1),
+                (96_000, 2),
+                (96_000, 1),
+                (32_000, 1),
+                (16_000, 1),
+            ] {
+                let requested = WaveFormat::new(16, 16, &SampleType::Int, rate, channels, None);
+                if let Ok(format) = client.is_supported_exclusive_with_quirks(&requested) {
+                    supported_format = Some(format);
+                    break;
+                }
+            }
+            let format = supported_format.ok_or_else(|| {
+                "Cette entrée ne propose pas de format PCM 16 bits compatible en mode exclusif. Essayez le mode partagé.".to_string()
+            })?;
+            let actual_sample_rate = format.get_samplespersec();
+            let channels = format.get_nchannels();
+            let block_align = format.get_blockalign() as usize;
+            let (default_period, minimum_period) = client
+                .get_device_period()
+                .map_err(|e| format!("Lecture de la période WASAPI : {e}"))?;
+            let period_hns = default_period.max(minimum_period).max(1);
+            let mode = StreamMode::PollingExclusive {
+                buffer_duration_hns: period_hns.saturating_mul(2),
+                period_hns,
+            };
+            client
+                .initialize_client(&format, &Direction::Capture, &mode)
+                .map_err(|e| format!("L’entrée audio est occupée ou refuse le mode exclusif : {e}. Fermez les autres applications audio ou revenez au mode partagé."))?;
+            let buffer_frames = client
+                .get_buffer_size()
+                .map_err(|e| format!("Lecture du tampon WASAPI : {e}"))?;
+            if let Ok(mut current) = sample_rate.lock() {
+                *current = (actual_sample_rate, channels, buffer_frames);
+            }
+            let writer = Arc::new(Mutex::new(Some(open_wav_writer(
+                &abs_path,
+                actual_sample_rate,
+                channels,
+            )?)));
+            let capture = client
+                .get_audiocaptureclient()
+                .map_err(|e| format!("Ouverture du flux de capture WASAPI : {e}"))?;
+            client
+                .start_stream()
+                .map_err(|e| format!("Démarrage de la capture WASAPI exclusive : {e}"))?;
+
+            let capture_result = (|| {
+                while !stop.load(Ordering::Relaxed) {
+                    let available = client
+                        .get_current_padding()
+                        .map_err(|e| format!("Lecture du tampon de capture WASAPI : {e}"))?;
+                    if available > 0 {
+                        let byte_count = (available as usize)
+                            .checked_mul(block_align)
+                            .ok_or_else(|| "Tampon WASAPI trop grand.".to_string())?;
+                        let mut raw = vec![0u8; byte_count];
+                        let (read_frames, info) = capture
+                            .read_from_device(&mut raw)
+                            .map_err(|e| format!("Lecture de l’entrée WASAPI : {e}"))?;
+                        if info.flags.silent {
+                            raw.fill(0);
+                        }
+                        if !paused.load(Ordering::Relaxed) && read_frames > 0 {
+                            let sample_count = (read_frames as usize)
+                                .checked_mul(channels as usize)
+                                .ok_or_else(|| "Paquet audio WASAPI trop grand.".to_string())?;
+                            let mut pcm = Vec::with_capacity(sample_count);
+                            let mut local_peak = 0.0f32;
+                            for bytes in raw[..sample_count * 2].chunks_exact(2) {
+                                let sample = i16::from_le_bytes([bytes[0], bytes[1]]);
+                                local_peak = local_peak.max((sample as f32 / 32768.0).abs());
+                                pcm.push(sample);
+                            }
+                            if let Ok(mut output) = writer.lock() {
+                                if let Some(output) = output.as_mut() {
+                                    for sample in pcm {
+                                        output.write_sample(sample).map_err(|e| e.to_string())?;
+                                    }
+                                }
+                            }
+                            peak.store(
+                                (local_peak.clamp(0.0, 1.0) * 1000.0).round() as u32,
+                                Ordering::Relaxed,
+                            );
+                            frames.fetch_add(read_frames as u64, Ordering::Relaxed);
+                        }
+                    }
+                    let elapsed_ms = frames.load(Ordering::Relaxed).saturating_mul(1000)
+                        / u64::from(actual_sample_rate.max(1));
+                    if elapsed_ms >= MAX_RECORD_MS {
+                        break;
+                    }
+                    thread::sleep(Duration::from_millis(2));
+                }
+                Ok::<(), String>(())
+            })();
+            let stop_result = client
+                .stop_stream()
+                .map_err(|e| format!("Arrêt de la capture WASAPI : {e}"));
+            if let Ok(mut output) = writer.lock() {
+                if let Some(output) = output.take() {
+                    output.finalize().map_err(|e| e.to_string())?;
+                }
+            }
+            capture_result?;
+            stop_result
+        })();
+        wasapi::deinitialize();
+        result
+    })
+}
+
 #[tauri::command]
 pub fn native_capture_backend() -> NativeCaptureBackend {
     backend_info()
@@ -401,6 +618,7 @@ pub fn start_native_capture(
     state: tauri::State<NativeCaptureState>,
     id: String,
     device_id: Option<String>,
+    backend: Option<String>,
 ) -> Result<UserAudioCaptureSession, String> {
     let mut g = state
         .inner
@@ -409,10 +627,37 @@ pub fn start_native_capture(
     if g.is_some() {
         return Err("Une capture native est déjà en cours.".into());
     }
+    let selected_backend = backend.as_deref().unwrap_or("shared");
+    if !matches!(selected_backend, "shared" | "exclusive") {
+        return Err("Mode d’enregistrement natif inconnu.".into());
+    }
     let folder = project_folder(&id);
     let _ = load_project(&folder)?;
     ensure_user_audio_dirs(&folder)?;
-    let (device, _name) = pick_device(device_id.as_deref())?;
+    #[cfg(windows)]
+    let exclusive_endpoint = if selected_backend == "exclusive" {
+        let devices = list_input_devices()?;
+        let selected = match device_id.as_deref() {
+            Some(wanted) => devices
+                .iter()
+                .find(|device| device.id == wanted)
+                .ok_or_else(|| "Le périphérique sélectionné n’est plus disponible.".to_string())?,
+            None => devices
+                .iter()
+                .find(|device| device.is_default)
+                .or_else(|| devices.first())
+                .ok_or_else(|| "Aucun périphérique d’entrée natif.".to_string())?,
+        };
+        Some(selected.wasapi_device_id.clone().ok_or_else(|| {
+            "Le mode exclusif n’est pas disponible pour cette entrée. Choisissez le mode partagé.".to_string()
+        })?)
+    } else {
+        None
+    };
+    #[cfg(not(windows))]
+    if selected_backend == "exclusive" {
+        return Err("Le mode exclusif WASAPI est disponible uniquement sous Windows.".into());
+    }
     let session_id = Uuid::new_v4().to_string();
     if !capture_session_id_ok(&session_id) {
         return Err("Identifiant de session de capture invalide.".into());
@@ -427,15 +672,42 @@ pub fn start_native_capture(
     let peak = Arc::new(AtomicU32::new(0));
     let frames = Arc::new(AtomicU64::new(0));
     let rates = Arc::new(Mutex::new((48_000u32, 1u16, 0u32)));
-    let join = spawn_capture_thread(
-        device,
-        Arc::clone(&stop),
-        Arc::clone(&paused),
-        Arc::clone(&peak),
-        Arc::clone(&frames),
-        abs_path.clone(),
-        Arc::clone(&rates),
-    );
+    #[cfg(windows)]
+    let join = if let Some(endpoint_id) = exclusive_endpoint {
+        spawn_wasapi_exclusive_capture_thread(
+            endpoint_id,
+            Arc::clone(&stop),
+            Arc::clone(&paused),
+            Arc::clone(&peak),
+            Arc::clone(&frames),
+            abs_path.clone(),
+            Arc::clone(&rates),
+        )
+    } else {
+        let (device, _name) = pick_device(device_id.as_deref())?;
+        spawn_capture_thread(
+            device,
+            Arc::clone(&stop),
+            Arc::clone(&paused),
+            Arc::clone(&peak),
+            Arc::clone(&frames),
+            abs_path.clone(),
+            Arc::clone(&rates),
+        )
+    };
+    #[cfg(not(windows))]
+    let join = {
+        let (device, _name) = pick_device(device_id.as_deref())?;
+        spawn_capture_thread(
+            device,
+            Arc::clone(&stop),
+            Arc::clone(&paused),
+            Arc::clone(&peak),
+            Arc::clone(&frames),
+            abs_path.clone(),
+            Arc::clone(&rates),
+        )
+    };
     // Give the audio thread a moment to open the device.
     thread::sleep(Duration::from_millis(80));
     if join.is_finished() {
@@ -443,8 +715,14 @@ pub fn start_native_capture(
             Ok(Ok(())) => {
                 return Err("Le flux d’entrée natif s’est arrêté immédiatement.".into());
             }
-            Ok(Err(e)) => return Err(e),
-            Err(_) => return Err("Le flux d’entrée natif a planté au démarrage.".into()),
+            Ok(Err(e)) => {
+                let _ = std::fs::remove_file(&abs_path);
+                return Err(e);
+            }
+            Err(_) => {
+                let _ = std::fs::remove_file(&abs_path);
+                return Err("Le flux d’entrée natif a planté au démarrage.".into());
+            }
         }
     }
     *g = Some(ActiveNativeCapture {
@@ -573,7 +851,13 @@ mod tests {
                 || info.host_api == "coreaudio"
                 || info.host_api == "unknown"
         );
+        #[cfg(windows)]
         assert!(info.notes_fr.contains("WASAPI"));
+        #[cfg(target_os = "macos")]
+        assert!(info.notes_fr.contains("Core Audio"));
+        #[cfg(target_os = "linux")]
+        assert!(info.notes_fr.contains("ALSA"));
+        #[cfg(windows)]
         assert!(info.notes_fr.contains("ASIO"));
     }
 
