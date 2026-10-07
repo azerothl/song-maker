@@ -7,6 +7,10 @@ import { setAppLocale } from "../ui/i18n";
 
 it("explains unavailable LoRA packs in French and English without offering broken downloads", () => {
   let storedLocale = "fr";
+  const previousLocalStorage = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "localStorage",
+  );
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
     value: {
@@ -28,5 +32,9 @@ it("explains unavailable LoRA packs in French and English without offering broke
     assert.ok(html.includes("aucun téléchargement n’est proposé") || html.includes("no download is offered"));
   }
   setAppLocale("fr");
-  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: undefined });
+  if (previousLocalStorage) {
+    Object.defineProperty(globalThis, "localStorage", previousLocalStorage);
+  } else {
+    Reflect.deleteProperty(globalThis, "localStorage");
+  }
 });
