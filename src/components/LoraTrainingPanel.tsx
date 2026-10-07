@@ -3,7 +3,6 @@ import {
   MemoryTrainingJobStore,
   cancelTrainingJob,
   cleanupTrainingJob,
-  estimateTrainingResources,
   formatFromPath,
   launchTrainingJob,
   readTrainingLogs,
@@ -199,11 +198,6 @@ export function LoraTrainingPanel({
   );
 
   const validation = useMemo(() => validateCorpus(songs), [songs]);
-  const estimate = useMemo(
-    () => estimateTrainingResources(songs),
-    [songs],
-  );
-
   const runtimeStatus = useMemo(
     () =>
       resolveLoraTrainRuntimeStatus({
@@ -417,9 +411,6 @@ export function LoraTrainingPanel({
         {t("loraTrain.runtimeStatus")}:{" "}
         <strong>{t(loraTrainStatusLabelKey(runtimeStatus))}</strong>
       </p>
-      <p className="hint warn" role="note">
-        {t("loraTrain.qualityHint")}
-      </p>
       <p className="hint">{t("loraTrain.rightsHint")}</p>
       {probeError && (
         <p className="hint error" role="alert">
@@ -457,30 +448,6 @@ export function LoraTrainingPanel({
           ))}
         </ul>
       )}
-
-      <dl className="kv">
-        {kind === "yue2_gpu" && (
-          <>
-            <dt>{t("loraTrain.estimate.vram")}</dt>
-            <dd>
-              ~{Math.round(estimate.vramMib / 1024)} GiB{" "}
-              <span className="hint">({t("loraTrain.estimate.unmeasured")})</span>
-            </dd>
-          </>
-        )}
-        <dt>{t("loraTrain.estimate.disk")}</dt>
-        <dd>
-          ~{Math.round(estimate.diskMib / 1024)} GiB{" "}
-          <span className="hint">({t("loraTrain.estimate.unmeasured")})</span>
-        </dd>
-        <dt>{t("loraTrain.estimate.duration")}</dt>
-        <dd>
-          ~{estimate.durationMinutes} min{" "}
-          <span className="hint">({t("loraTrain.estimate.unmeasured")})</span>
-        </dd>
-      </dl>
-      <p className="hint">{t("loraTrain.estimate.note")}</p>
-      <p className="hint">{t("loraTrain.noAutoActivate")}</p>
 
       <div className="btn-row">
         <button

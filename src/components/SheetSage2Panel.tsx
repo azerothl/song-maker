@@ -168,19 +168,17 @@ export function SheetSage2Panel({
           jobId,
           phase: "queued",
           fraction: 0.05,
-          messageFr: "Export du mixdown WAV avant transcription…",
+          messageFr: t("sheetsage.progress.queued"),
         });
         try {
           audioPath = await api.exportAudio(projectId, "wav");
-        } catch (e) {
+        } catch {
           return {
             status: "failed",
             jobId,
             abc: null,
             warnings: ["mixdown_export_failed"],
-            messageFr: `Export mixdown impossible : ${
-              e instanceof Error ? e.message : String(e)
-            }. Aucune ABC inventée.`,
+            messageFr: t("sheetsage.error.audioPreparation"),
             reinterpretationDisclaimerFr: REINTERPRETATION_DISCLAIMER_FR,
           };
         }
@@ -191,8 +189,7 @@ export function SheetSage2Panel({
           jobId,
           abc: null,
           warnings: ["missing_audio_path"],
-          messageFr:
-            "Chemin audio manquant (exportez un mixdown ou choisissez une piste avec fichier). Aucune ABC inventée.",
+          messageFr: t("sheetsage.error.audioMissing"),
           reinterpretationDisclaimerFr: REINTERPRETATION_DISCLAIMER_FR,
         };
       }
@@ -200,7 +197,7 @@ export function SheetSage2Panel({
         jobId,
         phase: "transcribing",
         fraction: 0.2,
-        messageFr: "Transcription SheetSage2 en cours…",
+        messageFr: t("sheetsage.progress.transcribing"),
       });
       const outcome = await runtimeApi.sheetsageTranscribe({
         jobId,
@@ -215,7 +212,7 @@ export function SheetSage2Panel({
           jobId,
           abc: null,
           warnings: [],
-          messageFr: "Transcription annulée.",
+          messageFr: t("sheetsage.progress.cancelled"),
           reinterpretationDisclaimerFr: REINTERPRETATION_DISCLAIMER_FR,
         };
       }

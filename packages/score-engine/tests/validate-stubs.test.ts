@@ -200,6 +200,44 @@ describe("Vocal → Ins", () => {
     );
   });
 
+  it("conserve un accord placé après la dernière note lors de la conversion instrumentale", () => {
+    const abc = [
+      "X:1", "T:Trailing chord", "M:4/4", "L:1/16", "Q:1/4=88",
+      'V: Vocal clef=treble name="Vocal Melody" snm="Vocal"',
+      'V: Ins clef=treble name="Ins Melody" snm="Inst."', "K:C", "% verse",
+      "V: Vocal", '"C"C4z12|"G"z16|', "V: Ins", "C4z12|Z|", "",
+    ].join("\n");
+
+    const { abc: out, movedNoteCount } = convertVocalToIns(abc);
+    const { document, issues } = importAbcToScoreDocument(out);
+
+    assert.equal(movedNoteCount, 1);
+    assert.deepEqual(issues, []);
+    assert.deepEqual(
+      document.chordEvents.map((chord) => [chord.tick, chord.symbol]),
+      [[0, "C"], [3840, "G"]],
+    );
+  });
+
+  it("conserve un accord final avec la grille ABC au 1/32", () => {
+    const abc = [
+      "X:1", "T:Trailing thirty-second chord", "M:4/4", "L:1/32", "Q:1/4=88",
+      'V: Vocal clef=treble name="Vocal Melody" snm="Vocal"',
+      'V: Ins clef=treble name="Ins Melody" snm="Inst."', "K:C", "% verse",
+      "V: Vocal", '"C"Cz31|"G"z32|', "V: Ins", "Cz31|Z|", "",
+    ].join("\n");
+
+    const { abc: out, movedNoteCount } = convertVocalToIns(abc);
+    const { document, issues } = importAbcToScoreDocument(out);
+
+    assert.equal(movedNoteCount, 1);
+    assert.deepEqual(issues, []);
+    assert.deepEqual(
+      document.chordEvents.map((chord) => [chord.tick, chord.symbol]),
+      [[0, "C"], [3840, "G"]],
+    );
+  });
+
   it("refuse de supprimer silencieusement une troisième voix", () => {
     const abc = [
       "X:1", "T:Test", "M:4/4", "L:1/16", "Q:1/4=88",
