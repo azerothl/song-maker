@@ -202,9 +202,17 @@ fn instrumental_separator_plan(raw: &str) -> InstrumentalSeparatorPlan {
     }
 }
 
+fn instrumental_vocal_pass_count(plan: InstrumentalSeparatorPlan) -> u8 {
+    match plan.provider {
+        InstrumentalSeparatorProvider::AudioCpp | InstrumentalSeparatorProvider::HtDemucsOnnx => 2,
+    }
+}
+
 #[cfg(test)]
 mod instrumental_separator_tests {
-    use super::{instrumental_separator_plan, InstrumentalSeparatorProvider};
+    use super::{
+        instrumental_separator_plan, instrumental_vocal_pass_count, InstrumentalSeparatorProvider,
+    };
 
     #[test]
     fn instrumental_generation_uses_the_selected_separator() {
@@ -240,6 +248,16 @@ mod instrumental_separator_tests {
             assert_eq!(plan.provider, expected_provider);
             assert_eq!(plan.output_roles, expected_roles);
             assert!(plan.included_stems.iter().all(|role| *role != "vocals"));
+        }
+        for selected in [
+            "htdemucs",
+            "bs_roformer",
+            "mel_band_roformer",
+            "htdemucs_6s",
+        ] {
+            let plan = instrumental_separator_plan(selected);
+            assert_eq!(instrumental_vocal_pass_count(plan), 2, "{selected}");
+            assert_eq!(plan.id, selected);
         }
     }
 }
@@ -314,7 +332,7 @@ async fn remove_generated_vocals(
     ensure_dir(&sep_dir).map_err(|e| e.to_string())?;
     let input = sep_dir.join("input-44100.wav");
     crate::resample::resample_soxr(&raw, &input, SEPARATOR_SAMPLE_RATE)?;
-    match plan.provider {
+    let separator_url = match plan.provider {
         InstrumentalSeparatorProvider::AudioCpp => {
             // RoFormer separates with its own weights. Restart the shared server
             // after generation so the generation model can be unloaded first.
@@ -336,6 +354,7 @@ async fn remove_generated_vocals(
             if matches!(plan.id, "bs_roformer" | "mel_band_roformer") {
                 super::shared::alias_instrumental_to_other(&sep_dir)?;
             }
+            Some(separator_url)
         }
         InstrumentalSeparatorProvider::HtDemucsOnnx => {
             crate::demucs_onnx::separate(
@@ -344,8 +363,9 @@ async fn remove_generated_vocals(
                 sep_dir.clone(),
             )
             .await?;
+            None
         }
-    }
+    };
     let mut stems = Vec::new();
     let original_duration = wav_duration_ms(&raw)?;
     for role in plan.output_roles {
@@ -365,12 +385,73 @@ async fn remove_generated_vocals(
     let rendered = gen_dir.join("audio-instrumental.wav");
     let trim = crate::mix::render_mix(&mix, gen_dir, &rendered)?;
     check_stem_alignment(wav_duration_ms(&rendered)?, original_duration)?;
-    std::fs::copy(&rendered, gen_dir.join("audio.wav")).map_err(|e| e.to_string())?;
+    let mut final_trim = trim;
+    let final_audio = if instrumental_vocal_pass_count(plan) > 1 {
+        let second_pass_dir = gen_dir.join("instrumental-pass-2");
+        ensure_dir(&second_pass_dir).map_err(|e| e.to_string())?;
+        let second_pass_input = second_pass_dir.join("input-44100.wav");
+        crate::resample::resample_soxr(&rendered, &second_pass_input, SEPARATOR_SAMPLE_RATE)?;
+        match plan.provider {
+            InstrumentalSeparatorProvider::AudioCpp => {
+                let separator_url = separator_url.as_deref().ok_or_else(|| {
+                    "Le second passage de séparation nécessite le moteur audio local.".to_string()
+                })?;
+                let response = AudioCppServer::run_task(
+                    separator_url,
+                    json!({
+                        "model": plan.id,
+                        "request": {"audio": second_pass_input.display().to_string()}
+                    }),
+                )
+                .await?;
+                AudioCppServer::write_named_audio_outputs(&response, &second_pass_dir)?;
+                if matches!(plan.id, "bs_roformer" | "mel_band_roformer") {
+                    super::shared::alias_instrumental_to_other(&second_pass_dir)?;
+                }
+            }
+            InstrumentalSeparatorProvider::HtDemucsOnnx => {
+                crate::demucs_onnx::separate(
+                    PathBuf::from(&settings.cache_dir),
+                    second_pass_input,
+                    second_pass_dir.clone(),
+                )
+                .await?;
+            }
+        }
+        let mut second_pass_stems = Vec::new();
+        for role in plan.output_roles {
+            let source = super::shared::find_stem_file(&second_pass_dir, role)?;
+            let path = second_pass_dir.join(format!("{role}-48000.wav"));
+            crate::resample::resample_soxr(&source, &path, SAMPLE_RATE)?;
+            let duration = wav_duration_ms(&path)?;
+            check_stem_alignment(duration, original_duration)?;
+            second_pass_stems.push((
+                role.to_string(),
+                PathBuf::from(format!("instrumental-pass-2/{role}-48000.wav")),
+                sha256_file(&path)?,
+                duration,
+            ));
+        }
+        let second_pass_mix = crate::mix::new_mix_from_separation(
+            "instrumental-pass-2",
+            "instrumental-pass-2",
+            &second_pass_stems,
+            false,
+        );
+        let final_audio = gen_dir.join("audio-instrumental-pass2.wav");
+        final_trim = crate::mix::render_mix(&second_pass_mix, gen_dir, &final_audio)?;
+        check_stem_alignment(wav_duration_ms(&final_audio)?, original_duration)?;
+        final_audio
+    } else {
+        rendered
+    };
+    std::fs::copy(&final_audio, gen_dir.join("audio.wav")).map_err(|e| e.to_string())?;
     Ok(
         json!({"method":plan.method(), "separatorId":plan.id, "modelSha256":plan.sha256,
         "originalPath":"audio-original.wav", "originalSha256":sha256_file(&raw)?,
         "includedStems":plan.included_stems, "excludedStems":["vocals"],
-        "peakTrimDb":trim, "residualVocalsPossible":true}),
+        "peakTrimDb":final_trim, "vocalRemovalPasses":instrumental_vocal_pass_count(plan),
+        "residualVocalsPossible":true}),
     )
 }
 

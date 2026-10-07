@@ -9,6 +9,8 @@ describe("audioInputCapability", () => {
       assert.equal(cap.supported, false);
       assert.match(cap.messageFr, /morceau importé/);
       assert.match(cap.messageFr, /Reprise/);
+      assert.match(cap.messageFr, /partition/);
+      assert.match(cap.messageFr, /ne guide pas directement la génération/);
       assert.doesNotMatch(cap.messageFr, /audio_input|inpainting|décodeur|sidecar/i);
     }
   });

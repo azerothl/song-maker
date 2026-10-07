@@ -220,6 +220,8 @@ export function exportToYuE2Abc(
   const ins = pickVoice(doc, "Ins");
   const includeChords = options.cot === "full";
   const unitsPerBar = ticksPerBar(ts, unitLength);
+  const unitTicks =
+    unitLength === "1/16" ? TICKS_PER_SIXTEENTH : TICKS_PER_THIRTY_SECOND;
 
   const sections =
     doc.sections.length > 0
@@ -237,6 +239,11 @@ export function exportToYuE2Abc(
     ...[...(vocal?.notes ?? []), ...(ins?.notes ?? [])].map(
       (n) => n.startTick + n.durationTick,
     ),
+    // A chord can trail the last note in model-generated ABC. Keep enough
+    // score space to serialize that chord and its following rest.
+    ...(includeChords
+      ? doc.chordEvents.map((chord) => chord.tick + unitTicks)
+      : []),
     ...sections.map((s) => s.startTick),
   );
 

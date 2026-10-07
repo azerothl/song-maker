@@ -13,7 +13,7 @@ export function audioInputCapability(
     supported: false,
     engine: id,
     messageFr:
-      "Vous ne pouvez pas encore modifier une seule partie d’un morceau importé. Pour analyser l’audio et créer une nouvelle version, ouvrez Partition, puis Reprise.",
+      "Vous ne pouvez pas encore remplacer une seule partie d’un morceau importé. Dans Partition → Reprise, l’application transforme d’abord l’audio en partition. Vérifiez-la pour guider une nouvelle génération ; le fichier audio ne guide pas directement la génération.",
   };
 }
 
