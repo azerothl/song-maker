@@ -31,6 +31,24 @@ const EDITOR_START_TIMEOUT: Duration = Duration::from_secs(45);
 const EDITOR_MAX_DURATION: Duration = Duration::from_secs(60 * 60 * 8);
 #[cfg(windows)]
 const MAX_PLUGIN_STATE_BYTES: usize = 24 * 1024 * 1024;
+#[cfg(windows)]
+const MAX_PLUGIN_PARAMETER_COUNT: usize = 16_384;
+
+#[cfg(windows)]
+fn validate_plugin_parameters(parameters: &BTreeMap<u32, f64>) -> Result<(), String> {
+    if parameters.len() > MAX_PLUGIN_PARAMETER_COUNT {
+        return Err(format!(
+            "Ce plugin expose plus de {MAX_PLUGIN_PARAMETER_COUNT} réglages VST3 pris en charge."
+        ));
+    }
+    if parameters
+        .values()
+        .any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
+    {
+        return Err("Une valeur de réglage VST3 est invalide.".into());
+    }
+    Ok(())
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -168,9 +186,9 @@ fn plugin_path_in_scan_roots(path: &str) -> Result<PathBuf, String> {
     }
     let canonical = path
         .canonicalize()
-        .map_err(|e| format!("Dossier VST3 inaccessible : {e}"))?;
-    if !canonical.is_dir() {
-        return Err("Le bundle VST3 sélectionné n’est pas un dossier.".into());
+        .map_err(|e| format!("Plugin VST3 inaccessible : {e}"))?;
+    if !canonical.is_dir() && !canonical.is_file() {
+        return Err("Le module VST3 sélectionné n’est ni un fichier ni un dossier.".into());
     }
     let allowed = default_scan_roots().into_iter().any(|root| {
         root.canonicalize()
@@ -214,13 +232,7 @@ pub fn vst3_plugin_parameters(
 
     #[cfg(windows)]
     {
-        if parameters.len() > 512
-            || parameters
-                .values()
-                .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
-        {
-            return Err("Réglages VST3 invalides.".into());
-        }
+        validate_plugin_parameters(&parameters)?;
         let path = plugin_path_in_scan_roots(&path)?;
         let response = run_worker(
             WorkerRequest {
@@ -275,13 +287,7 @@ pub fn vst3_process_pcm(
         if pcm_le.is_empty() || pcm_le.len() > MAX_PCM_BYTES || !pcm_le.len().is_multiple_of(8) {
             return Err("Audio stéréo invalide ou trop volumineux pour le rendu VST3.".into());
         }
-        if parameters.len() > 512
-            || parameters
-                .values()
-                .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
-        {
-            return Err("Réglages VST3 invalides.".into());
-        }
+        validate_plugin_parameters(&parameters)?;
         let response = run_worker(
             WorkerRequest {
                 operation: "process".into(),
@@ -349,13 +355,7 @@ pub fn render_midi_pcm(
         }) {
             return Err("La partition MIDI contient une note invalide.".into());
         }
-        if parameters.len() > 512
-            || parameters
-                .values()
-                .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
-        {
-            return Err("Réglages VST3 invalides.".into());
-        }
+        validate_plugin_parameters(&parameters)?;
         let response = run_worker(
             WorkerRequest {
                 operation: "render_midi".into(),
@@ -591,13 +591,7 @@ fn run_editor_worker(
     parameters: BTreeMap<u32, f64>,
     plugin_state_b64: Option<String>,
 ) -> Result<Vst3EditorResult, String> {
-    if parameters.len() > 512
-        || parameters
-            .values()
-            .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
-    {
-        return Err("Réglages VST3 invalides.".into());
-    }
+    validate_plugin_parameters(&parameters)?;
     if let Some(state_b64) = plugin_state_b64.as_deref() {
         let state = base64::engine::general_purpose::STANDARD
             .decode(state_b64)
@@ -671,12 +665,21 @@ fn run_editor_worker_in_dir(
         let _ = ready_tx.send(result);
     });
     let startup = match ready_rx.recv_timeout(EDITOR_START_TIMEOUT) {
+        Ok(Ok(line)) if line.trim().is_empty() => {
+            let status = child.wait().ok();
+            let exit_code = status
+                .as_ref()
+                .and_then(std::process::ExitStatus::code)
+                .map_or_else(|| "inconnu".to_string(), |code| code.to_string());
+            eprintln!("L’éditeur VST3 s’est fermé avant son ouverture (code {exit_code}).");
+            return Err("Le plugin VST3 s’est fermé avant l’ouverture de son interface. Vérifiez qu’il est compatible et correctement installé. Song Maker est resté ouvert.".into());
+        }
         Ok(Ok(line)) => match serde_json::from_str::<EditorWorkerResponse>(line.trim()) {
             Ok(response) => response,
-            Err(error) => {
+            Err(_) => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return Err(format!("Réponse de démarrage éditeur invalide : {error}"));
+                return Err("Le plugin VST3 a renvoyé une réponse invalide avant l’ouverture de son interface. Song Maker est resté actif.".into());
             }
         },
         Ok(Err(error)) => {
@@ -757,14 +760,7 @@ fn run_editor_window(
     use std::sync::{Arc, Mutex};
     use vst3_host::PluginWindow;
 
-    if request.parameters.len() > 512
-        || request
-            .parameters
-            .values()
-            .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
-    {
-        return Err("Réglages VST3 invalides.".into());
-    }
+    validate_plugin_parameters(&request.parameters)?;
     let plugin_path = plugin_path_in_scan_roots(&request.plugin_path)?;
     let mut plugin =
         vst3_host::simple::load_plugin_with_settings(&plugin_path, 48_000.0, SAMPLE_BLOCK)
@@ -840,6 +836,7 @@ fn pump_plugin_editor_messages() {
 
 #[cfg(windows)]
 fn run_worker_request(request: WorkerRequest) -> Result<WorkerResponse, String> {
+    validate_plugin_parameters(&request.parameters)?;
     let mut plugin = vst3_host::simple::load_plugin_with_settings(
         &request.plugin_path,
         f64::from(request.sample_rate.max(8_000)),
@@ -882,6 +879,11 @@ fn run_worker_request(request: WorkerRequest) -> Result<WorkerResponse, String> 
             }
         })
         .collect::<Vec<_>>();
+    if parameters.len() > MAX_PLUGIN_PARAMETER_COUNT {
+        return Err(format!(
+            "Ce plugin expose plus de {MAX_PLUGIN_PARAMETER_COUNT} réglages VST3 pris en charge."
+        ));
+    }
     if request.operation == "inspect" {
         return Ok(WorkerResponse {
             ok: true,
