@@ -1,5 +1,10 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { mixNeedsClipProcessingBake, type DecodedStem } from "./mixBridge";
+import { api } from "./api";
+import {
+  float32ToLeBytes,
+  mixNeedsClipProcessingBake,
+  type DecodedStem,
+} from "./mixBridge";
 import { bakeMixPcmAsync, disposeMixBakeWorker } from "./mixBakeClient";
 import {
   getProductionOverlay,
@@ -48,6 +53,25 @@ type TrackNodes = {
     gainDb: number;
   }[];
 };
+
+function splitInterleavedFloatPcm(bytes: number[]): {
+  left: Float32Array;
+  right: Float32Array;
+} {
+  const data = Uint8Array.from(bytes);
+  if (data.byteLength === 0 || data.byteLength % 8 !== 0) {
+    throw new Error("Le rendu VST3 a produit un audio stéréo invalide.");
+  }
+  const frames = data.byteLength / 8;
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const left = new Float32Array(frames);
+  const right = new Float32Array(frames);
+  for (let frame = 0; frame < frames; frame++) {
+    left[frame] = view.getFloat32(frame * 8, true);
+    right[frame] = view.getFloat32(frame * 8 + 4, true);
+  }
+  return { left, right };
+}
 
 function dbToLinear(db: number): number {
   return 10 ** (db / 20);
@@ -350,17 +374,36 @@ export class MixPlaybackEngine {
     );
     this.activeBakeJob = job;
     return job.result
-      .then((result) => {
+      .then(async (result) => {
         if (gen !== this.bakeGeneration) return;
         this.activeBakeJob = null;
+        let { left, right } = result;
+        let frameCount = result.frameCount;
+        if (mix.vst3MasterInsert?.enabled) {
+          const vst3 = mix.vst3MasterInsert;
+          const processed = await api.vst3ProcessPcm({
+            path: vst3.pluginPath,
+            parameters: vst3.parameters,
+            pluginStateB64: vst3.stateB64,
+            sampleRate:
+              mix.sampleRate || this.decodedStems[0]?.sampleRate || 48_000,
+            peakCeilingDb: mix.peakCeilingDb ?? -1,
+            pcmLe: float32ToLeBytes(result.pcm),
+          });
+          if (gen !== this.bakeGeneration) return;
+          const stereo = splitInterleavedFloatPcm(processed.pcmLe);
+          left = stereo.left;
+          right = stereo.right;
+          frameCount = left.length;
+        }
         const wasPlaying = this.playing;
         const t = this.getCurrentTime();
         if (wasPlaying) this.stopSources(false);
         this.applyBakedRenderResult(
           mix,
-          result.left,
-          result.right,
-          result.frameCount,
+          left,
+          right,
+          frameCount,
         );
         if (wasPlaying) {
           this.startSources(t);
@@ -410,7 +453,8 @@ export class MixPlaybackEngine {
       this.activeBakeJob?.cancel();
       this.bakeGeneration++;
       this.productionMixBakePending = false;
-      this.productionMixBakeFailed = false;
+      this.productionMixBakeFailed =
+        this.mode === "generation" && mix?.vst3MasterInsert?.enabled === true;
       this.master.gain.value = 1;
       this.productionBake = false;
       this.bakedBuffer = null;
@@ -419,8 +463,16 @@ export class MixPlaybackEngine {
     }
 
     // Production overlay or clip stretch/takes → same bake as export (hors thread UI).
+    const vst3Enabled = mix.vst3MasterInsert?.enabled === true;
+    if (vst3Enabled && this.decodedStems.length === 0) {
+      this.productionMixBakeFailed = true;
+      this.productionMixBakePending = false;
+      this.notify();
+      return;
+    }
+
     if (
-      (productionIsActive() || mixNeedsClipProcessingBake(mix)) &&
+      (productionIsActive() || mixNeedsClipProcessingBake(mix) || vst3Enabled) &&
       this.decodedStems.length > 0
     ) {
       await this.requestProductionBakeAsync(mix);

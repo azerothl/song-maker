@@ -1117,6 +1117,7 @@ export function ProductionWorkspace({
             }
             onDensityPreference={setDensityPreferencePersist}
             mix={mix}
+            onMixChange={scheduleMixUpdate}
             sources={playbackSources}
             tempoBpm={form.tempoBpm}
             onMasterGainChange={(gainDb, persist) =>

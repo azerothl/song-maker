@@ -12,6 +12,8 @@
 
 La version 1.1 ajoute une vision produit cible au §3.4. Elle ne réécrit pas le contrat historique du premier build ni ses critères d’acceptation. Pour connaître les capacités livrées aujourd’hui, consulter le [README](../README.md).
 
+**Évolution de périmètre (6 octobre 2026) :** l’ancien hors-périmètre VST/AU décrit plus bas est conservé comme historique du premier build. Une livraison VST3 Windows est maintenant prioritaire, d’abord sous forme d’effet master rendu hors ligne avec aperçu, export et état sauvegardé dans le projet. Ce parcours n’est pas encore livré. AU reste prévu avec une future version macOS. Suivi : [#326](https://github.com/azerothl/song-maker/issues/326).
+
 Les images de `specs/maquettes/` sont des références visuelles. Elles ne décrivent pas le produit.
 
 ## 1. Résumé exécutif
@@ -482,7 +484,9 @@ Le libellé de `off` dans le formulaire : « avancé : pas de partition en retou
 
 audio.cpp accepte, pour YuE2, `style`, les paroles, `cot`, `abc` / `abc_file`, `seed`, `num_inference_steps`, `guidance_scale` (alias `cfg_scale`), `semantic_min_tokens`, `semantic_max_tokens`, `export_semantic` et les options d’échantillonnage. En durée fixe (dont instrumental), les deux bornes valent `durée × 25` afin d’empêcher un arrêt prématuré. Le WAV est mesuré avant publication : tolérance 250 ms, sinon prise conservée mais non activée et échec explicite. Aucun remplissage par silence ni répétition automatique. En priorité aux paroles, la durée reste une cible avec marge. Pour une continuation, la durée attendue inclut le préfixe existant.
 
-Le mode instrumental ne se limite pas aux paroles vides : YuE2 peut produire une voix même sans texte. Après génération audio YuE2 ou ACE-Step, Song Maker conserve `audio-original.wav`, sépare avec HTDemucs, puis publie la somme batterie + basse + autres sans la piste voix. L’étape est annoncée dans le formulaire et le statut. Les artefacts et hashes sont consignés dans `result.json.instrumentalProcessing`. Les poids HTDemucs sont vérifiés avant génération et font partie de l’empreinte batch. Une séparation échouée ne publie pas l’original comme instrumental. La séparation reste une estimation : des résidus de voix sont possibles et l’absence de chant doit être contrôlée à l’écoute. Lego et partition seule n’utilisent pas cette étape.
+ACE-Step reçoit `duration_seconds` depuis la même durée cible. L’application mesure son WAV avant publication et après retrait des voix ; tout écart supérieur à 250 ms laisse la prise en échec et la version active intacte. La durée annoncée ne doit pas devenir un simple réglage de requête sans vérification du fichier retourné.
+
+Le mode instrumental ne se limite pas aux paroles vides : YuE2 ou ACE-Step peut produire une voix même sans texte. Après génération audio YuE2 ou ACE-Step, Song Maker conserve `audio-original.wav`, applique le séparateur sélectionné dans les réglages de production, puis publie les pistes d’accompagnement sans inclure la piste voix. L’étape est annoncée dans le formulaire et le statut. Les artefacts et empreintes sont consignés dans `result.json.instrumentalProcessing`. Les poids du séparateur sont vérifiés avant génération et font partie de l’empreinte batch. Une séparation échouée ne publie pas l’original comme instrumental. La séparation reste une estimation : des résidus de voix sont possibles et l’absence de chant doit être contrôlée à l’écoute. Lego et partition seule n’utilisent pas cette étape.
 
 | Champ | Règle | Où il va |
 |---|---|---|

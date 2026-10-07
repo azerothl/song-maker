@@ -77,8 +77,70 @@ def _http_json(method: str, url: str, payload: dict | None = None, timeout: int 
         method=method,
         headers={"Content-Type": "application/json", "Accept": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        raw = resp.read()
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace").strip()
+        suffix = f": {detail}" if detail else f" {exc.reason}"
+        raise RuntimeError(f"ACE-Step HTTP {exc.code}{suffix}") from exc
+    if not raw:
+        return {}
+    parsed = json.loads(raw.decode("utf-8"))
+    if not isinstance(parsed, dict):
+        raise RuntimeError("réponse ACE-Step inattendue")
+    return parsed
+
+
+def _upload_source_audio(
+    url: str,
+    src: Path,
+    fields: dict[str, str],
+    timeout: int = 60,
+) -> dict:
+    """Submit a local source audio file through ACE-Step's supported upload API.
+
+    The pinned ACE-Step server only accepts absolute audio paths inside its own
+    temporary directory. Song Maker project files live elsewhere, so sending
+    src_audio_path as JSON is rejected with HTTP 400. Multipart upload lets the
+    server place the source in its own temporary directory and validate it.
+    """
+    boundary = f"----SongMaker{uuid.uuid4().hex}"
+    chunks: list[bytes] = []
+    for name, value in fields.items():
+        chunks.append(
+            (
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="{name}"\r\n\r\n'
+                f"{value}\r\n"
+            ).encode("utf-8")
+        )
+    chunks.append(
+        (
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="src_audio"; filename="source.wav"\r\n'
+            "Content-Type: audio/wav\r\n\r\n"
+        ).encode("utf-8")
+    )
+    chunks.append(src.read_bytes())
+    chunks.append(b"\r\n")
+    chunks.append(f"--{boundary}--\r\n".encode("ascii"))
+    req = urllib.request.Request(
+        url,
+        data=b"".join(chunks),
+        method="POST",
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace").strip()
+        suffix = f": {detail}" if detail else f" {exc.reason}"
+        raise RuntimeError(f"ACE-Step HTTP {exc.code}{suffix}") from exc
     if not raw:
         return {}
     parsed = json.loads(raw.decode("utf-8"))
@@ -95,23 +157,20 @@ def _run_via_acestep_api(
     instruction: str,
     seed: int,
 ) -> None:
-    release = _http_json(
-        "POST",
+    release = _upload_source_audio(
         f"{base}/release_task",
+        src,
         {
             "task_type": "lego",
-            "src_audio_path": str(src),
             "prompt": caption,
-            "caption": caption,
             "instruction": instruction,
-            "thinking": False,
-            "use_random_seed": False,
-            "seed": seed,
-            "batch_size": 1,
+            "thinking": "false",
+            "use_random_seed": "false",
+            "seed": str(seed),
+            "batch_size": "1",
             "audio_format": "wav",
             "model": "acestep-v15-base",
         },
-        timeout=60,
     )
     data = release.get("data") if isinstance(release.get("data"), dict) else {}
     task_id = data.get("task_id")
