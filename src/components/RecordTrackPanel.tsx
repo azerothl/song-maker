@@ -117,7 +117,9 @@ export function RecordTrackPanel({
 }: Props) {
   const [phase, setPhase] = useState<CapturePhase>("idle");
   const [engine, setEngine] = useState<CaptureEngine>("webview");
+  const [nativeBackend, setNativeBackend] = useState<"shared" | "exclusive">("shared");
   const [nativeDevices, setNativeDevices] = useState<NativeInputDevice[]>([]);
+  const [nativeEstimateMs, setNativeEstimateMs] = useState<number | null>(null);
   const [devices, setDevices] = useState<InputDevice[]>([]);
   const [deviceId, setDeviceId] = useState<string>("");
   const [monitoring, setMonitoring] = useState(false);
@@ -313,6 +315,15 @@ export function RecordTrackPanel({
     engineRef.current = engine;
   }, [engine]);
 
+  const selectedNativeDevice = nativeDevices.find((device) => device.id === deviceId);
+  const exclusiveAvailable = Boolean(selectedNativeDevice?.wasapiDeviceId);
+
+  useEffect(() => {
+    if (nativeBackend === "exclusive" && !exclusiveAvailable) {
+      setNativeBackend("shared");
+    }
+  }, [exclusiveAvailable, nativeBackend]);
+
   useEffect(() => {
     loopEnabledRef.current = loopEnabled;
   }, [loopEnabled]);
@@ -428,7 +439,10 @@ export function RecordTrackPanel({
       setElapsedMs(elapsed);
       if (engineRef.current === "native" && phase === "recording") {
         void api.pollNativeCapture().then((poll) => {
-          if (poll) setLevel(Math.min(1, poll.peak * 3));
+          if (poll) {
+            setLevel(Math.min(1, poll.peak * 3));
+            setNativeEstimateMs(poll.estimatedRoundTripMs || null);
+          }
         }).catch(() => undefined);
       }
       if (phase !== "recording") return;
@@ -480,6 +494,10 @@ export function RecordTrackPanel({
           list[0]!.id;
         setDeviceId(selected);
         const chosen = list.find((d) => d.id === selected);
+        setNativeEstimateMs(chosen?.estimatedRoundTripMs ?? null);
+        if (!chosen?.wasapiDeviceId) {
+          setNativeBackend("shared");
+        }
         if (chosen?.estimatedRoundTripMs) {
           setLatency({
             preference: latencyPref,
@@ -602,6 +620,7 @@ export function RecordTrackPanel({
         const session = await api.startNativeCapture(
           projectId,
           deviceId || null,
+          nativeBackend,
         );
         sessionIdRef.current = session.sessionId;
         startedAtRef.current = Date.now();
@@ -961,6 +980,39 @@ export function RecordTrackPanel({
         </p>
       </fieldset>
 
+      {engine === "native" && nativeDevices.length > 0 && (
+        <fieldset className="record-engine" disabled={!canPickDevice}>
+          <legend>{t("record.nativeBackend")}</legend>
+          <label className="record-monitor">
+            <input
+              type="radio"
+              name="record-native-backend"
+              checked={nativeBackend === "shared"}
+              onChange={() => setNativeBackend("shared")}
+            />
+            <span>{t("record.nativeBackend.shared")}</span>
+          </label>
+          <label className="record-monitor">
+            <input
+              type="radio"
+              name="record-native-backend"
+              checked={nativeBackend === "exclusive"}
+              disabled={!exclusiveAvailable}
+              onChange={() => setNativeBackend("exclusive")}
+            />
+            <span>{t("record.nativeBackend.exclusive")}</span>
+          </label>
+          {!exclusiveAvailable && (
+            <p className="hint">{t("record.nativeBackend.exclusiveUnavailable")}</p>
+          )}
+          <p className="hint">
+            {nativeBackend === "exclusive"
+              ? t("record.nativeBackend.exclusiveHint")
+              : t("record.nativeBackend.sharedHint")}
+          </p>
+        </fieldset>
+      )}
+
       <label className="record-device">
         <span>{t("record.device")}</span>
         <select
@@ -969,7 +1021,17 @@ export function RecordTrackPanel({
             !canPickDevice ||
             (engine === "native" ? nativeDevices.length === 0 : devices.length === 0)
           }
-          onChange={(e) => setDeviceId(e.target.value)}
+          onChange={(e) => {
+            const nextDeviceId = e.target.value;
+            setDeviceId(nextDeviceId);
+            const nextNativeDevice = nativeDevices.find((device) => device.id === nextDeviceId);
+            if (engine === "native") {
+              setNativeEstimateMs(nextNativeDevice?.estimatedRoundTripMs ?? null);
+            }
+            if (engine === "native" && !nextNativeDevice?.wasapiDeviceId) {
+              setNativeBackend("shared");
+            }
+          }}
         >
           {engine === "native" ? (
             nativeDevices.length === 0 ? (
@@ -1011,8 +1073,9 @@ export function RecordTrackPanel({
         {engine === "native"
           ? t("record.latency.measured", {
               value: nativeRoundTripLabel(
-                nativeDevices.find((d) => d.id === deviceId)
-                  ?.estimatedRoundTripMs ?? latency?.roundTripMs,
+                phase === "recording" || phase === "paused"
+                  ? nativeEstimateMs ?? selectedNativeDevice?.estimatedRoundTripMs
+                  : selectedNativeDevice?.estimatedRoundTripMs ?? nativeEstimateMs ?? latency?.roundTripMs,
               ),
             })
           : t("record.latency.measured", {
