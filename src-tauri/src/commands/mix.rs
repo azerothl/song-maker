@@ -10,6 +10,7 @@ use crate::paths::{
     atomic_write_json, default_cache_dir, ensure_dir, file_mtime_iso, next_folder_id, now_iso,
 };
 use crate::pins::BIT_DEPTH;
+use base64::Engine as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -37,7 +38,14 @@ pub(crate) fn write_export_pack_to_destination(
     if pack == "folder" {
         ensure_dir(destination).map_err(|e| e.to_string())?;
         for (src, name) in files {
-            std::fs::copy(src, destination.join(name)).map_err(|e| e.to_string())?;
+            let target = destination.join(name);
+            let same_path = match (src.canonicalize(), target.canonicalize()) {
+                (Ok(source), Ok(target)) => source == target,
+                _ => src == &target,
+            };
+            if !same_path {
+                std::fs::copy(src, target).map_err(|e| e.to_string())?;
+            }
         }
         Ok(())
     } else if pack == "zip" {
@@ -150,6 +158,31 @@ pub fn update_mix(
             }
         }
         mix.markers = markers;
+    }
+    if update.clear_vst3_master_insert {
+        mix.vst3_master_insert = None;
+    }
+    if let Some(config) = update.vst3_master_insert {
+        if config.plugin_path.trim().is_empty() || config.plugin_name.trim().is_empty() {
+            return Err("Plugin VST3 invalide.".into());
+        }
+        if config.parameters.len() > 512
+            || config
+                .parameters
+                .values()
+                .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
+        {
+            return Err("Réglages VST3 invalides.".into());
+        }
+        if let Some(state_b64) = config.state_b64.as_deref() {
+            let state = base64::engine::general_purpose::STANDARD
+                .decode(state_b64)
+                .map_err(|e| format!("État du plugin VST3 invalide : {e}"))?;
+            if state.len() > 24 * 1024 * 1024 {
+                return Err("L’état du plugin VST3 dépasse la taille maximale autorisée.".into());
+            }
+        }
+        mix.vst3_master_insert = Some(config);
     }
     for t in update.tracks {
         if let Some(track) = mix.tracks.iter_mut().find(|x| x.id == t.id) {
@@ -753,6 +786,30 @@ mod export_pack_tests {
         wav_entry.read_to_end(&mut buf).unwrap();
         assert_eq!(buf, b"RIFF-fake");
 
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn pack_folder_accepts_the_source_folder_as_destination() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("song-maker-pack-self-{stamp}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        let audio = dir.join("master.wav");
+        let json = dir.join("master.json");
+        std::fs::write(&audio, b"RIFF-fake").unwrap();
+        std::fs::write(&json, br#"{"bitDepth":16}"#).unwrap();
+        let files = vec![
+            (audio.clone(), "master.wav".into()),
+            (json.clone(), "master.json".into()),
+        ];
+
+        write_export_pack_to_destination("folder", &dir, &files).unwrap();
+
+        assert_eq!(std::fs::read(audio).unwrap(), b"RIFF-fake");
+        assert_eq!(std::fs::read(json).unwrap(), br#"{"bitDepth":16}"#);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

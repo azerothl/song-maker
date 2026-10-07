@@ -345,6 +345,140 @@ pub async fn import_generation_as_user_track(
     .map_err(|e| format!("Import génération interrompu : {e}"))?
 }
 
+fn render_vst3_midi_wav(
+    plugin_path: String,
+    parameters: std::collections::BTreeMap<u32, f64>,
+    plugin_state_b64: Option<String>,
+    render_frames: usize,
+    midi_notes: Vec<crate::vst3_host::Vst3MidiNote>,
+    output_path: &Path,
+) -> Result<(), String> {
+    let pcm = crate::vst3_host::render_midi_pcm(
+        plugin_path,
+        parameters,
+        plugin_state_b64,
+        crate::pins::SAMPLE_RATE,
+        render_frames,
+        midi_notes,
+    )?;
+    crate::mix::write_interleaved_f32_wav(
+        &pcm,
+        crate::pins::SAMPLE_RATE,
+        crate::pins::CHANNELS,
+        output_path,
+    )
+}
+
+fn remove_stale_vst3_previews(previews: &Path) {
+    let Some(cutoff) =
+        std::time::SystemTime::now().checked_sub(std::time::Duration::from_secs(7 * 24 * 60 * 60))
+    else {
+        return;
+    };
+    let Ok(entries) = std::fs::read_dir(previews) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_preview_wav = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("vst3-") && name.ends_with(".wav"));
+        if !is_preview_wav {
+            continue;
+        }
+        let expired = entry
+            .metadata()
+            .and_then(|metadata| metadata.modified())
+            .is_ok_and(|modified| modified < cutoff);
+        if expired {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+}
+
+/// Render a score voice to a temporary project audio file for listening.
+#[tauri::command]
+pub async fn vst3_render_midi_preview(
+    id: String,
+    plugin_path: String,
+    parameters: std::collections::BTreeMap<u32, f64>,
+    plugin_state_b64: Option<String>,
+    render_frames: usize,
+    midi_notes: Vec<crate::vst3_host::Vst3MidiNote>,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let folder = project_folder(&id);
+        let _ = load_project(&folder)?;
+        let previews = folder.join("user-audio").join("previews");
+        ensure_dir(&previews).map_err(|e| e.to_string())?;
+        remove_stale_vst3_previews(&previews);
+        let output = previews.join(format!("vst3-{}.wav", Uuid::new_v4()));
+        render_vst3_midi_wav(
+            plugin_path,
+            parameters,
+            plugin_state_b64,
+            render_frames,
+            midi_notes,
+            &output,
+        )?;
+        Ok(output.display().to_string())
+    })
+    .await
+    .map_err(|e| format!("Rendu MIDI VST3 interrompu : {e}"))?
+}
+
+/// Render a score voice and add its WAV as a user track in the active Production mix.
+#[tauri::command]
+pub async fn vst3_render_midi_to_mix_track(
+    id: String,
+    display_name: String,
+    plugin_path: String,
+    parameters: std::collections::BTreeMap<u32, f64>,
+    plugin_state_b64: Option<String>,
+    render_frames: usize,
+    midi_notes: Vec<crate::vst3_host::Vst3MidiNote>,
+) -> Result<MixDoc, String> {
+    tokio::task::spawn_blocking(move || {
+        let folder = project_folder(&id);
+        let mut doc = load_project(&folder)?;
+        let staging = folder.join("user-audio").join("staging");
+        ensure_dir(&staging).map_err(|e| e.to_string())?;
+        let output = staging.join(format!("vst3-{}.wav", Uuid::new_v4()));
+        let result = (|| {
+            render_vst3_midi_wav(
+                plugin_path,
+                parameters,
+                plugin_state_b64,
+                render_frames,
+                midi_notes,
+                &output,
+            )?;
+            let name = if display_name.trim().is_empty() {
+                "Instrument VST3".to_string()
+            } else {
+                display_name.trim().to_string()
+            };
+            ingest_user_audio_file(
+                &folder,
+                &mut doc,
+                &output,
+                &name,
+                true,
+                Some("wav"),
+                AudioPlacement {
+                    start_ms: 0,
+                    mute_existing: false,
+                },
+            )
+        })();
+        let _ = std::fs::remove_file(&output);
+        result
+    })
+    .await
+    .map_err(|e| format!("Ajout de l’instrument à la Production interrompu : {e}"))?
+}
+
 #[tauri::command]
 pub fn begin_user_audio_capture(id: String) -> Result<UserAudioCaptureSession, String> {
     let folder = project_folder(&id);
