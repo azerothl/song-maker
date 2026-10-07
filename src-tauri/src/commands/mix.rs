@@ -151,6 +151,23 @@ pub fn update_mix(
         }
         mix.markers = markers;
     }
+    if update.clear_vst3_master_insert {
+        mix.vst3_master_insert = None;
+    }
+    if let Some(config) = update.vst3_master_insert {
+        if config.plugin_path.trim().is_empty() || config.plugin_name.trim().is_empty() {
+            return Err("Plugin VST3 invalide.".into());
+        }
+        if config.parameters.len() > 512
+            || config
+                .parameters
+                .values()
+                .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
+        {
+            return Err("Réglages VST3 invalides.".into());
+        }
+        mix.vst3_master_insert = Some(config);
+    }
     for t in update.tracks {
         if let Some(track) = mix.tracks.iter_mut().find(|x| x.id == t.id) {
             track.gain_db = t.gain_db;

@@ -34,6 +34,7 @@ mod queue;
 mod rbitnet;
 mod resample;
 mod sheetsage;
+mod vst3_host;
 mod vst3_spike;
 
 #[cfg(test)]
@@ -44,6 +45,11 @@ use commands::AppState;
 /// Entrée CLI `song-maker --vst3-spike-probe <binaire>` (isolation crash, spike #326).
 pub fn vst3_spike_probe_exit(binary: &str) -> i32 {
     vst3_spike::probe_exit(binary)
+}
+
+/// Entry point for the isolated offline VST3 processing worker.
+pub fn vst3_host_worker_exit(request: &str, response: &str) -> i32 {
+    vst3_host::worker_exit(request, response)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -110,6 +116,9 @@ pub fn run() {
             vst3_spike::vst3_spike_scan,
             vst3_spike::vst3_spike_load,
             vst3_spike::vst3_spike_attach,
+            vst3_host::vst3_list_plugins,
+            vst3_host::vst3_plugin_parameters,
+            vst3_host::vst3_process_pcm,
             // Profils (#201)
             commands::profiles::get_profiles_state,
             commands::profiles::create_profile,
