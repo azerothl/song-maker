@@ -38,6 +38,7 @@ export type NativeCaptureStopResult = {
   durationMs: number;
   sampleRate: number;
   estimatedRoundTripMs: number;
+  warning: string | null;
 };
 
 export type CaptureEngine = "native" | "webview";
