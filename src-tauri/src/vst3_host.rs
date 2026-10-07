@@ -760,6 +760,12 @@ fn run_editor_window(
     use std::sync::{Arc, Mutex};
     use vst3_host::PluginWindow;
 
+    // VST3 editors may use OLE for clipboard, drag-and-drop, and native Windows
+    // services. Initialize it on the same thread that creates the HWND and calls
+    // IPlugView::attached(), then keep it alive until the plugin view is detached
+    // and the plugin instance has been dropped.
+    let _ole_apartment = OleApartment::initialize()?;
+
     validate_plugin_parameters(&request.parameters)?;
     let plugin_path = plugin_path_in_scan_roots(&request.plugin_path)?;
     let mut plugin =
@@ -817,6 +823,37 @@ fn run_editor_window(
         parameters,
         plugin_state_b64: Some(base64::engine::general_purpose::STANDARD.encode(state)),
     })
+}
+
+#[cfg(windows)]
+struct OleApartment;
+
+#[cfg(windows)]
+impl OleApartment {
+    fn initialize() -> Result<Self, String> {
+        use windows_sys::Win32::System::Ole::OleInitialize;
+
+        // OleInitialize selects the single-threaded apartment expected by native
+        // UI frameworks. Both S_OK and S_FALSE are successful and need a matching
+        // OleUninitialize; negative HRESULTs indicate a conflicting/failed setup.
+        let result = unsafe { OleInitialize(std::ptr::null()) };
+        if result < 0 {
+            return Err(format!(
+                "Initialisation de l’environnement Windows du plugin impossible (HRESULT 0x{:08X}).",
+                result as u32
+            ));
+        }
+        Ok(Self)
+    }
+}
+
+#[cfg(windows)]
+impl Drop for OleApartment {
+    fn drop(&mut self) {
+        use windows_sys::Win32::System::Ole::OleUninitialize;
+
+        unsafe { OleUninitialize() };
+    }
 }
 
 #[cfg(windows)]
