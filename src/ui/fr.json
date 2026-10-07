@@ -110,6 +110,7 @@
   "batch.cancel": "Annuler le lot",
   "batch.refreshRequired": "Actualisez l’aperçu pour vérifier vos nouveaux réglages avant de lancer le lot.",
   "batch.cancelTake": "Annuler cette prise",
+  "batch.cancelTakeError": "Impossible d’annuler cette prise. Vérifiez son état dans la liste puis réessayez.",
   "batch.cancelTakeLabel": "Annuler la prise {number} de {title}",
   "batch.retryFailed": "Relancer les échecs",
   "batch.export": "Exporter les résultats prêts",

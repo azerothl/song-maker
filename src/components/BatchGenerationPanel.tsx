@@ -542,7 +542,7 @@ export function BatchTaskRow({ task, onOpen, onCancel }: { task: BatchTask; onOp
           aria-label={t("batch.cancelTakeLabel", { title: task.title, number: task.variantIndex })}
           onClick={() => {
             setCancelling(true);
-            void onCancel().catch(error => useAppStore.getState().setError(String(error)))
+            void onCancel().catch(() => useAppStore.getState().setError(t("batch.cancelTakeError")))
               .finally(() => setCancelling(false));
           }}>
           {t("batch.cancelTake")}
