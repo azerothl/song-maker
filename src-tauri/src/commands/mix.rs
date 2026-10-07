@@ -38,7 +38,14 @@ pub(crate) fn write_export_pack_to_destination(
     if pack == "folder" {
         ensure_dir(destination).map_err(|e| e.to_string())?;
         for (src, name) in files {
-            std::fs::copy(src, destination.join(name)).map_err(|e| e.to_string())?;
+            let target = destination.join(name);
+            let same_path = match (src.canonicalize(), target.canonicalize()) {
+                (Ok(source), Ok(target)) => source == target,
+                _ => src == &target,
+            };
+            if !same_path {
+                std::fs::copy(src, target).map_err(|e| e.to_string())?;
+            }
         }
         Ok(())
     } else if pack == "zip" {
@@ -779,6 +786,30 @@ mod export_pack_tests {
         wav_entry.read_to_end(&mut buf).unwrap();
         assert_eq!(buf, b"RIFF-fake");
 
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn pack_folder_accepts_the_source_folder_as_destination() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("song-maker-pack-self-{stamp}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        let audio = dir.join("master.wav");
+        let json = dir.join("master.json");
+        std::fs::write(&audio, b"RIFF-fake").unwrap();
+        std::fs::write(&json, br#"{"bitDepth":16}"#).unwrap();
+        let files = vec![
+            (audio.clone(), "master.wav".into()),
+            (json.clone(), "master.json".into()),
+        ];
+
+        write_export_pack_to_destination("folder", &dir, &files).unwrap();
+
+        assert_eq!(std::fs::read(audio).unwrap(), b"RIFF-fake");
+        assert_eq!(std::fs::read(json).unwrap(), br#"{"bitDepth":16}"#);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
