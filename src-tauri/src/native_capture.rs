@@ -15,12 +15,14 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::mpsc::{self, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use uuid::Uuid;
 
 const MAX_RECORD_MS: u64 = 10 * 60 * 1000;
+const AUDIO_WRITE_QUEUE_BUFFERS: usize = 16;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,6 +70,7 @@ pub struct NativeCaptureStopResult {
     pub duration_ms: i64,
     pub sample_rate: u32,
     pub estimated_round_trip_ms: u32,
+    pub warning: Option<String>,
 }
 
 pub fn host_api_id() -> &'static str {
@@ -263,12 +266,78 @@ fn open_wav_writer(
 }
 
 struct InputStreamSink {
-    writer: Arc<Mutex<Option<WavWriter<BufWriter<File>>>>>,
+    writer: SyncSender<Vec<i16>>,
     stop: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
     peak: Arc<AtomicU32>,
     frames: Arc<AtomicU64>,
+    queue_overflow: Arc<AtomicBool>,
     channels: u16,
+}
+
+fn enqueue_capture_samples(
+    writer: &SyncSender<Vec<i16>>,
+    pcm: Vec<i16>,
+    channels: u16,
+    frames: &AtomicU64,
+    stop: &AtomicBool,
+    queue_overflow: &AtomicBool,
+) {
+    let captured_frames = (pcm.len() as u64) / u64::from(channels.max(1));
+    match writer.try_send(pcm) {
+        Ok(()) => {
+            frames.fetch_add(captured_frames, Ordering::Relaxed);
+        }
+        Err(TrySendError::Full(_)) => {
+            queue_overflow.store(true, Ordering::SeqCst);
+            stop.store(true, Ordering::SeqCst);
+        }
+        Err(TrySendError::Disconnected(_)) => {
+            stop.store(true, Ordering::SeqCst);
+        }
+    }
+}
+
+fn write_capture_samples(
+    path: PathBuf,
+    sample_rate: u32,
+    channels: u16,
+    samples: mpsc::Receiver<Vec<i16>>,
+    stop: Arc<AtomicBool>,
+    write_error: Arc<Mutex<Option<String>>>,
+) -> Result<(), String> {
+    let mut writer = match open_wav_writer(&path, sample_rate, channels) {
+        Ok(writer) => writer,
+        Err(error) => {
+            if let Ok(mut stored) = write_error.lock() {
+                *stored = Some(error.clone());
+            }
+            stop.store(true, Ordering::SeqCst);
+            return Err(error);
+        }
+    };
+
+    for chunk in samples {
+        for sample in chunk {
+            if let Err(error) = writer.write_sample(sample) {
+                let message = format!("Écriture du fichier de capture native : {error}");
+                if let Ok(mut stored) = write_error.lock() {
+                    *stored = Some(message.clone());
+                }
+                stop.store(true, Ordering::SeqCst);
+                return Err(message);
+            }
+        }
+    }
+
+    writer.finalize().map_err(|error| {
+        let message = format!("Finalisation du fichier de capture native : {error}");
+        if let Ok(mut stored) = write_error.lock() {
+            *stored = Some(message.clone());
+        }
+        stop.store(true, Ordering::SeqCst);
+        message
+    })
 }
 
 fn run_input_stream<T>(
@@ -287,6 +356,7 @@ where
         paused,
         peak,
         frames,
+        queue_overflow,
         channels,
     } = sink;
     let err_flag = Arc::new(Mutex::new(None::<String>));
@@ -302,7 +372,8 @@ where
     let paused_cb = Arc::clone(&paused);
     let peak_cb = Arc::clone(&peak);
     let frames_cb = Arc::clone(&frames);
-    let writer_cb = Arc::clone(&writer);
+    let writer_cb = writer.clone();
+    let queue_overflow_cb = Arc::clone(&queue_overflow);
     let stream = device
         .build_input_stream(
             config,
@@ -322,18 +393,14 @@ where
                 }
                 let milli = (local_peak.clamp(0.0, 1.0) * 1000.0).round() as u32;
                 peak_cb.store(milli, Ordering::Relaxed);
-                let nch = u64::from(channels.max(1));
-                frames_cb.fetch_add((pcm.len() as u64) / nch, Ordering::Relaxed);
-                if let Ok(mut g) = writer_cb.lock() {
-                    if let Some(w) = g.as_mut() {
-                        for s in pcm {
-                            if w.write_sample(s).is_err() {
-                                stop_cb.store(true, Ordering::SeqCst);
-                                break;
-                            }
-                        }
-                    }
-                }
+                enqueue_capture_samples(
+                    &writer_cb,
+                    pcm,
+                    channels,
+                    &frames_cb,
+                    &stop_cb,
+                    &queue_overflow_cb,
+                );
             },
             err_cb,
             None,
@@ -357,6 +424,12 @@ where
         thread::sleep(Duration::from_millis(20));
     }
     drop(stream);
+    if queue_overflow.load(Ordering::SeqCst) {
+        return Err(
+            "Le disque ne suit pas le débit de capture ; la prise a été arrêtée pour éviter un fichier incomplet."
+                .into(),
+        );
+    }
     Ok(())
 }
 
@@ -384,34 +457,62 @@ fn spawn_capture_thread(
         if let Ok(mut g) = sample_rate.lock() {
             *g = (sr, channels, buffer_frames);
         }
-        let writer = Arc::new(Mutex::new(Some(open_wav_writer(&abs_path, sr, channels)?)));
-        let make_sink = || InputStreamSink {
-            writer: Arc::clone(&writer),
-            stop: Arc::clone(&stop),
-            paused: Arc::clone(&paused),
-            peak: Arc::clone(&peak),
-            frames: Arc::clone(&frames),
-            channels,
-        };
-        let run = |cfg: &StreamConfig| match sample_format {
-            SampleFormat::F32 => run_input_stream::<f32>(&device, cfg, make_sink()),
-            SampleFormat::I16 => run_input_stream::<i16>(&device, cfg, make_sink()),
-            SampleFormat::U16 => run_input_stream::<u16>(&device, cfg, make_sink()),
-            other => Err(format!("Format d’échantillon natif non géré : {other:?}")),
-        };
-        let result = match run(&config) {
-            Err(_e) if matches!(config.buffer_size, cpal::BufferSize::Fixed(_)) => {
-                config.buffer_size = cpal::BufferSize::Default;
-                run(&config)
+        let (writer, samples) = mpsc::sync_channel(AUDIO_WRITE_QUEUE_BUFFERS);
+        let write_error = Arc::new(Mutex::new(None::<String>));
+        let write_error_thread = Arc::clone(&write_error);
+        let stop_writer = Arc::clone(&stop);
+        let writer_path = abs_path.clone();
+        let writer_join = thread::spawn(move || {
+            write_capture_samples(
+                writer_path,
+                sr,
+                channels,
+                samples,
+                stop_writer,
+                write_error_thread,
+            )
+        });
+        let queue_overflow = Arc::new(AtomicBool::new(false));
+        let result = {
+            let make_sink = || InputStreamSink {
+                writer: writer.clone(),
+                stop: Arc::clone(&stop),
+                paused: Arc::clone(&paused),
+                peak: Arc::clone(&peak),
+                frames: Arc::clone(&frames),
+                queue_overflow: Arc::clone(&queue_overflow),
+                channels,
+            };
+            let run = |cfg: &StreamConfig| match sample_format {
+                SampleFormat::F32 => run_input_stream::<f32>(&device, cfg, make_sink()),
+                SampleFormat::I16 => run_input_stream::<i16>(&device, cfg, make_sink()),
+                SampleFormat::U16 => run_input_stream::<u16>(&device, cfg, make_sink()),
+                other => Err(format!("Format d’échantillon natif non géré : {other:?}")),
+            };
+            match run(&config) {
+                Err(_e) if matches!(config.buffer_size, cpal::BufferSize::Fixed(_)) => {
+                    config.buffer_size = cpal::BufferSize::Default;
+                    run(&config)
+                }
+                other => other,
             }
-            other => other,
         };
-        if let Ok(mut g) = writer.lock() {
-            if let Some(w) = g.take() {
-                let _ = w.finalize();
-            }
+        drop(writer);
+        let writer_result = match writer_join.join() {
+            Ok(result) => result,
+            Err(_) => Err("Le thread d’écriture de la capture native a planté.".into()),
+        };
+        match result {
+            Err(error) => Err(error),
+            Ok(()) => match writer_result {
+                Err(error) => Err(error),
+                Ok(()) => write_error
+                    .lock()
+                    .map_err(|_| "État d’écriture de capture inaccessible.".to_string())?
+                    .clone()
+                    .map_or(Ok(()), Err),
+            },
         }
-        result
     })
 }
 
@@ -817,13 +918,14 @@ pub fn stop_native_capture(
         let _ = std::fs::remove_file(&active.abs_path);
         return Err(join_err.unwrap_or_else(|| "Enregistrement natif vide.".into()));
     }
-    if let Some(e) = join_err {
-        // Keep the file if we got samples; still report the stream error after stop.
-        if duration_ms <= 0 {
+    let warning = match join_err {
+        Some(error) if duration_ms <= 0 => {
             let _ = std::fs::remove_file(&active.abs_path);
-            return Err(e);
+            return Err(error);
         }
-    }
+        Some(error) => Some(error),
+        None => None,
+    };
     Ok(NativeCaptureStopResult {
         session_id: active.session_id,
         relative_path: active.relative_path,
@@ -831,6 +933,7 @@ pub fn stop_native_capture(
         duration_ms,
         sample_rate,
         estimated_round_trip_ms: estimated_round_trip_ms(sample_rate, buffer_frames),
+        warning,
     })
 }
 
@@ -884,6 +987,45 @@ mod tests {
         let samples: Vec<i16> = r.samples::<i16>().map(|s| s.unwrap()).collect();
         assert_eq!(samples, vec![0, 1234, -1234, 0]);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn queued_writer_drains_samples_and_finalizes_wav() {
+        let dir = std::env::temp_dir().join(format!("song-maker-native-queue-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("queued.wav");
+        let (sender, receiver) = mpsc::sync_channel(1);
+        let stop = Arc::new(AtomicBool::new(false));
+        let write_error = Arc::new(Mutex::new(None));
+        let writer_stop = Arc::clone(&stop);
+        let writer_error = Arc::clone(&write_error);
+        let writer = thread::spawn(move || {
+            write_capture_samples(path, 48_000, 1, receiver, writer_stop, writer_error)
+        });
+        sender.send(vec![0i16, 1234, -1234, 0]).unwrap();
+        drop(sender);
+
+        writer.join().unwrap().unwrap();
+        let mut reader = WavReader::open(dir.join("queued.wav")).unwrap();
+        let samples: Vec<i16> = reader.samples::<i16>().map(|s| s.unwrap()).collect();
+        drop(reader);
+        assert_eq!(samples, vec![0, 1234, -1234, 0]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn full_audio_queue_stops_capture_instead_of_blocking() {
+        let (sender, _receiver) = mpsc::sync_channel(1);
+        let frames = AtomicU64::new(0);
+        let stop = AtomicBool::new(false);
+        let queue_overflow = AtomicBool::new(false);
+
+        enqueue_capture_samples(&sender, vec![0i16; 64], 2, &frames, &stop, &queue_overflow);
+        enqueue_capture_samples(&sender, vec![0i16; 64], 2, &frames, &stop, &queue_overflow);
+
+        assert_eq!(frames.load(Ordering::Relaxed), 32);
+        assert!(stop.load(Ordering::SeqCst));
+        assert!(queue_overflow.load(Ordering::SeqCst));
     }
 
     #[test]
