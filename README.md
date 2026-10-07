@@ -78,7 +78,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Sujet | État |
 |---|---|
 | Génération avec audio en entrée (`audio_input`) | **Refusé** sur YuE2 / ACE-Step Turbo. Mix/stems → Lego Base Python (opt-in), pas un champ YuE2. Sortie Lego : mix fusionné possible, pas un stem dry. |
-| Plugins **VST3** / AU | Différés comme produit. Spike de chargement derrière `SONG_MAKER_VST3_SPIKE=1` (pas un hôte DAW) — [`docs/vst3-host-feasibility.md`](docs/vst3-host-feasibility.md) |
+| Plugins **VST3** / AU | Prototype d’hôte VST3 Windows en cours : effets master hors ligne, réglages persistés, aperçu et export. Validation dans l’application avec un plugin réel en attente; AU suivra avec une version macOS — [#326](https://github.com/azerothl/song-maker/issues/326), [`docs/vst3-host-feasibility.md`](docs/vst3-host-feasibility.md) |
 | **UniverSR** / upscaling audio | Hors périmètre |
 | Runtime Python YuE2 officiel | **Volontairement absent** : non installé, **pas un repli**. Le desktop ne bascule jamais vers Python si audio.cpp échoue. |
 | Modèle maison (texte/audio → audio + partition) | **Indisponible** : `houseModelRuntime: unavailable`, radio désactivée. Recette hors app : [`scripts/model-training/`](scripts/model-training/README.md). Ce n’est **pas** une génération dans l’app. |
