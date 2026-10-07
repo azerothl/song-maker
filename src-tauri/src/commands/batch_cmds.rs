@@ -366,6 +366,14 @@ fn prepare_batch_resume(batch_id: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn batch_cancel_transition(state: &str) -> Option<&'static str> {
+    match state {
+        "queued" | "retry_wait" | "interrupted" => Some("cancelled"),
+        "running" | "preparing" | "publishing" => Some("cancel_requested"),
+        _ => None,
+    }
+}
+
 #[tauri::command]
 pub fn cancel_batch(
     app: AppHandle,
@@ -378,13 +386,12 @@ pub fn cancel_batch(
     })?;
     let mut tasks = load_live_tasks(&batch_id)?;
     for task in &mut tasks {
-        if matches!(task.state.as_str(), "queued" | "retry_wait" | "interrupted") {
-            task.state = "cancelled".into();
+        if let Some(next_state) = batch_cancel_transition(&task.state) {
+            task.state = next_state.into();
             save_task(&batch_id, task)?;
-        } else if matches!(task.state.as_str(), "running" | "preparing" | "publishing") {
-            task.state = "cancel_requested".into();
-            save_task(&batch_id, task)?;
-            state.batch_workers.cancel(&batch_id, None);
+            if next_state == "cancel_requested" {
+                state.batch_workers.cancel(&batch_id, None);
+            }
         }
     }
     if !state
@@ -484,6 +491,7 @@ fn is_transient(err: &str) -> bool {
 
 async fn run_batch_loop(app: AppHandle, batch_id: String) {
     let mut jobs = tokio::task::JoinSet::new();
+    let mut job_task_ids = HashMap::new();
     loop {
         let Ok(man) = load_manifest(&batch_id) else {
             break;
@@ -534,11 +542,13 @@ async fn run_batch_loop(app: AppHandle, batch_id: String) {
                     break;
                 }
                 let task = task.clone();
+                let task_id = task.task_id.clone();
                 let task_app = app.clone();
                 let task_batch = batch_id.clone();
-                jobs.spawn(async move {
+                let handle = jobs.spawn(async move {
                     run_attempt(task_app, task_batch, task).await;
                 });
+                job_task_ids.insert(handle.id(), task_id);
             }
         }
         if jobs.is_empty() {
@@ -555,36 +565,75 @@ async fn run_batch_loop(app: AppHandle, batch_id: String) {
             }
             break;
         }
-        if let Some(Err(error)) = jobs.join_next().await {
-            let _ = patch_manifest(&batch_id, |m| {
-                m["pauseRequested"] = json!(true);
-                m["state"] = json!("pausing");
-                m["error"] = json!(format!("Une tâche a été interrompue : {error}"));
-            });
-            let active_ids: Vec<_> = load_live_tasks(&batch_id)
-                .unwrap_or_default()
-                .into_iter()
-                .filter(|task| task.state == "running" || task.state == "preparing")
-                .collect();
-            // Surviving workers drain before recovery marks their task states.
-            while jobs.join_next().await.is_some() {}
-            for mut task in active_ids {
-                let current = load_live_tasks(&batch_id)
-                    .unwrap_or_default()
-                    .into_iter()
-                    .find(|t| t.task_id == task.task_id);
-                if current.is_some_and(|t| matches!(t.state.as_str(), "running" | "preparing")) {
-                    task.state = "interrupted".into();
-                    let _ = save_task(&batch_id, &task);
+        match jobs.join_next_with_id().await {
+            Some(Ok((id, _))) => {
+                job_task_ids.remove(&id);
+            }
+            Some(Err(error)) => {
+                let task_id = job_task_ids.remove(&error.id());
+                let isolated = task_id.as_deref().is_some_and(|task_id| {
+                    let Ok(mut tasks) = load_live_tasks(&batch_id) else {
+                        return false;
+                    };
+                    let Some(task) = tasks.iter_mut().find(|task| task.task_id == task_id) else {
+                        return false;
+                    };
+                    reconcile_unexpected_worker_exit(task);
+                    save_task(&batch_id, task).is_ok()
+                });
+
+                if isolated {
+                    if load_plan_on_error(&batch_id) == "pause" {
+                        let _ = patch_manifest(&batch_id, |m| {
+                            m["pauseRequested"] = json!(true);
+                            m["state"] = json!("pausing");
+                        });
+                    }
+                } else {
+                    // Without a task identity, pause safely rather than finalizing a
+                    // batch whose persistent task state cannot be reconciled.
+                    let _ = patch_manifest(&batch_id, |m| {
+                        m["pauseRequested"] = json!(true);
+                        m["state"] = json!("pausing");
+                        m["error"] = json!(format!("Une tâche a été interrompue : {error}"));
+                    });
+                    let active_ids: Vec<_> = load_live_tasks(&batch_id)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|task| task.state == "running" || task.state == "preparing")
+                        .collect();
+                    // Surviving workers drain before recovery marks their task states.
+                    while let Some(joined) = jobs.join_next_with_id().await {
+                        if let Ok((id, _)) = joined {
+                            job_task_ids.remove(&id);
+                        }
+                    }
+                    for mut task in active_ids {
+                        let current = load_live_tasks(&batch_id)
+                            .unwrap_or_default()
+                            .into_iter()
+                            .find(|t| t.task_id == task.task_id);
+                        if current
+                            .is_some_and(|t| matches!(t.state.as_str(), "running" | "preparing"))
+                        {
+                            task.state = "interrupted".into();
+                            let _ = save_task(&batch_id, &task);
+                        }
+                    }
                 }
             }
+            None => {}
         }
         if let Ok(snap) = batch_snapshot(&batch_id) {
             emit_batch(&app, &batch_id, &snap);
         }
     }
     // Never drop a running worker future while its child process still owns GPU memory.
-    while jobs.join_next().await.is_some() {}
+    while let Some(joined) = jobs.join_next_with_id().await {
+        if let Ok((id, _)) = joined {
+            job_task_ids.remove(&id);
+        }
+    }
 }
 
 async fn run_attempt(app: AppHandle, batch_id: String, mut task: PlannedTask) {
@@ -891,6 +940,19 @@ fn batch_task_pending(state: &str) -> bool {
     )
 }
 
+fn reconcile_unexpected_worker_exit(task: &mut PlannedTask) {
+    if task.state == "cancel_requested" {
+        task.state = "cancelled".into();
+    } else if batch_task_pending(&task.state) {
+        task.state = "failed".into();
+        task.last_error = Some(
+            "La génération s’est arrêtée sans résultat. Les autres générations continuent.".into(),
+        );
+    }
+    // Keep an already terminal state: the worker may have saved it before a
+    // non-essential follow-up panicked.
+}
+
 pub(crate) fn batch_generation_settings(settings: &AppSettings) -> serde_json::Value {
     // Only generation configuration is persisted; assistant credentials are excluded.
     json!({
@@ -913,8 +975,9 @@ pub(crate) fn batch_generation_settings(settings: &AppSettings) -> serde_json::V
 #[cfg(test)]
 mod selection_tests {
     use super::{
-        batch_generation_settings, batch_task_pending, select_batch_default,
-        wait_for_batch_admission,
+        batch_cancel_transition, batch_generation_settings, batch_task_pending,
+        reconcile_unexpected_worker_exit, select_batch_default, wait_for_batch_admission,
+        PlannedTask,
     };
 
     #[tokio::test]
@@ -1007,6 +1070,108 @@ mod selection_tests {
         }
         assert!(batch_task_pending("queued"));
         assert!(batch_task_pending("running"));
+    }
+
+    fn task_with_state(state: &str) -> PlannedTask {
+        let file = crate::batch::parse_batch_bytes(crate::batch::EXAMPLE_JSON.as_bytes(), "panic")
+            .unwrap();
+        let mut task = crate::batch::plan_batch(&file, None, None)
+            .unwrap()
+            .tasks
+            .into_iter()
+            .next()
+            .unwrap();
+        task.state = state.into();
+        task
+    }
+
+    #[test]
+    fn cancelling_batch_preserves_finished_tasks_and_stops_only_pending_work() {
+        for state in ["queued", "retry_wait", "interrupted"] {
+            assert_eq!(batch_cancel_transition(state), Some("cancelled"), "{state}");
+        }
+        for state in ["running", "preparing", "publishing"] {
+            assert_eq!(
+                batch_cancel_transition(state),
+                Some("cancel_requested"),
+                "{state}"
+            );
+        }
+        for state in ["succeeded", "failed", "cancelled", "cancel_requested"] {
+            assert_eq!(batch_cancel_transition(state), None, "{state}");
+        }
+    }
+
+    #[test]
+    fn unexpected_worker_exit_fails_pending_states_including_retry_wait() {
+        for state in ["queued", "retry_wait", "preparing", "running", "publishing"] {
+            let mut task = task_with_state(state);
+            reconcile_unexpected_worker_exit(&mut task);
+
+            assert_eq!(task.state, "failed", "state before worker exit: {state}");
+            assert_eq!(
+                task.last_error.as_deref(),
+                Some(
+                    "La génération s’est arrêtée sans résultat. Les autres générations continuent."
+                )
+            );
+            assert!(!batch_task_pending(&task.state));
+        }
+    }
+
+    #[test]
+    fn unexpected_worker_exit_respects_cancel_and_existing_terminal_states() {
+        let mut cancelled = task_with_state("cancel_requested");
+        reconcile_unexpected_worker_exit(&mut cancelled);
+        assert_eq!(cancelled.state, "cancelled");
+
+        let mut succeeded = task_with_state("succeeded");
+        succeeded.last_error = Some("already persisted".into());
+        reconcile_unexpected_worker_exit(&mut succeeded);
+        assert_eq!(succeeded.state, "succeeded");
+        assert_eq!(succeeded.last_error.as_deref(), Some("already persisted"));
+    }
+
+    #[tokio::test]
+    async fn panicked_worker_does_not_abort_sibling_or_fail_its_task() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        };
+
+        let mut jobs = tokio::task::JoinSet::new();
+        let panicked_id = jobs.spawn(async { panic!("injected worker panic") }).id();
+        let sibling_finished = Arc::new(AtomicBool::new(false));
+        let sibling_signal = sibling_finished.clone();
+        let sibling_id = jobs
+            .spawn(async move {
+                sibling_signal.store(true, Ordering::Release);
+            })
+            .id();
+        let mut panicked_task = task_with_state("running");
+        let mut sibling_task = task_with_state("running");
+        let mut saw_panic = false;
+        let mut saw_sibling_success = false;
+
+        while let Some(joined) = jobs.join_next_with_id().await {
+            match joined {
+                Ok((id, ())) if id == sibling_id => {
+                    sibling_task.state = "succeeded".into();
+                    saw_sibling_success = true;
+                }
+                Err(error) if error.id() == panicked_id => {
+                    reconcile_unexpected_worker_exit(&mut panicked_task);
+                    saw_panic = true;
+                }
+                result => panic!("unexpected worker result: {result:?}"),
+            }
+        }
+
+        assert!(saw_panic);
+        assert!(saw_sibling_success);
+        assert!(sibling_finished.load(Ordering::Acquire));
+        assert_eq!(panicked_task.state, "failed");
+        assert_eq!(sibling_task.state, "succeeded");
     }
 
     #[test]
