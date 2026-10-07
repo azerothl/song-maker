@@ -158,6 +158,8 @@ export type Vst3MasterInsert = {
   enabled: boolean;
   /** Normalized VST parameter values keyed by the plugin's stable parameter ID. */
   parameters: Record<string, number>;
+  /** Opaque VST3 component/controller state captured from its native editor. */
+  stateB64?: string;
 };
 
 export type Vst3ParameterInfo = {
@@ -194,6 +196,13 @@ export type Vst3ProcessedPcm = {
   /** Little-endian interleaved float32 stereo samples. */
   pcmLe: number[];
   peakTrimDb: number;
+};
+
+export type Vst3MidiNote = {
+  startFrame: number;
+  endFrame: number;
+  pitch: number;
+  velocity: number;
 };
 
 export type MixDoc = {

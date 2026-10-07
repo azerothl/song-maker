@@ -27,6 +27,7 @@ import type {
   SetupGpuInfo,
   Vst3CatalogEntry,
   Vst3PluginDescription,
+  Vst3MidiNote,
   Vst3ProcessedPcm,
 } from "./types";
 
@@ -84,14 +85,60 @@ export const api = {
   vst3PluginParameters: (
     path: string,
     parameters: Record<string, number> = {},
+    pluginStateB64?: string,
   ) =>
     invoke<Vst3PluginDescription>("vst3_plugin_parameters", {
       path,
       parameters,
+      pluginStateB64: pluginStateB64 ?? null,
+    }),
+  vst3OpenPluginEditor: (
+    path: string,
+    parameters: Record<string, number>,
+    pluginStateB64?: string,
+  ) =>
+    invoke<{ parameters: Record<string, number>; pluginStateB64: string | null }>(
+      "vst3_open_plugin_editor",
+      { path, parameters, pluginStateB64: pluginStateB64 ?? null },
+    ),
+  vst3RenderMidiPreview: (request: {
+    projectId: string;
+    pluginPath: string;
+    parameters: Record<string, number>;
+    pluginStateB64?: string;
+    renderFrames: number;
+    midiNotes: Vst3MidiNote[];
+  }) =>
+    invoke<string>("vst3_render_midi_preview", {
+      id: request.projectId,
+      pluginPath: request.pluginPath,
+      parameters: request.parameters,
+      pluginStateB64: request.pluginStateB64 ?? null,
+      renderFrames: request.renderFrames,
+      midiNotes: request.midiNotes,
+    }),
+  vst3RenderMidiToMixTrack: (request: {
+    projectId: string;
+    displayName: string;
+    pluginPath: string;
+    parameters: Record<string, number>;
+    pluginStateB64?: string;
+    renderFrames: number;
+    midiNotes: Vst3MidiNote[];
+  }) =>
+    invoke<MixDoc>("vst3_render_midi_to_mix_track", {
+      id: request.projectId,
+      displayName: request.displayName,
+      pluginPath: request.pluginPath,
+      parameters: request.parameters,
+      pluginStateB64: request.pluginStateB64 ?? null,
+      renderFrames: request.renderFrames,
+      midiNotes: request.midiNotes,
     }),
   vst3ProcessPcm: (request: {
     path: string;
     parameters: Record<string, number>;
+    pluginStateB64?: string;
     sampleRate: number;
     peakCeilingDb: number;
     pcmLe: number[];
@@ -99,6 +146,7 @@ export const api = {
     invoke<Vst3ProcessedPcm>("vst3_process_pcm", {
       path: request.path,
       parameters: request.parameters,
+      pluginStateB64: request.pluginStateB64 ?? null,
       sampleRate: request.sampleRate,
       peakCeilingDb: request.peakCeilingDb,
       pcmLe: request.pcmLe,

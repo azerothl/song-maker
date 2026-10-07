@@ -61,6 +61,7 @@ export async function exportProjectAudio(
       ? await api.vst3ProcessPcm({
           path: mix.vst3MasterInsert!.pluginPath,
           parameters: mix.vst3MasterInsert!.parameters,
+          pluginStateB64: mix.vst3MasterInsert!.stateB64,
           sampleRate: renderSampleRate,
           peakCeilingDb: mix.peakCeilingDb ?? -1,
           pcmLe: float32ToLeBytes(baked.pcm),
@@ -198,6 +199,7 @@ export async function exportAlignedStems(
         ? await api.vst3ProcessPcm({
             path: mix.vst3MasterInsert.pluginPath,
             parameters: mix.vst3MasterInsert.parameters,
+            pluginStateB64: mix.vst3MasterInsert.stateB64,
             sampleRate: baked.sampleRate,
             peakCeilingDb: mix.peakCeilingDb ?? -1,
             pcmLe: float32ToLeBytes(baked.master.pcm),
