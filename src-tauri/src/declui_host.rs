@@ -565,6 +565,42 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn embedded_host_coexists_with_an_existing_loopback_service() {
+        let existing_service = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let existing_address = existing_service.local_addr().unwrap();
+        let host_state = EmbeddedDeclUiState::default();
+        let started = start_embedded_declui_host_for(&host_state).await.unwrap();
+        let host_address: std::net::SocketAddr = started
+            .url
+            .as_deref()
+            .unwrap()
+            .trim_start_matches("http://")
+            .parse()
+            .unwrap();
+
+        assert!(started.running);
+        assert!(host_address.ip().is_loopback());
+        assert_ne!(host_address.port(), existing_address.port());
+        assert!(tokio::net::TcpStream::connect(existing_address)
+            .await
+            .is_ok());
+
+        let mut client = tokio::net::TcpStream::connect(host_address).await.unwrap();
+        client
+            .write_all(b"GET /v1/host/discover HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .unwrap();
+        let mut response = Vec::new();
+        client.read_to_end(&mut response).await.unwrap();
+        let response = String::from_utf8(response).unwrap();
+        assert!(response.starts_with("HTTP/1.1 200 OK"));
+        assert!(response.contains("\"hostId\":\"akasha\""));
+
+        stop_embedded_declui_host_for(&host_state).await;
+        drop(existing_service);
+    }
+
+    #[tokio::test]
     async fn status_clears_a_listener_task_that_has_exited() {
         let state = EmbeddedDeclUiState::default();
         let started = start_embedded_declui_host_for(&state).await.unwrap();
