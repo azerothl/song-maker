@@ -151,6 +151,60 @@ export type MixMarker = {
   startMs: number;
 };
 
+/** Windows-only VST3 master effect rendered offline for preview and export. */
+export type Vst3MasterInsert = {
+  pluginPath: string;
+  pluginName: string;
+  enabled: boolean;
+  /** Normalized VST parameter values keyed by the plugin's stable parameter ID. */
+  parameters: Record<string, number>;
+  /** Opaque VST3 component/controller state captured from its native editor. */
+  stateB64?: string;
+};
+
+export type Vst3ParameterInfo = {
+  id: number;
+  name: string;
+  value: number;
+  defaultValue: number;
+  unit: string;
+  stepCount: number;
+  canAutomate: boolean;
+  readOnly: boolean;
+  bypass: boolean;
+  formattedValue: string;
+};
+
+export type Vst3PluginDescription = {
+  path: string;
+  name: string;
+  vendor: string;
+  version: string;
+  category: string;
+  audioInputs: number;
+  audioOutputs: number;
+  parameters: Vst3ParameterInfo[];
+};
+
+export type Vst3CatalogEntry = {
+  path: string;
+  name: string;
+  binaryPath: string | null;
+};
+
+export type Vst3ProcessedPcm = {
+  /** Little-endian interleaved float32 stereo samples. */
+  pcmLe: number[];
+  peakTrimDb: number;
+};
+
+export type Vst3MidiNote = {
+  startFrame: number;
+  endFrame: number;
+  pitch: number;
+  velocity: number;
+};
+
 export type MixDoc = {
   schema: string;
   schemaVersion: number;
@@ -160,6 +214,7 @@ export type MixDoc = {
   masterGainDb: number;
   peakCeilingDb: number;
   tracks: MixTrack[];
+  vst3MasterInsert?: Vst3MasterInsert | null;
   /**
    * Musical grid tempo map. Absent/empty on legacy mixes → default 120 BPM at 0 ms
    * (see `ensureMixArrangement`); clip positions are never rewritten on load.

@@ -200,6 +200,9 @@ pub struct MixDoc {
     pub master_gain_db: f32,
     pub peak_ceiling_db: f32,
     pub tracks: Vec<MixTrack>,
+    /// VST3 master insert, rendered offline by the isolated Windows host worker (#326).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vst3_master_insert: Option<Vst3MasterInsert>,
     /// Musical grid tempo map. Empty on legacy mixes → UI default 120 BPM.
     #[serde(default)]
     pub tempo_map: Vec<MixTempoEvent>,
@@ -731,6 +734,25 @@ pub struct MixUpdate {
     pub time_signatures: Option<Vec<MixMeterEvent>>,
     #[serde(default)]
     pub markers: Option<Vec<MixMarker>>,
+    /// An object replaces the saved insert; removal uses `clear_vst3_master_insert`.
+    #[serde(default)]
+    pub vst3_master_insert: Option<Vst3MasterInsert>,
+    /// Explicit removal flag because JSON `null` maps to `None` for nested options too.
+    #[serde(default)]
+    pub clear_vst3_master_insert: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Vst3MasterInsert {
+    pub plugin_path: String,
+    pub plugin_name: String,
+    pub enabled: bool,
+    #[serde(default)]
+    pub parameters: std::collections::BTreeMap<u32, f64>,
+    /// Opaque plugin-specific state, base64 encoded to keep the project JSON compact.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state_b64: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

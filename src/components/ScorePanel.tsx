@@ -546,6 +546,8 @@ export function ScorePanel({
                   onError={onError}
                 />
                 <MidiInstrumentPanel
+                  projectId={projectId}
+                  onProjectRefresh={onProjectRefresh}
                   document={document}
                   onDocumentChange={(doc) => {
                     onDocumentChange(doc);
