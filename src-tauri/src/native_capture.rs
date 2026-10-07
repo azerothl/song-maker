@@ -130,19 +130,19 @@ pub fn estimated_round_trip_ms(sample_rate: u32, buffer_frames: u32) -> u32 {
     (one_way_ms * 2.0).round() as u32
 }
 
-fn buffer_frames_from_supported(cfg: &cpal::SupportedStreamConfig) -> u32 {
-    match cfg.buffer_size() {
-        cpal::SupportedBufferSize::Range { min, max } => {
-            if *min > 0 {
-                *min
-            } else if *max > 0 {
-                *max
-            } else {
-                0
-            }
-        }
+fn preferred_buffer_frames(size: &cpal::SupportedBufferSize) -> u32 {
+    match size {
+        // A supported range is not the active buffer size. In particular,
+        // Windows drivers may report 0..u32::MAX when the host chooses the
+        // actual size. Treat that as unknown and keep CPAL's default instead
+        // of forcing the (possibly enormous) maximum as a fixed buffer.
+        cpal::SupportedBufferSize::Range { min, .. } => *min,
         cpal::SupportedBufferSize::Unknown => 0,
     }
+}
+
+fn buffer_frames_from_supported(cfg: &cpal::SupportedStreamConfig) -> u32 {
+    preferred_buffer_frames(cfg.buffer_size())
 }
 
 fn device_id(index: usize, name: &str) -> String {
@@ -969,6 +969,21 @@ mod tests {
         assert_eq!(estimated_round_trip_ms(48_000, 480), 20);
         assert_eq!(estimated_round_trip_ms(0, 480), 0);
         assert_eq!(estimated_round_trip_ms(48_000, 0), 0);
+    }
+
+    #[test]
+    fn unknown_buffer_range_does_not_become_the_maximum() {
+        let range = cpal::SupportedBufferSize::Range {
+            min: 0,
+            max: u32::MAX,
+        };
+        assert_eq!(preferred_buffer_frames(&range), 0);
+
+        let range = cpal::SupportedBufferSize::Range {
+            min: 128,
+            max: 2048,
+        };
+        assert_eq!(preferred_buffer_frames(&range), 128);
     }
 
     #[test]
