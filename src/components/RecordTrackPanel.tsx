@@ -601,18 +601,17 @@ export function RecordTrackPanel({
     if (countdownTimerRef.current != null) {
       window.clearInterval(countdownTimerRef.current);
     }
+    let remaining = secs;
     countdownTimerRef.current = window.setInterval(() => {
-      setCountdownLeft((left) => {
-        if (left <= 1) {
-          if (countdownTimerRef.current != null) {
-            window.clearInterval(countdownTimerRef.current);
-            countdownTimerRef.current = null;
-          }
-          void startRecording();
-          return 0;
+      remaining -= 1;
+      setCountdownLeft(remaining);
+      if (remaining <= 0) {
+        if (countdownTimerRef.current != null) {
+          window.clearInterval(countdownTimerRef.current);
+          countdownTimerRef.current = null;
         }
-        return left - 1;
-      });
+        void startRecording();
+      }
     }, 1000);
   }
 
@@ -1089,20 +1088,22 @@ export function RecordTrackPanel({
         </select>
       </label>
 
-      <label className="record-device">
-        <span>{t("record.latency.pref")}</span>
-        <select
-          value={latencyPref}
-          disabled={phase !== "idle" && phase !== "arming"}
-          onChange={(e) =>
-            setLatencyPref(e.target.value as CaptureLatencyPreference)
-          }
-        >
-          <option value="stable">{t("record.latency.stable")}</option>
-          <option value="balanced">{t("record.latency.balanced")}</option>
-          <option value="low">{t("record.latency.low")}</option>
-        </select>
-      </label>
+      {engine === "webview" && (
+        <label className="record-device">
+          <span>{t("record.latency.pref")}</span>
+          <select
+            value={latencyPref}
+            disabled={phase !== "idle" && phase !== "arming"}
+            onChange={(e) =>
+              setLatencyPref(e.target.value as CaptureLatencyPreference)
+            }
+          >
+            <option value="stable">{t("record.latency.stable")}</option>
+            <option value="balanced">{t("record.latency.balanced")}</option>
+            <option value="low">{t("record.latency.low")}</option>
+          </select>
+        </label>
+      )}
       <p className="hint record-latency" aria-live="polite">
         {engine === "native"
           ? t("record.latency.measured", {
