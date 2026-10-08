@@ -44,8 +44,8 @@
     },
     "news": {
       "eyebrow": "Version {version}",
-      "title": "JSON batch, setup, instrumental parts",
-      "body": "v{version}: import several songs from a JSON file (GPU queue capacity 1), first-launch assistant and Settings, add a part from Production (YuE2 or opt-in ACE-Step Lego).",
+      "title": "VST3 plugins, recording, and production",
+      "body": "v{version}: Windows VST3 effects and MIDI instruments, native recording improvements, ACE-Step Lego project audio, and more reliable generation and export.",
       "whatsNew": "What’s new",
       "setup": "Setup guide",
       "batch": "Batch file structure"
@@ -299,7 +299,7 @@
     "eyebrow": "Song Maker v{version}",
     "title": "Download Song Maker",
     "intro": "Choose the version for your system. The audio engine and models download separately during setup.",
-    "whatsNew": "New in v{version}: JSON batch import (schemaVersion 1, GPU queue capacity 1), setup assistant, YuE2 instrumental part, opt-in ACE-Step Lego, grid-snapped punch, FR/EN desktop UI.",
+    "whatsNew": "New in v{version}: Windows VST3 effects and MIDI instruments, improved recording, ACE-Step Lego project audio, and generation and export fixes.",
     "whatsNewCta": "Read the details",
     "setupCta": "Setup",
     "batchCta": "Batch JSON file",

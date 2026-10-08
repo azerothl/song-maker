@@ -2,8 +2,13 @@
 
 **Issue :** [#326](https://github.com/azerothl/song-maker/issues/326)
 **Dépendance :** [#93](https://github.com/azerothl/song-maker/issues/93) (moteur audio temps réel / capture basse latence)  
-**Date :** 2026-09-28 ; état de la pile actualisé le 2026-10-05
+**Date :** 2026-09-28 ; état de la pile actualisé le 2026-10-09
 
+## État actuel — 9 octobre 2026
+
+Les PR #402 et #406 ont intégré l’hôte VST3 Windows dans Production : effets master rendus hors ligne pour aperçu et export, éditeurs natifs de plugins et instruments MIDI VST3. Les plugins ne sont pas redistribués par Song Maker. L’issue #326 reste ouverte pour la validation de bout en bout dans l’application Windows avec un plugin réel et pour les vérifications de persistance/packaging. AU/macOS et le monitoring VST3 en temps réel restent différés.
+
+Les sections suivantes conservent l’étude de faisabilité et le statut antérieur à l’implémentation ; elles ne décrivent pas l’état courant du produit.
 ## Décision
 
 **Décision révisée le 6 octobre 2026 :** l’hôte VST3 passe en priorité. Première tranche : plugins VST3 Windows utilisés comme effets master, rendus hors ligne dans le mix, avec aperçu, export et réglages persistés. AU suivra avec une future version macOS. Cette fonctionnalité n’est pas encore livrée.
@@ -119,7 +124,7 @@ Song Maker vise génération, séparation et mix assisté. Les effets natifs res
 
 | Question | Réponse |
 |---|---|
-| Intégrer maintenant ? | **Oui, première tranche en cours** — effet master VST3 hors ligne sur Windows. |
+| Intégrer maintenant ? | **Oui, première tranche intégrée par #402 et #406** — hôte VST3 hors ligne sous Windows ; preuve produit suivie par #326. |
 | Différer ? | AU sur macOS, monitoring temps réel et tests avec interface audio. |
 | Ne pas intégrer ? | Non; le besoin d’effets tiers dans Production a été confirmé. |
 | Livrable #326 | Hôte VST3 hors ligne + interface Production; issue ouverte jusqu’à validation Windows avec effet réel. |

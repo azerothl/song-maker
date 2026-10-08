@@ -9,7 +9,7 @@ on:
       tag_name:
         description: Existing version tag to build and publish
         required: true
-        default: v0.2.0
+        default: v0.3.0
         type: string
 
 permissions:
@@ -29,6 +29,8 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag_name || github.ref }}
 
       # The `tauri` crate links against these on Linux; without them the crate
       # does not compile and the Rust checks below cannot run.
@@ -86,9 +88,31 @@ jobs:
     name: Prepare release draft
     needs: verify
     runs-on: ubuntu-latest
+    outputs:
+      require_signing: ${{ steps.signing-policy.outputs.require_signing }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag_name || github.ref }}
+
+      - name: Resolve platform signing policy from version
+        id: signing-policy
+        env:
+          RELEASE_TAG: ${{ inputs.tag_name || github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          if [[ "$version" =~ ^([0-9]+)\. ]]; then
+            major="${BASH_REMATCH[1]}"
+          else
+            printf 'Invalid release tag: %s\n' "$RELEASE_TAG" >&2
+            exit 1
+          fi
+          if (( major >= 1 )); then
+            echo "require_signing=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "require_signing=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Create the shared draft before parallel builds start
         env:
@@ -148,6 +172,8 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag_name || github.ref }}
 
       - name: Install Linux desktop build libraries
         if: runner.os == 'Linux'
@@ -185,7 +211,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Require Windows code-signing credentials
-        if: matrix.name == 'Windows x64'
+        if: matrix.name == 'Windows x64' && needs.draft.outputs.require_signing == 'true'
         shell: pwsh
         env:
           WINDOWS_SIGNING_ENDPOINT: ${{ vars.WINDOWS_SIGNING_ENDPOINT }}
@@ -209,7 +235,7 @@ jobs:
           }
 
       - name: Require macOS signing and notarization credentials
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && needs.draft.outputs.require_signing == 'true'
         shell: bash
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -234,11 +260,11 @@ jobs:
           fi
 
       - name: Install Azure Artifact Signing CLI
-        if: matrix.name == 'Windows x64'
+        if: matrix.name == 'Windows x64' && needs.draft.outputs.require_signing == 'true'
         run: cargo install artifact-signing-cli --locked --version 0.11.0
 
       - name: Generate Tauri Windows signing configuration
-        if: matrix.name == 'Windows x64'
+        if: matrix.name == 'Windows x64' && needs.draft.outputs.require_signing == 'true'
         shell: pwsh
         env:
           WINDOWS_SIGNING_ENDPOINT: ${{ vars.WINDOWS_SIGNING_ENDPOINT }}
@@ -286,10 +312,10 @@ jobs:
           prerelease: false
           uploadUpdaterJson: true
           retryAttempts: 3
-          args: ${{ matrix.args }} ${{ matrix.signingArgs }}
+          args: ${{ matrix.args }} ${{ needs.draft.outputs.require_signing == 'true' && matrix.signingArgs || '' }}
 
       - name: Verify published Windows build signatures
-        if: matrix.name == 'Windows x64'
+        if: matrix.name == 'Windows x64' && needs.draft.outputs.require_signing == 'true'
         shell: pwsh
         run: |
           $bundleRoot = Join-Path $env:GITHUB_WORKSPACE "src-tauri/target/release/bundle"
@@ -303,7 +329,7 @@ jobs:
           }
 
       - name: Verify notarized macOS bundles
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && needs.draft.outputs.require_signing == 'true'
         shell: bash
         run: |
           set -euo pipefail

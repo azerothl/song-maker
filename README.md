@@ -17,7 +17,7 @@ Song Maker vise à devenir un atelier de MAO multipiste assisté par l’IA gén
 
 Pour générer avec YuE2 depuis Codex sans installer l’application desktop, voir le [serveur MCP local](packages/mcp-server/README.md). Il utilise audio.cpp et les poids GGUF sur la machine qui exécute Codex.
 
-Téléchargez la dernière version depuis les [Releases GitHub](https://github.com/azerothl/song-maker/releases/latest) (actuelle : **v0.2.0**) :
+Téléchargez la dernière version publiée depuis les [Releases GitHub](https://github.com/azerothl/song-maker/releases/latest) :
 
 - **Windows** : installeur `.msi` ou `.exe`, Windows x64 avec carte **NVIDIA** (CUDA). L’installeur embarque le runtime CUDA (`cudart`) à côté du serveur audio.cpp pour que le moteur soit détecté.
 - **macOS** : `.dmg` Apple Silicon ou Intel (Metal). Chemin de génération moins prioritaire que CUDA Windows/Linux.
@@ -27,7 +27,7 @@ Au **premier lancement**, un écran d’assistant dédié vérifie GPU / composa
 
 Song Maker propose aussi les mises à jour au démarrage (depuis la version **0.1.1**). Les versions antérieures doivent d’abord être mises à jour manuellement depuis les Releases. Détails : [`docs/auto-updates.md`](docs/auto-updates.md).
 
-Les installeurs Windows déjà publiés ne sont pas signés Authenticode. Pour les prochaines releases, le workflow exige la configuration Microsoft Artifact Signing et bloque le build Windows si elle manque ; voir le [guide de signature Windows](docs/windows-code-signing.md). SmartScreen peut encore afficher un avertissement sur les premières versions signées. Les binaires macOS déjà publiés ne sont pas notariés : autoriser l’app dans Réglages Système → Confidentialité et sécurité au premier lancement. Le workflow des prochaines releases exige désormais certificat et notarisation Apple ; voir le [guide macOS](docs/macos-code-signing.md). Aucune nouvelle release signée/notariée n’est attestée par cette configuration seule.
+Les versions 0.x restent sans signature Authenticode Windows et sans notarisation macOS ; Windows peut afficher SmartScreen et macOS peut demander une autorisation au premier lancement. Le workflow imposera ces signatures à partir de la v1.0.0. Les paquets de mise à jour Tauri restent signés. Détails : [signature Windows](docs/windows-code-signing.md), [signature macOS](docs/macos-code-signing.md).
 
 ## Ce qui est livré aujourd’hui
 
@@ -56,8 +56,9 @@ Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau
 - **Séparation** : dialogue de recommandation selon le type de piste (voix / batterie / mix) avec mention « Recommandation non mesurée », temps (`exemple, non mesuré` puis `mesuré`, chargement inclus) et avertissement si la licence du modèle n’est pas vérifiée. Modèles : **HTDemucs** 4 stems par défaut (voix, batterie, basse, other) ; HTDemucs 6 stems ONNX (guitare/piano **expérimentaux**, fuites possibles surtout sur le piano) ; **BS-RoFormer** opt-in (voix + instrumental) ; **Mel-Band RoFormer « Kim Vocal »** opt-in (voix). Badge licence + case « J’ai lu la licence » avant tout téléchargement de modèle. Relancer une séparation conserve l’historique des versions de stems.
 - Mix : gain, pan, mute/solo, master ; groupes / aux / sends ; presets d’intention et équilibre auto des stems.
 - **Assistant de mix** : Ollama, OpenAI-compat, sidecar **Rbitnet** (binaire + GGUF **hors installeur**, téléchargement différé), llama.cpp / serveur externe via `/v1`. Cloud expert opt-in. Foundry Local / WinML **non livrés**. Voir [`docs/design/qwen-mix-assistant/README.md`](docs/design/qwen-mix-assistant/README.md).
-- Effets DSP réels (`@song-maker/mix-production`) : filtre HP/LP, EQ (shelf + paramétrique), compresseur / gate / limiteur, delay sync tempo, réverb stéréo, sidechain, correction de justesse vocale, nettoyage spectral, débruitage statistique MMSE, conversion de voix par enveloppe (voix de l’utilisateur + consentement, **pas** un modèle RVC), loudness (estimation).
-- Clips : trim, fondus, déplacement, découpe ; grille musicale / arrangement ; étirement tempo / transpose (WSOLA maison) ; capture micro/ligne native (cpal : WASAPI partagé / ALSA / Core Audio) avec repli WebView — [`docs/capture-low-latency.md`](docs/capture-low-latency.md).
+- Effets DSP réels : filtre HP/LP, EQ, compresseur/gate/limiteur, delay, réverbération, sidechain, correction vocale, nettoyage spectral et effets vocaux avec consentement.
+- Hôte VST3 Windows : effets master hors ligne avec aperçu et export, éditeurs natifs et instruments MIDI. Les plugins sont installés séparément ; AU/macOS reste différé. Validation dans Song Maker suivie par #326.
+- Clips : trim, fondus, déplacement, découpe ; grille musicale / arrangement ; étirement tempo / transposition ; capture native avec WASAPI partagé ou exclusif sous Windows, ALSA / Core Audio ailleurs, et repli WebView — [détails](docs/capture-low-latency.md).
 - **Partie instrumentale** (Production) : métadonnées projet → YuE2 ; mix/stems → sidecar **ACE-Step 1.5 Base Lego** (`scripts/ace-step-lego-sidecar.py`, `127.0.0.1:8002`, `GET /ready`, `POST /v1/lego`). Opt-in GPU (≥12 Go VRAM conseillés). Sortie souvent un **mix fusionné**, importée à `start_ms = 0` sans `follow_project_tempo`. File GPU `max_loaded_models=1` : pas YuE2 et Lego en parallèle. Notice : [`docs/model-licenses/ACE-Step-1.5-Base-Lego.md`](docs/model-licenses/ACE-Step-1.5-Base-Lego.md).
 - Copilote de production réversible (suggestions locales, pas d’analyse distante obligatoire).
 - **Export unifié** : mix WAV PCM 24 bits, FLAC 24 bits, MP3 livraison (profondeur de bits ou débit selon le format) ; export de pistes / stems sélectionnés (dossier ou zip) et paquet projet portable.
@@ -80,7 +81,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Sujet | État |
 |---|---|
 | Génération avec audio en entrée (`audio_input`) | **Refusé** sur YuE2 / ACE-Step Turbo. Mix/stems → Lego Base Python (opt-in), pas un champ YuE2. Sortie Lego : mix fusionné possible, pas un stem dry. |
-| Plugins **VST3** / AU | Prototype d’hôte VST3 Windows en cours : effets master hors ligne, réglages persistés, aperçu et export. Validation dans l’application avec un plugin réel en attente; AU suivra avec une version macOS — [#326](https://github.com/azerothl/song-maker/issues/326), [`docs/vst3-host-feasibility.md`](docs/vst3-host-feasibility.md) |
+| Plugins **VST3** / AU | Hôte VST3 Windows intégré pour effets master hors ligne et instruments MIDI ; certains parcours restent à valider dans Song Maker. AU/macOS est différé — #326 et docs/vst3-host-feasibility.md |
 | **UniverSR** / upscaling audio | Hors périmètre |
 | Runtime Python YuE2 officiel | **Volontairement absent** : non installé, **pas un repli**. Le desktop ne bascule jamais vers Python si audio.cpp échoue. |
 | Modèle maison (texte/audio → audio + partition) | **Indisponible** : `houseModelRuntime: unavailable`, radio désactivée. Recette hors app : [`scripts/model-training/`](scripts/model-training/README.md). Ce n’est **pas** une génération dans l’app. |
@@ -90,9 +91,9 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Sortie MIDI matériel (midir) | Compilée WinMM / CoreMIDI / ALSA. Preuve native : **Windows GS Wavetable seulement**. macOS IAC, Linux jack/USB, Windows USB : **non testés** — [`docs/midi-instrument.md`](docs/midi-instrument.md) |
 | Worker distant / Akasha | Opt-in ; hôte DeclUI embarqué localhost ou URL externe ; sans hôte = indisponible |
 | Entraînement LoRA NAR | Pilote CPU — LoRA YuE2 GPU : `scripts/lora-train-yue2-gpu.py` (CUDA) |
-| Capture basse latence | Natif cpal (WASAPI **partagé** / ALSA / Core Audio). Pas d’ASIO ni WASAPI exclusif. Repli WebView. |
+| Capture basse latence | Capture native cpal : WASAPI partagé ou exclusif sous Windows, ALSA / Core Audio ailleurs ; ASIO absent. Repli WebView. |
 | Licences modèles | YuE2 & SheetSage2 : **CC BY-NC 4.0**. ACE-Step Turbo/Lego : carte **MIT** (Hobby + Commercial possibles pour ACE-Step) ; un mix YuE2 reste NC même si on y colle un stem MIT. |
-| Signature Windows / notarisation macOS | Workflows de signature configurés ; aucune release signée Authenticode ou notariée n’est encore attestée. Les artefacts déjà publiés restent non signés / non notariés. |
+| Signature Windows / notarisation macOS | Différées pour les versions 0.x ; obligatoires à partir de v1.0.0. Les signatures Tauri des mises à jour restent activées. |
 | UI app bilingue | FR/EN dans Paramètres → Système (persistance locale) ; le site marketing a sa propre i18n |
 
 ## Stack
