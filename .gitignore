@@ -38,6 +38,7 @@ src-tauri/gen/
 
 # Phase 0 local cache (never commit models)
 .cache/
+.song-maker-mcp/
 
 # Local NAR LoRA training jobs (manifests, logs, adapters)
 training-jobs/*
