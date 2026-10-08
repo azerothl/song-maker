@@ -40,6 +40,37 @@ after(async () => {
 });
 
 describe("production mix settings comportement (#225)", () => {
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 640, height: 720 }]) {
+    it(`export replaces mix settings and keeps keyboard focus (${viewport.width}px, #404)`,
+      { timeout: IT_TIMEOUT_MS }, async () => {
+        const page = await browser.newPage({ viewport });
+        try {
+          await page.goto(`${BASE}#confortable-12`, { waitUntil: "networkidle" });
+          await page.getByTestId("production-mix-settings-trigger").click();
+          await page.getByTestId("production-mix-settings-popin").waitFor();
+          const trigger = page.locator('[data-capture-export-trigger="1"]');
+          await trigger.click();
+          const dialog = page.locator(".export-dialog-popin");
+          await dialog.waitFor();
+          assert.equal(await page.getByTestId("production-mix-settings-popin").count(), 0);
+          assert.equal(await dialog.evaluate(el => el.contains(document.activeElement)), true);
+          await dialog.locator('input[value="mix"], input[name="export-mode"]').first().click();
+          const run = page.getByTestId("export-run");
+          assert.equal(await run.evaluate(el => {
+            const r = el.getBoundingClientRect();
+            return el.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2));
+          }), true);
+          await page.keyboard.press("Escape");
+          assert.equal(await dialog.count(), 0);
+          await page.waitForFunction(() => document.activeElement?.getAttribute("data-capture-export-trigger") === "1");
+          assert.equal(await trigger.evaluate(el => document.activeElement === el), true);
+          await trigger.click();
+          await dialog.waitFor();
+          await dialog.locator(".export-dialog-actions > button").click();
+          assert.equal(await dialog.count(), 0);
+        } finally { await page.close(); }
+      });
+  }
   it("ferme l’assistant par sa croix ou le même déclencheur sans fermer les réglages", { timeout: IT_TIMEOUT_MS }, async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     try {

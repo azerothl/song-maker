@@ -177,7 +177,10 @@ export function AnchoredPopin({
   useEffect(() => {
     if (open) return;
     const el = returnFocusRef.current;
-    if (el && document.contains(el)) {
+    // A newly opened panel has already focused its controls in a layout effect.
+    // Closing the previous panel must not move that focus back to its trigger.
+    const focusedPanel = document.activeElement?.closest(".anchored-popin");
+    if (el && document.contains(el) && !focusedPanel) {
       el.focus();
     }
     returnFocusRef.current = null;
