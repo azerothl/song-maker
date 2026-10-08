@@ -10,6 +10,9 @@ function formatSeconds(milliseconds: string): string {
 
 export function generationErrorMessage(reason: unknown): string {
   const message = reason instanceof Error ? reason.message : String(reason);
+  if (message.startsWith("Sidecar Lego a refusé la tâche :")) {
+    return t("generation.legoFailed");
+  }
   const durationMismatch = DURATION_MISMATCH.exec(message);
   if (!durationMismatch) return message;
 

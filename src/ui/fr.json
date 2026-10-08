@@ -1972,6 +1972,7 @@
   "form.duration.instrumentalHint": "Le morceau doit respecter la durée choisie. S’il est trop court ou trop long, il est refusé et votre version actuelle reste intacte.",
   "form.instrumental.scoreRequired": "Choisissez « Partition complète » ou « Mélodie seulement » dans les réglages avancés pour créer cette version instrumentale.",
   "generation.durationMismatch": "Le morceau obtenu dure {actual} s au lieu de {expected} s. Il est refusé pour garder votre version actuelle. Réessayez.",
+  "generation.legoFailed": "La création de la nouvelle partie a échoué. Votre morceau est conservé. Réessayez ; si le problème persiste, relancez Song Maker.",
   "generation.instrumentalLocal": "La génération instrumentale sera lancée sur cet ordinateur.",
   "batch.verifyParallel": "Tester deux générations en même temps",
   "batch.verifyHint": "Ce test ajoute un morceau d’essai à la Bibliothèque et y génère deux prises en même temps avec ces réglages. Il vérifie ce que cet ordinateur peut traiter.",

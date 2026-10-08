@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode, type SVGProps } from "reac
 import { isTauri } from "@tauri-apps/api/core";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { api } from "./lib/api";
+import { generationErrorMessage } from "./lib/generationError";
 import { shouldHandleSidebarToggleShortcut } from "./lib/sidebarKeyboard";
 import { bindSidebarTipDismiss } from "./lib/sidebarTooltips";
 import {
@@ -454,7 +455,7 @@ export function Sidebar() {
                 ? t("job.completed")
                 : sidebarJob.state === "cancelled"
                   ? t("job.cancelled")
-                  : sidebarJob.label
+                  : generationErrorMessage(sidebarJob.label)
             }
           >
             <div
@@ -465,7 +466,7 @@ export function Sidebar() {
                   ? t("job.completed")
                   : sidebarJob.state === "cancelled"
                     ? t("job.cancelled")
-                    : sidebarJob.label
+                    : generationErrorMessage(sidebarJob.label)
               }
               tabIndex={collapsed ? 0 : undefined}
             >
@@ -475,7 +476,7 @@ export function Sidebar() {
                   ? t("job.completed")
                   : sidebarJob.state === "cancelled"
                     ? t("job.cancelled")
-                    : sidebarJob.label}
+                    : generationErrorMessage(sidebarJob.label)}
               </span>
             </div>
           </SidebarRow>
