@@ -304,7 +304,7 @@ export function SongScreen() {
       await onUserTrackAdded(nextMix);
 
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -931,7 +931,7 @@ export function SongScreen() {
                     ? t("job.completed")
                     : projectJob.state === "cancelled"
                       ? t("job.cancelled")
-                      : projectJob.label || t("job.generating")}
+                      : generationErrorMessage(projectJob.label || t("job.generating"))}
                 </span>
                 {canCancelCurrentJob && (
                   <button

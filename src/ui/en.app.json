@@ -1267,6 +1267,7 @@
   "form.duration.instrumentalHint": "The song must match the selected length. If it is too short or long, it is rejected and your current version stays unchanged.",
   "form.instrumental.scoreRequired": "Choose “Full score” or “Melody only” in advanced settings to create this instrumental version.",
   "generation.durationMismatch": "The song is {actual} s instead of {expected} s. It was rejected to keep your current version. Try again.",
+  "generation.legoFailed": "The new part could not be created. Your song is preserved. Try again; if the problem persists, restart Song Maker.",
   "generation.instrumentalLocal": "Instrumental generation will run on this computer.",
   "batch.verifyParallel": "Test two generations at once",
   "batch.verifyHint": "This test adds one sample song to the Library and generates two takes at once with these settings. It checks what this computer can handle.",
