@@ -9,20 +9,136 @@ use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+#[cfg(windows)]
+struct ChildJob(windows_sys::Win32::Foundation::HANDLE);
+
+#[cfg(not(windows))]
+struct ChildJob;
+
+#[cfg(windows)]
+unsafe impl Send for ChildJob {}
+
+#[cfg(windows)]
+impl Drop for ChildJob {
+    fn drop(&mut self) {
+        unsafe {
+            windows_sys::Win32::Foundation::CloseHandle(self.0);
+        }
+    }
+}
+
+#[cfg(windows)]
+fn assign_child_to_kill_job(child: &Child) -> Result<ChildJob, String> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::System::JobObjects::{
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+        SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    };
+
+    let job = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
+    if job.is_null() {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+
+    let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { std::mem::zeroed() };
+    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    let configured = unsafe {
+        SetInformationJobObject(
+            job,
+            JobObjectExtendedLimitInformation,
+            (&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
+            std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+        )
+    };
+    if configured == 0 {
+        let error = std::io::Error::last_os_error();
+        unsafe { windows_sys::Win32::Foundation::CloseHandle(job) };
+        return Err(error.to_string());
+    }
+
+    let assigned = unsafe { AssignProcessToJobObject(job, child.as_raw_handle().cast()) };
+    if assigned == 0 {
+        let error = std::io::Error::last_os_error();
+        unsafe { windows_sys::Win32::Foundation::CloseHandle(job) };
+        return Err(error.to_string());
+    }
+    Ok(ChildJob(job))
+}
+
+#[cfg(not(windows))]
+fn assign_child_to_kill_job(_child: &Child) -> Result<ChildJob, String> {
+    Ok(ChildJob)
+}
 
 pub struct AudioCppServer {
     child: Mutex<Option<Child>>,
+    child_job: Mutex<Option<ChildJob>>,
     pub base_url: Mutex<String>,
     pub port: Mutex<u16>,
+    worker_dir: Option<PathBuf>,
+}
+
+impl Drop for AudioCppServer {
+    fn drop(&mut self) {
+        self.shutdown();
+    }
 }
 
 impl Default for AudioCppServer {
     fn default() -> Self {
         Self {
             child: Mutex::new(None),
+            child_job: Mutex::new(None),
             base_url: Mutex::new(format!("http://{DEFAULT_HOST}:{DEFAULT_PORT}")),
             port: Mutex::new(DEFAULT_PORT),
+            worker_dir: None,
+        }
+    }
+}
+
+const SERVER_HEALTH_WAIT: Duration = Duration::from_secs(45);
+const SERVER_HEALTH_POLL: Duration = Duration::from_millis(200);
+
+enum WaitHealthError {
+    Exited(std::process::ExitStatus),
+    TimedOut,
+    Wait(String),
+}
+
+fn wait_for_server_health(
+    child: &mut Child,
+    healthy: impl Fn() -> bool,
+) -> Result<(), WaitHealthError> {
+    wait_for_server_health_until(
+        child,
+        healthy,
+        Instant::now() + SERVER_HEALTH_WAIT,
+        SERVER_HEALTH_POLL,
+    )
+}
+
+fn wait_for_server_health_until(
+    child: &mut Child,
+    healthy: impl Fn() -> bool,
+    deadline: Instant,
+    poll: Duration,
+) -> Result<(), WaitHealthError> {
+    loop {
+        if healthy() {
+            return Ok(());
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => return Err(WaitHealthError::Exited(status)),
+            Ok(None) => {
+                if Instant::now() >= deadline {
+                    return Err(WaitHealthError::TimedOut);
+                }
+                std::thread::sleep(poll);
+            }
+            Err(e) => return Err(WaitHealthError::Wait(e.to_string())),
         }
     }
 }
@@ -41,6 +157,30 @@ impl AudioCppServer {
         let bin_dir = binaries_dir(&cache);
         crate::paths::ensure_dir(&bin_dir).map_err(|e| e.to_string())?;
         let config_path = bin_dir.join("audiocpp-server.json");
+        Self::write_config_at(settings, &config_path, false)?;
+        Ok(config_path)
+    }
+
+    /// Each batch attempt owns its configuration and logs; weights are read-only.
+    pub fn isolated(worker_dir: PathBuf) -> Self {
+        Self {
+            child: Mutex::new(None),
+            child_job: Mutex::new(None),
+            base_url: Mutex::new(String::new()),
+            port: Mutex::new(0),
+            worker_dir: Some(worker_dir),
+        }
+    }
+
+    fn write_config_at(
+        settings: &AppSettings,
+        config_path: &Path,
+        isolated: bool,
+    ) -> Result<(), String> {
+        if let Some(parent) = config_path.parent() {
+            crate::paths::ensure_dir(parent).map_err(|e| e.to_string())?;
+        }
+        let cache = PathBuf::from(&settings.cache_dir);
         let htd = htdemucs_path(&cache);
         let mut yue2 = json!({
             "id": "yue2",
@@ -129,19 +269,28 @@ impl AudioCppServer {
                 "busy_timeout_ms": YUE2_BUSY_TIMEOUT_MS
             }));
         }
+        if isolated {
+            // Instrumental generation finishes by removing the vocal stem.
+            // max_loaded_models=1 still unloads generation weights before sep.
+            models.retain(|model| {
+                model["id"] == settings.generation_engine
+                    || model["id"] == "htdemucs"
+                    || model["id"] == settings.stem_separator
+            });
+        }
         let cfg = json!({
             "host": settings.server_host,
             "port": settings.server_port,
             "backend": crate::pins::backend_name(),
             "device": 0,
             "lazy_load": true,
-            "max_loaded_models": MAX_LOADED_MODELS,
+            "max_loaded_models": if isolated { 1 } else { MAX_LOADED_MODELS },
             "idle_unload_ms": 0,
             "busy_timeout_ms": BUSY_TIMEOUT_MS,
             "models": models
         });
-        crate::paths::atomic_write_json(&config_path, &cfg)?;
-        Ok(config_path)
+        crate::paths::atomic_write_json(config_path, &cfg)?;
+        Ok(())
     }
 
     pub(crate) fn find_server_binary(cache: &Path) -> Result<PathBuf, String> {
@@ -228,8 +377,37 @@ impl AudioCppServer {
         }
     }
 
+    /// Return whether a configured model is resident in audio.cpp memory.
+    /// `None` means the endpoint did not report that model (or its state).
+    pub async fn model_loaded(base_url: &str, model_id: &str) -> Result<Option<bool>, String> {
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_millis(800))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let response = client
+            .get(format!("{base_url}/v1/models"))
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        if !response.status().is_success() {
+            return Err(format!("GET /v1/models : HTTP {}", response.status()));
+        }
+        let body: Value = response.json().await.map_err(|e| e.to_string())?;
+        let loaded = body
+            .get("data")
+            .and_then(Value::as_array)
+            .and_then(|models| {
+                models
+                    .iter()
+                    .find(|model| model.get("id").and_then(Value::as_str) == Some(model_id))
+            })
+            .and_then(|model| model.get("loaded"))
+            .and_then(Value::as_bool);
+        Ok(loaded)
+    }
+
     pub fn ensure_started(&self, settings: &AppSettings) -> Result<String, String> {
-        {
+        let has_child = {
             let child = Self::lock(&self.child);
             if child.is_some() {
                 let port = *Self::lock(&self.port);
@@ -237,6 +415,11 @@ impl AudioCppServer {
                     return Ok(Self::lock(&self.base_url).clone());
                 }
             }
+            child.is_some()
+        };
+        if has_child {
+            // A dead or unhealthy child must be reaped before a replacement is started.
+            self.shutdown();
         }
 
         let cache = PathBuf::from(&settings.cache_dir);
@@ -247,7 +430,18 @@ impl AudioCppServer {
         for _ in 0..10 {
             let mut settings_try = settings.clone();
             settings_try.server_port = port;
-            let config = Self::write_config(&settings_try)?;
+            // Never accept the health response of an unrelated process on this port.
+            if std::net::TcpListener::bind((&*settings_try.server_host, port)).is_err() {
+                port = port.checked_add(1).ok_or("Aucun port audio disponible")?;
+                continue;
+            }
+            let config = if let Some(dir) = &self.worker_dir {
+                let path = dir.join("audiocpp-server.json");
+                Self::write_config_at(&settings_try, &path, true)?;
+                path
+            } else {
+                Self::write_config(&settings_try)?
+            };
 
             let mut cmd = Command::new(&bin);
             cmd.arg("--config")
@@ -256,22 +450,59 @@ impl AudioCppServer {
                 .arg(crate::pins::backend_name())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());
+            if let Some(dir) = &self.worker_dir {
+                cmd.stdout(Stdio::from(
+                    std::fs::File::create(dir.join("stdout.log")).map_err(|e| e.to_string())?,
+                ));
+                cmd.stderr(Stdio::from(
+                    std::fs::File::create(dir.join("stderr.log")).map_err(|e| e.to_string())?,
+                ));
+            }
 
             match cmd.spawn() {
                 Ok(mut child) => {
-                    std::thread::sleep(Duration::from_millis(600));
-                    if Self::tcp_health(&settings.server_host, port) {
-                        let url = format!("http://{}:{}", settings.server_host, port);
-                        *Self::lock(&self.child) = Some(child);
-                        *Self::lock(&self.base_url) = url.clone();
-                        *Self::lock(&self.port) = port;
-                        return Ok(url);
+                    let child_job = match assign_child_to_kill_job(&child) {
+                        Ok(job) => job,
+                        Err(error) => {
+                            let _ = child.kill();
+                            let _ = child.wait();
+                            return Err(format!(
+                                "Impossible de protéger audiocpp_server contre un arrêt brutal de l’application : {error}"
+                            ));
+                        }
+                    };
+                    match wait_for_server_health(&mut child, || {
+                        Self::tcp_health(&settings.server_host, port)
+                    }) {
+                        Ok(()) => {
+                            let url = format!("http://{}:{}", settings.server_host, port);
+                            *Self::lock(&self.child) = Some(child);
+                            *Self::lock(&self.child_job) = Some(child_job);
+                            *Self::lock(&self.base_url) = url.clone();
+                            *Self::lock(&self.port) = port;
+                            return Ok(url);
+                        }
+                        Err(WaitHealthError::Exited(status)) => {
+                            last_err = format!(
+                                "audiocpp_server s’est arrêté avant /health sur {}:{} ({status}).",
+                                settings.server_host, port
+                            );
+                        }
+                        Err(WaitHealthError::TimedOut) => {
+                            let _ = child.kill();
+                            return Err(format!(
+                                "Impossible de démarrer audiocpp_server (backend {} requis). /health ne répond pas après {} s sur {}:{}. Vérifiez le pilote NVIDIA.",
+                                crate::pins::backend_name(),
+                                SERVER_HEALTH_WAIT.as_secs(),
+                                settings.server_host,
+                                port
+                            ));
+                        }
+                        Err(WaitHealthError::Wait(e)) => {
+                            let _ = child.kill();
+                            last_err = e;
+                        }
                     }
-                    let _ = child.kill();
-                    last_err = format!(
-                        "Serveur démarré mais /health KO sur {}:{}",
-                        settings.server_host, port
-                    );
                 }
                 Err(e) => {
                     last_err = e.to_string();
@@ -516,14 +747,102 @@ impl AudioCppServer {
         }
         if let Some(mut child) = Self::lock(&self.child).take() {
             let _ = child.kill();
+            let _ = child.wait();
         }
+        Self::lock(&self.child_job).take();
+    }
+
+    pub fn process_id(&self) -> Option<u32> {
+        Self::lock(&self.child).as_ref().map(Child::id)
+    }
+}
+
+#[cfg(all(test, windows))]
+mod child_job_tests {
+    use super::assign_child_to_kill_job;
+    use std::process::{Child, Command, Stdio};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn closing_job_reaps_the_child_process() {
+        let mut command = Command::new("ping");
+        command
+            .args(["127.0.0.1", "-n", "60"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        let mut child = command.spawn().expect("start child process");
+        let job = assign_child_to_kill_job(&child).expect("assign process to kill-on-close job");
+        drop(job);
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if child.try_wait().expect("poll child").is_some() {
+                break;
+            }
+            if Instant::now() >= deadline {
+                terminate(&mut child);
+                panic!("job closure did not terminate the child process");
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    fn terminate(child: &mut Child) {
+        let _ = child.kill();
+        let _ = child.wait();
     }
 }
 
 #[cfg(test)]
 mod semantic_metadata_tests {
-    use super::AudioCppServer;
+    use super::{wait_for_server_health_until, AudioCppServer, WaitHealthError};
     use serde_json::json;
+    use std::process::{Child, Command, Stdio};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn isolated_worker_registers_vocal_removal_with_one_loaded_model() {
+        let settings = crate::library::default_settings();
+        let dir =
+            std::env::temp_dir().join(format!("song-maker-worker-config-{}", uuid::Uuid::new_v4()));
+        let path = dir.join("server.json");
+        AudioCppServer::write_config_at(&settings, &path, true).unwrap();
+        let config: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(config["max_loaded_models"], 1);
+        let models = config["models"].as_array().unwrap();
+        assert!(models.iter().any(|model| model["id"] == "htdemucs"));
+        assert!(models.iter().any(|model| model["id"] == "yue2"));
+        assert_eq!(models.len(), 2);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn isolated_worker_registers_selected_roformer_for_instrumental_cleanup() {
+        let dir = std::env::temp_dir().join(format!(
+            "song-maker-roformer-config-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let cache = dir.join("cache");
+        let settings_dir = dir.join("settings");
+        std::fs::create_dir_all(&settings_dir).unwrap();
+        let mut settings = crate::library::default_settings();
+        settings.cache_dir = cache.display().to_string();
+        settings.stem_separator = "bs_roformer".into();
+        let model = crate::paths::bs_roformer_path(&cache);
+        std::fs::create_dir_all(model.parent().unwrap()).unwrap();
+        std::fs::write(&model, b"test fixture").unwrap();
+
+        let path = settings_dir.join("server.json");
+        AudioCppServer::write_config_at(&settings, &path, true).unwrap();
+        let config: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        let models = config["models"].as_array().unwrap();
+        assert!(models.iter().any(|model| model["id"] == "bs_roformer"));
+        assert_eq!(config["max_loaded_models"], 1);
+        let _ = std::fs::remove_dir_all(dir);
+    }
 
     #[test]
     fn reads_v082_string_encoded_truncation_flag() {
@@ -565,5 +884,74 @@ mod semantic_metadata_tests {
             AudioCppServer::lock(&server.base_url).as_str(),
             "http://127.0.0.1:1"
         );
+    }
+
+    fn spawn_sleeper() -> Child {
+        let mut cmd = if cfg!(windows) {
+            let mut cmd = Command::new("ping");
+            cmd.args(["-n", "8", "127.0.0.1"]);
+            cmd
+        } else {
+            let mut cmd = Command::new("sleep");
+            cmd.arg("8");
+            cmd
+        };
+        cmd.stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("sleeper")
+    }
+
+    #[test]
+    fn wait_ok_when_health_is_already_true() {
+        let mut child = spawn_sleeper();
+        let result = wait_for_server_health_until(
+            &mut child,
+            || true,
+            Instant::now() + Duration::from_secs(2),
+            Duration::from_millis(20),
+        );
+        let _ = child.kill();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn wait_times_out_while_child_still_runs() {
+        let mut child = spawn_sleeper();
+        let err = wait_for_server_health_until(
+            &mut child,
+            || false,
+            Instant::now() + Duration::from_millis(80),
+            Duration::from_millis(20),
+        )
+        .unwrap_err();
+        let _ = child.kill();
+        assert!(matches!(err, WaitHealthError::TimedOut));
+    }
+
+    #[test]
+    fn wait_reports_when_child_exits() {
+        let mut cmd = if cfg!(windows) {
+            let mut cmd = Command::new("cmd");
+            cmd.args(["/C", "exit", "7"]);
+            cmd
+        } else {
+            let mut cmd = Command::new("sh");
+            cmd.args(["-c", "exit 7"]);
+            cmd
+        };
+        let mut child = cmd
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("exiter");
+        let err = wait_for_server_health_until(
+            &mut child,
+            || false,
+            Instant::now() + Duration::from_secs(5),
+            Duration::from_millis(20),
+        )
+        .unwrap_err();
+        assert!(matches!(err, WaitHealthError::Exited(_)));
     }
 }

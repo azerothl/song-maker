@@ -412,12 +412,13 @@ describe("first-launch fold + Demucs focus (#199 / #196)", () => {
     });
     try {
       await page.goto(BASE, { waitUntil: "networkidle" });
+      await page.locator(".fl-htdemucs-details > summary").click();
       await page.waitForSelector("a.fl-demucs-link", { timeout: 15_000 });
-      await page.locator("a.fl-demucs-link").focus();
+      await page.keyboard.press("Tab");
+      await page.waitForFunction(() => document.activeElement?.matches("a.fl-demucs-link"));
       const proof = await page.evaluate(`(() => {
         const el = document.querySelector("a.fl-demucs-link");
         if (!el) return null;
-        el.focus();
         const cs = getComputedStyle(el);
         return {
           matchesFocusVisible: el.matches(":focus-visible"),

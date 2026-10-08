@@ -6,10 +6,13 @@ mod ace_step_lego;
 mod audiocpp;
 mod basicpitch;
 mod batch;
+mod batch_admission;
+mod batch_workers;
 mod bs_roformer;
 mod commands;
 mod declui_host;
 mod demucs_onnx;
+mod device_admission;
 mod form;
 mod hashutil;
 mod health;
@@ -26,10 +29,12 @@ mod pins;
 mod profile_switch;
 mod profiles;
 mod project_sync;
+mod project_transaction;
 mod queue;
 mod rbitnet;
 mod resample;
 mod sheetsage;
+mod vst3_host;
 mod vst3_spike;
 
 #[cfg(test)]
@@ -40,6 +45,16 @@ use commands::AppState;
 /// Entrée CLI `song-maker --vst3-spike-probe <binaire>` (isolation crash, spike #326).
 pub fn vst3_spike_probe_exit(binary: &str) -> i32 {
     vst3_spike::probe_exit(binary)
+}
+
+/// Entry point for the isolated offline VST3 processing worker.
+pub fn vst3_host_worker_exit(request: &str, response: &str) -> i32 {
+    vst3_host::worker_exit(request, response)
+}
+
+/// Entry point for the isolated native VST3 editor process.
+pub fn vst3_editor_worker_exit(request: &str, response: &str) -> i32 {
+    vst3_host::editor_worker_exit(request, response)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -73,6 +88,7 @@ pub fn run() {
             commands::rbitnet_cmds::ensure_rbitnet_sidecar,
             // Réglages, santé, installation des modèles
             commands::settings::get_health,
+            commands::settings::restart_audio_runtime,
             commands::settings::get_setup_gpu_info,
             commands::settings::get_install_plan,
             commands::settings::install_required_assets,
@@ -105,6 +121,12 @@ pub fn run() {
             vst3_spike::vst3_spike_scan,
             vst3_spike::vst3_spike_load,
             vst3_spike::vst3_spike_attach,
+            vst3_host::vst3_list_plugins,
+            vst3_host::vst3_plugin_parameters,
+            vst3_host::vst3_process_pcm,
+            vst3_host::vst3_open_plugin_editor,
+            commands::capture::vst3_render_midi_preview,
+            commands::capture::vst3_render_midi_to_mix_track,
             // Profils (#201)
             commands::profiles::get_profiles_state,
             commands::profiles::create_profile,
@@ -126,9 +148,12 @@ pub fn run() {
             commands::jobs::cancel_job,
             // Génération
             commands::generation::start_generation,
+            commands::generation::generate_instrumental_part,
+            commands::generation::generate_comparison_take,
             commands::batch_cmds::validate_batch_import,
             commands::batch_cmds::update_batch_preview,
             commands::batch_cmds::start_batch,
+            commands::batch_capacity::verify_batch_parallelism,
             commands::batch_cmds::list_batches,
             commands::batch_cmds::get_batch_status,
             commands::batch_cmds::pause_batch,
@@ -228,6 +253,8 @@ pub fn run() {
                 state.server.shutdown();
                 state.rbitnet.shutdown();
                 state.ace_step_lego.shutdown();
+                let declui = app.state::<declui_host::EmbeddedDeclUiState>();
+                declui_host::shutdown_embedded_declui_host_on_exit(&declui);
             }
         });
 }

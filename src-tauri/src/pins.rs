@@ -131,7 +131,8 @@ pub const ACE_STEP_BYTES: u64 = 10_090_398_272;
 /// ACE-Step 1.5 Base (Python, Lego) — opt-in sidecar, not the Turbo GGUF above.
 pub const ACE_STEP_LEGO_HF_REPO: &str = "ACE-Step/acestep-v15-base";
 pub const ACE_STEP_LEGO_HF_REVISION: &str = "main";
-pub const ACE_STEP_LEGO_GIT: &str = "git+https://github.com/ace-step/ACE-Step-1.5.git";
+pub const ACE_STEP_LEGO_GIT: &str =
+    "git+https://github.com/ace-step/ACE-Step-1.5.git@ca1e85fe9430179831e6bc6be790c332190a3866";
 pub const ACE_STEP_LEGO_BIND_HOST: &str = "127.0.0.1";
 pub const ACE_STEP_LEGO_BIND_PORT: u16 = 8002;
 
@@ -236,7 +237,9 @@ pub fn semantic_token_budget(sec: u32, lyrics: &str, prefer_full_lyrics: bool) -
     let target_sec = normalize_target_duration_sec(sec);
     let target_tokens = target_sec.saturating_mul(SEMANTIC_HZ);
     if !prefer_full_lyrics {
-        return (200, target_tokens);
+        // Suppress EOS until the requested duration, rather than allowing a
+        // six-minute request to end after eight seconds.
+        return (target_tokens, target_tokens);
     }
 
     let lyric_words = lyrics
@@ -279,8 +282,13 @@ mod semantic_budget_tests {
     #[test]
     fn strict_mode_preserves_the_exact_duration_cap() {
         let (min_tokens, max_tokens) = semantic_token_budget(30, "a very long lyric", false);
-        assert_eq!(min_tokens, 200);
+        assert_eq!(min_tokens, 30 * SEMANTIC_HZ);
         assert_eq!(max_tokens, 30 * SEMANTIC_HZ);
+    }
+
+    #[test]
+    fn instrumental_six_minutes_cannot_end_at_the_old_eight_second_minimum() {
+        assert_eq!(semantic_token_budget(360, "", false), (9_000, 9_000));
     }
 
     #[test]

@@ -9,6 +9,7 @@ import {
   createSemanticPrefixClient,
   DesktopSemanticPrefixClient,
   dialectRefusal,
+  importAbcToScoreDocument,
   isAcceptedChordSymbol,
   planSemanticPrefixContinuation,
   ScoreEngineError,
@@ -151,7 +152,101 @@ describe("Vocal → Ins", () => {
     const abc = readFileSync(join(root, "fixtures/score.abc"), "utf8");
     const { abc: out, movedNoteCount } = convertVocalToIns(abc);
     assert.ok(movedNoteCount > 0);
-    assert.match(out, /V: Ins\nE2G2A2G2/);
-    assert.match(out, /V: Vocal\nZ4\|/);
+    assert.match(out, /V: Ins[\s\S]*E2G2A2G2/);
+    assert.match(out, /V: Vocal[\s\S]*"C"z16\|/);
+  });
+
+  it("conserve l'ABC quand la portée Vocal est déjà vide", () => {
+    const abc = [
+      "X:1", "T:Instrumental", "M:4/4", "L:1/16", "Q:1/4=88",
+      'V: Vocal clef=treble name="Vocal Melody" snm="Vocal"',
+      'V: Ins clef=treble name="Ins Melody" snm="Inst."', "K:G",
+      "% intro", "V: Vocal", '"G"z16|"G"z16|',
+      "V: Ins", "G4B4d4B4|G4B4d4B4|", "",
+    ].join("\n");
+
+    const result = convertVocalToIns(abc);
+
+    assert.equal(result.abc, abc);
+    assert.equal(result.movedNoteCount, 0);
+  });
+
+  it("transfère la mélodie et conserve les parties instrumentales hors chevauchement", () => {
+    const abc = [
+      "X:1", "T:Test", "M:4/4", "L:1/16", "Q:1/4=88",
+      'V: Vocal clef=treble name="Vocal Melody" snm="Vocal"',
+      'V: Ins clef=treble name="Ins Melody" snm="Inst."', "K:C",
+      "% verse", "V: Vocal", '"C"C4"F"z4z8|', "V: Ins", "G8D8|", "",
+    ].join("\n");
+
+    const { abc: out, movedNoteCount } = convertVocalToIns(abc);
+    const { document, issues } = importAbcToScoreDocument(out);
+    const ins = document.voices.find((voice) => voice.abcVoice === "Ins");
+
+    assert.equal(movedNoteCount, 1);
+    assert.deepEqual(issues, []);
+    assert.deepEqual(
+      ins?.notes.map((note) => [note.startTick, note.durationTick, note.pitch]),
+      [
+        [0, 960, 60],
+        [960, 960, 67],
+        [1920, 1920, 62],
+      ],
+    );
+    assert.equal(document.voices.find((voice) => voice.abcVoice === "Vocal")?.notes.length, 0);
+    assert.deepEqual(
+      document.chordEvents.map((chord) => [chord.tick, chord.symbol]),
+      [[0, "C"], [960, "F"]],
+    );
+  });
+
+  it("conserve un accord placé après la dernière note lors de la conversion instrumentale", () => {
+    const abc = [
+      "X:1", "T:Trailing chord", "M:4/4", "L:1/16", "Q:1/4=88",
+      'V: Vocal clef=treble name="Vocal Melody" snm="Vocal"',
+      'V: Ins clef=treble name="Ins Melody" snm="Inst."', "K:C", "% verse",
+      "V: Vocal", '"C"C4z12|"G"z16|', "V: Ins", "C4z12|Z|", "",
+    ].join("\n");
+
+    const { abc: out, movedNoteCount } = convertVocalToIns(abc);
+    const { document, issues } = importAbcToScoreDocument(out);
+
+    assert.equal(movedNoteCount, 1);
+    assert.deepEqual(issues, []);
+    assert.deepEqual(
+      document.chordEvents.map((chord) => [chord.tick, chord.symbol]),
+      [[0, "C"], [3840, "G"]],
+    );
+  });
+
+  it("conserve un accord final avec la grille ABC au 1/32", () => {
+    const abc = [
+      "X:1", "T:Trailing thirty-second chord", "M:4/4", "L:1/32", "Q:1/4=88",
+      'V: Vocal clef=treble name="Vocal Melody" snm="Vocal"',
+      'V: Ins clef=treble name="Ins Melody" snm="Inst."', "K:C", "% verse",
+      "V: Vocal", '"C"Cz31|"G"z32|', "V: Ins", "Cz31|Z|", "",
+    ].join("\n");
+
+    const { abc: out, movedNoteCount } = convertVocalToIns(abc);
+    const { document, issues } = importAbcToScoreDocument(out);
+
+    assert.equal(movedNoteCount, 1);
+    assert.deepEqual(issues, []);
+    assert.deepEqual(
+      document.chordEvents.map((chord) => [chord.tick, chord.symbol]),
+      [[0, "C"], [3840, "G"]],
+    );
+  });
+
+  it("refuse de supprimer silencieusement une troisième voix", () => {
+    const abc = [
+      "X:1", "T:Test", "M:4/4", "L:1/16", "Q:1/4=88",
+      'V: Vocal clef=treble name="Vocal Melody" snm="Vocal"',
+      'V: Ins clef=treble name="Ins Melody" snm="Inst."',
+      'V: Bass clef=bass name="Bass"', "K:C", "% verse",
+      "V: Vocal", "C4z12|", "V: Ins", "Z|", "V: Bass", "C,16|", "",
+    ].join("\n");
+
+    assert.throws(() => convertVocalToIns(abc), /voix supplémentaires/);
   });
 });

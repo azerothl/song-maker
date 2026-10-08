@@ -18,6 +18,11 @@ import type { ProfilesState } from "../lib/profilesTypes";
 type AppStore = {
   screen: Screen;
   setScreen: (s: Screen) => void;
+  settingsInitialPage: "home" | "model" | "lora" | "separation";
+  settingsModelSection: "lego" | "ace_step" | null;
+  openModelSettings: (section?: "lego" | "ace_step") => void;
+  openLoraSettings: () => void;
+  openSeparationSettings: () => void;
   health: HealthSnapshot | null;
   settings: AppSettings | null;
   job: JobStatus | null;
@@ -41,7 +46,7 @@ type AppStore = {
   refreshSettings: () => Promise<void>;
   refreshJob: () => Promise<void>;
   refreshLibrary: (q?: string) => Promise<void>;
-  openProject: (id: string) => Promise<void>;
+  openProject: (id: string, options?: { preserveForm?: boolean }) => Promise<void>;
   setForm: (patch: Partial<FormInput>) => void;
   setMix: (mix: MixDoc | null) => void;
   setScoreDocument: (doc: ScoreDocument | null) => void;
@@ -80,7 +85,12 @@ function asScoreDocument(raw: unknown): ScoreDocument | null {
 
 export const useAppStore = create<AppStore>((set, get) => ({
   screen: "splash",
-  setScreen: (screen) => set({ screen }),
+  setScreen: (screen) => set({ screen, settingsInitialPage: "home", settingsModelSection: null }),
+  settingsInitialPage: "home",
+  settingsModelSection: null,
+  openModelSettings: (section) => set({ screen: "settings", settingsInitialPage: "model", settingsModelSection: section ?? null }),
+  openLoraSettings: () => set({ screen: "settings", settingsInitialPage: "lora", settingsModelSection: null }),
+  openSeparationSettings: () => set({ screen: "settings", settingsInitialPage: "separation", settingsModelSection: null }),
   health: null,
   settings: null,
   job: null,
@@ -128,7 +138,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const projects = await api.listProjects(q);
     set({ projects });
   },
-  openProject: async (id) => {
+  openProject: async (id, options) => {
     const project = await api.openProject(id);
     const mix = await api.loadMix(id);
     const generations = await api.listGenerations(id);
@@ -155,6 +165,23 @@ export const useAppStore = create<AppStore>((set, get) => ({
       }
       playbackSources = null;
     }
+    const form = options?.preserveForm
+      ? get().form
+      : {
+          title: project.title,
+          style: project.style,
+          lyrics: project.lyrics,
+          cot: project.cot,
+          singingLanguage: project.singingLanguage ?? null,
+          tempoBpm: project.tempoBpm ?? null,
+          key: project.key ?? null,
+          meter: project.meter ?? null,
+          seed: null,
+          targetDurationSec: normalizeDurationSec(project.targetDurationSec),
+          preferFullLyrics: project.preferFullLyrics ?? true,
+          instrumentalMode: project.instrumentalMode ?? false,
+          continuationGenerationId: null,
+        };
     set({
       project,
       mix,
@@ -163,21 +190,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       scoreDocument,
       audioPath,
       playbackSources,
-      form: {
-        title: project.title,
-        style: project.style,
-        lyrics: project.lyrics,
-        cot: project.cot,
-        singingLanguage: project.singingLanguage ?? null,
-        tempoBpm: project.tempoBpm ?? null,
-        key: project.key ?? null,
-        meter: project.meter ?? null,
-        seed: null,
-        targetDurationSec: normalizeDurationSec(project.targetDurationSec),
-        preferFullLyrics: project.preferFullLyrics ?? true,
-        instrumentalMode: project.instrumentalMode ?? false,
-        continuationGenerationId: null,
-      },
+      form,
       screen: "song",
       error: null,
     });

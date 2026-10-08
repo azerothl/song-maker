@@ -75,7 +75,14 @@ pub(crate) fn python_bootstrap() -> Result<(PathBuf, Vec<String>), String> {
         if program.components().count() > 1 && !program.is_file() {
             continue;
         }
-        let Ok(output) = Command::new(&program)
+        let mut command = Command::new(&program);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            command.creation_flags(CREATE_NO_WINDOW);
+        }
+        let Ok(output) = command
             .args(&prefix)
             .arg("-c")
             .arg("import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)")

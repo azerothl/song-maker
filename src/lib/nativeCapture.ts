@@ -1,6 +1,4 @@
-/**
- * Native capture backend labels (#330). WASAPI exclusive / ASIO are out of this increment.
- */
+/** Native capture backends available to the recording panel (#330). */
 
 export type NativeCaptureBackend = {
   hostApi: string;
@@ -19,6 +17,7 @@ export type NativeInputDevice = {
   channels: number | null;
   bufferFrames: number | null;
   estimatedRoundTripMs: number | null;
+  wasapiDeviceId?: string | null;
 };
 
 export type NativeCapturePoll = {
@@ -39,6 +38,7 @@ export type NativeCaptureStopResult = {
   durationMs: number;
   sampleRate: number;
   estimatedRoundTripMs: number;
+  warning: string | null;
 };
 
 export type CaptureEngine = "native" | "webview";
@@ -51,5 +51,5 @@ export function formatNativeBackend(info: NativeCaptureBackend): string {
 
 export function nativeRoundTripLabel(ms: number | null | undefined): string {
   if (ms == null || !Number.isFinite(ms) || ms <= 0) return "—";
-  return `${Math.round(ms)} ms (tampon, aller-retour estimé)`;
+  return `${Math.round(ms)} ms`;
 }

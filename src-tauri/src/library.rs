@@ -388,7 +388,9 @@ pub fn load_project(folder: &Path) -> Result<ProjectDoc, String> {
 }
 
 pub fn save_project(folder: &Path, doc: &ProjectDoc) -> Result<(), String> {
-    atomic_write_json(&folder.join("project.json"), doc)
+    crate::project_transaction::with_lock(folder, || {
+        atomic_write_json(&folder.join("project.json"), doc)
+    })
 }
 
 #[cfg(test)]

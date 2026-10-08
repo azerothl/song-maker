@@ -350,7 +350,7 @@ export function ProductionTrackRoutingPopin({ track, mix }: Props) {
                     {t("production.routing.sidechainDestFixed")}
                   </p>
                   <label className="phase3-field">
-                    <span>{t("phase3.mix.param.thresholdDb")}</span>
+                    <span>{t("phase3.mix.sidechainTriggerLevel")}</span>
                     <input
                       type="number"
                       step={0.5}
@@ -370,7 +370,7 @@ export function ProductionTrackRoutingPopin({ track, mix }: Props) {
                     />
                   </label>
                   <label className="phase3-field">
-                    <span>{t("phase3.mix.param.ratio")}</span>
+                    <span>{t("phase3.mix.sidechainStrength")}</span>
                     <input
                       type="number"
                       step={0.1}

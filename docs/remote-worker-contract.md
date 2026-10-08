@@ -16,6 +16,16 @@ Opt-out (`remoteEnabled=false`) → **zero** remote HTTP calls.
 Production endpoints must be `https://`. The client rejects non-TLS when `requireTls` is true.  
 `http://127.0.0.1` / `http://localhost` are allowed for local reference deployments.
 
+## Browser access
+
+The reference worker answers `OPTIONS` preflight requests for `/v1/*`, permits
+the client's `Authorization` and `Content-Type` headers, and exposes
+`X-Content-SHA256` so the desktop can verify downloaded artifacts. It allows
+all origins by default; deployments may restrict this with
+`SONG_MAKER_REMOTE_WORKER_CORS_ORIGINS` (comma-separated exact origins). CORS
+does not replace bearer-token authentication, and cookie credentials are not
+enabled.
+
 ## Endpoints
 
 Base URL example: `https://worker.example.com`

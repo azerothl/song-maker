@@ -4,20 +4,83 @@ use crate::hashutil::sha256_file;
 use crate::library::{
     library_row_from_project, load_project, project_folder, save_project, upsert_library_row,
 };
-use crate::mix::wav_duration_ms;
 use crate::models::*;
 use crate::paths::{atomic_write_json, ensure_dir, next_folder_id, now_iso};
 use crate::pins::*;
 use serde_json::json;
 
+fn remote_wav_metadata(bytes: &[u8]) -> Result<(i64, hound::WavSpec), String> {
+    let mut reader = hound::WavReader::new(std::io::Cursor::new(bytes)).map_err(|_| {
+        "Le fichier audio distant est illisible. Cette prise n’est pas importée.".to_string()
+    })?;
+    let spec = reader.spec();
+    if spec.sample_rate == 0 || spec.channels == 0 || reader.duration() == 0 {
+        return Err(
+            "Le fichier audio distant est vide ou invalide. Cette prise n’est pas importée.".into(),
+        );
+    }
+    let duration_ms = i64::from(reader.duration()) * 1000 / i64::from(spec.sample_rate);
+    if duration_ms <= 0 {
+        return Err(
+            "Le fichier audio distant est trop court. Cette prise n’est pas importée.".into(),
+        );
+    }
+    let expected = reader.len();
+    let decoded = match spec.sample_format {
+        hound::SampleFormat::Float => reader
+            .samples::<f32>()
+            .try_fold(0u32, |count, sample| sample.map(|_| count + 1)),
+        hound::SampleFormat::Int => reader
+            .samples::<i32>()
+            .try_fold(0u32, |count, sample| sample.map(|_| count + 1)),
+    }
+    .map_err(|_| {
+        "Le fichier audio distant est incomplet. Cette prise n’est pas importée.".to_string()
+    })?;
+    if decoded != expected {
+        return Err(
+            "Le fichier audio distant est incomplet. Cette prise n’est pas importée.".into(),
+        );
+    }
+    Ok((duration_ms, spec))
+}
+
+#[cfg(test)]
+mod remote_audio_tests {
+    use super::remote_wav_metadata;
+
+    #[test]
+    fn measures_actual_mono_rate_and_refuses_truncated_samples() {
+        let mut bytes = Vec::new();
+        {
+            let spec = hound::WavSpec {
+                channels: 1,
+                sample_rate: 22050,
+                bits_per_sample: 16,
+                sample_format: hound::SampleFormat::Int,
+            };
+            let mut writer = hound::WavWriter::new(std::io::Cursor::new(&mut bytes), spec).unwrap();
+            for _ in 0..22050 {
+                writer.write_sample(0i16).unwrap();
+            }
+            writer.finalize().unwrap();
+        }
+        let (duration, spec) = remote_wav_metadata(&bytes).unwrap();
+        assert_eq!(duration, 1000);
+        assert_eq!(spec.sample_rate, 22050);
+        assert_eq!(spec.channels, 1);
+        assert!(remote_wav_metadata(&bytes[..bytes.len() - 4]).is_err());
+        assert!(remote_wav_metadata(b"RIFFxxxxWAVE").is_err());
+    }
+}
+
 #[tauri::command]
 pub fn use_generation(id: String, gen_id: String) -> Result<ProjectDoc, String> {
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
-    let gen_dir = folder.join("generations").join(&gen_id);
-    if !gen_dir.exists() {
-        return Err("Génération introuvable.".into());
-    }
+    super::shared::published_generation_wav(&folder, &gen_id)?;
     doc.active_generation_id = Some(gen_id);
     doc.active_separation_id = None;
     doc.active_mix_id = None;
@@ -31,6 +94,8 @@ pub fn use_generation(id: String, gen_id: String) -> Result<ProjectDoc, String> 
 #[tauri::command]
 pub fn rename_generation(id: String, gen_id: String, name: String) -> Result<ProjectDoc, String> {
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     let gen_dir = folder.join("generations").join(&gen_id);
     if !gen_dir.exists() {
@@ -74,19 +139,21 @@ pub fn import_remote_generation(
 ) -> Result<RemoteImportResult, String> {
     use base64::Engine;
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
-    let gens = folder.join("generations");
-    ensure_dir(&gens).map_err(|e| e.to_string())?;
-    let gen_id = next_folder_id(&gens, "gen-")?;
-    let gen_dir = gens.join(&gen_id);
-    ensure_dir(&gen_dir).map_err(|e| e.to_string())?;
-
     let wav_bytes = base64::engine::general_purpose::STANDARD
         .decode(payload.audio_base64.as_bytes())
         .map_err(|e| format!("Décodage WAV distant: {e}"))?;
     if wav_bytes.len() < 12 || &wav_bytes[0..4] != b"RIFF" || &wav_bytes[8..12] != b"WAVE" {
         return Err("Artefact distant : octets reçus sans en-tête WAV RIFF/WAVE.".into());
     }
+    let (duration, audio_spec) = remote_wav_metadata(&wav_bytes)?;
+    let gens = folder.join("generations");
+    ensure_dir(&gens).map_err(|e| e.to_string())?;
+    let gen_id = next_folder_id(&gens, "gen-")?;
+    let gen_dir = gens.join(&gen_id);
+    ensure_dir(&gen_dir).map_err(|e| e.to_string())?;
     let out_wav = gen_dir.join("audio.wav");
     std::fs::write(&out_wav, &wav_bytes).map_err(|e| e.to_string())?;
     let audio_sha = sha256_file(&out_wav)?;
@@ -121,10 +188,9 @@ pub fn import_remote_generation(
         let score_sha = sha256_file(&score_path)?;
         json!({ "path": "score.abc", "sha256": score_sha })
     } else {
-        json!({ "path": "score.abc", "sha256": null })
+        serde_json::Value::Null
     };
 
-    let duration = wav_duration_ms(&out_wav).unwrap_or(0);
     let finished = now_iso();
     let result = json!({
         "schema": SCHEMA_GEN_RESULT,
@@ -136,8 +202,8 @@ pub fn import_remote_generation(
         "finishedAt": finished,
         "audio": {
             "path": "audio.wav",
-            "sampleRate": SAMPLE_RATE,
-            "channels": CHANNELS,
+            "sampleRate": audio_spec.sample_rate,
+            "channels": audio_spec.channels,
             "durationMs": duration,
             "sha256": audio_sha
         },

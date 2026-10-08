@@ -91,6 +91,21 @@ pub(crate) fn create_profile_inner(
     name: String,
     kind: String,
 ) -> Result<ProfileSummary, String> {
+    let _configuration = super::settings::try_model_change(state)?;
+    if super::batch_cmds::resources_pinned() || state.batch_workers.busy() {
+        return Err(
+            "Terminez ou annulez le lot et attendez la fin de la vérification avant de créer un profil."
+                .into(),
+        );
+    }
+    if !state
+        .batch_inflight
+        .lock()
+        .map_err(|_| "État des lots indisponible")?
+        .is_empty()
+    {
+        return Err("Terminez ou annulez le lot avant de créer un profil.".into());
+    }
     let job = state.queue.status();
     let export_busy = state
         .profile_export_busy
@@ -159,6 +174,21 @@ pub fn rename_profile(id: String, name: String) -> Result<(), String> {
 }
 
 pub(crate) fn activate_profile_inner(state: &AppState, id: String) -> Result<(), String> {
+    let _configuration = super::settings::try_model_change(state)?;
+    if super::batch_cmds::resources_pinned() || state.batch_workers.busy() {
+        return Err(
+            "Terminez ou annulez le lot et attendez la fin de la vérification avant de changer de profil."
+                .into(),
+        );
+    }
+    if !state
+        .batch_inflight
+        .lock()
+        .map_err(|_| "État des lots indisponible")?
+        .is_empty()
+    {
+        return Err("Terminez ou annulez le lot avant de changer de profil.".into());
+    }
     let job = state.queue.status();
     let export_busy = state
         .profile_export_busy
@@ -251,6 +281,23 @@ mod tests {
             migration_banner_dismissed: true,
         })
         .unwrap();
+    }
+
+    #[test]
+    fn profiles_are_blocked_between_batch_tasks_when_queue_is_idle() {
+        let _docs = TempDocs::new("batch-inflight");
+        let state = AppState::default();
+        state
+            .batch_inflight
+            .lock()
+            .unwrap()
+            .insert("active-batch".into());
+        assert!(activate_profile_inner(&state, "other-profile".into())
+            .unwrap_err()
+            .contains("lot"));
+        assert!(create_profile_inner(&state, "New".into(), "hobby".into())
+            .unwrap_err()
+            .contains("lot"));
     }
 
     #[test]

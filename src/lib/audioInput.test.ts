@@ -3,13 +3,15 @@ import { describe, it } from "node:test";
 import { audioInputCapability, wantsAudioInput } from "./audioInput.ts";
 
 describe("audioInputCapability", () => {
-  it("never claims YuE2 or ACE-Step can consume audio_input", () => {
+  it("explains the imported-audio limit in user-facing language", () => {
     for (const engine of ["yue2", "ace_step", "ace_step_lego", "unknown"]) {
       const cap = audioInputCapability(engine);
       assert.equal(cap.supported, false);
-      assert.match(cap.messageFr, /audio_input/);
-      assert.match(cap.messageFr, /SheetSage2/);
-      assert.match(cap.messageFr, /Lego/);
+      assert.match(cap.messageFr, /morceau importé/);
+      assert.match(cap.messageFr, /Reprise/);
+      assert.match(cap.messageFr, /partition/);
+      assert.match(cap.messageFr, /ne guide pas directement la génération/);
+      assert.doesNotMatch(cap.messageFr, /audio_input|inpainting|décodeur|sidecar/i);
     }
   });
 

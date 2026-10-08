@@ -24,6 +24,8 @@ Add these Actions **secrets**:
 
 The release workflow checks that all six values exist, installs the pinned Artifact Signing CLI, and configures Tauri's Windows bundler to sign the app and installer before uploading them. Windows releases fail closed when signing is not configured; other platform builds are unaffected.
 
+Before the draft becomes a published release, the workflow verifies `Get-AuthenticodeSignature` returns `Valid` for the app executable and every MSI/EXE installer. The configuration alone does not establish that an already published installer is signed. No newly signed release was produced by the 2026-10-05 conformity audit.
+
 ## SmartScreen expectations
 
 Signing displays a verified publisher and lets reputation accumulate under a stable signing identity. SmartScreen can still warn on early downloads until the publisher or file has enough reputation; signing does not guarantee an immediate warning-free first release. If Defender Antivirus reports a malware detection rather than an unknown publisher, submit that specific release file to Microsoft for false-positive review.

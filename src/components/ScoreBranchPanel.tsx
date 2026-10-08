@@ -30,6 +30,13 @@ function asScoreDocument(value: unknown): ScoreDocument | null {
   return v;
 }
 
+function scoreLabel(score: ScoreSummary): string {
+  return (
+    score.branchName ||
+    t("score.versionNumber", { n: String(score.version) })
+  );
+}
+
 /**
  * Score branch / compare / explicit merge UI (§12.2).
  * Self-contained — SongScreen only needs to pass document + refresh callbacks.
@@ -137,7 +144,9 @@ export function ScoreBranchPanel({
       const raw = await api.loadScoreVersion(projectId, scoreId);
       const doc = asScoreDocument(raw);
       onDocumentChange(doc);
-      setStatus(t("score.branchSwitched", { id: scoreId }));
+      const selected = scores.find((score) => score.id === scoreId);
+      const name = selected ? scoreLabel(selected) : t("score.versionUntitled");
+      setStatus(t("score.branchSwitched", { name }));
       await onProjectRefresh();
     } catch (e) {
       onError(String(e));
@@ -260,30 +269,32 @@ export function ScoreBranchPanel({
         <ul className="version-tree score-branch-tree">
           {scores.map((s) => {
             const active = document?.id === s.id;
+            const name = scoreLabel(s);
             return (
               <li key={s.id} className={active ? "active" : undefined}>
                 <div className="version-row">
                   <span className="version-kind score-kind" aria-hidden>
                     {t("versions.kind.score")}
                   </span>
-                  <span>
-                    <strong>{s.branchName || s.id}</strong>
-                    {" · "}
-                    {s.id}
-                    {" · "}
-                    v{s.version}
-                    {" · "}
-                    {s.noteCount} notes
-                    {s.parentScoreId ? (
-                      <span className="hint">
-                        {" · "}
-                        {t("versions.parent", { parent: s.parentScoreId })}
-                      </span>
-                    ) : null}
+                  <div className="score-version-label">
+                    <strong>{name}</strong>
                     {active && (
                       <em className="gen-active"> · {t("score.branchActive")}</em>
                     )}
-                  </span>
+                    <details>
+                      <summary>{t("score.versionDetails")}</summary>
+                      <p className="hint">
+                        {t("score.versionMetadata", {
+                          id: s.id,
+                          version: String(s.version),
+                          notes: String(s.noteCount),
+                        })}
+                        {s.parentScoreId
+                          ? ` · ${t("score.versionParent", { parent: s.parentScoreId })}`
+                          : ""}
+                      </p>
+                    </details>
+                  </div>
                   <button
                     type="button"
                     className="btn ghost"
@@ -311,7 +322,7 @@ export function ScoreBranchPanel({
               <option value="">{t("score.comparePick")}</option>
               {scores.map((s) => (
                 <option key={`l-${s.id}`} value={s.id}>
-                  {s.branchName || s.id}
+                  {scoreLabel(s)}
                 </option>
               ))}
             </select>
@@ -325,7 +336,7 @@ export function ScoreBranchPanel({
               <option value="">{t("score.comparePick")}</option>
               {scores.map((s) => (
                 <option key={`r-${s.id}`} value={s.id}>
-                  {s.branchName || s.id}
+                  {scoreLabel(s)}
                 </option>
               ))}
             </select>
@@ -348,34 +359,30 @@ export function ScoreBranchPanel({
               notes: String(diff.noteDiffs.length),
               sections: String(diff.sectionDiffs.length),
               chords: String(diff.chordDiffs.length),
-              meta: diff.metaChanges.join(", ") || "—",
+              settings: String(diff.metaChanges.length),
             })}
           </p>
           {conflicts.length > 0 && (
             <ul className="score-issues">
-              {conflicts.map((c) => {
+              {conflicts.map((c, index) => {
                 const key = `${c.voiceId}:${c.noteId}`;
                 return (
                   <li key={key} className="warning">
-                    <span>
-                      {t("score.conflictNote", {
-                        id: c.noteId,
-                        left: String(c.left?.pitch ?? "?"),
-                        right: String(c.right?.pitch ?? "?"),
-                      })}
-                    </span>
-                    <select
-                      value={noteChoices[key] ?? "left"}
-                      onChange={(e) =>
-                        setNoteChoices((prev) => ({
-                          ...prev,
-                          [key]: e.target.value as "left" | "right",
-                        }))
-                      }
-                    >
-                      <option value="left">A</option>
-                      <option value="right">B</option>
-                    </select>
+                    <label>
+                      {t("score.conflictNote", { n: String(index + 1) })}
+                      <select
+                        value={noteChoices[key] ?? "left"}
+                        onChange={(e) =>
+                          setNoteChoices((prev) => ({
+                            ...prev,
+                            [key]: e.target.value as "left" | "right",
+                          }))
+                        }
+                      >
+                        <option value="left">{t("score.mergeVersionA")}</option>
+                        <option value="right">{t("score.mergeVersionB")}</option>
+                      </select>
+                    </label>
                   </li>
                 );
               })}
@@ -390,8 +397,8 @@ export function ScoreBranchPanel({
                   setMetaSide(e.target.value as "left" | "right")
                 }
               >
-                <option value="left">A</option>
-                <option value="right">B</option>
+                <option value="left">{t("score.mergeVersionA")}</option>
+                <option value="right">{t("score.mergeVersionB")}</option>
               </select>
             </label>
           )}

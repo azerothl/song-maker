@@ -27,7 +27,7 @@ Au **premier lancement**, un écran d’assistant dédié vérifie GPU / composa
 
 Song Maker propose aussi les mises à jour au démarrage (depuis la version **0.1.1**). Les versions antérieures doivent d’abord être mises à jour manuellement depuis les Releases. Détails : [`docs/auto-updates.md`](docs/auto-updates.md).
 
-Les installeurs Windows déjà publiés ne sont pas signés Authenticode. Pour les prochaines releases, le workflow exige la configuration Microsoft Artifact Signing et bloque le build Windows si elle manque ; voir le [guide de signature Windows](docs/windows-code-signing.md). SmartScreen peut encore afficher un avertissement sur les premières versions signées. Sur macOS, le binaire n’est pas notarié : autoriser l’app dans Réglages Système → Confidentialité et sécurité au premier lancement.
+Les installeurs Windows déjà publiés ne sont pas signés Authenticode. Pour les prochaines releases, le workflow exige la configuration Microsoft Artifact Signing et bloque le build Windows si elle manque ; voir le [guide de signature Windows](docs/windows-code-signing.md). SmartScreen peut encore afficher un avertissement sur les premières versions signées. Les binaires macOS déjà publiés ne sont pas notariés : autoriser l’app dans Réglages Système → Confidentialité et sécurité au premier lancement. Le workflow des prochaines releases exige désormais certificat et notarisation Apple ; voir le [guide macOS](docs/macos-code-signing.md). Aucune nouvelle release signée/notariée n’est attestée par cette configuration seule.
 
 ## Ce qui est livré aujourd’hui
 
@@ -38,10 +38,10 @@ Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau
 - Disposition en **deux colonnes** sur large viewport (style / paroles à gauche, options et lancement à droite).
 - Style + paroles → WAV stéréo 48 kHz via le serveur local `audiocpp_server` (file FIFO, `max_loaded_models=1`).
 - **Génération batch** (Bibliothèque) : import JSON UTF-8, aperçu, file persistante, pause / annulation / reprise. Les prises d’un lot passent par la **même file GPU exclusive**. Capacité **admise = 1** tant que deux workers `audiocpp` isolés n’ont pas été mesurés (`allowReduction` lance à 1 ; `requireRequested` bloque). Ce n’est **pas** un XOR de moteur. Schéma : [`docs/batch-generation/`](docs/batch-generation/).
-- **Mode instrumental** : paroles facultatives (chaîne vide acceptée) — ce n’est **pas** le LoRA instrumental YuE2 CC BY-NC.
+- **Mode instrumental** : le brouillon de paroles est conservé et exclu de la requête. Après génération, HTDemucs retire la piste voix et Song Maker publie l’accompagnement ; l’original reste disponible. La séparation peut laisser des résidus. La durée fixe du WAV est vérifiée avant activation. Ce mode ne télécharge pas le LoRA instrumental YuE2 CC BY-NC.
 - Modes `cot` (`full` / `melody` / `off`), durée cible indicative (bornes de tokens, pas une durée musicale garantie), multi-candidats **séquentiels** (N appels locaux successifs, pas un échantillonnage parallèle natif), seed écrit.
 - Continuation mid-song (`semantic_prefix` / `continuationGenerationId`) et génération partition seule (`stop_after=abc`).
-- YuE2 **ne consomme pas** d’audio en entrée (`audio_input`) : pas d’inpainting ni de référence audio directe. Une génération = un nouvel appel. L’onglet Créer l’affiche explicitement ; un payload `audio_input` / masque d’inpainting est **refusé** avant l’appel GPU. Le moteur XOR global (`generation_engine`) reste YuE2 par défaut ; ACE-Step **Turbo** GGUF est un opt-in texte→musique distinct, **pas** Lego.
+- YuE2 **ne consomme pas** d’audio en entrée (`audio_input`) : pas d’inpainting ni de référence audio directe. Une génération = un nouvel appel. Cette limite est indiquée dans les parcours audio concernés ; un payload `audio_input` / masque d’inpainting est **refusé** avant l’appel GPU. Le moteur XOR global (`generation_engine`) reste YuE2 par défaut ; ACE-Step **Turbo** GGUF est un opt-in texte→musique distinct, **pas** Lego.
 
 ### Partition / Reprise
 
@@ -67,7 +67,7 @@ Parcours principal : **Bibliothèque** (liste des projets) → ouvrir un morceau
 - Historique lisible des **prises** (noms, dates, pastilles Musique / Partition / Mix, filiation en mots) — les identifiants `gen-*` restent dans Détails. Comparateur multi-candidats, restauration réversible, événements de séparation (« Revenir à la séparation précédente »).
 - Invariants de partition avant régénération (`@song-maker/partition-invariants`).
 - **Worker GPU distant** : client + serveur de référence HTTP, **désactivé par défaut** (local-first, consentement + rétention). Voir [`docs/remote-worker-contract.md`](docs/remote-worker-contract.md).
-- **Akasha / DeclUI** : hôte **embarqué** opt-in (`127.0.0.1`, `GET /v1/host/discover`) ; découverte HTTP externe inchangée. Sans hôte joignable = `unavailable`. La génération YuE2 reste desktop.
+- **Akasha / DeclUI** : hôte **embarqué** opt-in (`127.0.0.1`, `GET /v1/host/discover`) ; découverte HTTP externe inchangée. Song Maker choisit un port libre au démarrage et renvoie l’adresse exacte aux clients ; il peut donc coexister avec un autre service local. Les appels navigateur sont limités aux origines locales/Tauri ; les clients natifs peuvent appeler le loopback. Le serveur embarqué expose seulement `list_projects` ; il ne constitue pas un hôte musique complet. Un hôte sans les capacités musique requises reste `unavailable`, sans badge connecté. Génération, séparation et export restent desktop.
 - Synchro projet optionnelle (NAS/USB ou HTTP auto-hébergé) — jamais obligatoire. Voir [`docs/project-sync-contract.md`](docs/project-sync-contract.md).
 - Packs LoRA style (opt-in) et **pilote** d’entraînement NAR local — voir [`docs/lora-training-pilot.md`](docs/lora-training-pilot.md).
 
@@ -80,7 +80,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Sujet | État |
 |---|---|
 | Génération avec audio en entrée (`audio_input`) | **Refusé** sur YuE2 / ACE-Step Turbo. Mix/stems → Lego Base Python (opt-in), pas un champ YuE2. Sortie Lego : mix fusionné possible, pas un stem dry. |
-| Plugins **VST3** / AU | Différés comme produit. Spike de chargement derrière `SONG_MAKER_VST3_SPIKE=1` (pas un hôte DAW) — [`docs/vst3-host-feasibility.md`](docs/vst3-host-feasibility.md) |
+| Plugins **VST3** / AU | Prototype d’hôte VST3 Windows en cours : effets master hors ligne, réglages persistés, aperçu et export. Validation dans l’application avec un plugin réel en attente; AU suivra avec une version macOS — [#326](https://github.com/azerothl/song-maker/issues/326), [`docs/vst3-host-feasibility.md`](docs/vst3-host-feasibility.md) |
 | **UniverSR** / upscaling audio | Hors périmètre |
 | Runtime Python YuE2 officiel | **Volontairement absent** : non installé, **pas un repli**. Le desktop ne bascule jamais vers Python si audio.cpp échoue. |
 | Modèle maison (texte/audio → audio + partition) | **Indisponible** : `houseModelRuntime: unavailable`, radio désactivée. Recette hors app : [`scripts/model-training/`](scripts/model-training/README.md). Ce n’est **pas** une génération dans l’app. |
@@ -92,7 +92,7 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 | Entraînement LoRA NAR | Pilote CPU — LoRA YuE2 GPU : `scripts/lora-train-yue2-gpu.py` (CUDA) |
 | Capture basse latence | Natif cpal (WASAPI **partagé** / ALSA / Core Audio). Pas d’ASIO ni WASAPI exclusif. Repli WebView. |
 | Licences modèles | YuE2 & SheetSage2 : **CC BY-NC 4.0**. ACE-Step Turbo/Lego : carte **MIT** (Hobby + Commercial possibles pour ACE-Step) ; un mix YuE2 reste NC même si on y colle un stem MIT. |
-| Signature Windows / notarisation macOS | Workflow Windows configuré, signature réelle à valider avec Azure ; macOS non notarié |
+| Signature Windows / notarisation macOS | Workflows de signature configurés ; aucune release signée Authenticode ou notariée n’est encore attestée. Les artefacts déjà publiés restent non signés / non notariés. |
 | UI app bilingue | FR/EN dans Paramètres → Système (persistance locale) ; le site marketing a sa propre i18n |
 
 ## Stack

@@ -105,6 +105,33 @@ function IconGpu(props: IconProps) {
   );
 }
 
+function IconModel(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" />
+      <path d="m4.5 7.8 7.5 4.4 7.5-4.4M12 12.2V21" />
+    </Icon>
+  );
+}
+
+function IconRuntime(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 12h4l2.2-6 4.1 12 2.2-6H21" />
+    </Icon>
+  );
+}
+
+function IconRestart(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M20 7v5h-5" />
+      <path d="M19 12a7 7 0 0 0-12-4.9L5 9M4 17v-5h5" />
+      <path d="M5 12a7 7 0 0 0 12 4.9L19 15" />
+    </Icon>
+  );
+}
+
 function IconProject(props: IconProps) {
   return (
     <Icon {...props}>
@@ -187,7 +214,9 @@ export function Sidebar() {
   const project = useAppStore((s) => s.project);
   const openProject = useAppStore((s) => s.openProject);
   const setError = useAppStore((s) => s.setError);
+  const refreshHealth = useAppStore((s) => s.refreshHealth);
   const { collapsed, narrow, toggle, toggleRef, liveMessage } = useSidebarCollapsed();
+  const [restartingRuntime, setRestartingRuntime] = useState(false);
 
   useEffect(() => {
     if (screen === "splash") return;
@@ -224,6 +253,34 @@ export function Sidebar() {
   const gpuLabel = !health
     ? "…"
     : (health.gpuName ?? (health.cudaAvailable ? "GPU NVIDIA" : t("nav.gpuAbsent")));
+  const modelName = health?.generationModel ?? "YuE2";
+  const modelStatus = (() => {
+    if (!health) return t("nav.statusChecking");
+    if (!health.generationModelAvailable) return t("nav.modelUnavailable");
+    if (!health.serverHealthy) return t("nav.modelAvailable");
+    if (health.generationModelLoaded === true) return t("nav.modelLoaded");
+    if (health.generationModelLoaded === false) return t("nav.modelReady");
+    return t("nav.modelLoadUnknown");
+  })();
+  const runtimeStatus = !health
+    ? t("nav.statusChecking")
+    : health.serverHealthy
+      ? t("nav.runtimeOnline")
+      : t("nav.runtimeOffline");
+  const runtimeAction = health?.serverHealthy
+    ? t("nav.runtimeRestart")
+    : t("nav.runtimeStart");
+  const jobIsActive = Boolean(
+    job &&
+      ["queued", "preparing", "generating", "separating", "importing_tracks"].includes(job.state),
+  );
+  const runtimeBusy = jobIsActive;
+  const sidebarJob =
+    job &&
+    (jobIsActive ||
+      (job.state === "failed" && job.projectId === project?.id))
+      ? job
+      : null;
   const toggleLabel = collapsed ? t("nav.expandMenu") : t("nav.collapseMenu");
   const toggleTitle = collapsed
     ? toggleLabel
@@ -329,16 +386,97 @@ export function Sidebar() {
             <span className="sidebar-label">{gpuLabel}</span>
           </div>
         </SidebarRow>
-        {job && job.state !== "idle" && (
-          <SidebarRow tip={job.label}>
+        <SidebarRow tip={`${modelName} · ${modelStatus}`}>
+          <div
+            className={`sidebar-meta-row sidebar-model-row${health?.generationModelAvailable === true ? " is-ready" : health ? " is-unavailable" : ""}`}
+            role="group"
+            aria-label={`${t("nav.model")}: ${modelName}, ${modelStatus}`}
+            tabIndex={collapsed ? 0 : undefined}
+          >
+            <IconModel />
+            <span className="sidebar-model-copy sidebar-label">
+              <strong>{modelName}</strong>
+              <small>{modelStatus}</small>
+            </span>
+          </div>
+        </SidebarRow>
+        <SidebarRow tip={runtimeStatus}>
+          <div
+            className={`sidebar-meta-row sidebar-runtime-row${health?.serverHealthy === true ? " is-online" : health ? " is-offline" : ""}`}
+            role="group"
+            aria-label={`${t("nav.runtime")}: ${runtimeStatus}`}
+            tabIndex={collapsed ? 0 : undefined}
+          >
+            <IconRuntime />
+            <span className="sidebar-label">{runtimeStatus}</span>
+          </div>
+        </SidebarRow>
+        {health && isTauri() && (
+          <SidebarRow tip={runtimeBusy ? t("nav.runtimeBusy") : t("nav.runtimeActionHint")}>
+            <button
+              type="button"
+              className="sidebar-runtime-restart"
+              onClick={() => {
+                if (runtimeBusy || restartingRuntime) return;
+                setRestartingRuntime(true);
+                void api
+                  .restartAudioRuntime()
+                  .then(() => refreshHealth())
+                  .catch((reason: unknown) => {
+                    setError(reason instanceof Error ? reason.message : String(reason));
+                    return refreshHealth();
+                  })
+                  .finally(() => setRestartingRuntime(false));
+              }}
+              disabled={restartingRuntime}
+              aria-disabled={runtimeBusy || undefined}
+              title={runtimeBusy ? t("nav.runtimeBusy") : t("nav.runtimeActionHint")}
+              aria-label={restartingRuntime ? t("nav.runtimeRestarting") : runtimeAction}
+              aria-describedby={runtimeBusy ? "sidebar-runtime-busy" : undefined}
+              aria-busy={restartingRuntime}
+            >
+              <IconRestart />
+              <span className="sidebar-label">
+                {restartingRuntime ? t("nav.runtimeRestarting") : runtimeAction}
+              </span>
+            </button>
+            {runtimeBusy && (
+              <span id="sidebar-runtime-busy" className="sr-only">
+                {t("nav.runtimeBusy")}
+              </span>
+            )}
+          </SidebarRow>
+        )}
+        {sidebarJob && (
+          <SidebarRow
+            tip={
+              sidebarJob.state === "completed"
+                ? t("job.completed")
+                : sidebarJob.state === "cancelled"
+                  ? t("job.cancelled")
+                  : sidebarJob.label
+            }
+          >
             <div
               className="sidebar-meta-row job-step"
               role="group"
-              aria-label={job.label}
+              aria-label={
+                sidebarJob.state === "completed"
+                  ? t("job.completed")
+                  : sidebarJob.state === "cancelled"
+                    ? t("job.cancelled")
+                    : sidebarJob.label
+              }
               tabIndex={collapsed ? 0 : undefined}
             >
               <IconJob />
-              <span className="sidebar-label">{job.label}</span>
+              <span className="sidebar-label">
+                {sidebarJob.state === "completed"
+                  ? t("job.completed")
+                  : sidebarJob.state === "cancelled"
+                    ? t("job.cancelled")
+                    : sidebarJob.label}
+              </span>
             </div>
           </SidebarRow>
         )}
@@ -390,8 +528,12 @@ export default function App() {
   useEffect(() => {
     if (!isTauri()) return;
     void refreshHealth();
+    const healthId = window.setInterval(() => void refreshHealth(), 10_000);
     const jobId = window.setInterval(() => void refreshJob(), 1500);
-    return () => window.clearInterval(jobId);
+    return () => {
+      window.clearInterval(healthId);
+      window.clearInterval(jobId);
+    };
   }, [refreshJob, refreshHealth]);
 
   useEffect(() => {
@@ -413,7 +555,7 @@ export default function App() {
   return (
     <div className="app-shell" data-locale={locale}>
       <Sidebar />
-      <main className="main">
+      <main className="main" key={screen}>
         {availableUpdate && (
           <UpdateNotice
             update={availableUpdate}

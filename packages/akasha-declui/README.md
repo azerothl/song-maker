@@ -18,6 +18,16 @@ Un **hôte DeclUI embarqué** (loopback 127.0.0.1) peut être démarré depuis P
 Sans URL ou hôte injoignable → **`unavailable`** (jamais un faux « activé »).  
 La génération phase 1 n’est pas altérée.
 
+### Capacités de l’hôte embarqué
+
+Dans cette version, l’hôte embarqué annonce et exécute seulement `list_projects`.
+La génération (`generate_yue2`), la séparation (`separate_stems`), l’export
+(`export_mix`) et l’application des styles (`apply_style_lora`) ne sont pas
+exposés par cet hôte ; leurs appels sont refusés. Ils restent disponibles par
+les parcours de bureau de Song Maker. Un hôte Akasha externe peut proposer ces
+capacités séparément. L’interface ne le présente pas comme connecté à un hôte
+musical complet lorsque ces capacités manquent.
+
 ## Tests
 
 ```bash

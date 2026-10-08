@@ -24,6 +24,7 @@ describe("ACE-Step A/B pair (#341)", () => {
       gen({ id: "y1", engineId: "yue2_3b" }),
       gen({ id: "a1", engineId: "ace_step_1_5" }),
       gen({ id: "y2", engineId: "yue2_3b" }),
+      gen({ id: "lego", engineId: "ace_step_1_5_base_lego" }),
       gen({ id: "missing", engineId: "ace_step_1_5", audioPath: null }),
     ]);
     assert.ok(pair);

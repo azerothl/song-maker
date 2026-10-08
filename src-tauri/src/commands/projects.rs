@@ -77,6 +77,8 @@ pub fn open_project(id: String) -> Result<ProjectDoc, String> {
 pub fn save_project_form(id: String, form: FormInput) -> Result<ProjectDoc, String> {
     validate_draft_form(&form).map_err(|e| e.to_string())?;
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     doc.title = form.title.trim().to_string();
     doc.style = form.style.trim().to_string();
@@ -100,6 +102,8 @@ pub fn save_project_form(id: String, form: FormInput) -> Result<ProjectDoc, Stri
 pub fn rename_project(id: String, title: String) -> Result<ProjectDoc, String> {
     validate_title(&title).map_err(|e| e.to_string())?;
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     doc.title = title.trim().to_string();
     doc.updated_at = now_iso();

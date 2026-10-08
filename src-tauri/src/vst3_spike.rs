@@ -75,6 +75,9 @@ pub fn default_scan_roots() -> Vec<PathBuf> {
     {
         roots.push(PathBuf::from(r"C:\Program Files\Common Files\VST3"));
         roots.push(PathBuf::from(r"C:\Program Files (x86)\Common Files\VST3"));
+        if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
+            roots.push(PathBuf::from(local_app_data).join(r"Programs\Common\VST3"));
+        }
     }
     #[cfg(target_os = "macos")]
     {

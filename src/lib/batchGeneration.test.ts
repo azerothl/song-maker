@@ -9,6 +9,16 @@ import enApp from "../ui/en.app.json";
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
 describe("batch generation (#368)", () => {
+  it("starts the reviewed token without silently recalculating its plan", () => {
+    const panel = readFileSync(join(root, "src/components/BatchGenerationPanel.tsx"), "utf8");
+    const launch = panel.slice(panel.indexOf("async function onLaunch()"), panel.indexOf("async function onVerifyParallelism()"));
+    assert.doesNotMatch(launch, /updateBatchPreview/);
+    assert.match(launch, /if \(!preview \|\| previewDirty\) return/);
+    assert.match(launch, /startBatch\(preview.startToken, preview.revision\)/);
+    assert.match(panel, /disabled=\{busy \|\| previewDirty \|\| !preview.canLaunch\}/);
+    assert.ok("batch.refreshRequired" in fr);
+    assert.ok("batch.refreshRequired" in enApp);
+  });
   it("admits GPU capacity 1 and keeps the example at 5 tasks", () => {
     const rust = readFileSync(join(root, "src-tauri/src/batch.rs"), "utf8");
     assert.match(rust, /pub const ADMITTED_PARALLEL: u32 = 1;/);
@@ -31,10 +41,23 @@ describe("batch generation (#368)", () => {
     assert.match(screen, /BatchGenerationPanel/);
     assert.match(panel, /batch\.honest/);
     assert.doesNotMatch(panel, /deux inférences se chevauchent/);
-    assert.equal(
-      fr["batch.honest"].includes("Capacité admise : 1"),
-      true,
-    );
+    assert.equal(fr["batch.honest"].includes("simultanéité"), false);
+    assert.doesNotMatch(panel, /preview\.capacityReasonFr|batch\.capacityReasonFr|result\.messageFr|preview\.launchBlockFr/);
+    for (const key of ["batch.capacityAvailable", "batch.capacityReduced", "batch.launchBlocked", "batch.verifySucceeded", "batch.verifyFailed"]) {
+      assert.ok(key in fr);
+      assert.ok(key in enApp);
+    }
+    for (const key of ["batch.capacityReducedRunningOne", "batch.capacityReducedRunningMany", "batch.liveParallelOne", "batch.liveParallelMany"]) {
+      assert.ok(key in fr);
+      assert.ok(key in enApp);
+    }
+    assert.match(panel, /batch\.liveParallelOne/);
+    assert.match(panel, /batch\.capacityReducedRunningOne/);
+    assert.match(fr["batch.capacityReducedRunningOne"], /aperçu d’un prochain lot/);
+    assert.doesNotMatch(fr["batch.capacityReducedRunningOne"], /résultats créés|avant de reprendre/i);
+    assert.match(enApp["batch.capacityReducedRunningOne"], /preview for a new batch/);
     assert.ok("batch.open" in enApp);
+    assert.doesNotMatch(fr["candidates.foldSummary"], /parallèle/i);
+    assert.doesNotMatch(enApp["candidates.foldSummary"], /parallel/i);
   });
 });

@@ -13,7 +13,6 @@ import {
   describeStemProvidersFr,
   EXCLUDED_SEPARATOR_NOTES_FR,
   formatDurationFr,
-  licenseStatusLabelFr,
   recommendFocusReasonFr,
   recommendSeparator,
   separatorLicense,
@@ -26,8 +25,16 @@ import type { AppSettings, Phase3Status } from "../lib/types";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 import { AnchoredPopin } from "./AnchoredPopin";
-import { SeparatorLicenseBadge } from "./SeparatorLicenseBadge";
-import { SeparatorLicenseNotice } from "./SeparatorLicenseNotice";
+import {
+  SeparatorLicenseBadge,
+  separatorLicenseStatusText,
+} from "./SeparatorLicenseBadge";
+import {
+  SeparatorLicenseNotice,
+  separatorDisplayNameText,
+  separatorLicenseNoticeText,
+  separatorLicenseSourceText,
+} from "./SeparatorLicenseNotice";
 
 type Props = {
   open: boolean;
@@ -254,7 +261,7 @@ export function SeparationRecommendDialog({
     // Avertissement avant lancement si le modèle (recommandé ou choisi) n’est pas vérifié (#166).
     if (selectedLicense != null && selectedLicense.status !== "verified") {
       const ok = window.confirm(
-        `${t("separate.recommend.unverifiedWarn")}\n\n${selectedLicense.noticeFr}`,
+        `${t("separate.recommend.unverifiedWarn")}\n\n${separatorLicenseNoticeText(selected)}`,
       );
       if (!ok) return;
     }
@@ -346,7 +353,7 @@ export function SeparationRecommendDialog({
             }}
           />
           <span>
-            <strong>{provider?.displayNameFr ?? opt.id}</strong>
+            <strong>{separatorDisplayNameText(opt.id)}</strong>
             {showRecommendedBadge && opt.id === recommendedId && (
               <span className="sep-badge recommended">
                 {t("separate.recommend.badge")}
@@ -386,7 +393,7 @@ export function SeparationRecommendDialog({
                         target="_blank"
                         rel="noreferrer"
                       >
-                        {license.sourceLabelFr}
+                        {separatorLicenseSourceText(opt.id)}
                       </a>
                     ) : null}
                   </>
@@ -398,11 +405,14 @@ export function SeparationRecommendDialog({
         {license && (showLicenseNotice || showAccept || !runnable) && (
           <div className="sep-install">
             {showLicenseNotice && (
-              <SeparatorLicenseNotice
-                licenseId={opt.id}
-                className={`hint warn sep-rec-notice${spotlightLayout ? "" : ""}`}
-                data-testid={`sep-rec-notice-${opt.id}`}
-              />
+              <details className="sep-license-details">
+                <summary>{t("separate.recommend.licenseDetails")}</summary>
+                <SeparatorLicenseNotice
+                  licenseId={opt.id}
+                  className="hint warn sep-rec-notice"
+                  data-testid={`sep-rec-notice-${opt.id}`}
+                />
+              </details>
             )}
             <div
               className={
@@ -420,7 +430,7 @@ export function SeparationRecommendDialog({
                     aria-busy={installBusy || undefined}
                     aria-disabled={blockInput || undefined}
                     aria-label={t("separate.license.acceptNamed", {
-                      name: provider?.displayNameFr ?? opt.id,
+                      name: separatorDisplayNameText(opt.id),
                     })}
                     onChange={(e) => {
                       if (blockInput) return;
@@ -428,7 +438,7 @@ export function SeparationRecommendDialog({
                     }}
                   />
                   {t("separate.license.acceptNamed", {
-                    name: provider?.displayNameFr ?? opt.id,
+                    name: separatorDisplayNameText(opt.id),
                   })}
                 </label>
               )}
@@ -533,8 +543,7 @@ export function SeparationRecommendDialog({
           >
             {t("separate.recommend.manualPickBanner", {
               model:
-                providers.find((p) => p.id === selected)?.displayNameFr ??
-                selected,
+                separatorDisplayNameText(selected),
             })}
             <button
               type="button"
@@ -588,10 +597,8 @@ export function SeparationRecommendDialog({
               data-testid="sep-recommend-unverified-warn"
             >
               {t("separate.recommend.unverifiedBanner", {
-                model:
-                  providers.find((p) => p.id === recommendedId)?.displayNameFr ??
-                  recommendedId,
-                status: licenseStatusLabelFr(recommendedLicense.status),
+                model: separatorDisplayNameText(recommendedId),
+                status: separatorLicenseStatusText(recommendedLicense.status),
               })}
             </p>
           )}

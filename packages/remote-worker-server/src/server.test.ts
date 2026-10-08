@@ -46,7 +46,7 @@ describe("remote-worker-server", () => {
     }
   });
 
-  async function boot(): Promise<string> {
+  async function boot(config: Partial<WorkerConfig> = {}): Promise<string> {
     dataDir = await mkdtemp(join(tmpdir(), "rw-test-"));
     const started = await createAndStartWorker({
       host: "127.0.0.1",
@@ -54,6 +54,7 @@ describe("remote-worker-server", () => {
       authToken: TOKEN,
       simulate: true,
       dataDir,
+      ...config,
       log: () => undefined,
     });
     server = started.server;
@@ -76,6 +77,47 @@ describe("remote-worker-server", () => {
     expect(res.status).toBe(200);
     const json = (await res.json()) as { ok: boolean };
     expect(json.ok).toBe(true);
+  });
+
+  it("answers browser preflight requests and exposes artifact checksums", async () => {
+    const base = await boot();
+    const preflight = await fetch(`${base}/v1/jobs`, {
+      method: "OPTIONS",
+      headers: {
+        origin: "http://127.0.0.1:1420",
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "authorization,content-type",
+      },
+    });
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get("access-control-allow-origin")).toBe("*");
+    expect(preflight.headers.get("access-control-allow-methods")).toContain("POST");
+    expect(preflight.headers.get("access-control-allow-headers")).toMatch(/authorization/i);
+    expect(preflight.headers.get("access-control-expose-headers")).toMatch(/x-content-sha256/i);
+  });
+
+  it("can restrict browser access to configured origins", async () => {
+    const base = await boot({ corsAllowedOrigins: ["https://desktop.example"] });
+    const allowed = await fetch(`${base}/v1/jobs`, {
+      method: "OPTIONS",
+      headers: {
+        origin: "https://desktop.example",
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "authorization,content-type",
+      },
+    });
+    expect(allowed.status).toBe(204);
+    expect(allowed.headers.get("access-control-allow-origin")).toBe("https://desktop.example");
+
+    const denied = await fetch(`${base}/v1/jobs`, {
+      method: "OPTIONS",
+      headers: {
+        origin: "https://unexpected.example",
+        "access-control-request-method": "POST",
+      },
+    });
+    expect(denied.status).toBe(403);
+    expect(denied.headers.get("access-control-allow-origin")).toBeNull();
   });
 
   it("runs simulate job end-to-end and detects corrupt artifacts", async () => {
@@ -131,12 +173,16 @@ describe("remote-worker-server", () => {
     expect(status).toBe("succeeded");
 
     const art = await fetch(`${base}/v1/jobs/${id}/artifacts/audio.wav`, {
-      headers: { authorization: `Bearer ${TOKEN}` },
+      headers: {
+        authorization: `Bearer ${TOKEN}`,
+        origin: "http://127.0.0.1:1420",
+      },
     });
     expect(art.status).toBe(200);
     const bytes = Buffer.from(await art.arrayBuffer());
     expect(bytes.subarray(0, 4).toString()).toBe("RIFF");
     expect(art.headers.get("x-content-sha256")).toMatch(/^[0-9a-f]{64}$/);
+    expect(art.headers.get("access-control-expose-headers")).toMatch(/x-content-sha256/i);
 
     const job = server!.getJob(id)!;
     await writeFile(job.artifacts["audio.wav"]!.path, Buffer.from("not-a-wav"));

@@ -158,7 +158,7 @@ export const DEFAULT_AKASHA_HOST_PREFERENCES: AkashaHostPreferences = {
 export type AkashaDiscoveryResponse = {
   apiVersion: string;
   hostId: string;
-  musicApi?: { id?: string; kind?: string; version?: number };
+  musicApi?: { id?: string; kind?: string; version?: number; capabilities?: readonly string[] };
   declUiSurfaces?: unknown[];
 };
 
@@ -444,6 +444,19 @@ export class DesktopFirstAkashaHostBridge implements AkashaHostBridge {
       };
     }
 
+    const capabilities = discovered.body.musicApi?.capabilities;
+    if (!Array.isArray(capabilities) || !MUSIC_API_DESCRIPTOR.capabilities.every(capability => capabilities.includes(capability))) {
+      this.mode = "unavailable";
+      this.hostUrl = null;
+      return {
+        ok: false,
+        mode: "unavailable",
+        hostUrl: null,
+        messageFr: "Cet hôte ne permet pas encore de générer, séparer et exporter vos morceaux. Utilisez l’application locale.",
+        registration: AKASHA_HOST_REGISTRATION,
+        errorCode: "capability_denied",
+      };
+    }
     this.mode = "connected";
     this.hostUrl = url;
     return {

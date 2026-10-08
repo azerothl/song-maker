@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 # Vercel Ignored Build Step for the website project.
 # Exit 0 skips the deployment. Exit 1 builds.
-# Only this directory is compared, so pushes that stay outside website do not deploy.
+# Only the website/ tree is compared (cwd-independent), so pushes outside
+# website do not deploy. Vercel runs this from Root Directory=website; we still
+# resolve against the repo root so local runs from any cwd behave the same.
 
 set -u
 
 head="${VERCEL_GIT_COMMIT_SHA:-HEAD}"
+repo_root="$(git rev-parse --show-toplevel)"
+website_path="website"
 
 website_changed() {
-  git diff --quiet "$1" "$head" -- .
+  # Pathspec is relative to the repo root via -C, not the process cwd.
+  git -C "$repo_root" diff --quiet "$1" "$head" -- "$website_path"
   case $? in
     0) return 1 ;;
     1) return 0 ;;

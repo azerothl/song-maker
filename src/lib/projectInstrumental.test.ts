@@ -31,7 +31,9 @@ describe("planProjectInstrumentalPart", () => {
     if (plan.ok && plan.conditioning === "mix_stems") {
       assert.equal(plan.engine, "ace_step_lego");
       assert.equal(plan.outputKind, "possibly_fused_mix");
-      assert.match(plan.leftoverNotesFr, /fusionné|dry/);
+      assert.match(plan.leftoverNotesFr, /morceau d’origine/);
+      assert.match(plan.leftoverNotesFr, /doublés/);
+      assert.doesNotMatch(plan.leftoverNotesFr, /start_ms|follow_project_tempo|stem dry/);
       assert.match(plan.styleSent, /100 BPM/);
     }
   });

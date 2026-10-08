@@ -1,9 +1,8 @@
 import {
-  DEMUCS_327_ISSUE_URL,
-  HTDEMUCS_MAINTAINER_STATEMENT_EN,
   separatorLicense,
   type StemProviderId,
 } from "@song-maker/stem-providers";
+import { t } from "../ui/i18n";
 
 type Props = {
   licenseId: StemProviderId;
@@ -11,8 +10,31 @@ type Props = {
   "data-testid"?: string;
 };
 
-function isHtDemucsFamily(id: StemProviderId): boolean {
-  return id === "htdemucs" || id === "htdemucs_6s";
+export function separatorLicenseNoticeText(id: StemProviderId): string {
+  switch (id) {
+    case "htdemucs": return t("separate.license.notice.htdemucs");
+    case "htdemucs_6s": return t("separate.license.notice.htdemucs6s");
+    case "bs_roformer": return t("separate.license.notice.bsRoformer");
+    case "mel_band_roformer": return t("separate.license.notice.melRoformer");
+  }
+}
+
+export function separatorLicenseSourceText(id: StemProviderId): string {
+  switch (id) {
+    case "htdemucs":
+    case "htdemucs_6s": return t("separate.license.source.demucs");
+    case "bs_roformer": return t("separate.license.source.bsRoformer");
+    case "mel_band_roformer": return t("separate.license.source.melRoformer");
+  }
+}
+
+export function separatorDisplayNameText(id: StemProviderId): string {
+  switch (id) {
+    case "htdemucs": return t("phase3.separator.model.htdemucs");
+    case "htdemucs_6s": return t("phase3.separator.model.htdemucs6s");
+    case "bs_roformer": return t("phase3.separator.model.bsRoformer");
+    case "mel_band_roformer": return t("phase3.separator.model.melRoformer");
+  }
 }
 
 /**
@@ -26,34 +48,17 @@ export function SeparatorLicenseNotice({
   const license = separatorLicense(licenseId);
   if (!license) return null;
 
-  if (isHtDemucsFamily(licenseId)) {
-    return (
-      <p className={className} data-testid={testId}>
-        {licenseId === "htdemucs_6s" ? (
-          <>Même famille Demucs, licence des poids 6 stems non vérifiée. </>
-        ) : null}
-        Poids HTDemucs : le mainteneur adefossez a écrit le 23 mai 2022 (
-        <a
-          className="sep-source-link"
-          href={DEMUCS_327_ISSUE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Demucs #327
-        </a>
-        ) que les poids « {HTDEMUCS_MAINTAINER_STATEMENT_EN} ». Lu le{" "}
-        {license.readDate ?? "2026-09-29"}. La fiche audio.cpp indique « MIT,
-        usage commercial : oui » mais aucune source amont ne le confirme ; cette
-        mention ne doit pas être lue comme la licence des poids. Le code
-        d&apos;audio.cpp v0.8.2 est sous Apache-2.0 (les poids gardent leur
-        licence d&apos;origine).
-      </p>
-    );
-  }
-
   return (
     <p className={className} data-testid={testId}>
-      {license.noticeFr}
+      {separatorLicenseNoticeText(licenseId)}{" "}
+      <a
+        className="sep-source-link"
+        href={license.sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {separatorLicenseSourceText(licenseId)}
+      </a>
     </p>
   );
 }

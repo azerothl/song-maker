@@ -15,6 +15,8 @@ import {
 } from "@song-maker/remote-worker";
 import { api } from "./api";
 import type { FormInput } from "./types";
+import { generationLyrics } from "./generationLyrics";
+import { isSha256, parseRemoteGenerationResult } from "./remoteResult";
 
 export const REMOTE_PREFS_KEY = "song-maker.remote-worker.prefs";
 
@@ -62,16 +64,16 @@ export async function buildGenerationPayload(
     request: {
       title: form.title,
       style: form.style,
-      lyrics: form.lyrics,
+      lyrics: generationLyrics(form),
       cot: form.cot,
       seed: form.seed ?? null,
       targetDurationSec: form.targetDurationSec,
-      preferFullLyrics: form.preferFullLyrics,
+      preferFullLyrics: form.preferFullLyrics && !form.instrumentalMode,
       instrumentalMode: form.instrumentalMode,
       hasAbc: Boolean(abc),
     },
     artifacts: {
-      lyrics: form.lyrics,
+      lyrics: generationLyrics(form),
       ...(abc ? { abc } : {}),
     },
   });
@@ -209,6 +211,22 @@ export async function runRemoteGenerationToProject(
     };
   }
 
+  const result = await client.downloadArtifact(handle.id, "result.json");
+  if (!result.ok) {
+    return { ok: false, jobId: handle.id, status: "failed", error: "Le résultat du worker est indisponible. Cette prise n’est pas importée." };
+  }
+  if (!isSha256(result.sha256)) {
+    return { ok: false, jobId: handle.id, status: "failed", error: "Le résultat du worker ne fournit pas une empreinte vérifiable. Cette prise n’est pas importée." };
+  }
+  const resultSha = await sha256Hex(result.bytes);
+  if (result.sha256.toLowerCase() !== resultSha) {
+    return { ok: false, jobId: handle.id, status: "failed", error: "Le résultat du worker est corrompu. Cette prise n’est pas importée." };
+  }
+  const resultCheck = parseRemoteGenerationResult(result.bytes);
+  if (!resultCheck.ok) {
+    return { ok: false, jobId: handle.id, status: "failed", error: resultCheck.error };
+  }
+
   const audio = await client.downloadArtifact(handle.id, "audio.wav");
   if (!audio.ok) {
     return {
@@ -218,8 +236,19 @@ export async function runRemoteGenerationToProject(
       error: audio.error,
     };
   }
+  if (!isSha256(audio.sha256)) {
+    return {
+      ok: false,
+      jobId: handle.id,
+      status: "failed",
+      error: "L’audio du worker ne fournit pas une empreinte vérifiable. Cette prise n’est pas importée.",
+    };
+  }
   const localAudioSha = await sha256Hex(audio.bytes);
-  if (audio.sha256 && audio.sha256 !== localAudioSha) {
+  if (
+    audio.sha256.toLowerCase() !== localAudioSha ||
+    resultCheck.value.audioSha256 !== localAudioSha
+  ) {
     return {
       ok: false,
       jobId: handle.id,
@@ -228,16 +257,28 @@ export async function runRemoteGenerationToProject(
     };
   }
 
-  const score = await client.downloadArtifact(handle.id, "score.abc");
-  const scoreAbc =
-    score.ok ? new TextDecoder().decode(score.bytes) : null;
+  let scoreAbc: string | null = null;
+  let scoreSha256: string | null = null;
+  if (resultCheck.value.scoreSha256) {
+    const score = await client.downloadArtifact(handle.id, "score.abc");
+    if (score.ok && isSha256(score.sha256)) {
+      const localScoreSha = await sha256Hex(score.bytes);
+      if (
+        score.sha256.toLowerCase() === localScoreSha &&
+        resultCheck.value.scoreSha256 === localScoreSha
+      ) {
+        scoreAbc = new TextDecoder().decode(score.bytes);
+        scoreSha256 = localScoreSha;
+      }
+    }
+  }
 
   const imported = await api.importRemoteGeneration(projectId, {
     remoteJobId: handle.id,
     audioBase64: bytesToBase64(audio.bytes),
     audioSha256: localAudioSha,
     scoreAbc,
-    scoreSha256: score.ok ? score.sha256 || null : null,
+    scoreSha256,
     endpointBaseUrl: prefs.endpointBaseUrl,
     payloadSha256: payload.plaintextSha256,
   });

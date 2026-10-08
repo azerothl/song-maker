@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CotProfile, ScoreDocument, ScoreIssue } from "../lib/score";
 import {
   createEmptyScoreDocument,
@@ -104,6 +104,7 @@ export function ScorePanel({
   onSeekPlayback,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const vocalToInsHelpId = useId();
   const [issues, setIssues] = useState<ScoreIssue[]>([]);
   const [abcPreview, setAbcPreview] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ScoreViewMode>("staff");
@@ -445,6 +446,7 @@ export function ScorePanel({
                 disabled={!abcPreview}
                 onClick={applyVocalToIns}
                 title={t("score.vocalToInsHint")}
+                aria-describedby={!abcPreview ? vocalToInsHelpId : undefined}
               >
                 {t("score.vocalToIns")}
               </button>
@@ -457,6 +459,14 @@ export function ScorePanel({
                 {t("score.clear")}
               </button>
             </div>
+            {!abcPreview && (
+              <p
+                id={vocalToInsHelpId}
+                className="score-panel-action-help"
+              >
+                {t("score.vocalToInsRequiresPreview")}
+              </p>
+            )}
           </header>
 
           <nav
@@ -536,6 +546,8 @@ export function ScorePanel({
                   onError={onError}
                 />
                 <MidiInstrumentPanel
+                  projectId={projectId}
+                  onProjectRefresh={onProjectRefresh}
                   document={document}
                   onDocumentChange={(doc) => {
                     onDocumentChange(doc);
@@ -631,7 +643,7 @@ export function ScorePanel({
           />
 
           {abcPreview && viewMode !== "abc" && (
-            <details open>
+            <details>
               <summary>{t("score.abcPreview")}</summary>
               <AbcRawPreview abc={abcPreview} className="score" />
             </details>

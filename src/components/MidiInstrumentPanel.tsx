@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { api } from "../lib/api";
 import {
   listMidiInputs,
   requestMidiAccess,
@@ -16,14 +18,59 @@ import {
   quantizeSecondsToTick,
   type ScorePlaybackHandle,
 } from "../lib/midiScorePlayer";
-import { addNote, type ScoreDocument } from "../lib/score";
+import {
+  addNote,
+  setScoreVoiceVst3Instrument,
+  type ScoreDocument,
+  type ScoreVst3Instrument,
+} from "../lib/score";
+import { scoreTicksToSeconds } from "../lib/scoreTiming";
+import type { Vst3CatalogEntry } from "../lib/types";
 import { t } from "../ui/i18n";
 import { MidiOutputPanel } from "./MidiOutputPanel";
 
 const DEFAULT_NOTE_TICKS = 240;
 const QUANTIZE_TICKS = 120;
+const VST3_SAMPLE_RATE = 48_000;
+const VST3_RELEASE_TAIL_SEC = 2;
+
+function buildVst3RenderRequest(
+  document: ScoreDocument,
+  notes: ScoreDocument["voices"][number]["notes"],
+) {
+  const midiNotes = notes.map((note) => ({
+    startFrame: Math.floor(
+      scoreTicksToSeconds(document, note.startTick) * VST3_SAMPLE_RATE,
+    ),
+    endFrame: Math.ceil(
+      scoreTicksToSeconds(
+        document,
+        note.startTick + note.durationTick,
+      ) * VST3_SAMPLE_RATE,
+    ),
+    pitch: note.pitch,
+    velocity: note.velocity,
+  }));
+  const endSec = notes.reduce(
+    (latest, note) =>
+      Math.max(
+        latest,
+        scoreTicksToSeconds(document, note.startTick + note.durationTick),
+      ),
+    0,
+  );
+  return {
+    midiNotes,
+    renderFrames: Math.max(
+      1,
+      Math.ceil((endSec + VST3_RELEASE_TAIL_SEC) * VST3_SAMPLE_RATE),
+    ),
+  };
+}
 
 type Props = {
+  projectId?: string;
+  onProjectRefresh?: () => Promise<void>;
   document: ScoreDocument;
   voiceId?: string | null;
   onDocumentChange: (doc: ScoreDocument) => void;
@@ -62,6 +109,8 @@ function newNoteId(): string {
 }
 
 export function MidiInstrumentPanel({
+  projectId,
+  onProjectRefresh,
   document,
   voiceId,
   onDocumentChange,
@@ -71,6 +120,8 @@ export function MidiInstrumentPanel({
 }: Props) {
   const synthRef = useRef<SoftSynth | null>(null);
   const playbackRef = useRef<ScorePlaybackHandle | null>(null);
+  const vst3AudioRef = useRef<HTMLAudioElement | null>(null);
+  const vst3PreviewTokenRef = useRef(0);
   const recordStartRef = useRef<number | null>(null);
   const activeNotesRef = useRef(
     new Map<number, { startTick: number; velocity: number }>(),
@@ -95,6 +146,15 @@ export function MidiInstrumentPanel({
   const [sf2Presets, setSf2Presets] = useState<Sf2Preset[]>([]);
   const [sf2Preset, setSf2Preset] = useState(0);
   const [sf2Name, setSf2Name] = useState<string | null>(null);
+  const [vst3Plugins, setVst3Plugins] = useState<Vst3CatalogEntry[] | null>(null);
+  const [vst3PluginKinds, setVst3PluginKinds] = useState<
+    Record<string, "effect" | "instrument" | "incompatible">
+  >({});
+  const [vst3Scanning, setVst3Scanning] = useState(false);
+  const [vst3Busy, setVst3Busy] = useState(false);
+  const [panelVoiceId, setPanelVoiceId] = useState(
+    voiceId ?? document.voices[0]?.id ?? "",
+  );
 
   useEffect(() => {
     if (!import.meta.env.VITE_CAPTURE) return;
@@ -114,18 +174,39 @@ export function MidiInstrumentPanel({
   quantizeRef.current = quantize;
   monitorRef.current = monitorInput;
 
-  const resolvedVoiceId = useMemo(
-    () => voiceId ?? document.voices[0]?.id ?? null,
-    [voiceId, document.voices],
-  );
+  useEffect(() => {
+    setPanelVoiceId((current) =>
+      voiceId && document.voices.some((voice) => voice.id === voiceId)
+        ? voiceId
+        : document.voices.some((voice) => voice.id === current)
+          ? current
+          : (document.voices[0]?.id ?? ""),
+    );
+  }, [voiceId, document.voices]);
+
+  const resolvedVoiceId = document.voices.some(
+    (voice) => voice.id === voiceId,
+  )
+    ? voiceId!
+    : document.voices.some((voice) => voice.id === panelVoiceId)
+      ? panelVoiceId
+      : (document.voices[0]?.id ?? null);
   const voiceIdRef = useRef(resolvedVoiceId);
   voiceIdRef.current = resolvedVoiceId;
+  const selectedVoice =
+    document.voices.find((voice) => voice.id === resolvedVoiceId) ?? null;
+  const vst3Instrument = selectedVoice?.vst3Instrument;
 
   useEffect(() => {
     const synth = new SoftSynth({ latencySec: latencyMs / 1000 });
     synthRef.current = synth;
     return () => {
       playbackRef.current?.stop();
+      if (vst3AudioRef.current) {
+        vst3AudioRef.current.pause();
+        vst3AudioRef.current.src = "";
+        vst3AudioRef.current = null;
+      }
       void synth.dispose();
       synthRef.current = null;
     };
@@ -247,6 +328,12 @@ export function MidiInstrumentPanel({
   }, [deviceId]);
 
   function stopPlayback() {
+    vst3PreviewTokenRef.current += 1;
+    if (vst3AudioRef.current) {
+      vst3AudioRef.current.pause();
+      vst3AudioRef.current.src = "";
+      vst3AudioRef.current = null;
+    }
     playbackRef.current?.stop();
     playbackRef.current = null;
     setPlaying(false);
@@ -254,6 +341,43 @@ export function MidiInstrumentPanel({
 
   function onPlay() {
     onError?.(null);
+    if (vst3Instrument && selectedVoice && projectId) {
+      stopPlayback();
+      const token = ++vst3PreviewTokenRef.current;
+      setPlaying(true);
+      setStatus(t("midi.vst3.renderingPreview"));
+      void (async () => {
+        try {
+          const request = buildVst3RenderRequest(document, selectedVoice.notes);
+          const path = await api.vst3RenderMidiPreview({
+            projectId: projectId ?? "",
+            pluginPath: vst3Instrument.pluginPath,
+            parameters: vst3Instrument.parameters,
+            pluginStateB64: vst3Instrument.stateB64,
+            ...request,
+          });
+          if (token !== vst3PreviewTokenRef.current) return;
+          const audio = new Audio(convertFileSrc(path));
+          vst3AudioRef.current = audio;
+          audio.onended = () => {
+            if (token !== vst3PreviewTokenRef.current) return;
+            vst3AudioRef.current = null;
+            setPlaying(false);
+            setStatus(null);
+          };
+          await audio.play();
+          if (token === vst3PreviewTokenRef.current) {
+            setStatus(t("midi.vst3.playingPreview"));
+          }
+        } catch (e) {
+          if (token !== vst3PreviewTokenRef.current) return;
+          setPlaying(false);
+          setStatus(null);
+          onError?.(e instanceof Error ? e.message : String(e));
+        }
+      })();
+      return;
+    }
     const synth = synthRef.current;
     if (!synth) return;
     stopPlayback();
@@ -272,6 +396,133 @@ export function MidiInstrumentPanel({
   function onStop() {
     stopPlayback();
     synthRef.current?.allNotesOff();
+    setStatus(null);
+  }
+
+  async function scanVst3Plugins() {
+    setVst3Scanning(true);
+    setStatus(null);
+    try {
+      setVst3Plugins(await api.vst3ListPlugins());
+    } catch (e) {
+      onError?.(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVst3Scanning(false);
+    }
+  }
+
+  async function selectVst3Instrument(path: string) {
+    if (!path || !resolvedVoiceId) return;
+    const plugin = vst3Plugins?.find((item) => item.path === path);
+    if (!plugin) return;
+    setVst3Busy(true);
+    onError?.(null);
+    let classified = false;
+    try {
+      const previous = vst3Instrument?.pluginPath === plugin.path
+        ? vst3Instrument
+        : null;
+      const description = await api.vst3PluginParameters(
+        plugin.path,
+        previous?.parameters ?? {},
+        previous?.stateB64,
+      );
+      const kind = description.category.toLowerCase().includes("instrument") &&
+        description.audioInputs === 0 && description.audioOutputs > 0
+        ? "instrument"
+        : description.audioInputs > 0 &&
+            description.audioOutputs > 0 &&
+            !description.category.toLowerCase().includes("instrument")
+          ? "effect"
+          : "incompatible";
+      setVst3PluginKinds((items) => ({ ...items, [plugin.path]: kind }));
+      classified = true;
+      if (
+        kind !== "instrument"
+      ) {
+        throw new Error(t("midi.vst3.notInstrument"));
+      }
+      const parameters = previous?.parameters ?? Object.fromEntries(
+        description.parameters.map((parameter) => [String(parameter.id), parameter.value]),
+      );
+      const instrument: ScoreVst3Instrument = {
+        pluginPath: plugin.path,
+        pluginName: plugin.name,
+        parameters,
+        ...(previous?.stateB64 ? { stateB64: previous.stateB64 } : {}),
+      };
+      onDocumentChange(
+        setScoreVoiceVst3Instrument(document, resolvedVoiceId, instrument),
+      );
+      setStatus(t("midi.vst3.selected", { name: plugin.name }));
+    } catch (e) {
+      if (!classified) {
+        setVst3PluginKinds((items) => ({ ...items, [plugin.path]: "incompatible" }));
+      }
+      onError?.(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVst3Busy(false);
+    }
+  }
+
+  async function openVst3Editor() {
+    if (!vst3Instrument || !resolvedVoiceId || vst3Busy) return;
+    setVst3Busy(true);
+    onError?.(null);
+    setStatus(t("midi.vst3.editorOpening"));
+    try {
+      const result = await api.vst3OpenPluginEditor(
+        vst3Instrument.pluginPath,
+        vst3Instrument.parameters,
+        vst3Instrument.stateB64,
+      );
+      const instrument = {
+        ...vst3Instrument,
+        parameters: result.parameters,
+        ...(result.pluginStateB64 ? { stateB64: result.pluginStateB64 } : {}),
+      };
+      onDocumentChange(
+        setScoreVoiceVst3Instrument(document, resolvedVoiceId, instrument),
+      );
+      setStatus(t("midi.vst3.editorSaved"));
+    } catch (e) {
+      setStatus(null);
+      onError?.(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVst3Busy(false);
+    }
+  }
+
+  async function addVst3ToProduction() {
+    if (!projectId || !vst3Instrument || !selectedVoice || vst3Busy) return;
+    setVst3Busy(true);
+    onError?.(null);
+    setStatus(t("midi.vst3.renderingTrack"));
+    try {
+      const request = buildVst3RenderRequest(document, selectedVoice.notes);
+      await api.saveScore(projectId, document);
+      await api.vst3RenderMidiToMixTrack({
+        projectId,
+        displayName: `${vst3Instrument.pluginName} — ${selectedVoice.name}`,
+        pluginPath: vst3Instrument.pluginPath,
+        parameters: vst3Instrument.parameters,
+        pluginStateB64: vst3Instrument.stateB64,
+        ...request,
+      });
+      await onProjectRefresh?.();
+      setStatus(t("midi.vst3.trackAdded"));
+    } catch (e) {
+      setStatus(null);
+      onError?.(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVst3Busy(false);
+    }
+  }
+
+  function clearVst3Instrument() {
+    if (!resolvedVoiceId) return;
+    stopPlayback();
+    onDocumentChange(setScoreVoiceVst3Instrument(document, resolvedVoiceId, null));
     setStatus(null);
   }
 
@@ -452,12 +703,113 @@ export function MidiInstrumentPanel({
         </label>
       </div>
 
+      <section className="midi-record-block midi-vst3-block">
+        <h5>{t("midi.vst3.title")}</h5>
+        <p className="hint">{t("midi.vst3.hint")}</p>
+        {document.voices.length > 1 && (
+          <label>
+            <span>{t("midi.voice")}</span>
+            <select
+              value={resolvedVoiceId ?? ""}
+              onChange={(event) => setPanelVoiceId(event.target.value)}
+            >
+              {document.voices.map((voice) => (
+                <option key={voice.id} value={voice.id}>
+                  {voice.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <div className="btn-row">
+          <label>
+            <span>{t("midi.vst3.plugin")}</span>
+            <select
+              value={vst3Instrument?.pluginPath ?? ""}
+              disabled={vst3Busy || vst3Scanning}
+              onChange={(event) => void selectVst3Instrument(event.target.value)}
+            >
+              <option value="">{t("midi.vst3.none")}</option>
+              {vst3Instrument &&
+                !vst3Plugins?.some((plugin) => plugin.path === vst3Instrument.pluginPath) && (
+                  <option value={vst3Instrument.pluginPath}>
+                    {vst3Instrument.pluginName}
+                  </option>
+                )}
+              {vst3Plugins?.map((plugin) => (
+                <option key={plugin.path} value={plugin.path}>
+                  {plugin.name}
+                  {vst3PluginKinds[plugin.path]
+                    ? ` · ${t(`midi.vst3.kind.${vst3PluginKinds[plugin.path]}`)}`
+                    : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="btn"
+            disabled={vst3Busy || vst3Scanning}
+            onClick={() => void scanVst3Plugins()}
+          >
+            {vst3Scanning ? t("midi.vst3.scanning") : t("midi.vst3.scan")}
+          </button>
+        </div>
+        {vst3Instrument && (
+          <>
+            <p className="hint">
+              {t("midi.vst3.assigned", { name: vst3Instrument.pluginName })}
+            </p>
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn"
+                disabled={vst3Busy}
+                onClick={() => void openVst3Editor()}
+              >
+                {vst3Busy
+                  ? t("midi.vst3.editorOpening")
+                  : t("midi.vst3.openEditor")}
+              </button>
+              {projectId && (
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={
+                    vst3Busy || playing || selectedVoice?.notes.length === 0
+                  }
+                  onClick={() => void addVst3ToProduction()}
+                >
+                  {vst3Busy
+                    ? t("midi.vst3.renderingTrack")
+                    : t("midi.vst3.addToProduction")}
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn"
+                disabled={vst3Busy}
+                onClick={clearVst3Instrument}
+              >
+                {t("midi.vst3.clear")}
+              </button>
+            </div>
+          </>
+        )}
+        {vst3Plugins?.length === 0 && (
+          <p className="hint">{t("midi.vst3.noPlugins")}</p>
+        )}
+      </section>
+
       <div className="btn-row">
         <button
           type="button"
           className="btn primary"
           disabled={
-            playing || document.voices.every((v) => v.notes.length === 0)
+            playing ||
+            (vst3Instrument
+              ? selectedVoice?.notes.length === 0
+              : document.voices.every((v) => v.notes.length === 0))
           }
           onClick={onPlay}
         >

@@ -104,7 +104,7 @@ describe("firstLaunch view", () => {
       }),
       "gpu",
     );
-    assert.equal(detectHeadline("appleMetal").status, "Apple Metal détecté");
+    assert.equal(detectHeadline("appleMetal").status, "Puce Apple compatible détectée");
     assert.match(gpuDetailLine(gpu({})), /RTX 3060/);
     assert.match(gpuDetailLine(gpu({})), /12 Go/);
   });
@@ -296,7 +296,7 @@ describe("firstLaunch formatters", () => {
   it("sépare le poids du modèle YuE2 du reste du plan", () => {
     const buckets = bucketPlanBytes(plan());
     assert.equal(buckets.modelBytes, 2_665_632_320);
-    assert.equal(fileMeta("htdemucs-q8_0.gguf").title, "HTDemucs");
+    assert.equal(fileMeta("htdemucs-q8_0.gguf").title, "Séparation des pistes");
     assert.ok(vramBarPercent("q4", 12288) < vramBarPercent("q8", 12288));
   });
 

@@ -1,3 +1,4 @@
+import { TakePreviewPlayer } from "./TakePreviewPlayer";
 import { useId, useMemo, useRef, useState } from "react";
 import type {
   GenerationSummary,
@@ -19,7 +20,6 @@ type Props = {
   mixes?: VersionEventSource[];
   project: ProjectDoc;
   busy: boolean;
-  onListen: (genId: string) => void;
   onActivateTake: (genId: string) => Promise<void>;
   onRetryTake?: (genId: string) => void;
   canRetryTake?: boolean;
@@ -41,7 +41,6 @@ export function VersionHistory({
   mixes = [],
   project,
   busy,
-  onListen,
   onActivateTake,
   onRetryTake,
   canRetryTake = true,
@@ -51,6 +50,7 @@ export function VersionHistory({
   onSaveMixVersion,
   onRevertSeparation,
 }: Props) {
+  const [listeningId, setListeningId] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -405,8 +405,9 @@ export function VersionHistory({
                               <button
                                 type="button"
                                 className="btn ghost"
-                                disabled={busy || !take.hasAudio}
-                                onClick={() => onListen(take.id)}
+                                disabled={busy || !take.hasAudio || !gen?.audioPath}
+                                aria-expanded={listeningId === take.id}
+                                onClick={() => setListeningId(listeningId === take.id ? null : take.id)}
                               >
                                 {listenLabel}
                               </button>
@@ -423,12 +424,16 @@ export function VersionHistory({
                         </div>
                       </header>
 
+                      {listeningId === take.id && gen?.audioPath && (
+                        <TakePreviewPlayer audioPath={gen.audioPath} label={take.title} />
+                      )}
+
                       {take.isInterrupted && (
                         <p className="version-interrupted-msg" role="status">
                           <span className="version-interrupted-icon" aria-hidden="true">
                             !
                           </span>
-                          {t("versions.interrupted.title")}
+                          {t(take.state === "cancelled" ? "versions.cancelled.title" : take.state === "failed" ? "versions.failed.title" : "versions.interrupted.title")}
                         </p>
                       )}
 
