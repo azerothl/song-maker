@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
+import { cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
 
 const server = new McpServer({ name: 'song-maker-yue2', version: '0.1.0' });
 const reply = value => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
@@ -56,7 +56,8 @@ server.registerTool('job_status', {
 }, call(async ({ jobId }) => {
   const job = await getJob(jobId);
   return { id: job.id, state: job.state, total: job.songs.length, current: job.current,
-    completed: job.completed, failures: job.failures || [], error: job.error, outputDirectory: job.outputDirectory,
+    completed: job.completed, failures: job.failures || [], warnings: job.warnings || [],
+    error: job.error, outputDirectory: job.outputDirectory,
     createdAt: job.createdAt, finishedAt: job.finishedAt || null, safetyStoppedAt: job.safetyStoppedAt || null };
 }));
 
@@ -64,5 +65,10 @@ server.registerTool('resume_job', {
   description: 'Reprend un job arrêté par les limites de température ou de VRAM, depuis le morceau interrompu. Le GPU est contrôlé avant la reprise.',
   inputSchema: { jobId: z.string().uuid() },
 }, call(async ({ jobId }) => resumeJob(jobId)));
+
+server.registerTool('cancel_job', {
+  description: 'Annule un job YuE2 en cours. La piste en cours est arrêtée et les pistes déjà exportées sont conservées. job_status indique quand l’annulation est terminée.',
+  inputSchema: { jobId: z.string().uuid() },
+}, call(async ({ jobId }) => cancelJob(jobId)));
 
 await server.connect(new StdioServerTransport());

@@ -1,7 +1,7 @@
 import { execFile as execFileCallback, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, realpathSync } from 'node:fs';
-import { link, mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { link, mkdir, open, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,9 +48,8 @@ export function runtimeStatus() {
   const q8 = path.join(modelDir, 'yue2-3b-q8_0.gguf');
   const q4 = path.join(modelDir, 'yue2-3b-q4_0.gguf');
   const requested = process.env.SONG_MAKER_MODEL?.toLowerCase();
-  const modelName = requested === 'q4' ? (existsSync(q4) ? path.basename(q4) : null)
-    : requested === 'q8' ? (existsSync(q8) ? path.basename(q8) : null)
-      : existsSync(q8) ? path.basename(q8) : existsSync(q4) ? path.basename(q4) : null;
+  const modelPath = requested === 'q8' ? q8 : requested === undefined || requested === '' || requested === 'q4' ? q4 : null;
+  const modelName = modelPath && existsSync(modelPath) ? path.basename(modelPath) : null;
   const missing = [
     ...(!binary ? ['audiocpp_cli'] : []),
     ...(!modelName ? ['YuE2 Q4 ou Q8'] : []),
@@ -122,12 +121,12 @@ export function outputName(song, position) {
 
 export function semanticBudget(song) {
   const target = Math.round(song.duration / 30) * 30;
-  const min = target * 25;
-  if (!song.preferFullLyrics) return [200, min];
+  const targetTokens = target * 25;
+  if (song.instrumental || !song.preferFullLyrics) return [targetTokens, targetTokens];
   const words = song.lyrics.split('\n').filter(line => !line.trim().startsWith('['))
     .join(' ').trim().split(/\s+/).filter(Boolean).length;
   const maxSeconds = Math.ceil(Math.min(900, Math.max(words + 30, target + Math.max(target / 4, 30))) / 30) * 30;
-  return [min, Math.max(min, maxSeconds * 25)];
+  return [targetTokens, Math.max(targetTokens, maxSeconds * 25)];
 }
 
 export function inferenceThreads(value = process.env.SONG_MAKER_THREADS) {
@@ -156,11 +155,96 @@ export function cliArgs(song, runtime, destination) {
     '--session-option', `yue2.model_gguf=${runtime.modelName}`,
     '--request-option', `style=${style}`, '--request-option', `cot=${song.cot}`,
     '--request-option', `semantic_min_tokens=${min}`, '--request-option', `semantic_max_tokens=${max}`,
-    '--lyrics', song.instrumental ? '[Instrumental]' : song.lyrics, '--seed', String(song.seed),
+    '--lyrics', song.instrumental ? '' : song.lyrics, '--seed', String(song.seed),
     '--out', destination];
 }
 
-export async function runCli(song, destination, runtime = runtimeStatus()) {
+async function readFileRange(file, position, length, fileSize) {
+  const buffer = Buffer.alloc(length);
+  let offset = 0;
+  while (offset < length) {
+    if (position + offset >= fileSize) throw new Error('WAV tronqué : données inattendues en fin de fichier.');
+    const { bytesRead } = await file.read(buffer, offset, length - offset, position + offset);
+    if (bytesRead === 0) throw new Error('WAV tronqué : données inattendues en fin de fichier.');
+    offset += bytesRead;
+  }
+  return buffer;
+}
+
+export async function wavDurationMs(filePath) {
+  const file = await open(filePath, 'r');
+  try {
+    const { size } = await file.stat();
+    const header = await readFileRange(file, 0, 12, size);
+    if (header.toString('ascii', 0, 4) !== 'RIFF' || header.toString('ascii', 8, 12) !== 'WAVE') {
+      throw new Error('Fichier audio invalide : signature RIFF/WAVE absente.');
+    }
+    const riffEnd = header.readUInt32LE(4) + 8;
+    if (riffEnd < 12 || riffEnd > size) throw new Error('WAV tronqué : taille RIFF incohérente.');
+
+    let offset = 12;
+    let format = null;
+    let dataBytes = 0;
+    while (offset + 8 <= riffEnd) {
+      const chunk = await readFileRange(file, offset, 8, riffEnd);
+      const id = chunk.toString('ascii', 0, 4);
+      const length = chunk.readUInt32LE(4);
+      const dataOffset = offset + 8;
+      const nextOffset = dataOffset + length + (length & 1);
+      if (nextOffset > riffEnd) throw new Error('WAV tronqué : bloc ' + id + ' incomplet.');
+      if (id === 'fmt ') {
+        if (length < 16) throw new Error('WAV invalide : bloc fmt trop court.');
+        const fmt = await readFileRange(file, dataOffset, Math.min(length, 40), riffEnd);
+        let encoding = fmt.readUInt16LE(0);
+        if (encoding === 0xfffe) {
+          if (fmt.length < 40) throw new Error('WAV invalide : format extensible incomplet.');
+          encoding = fmt.readUInt16LE(24);
+        }
+        const channels = fmt.readUInt16LE(2);
+        const sampleRate = fmt.readUInt32LE(4);
+        const blockAlign = fmt.readUInt16LE(12);
+        const bitsPerSample = fmt.readUInt16LE(14);
+        const supportedPcm = encoding === 1 && [8, 16, 24, 32].includes(bitsPerSample);
+        const supportedFloat = encoding === 3 && [32, 64].includes(bitsPerSample);
+        if ((!supportedPcm && !supportedFloat) || !channels || !sampleRate || !blockAlign ||
+            blockAlign !== channels * bitsPerSample / 8) {
+          throw new Error('WAV non pris en charge : paramètres fmt invalides.');
+        }
+        format = { sampleRate, blockAlign };
+      } else if (id === 'data') {
+        dataBytes += length;
+      }
+      offset = nextOffset;
+    }
+
+    if (!format || !dataBytes || dataBytes % format.blockAlign !== 0) {
+      throw new Error('WAV invalide : bloc fmt ou données audio absents ou incomplets.');
+    }
+    return Math.round(dataBytes / format.blockAlign / format.sampleRate * 1000);
+  } finally {
+    await file.close();
+  }
+}
+
+export function assertRequestedDuration(song, actualMs) {
+  if (!song.instrumental && song.preferFullLyrics) return;
+  const expectedMs = Math.round(song.duration / 30) * 30 * 1000;
+  if (actualMs <= 0 || Math.abs(actualMs - expectedMs) > 250) {
+    const error = new Error('Durée générée (' + Math.round(actualMs / 1000) +
+      ' s) différente de la durée demandée (' + expectedMs / 1000 + ' s).');
+    error.code = 'GENERATION_DURATION_MISMATCH';
+    throw error;
+  }
+}
+
+function cancellationError() {
+  const error = new Error('Génération annulée à la demande.');
+  error.code = 'JOB_CANCELLED';
+  return error;
+}
+
+export async function runCli(song, destination, runtime = runtimeStatus(), signal) {
+  if (signal?.aborted) throw cancellationError();
   if (!runtime.ready) throw new Error(`Runtime incomplet : ${runtime.missing.join(', ')}`);
   if (process.env.SONG_MAKER_YUE2_NONCOMMERCIAL !== '1') {
     throw new Error('Définis SONG_MAKER_YUE2_NONCOMMERCIAL=1 après lecture de la licence CC BY-NC 4.0 des poids YuE2.');
@@ -172,9 +256,13 @@ export async function runCli(song, destination, runtime = runtimeStatus()) {
   const limits = gpuLimits(runtime.modelName);
   assertGpuSafe(await readGpuTelemetry(), limits);
   let tail = '';
+  let telemetryWarning = null;
   try {
     const code = await new Promise((resolve, reject) => {
       const child = spawn(runtime.binary, cliArgs(song, runtime, temporary), { windowsHide: true, shell: false });
+      const abort = () => child.kill();
+      signal?.addEventListener('abort', abort, { once: true });
+      if (signal?.aborted) abort();
       let monitorBusy = false;
       let safetyError = null;
       const monitor = setInterval(() => {
@@ -183,27 +271,40 @@ export async function runCli(song, destination, runtime = runtimeStatus()) {
         readGpuTelemetry()
           .then(telemetry => assertGpuSafe(telemetry, limits, false))
           .catch(error => {
-            safetyError = error.code === 'GPU_SAFETY_STOP' ? error : Object.assign(error, { code: 'GPU_SAFETY_STOP' });
-            child.kill();
+            if (error.code === 'GPU_SAFETY_STOP') {
+              safetyError = error;
+              child.kill();
+            } else {
+              telemetryWarning = 'Une lecture ponctuelle des capteurs NVIDIA a échoué pendant le rendu; le contrôle thermique reprendra au prochain relevé.';
+            }
           })
           .finally(() => { monitorBusy = false; });
       }, 3000);
       monitor.unref();
-      child.on('error', error => { clearInterval(monitor); reject(error); });
+      child.on('error', error => {
+        clearInterval(monitor);
+        signal?.removeEventListener('abort', abort);
+        reject(error);
+      });
       for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => {
         tail = (tail + chunk.toString()).slice(-6000);
       });
       child.on('close', code => {
         clearInterval(monitor);
+        signal?.removeEventListener('abort', abort);
         if (safetyError) reject(safetyError);
+        else if (signal?.aborted) reject(cancellationError());
         else resolve(code);
       });
     });
     if (code !== 0) throw new Error(`YuE2 a échoué (code ${code}) : ${tail.slice(-1000)}`);
     const size = (await stat(temporary)).size;
     if (size < 1024) throw new Error('YuE2 n’a pas produit un WAV valide.');
+    const durationMs = await wavDurationMs(temporary);
+    assertRequestedDuration(song, durationMs);
+    if (signal?.aborted) throw cancellationError();
     await publishExclusive(temporary, destination);
-    return { destination, bytes: size };
+    return { destination, bytes: size, durationMs, warnings: telemetryWarning ? [telemetryWarning] : [] };
   } catch (error) {
     await unlink(temporary).catch(() => {});
     throw error;
@@ -224,7 +325,9 @@ export function parseGpuTelemetry(output) {
   const temperature = Number(fields[1]);
   const freeMemoryMiB = Number(fields[2]);
   if (!fields[0] || !Number.isFinite(temperature) || !Number.isFinite(freeMemoryMiB)) {
-    throw new Error('nvidia-smi ne retourne pas la température et la mémoire libre du GPU.');
+    const error = new Error('nvidia-smi ne retourne pas la température et la mémoire libre du GPU.');
+    error.code = 'GPU_TELEMETRY_UNAVAILABLE';
+    throw error;
   }
   return { name: fields[0], temperature, freeMemoryMiB };
 }
@@ -251,7 +354,7 @@ export async function readGpuTelemetry() {
     return parseGpuTelemetry(stdout);
   } catch (error) {
     throw Object.assign(new Error(`Impossible de lire les capteurs NVIDIA avec nvidia-smi : ${error?.message || error}`),
-      { code: 'GPU_SAFETY_STOP' });
+      { code: 'GPU_TELEMETRY_UNAVAILABLE', cause: error });
   }
 }
 
@@ -287,7 +390,12 @@ async function saveJob(job) {
 
 export async function getJob(id) {
   if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('Identifiant de lot invalide.');
-  return JSON.parse(await readFile(path.join(jobsDir, `${id}.json`), 'utf8'));
+  const job = JSON.parse(await readFile(path.join(jobsDir, `${id}.json`), 'utf8'));
+  if (existsSync(path.join(jobsDir, id + '.cancel')) &&
+      !['completed', 'completed_with_errors', 'failed', 'cancelled'].includes(job.state)) {
+    job.state = 'cancelling';
+  }
+  return job;
 }
 
 async function processIsAlive(pid) {
@@ -298,6 +406,31 @@ async function processIsAlive(pid) {
   } catch (error) {
     return error?.code === 'EPERM';
   }
+}
+
+export async function cancelJob(id) {
+  if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('Identifiant de lot invalide.');
+  const target = path.join(jobsDir, id + '.json');
+  const job = JSON.parse(await readFile(target, 'utf8'));
+  if (['completed', 'completed_with_errors', 'failed', 'cancelled'].includes(job.state)) {
+    return { id, state: job.state, cancelled: false };
+  }
+
+  const marker = path.join(jobsDir, id + '.cancel');
+  await writeFile(marker, new Date().toISOString(), { flag: 'wx' }).catch(error => {
+    if (error?.code !== 'EEXIST') throw error;
+  });
+
+  if (job.state === 'paused_safety' && !(await processIsAlive(job.pid))) {
+    job.state = 'cancelled';
+    job.error = null;
+    job.cancelledAt = new Date().toISOString();
+    job.finishedAt = job.cancelledAt;
+    await saveJob(job);
+    await unlink(marker).catch(() => {});
+    return { id, state: job.state, cancelled: true };
+  }
+  return { id, state: 'cancelling', cancelled: true };
 }
 
 export async function acquireGpuLock(jobId, lockPath = gpuLockPath) {
@@ -388,7 +521,7 @@ export async function startJob(songs, outputDirectory) {
   }
   await mkdir(jobsDir, { recursive: true });
   const job = { id: randomUUID(), state: 'queued', outputDirectory: output, songs,
-    current: 0, completed: [], failures: [], error: null, createdAt: new Date().toISOString() };
+    current: 0, completed: [], failures: [], warnings: [], error: null, createdAt: new Date().toISOString() };
   return launchJob(job);
 }
 
@@ -412,17 +545,39 @@ export async function runJob(id) {
   const job = await getJob(id);
   job.state = 'running';
   job.pid = process.pid;
+  job.warnings ||= [];
   await saveJob(job);
+  const cancelPath = path.join(jobsDir, id + '.cancel');
+  const cancelController = new AbortController();
+  const cancelMonitor = setInterval(() => {
+    if (existsSync(cancelPath)) cancelController.abort();
+  }, 250);
+  cancelMonitor.unref();
+  if (existsSync(cancelPath)) cancelController.abort();
   try {
     const runtime = runtimeStatus();
     for (let i = job.current; i < job.songs.length; i++) {
+      if (cancelController.signal.aborted) {
+        job.state = 'cancelled';
+        job.error = null;
+        job.cancelledAt = new Date().toISOString();
+        break;
+      }
       job.current = i;
       await saveJob(job);
       const destination = path.join(job.outputDirectory, outputName(job.songs[i], i));
       try {
-        const result = await runCli(job.songs[i], destination, runtime);
+        const result = await runCli(job.songs[i], destination, runtime, cancelController.signal);
         job.completed.push(result);
+        job.warnings.push(...(result.warnings || []));
       } catch (error) {
+        if (error.code === 'JOB_CANCELLED' || cancelController.signal.aborted) {
+          job.state = 'cancelled';
+          job.error = null;
+          job.cancelledAt = new Date().toISOString();
+          await saveJob(job);
+          break;
+        }
         if (error.code === 'GPU_SAFETY_STOP' || error.code === 'GPU_MEMORY_LOW') {
           job.state = 'paused_safety';
           job.error = String(error?.message || error);
@@ -437,13 +592,28 @@ export async function runJob(id) {
       job.current = i + 1;
       await saveJob(job);
     }
-    if (job.state !== 'paused_safety') job.state = job.failures.length ? 'completed_with_errors' : 'completed';
+    if (existsSync(cancelPath)) {
+      job.state = 'cancelled';
+      job.error = null;
+      job.cancelledAt ||= new Date().toISOString();
+    } else if (job.state !== 'paused_safety' && job.state !== 'cancelled') {
+      job.state = job.failures.length ? 'completed_with_errors' : 'completed';
+    }
   } catch (error) {
     job.state = 'failed';
     job.error = String(error?.message || error);
   } finally {
+    clearInterval(cancelMonitor);
+    if (existsSync(cancelPath)) {
+      job.state = 'cancelled';
+      job.error = null;
+      job.cancelledAt ||= new Date().toISOString();
+    }
     job.finishedAt = new Date().toISOString();
     try { await saveJob(job); }
-    finally { await releaseGpuLock(id); }
+    finally {
+      try { await releaseGpuLock(id); }
+      finally { await unlink(cancelPath).catch(() => {}); }
+    }
   }
 }

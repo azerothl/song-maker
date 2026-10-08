@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import test from 'node:test';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
-import { cliArgs, acquireGpuLock, insideWorkspace, normalizeSong, outputName, parseBatch,
-  assertGpuSafe, gpuLimits, inferenceThreads, parseGpuTelemetry, publishExclusive, releaseGpuLock, semanticBudget,
+import { acquireGpuLock, assertGpuSafe, assertRequestedDuration, cancelJob, cliArgs, getJob, gpuLimits,
+  inferenceThreads, insideWorkspace, normalizeSong, outputName, parseBatch, parseGpuTelemetry, publishExclusive,
+  releaseGpuLock, runtimeStatus, semanticBudget, wavDurationMs,
   workspaceRoot } from '../src/runtime.mjs';
 
 const basic = { id: '01', title: 'Soft Morning', style: 'chill soul', lyrics: '[Verse]\nA quiet room', seed: 42 };
@@ -19,6 +21,108 @@ test('batch defaults feed YuE2 arguments and output names', () => {
   assert.ok(args.includes('style=English, chill soul'));
   assert.ok(args.includes('--threads'));
   assert.deepEqual(semanticBudget(song), [9000, 11250]);
+});
+
+test('instrumental requests use empty lyrics and a fixed duration token budget', () => {
+  const song = normalizeSong({ ...basic, lyrics: '', instrumentalMode: true,
+    targetDurationSec: 30, preferFullLyrics: true });
+  const args = cliArgs(song, { modelDir: 'model', modelName: 'q4.gguf' }, 'out.wav');
+  assert.equal(args[args.indexOf('--lyrics') + 1], '');
+  assert.deepEqual(semanticBudget(song), [750, 750]);
+  assert.deepEqual(semanticBudget({ ...song, duration: 360, instrumental: false, preferFullLyrics: false }), [9000, 9000]);
+});
+
+test('fixed-duration YuE2 exports must match the requested duration', () => {
+  const instrumental = normalizeSong({ ...basic, lyrics: '', instrumentalMode: true,
+    targetDurationSec: 30 });
+  assert.doesNotThrow(() => assertRequestedDuration(instrumental, 30_250));
+  assert.throws(() => assertRequestedDuration(instrumental, 29_749), { code: 'GENERATION_DURATION_MISMATCH' });
+  assert.doesNotThrow(() => assertRequestedDuration({ ...instrumental, instrumental: false,
+    preferFullLyrics: true }, 8_000));
+});
+
+test('WAV duration reader validates RIFF metadata without loading audio data', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'song-maker-wav-'));
+  const file = path.join(dir, 'test.wav');
+  const sampleRate = 8000;
+  const frames = sampleRate;
+  const wav = Buffer.alloc(44 + frames * 2);
+  wav.write('RIFF', 0);
+  wav.writeUInt32LE(wav.length - 8, 4);
+  wav.write('WAVEfmt ', 8);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(sampleRate, 24);
+  wav.writeUInt32LE(sampleRate * 2, 28);
+  wav.writeUInt16LE(2, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write('data', 36);
+  wav.writeUInt32LE(frames * 2, 40);
+  try {
+    await writeFile(file, wav);
+    assert.equal(await wavDurationMs(file), 1000);
+    await writeFile(file, wav.subarray(0, 100));
+    await assert.rejects(wavDurationMs(file), /tronqué/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('GPU telemetry parsing distinguishes unreadable sensors from overheating', () => {
+  assert.throws(() => parseGpuTelemetry('NVIDIA GeForce, N/A, N/A'), { code: 'GPU_TELEMETRY_UNAVAILABLE' });
+  assert.throws(() => assertGpuSafe({ name: 'NVIDIA', temperature: 80, freeMemoryMiB: 18000 },
+    gpuLimits('q4')), { code: 'GPU_SAFETY_STOP' });
+});
+
+test('Q4 is selected by default; Q8 requires an explicit choice', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'song-maker-runtime-'));
+  const previousCache = process.env.SONG_MAKER_CACHE;
+  const previousModel = process.env.SONG_MAKER_MODEL;
+  const cache = path.join(dir, 'cache');
+  const binaries = path.join(cache, 'binaries', 'v0.8.2', 'windows-cuda12.4');
+  const modelDir = path.join(cache, 'models', 'Yue2-3B-GGUF');
+  const files = [
+    path.join(binaries, 'audiocpp_cli.exe'),
+    path.join(modelDir, 'yue2-3b-q4_0.gguf'),
+    path.join(modelDir, 'yue2-3b-q8_0.gguf'),
+    path.join(modelDir, 'yue2-vae-f16.gguf'),
+    ...['yue2-model-config.json', 'yue2-generation-config.json', 'yue2-qwen.tiktoken', 'yue2-vae-config.json']
+      .map(name => path.join(modelDir, 'sidecars', name)),
+  ];
+  try {
+    await Promise.all(files.map(async file => {
+      await mkdir(path.dirname(file), { recursive: true });
+      await writeFile(file, '');
+    }));
+    process.env.SONG_MAKER_CACHE = cache;
+    delete process.env.SONG_MAKER_MODEL;
+    assert.equal(runtimeStatus().modelName, 'yue2-3b-q4_0.gguf');
+    process.env.SONG_MAKER_MODEL = 'q8';
+    assert.equal(runtimeStatus().modelName, 'yue2-3b-q8_0.gguf');
+  } finally {
+    if (previousCache === undefined) delete process.env.SONG_MAKER_CACHE;
+    else process.env.SONG_MAKER_CACHE = previousCache;
+    if (previousModel === undefined) delete process.env.SONG_MAKER_MODEL;
+    else process.env.SONG_MAKER_MODEL = previousModel;
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('cancel_job marks a running job for cooperative cancellation', async () => {
+  const jobId = randomUUID();
+  const jobsDir = path.join(workspaceRoot, '.song-maker-mcp', 'jobs');
+  const jobPath = path.join(jobsDir, jobId + '.json');
+  const cancelPath = path.join(jobsDir, jobId + '.cancel');
+  await mkdir(jobsDir, { recursive: true });
+  try {
+    await writeFile(jobPath, JSON.stringify({ id: jobId, state: 'running', pid: process.pid }));
+    assert.deepEqual(await cancelJob(jobId), { id: jobId, state: 'cancelling', cancelled: true });
+    assert.equal((await getJob(jobId)).state, 'cancelling');
+  } finally {
+    await rm(jobPath, { force: true });
+    await rm(cancelPath, { force: true });
+  }
 });
 
 test('musical metadata is included in the style prompt', () => {
