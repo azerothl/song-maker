@@ -1,6 +1,6 @@
 //! Native input capture via cpal (#330).
 //!
-//! Windows: WASAPI **shared** (cpal default). Not exclusive WASAPI, not ASIO.
+//! Windows: WASAPI shared (cpal default) or exclusive. Not ASIO.
 //! macOS: Core Audio. Linux: ALSA (often via PipeWire/Pulse compatibility).
 //! Round-trip figures are buffer-size estimates, not a speaker→mic loopback.
 
@@ -15,12 +15,14 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::mpsc::{self, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use uuid::Uuid;
 
 const MAX_RECORD_MS: u64 = 10 * 60 * 1000;
+const AUDIO_WRITE_QUEUE_BUFFERS: usize = 16;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -43,6 +45,7 @@ pub struct NativeInputDevice {
     pub channels: Option<u16>,
     pub buffer_frames: Option<u32>,
     pub estimated_round_trip_ms: Option<u32>,
+    pub wasapi_device_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -67,6 +70,7 @@ pub struct NativeCaptureStopResult {
     pub duration_ms: i64,
     pub sample_rate: u32,
     pub estimated_round_trip_ms: u32,
+    pub warning: Option<String>,
 }
 
 pub fn host_api_id() -> &'static str {
@@ -95,7 +99,26 @@ pub fn backend_info() -> NativeCaptureBackend {
         asio: false,
         platform: std::env::consts::OS.into(),
         round_trip_measured: false,
-        notes_fr: "Capture native cpal : WASAPI partagé sous Windows, Core Audio sous macOS, ALSA sous Linux. WASAPI exclusif et ASIO ne sont pas livrés. Latence = estimation taille de tampon, pas une boucle haut-parleur → micro.".into(),
+        notes_fr: backend_notes(),
+    }
+}
+
+fn backend_notes() -> String {
+    #[cfg(windows)]
+    {
+        "Windows : WASAPI partagé ou exclusif. ASIO n’est pas livré. Le délai affiché est une estimation de tampon, pas une mesure entrée-sortie.".into()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        "macOS : Core Audio. Le délai affiché est une estimation de tampon, pas une mesure entrée-sortie.".into()
+    }
+    #[cfg(target_os = "linux")]
+    {
+        "Linux : ALSA, souvent via PipeWire ou PulseAudio. Le délai affiché est une estimation de tampon, pas une mesure entrée-sortie.".into()
+    }
+    #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+    {
+        "Capture audio native indisponible sur cette plateforme.".into()
     }
 }
 
@@ -107,19 +130,19 @@ pub fn estimated_round_trip_ms(sample_rate: u32, buffer_frames: u32) -> u32 {
     (one_way_ms * 2.0).round() as u32
 }
 
-fn buffer_frames_from_supported(cfg: &cpal::SupportedStreamConfig) -> u32 {
-    match cfg.buffer_size() {
-        cpal::SupportedBufferSize::Range { min, max } => {
-            if *min > 0 {
-                *min
-            } else if *max > 0 {
-                *max
-            } else {
-                0
-            }
-        }
+fn preferred_buffer_frames(size: &cpal::SupportedBufferSize) -> u32 {
+    match size {
+        // A supported range is not the active buffer size. In particular,
+        // Windows drivers may report 0..u32::MAX when the host chooses the
+        // actual size. Treat that as unknown and keep CPAL's default instead
+        // of forcing the (possibly enormous) maximum as a fixed buffer.
+        cpal::SupportedBufferSize::Range { min, .. } => *min,
         cpal::SupportedBufferSize::Unknown => 0,
     }
+}
+
+fn buffer_frames_from_supported(cfg: &cpal::SupportedStreamConfig) -> u32 {
+    preferred_buffer_frames(cfg.buffer_size())
 }
 
 fn device_id(index: usize, name: &str) -> String {
@@ -129,6 +152,8 @@ fn device_id(index: usize, name: &str) -> String {
 pub fn list_input_devices() -> Result<Vec<NativeInputDevice>, String> {
     let host = cpal::default_host();
     let default_name = host.default_input_device().and_then(|d| d.name().ok());
+    #[cfg(windows)]
+    let mut wasapi_ids_by_name = wasapi_capture_ids_by_name();
     let iter = host
         .input_devices()
         .map_err(|e| format!("Périphériques d’entrée natifs inaccessibles : {e}"))?;
@@ -154,6 +179,12 @@ pub fn list_input_devices() -> Result<Vec<NativeInputDevice>, String> {
             _ => None,
         };
         let is_default = default_name.as_ref().is_some_and(|d| d == &name);
+        #[cfg(windows)]
+        let wasapi_device_id = wasapi_ids_by_name
+            .get_mut(&name)
+            .and_then(|ids| ids.pop_front());
+        #[cfg(not(windows))]
+        let wasapi_device_id = None;
         out.push(NativeInputDevice {
             id: device_id(index, &name),
             name,
@@ -162,6 +193,7 @@ pub fn list_input_devices() -> Result<Vec<NativeInputDevice>, String> {
             channels,
             buffer_frames,
             estimated_round_trip_ms: estimated,
+            wasapi_device_id,
         });
     }
     Ok(out)
@@ -234,12 +266,78 @@ fn open_wav_writer(
 }
 
 struct InputStreamSink {
-    writer: Arc<Mutex<Option<WavWriter<BufWriter<File>>>>>,
+    writer: SyncSender<Vec<i16>>,
     stop: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
     peak: Arc<AtomicU32>,
     frames: Arc<AtomicU64>,
+    queue_overflow: Arc<AtomicBool>,
     channels: u16,
+}
+
+fn enqueue_capture_samples(
+    writer: &SyncSender<Vec<i16>>,
+    pcm: Vec<i16>,
+    channels: u16,
+    frames: &AtomicU64,
+    stop: &AtomicBool,
+    queue_overflow: &AtomicBool,
+) {
+    let captured_frames = (pcm.len() as u64) / u64::from(channels.max(1));
+    match writer.try_send(pcm) {
+        Ok(()) => {
+            frames.fetch_add(captured_frames, Ordering::Relaxed);
+        }
+        Err(TrySendError::Full(_)) => {
+            queue_overflow.store(true, Ordering::SeqCst);
+            stop.store(true, Ordering::SeqCst);
+        }
+        Err(TrySendError::Disconnected(_)) => {
+            stop.store(true, Ordering::SeqCst);
+        }
+    }
+}
+
+fn write_capture_samples(
+    path: PathBuf,
+    sample_rate: u32,
+    channels: u16,
+    samples: mpsc::Receiver<Vec<i16>>,
+    stop: Arc<AtomicBool>,
+    write_error: Arc<Mutex<Option<String>>>,
+) -> Result<(), String> {
+    let mut writer = match open_wav_writer(&path, sample_rate, channels) {
+        Ok(writer) => writer,
+        Err(error) => {
+            if let Ok(mut stored) = write_error.lock() {
+                *stored = Some(error.clone());
+            }
+            stop.store(true, Ordering::SeqCst);
+            return Err(error);
+        }
+    };
+
+    for chunk in samples {
+        for sample in chunk {
+            if let Err(error) = writer.write_sample(sample) {
+                let message = format!("Écriture du fichier de capture native : {error}");
+                if let Ok(mut stored) = write_error.lock() {
+                    *stored = Some(message.clone());
+                }
+                stop.store(true, Ordering::SeqCst);
+                return Err(message);
+            }
+        }
+    }
+
+    writer.finalize().map_err(|error| {
+        let message = format!("Finalisation du fichier de capture native : {error}");
+        if let Ok(mut stored) = write_error.lock() {
+            *stored = Some(message.clone());
+        }
+        stop.store(true, Ordering::SeqCst);
+        message
+    })
 }
 
 fn run_input_stream<T>(
@@ -258,6 +356,7 @@ where
         paused,
         peak,
         frames,
+        queue_overflow,
         channels,
     } = sink;
     let err_flag = Arc::new(Mutex::new(None::<String>));
@@ -273,7 +372,8 @@ where
     let paused_cb = Arc::clone(&paused);
     let peak_cb = Arc::clone(&peak);
     let frames_cb = Arc::clone(&frames);
-    let writer_cb = Arc::clone(&writer);
+    let writer_cb = writer.clone();
+    let queue_overflow_cb = Arc::clone(&queue_overflow);
     let stream = device
         .build_input_stream(
             config,
@@ -293,18 +393,14 @@ where
                 }
                 let milli = (local_peak.clamp(0.0, 1.0) * 1000.0).round() as u32;
                 peak_cb.store(milli, Ordering::Relaxed);
-                let nch = u64::from(channels.max(1));
-                frames_cb.fetch_add((pcm.len() as u64) / nch, Ordering::Relaxed);
-                if let Ok(mut g) = writer_cb.lock() {
-                    if let Some(w) = g.as_mut() {
-                        for s in pcm {
-                            if w.write_sample(s).is_err() {
-                                stop_cb.store(true, Ordering::SeqCst);
-                                break;
-                            }
-                        }
-                    }
-                }
+                enqueue_capture_samples(
+                    &writer_cb,
+                    pcm,
+                    channels,
+                    &frames_cb,
+                    &stop_cb,
+                    &queue_overflow_cb,
+                );
             },
             err_cb,
             None,
@@ -328,6 +424,12 @@ where
         thread::sleep(Duration::from_millis(20));
     }
     drop(stream);
+    if queue_overflow.load(Ordering::SeqCst) {
+        return Err(
+            "Le disque ne suit pas le débit de capture ; la prise a été arrêtée pour éviter un fichier incomplet."
+                .into(),
+        );
+    }
     Ok(())
 }
 
@@ -355,33 +457,249 @@ fn spawn_capture_thread(
         if let Ok(mut g) = sample_rate.lock() {
             *g = (sr, channels, buffer_frames);
         }
-        let writer = Arc::new(Mutex::new(Some(open_wav_writer(&abs_path, sr, channels)?)));
-        let make_sink = || InputStreamSink {
-            writer: Arc::clone(&writer),
-            stop: Arc::clone(&stop),
-            paused: Arc::clone(&paused),
-            peak: Arc::clone(&peak),
-            frames: Arc::clone(&frames),
-            channels,
-        };
-        let run = |cfg: &StreamConfig| match sample_format {
-            SampleFormat::F32 => run_input_stream::<f32>(&device, cfg, make_sink()),
-            SampleFormat::I16 => run_input_stream::<i16>(&device, cfg, make_sink()),
-            SampleFormat::U16 => run_input_stream::<u16>(&device, cfg, make_sink()),
-            other => Err(format!("Format d’échantillon natif non géré : {other:?}")),
-        };
-        let result = match run(&config) {
-            Err(_e) if matches!(config.buffer_size, cpal::BufferSize::Fixed(_)) => {
-                config.buffer_size = cpal::BufferSize::Default;
-                run(&config)
+        let (writer, samples) = mpsc::sync_channel(AUDIO_WRITE_QUEUE_BUFFERS);
+        let write_error = Arc::new(Mutex::new(None::<String>));
+        let write_error_thread = Arc::clone(&write_error);
+        let stop_writer = Arc::clone(&stop);
+        let writer_path = abs_path.clone();
+        let writer_join = thread::spawn(move || {
+            write_capture_samples(
+                writer_path,
+                sr,
+                channels,
+                samples,
+                stop_writer,
+                write_error_thread,
+            )
+        });
+        let queue_overflow = Arc::new(AtomicBool::new(false));
+        let result = {
+            let make_sink = || InputStreamSink {
+                writer: writer.clone(),
+                stop: Arc::clone(&stop),
+                paused: Arc::clone(&paused),
+                peak: Arc::clone(&peak),
+                frames: Arc::clone(&frames),
+                queue_overflow: Arc::clone(&queue_overflow),
+                channels,
+            };
+            let run = |cfg: &StreamConfig| match sample_format {
+                SampleFormat::F32 => run_input_stream::<f32>(&device, cfg, make_sink()),
+                SampleFormat::I16 => run_input_stream::<i16>(&device, cfg, make_sink()),
+                SampleFormat::U16 => run_input_stream::<u16>(&device, cfg, make_sink()),
+                other => Err(format!("Format d’échantillon natif non géré : {other:?}")),
+            };
+            match run(&config) {
+                Err(_e) if matches!(config.buffer_size, cpal::BufferSize::Fixed(_)) => {
+                    config.buffer_size = cpal::BufferSize::Default;
+                    run(&config)
+                }
+                other => other,
             }
-            other => other,
         };
-        if let Ok(mut g) = writer.lock() {
-            if let Some(w) = g.take() {
-                let _ = w.finalize();
-            }
+        drop(writer);
+        let writer_result = match writer_join.join() {
+            Ok(result) => result,
+            Err(_) => Err("Le thread d’écriture de la capture native a planté.".into()),
+        };
+        match result {
+            Err(error) => Err(error),
+            Ok(()) => match writer_result {
+                Err(error) => Err(error),
+                Ok(()) => write_error
+                    .lock()
+                    .map_err(|_| "État d’écriture de capture inaccessible.".to_string())?
+                    .clone()
+                    .map_or(Ok(()), Err),
+            },
         }
+    })
+}
+
+#[cfg(windows)]
+fn wasapi_capture_ids_by_name(
+) -> std::collections::HashMap<String, std::collections::VecDeque<String>> {
+    std::thread::spawn(|| {
+        use wasapi::{DeviceEnumerator, Direction};
+
+        if wasapi::initialize_mta().ok().is_err() {
+            return Vec::new();
+        }
+        let devices = (|| {
+            let enumerator = DeviceEnumerator::new().map_err(|e| e.to_string())?;
+            let collection = enumerator
+                .get_device_collection(&Direction::Capture)
+                .map_err(|e| e.to_string())?;
+            let mut devices = Vec::new();
+            for index in 0..collection.get_nbr_devices().map_err(|e| e.to_string())? {
+                let device = collection
+                    .get_device_at_index(index)
+                    .map_err(|e| e.to_string())?;
+                devices.push((
+                    device.get_friendlyname().map_err(|e| e.to_string())?,
+                    device.get_id().map_err(|e| e.to_string())?,
+                ));
+            }
+            Ok::<_, String>(devices)
+        })();
+        wasapi::deinitialize();
+        devices.unwrap_or_default()
+    })
+    .join()
+    .unwrap_or_default()
+    .into_iter()
+    .fold(
+        std::collections::HashMap::new(),
+        |mut by_name, (name, id)| {
+            by_name
+                .entry(name)
+                .or_insert_with(std::collections::VecDeque::new)
+                .push_back(id);
+            by_name
+        },
+    )
+}
+
+#[cfg(windows)]
+fn spawn_wasapi_exclusive_capture_thread(
+    endpoint_id: String,
+    stop: Arc<AtomicBool>,
+    paused: Arc<AtomicBool>,
+    peak: Arc<AtomicU32>,
+    frames: Arc<AtomicU64>,
+    abs_path: PathBuf,
+    sample_rate: Arc<Mutex<(u32, u16, u32)>>,
+) -> JoinHandle<Result<(), String>> {
+    thread::spawn(move || {
+        use wasapi::{DeviceEnumerator, Direction, SampleType, StreamMode, WaveFormat};
+
+        if wasapi::initialize_mta().ok().is_err() {
+            return Err("Impossible d’initialiser le moteur audio Windows.".into());
+        }
+        let result = (|| {
+            let enumerator =
+                DeviceEnumerator::new().map_err(|e| format!("Ouverture WASAPI : {e}"))?;
+            let device = enumerator
+                .get_device(&endpoint_id)
+                .map_err(|e| format!("Entrée WASAPI introuvable : {e}"))?;
+            let mut client = device
+                .get_iaudioclient()
+                .map_err(|e| format!("Ouverture de l’entrée WASAPI : {e}"))?;
+
+            let mut supported_format = None;
+            for (rate, channels) in [
+                (48_000usize, 2usize),
+                (44_100, 2),
+                (48_000, 1),
+                (44_100, 1),
+                (96_000, 2),
+                (96_000, 1),
+                (32_000, 1),
+                (16_000, 1),
+            ] {
+                let requested = WaveFormat::new(16, 16, &SampleType::Int, rate, channels, None);
+                if let Ok(format) = client.is_supported_exclusive_with_quirks(&requested) {
+                    supported_format = Some(format);
+                    break;
+                }
+            }
+            let format = supported_format.ok_or_else(|| {
+                "Cette entrée ne propose pas de format PCM 16 bits compatible en mode exclusif. Essayez le mode partagé.".to_string()
+            })?;
+            let actual_sample_rate = format.get_samplespersec();
+            let channels = format.get_nchannels();
+            let block_align = format.get_blockalign() as usize;
+            let (default_period, minimum_period) = client
+                .get_device_period()
+                .map_err(|e| format!("Lecture de la période WASAPI : {e}"))?;
+            let period_hns = default_period.max(minimum_period).max(1);
+            let mode = StreamMode::PollingExclusive {
+                buffer_duration_hns: period_hns.saturating_mul(2),
+                period_hns,
+            };
+            client
+                .initialize_client(&format, &Direction::Capture, &mode)
+                .map_err(|e| format!("L’entrée audio est occupée ou refuse le mode exclusif : {e}. Fermez les autres applications audio ou revenez au mode partagé."))?;
+            let buffer_frames = client
+                .get_buffer_size()
+                .map_err(|e| format!("Lecture du tampon WASAPI : {e}"))?;
+            if let Ok(mut current) = sample_rate.lock() {
+                *current = (actual_sample_rate, channels, buffer_frames);
+            }
+            let writer = Arc::new(Mutex::new(Some(open_wav_writer(
+                &abs_path,
+                actual_sample_rate,
+                channels,
+            )?)));
+            let capture = client
+                .get_audiocaptureclient()
+                .map_err(|e| format!("Ouverture du flux de capture WASAPI : {e}"))?;
+            client
+                .start_stream()
+                .map_err(|e| format!("Démarrage de la capture WASAPI exclusive : {e}"))?;
+
+            let capture_result = (|| {
+                while !stop.load(Ordering::Relaxed) {
+                    let available = client
+                        .get_current_padding()
+                        .map_err(|e| format!("Lecture du tampon de capture WASAPI : {e}"))?;
+                    if available > 0 {
+                        let byte_count = (available as usize)
+                            .checked_mul(block_align)
+                            .ok_or_else(|| "Tampon WASAPI trop grand.".to_string())?;
+                        let mut raw = vec![0u8; byte_count];
+                        let (read_frames, info) = capture
+                            .read_from_device(&mut raw)
+                            .map_err(|e| format!("Lecture de l’entrée WASAPI : {e}"))?;
+                        if info.flags.silent {
+                            raw.fill(0);
+                        }
+                        if !paused.load(Ordering::Relaxed) && read_frames > 0 {
+                            let sample_count = (read_frames as usize)
+                                .checked_mul(channels as usize)
+                                .ok_or_else(|| "Paquet audio WASAPI trop grand.".to_string())?;
+                            let mut pcm = Vec::with_capacity(sample_count);
+                            let mut local_peak = 0.0f32;
+                            for bytes in raw[..sample_count * 2].chunks_exact(2) {
+                                let sample = i16::from_le_bytes([bytes[0], bytes[1]]);
+                                local_peak = local_peak.max((sample as f32 / 32768.0).abs());
+                                pcm.push(sample);
+                            }
+                            if let Ok(mut output) = writer.lock() {
+                                if let Some(output) = output.as_mut() {
+                                    for sample in pcm {
+                                        output.write_sample(sample).map_err(|e| e.to_string())?;
+                                    }
+                                }
+                            }
+                            peak.store(
+                                (local_peak.clamp(0.0, 1.0) * 1000.0).round() as u32,
+                                Ordering::Relaxed,
+                            );
+                            frames.fetch_add(read_frames as u64, Ordering::Relaxed);
+                        }
+                    }
+                    let elapsed_ms = frames.load(Ordering::Relaxed).saturating_mul(1000)
+                        / u64::from(actual_sample_rate.max(1));
+                    if elapsed_ms >= MAX_RECORD_MS {
+                        break;
+                    }
+                    thread::sleep(Duration::from_millis(2));
+                }
+                Ok::<(), String>(())
+            })();
+            let stop_result = client
+                .stop_stream()
+                .map_err(|e| format!("Arrêt de la capture WASAPI : {e}"));
+            if let Ok(mut output) = writer.lock() {
+                if let Some(output) = output.take() {
+                    output.finalize().map_err(|e| e.to_string())?;
+                }
+            }
+            capture_result?;
+            stop_result
+        })();
+        wasapi::deinitialize();
         result
     })
 }
@@ -401,6 +719,7 @@ pub fn start_native_capture(
     state: tauri::State<NativeCaptureState>,
     id: String,
     device_id: Option<String>,
+    backend: Option<String>,
 ) -> Result<UserAudioCaptureSession, String> {
     let mut g = state
         .inner
@@ -409,10 +728,37 @@ pub fn start_native_capture(
     if g.is_some() {
         return Err("Une capture native est déjà en cours.".into());
     }
+    let selected_backend = backend.as_deref().unwrap_or("shared");
+    if !matches!(selected_backend, "shared" | "exclusive") {
+        return Err("Mode d’enregistrement natif inconnu.".into());
+    }
     let folder = project_folder(&id);
     let _ = load_project(&folder)?;
     ensure_user_audio_dirs(&folder)?;
-    let (device, _name) = pick_device(device_id.as_deref())?;
+    #[cfg(windows)]
+    let exclusive_endpoint = if selected_backend == "exclusive" {
+        let devices = list_input_devices()?;
+        let selected = match device_id.as_deref() {
+            Some(wanted) => devices
+                .iter()
+                .find(|device| device.id == wanted)
+                .ok_or_else(|| "Le périphérique sélectionné n’est plus disponible.".to_string())?,
+            None => devices
+                .iter()
+                .find(|device| device.is_default)
+                .or_else(|| devices.first())
+                .ok_or_else(|| "Aucun périphérique d’entrée natif.".to_string())?,
+        };
+        Some(selected.wasapi_device_id.clone().ok_or_else(|| {
+            "Le mode exclusif n’est pas disponible pour cette entrée. Choisissez le mode partagé.".to_string()
+        })?)
+    } else {
+        None
+    };
+    #[cfg(not(windows))]
+    if selected_backend == "exclusive" {
+        return Err("Le mode exclusif WASAPI est disponible uniquement sous Windows.".into());
+    }
     let session_id = Uuid::new_v4().to_string();
     if !capture_session_id_ok(&session_id) {
         return Err("Identifiant de session de capture invalide.".into());
@@ -427,15 +773,42 @@ pub fn start_native_capture(
     let peak = Arc::new(AtomicU32::new(0));
     let frames = Arc::new(AtomicU64::new(0));
     let rates = Arc::new(Mutex::new((48_000u32, 1u16, 0u32)));
-    let join = spawn_capture_thread(
-        device,
-        Arc::clone(&stop),
-        Arc::clone(&paused),
-        Arc::clone(&peak),
-        Arc::clone(&frames),
-        abs_path.clone(),
-        Arc::clone(&rates),
-    );
+    #[cfg(windows)]
+    let join = if let Some(endpoint_id) = exclusive_endpoint {
+        spawn_wasapi_exclusive_capture_thread(
+            endpoint_id,
+            Arc::clone(&stop),
+            Arc::clone(&paused),
+            Arc::clone(&peak),
+            Arc::clone(&frames),
+            abs_path.clone(),
+            Arc::clone(&rates),
+        )
+    } else {
+        let (device, _name) = pick_device(device_id.as_deref())?;
+        spawn_capture_thread(
+            device,
+            Arc::clone(&stop),
+            Arc::clone(&paused),
+            Arc::clone(&peak),
+            Arc::clone(&frames),
+            abs_path.clone(),
+            Arc::clone(&rates),
+        )
+    };
+    #[cfg(not(windows))]
+    let join = {
+        let (device, _name) = pick_device(device_id.as_deref())?;
+        spawn_capture_thread(
+            device,
+            Arc::clone(&stop),
+            Arc::clone(&paused),
+            Arc::clone(&peak),
+            Arc::clone(&frames),
+            abs_path.clone(),
+            Arc::clone(&rates),
+        )
+    };
     // Give the audio thread a moment to open the device.
     thread::sleep(Duration::from_millis(80));
     if join.is_finished() {
@@ -443,8 +816,14 @@ pub fn start_native_capture(
             Ok(Ok(())) => {
                 return Err("Le flux d’entrée natif s’est arrêté immédiatement.".into());
             }
-            Ok(Err(e)) => return Err(e),
-            Err(_) => return Err("Le flux d’entrée natif a planté au démarrage.".into()),
+            Ok(Err(e)) => {
+                let _ = std::fs::remove_file(&abs_path);
+                return Err(e);
+            }
+            Err(_) => {
+                let _ = std::fs::remove_file(&abs_path);
+                return Err("Le flux d’entrée natif a planté au démarrage.".into());
+            }
         }
     }
     *g = Some(ActiveNativeCapture {
@@ -539,13 +918,14 @@ pub fn stop_native_capture(
         let _ = std::fs::remove_file(&active.abs_path);
         return Err(join_err.unwrap_or_else(|| "Enregistrement natif vide.".into()));
     }
-    if let Some(e) = join_err {
-        // Keep the file if we got samples; still report the stream error after stop.
-        if duration_ms <= 0 {
+    let warning = match join_err {
+        Some(error) if duration_ms <= 0 => {
             let _ = std::fs::remove_file(&active.abs_path);
-            return Err(e);
+            return Err(error);
         }
-    }
+        Some(error) => Some(error),
+        None => None,
+    };
     Ok(NativeCaptureStopResult {
         session_id: active.session_id,
         relative_path: active.relative_path,
@@ -553,6 +933,7 @@ pub fn stop_native_capture(
         duration_ms,
         sample_rate,
         estimated_round_trip_ms: estimated_round_trip_ms(sample_rate, buffer_frames),
+        warning,
     })
 }
 
@@ -573,7 +954,13 @@ mod tests {
                 || info.host_api == "coreaudio"
                 || info.host_api == "unknown"
         );
+        #[cfg(windows)]
         assert!(info.notes_fr.contains("WASAPI"));
+        #[cfg(target_os = "macos")]
+        assert!(info.notes_fr.contains("Core Audio"));
+        #[cfg(target_os = "linux")]
+        assert!(info.notes_fr.contains("ALSA"));
+        #[cfg(windows)]
         assert!(info.notes_fr.contains("ASIO"));
     }
 
@@ -582,6 +969,21 @@ mod tests {
         assert_eq!(estimated_round_trip_ms(48_000, 480), 20);
         assert_eq!(estimated_round_trip_ms(0, 480), 0);
         assert_eq!(estimated_round_trip_ms(48_000, 0), 0);
+    }
+
+    #[test]
+    fn unknown_buffer_range_does_not_become_the_maximum() {
+        let range = cpal::SupportedBufferSize::Range {
+            min: 0,
+            max: u32::MAX,
+        };
+        assert_eq!(preferred_buffer_frames(&range), 0);
+
+        let range = cpal::SupportedBufferSize::Range {
+            min: 128,
+            max: 2048,
+        };
+        assert_eq!(preferred_buffer_frames(&range), 128);
     }
 
     #[test]
@@ -600,6 +1002,45 @@ mod tests {
         let samples: Vec<i16> = r.samples::<i16>().map(|s| s.unwrap()).collect();
         assert_eq!(samples, vec![0, 1234, -1234, 0]);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn queued_writer_drains_samples_and_finalizes_wav() {
+        let dir = std::env::temp_dir().join(format!("song-maker-native-queue-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("queued.wav");
+        let (sender, receiver) = mpsc::sync_channel(1);
+        let stop = Arc::new(AtomicBool::new(false));
+        let write_error = Arc::new(Mutex::new(None));
+        let writer_stop = Arc::clone(&stop);
+        let writer_error = Arc::clone(&write_error);
+        let writer = thread::spawn(move || {
+            write_capture_samples(path, 48_000, 1, receiver, writer_stop, writer_error)
+        });
+        sender.send(vec![0i16, 1234, -1234, 0]).unwrap();
+        drop(sender);
+
+        writer.join().unwrap().unwrap();
+        let mut reader = WavReader::open(dir.join("queued.wav")).unwrap();
+        let samples: Vec<i16> = reader.samples::<i16>().map(|s| s.unwrap()).collect();
+        drop(reader);
+        assert_eq!(samples, vec![0, 1234, -1234, 0]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn full_audio_queue_stops_capture_instead_of_blocking() {
+        let (sender, _receiver) = mpsc::sync_channel(1);
+        let frames = AtomicU64::new(0);
+        let stop = AtomicBool::new(false);
+        let queue_overflow = AtomicBool::new(false);
+
+        enqueue_capture_samples(&sender, vec![0i16; 64], 2, &frames, &stop, &queue_overflow);
+        enqueue_capture_samples(&sender, vec![0i16; 64], 2, &frames, &stop, &queue_overflow);
+
+        assert_eq!(frames.load(Ordering::Relaxed), 32);
+        assert!(stop.load(Ordering::SeqCst));
+        assert!(queue_overflow.load(Ordering::SeqCst));
     }
 
     #[test]

@@ -25,6 +25,9 @@ export type LoraCompatibilityStatus =
 /** Unfused only is loadable; ComfyUI / fused layouts are rejected. */
 export type LoraLayout =
   | "unfused_safetensors"
+  | "upstream_state_dict"
+  | "combined_planner_decoder"
+  | "unknown"
   | "comfyui"
   | "fused_merged";
 
@@ -42,6 +45,8 @@ export type LoraPack = {
   displayName: string;
   /** HF repo id, e.g. Mothersuperior/... */
   repo: string;
+  /** Immutable HF revision for verified downloads. */
+  revision?: string;
   license: LoraLicenseId;
   /** Trigger token when the pack documents one (e.g. chnsn). */
   trigger?: string;

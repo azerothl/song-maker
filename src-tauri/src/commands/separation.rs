@@ -64,7 +64,6 @@ pub async fn start_separation(
         // Full SHA check before real separation — no fake success on corrupt weights.
         crate::bs_roformer::verify_sha256(&cache)?;
         // Reload server config so bs_roformer is registered.
-        state.server.shutdown();
     }
     if separator == "mel_band_roformer" {
         let cache = PathBuf::from(&settings.cache_dir);
@@ -76,14 +75,10 @@ pub async fn start_separation(
             ));
         }
         crate::mel_band_roformer::verify_sha256(&cache)?;
-        state.server.shutdown();
     }
 
-    let server_url = if separator == "htdemucs_6s" {
-        None
-    } else {
-        Some(state.server.ensure_started(&settings)?)
-    };
+    let server = &state.server;
+    let runtime_settings = settings.clone();
     let queue = state.queue.clone();
     let queue_ref = queue.clone();
 
@@ -108,6 +103,14 @@ pub async fn start_separation(
 
     let separator_result = queue
         .run_exclusive(Some(id.clone()), "Séparation en cours", async move {
+            if matches!(model_id.as_str(), "bs_roformer" | "mel_band_roformer") {
+                server.shutdown();
+            }
+            let server_url = if model_id == "htdemucs_6s" {
+                None
+            } else {
+                Some(server.ensure_started(&runtime_settings)?)
+            };
             atomic_write_json(
                 &sep_dir_clone.join("job.json"),
                 &json!({
@@ -301,8 +304,25 @@ pub async fn start_separation(
         }),
     )?;
 
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
+    doc = load_project(&folder)?;
     let mix_id = next_folder_id(&folder.join("mixes"), "mix-v")?;
-    let mut mix = new_mix_from_separation(&mix_id, &sep_id, &stem_meta);
+    let instrumental_source = std::fs::read_to_string(
+        folder
+            .join("generations")
+            .join(&gen_id)
+            .join("request.json"),
+    )
+    .ok()
+    .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+    .and_then(|request| {
+        request
+            .get("instrumentalMode")
+            .and_then(|value| value.as_bool())
+    })
+    .unwrap_or(false);
+    let mut mix = new_mix_from_separation(&mix_id, &sep_id, &stem_meta, instrumental_source);
     // Carry over user/custom tracks from the previous active mix (import/record).
     if let Some(prev_id) = &doc.active_mix_id {
         let prev_path = folder.join("mixes").join(format!("{prev_id}.json"));
@@ -333,25 +353,28 @@ pub async fn start_separation(
         .unwrap_or(0) as f64
         / 1000.0;
     if audio_sec > 0.5 && wall_ms > 0.0 {
-        let mut next_settings = settings.clone();
-        let sample = wall_ms / audio_sec;
-        let entry = next_settings
-            .separator_time_stats
-            .entry(separator.to_string())
-            .or_insert_with(|| crate::models::SeparatorTimeStat {
-                ms_per_audio_sec: sample,
-                samples: 0,
-            });
-        if entry.samples == 0 {
-            entry.ms_per_audio_sec = sample;
-            entry.samples = 1;
-        } else {
-            let n = entry.samples + 1;
-            entry.ms_per_audio_sec =
-                (entry.ms_per_audio_sec * f64::from(entry.samples) + sample) / f64::from(n);
-            entry.samples = n;
+        if let Ok(_configuration) = super::settings::try_model_change(&state) {
+            if let Ok(mut next_settings) = load_settings() {
+                let sample = wall_ms / audio_sec;
+                let entry = next_settings
+                    .separator_time_stats
+                    .entry(separator.to_string())
+                    .or_insert_with(|| crate::models::SeparatorTimeStat {
+                        ms_per_audio_sec: sample,
+                        samples: 0,
+                    });
+                if entry.samples == 0 {
+                    entry.ms_per_audio_sec = sample;
+                    entry.samples = 1;
+                } else {
+                    let n = entry.samples + 1;
+                    entry.ms_per_audio_sec =
+                        (entry.ms_per_audio_sec * f64::from(entry.samples) + sample) / f64::from(n);
+                    entry.samples = n;
+                }
+                let _ = save_settings(&next_settings);
+            }
         }
-        let _ = save_settings(&next_settings);
     }
 
     state.queue.set_state("completed", "Terminé", Some(id));
@@ -489,6 +512,8 @@ pub fn list_separation_versions_cmd(id: String) -> Result<Vec<SeparationVersionS
 #[tauri::command]
 pub fn activate_separation_version(id: String, separation_id: String) -> Result<MixDoc, String> {
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     let sep_dir = folder.join("separations").join(&separation_id);
     if !sep_dir.join("separation.json").is_file() {
@@ -652,6 +677,7 @@ mod separation_version_tests {
                 "abc".into(),
                 1000,
             )],
+            false,
         );
         atomic_write_json(&root.join("mixes/mix-v001.json"), &mix).unwrap();
         assert_eq!(
@@ -673,7 +699,7 @@ mod separation_version_tests {
         )
         .unwrap();
         ensure_dir(&root.join("mixes")).unwrap();
-        let mix = new_mix_from_separation("mix-v002", "sep-002", &[]);
+        let mix = new_mix_from_separation("mix-v002", "sep-002", &[], false);
         atomic_write_json(&root.join("mixes/mix-v002.json"), &mix).unwrap();
         let doc = ProjectDoc {
             schema: SCHEMA_PROJECT.into(),

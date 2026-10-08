@@ -26,6 +26,8 @@ pub fn read_score_abc(id: String, gen_id: String) -> Result<Option<String>, Stri
 #[tauri::command]
 pub fn save_score(id: String, document: serde_json::Value) -> Result<(ProjectDoc, String), String> {
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     let scores_dir = folder.join("scores");
     ensure_dir(&scores_dir).map_err(|e| e.to_string())?;
@@ -63,6 +65,8 @@ pub fn load_score(id: String) -> Result<Option<serde_json::Value>, String> {
 #[tauri::command]
 pub fn clear_score(id: String) -> Result<ProjectDoc, String> {
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     doc.active_score_id = None;
     doc.updated_at = now_iso();
@@ -160,6 +164,8 @@ pub fn load_score_version(
 #[tauri::command]
 pub fn set_active_score(id: String, score_id: String) -> Result<ProjectDoc, String> {
     let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let mut doc = load_project(&folder)?;
     let path = folder.join("scores").join(format!("{score_id}.json"));
     if !path.exists() {

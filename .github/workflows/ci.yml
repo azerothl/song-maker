@@ -46,6 +46,9 @@ jobs:
       - name: Typecheck packages
         run: pnpm packages:typecheck
 
+      - name: Install FFmpeg for instrumental audio tests
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Test packages
         run: pnpm packages:test
 
@@ -95,6 +98,9 @@ jobs:
 
       - name: Lint (clippy)
         run: pnpm rust:clippy
+
+      - name: Test Lego Python contracts
+        run: python3 scripts/test_ace_step_lego_readiness.py
 
       - name: Test
         run: pnpm rust:test

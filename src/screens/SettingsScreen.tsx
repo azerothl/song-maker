@@ -51,7 +51,7 @@ export function SettingsScreen() {
     if (hash.includes("engines") || hash.includes("moteurs")) return "engines";
     return null;
   };
-  const [page, setPage] = useState<SettingsPage>(captureSettingsPage() ?? "home");
+  const [page, setPage] = useState<SettingsPage>(captureSettingsPage() ?? useAppStore.getState().settingsInitialPage);
   const [loraProbe, setLoraProbe] = useState<LoraTrainerProbe | null>(null);
   const [loraProbing, setLoraProbing] = useState(true);
   const [loraPanelStatus, setLoraPanelStatus] =
@@ -115,14 +115,15 @@ export function SettingsScreen() {
     system: t("settings.system.title"),
     engines: t("profiles.engines.title"),
   };
-  const separatorName =
+  const separatorSummaryKey =
     settings.stemSeparator === "htdemucs_6s"
-      ? "HTDemucs · 6 stems"
+      ? "settings.separator.summary.htdemucs_6s"
       : settings.stemSeparator === "bs_roformer"
-        ? "BS-RoFormer"
+        ? "settings.separator.summary.bs_roformer"
         : settings.stemSeparator === "mel_band_roformer"
-          ? "Mel-Band RoFormer"
-          : "HTDemucs · 4 stems";
+          ? "settings.separator.summary.mel_band_roformer"
+          : "settings.separator.summary.htdemucs";
+  const separatorName = t(separatorSummaryKey);
 
   return (
     <div className="panel settings">
@@ -185,7 +186,17 @@ export function SettingsScreen() {
               onClick={() => setPage("lora")}
             />
             <SettingsCard
-              title={pageTitle.loraTrain}
+              title={pageTitle.system}
+              description={t("settings.card.system")}
+              value={health?.gpuName ?? t("nav.gpuAbsent")}
+              onClick={() => setPage("system")}
+            />
+          </nav>
+          <details className="advanced-details">
+            <summary>{t("settings.advanced")}</summary>
+            <nav className="settings-card-grid" aria-label={t("settings.advanced")}>
+            <SettingsCard
+              title={t("settings.card.loraTrainTitle")}
               description={t("settings.card.loraTrain")}
               value={loraCardValue}
               onClick={() => setPage("loraTrain")}
@@ -208,13 +219,9 @@ export function SettingsScreen() {
               value={t("settings.card.optional")}
               onClick={() => setPage("host")}
             />
-            <SettingsCard
-              title={pageTitle.system}
-              description={t("settings.card.system")}
-              value={health?.gpuName ?? t("nav.gpuAbsent")}
-              onClick={() => setPage("system")}
-            />
+
           </nav>
+          </details>
           <button
             type="button"
             className="btn ghost settings-licenses-link"
@@ -242,7 +249,6 @@ export function SettingsScreen() {
         ))}
       {page === "lora" && (
         <div className="settings-lora-pages">
-          <Phase3SettingsPanel view="lora" />
           <Phase4SettingsPanel view="lora" />
         </div>
       )}

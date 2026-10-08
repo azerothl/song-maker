@@ -54,13 +54,7 @@ pub fn discover_payload() -> Value {
             "id": "song-maker-music",
             "kind": "music",
             "version": 1,
-            "capabilities": [
-                "generate_yue2",
-                "separate_stems",
-                "export_mix",
-                "list_projects",
-                "apply_style_lora"
-            ]
+            "capabilities": ["list_projects"]
         },
         "declUiSurfaces": [
             { "id": "library", "declaration": "songmaker.library.v1" },
@@ -72,7 +66,27 @@ pub fn discover_payload() -> Value {
     })
 }
 
-pub fn handle_request(method: &str, path: &str, body: &[u8]) -> (u16, Value) {
+#[cfg(test)]
+fn handle_request(method: &str, path: &str, body: &[u8]) -> (u16, Value) {
+    handle_request_with_origin(method, path, body, None)
+}
+
+fn handle_request_with_origin(
+    method: &str,
+    path: &str,
+    body: &[u8],
+    origin: Option<&str>,
+) -> (u16, Value) {
+    if origin.is_some_and(|value| !is_local_browser_origin(value)) {
+        return (
+            403,
+            json!({
+                "ok": false,
+                "errorCode": "origin_denied",
+                "messageFr": "Origine web non locale refusée par l’hôte DeclUI."
+            }),
+        );
+    }
     let path = path.split('?').next().unwrap_or(path);
     match (method, path) {
         ("OPTIONS", _) => (204, json!({})),
@@ -141,7 +155,54 @@ fn invoke(body: &[u8]) -> (u16, Value) {
     }
 }
 
-fn http_response(status: u16, body: &Value) -> Vec<u8> {
+fn is_local_browser_origin(origin: &str) -> bool {
+    let origin = origin.trim();
+    if matches!(
+        origin.to_ascii_lowercase().as_str(),
+        "tauri://localhost" | "http://tauri.localhost" | "https://tauri.localhost"
+    ) {
+        return true;
+    }
+
+    let Some((scheme, authority)) = origin.split_once("://") else {
+        return false;
+    };
+    if !scheme.eq_ignore_ascii_case("http") && !scheme.eq_ignore_ascii_case("https") {
+        return false;
+    }
+    if authority.is_empty() || authority.contains(['/', '?', '#', '@']) {
+        return false;
+    }
+
+    if let Some(bracketed) = authority.strip_prefix('[') {
+        let Some((host, suffix)) = bracketed.split_once(']') else {
+            return false;
+        };
+        return host == "::1" && valid_origin_port_suffix(suffix);
+    }
+
+    let mut parts = authority.splitn(2, ':');
+    let host = parts.next().unwrap_or_default();
+    let suffix = parts
+        .next()
+        .map(|port| format!(":{port}"))
+        .unwrap_or_default();
+    matches!(
+        host.to_ascii_lowercase().as_str(),
+        "localhost" | "127.0.0.1"
+    ) && valid_origin_port_suffix(&suffix)
+}
+
+fn valid_origin_port_suffix(suffix: &str) -> bool {
+    if suffix.is_empty() {
+        return true;
+    }
+    suffix
+        .strip_prefix(':')
+        .is_some_and(|port| !port.is_empty() && port.parse::<u16>().is_ok())
+}
+
+fn http_response(status: u16, body: &Value, origin: Option<&str>) -> Vec<u8> {
     let reason = match status {
         200 => "OK",
         204 => "No Content",
@@ -155,14 +216,13 @@ fn http_response(status: u16, body: &Value) -> Vec<u8> {
     } else {
         serde_json::to_vec(body).unwrap_or_else(|_| b"{}".to_vec())
     };
-    let mut out = format!(
-        "HTTP/1.1 {status} {reason}\r\n\
-         Access-Control-Allow-Origin: *\r\n\
-         Access-Control-Allow-Headers: Authorization, Content-Type\r\n\
-         Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
-         Connection: close\r\n"
-    )
-    .into_bytes();
+    let mut out = format!("HTTP/1.1 {status} {reason}\r\nConnection: close\r\n").into_bytes();
+    if let Some(origin) = origin {
+        out.extend_from_slice(format!("Access-Control-Allow-Origin: {origin}\r\n").as_bytes());
+        out.extend_from_slice(b"Vary: Origin\r\n");
+        out.extend_from_slice(b"Access-Control-Allow-Headers: Authorization, Content-Type\r\n");
+        out.extend_from_slice(b"Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n");
+    }
     if status != 204 {
         out.extend_from_slice(b"Content-Type: application/json; charset=utf-8\r\n");
         out.extend_from_slice(format!("Content-Length: {}\r\n", payload.len()).as_bytes());
@@ -189,7 +249,7 @@ async fn serve_one(mut socket: tokio::net::TcpStream, stop: Arc<AtomicBool>) {
             return;
         }
         if let Some(header_end) = find_header_end(&buf) {
-            let (method, path, content_length) = {
+            let (method, path, content_length, origin) = {
                 let header = match std::str::from_utf8(&buf[..header_end]) {
                     Ok(s) => s,
                     Err(_) => return,
@@ -200,13 +260,19 @@ async fn serve_one(mut socket: tokio::net::TcpStream, stop: Arc<AtomicBool>) {
                 let method = parts.next().unwrap_or("GET").to_string();
                 let path = parts.next().unwrap_or("/").to_string();
                 let mut content_length = 0usize;
+                let mut origin = None;
                 for line in lines {
                     let lower = line.to_ascii_lowercase();
                     if let Some(v) = lower.strip_prefix("content-length:") {
                         content_length = v.trim().parse().unwrap_or(0);
                     }
+                    if lower.starts_with("origin:") {
+                        origin = line
+                            .split_once(':')
+                            .map(|(_, value)| value.trim().to_string());
+                    }
                 }
-                (method, path, content_length)
+                (method, path, content_length, origin)
             };
             if content_length > MAX_BODY_BYTES {
                 return;
@@ -221,8 +287,14 @@ async fn serve_one(mut socket: tokio::net::TcpStream, stop: Arc<AtomicBool>) {
                 buf.extend_from_slice(&tmp[..n]);
             }
             let body = buf[body_start..body_start + content_length].to_vec();
-            let (status, json) = handle_request(&method, &path, &body);
-            let _ = socket.write_all(&http_response(status, &json)).await;
+            let (status, json) =
+                handle_request_with_origin(&method, &path, &body, origin.as_deref());
+            let allowed_origin = origin
+                .as_deref()
+                .filter(|value| is_local_browser_origin(value));
+            let _ = socket
+                .write_all(&http_response(status, &json, allowed_origin))
+                .await;
             return;
         }
     }
@@ -240,39 +312,62 @@ fn notes_fr() -> String {
 pub async fn embedded_declui_status(
     state: tauri::State<'_, EmbeddedDeclUiState>,
 ) -> Result<EmbeddedDeclUiStatus, String> {
-    let g = state.inner.lock().await;
-    Ok(match &*g {
-        Some(r) if !r.stop.load(Ordering::Relaxed) => EmbeddedDeclUiStatus {
-            running: true,
-            url: Some(r.url.clone()),
-            bind: "127.0.0.1".into(),
-            notes_fr: notes_fr(),
-        },
-        _ => EmbeddedDeclUiStatus {
-            running: false,
-            url: None,
-            bind: "127.0.0.1".into(),
-            notes_fr: notes_fr(),
-        },
-    })
+    Ok(embedded_declui_status_for(state.inner()).await)
+}
+
+async fn embedded_declui_status_for(state: &EmbeddedDeclUiState) -> EmbeddedDeclUiStatus {
+    let mut g = state.inner.lock().await;
+    match g.as_ref() {
+        Some(r) if !r.stop.load(Ordering::Acquire) && !r.join.is_finished() => {
+            EmbeddedDeclUiStatus {
+                running: true,
+                url: Some(r.url.clone()),
+                bind: "127.0.0.1".into(),
+                notes_fr: notes_fr(),
+            }
+        }
+        _ => {
+            if let Some(r) = g.take() {
+                r.stop.store(true, Ordering::Release);
+                r.join.abort();
+            }
+            EmbeddedDeclUiStatus {
+                running: false,
+                url: None,
+                bind: "127.0.0.1".into(),
+                notes_fr: notes_fr(),
+            }
+        }
+    }
 }
 
 #[tauri::command]
 pub async fn start_embedded_declui_host(
     state: tauri::State<'_, EmbeddedDeclUiState>,
 ) -> Result<EmbeddedDeclUiStatus, String> {
-    {
-        let g = state.inner.lock().await;
-        if let Some(r) = g.as_ref() {
-            if !r.stop.load(Ordering::Relaxed) {
-                return Ok(EmbeddedDeclUiStatus {
-                    running: true,
-                    url: Some(r.url.clone()),
-                    bind: "127.0.0.1".into(),
-                    notes_fr: notes_fr(),
-                });
-            }
+    start_embedded_declui_host_for(state.inner()).await
+}
+
+async fn start_embedded_declui_host_for(
+    state: &EmbeddedDeclUiState,
+) -> Result<EmbeddedDeclUiStatus, String> {
+    // Hold the state lock through bind and publication. Otherwise two concurrent
+    // starts can each open an ephemeral listener and the last one overwrites the
+    // only handle that `stop_embedded_declui_host` knows how to stop.
+    let mut g = state.inner.lock().await;
+    if let Some(r) = g.as_ref() {
+        if !r.stop.load(Ordering::Acquire) && !r.join.is_finished() {
+            return Ok(EmbeddedDeclUiStatus {
+                running: true,
+                url: Some(r.url.clone()),
+                bind: "127.0.0.1".into(),
+                notes_fr: notes_fr(),
+            });
         }
+    }
+    if let Some(r) = g.take() {
+        r.stop.store(true, Ordering::Release);
+        r.join.abort();
     }
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
@@ -286,6 +381,8 @@ pub async fn start_embedded_declui_host(
     let url = format!("http://127.0.0.1:{}", addr.port());
     let stop = Arc::new(AtomicBool::new(false));
     let stop_task = Arc::clone(&stop);
+    let connections = Arc::new(Mutex::new(Vec::<JoinHandle<()>>::new()));
+    let connections_task = Arc::clone(&connections);
     let join = tokio::spawn(async move {
         loop {
             if stop_task.load(Ordering::Relaxed) {
@@ -300,16 +397,23 @@ pub async fn start_embedded_declui_host(
                         continue;
                     }
                     let stop_conn = Arc::clone(&stop_task);
-                    tokio::spawn(async move {
+                    let connection = tokio::spawn(async move {
                         serve_one(socket, stop_conn).await;
                     });
+                    let mut active = connections_task.lock().await;
+                    active.retain(|task| !task.is_finished());
+                    active.push(connection);
                 }
                 Ok(Err(_)) => break,
                 Err(_) => continue,
             }
         }
+        stop_task.store(true, Ordering::Release);
+        let mut active = connections_task.lock().await;
+        for task in active.drain(..) {
+            task.abort();
+        }
     });
-    let mut g = state.inner.lock().await;
     *g = Some(Running {
         url: url.clone(),
         stop,
@@ -327,17 +431,32 @@ pub async fn start_embedded_declui_host(
 pub async fn stop_embedded_declui_host(
     state: tauri::State<'_, EmbeddedDeclUiState>,
 ) -> Result<EmbeddedDeclUiStatus, String> {
+    Ok(stop_embedded_declui_host_for(state.inner()).await)
+}
+
+async fn stop_embedded_declui_host_for(state: &EmbeddedDeclUiState) -> EmbeddedDeclUiStatus {
     let mut g = state.inner.lock().await;
     if let Some(r) = g.take() {
-        r.stop.store(true, Ordering::SeqCst);
-        r.join.abort();
+        r.stop.store(true, Ordering::Release);
+        let mut join = r.join;
+        if tokio::time::timeout(std::time::Duration::from_secs(1), &mut join)
+            .await
+            .is_err()
+        {
+            join.abort();
+        }
     }
-    Ok(EmbeddedDeclUiStatus {
+    EmbeddedDeclUiStatus {
         running: false,
         url: None,
         bind: "127.0.0.1".into(),
         notes_fr: notes_fr(),
-    })
+    }
+}
+
+/// Close the loopback listener and active requests before the desktop runtime exits.
+pub(crate) fn shutdown_embedded_declui_host_on_exit(state: &EmbeddedDeclUiState) {
+    tauri::async_runtime::block_on(stop_embedded_declui_host_for(state));
 }
 
 #[cfg(test)]
@@ -382,5 +501,146 @@ mod tests {
         let (status, body) = handle_request("GET", "/v1/host/discover", b"");
         assert_eq!(status, 200);
         assert_eq!(body["hostId"], "akasha");
+    }
+
+    #[test]
+    fn browser_origins_are_limited_to_loopback_and_tauri() {
+        for origin in [
+            "http://localhost:5173",
+            "https://localhost",
+            "http://127.0.0.1:3000",
+            "http://[::1]:3000",
+            "tauri://localhost",
+            "https://tauri.localhost",
+        ] {
+            assert!(is_local_browser_origin(origin), "{origin}");
+        }
+        for origin in [
+            "https://example.com",
+            "http://localhost.evil.example",
+            "https://127.0.0.1.evil.example",
+            "file://localhost",
+            "null",
+            "http://localhost:not-a-port",
+        ] {
+            assert!(!is_local_browser_origin(origin), "{origin}");
+        }
+    }
+
+    #[test]
+    fn remote_browser_origin_cannot_discover_local_projects() {
+        let (status, body) = handle_request_with_origin(
+            "GET",
+            "/v1/host/discover",
+            b"",
+            Some("https://example.com"),
+        );
+        assert_eq!(status, 403);
+        assert_eq!(body["errorCode"], "origin_denied");
+        assert_eq!(body["ok"], false);
+        assert!(http_response(status, &body, None)
+            .windows(b"Access-Control-Allow-Origin".len())
+            .all(|window| window != b"Access-Control-Allow-Origin"));
+    }
+
+    #[tokio::test]
+    async fn concurrent_starts_share_one_listener_and_stop_releases_it() {
+        let state = EmbeddedDeclUiState::default();
+        let (left, right) = tokio::join!(
+            start_embedded_declui_host_for(&state),
+            start_embedded_declui_host_for(&state),
+        );
+        let left = left.unwrap();
+        let right = right.unwrap();
+        assert_eq!(left.url, right.url);
+        assert!(left.running && right.running);
+
+        let stopped = stop_embedded_declui_host_for(&state).await;
+        assert!(!stopped.running);
+        assert_eq!(embedded_declui_status_for(&state).await.url, None);
+
+        let restarted = start_embedded_declui_host_for(&state).await.unwrap();
+        assert!(restarted.running);
+        stop_embedded_declui_host_for(&state).await;
+    }
+
+    #[tokio::test]
+    async fn embedded_host_coexists_with_an_existing_loopback_service() {
+        let existing_service = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let existing_address = existing_service.local_addr().unwrap();
+        let host_state = EmbeddedDeclUiState::default();
+        let started = start_embedded_declui_host_for(&host_state).await.unwrap();
+        let host_address: std::net::SocketAddr = started
+            .url
+            .as_deref()
+            .unwrap()
+            .trim_start_matches("http://")
+            .parse()
+            .unwrap();
+
+        assert!(started.running);
+        assert!(host_address.ip().is_loopback());
+        assert_ne!(host_address.port(), existing_address.port());
+        assert!(tokio::net::TcpStream::connect(existing_address)
+            .await
+            .is_ok());
+
+        let mut client = tokio::net::TcpStream::connect(host_address).await.unwrap();
+        client
+            .write_all(b"GET /v1/host/discover HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .unwrap();
+        let mut response = Vec::new();
+        client.read_to_end(&mut response).await.unwrap();
+        let response = String::from_utf8(response).unwrap();
+        assert!(response.starts_with("HTTP/1.1 200 OK"));
+        assert!(response.contains("\"hostId\":\"akasha\""));
+
+        stop_embedded_declui_host_for(&host_state).await;
+        drop(existing_service);
+    }
+
+    #[tokio::test]
+    async fn status_clears_a_listener_task_that_has_exited() {
+        let state = EmbeddedDeclUiState::default();
+        let started = start_embedded_declui_host_for(&state).await.unwrap();
+        {
+            let guard = state.inner.lock().await;
+            guard.as_ref().unwrap().join.abort();
+        }
+        tokio::task::yield_now().await;
+
+        let status = embedded_declui_status_for(&state).await;
+        assert!(!status.running);
+        assert_eq!(status.url, None);
+        let restarted = start_embedded_declui_host_for(&state).await.unwrap();
+        assert!(restarted.running);
+        assert!(started.url.is_some());
+        stop_embedded_declui_host_for(&state).await;
+    }
+
+    #[tokio::test]
+    async fn loopback_discovery_is_served_and_listener_closes_on_stop() {
+        let state = EmbeddedDeclUiState::default();
+        let started = start_embedded_declui_host_for(&state).await.unwrap();
+        let address = started
+            .url
+            .as_deref()
+            .unwrap()
+            .trim_start_matches("http://");
+
+        let mut client = tokio::net::TcpStream::connect(address).await.unwrap();
+        client
+            .write_all(b"GET /v1/host/discover HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .unwrap();
+        let mut response = Vec::new();
+        client.read_to_end(&mut response).await.unwrap();
+        let response = String::from_utf8(response).unwrap();
+        assert!(response.starts_with("HTTP/1.1 200 OK"));
+        assert!(response.contains("\"hostId\":\"akasha\""));
+
+        stop_embedded_declui_host_for(&state).await;
+        assert!(tokio::net::TcpStream::connect(address).await.is_err());
     }
 }

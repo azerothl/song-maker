@@ -139,7 +139,7 @@ export function ProductionAddTrackMenu({
               {t("production.addTrack.instrumental")}
             </button>
           ) : null}
-          <p className="hint production-add-track-hint">{t("mix.importHint")}</p>
+          <p className="hint production-add-track-hint">{t("production.addTrack.menuHint")}</p>
         </div>
       )}
     </div>

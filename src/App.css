@@ -248,7 +248,7 @@ option {
   line-height: 1.5;
 }
 
-.sidebar :where(.sidebar-toggle, nav button, .sidebar-meta-row):focus-visible {
+.sidebar :where(.sidebar-toggle, nav button, .sidebar-meta-row, .sidebar-runtime-restart):focus-visible {
   outline: 2px solid var(--accent-cyan);
   outline-offset: 2px;
 }
@@ -285,6 +285,70 @@ option {
 .sidebar-meta-row {
   cursor: default;
   font-weight: 500;
+}
+
+.sidebar-model-row {
+  gap: 0.65rem;
+}
+
+.sidebar-model-row.is-ready .sidebar-icon,
+.sidebar-runtime-row.is-online .sidebar-icon {
+  color: var(--ok);
+}
+
+.sidebar-model-row.is-unavailable .sidebar-icon,
+.sidebar-runtime-row.is-offline .sidebar-icon {
+  color: var(--accent-coral);
+}
+
+.sidebar-model-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.1rem;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.sidebar-model-copy strong {
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.sidebar-model-copy small {
+  color: var(--muted);
+  font-size: 0.73rem;
+  font-weight: 500;
+}
+
+.sidebar-runtime-restart {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 40px;
+  min-width: 44px;
+  width: 100%;
+  padding: 0 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-align: left;
+}
+
+.sidebar-runtime-restart:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg2));
+}
+
+.sidebar-runtime-restart:disabled,
+.sidebar-runtime-restart[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .sidebar nav button:hover {
@@ -324,7 +388,8 @@ option {
 }
 
 .sidebar.is-collapsed nav button,
-.sidebar.is-collapsed .sidebar-meta-row {
+.sidebar.is-collapsed .sidebar-meta-row,
+.sidebar.is-collapsed .sidebar-runtime-restart {
   justify-content: center;
   padding-left: 0;
   padding-right: 0;
@@ -838,7 +903,7 @@ option {
   gap: 0.85rem;
   padding: 1rem 1.5rem 0.9rem;
   border-bottom: 1px solid var(--line);
-  background: rgba(14, 17, 22, 0.72);
+  background: var(--bg0);
   position: sticky;
   top: 0;
   z-index: 5;
@@ -870,6 +935,22 @@ option {
   color: var(--accent-cyan, #7ad7ff);
   font-size: 0.88rem;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.song-job-cancel {
+  min-height: 1.9rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.82rem;
+}
+
+.song-job-cancel-message {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted, #aeb9c6);
+  font-size: 0.8rem;
 }
 
 .song-workspace-tabs {
@@ -1174,7 +1255,7 @@ option {
 .qwen-mix-license > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .qwen-mix-license pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.75rem; max-height: 16rem; overflow-y: auto; }
 .production-common-timeline {
-  --production-controls-width: calc(148px + 7.5rem + 88px + 2.25rem);
+  --production-controls-width: calc(148px + 4rem + 3.5rem + 158px + 32px + 2.25rem);
 }
 .production-common-timeline .common-track-lane { display: block; min-width: 0; }
 .production-playback-line { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent-cyan); z-index: 2; pointer-events: none; }
@@ -1490,6 +1571,65 @@ option {
   margin-bottom: 0.35rem;
 }
 
+.production-vst3-field > .hint {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.production-vst3-select-label,
+.production-vst3-parameter {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.55rem;
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.production-vst3-select-label select {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.55rem;
+  color: var(--text);
+  background: var(--bg1);
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+}
+
+.production-vst3-plugin-info {
+  margin: 0.4rem 0;
+}
+
+.production-vst3-enable {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.production-vst3-parameters {
+  margin: 0.5rem 0;
+  padding: 0.6rem;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--bg1) 80%, transparent);
+}
+
+.production-vst3-parameter > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.production-vst3-parameter output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.production-vst3-parameter input[type="range"] {
+  width: 100%;
+  margin: 0;
+}
+
 .production-mix-settings-density {
   margin-bottom: 0.35rem;
 }
@@ -1554,8 +1694,8 @@ option {
 
 .production-mix-grid {
   display: grid;
-  grid-template-columns: minmax(0, 148px) 4rem 3.5rem 56px 32px minmax(0, 1fr);
-  min-width: 640px;
+  grid-template-columns: minmax(0, 148px) 4rem 3.5rem 158px 32px minmax(0, 1fr);
+  min-width: 744px;
   column-gap: 0.45rem;
   align-items: center;
   padding: 0 0.35rem;
@@ -1655,15 +1795,15 @@ option {
 
 .mixer-density .track-ms {
   flex-direction: row;
-  gap: 4px;
+  gap: 2px;
   align-items: center;
   justify-content: center;
 }
 
 .mixer-density .track-ms-btn {
   box-sizing: border-box;
-  min-width: var(--mix-ms-size, 28px);
-  width: var(--mix-ms-size, 28px);
+  min-width: 78px;
+  width: 78px;
   min-height: var(--mix-ms-size, 28px);
   height: var(--mix-ms-size, 28px);
   font-size: 0.62rem;
@@ -1679,8 +1819,8 @@ option {
 
 .mixer-density .production-mix-group-ms .track-ms-btn-group {
   position: relative;
-  width: 28px;
-  min-width: 28px;
+  width: 78px;
+  min-width: 78px;
   height: 22px;
   min-height: 22px;
   padding: 0;
@@ -4477,6 +4617,24 @@ details[open] > summary {
   width: 100%;
 }
 
+/* Keep the final action in flow: a sticky footer can cover advanced settings. */
+.song-create-generate.song-actions-sticky {
+  position: static;
+}
+
+.take-preview-player {
+  width: min(100%, 32rem);
+  min-width: 0;
+  flex: 0 0 min(100%, 32rem);
+}
+
+.take-preview-player audio {
+  display: block;
+  width: 100%;
+  max-width: 32rem;
+  min-height: 54px;
+}
+
 .song-create-generate-btn {
   width: 100%;
   min-height: 44px;
@@ -5758,6 +5916,14 @@ details[open] > summary {
   font-weight: 600;
 }
 
+.score-panel-action-help {
+  flex: 0 0 100%;
+  max-width: 64rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
 .score-issues {
   list-style: none;
   margin: 0;
@@ -6781,6 +6947,25 @@ details[open] > summary {
   flex-wrap: wrap;
 }
 
+.score-version-label {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.score-version-label details {
+  margin-top: 0.25rem;
+}
+
+.score-version-label summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.score-version-label p {
+  overflow-wrap: anywhere;
+}
+
 .version-branch {
   color: var(--muted);
   min-width: 1rem;
@@ -6990,6 +7175,12 @@ details[open] > summary {
 
 .hint.warn {
   color: var(--accent-cyan);
+}
+
+.instrumental-style-warning {
+  display: block;
+  padding-left: 0.55rem;
+  border-left: 2px solid currentColor;
 }
 
 .continuation-panel,
@@ -7203,6 +7394,55 @@ details[open] > summary {
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.2rem;
+}
+
+.separation-again-confirm {
+  box-sizing: border-box;
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg1);
+  color: var(--text);
+}
+
+.separation-again-confirm::backdrop {
+  background: rgba(8, 10, 18, 0.72);
+}
+
+.separation-again-confirm h2 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+}
+
+.separation-again-confirm p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.separation-again-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.separation-again-confirm-actions .btn {
+  min-height: 44px;
+}
+
+@media (max-width: 520px) {
+  .separation-again-confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .separation-again-confirm-actions .btn {
+    width: 100%;
+  }
 }
 
 @media (max-width: 900px) {
@@ -8028,3 +8268,4 @@ details[open] > summary {
   flex-direction: column;
   gap: 0.35rem;
 }
+.batch-lyrics { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }

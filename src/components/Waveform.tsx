@@ -62,7 +62,7 @@ function syncWaveformAria(
   canvas.setAttribute("aria-valuenow", String(Number.isFinite(progress) ? progress : 0));
   canvas.setAttribute(
     "aria-valuetext",
-    `${formatTime(progress)} / ${formatTime(duration)}`,
+    `${formatTime(progress)} / ${formatTime(Math.round(duration))}`,
   );
 }
 
@@ -208,7 +208,7 @@ export function Waveform({
   }
 
   const accessibleName = ariaLabel ?? label ?? t("waveform.label");
-  const valueText = `${formatTime(progress)} / ${formatTime(duration)}`;
+  const valueText = `${formatTime(progress)} / ${formatTime(Math.round(duration))}`;
   const statusMessage =
     status === "loading"
       ? t("waveform.loading")

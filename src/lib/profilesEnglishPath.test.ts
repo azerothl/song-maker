@@ -55,11 +55,12 @@ describe("profiles English path (#212 R13)", () => {
     const sheetsage = rows.find((r) => r.id === "sheetsage2");
     assert.ok(sheetsage);
     assert.equal(sheetsage!.name, "SheetSage2");
-    assert.match(sheetsage!.whyLabel, /2026-09-21/);
+    assert.match(sheetsage!.whyLabel, /License record reviewed on 2026-09-21/);
+    assert.match(sheetsage!.whyLabel, /original model.*license.*checked/i);
     assert.doesNotMatch(sheetsage!.whyLabel, /21\/09\/2026/);
     const ace = rows.find((r) => r.id === "ace_step_1_5");
     assert.ok(ace);
-    assert.match(ace!.reservationNote ?? "", /declares "other"/);
+    assert.match(ace!.reservationNote ?? "", /license for the files provided in the app/i);
     assert.equal(ace!.sourceLinks.length, 7);
   });
 

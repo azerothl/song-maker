@@ -60,10 +60,15 @@ function CreateTabCaptureApp() {
           onGenerate={async () => {
             setShowFormErrors(true);
           }}
+          onOpenInstrumentalSettings={() => undefined}
+          onOpenVocalRemovalSettings={() => undefined}
           scoreDocument={scoreDocument}
           scoreGate={scoreGate}
           setAdvancedSettingsPage={setAdvancedSettingsPage}
           setForm={setForm}
+          instrumentalPackState="unknown"
+          showVocalRemovalGuidance={false}
+          showInstrumentalPackGuidance={false}
           showFormErrors={showFormErrors}
         />
       </main>

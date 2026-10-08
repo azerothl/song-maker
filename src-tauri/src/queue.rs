@@ -10,6 +10,12 @@ pub struct JobQueue {
     inner: Arc<Mutex<QueueInner>>,
     waiting: Arc<AtomicUsize>,
     gate: Arc<tokio::sync::Mutex<()>>,
+    device: Arc<crate::device_admission::DeviceAdmission>,
+}
+
+pub struct RuntimeRestartGuard {
+    _serial: tokio::sync::OwnedMutexGuard<()>,
+    _device: crate::device_admission::DeviceGuard,
 }
 
 struct QueueInner {
@@ -26,11 +32,39 @@ impl Default for JobQueue {
             })),
             waiting: Arc::new(AtomicUsize::new(0)),
             gate: Arc::new(tokio::sync::Mutex::new(())),
+            device: Arc::new(crate::device_admission::DeviceAdmission::default()),
         }
     }
 }
 
 impl JobQueue {
+    /// Hold the audio queue while the managed runtime is restarted.
+    pub async fn try_acquire_runtime_restart(&self) -> Result<RuntimeRestartGuard, String> {
+        let permit = self.gate.clone().try_lock_owned().map_err(|_| {
+            "Impossible de relancer le runtime pendant une tâche audio.".to_string()
+        })?;
+        let state = self.status().state;
+        if matches!(
+            state.as_str(),
+            "queued" | "preparing" | "generating" | "separating" | "importing_tracks"
+        ) {
+            return Err("Impossible de relancer le runtime pendant une tâche audio.".into());
+        }
+        let device = self
+            .device
+            .try_interactive()
+            .ok_or_else(|| "Une tâche audio utilise ou attend le moteur audio.".to_string())?;
+        Ok(RuntimeRestartGuard {
+            _serial: permit,
+            _device: device,
+        })
+    }
+
+    /// Interactive jobs are exclusive; after one, admit waiting batch work.
+    pub async fn acquire_batch_device(&self) -> crate::device_admission::DeviceGuard {
+        self.device.batch().await
+    }
+
     pub fn status(&self) -> JobStatus {
         let g = self.inner.lock();
         if let Some(ref cur) = g.current {
@@ -83,13 +117,13 @@ impl JobQueue {
         g.cancel_requested = false;
     }
 
-    pub fn request_cancel(&self) -> String {
+    pub fn request_cancel(&self) -> bool {
         let mut g = self.inner.lock();
         if g.current.is_some() {
             g.cancel_requested = true;
-            return "Annulation demandée. L’appel GPU déjà lancé va jusqu’au bout ; les fichiers déjà écrits restent.".into();
+            return true;
         }
-        "Rien à annuler.".into()
+        false
     }
 
     pub fn cancel_requested(&self) -> bool {
@@ -113,6 +147,7 @@ impl JobQueue {
             project_id.clone(),
         );
         let _permit = self.gate.lock().await;
+        let _device = self.device.interactive().await;
         self.waiting.fetch_sub(1, Ordering::SeqCst);
         {
             let mut g = self.inner.lock();
@@ -121,12 +156,56 @@ impl JobQueue {
         self.set_state("preparing", label, project_id.clone());
         let result = work.await;
         match &result {
-            Ok(_) => {}
+            Ok(_) => self.set_state("completed", "Terminé", project_id.clone()),
             Err(e) if e == "cancelled" => {
                 self.set_state("cancelled", "Annulé", project_id);
             }
             Err(e) => self.set_error(e.clone()),
         }
         result
+    }
+}
+
+#[cfg(test)]
+mod resource_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn interactive_runtime_waits_for_every_batch_worker() {
+        let queue = JobQueue::default();
+        let first = queue.acquire_batch_device().await;
+        let second = queue.acquire_batch_device().await;
+        assert!(queue.try_acquire_runtime_restart().await.is_err());
+        drop(first);
+        assert!(queue.try_acquire_runtime_restart().await.is_err());
+        drop(second);
+        assert!(queue.try_acquire_runtime_restart().await.is_ok());
+    }
+
+    #[test]
+    fn cancelling_one_worker_does_not_cancel_another() {
+        let first = JobQueue::default();
+        let second = JobQueue::default();
+        first.set_state("generating", "A", None);
+        second.set_state("generating", "B", None);
+        assert!(first.request_cancel());
+        assert!(first.cancel_requested());
+        assert!(!second.cancel_requested());
+        assert!(!JobQueue::default().request_cancel());
+    }
+
+    #[tokio::test]
+    async fn completed_work_is_no_longer_reported_as_running() {
+        let queue = JobQueue::default();
+        queue
+            .run_exclusive(Some("project".into()), "Génération en cours", async {
+                Ok::<_, String>(())
+            })
+            .await
+            .unwrap();
+
+        let status = queue.status();
+        assert_eq!(status.state, "completed");
+        assert_eq!(status.project_id.as_deref(), Some("project"));
     }
 }

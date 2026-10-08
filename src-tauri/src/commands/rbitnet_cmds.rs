@@ -43,6 +43,7 @@ pub async fn install_rbitnet_binary(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    let _resources = super::settings::guard_model_install(&state).await?;
     if state.rbitnet_installing.swap(true, Ordering::AcqRel) {
         return Err("Un téléchargement Rbitnet est déjà en cours.".into());
     }
@@ -63,6 +64,7 @@ pub async fn install_rbitnet_model(
     state: tauri::State<'_, AppState>,
     model_id: String,
 ) -> Result<String, String> {
+    let _resources = super::settings::guard_model_install(&state).await?;
     if state.rbitnet_installing.swap(true, Ordering::AcqRel) {
         return Err("Un téléchargement Rbitnet est déjà en cours.".into());
     }
@@ -88,6 +90,7 @@ pub async fn ensure_rbitnet_sidecar(
     state: tauri::State<'_, AppState>,
     model_id: Option<String>,
 ) -> Result<serde_json::Value, String> {
+    let _configuration = super::settings::try_model_change(&state)?;
     let mut settings = load_settings().unwrap_or_else(|_| default_settings());
     let cache = PathBuf::from(&settings.cache_dir);
     let id = model_id

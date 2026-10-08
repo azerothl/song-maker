@@ -31,18 +31,10 @@ export function gateLoraPackAccess(
     };
   }
 
-  if (
-    pack.compatibilityStatus === "incompatible" ||
-    isComfyOrFusedLayout(pack.layout) ||
-    pack.layout !== "unfused_safetensors"
-  ) {
-    const reason =
-      pack.compatibilityStatus === "incompatible"
-        ? "incompatible_pack"
-        : "comfyui_layout";
+  if (pack.compatibilityStatus === "incompatible") {
     return {
       ok: false,
-      reason,
+      reason: "incompatible_pack",
       message:
         "Layouts ComfyUI / fused / fusionnés refusés. audio.cpp exige des SafeTensors unfused (yue2.ar_lora / yue2.nar_lora). La génération standard (sans LoRA) reste disponible.",
     };
@@ -54,6 +46,15 @@ export function gateLoraPackAccess(
       reason: "unverified_pack",
       message:
         "Pack informatif / non vérifié pour audio.cpp — pas de téléchargement ni d’activation. La génération standard (sans LoRA) reste disponible.",
+    };
+  }
+
+  if (isComfyOrFusedLayout(pack.layout) || pack.layout !== "unfused_safetensors") {
+    return {
+      ok: false,
+      reason: "incompatible_pack",
+      message:
+        "Ce format n’est pas pris en charge par le moteur de Song Maker. La génération standard reste disponible.",
     };
   }
 
@@ -186,7 +187,7 @@ export function planOptionalLoraDownload(
   const files: LoraDownloadPlanFile[] = pack.files.map((f) => ({
     slot: f.slot,
     filename: f.filename,
-    url: `https://huggingface.co/${pack.repo}/resolve/main/${f.filename}`,
+    url: `https://huggingface.co/${pack.repo}/resolve/${pack.revision ?? "main"}/${f.filename}`,
     relativeCachePath: `models/lora/${pack.id}/${f.filename}`,
     ...(f.sha256 ? { sha256: f.sha256 } : {}),
   }));

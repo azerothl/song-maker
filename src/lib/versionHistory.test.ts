@@ -35,6 +35,22 @@ const labels = {
   score: "Partition mise à jour",
 };
 
+describe("unpublished audio", () => {
+  it("ne propose pas l’écoute des fichiers laissés par une prise annulée ou échouée", () => {
+    for (const state of ["cancelled", "failed", "interrupted", "generating"]) {
+      const [take] = buildTakeDisplays({
+        generations: [gen({ id: "gen-001", state, audioPath: "/partial.wav" })],
+        separations: [],
+        style: "instrumental",
+        customNames: {},
+        labels,
+      });
+      assert.equal(take.hasAudio, false);
+      assert.equal(take.hasMusic, false);
+    }
+  });
+});
+
 describe("summarizeStyle", () => {
   it("retourne vide si le style est blanc", () => {
     assert.equal(summarizeStyle("  "), "");

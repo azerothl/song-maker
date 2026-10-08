@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { api } from "../lib/api";
+import { runNativeCaptureControl } from "../lib/nativeCaptureControl";
 import {
   formatLatencyReading,
   latencyHintForPreference,
@@ -9,10 +10,8 @@ import {
   type CaptureLatencyReading,
 } from "../lib/captureLatency";
 import {
-  formatNativeBackend,
   nativeRoundTripLabel,
   type CaptureEngine,
-  type NativeCaptureBackend,
   type NativeInputDevice,
 } from "../lib/nativeCapture";
 import type { MixDoc } from "../lib/types";
@@ -97,6 +96,17 @@ function mapGetUserMediaError(err: unknown): string {
   }
 }
 
+function displaySeconds(milliseconds: number): number {
+  return Number((milliseconds / 1000).toFixed(3));
+}
+
+function parseSecondsToMs(value: string, fallbackMs: number): number {
+  const seconds = Number(value);
+  return value.trim() && Number.isFinite(seconds)
+    ? Math.round(seconds * 1000)
+    : fallbackMs;
+}
+
 export function RecordTrackPanel({
   projectId,
   open,
@@ -108,9 +118,9 @@ export function RecordTrackPanel({
 }: Props) {
   const [phase, setPhase] = useState<CapturePhase>("idle");
   const [engine, setEngine] = useState<CaptureEngine>("webview");
-  const [nativeBackend, setNativeBackend] =
-    useState<NativeCaptureBackend | null>(null);
+  const [nativeBackend, setNativeBackend] = useState<"shared" | "exclusive">("shared");
   const [nativeDevices, setNativeDevices] = useState<NativeInputDevice[]>([]);
+  const [nativeEstimateMs, setNativeEstimateMs] = useState<number | null>(null);
   const [devices, setDevices] = useState<InputDevice[]>([]);
   const [deviceId, setDeviceId] = useState<string>("");
   const [monitoring, setMonitoring] = useState(false);
@@ -136,6 +146,7 @@ export function RecordTrackPanel({
   const [elapsedMs, setElapsedMs] = useState(0);
   const [pendingTakes, setPendingTakes] = useState<PendingTake[]>([]);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [nativeControlBusy, setNativeControlBusy] = useState(false);
 
   useEffect(() => {
     if (!import.meta.env.VITE_CAPTURE) return;
@@ -180,6 +191,7 @@ export function RecordTrackPanel({
   const punchWindowMsRef = useRef(0);
   const engineRef = useRef<CaptureEngine>("webview");
   const nativeStopInFlightRef = useRef(false);
+  const nativeControlBusyRef = useRef(false);
   const takeIndexRef = useRef(0);
   const rollingTakesRef = useRef(false);
   const countdownTimerRef = useRef<number | null>(null);
@@ -241,12 +253,6 @@ export function RecordTrackPanel({
   });
 
   const refreshDevices = useEffectEvent(async () => {
-    try {
-      const backend = await api.nativeCaptureBackend();
-      setNativeBackend(backend);
-    } catch {
-      setNativeBackend(null);
-    }
     let nativeList: NativeInputDevice[] = [];
     try {
       nativeList = (await api.listNativeCaptureDevices()) ?? [];
@@ -312,6 +318,15 @@ export function RecordTrackPanel({
     engineRef.current = engine;
   }, [engine]);
 
+  const selectedNativeDevice = nativeDevices.find((device) => device.id === deviceId);
+  const exclusiveAvailable = Boolean(selectedNativeDevice?.wasapiDeviceId);
+
+  useEffect(() => {
+    if (nativeBackend === "exclusive" && !exclusiveAvailable) {
+      setNativeBackend("shared");
+    }
+  }, [exclusiveAvailable, nativeBackend]);
+
   useEffect(() => {
     loopEnabledRef.current = loopEnabled;
   }, [loopEnabled]);
@@ -332,6 +347,11 @@ export function RecordTrackPanel({
     rollingTakesRef.current = rollLoop;
     try {
       const stopped = await api.stopNativeCapture();
+      if (stopped.warning) {
+        const warning = t("record.err.partial");
+        setStatusMsg(warning);
+        onError(warning);
+      }
       takeIndexRef.current += 1;
       let reviewUrl = "";
       try {
@@ -347,7 +367,7 @@ export function RecordTrackPanel({
       };
       sessionIdRef.current = null;
       setPendingTakes((prev) => [...prev, take]);
-      if (rollingTakesRef.current && loopEnabledRef.current) {
+      if (rollingTakesRef.current && loopEnabledRef.current && !stopped.warning) {
         rollingTakesRef.current = false;
         nativeStopInFlightRef.current = false;
         await startRecording();
@@ -427,7 +447,10 @@ export function RecordTrackPanel({
       setElapsedMs(elapsed);
       if (engineRef.current === "native" && phase === "recording") {
         void api.pollNativeCapture().then((poll) => {
-          if (poll) setLevel(Math.min(1, poll.peak * 3));
+          if (poll) {
+            setLevel(Math.min(1, poll.peak * 3));
+            setNativeEstimateMs(poll.estimatedRoundTripMs || null);
+          }
         }).catch(() => undefined);
       }
       if (phase !== "recording") return;
@@ -479,6 +502,10 @@ export function RecordTrackPanel({
           list[0]!.id;
         setDeviceId(selected);
         const chosen = list.find((d) => d.id === selected);
+        setNativeEstimateMs(chosen?.estimatedRoundTripMs ?? null);
+        if (!chosen?.wasapiDeviceId) {
+          setNativeBackend("shared");
+        }
         if (chosen?.estimatedRoundTripMs) {
           setLatency({
             preference: latencyPref,
@@ -574,18 +601,17 @@ export function RecordTrackPanel({
     if (countdownTimerRef.current != null) {
       window.clearInterval(countdownTimerRef.current);
     }
+    let remaining = secs;
     countdownTimerRef.current = window.setInterval(() => {
-      setCountdownLeft((left) => {
-        if (left <= 1) {
-          if (countdownTimerRef.current != null) {
-            window.clearInterval(countdownTimerRef.current);
-            countdownTimerRef.current = null;
-          }
-          void startRecording();
-          return 0;
+      remaining -= 1;
+      setCountdownLeft(remaining);
+      if (remaining <= 0) {
+        if (countdownTimerRef.current != null) {
+          window.clearInterval(countdownTimerRef.current);
+          countdownTimerRef.current = null;
         }
-        return left - 1;
-      });
+        void startRecording();
+      }
     }, 1000);
   }
 
@@ -601,6 +627,7 @@ export function RecordTrackPanel({
         const session = await api.startNativeCapture(
           projectId,
           deviceId || null,
+          nativeBackend,
         );
         sessionIdRef.current = session.sessionId;
         startedAtRef.current = Date.now();
@@ -753,11 +780,24 @@ export function RecordTrackPanel({
     }
   }
 
-  function pauseRecording() {
+  async function pauseRecording() {
     if (engineRef.current === "native") {
-      void api.pauseNativeCapture(true).then(() => {
-        pauseStartedRef.current = Date.now();
-        setPhase("paused");
+      if (nativeControlBusyRef.current) return;
+      setStatusMsg(null);
+      await runNativeCaptureControl(() => api.pauseNativeCapture(true), {
+        onBusyChange: (busy) => {
+          nativeControlBusyRef.current = busy;
+          setNativeControlBusy(busy);
+        },
+        onSuccess: () => {
+          pauseStartedRef.current = Date.now();
+          setPhase("paused");
+        },
+        onFailure: () => {
+          const message = t("record.err.pauseFailed");
+          setStatusMsg(message);
+          onError(message);
+        },
       });
       return;
     }
@@ -768,14 +808,27 @@ export function RecordTrackPanel({
     setPhase("paused");
   }
 
-  function resumeRecording() {
+  async function resumeRecording() {
     if (engineRef.current === "native") {
-      if (pauseStartedRef.current != null) {
-        pausedAccumRef.current += Date.now() - pauseStartedRef.current;
-        pauseStartedRef.current = null;
-      }
-      void api.pauseNativeCapture(false).then(() => {
-        setPhase("recording");
+      if (nativeControlBusyRef.current) return;
+      setStatusMsg(null);
+      await runNativeCaptureControl(() => api.pauseNativeCapture(false), {
+        onBusyChange: (busy) => {
+          nativeControlBusyRef.current = busy;
+          setNativeControlBusy(busy);
+        },
+        onSuccess: () => {
+          if (pauseStartedRef.current != null) {
+            pausedAccumRef.current += Date.now() - pauseStartedRef.current;
+            pauseStartedRef.current = null;
+          }
+          setPhase("recording");
+        },
+        onFailure: () => {
+          const message = t("record.err.resumeFailed");
+          setStatusMsg(message);
+          onError(message);
+        },
       });
       return;
     }
@@ -899,12 +952,20 @@ export function RecordTrackPanel({
   if (!open) return null;
 
   const elapsedLabel = formatElapsed(elapsedMs);
+  const recordingAnnouncement = recordingStatusAnnouncement(
+    phase,
+    countdownLeft,
+    pendingTakes.length,
+  );
   const canPickDevice = phase === "idle" || phase === "arming";
   const punchInvalid =
     punchEnabled && punchOutMs > 0 && punchOutMs <= punchInMs;
 
   return (
     <section className="record-panel" aria-labelledby="record-panel-title">
+      <p className="sr-only" role="status">
+        {recordingAnnouncement}
+      </p>
       <header className="record-panel-header">
         <h3 id="record-panel-title">{t("record.title")}</h3>
         <button type="button" className="btn ghost" onClick={handleClose}>
@@ -946,11 +1007,44 @@ export function RecordTrackPanel({
           <span>{t("record.engine.webview")}</span>
         </label>
         <p className="hint">
-          {nativeBackend
-            ? `${formatNativeBackend(nativeBackend)}. ${nativeBackend.notesFr}`
+          {nativeDevices.length > 0
+            ? t("record.engine.nativeReady")
             : t("record.engine.nativeUnavailable")}
         </p>
       </fieldset>
+
+      {engine === "native" && nativeDevices.length > 0 && (
+        <fieldset className="record-engine" disabled={!canPickDevice}>
+          <legend>{t("record.nativeBackend")}</legend>
+          <label className="record-monitor">
+            <input
+              type="radio"
+              name="record-native-backend"
+              checked={nativeBackend === "shared"}
+              onChange={() => setNativeBackend("shared")}
+            />
+            <span>{t("record.nativeBackend.shared")}</span>
+          </label>
+          <label className="record-monitor">
+            <input
+              type="radio"
+              name="record-native-backend"
+              checked={nativeBackend === "exclusive"}
+              disabled={!exclusiveAvailable}
+              onChange={() => setNativeBackend("exclusive")}
+            />
+            <span>{t("record.nativeBackend.exclusive")}</span>
+          </label>
+          {!exclusiveAvailable && (
+            <p className="hint">{t("record.nativeBackend.exclusiveUnavailable")}</p>
+          )}
+          <p className="hint">
+            {nativeBackend === "exclusive"
+              ? t("record.nativeBackend.exclusiveHint")
+              : t("record.nativeBackend.sharedHint")}
+          </p>
+        </fieldset>
+      )}
 
       <label className="record-device">
         <span>{t("record.device")}</span>
@@ -960,7 +1054,17 @@ export function RecordTrackPanel({
             !canPickDevice ||
             (engine === "native" ? nativeDevices.length === 0 : devices.length === 0)
           }
-          onChange={(e) => setDeviceId(e.target.value)}
+          onChange={(e) => {
+            const nextDeviceId = e.target.value;
+            setDeviceId(nextDeviceId);
+            const nextNativeDevice = nativeDevices.find((device) => device.id === nextDeviceId);
+            if (engine === "native") {
+              setNativeEstimateMs(nextNativeDevice?.estimatedRoundTripMs ?? null);
+            }
+            if (engine === "native" && !nextNativeDevice?.wasapiDeviceId) {
+              setNativeBackend("shared");
+            }
+          }}
         >
           {engine === "native" ? (
             nativeDevices.length === 0 ? (
@@ -984,26 +1088,29 @@ export function RecordTrackPanel({
         </select>
       </label>
 
-      <label className="record-device">
-        <span>{t("record.latency.pref")}</span>
-        <select
-          value={latencyPref}
-          disabled={phase !== "idle" && phase !== "arming"}
-          onChange={(e) =>
-            setLatencyPref(e.target.value as CaptureLatencyPreference)
-          }
-        >
-          <option value="stable">{t("record.latency.stable")}</option>
-          <option value="balanced">{t("record.latency.balanced")}</option>
-          <option value="low">{t("record.latency.low")}</option>
-        </select>
-      </label>
+      {engine === "webview" && (
+        <label className="record-device">
+          <span>{t("record.latency.pref")}</span>
+          <select
+            value={latencyPref}
+            disabled={phase !== "idle" && phase !== "arming"}
+            onChange={(e) =>
+              setLatencyPref(e.target.value as CaptureLatencyPreference)
+            }
+          >
+            <option value="stable">{t("record.latency.stable")}</option>
+            <option value="balanced">{t("record.latency.balanced")}</option>
+            <option value="low">{t("record.latency.low")}</option>
+          </select>
+        </label>
+      )}
       <p className="hint record-latency" aria-live="polite">
         {engine === "native"
           ? t("record.latency.measured", {
               value: nativeRoundTripLabel(
-                nativeDevices.find((d) => d.id === deviceId)
-                  ?.estimatedRoundTripMs ?? latency?.roundTripMs,
+                phase === "recording" || phase === "paused"
+                  ? nativeEstimateMs ?? selectedNativeDevice?.estimatedRoundTripMs
+                  : selectedNativeDevice?.estimatedRoundTripMs ?? nativeEstimateMs ?? latency?.roundTripMs,
               ),
             })
           : t("record.latency.measured", {
@@ -1068,11 +1175,11 @@ export function RecordTrackPanel({
             <span>{t("record.loopLength")}</span>
             <input
               type="number"
-              min={500}
-              step={100}
-              value={loopBarsMs}
+              min={0.5}
+              step={0.001}
+              value={displaySeconds(loopBarsMs)}
               disabled={phase === "recording" || phase === "countdown"}
-              onChange={(e) => setLoopBarsMs(Number(e.target.value) || 8000)}
+              onChange={(e) => setLoopBarsMs(parseSecondsToMs(e.target.value, 8000))}
               onBlur={() => {
                 const bar = punchBarDurationMs(mix);
                 const n = Math.max(1, Math.round(loopBarsMs / bar));
@@ -1105,9 +1212,11 @@ export function RecordTrackPanel({
               <input
                 type="number"
                 min={0}
-                step={50}
-                value={punchInMs}
-                onChange={(e) => setPunchInMs(Number(e.target.value) || 0)}
+                step={0.001}
+                value={displaySeconds(punchInMs)}
+                onChange={(e) =>
+                  setPunchInMs(parseSecondsToMs(e.target.value, 0))
+                }
                 onBlur={() =>
                   setPunchInMs(snapPunchMs(punchInMs, punchGrid))
                 }
@@ -1118,9 +1227,11 @@ export function RecordTrackPanel({
               <input
                 type="number"
                 min={0}
-                step={50}
-                value={punchOutMs}
-                onChange={(e) => setPunchOutMs(Number(e.target.value) || 0)}
+                step={0.001}
+                value={displaySeconds(punchOutMs)}
+                onChange={(e) =>
+                  setPunchOutMs(parseSecondsToMs(e.target.value, 0))
+                }
                 onBlur={() => {
                   const win = snapPunchWindow(punchInMs, punchOutMs, punchGrid);
                   setPunchInMs(win.punchInMs);
@@ -1139,7 +1250,7 @@ export function RecordTrackPanel({
       <div className="record-vu" aria-hidden>
         <div className="record-vu-fill" style={{ width: `${level * 100}%` }} />
       </div>
-      <p className="record-elapsed" aria-live="polite">
+      <p className="record-elapsed">
         {phase === "countdown"
           ? t("record.countdown.left", { n: String(countdownLeft) })
           : t("record.elapsed", { time: elapsedLabel })}
@@ -1188,10 +1299,10 @@ export function RecordTrackPanel({
         )}
         {phase === "recording" && (
           <>
-            <button type="button" className="btn" onClick={pauseRecording}>
+            <button type="button" className="btn" disabled={nativeControlBusy} onClick={pauseRecording}>
               {t("record.pause")}
             </button>
-            <button type="button" className="btn" onClick={stopRecording}>
+            <button type="button" className="btn" disabled={nativeControlBusy} onClick={stopRecording}>
               {t("record.stop")}
             </button>
           </>
@@ -1201,11 +1312,12 @@ export function RecordTrackPanel({
             <button
               type="button"
               className="btn primary"
+              disabled={nativeControlBusy}
               onClick={resumeRecording}
             >
               {t("record.resume")}
             </button>
-            <button type="button" className="btn" onClick={stopRecording}>
+            <button type="button" className="btn" disabled={nativeControlBusy} onClick={stopRecording}>
               {t("record.stop")}
             </button>
           </>
@@ -1253,6 +1365,29 @@ export function RecordTrackPanel({
       )}
     </section>
   );
+}
+
+function recordingStatusAnnouncement(
+  phase: CapturePhase,
+  countdownLeft: number,
+  pendingTakeCount: number,
+): string {
+  switch (phase) {
+    case "countdown":
+      return t("record.countdown.left", { n: String(countdownLeft) });
+    case "recording":
+      return t("record.state.recording");
+    case "paused":
+      return t("record.state.paused");
+    case "review":
+      if (pendingTakeCount === 1) return t("record.state.readyOne");
+      if (pendingTakeCount > 1) {
+        return t("record.state.readyMany", { n: String(pendingTakeCount) });
+      }
+      return "";
+    default:
+      return "";
+  }
 }
 
 function formatElapsed(ms: number): string {

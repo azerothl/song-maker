@@ -6,6 +6,7 @@ import { t } from "../ui/i18n";
 import { MixBakeStatusIndicator } from "./MixBakeStatusIndicator";
 import { PlaybackTime } from "./PlaybackTime";
 import { Waveform } from "./Waveform";
+import { TAKE_PREVIEW_PLAY_EVENT } from "./TakePreviewPlayer";
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -77,12 +78,30 @@ export function AudioPlayer({
     engineRef.current = new MixPlaybackEngine();
   }
   const engine = engineRef.current;
+  async function togglePlayback() {
+    if (!engine.getSnapshot().playing) {
+      window.dispatchEvent(new CustomEvent(TAKE_PREVIEW_PLAY_EVENT, { detail: engine }));
+    }
+    await engine.toggle();
+  }
   const [snap, setSnap] = useState<PlaybackSnapshot>(emptySnap);
   const key = sourcesKey(sources);
+  const sourcesRef = useRef(sources);
+  sourcesRef.current = sources;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
   const mixRef = useRef(mix);
   mixRef.current = mix;
   const onPlaybackChangeRef = useRef(onPlaybackChange);
   onPlaybackChangeRef.current = onPlaybackChange;
+
+  useEffect(() => {
+    const stopForPreview = (event: Event) => {
+      if ((event as CustomEvent).detail !== engine) engine.pause();
+    };
+    window.addEventListener(TAKE_PREVIEW_PLAY_EVENT, stopForPreview);
+    return () => window.removeEventListener(TAKE_PREVIEW_PLAY_EVENT, stopForPreview);
+  }, [engine]);
 
   useEffect(() => {
     return engine.subscribe(() => {
@@ -99,7 +118,7 @@ export function AudioPlayer({
         peaksByTrack,
         mixPeaks: next.mixPeaks,
         seek: (seconds: number) => engine.seek(seconds),
-        toggle: () => engine.toggle(),
+        toggle: togglePlayback,
         playing: next.playing,
         loading: next.loading,
         ready: next.ready,
@@ -113,15 +132,15 @@ export function AudioPlayer({
     let cancelled = false;
     void (async () => {
       try {
-        await engine.load(sources, mixRef.current);
+        await engine.load(sourcesRef.current, mixRef.current);
       } catch (e) {
-        if (!cancelled) onError?.(String(e));
+        if (!cancelled) onErrorRef.current?.(String(e));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [engine, key, projectId, sources, onError]);
+  }, [engine, key, projectId]);
 
   useEffect(() => {
     engine.applyMix(mix);
@@ -151,7 +170,7 @@ export function AudioPlayer({
         return;
       }
       e.preventDefault();
-      void engine.toggle().catch((err) => onError?.(String(err)));
+      void togglePlayback().catch((err) => onError?.(String(err)));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -203,7 +222,7 @@ export function AudioPlayer({
             type="button"
             className="btn"
             onClick={() =>
-              void engine.toggle().catch((err) => onError?.(String(err)))
+              void togglePlayback().catch((err) => onError?.(String(err)))
             }
             disabled={!snap.ready || snap.loading}
           >
@@ -216,7 +235,7 @@ export function AudioPlayer({
           <div className="player-times" aria-label={t("player.seek")}>
             <PlaybackTime seconds={snap.current} className="player-time" />
             <span className="player-time-sep">/</span>
-            <span className="player-time">{formatTime(snap.duration)}</span>
+            <span className="player-time">{formatTime(Math.round(snap.duration))}</span>
           </div>
           <span className="path" title={snap.label}>
             {snap.label || t("library.dash")}

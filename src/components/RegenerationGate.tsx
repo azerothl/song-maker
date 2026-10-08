@@ -1,7 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import type { ScoreDocument } from "../lib/score";
 import {
-  CONSERVATION_LEVEL_LABELS_FR,
   CONSERVATION_LEVELS,
   captureInvariantBaseline,
   checkConservation,
@@ -9,6 +8,7 @@ import {
   getInvariantBaselineMeta,
   loadInvariantBaseline,
   setInvariantBaselineLevel,
+  conservationLevelLabel,
   type ConservationLevel,
   type InvariantCheckResult,
 } from "../lib/invariants";
@@ -141,7 +141,7 @@ export function RegenerationGate({
               >
                 {CONSERVATION_LEVELS.map((l) => (
                   <option key={l} value={l}>
-                    {CONSERVATION_LEVEL_LABELS_FR[l]}
+                    {conservationLevelLabel(l)}
                   </option>
                 ))}
               </select>
@@ -202,13 +202,14 @@ export function RegenerationGate({
                   n: result.violations.length,
                 })}
               </p>
-              <ul className="score-issues">
-                {result.violations.map((v, i) => (
-                  <li key={`${v.code}-${i}`} className="error">
-                    [{v.code}] {v.message}
-                  </li>
-                ))}
-              </ul>
+              <details>
+                <summary>{t("phase4.invariants.differences")}</summary>
+                <ul className="score-issues">
+                  {result.violations.map((v, i) => (
+                    <li key={`${v.code}-${i}`} className="error">{v.message}</li>
+                  ))}
+                </ul>
+              </details>
             </div>
             <p className="hint">{t("phase4.regenGate.decide")}</p>
             <div className="btn-row">

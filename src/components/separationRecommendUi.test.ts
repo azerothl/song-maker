@@ -30,7 +30,10 @@ describe("Séparation recommandée (#166)", () => {
     assert.ok(license);
     assert.notEqual(license.status, "verified");
     assert.equal(licenseStatusLabelFr(license.status), "non vérifié");
-    assert.match(t("separate.recommend.unverifiedWarn"), /licence vérifiée/i);
+    assert.match(
+      t("separate.recommend.unverifiedWarn"),
+      /conditions d’utilisation.*ne sont pas vérifiées/i,
+    );
     assert.match(
       t("separate.recommend.unverifiedBanner", {
         model: "HTDemucs",

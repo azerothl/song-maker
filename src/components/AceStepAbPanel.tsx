@@ -1,9 +1,11 @@
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { formatCommercialReservedBadge } from "@song-maker/stem-providers";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { TakePreviewPlayer } from "./TakePreviewPlayer";
 import { pickEngineAbPair } from "../lib/aceStepAb";
 import type { GenerationSummary } from "../lib/types";
 import { profileLocale, t } from "../ui/i18n";
+import { isTauriRuntime, runtimeApi } from "../lib/runtimeHost";
+import { useAppStore } from "../store/appStore";
 
 type Side = "yue2" | "aceStep";
 
@@ -14,15 +16,6 @@ type Props = {
   onGenerateAceStep: () => Promise<void>;
 };
 
-function audioUrl(path: string | null | undefined): string | null {
-  if (!path) return null;
-  try {
-    return convertFileSrc(path);
-  } catch {
-    return path;
-  }
-}
-
 export function AceStepAbPanel({
   generations,
   busy,
@@ -31,25 +24,29 @@ export function AceStepAbPanel({
 }: Props) {
   const pair = pickEngineAbPair(generations);
   const [side, setSide] = useState<Side>("yue2");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const settings = useAppStore(s => s.settings);
+  const [generationReady, setGenerationReady] = useState(!isTauriRuntime());
+  const [checking, setChecking] = useState(isTauriRuntime());
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    let disposed = false;
+    setChecking(true);
+    void runtimeApi.aceStepInstallInfo().then(info => {
+      if (!disposed) setGenerationReady(info.available && info.licenseAccepted);
+    }).catch(() => {
+      if (!disposed) setGenerationReady(false);
+    }).finally(() => {
+      if (!disposed) setChecking(false);
+    });
+    return () => { disposed = true; };
+  }, [settings?.aceStepLicenseAccepted]);
   const reserved = formatCommercialReservedBadge(
     "disponible avec réserve",
     profileLocale(),
   );
 
-  useEffect(() => {
-    const el = audioRef.current;
-    if (!el || !pair) return;
-    const take = side === "yue2" ? pair.yue2 : pair.aceStep;
-    const url = audioUrl(take.audioPath);
-    if (!url) return;
-    el.src = url;
-    void el.play().catch(() => {
-      /* autoplay may be blocked until the user clicks Play */
-    });
-  }, [pair, side]);
-
   const labelFor = (g: GenerationSummary) => takeLabels?.[g.id] ?? g.id;
+  const selectedTake = pair ? (side === "yue2" ? pair.yue2 : pair.aceStep) : null;
 
   return (
     <section className="ace-step-ab" aria-labelledby="ace-step-ab-title">
@@ -78,7 +75,7 @@ export function AceStepAbPanel({
               ACE-Step · {labelFor(pair.aceStep)}
             </button>
           </div>
-          <audio ref={audioRef} controls className="ace-step-ab-player" />
+          {selectedTake?.audioPath && <TakePreviewPlayer audioPath={selectedTake.audioPath} label={labelFor(selectedTake)} />}
         </>
       ) : (
         <p className="hint">{t("aceStep.ab.needBoth")}</p>
@@ -86,11 +83,16 @@ export function AceStepAbPanel({
       <button
         type="button"
         className="btn"
-        disabled={busy}
+        disabled={busy || checking || !generationReady}
+        aria-describedby={!generationReady ? "ace-step-ab-install-reason" : undefined}
         onClick={() => void onGenerateAceStep()}
       >
         {t("aceStep.ab.generate")}
       </button>
+      {!generationReady && <div id="ace-step-ab-install-reason" role="status">
+        <p className="hint">{t(checking ? "aceStep.ab.checking" : "aceStep.ab.installRequired")}</p>
+        {!checking && <button type="button" className="btn" onClick={() => useAppStore.getState().openModelSettings("ace_step")}>{t("production.instrumental.openSettings")}</button>}
+      </div>}
     </section>
   );
 }

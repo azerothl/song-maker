@@ -26,7 +26,7 @@ function mockTransport(
         body: {
           apiVersion: AKASHA_HOST_REGISTRATION.apiVersion,
           hostId: "akasha",
-          musicApi: { id: "song-maker-music", kind: "music", version: 1 },
+          musicApi: { id: "song-maker-music", kind: "music", version: 1, capabilities: MUSIC_API_DESCRIPTOR.capabilities },
           declUiSurfaces: [],
         },
       };
@@ -90,6 +90,22 @@ describe("akasha-declui adapter", () => {
     expect(invoked.ok).toBe(true);
 
     expect(bridge.disableHostMode().mode).toBe("desktop");
+  });
+
+  it("does not call a library-only embedded host connected", async () => {
+    const transport = mockTransport(true);
+    const discover = transport.discover;
+    transport.discover = async (...args) => {
+      const result = await discover(...args);
+      if (result.ok && result.body.musicApi) result.body.musicApi.capabilities = ["list_projects"];
+      return result;
+    };
+    const bridge = createAkashaHostBridge({ transport });
+    const result = await bridge.enableHostMode({ hostOptIn: true, hostUrl: "http://127.0.0.1:9100" });
+    expect(result.mode).toBe("unavailable");
+    expect(result.errorCode).toBe("capability_denied");
+    expect(bridge.getMode()).toBe("unavailable");
+    expect((await bridge.invokeMusicCapability({ capability: "generate_yue2", args: {} })).ok).toBe(false);
   });
 
   it("marks unavailable when host is unreachable", async () => {

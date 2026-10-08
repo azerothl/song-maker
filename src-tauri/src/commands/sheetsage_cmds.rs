@@ -12,6 +12,7 @@ pub async fn install_sheetsage2(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    let _resources = super::settings::guard_model_install(&state).await?;
     use std::sync::atomic::Ordering;
     if state.sheetsage_installing.swap(true, Ordering::AcqRel) {
         return Err("Un téléchargement SheetSage2 est déjà en cours.".into());

@@ -13,7 +13,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     await client.connect(transport);
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
-      ['gpu_status', 'job_status', 'resume_job', 'runtime_status', 'start_batch', 'start_song']);
+      ['cancel_job', 'gpu_status', 'job_status', 'resume_job', 'runtime_status', 'start_batch', 'start_song']);
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
     assert.equal(status.isError, undefined);
     assert.equal(typeof JSON.parse(status.content[0].text).ready, 'boolean');

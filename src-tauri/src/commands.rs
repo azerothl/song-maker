@@ -12,6 +12,7 @@ use std::sync::Mutex;
 pub mod ace_step_cmds;
 pub mod ace_step_lego_cmds;
 pub mod basicpitch_cmds;
+pub mod batch_capacity;
 pub mod batch_cmds;
 pub mod capture;
 pub mod generation;
@@ -57,6 +58,8 @@ pub struct AppState {
     pub pending_batches: Mutex<BTreeMap<String, crate::batch::PendingImport>>,
     pub started_batch_tokens: Mutex<BTreeMap<String, String>>,
     pub batch_inflight: Mutex<HashSet<String>>,
+    pub batch_workers: crate::batch_workers::BatchWorkers,
+    pub model_resources: std::sync::Arc<tokio::sync::RwLock<()>>,
 }
 
 #[derive(Default)]
@@ -105,6 +108,8 @@ impl Default for AppState {
             pending_batches: Mutex::new(BTreeMap::new()),
             started_batch_tokens: Mutex::new(BTreeMap::new()),
             batch_inflight: Mutex::new(HashSet::new()),
+            batch_workers: crate::batch_workers::BatchWorkers::default(),
+            model_resources: std::sync::Arc::new(tokio::sync::RwLock::new(())),
         }
     }
 }

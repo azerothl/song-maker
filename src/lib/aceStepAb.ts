@@ -18,7 +18,7 @@ export function pickEngineAbPair(generations: GenerationSummary[]): {
   const ready = generations.filter(
     (g) => g.state === "generated" && Boolean(g.audioPath),
   );
-  const yue2 = [...ready].reverse().find((g) => !isAceStepGeneration(g));
+  const yue2 = [...ready].reverse().find((g) => generationEngineId(g) === YUE2_ENGINE_ID);
   const aceStep = [...ready].reverse().find(isAceStepGeneration);
   if (!yue2 || !aceStep) return null;
   return { yue2, aceStep };

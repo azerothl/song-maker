@@ -110,28 +110,33 @@ function notesToBars(
 
     const tokens: string[] = [];
     let fill = cursor;
-    for (const note of inBar) {
-      if (note.startTick > fill) {
-        const restUnits = (note.startTick - fill) / unitTicks;
-        if (restUnits > 0 && Number.isInteger(restUnits)) {
-          tokens.push(restToken(restUnits));
-        }
+    while (fill < barEnd) {
+      const note = inBar.find((candidate) => candidate.startTick === fill);
+      if (note) {
+        const sym = chordAtTick(chords, note.startTick);
+        tokens.push(renderNote(note, unit, sym, includeChords));
+        fill = note.startTick + note.durationTick;
+        continue;
       }
-      const sym = chordAtTick(chords, note.startTick);
-      tokens.push(renderNote(note, unit, sym, includeChords));
-      fill = note.startTick + note.durationTick;
-    }
-    if (fill < barEnd) {
-      const restUnits = (barEnd - fill) / unitTicks;
-      if (restUnits > 0 && Number.isInteger(restUnits)) {
-        // Prefer chord-on-rest if a chord sits at fill
-        const sym = chordAtTick(chords, fill);
-        if (includeChords && sym) {
-          tokens.push(`"${sym}"${restToken(restUnits)}`);
-        } else {
-          tokens.push(restToken(restUnits));
-        }
+
+      const nextNote = inBar.find((candidate) => candidate.startTick > fill)?.startTick ?? barEnd;
+      const nextChord = includeChords
+        ? chords
+            .filter((chord) => chord.tick > fill && chord.tick < barEnd)
+            .reduce((next, chord) => Math.min(next, chord.tick), barEnd)
+        : barEnd;
+      const next = Math.min(nextNote, nextChord, barEnd);
+      const restTicks = next - fill;
+      if (restTicks <= 0 || restTicks % unitTicks !== 0) {
+        throw new ScoreEngineError(
+          "unaligned_duration",
+          `accord ou silence non aligné à la grille ABC au tick ${fill}`,
+        );
       }
+      const sym = chordAtTick(chords, fill);
+      const restUnits = restTicks / unitTicks;
+      tokens.push(`${includeChords && sym ? `"${sym}"` : ""}${restToken(restUnits)}`);
+      fill = next;
     }
 
     bars.push(tokens.join("") || restToken(unitsPerBar));
@@ -215,6 +220,8 @@ export function exportToYuE2Abc(
   const ins = pickVoice(doc, "Ins");
   const includeChords = options.cot === "full";
   const unitsPerBar = ticksPerBar(ts, unitLength);
+  const unitTicks =
+    unitLength === "1/16" ? TICKS_PER_SIXTEENTH : TICKS_PER_THIRTY_SECOND;
 
   const sections =
     doc.sections.length > 0
@@ -232,6 +239,11 @@ export function exportToYuE2Abc(
     ...[...(vocal?.notes ?? []), ...(ins?.notes ?? [])].map(
       (n) => n.startTick + n.durationTick,
     ),
+    // A chord can trail the last note in model-generated ABC. Keep enough
+    // score space to serialize that chord and its following rest.
+    ...(includeChords
+      ? doc.chordEvents.map((chord) => chord.tick + unitTicks)
+      : []),
     ...sections.map((s) => s.startTick),
   );
 

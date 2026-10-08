@@ -193,6 +193,8 @@ export function FirstLaunchScreen() {
   const [gpu, setGpu] = useState<SetupGpuInfo | null>(initialDemo?.gpu ?? null);
   const [plan, setPlan] = useState<InstallPlan | null>(initialDemo?.plan ?? null);
   const [pack, setPack] = useState<ModelPack>(initialDemo?.pack ?? "q4");
+  const packLabel = (value: ModelPack) =>
+    t(value === "q4" ? "firstLaunch.gpu.pack.q4.short" : "firstLaunch.gpu.pack.q8.short");
   const [accepted, setAccepted] = useState(
     initialDemo?.yue2LicenseAccepted ?? Boolean(initialDemo?.progress),
   );
@@ -501,7 +503,7 @@ export function FirstLaunchScreen() {
               <div className="fl-panel fl-reco">
                 <h2>{t("firstLaunch.gpu.recoTitle")}</h2>
                 <div className="fl-big">
-                  {t("firstLaunch.gpu.recoModel", { pack: suggested.toUpperCase() })}{" "}
+                  {t("firstLaunch.gpu.recoModel", { pack: packLabel(suggested) })}{" "}
                   <span className="fl-chip">{t("firstLaunch.gpu.chipRecommended")}</span>
                 </div>
                 <p>{suggestedPackReasonCopy(gpu)}</p>
@@ -515,7 +517,7 @@ export function FirstLaunchScreen() {
                     <dd>{formatBytesFr(buckets.engineBytes)}</dd>
                   </div>
                   <div>
-                    <dt>{t("firstLaunch.gpu.sumModel", { pack: pack.toUpperCase() })}</dt>
+                    <dt>{t("firstLaunch.gpu.sumModel", { pack: packLabel(pack) })}</dt>
                     <dd>{formatBytesFr(buckets.modelBytes)}</dd>
                   </div>
                   <div className="fl-sum-total">
@@ -624,18 +626,24 @@ export function FirstLaunchScreen() {
                 />
                 {t("firstLaunch.license.yue2Accept")}
               </label>
-              <p className="fl-htdemucs-notice" data-testid="fl-htdemucs-notice">
-                {t("firstLaunch.license.htdemucsNotice")}{" "}
-                <a
-                  className="fl-demucs-link"
-                  href={HTDEMUCS_LICENSE_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Demucs #327
-                </a>
-                .
+              <p className="fl-htdemucs-summary">
+                {t("firstLaunch.license.htdemucsSummary")}
               </p>
+              <details className="fl-htdemucs-details">
+                <summary>{t("firstLaunch.license.htdemucsDetails")}</summary>
+                <p className="fl-htdemucs-notice" data-testid="fl-htdemucs-notice">
+                  {t("firstLaunch.license.htdemucsNotice")}{" "}
+                  <a
+                    className="fl-demucs-link"
+                    href={HTDEMUCS_LICENSE_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {t("firstLaunch.license.htdemucsSource")}
+                  </a>
+                  .
+                </p>
+              </details>
               <label className="fl-cb" htmlFor="fl-htdemucs-license-accept">
                 <input
                   id="fl-htdemucs-license-accept"

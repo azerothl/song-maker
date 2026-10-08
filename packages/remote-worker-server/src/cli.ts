@@ -34,6 +34,12 @@ const overrides: Partial<WorkerConfig> = {
   audiocppUrl: process.env.AUDIOCPP_URL ?? null,
   simulate,
 };
+if (process.env.SONG_MAKER_REMOTE_WORKER_CORS_ORIGINS) {
+  overrides.corsAllowedOrigins = process.env.SONG_MAKER_REMOTE_WORKER_CORS_ORIGINS
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
 if (process.env.SONG_MAKER_REMOTE_WORKER_DATA) {
   overrides.dataDir = process.env.SONG_MAKER_REMOTE_WORKER_DATA;
 }

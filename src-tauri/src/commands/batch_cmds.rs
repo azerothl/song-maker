@@ -1,19 +1,19 @@
-//! Import JSON, file persistante et exécution série (#368).
-//! Capacité GPU admise = 1 (file `JobQueue` exclusive). Pas de pool audiocpp isolé.
+//! Import JSON, persistent queue and isolated batch workers (#368).
 
 use super::AppState;
 use crate::batch::{
-    batch_snapshot, export_ready_results, list_batch_summaries, load_live_tasks, load_manifest,
-    parse_batch_bytes, patch_manifest, persist_new_batch, plan_batch, save_task, task_to_form,
-    BatchError, BatchOptionSet, PendingImport, PlannedTask, ADMITTED_PARALLEL, EXAMPLE_JSON,
-    MAX_FILE_BYTES,
+    batch_snapshot, batches_root, export_ready_results, list_batch_summaries, load_live_tasks,
+    load_manifest, load_plan, parse_batch_bytes, patch_manifest, persist_new_batch, plan_batch,
+    save_task, task_to_form, BatchError, BatchOptionSet, PendingImport, PlannedTask,
+    ADMITTED_PARALLEL, EXAMPLE_JSON, MAX_FILE_BYTES,
 };
-use crate::commands::generation::start_generation;
+use crate::commands::generation::generate_worker_take;
 use crate::commands::projects::{create_project, save_project_form};
 use crate::library::{
-    library_row_from_project, load_project, project_folder, save_project, upsert_library_row,
+    library_row_from_project, load_project, load_settings, project_folder, save_project,
+    upsert_library_row,
 };
-use crate::models::CreateProjectInput;
+use crate::models::{AppSettings, CreateProjectInput};
 use crate::paths::atomic_write_json;
 use serde::Deserialize;
 use serde_json::json;
@@ -35,11 +35,25 @@ fn emit_batch(app: &AppHandle, batch_id: &str, snapshot: &serde_json::Value) {
     );
 }
 
+pub(crate) fn resources_pinned() -> bool {
+    list_batch_summaries()
+        .map(|lots| {
+            lots.iter().any(|lot| {
+                matches!(
+                    lot["state"].as_str(),
+                    Some("running" | "pausing" | "paused" | "cancelling" | "interrupted")
+                )
+            })
+        })
+        .unwrap_or(true)
+}
+
 fn validate_ok(preview: crate::batch::BatchPreview) -> serde_json::Value {
+    let admitted = preview.admitted_parallel;
     json!({
         "ok": true,
         "preview": preview,
-        "admittedParallel": ADMITTED_PARALLEL,
+        "admittedParallel": admitted,
     })
 }
 
@@ -118,6 +132,7 @@ pub fn validate_batch_import(
         Ok(file) => match plan_batch(&file, None, None) {
             Err(errors) => Ok(validate_err(errors)),
             Ok(preview) => {
+                let preview = super::batch_capacity::apply_capacity(&state, preview);
                 let raw_text = String::from_utf8(raw).map_err(|e| e.to_string())?;
                 let out = validate_ok(preview.clone());
                 store_pending(&state, file, raw_text, preview);
@@ -146,17 +161,42 @@ pub fn update_batch_preview(
     match plan_batch(&pending.file, Some(&ov), overrides.max_parallel_generations) {
         Err(errors) => Ok(validate_err(errors)),
         Ok(mut preview) => {
+            preview = super::batch_capacity::apply_capacity(&state, preview);
             preview.revision = pending.preview.revision.saturating_add(1);
             let out = validate_ok(preview.clone());
-            state
-                .pending_batches
-                .lock()
-                .expect("pending batches")
-                .remove(&start_token);
-            store_pending(&state, pending.file, pending.input_raw, preview);
+            // Serialize with start_batch, which consumes the token after publishing its plan.
+            let _starts = state.started_batch_tokens.lock().expect("started tokens");
+            let mut registry = state.pending_batches.lock().expect("pending batches");
+            replace_pending_preview(
+                &mut registry,
+                &start_token,
+                pending.preview.revision,
+                PendingImport {
+                    file: pending.file,
+                    input_raw: pending.input_raw,
+                    preview,
+                },
+            )?;
             Ok(out)
         }
     }
+}
+
+pub(super) fn replace_pending_preview(
+    registry: &mut std::collections::BTreeMap<String, PendingImport>,
+    previous_token: &str,
+    previous_revision: u32,
+    replacement: PendingImport,
+) -> Result<(), String> {
+    if registry
+        .get(previous_token)
+        .is_none_or(|pending| pending.preview.revision != previous_revision)
+    {
+        return Err("Aperçu périmé : les réglages ont déjà changé ou le lot a été lancé.".into());
+    }
+    registry.remove(previous_token);
+    registry.insert(replacement.preview.start_token.clone(), replacement);
+    Ok(())
 }
 
 fn assign_projects(tasks: &mut [PlannedTask]) -> Result<(), String> {
@@ -202,15 +242,14 @@ pub async fn start_batch(
     start_token: String,
     revision: u32,
 ) -> Result<serde_json::Value, String> {
-    {
-        let started = state.started_batch_tokens.lock().expect("started tokens");
-        if let Some(id) = started.get(&start_token) {
-            return Ok(json!({ "batchId": id, "idempotent": true }));
-        }
+    let mut started = state.started_batch_tokens.lock().expect("started tokens");
+    if let Some(id) = started.get(&start_token) {
+        return Ok(json!({ "batchId": id, "idempotent": true }));
     }
     let pending = {
-        let mut g = state.pending_batches.lock().expect("pending batches");
-        g.remove(&start_token)
+        let g = state.pending_batches.lock().expect("pending batches");
+        g.get(&start_token)
+            .cloned()
             .ok_or_else(|| "Aperçu périmé. Réimportez le fichier.".to_string())?
     };
     if pending.preview.revision != revision {
@@ -222,14 +261,35 @@ pub async fn start_batch(
             .launch_block_fr
             .unwrap_or_else(|| "Lancement bloqué : capacité GPU insuffisante.".into()));
     }
+    let _configuration = super::settings::guard_model_snapshot(&state)?;
+    let _preparation = state.batch_workers.prepare();
+    let settings = load_settings()?;
+    super::batch_capacity::verify_before_start(&state, &pending.preview)?;
+    if !matches!(settings.generation_engine.as_str(), "yue2" | "ace_step") {
+        return Err("Choisissez YuE2 ou ACE-Step dans Paramètres avant de lancer ce lot.".into());
+    }
     let mut tasks = pending.preview.tasks.clone();
+    for task in &tasks {
+        crate::form::validate_form_for_engine(&task_to_form(task), &settings.generation_engine)
+            .map_err(|error| format!("{} : {error}", task.title))?;
+    }
     assign_projects(&mut tasks)?;
     let batch_id = persist_new_batch(&pending.preview, &pending.input_raw, &tasks)?;
+    let mut plan = load_plan(&batch_id)?;
+    plan["generationSettings"] = batch_generation_settings(&settings);
+    plan["profileId"] = json!(crate::profiles::active_profile_id());
+    plan["generationAssets"] = super::batch_capacity::asset_fingerprints(&settings);
+    if pending.preview.effective_parallel > 1 {
+        plan["capacityKey"] = super::batch_capacity::capacity_key(&pending.preview)?;
+    }
+    atomic_write_json(&batches_root().join(&batch_id).join("plan.json"), &plan)?;
+    started.insert(start_token.clone(), batch_id.clone());
     state
-        .started_batch_tokens
+        .pending_batches
         .lock()
-        .expect("started tokens")
-        .insert(start_token, batch_id.clone());
+        .expect("pending batches")
+        .remove(&start_token);
+    drop(started);
     spawn_runner(app.clone(), &state, batch_id.clone());
     let snap = batch_snapshot(&batch_id)?;
     emit_batch(&app, &batch_id, &snap);
@@ -259,10 +319,15 @@ pub fn get_batch_status(batch_id: String) -> Result<serde_json::Value, String> {
 
 #[tauri::command]
 pub fn pause_batch(app: AppHandle, batch_id: String) -> Result<serde_json::Value, String> {
-    patch_manifest(&batch_id, |man| {
-        man["pauseRequested"] = json!(true);
-        man["state"] = json!("pausing");
-    })?;
+    let tasks = load_live_tasks(&batch_id)?;
+    if tasks.iter().any(|task| batch_task_pending(&task.state)) {
+        patch_manifest(&batch_id, |man| {
+            man["pauseRequested"] = json!(true);
+            man["state"] = json!("pausing");
+        })?;
+    } else {
+        finalize_batch(&batch_id, &tasks);
+    }
     let snap = batch_snapshot(&batch_id)?;
     emit_batch(&app, &batch_id, &snap);
     Ok(snap)
@@ -274,6 +339,8 @@ pub async fn resume_batch(
     state: tauri::State<'_, AppState>,
     batch_id: String,
 ) -> Result<serde_json::Value, String> {
+    let _configuration = super::settings::guard_model_snapshot(&state)?;
+    prepare_batch_resume(&batch_id)?;
     patch_manifest(&batch_id, |man| {
         man["pauseRequested"] = json!(false);
         man["cancelRequested"] = json!(false);
@@ -283,6 +350,28 @@ pub async fn resume_batch(
     let snap = batch_snapshot(&batch_id)?;
     emit_batch(&app, &batch_id, &snap);
     Ok(snap)
+}
+
+fn prepare_batch_resume(batch_id: &str) -> Result<(), String> {
+    for mut task in load_live_tasks(batch_id)? {
+        // A restarted app has no live retry timer or worker for these states.
+        // Explicit resume authorizes another attempt with the same resolved inputs.
+        if matches!(task.state.as_str(), "interrupted" | "retry_wait") {
+            task.attempt = task.attempt.saturating_add(1);
+            task.state = "queued".into();
+            task.last_error = None;
+            save_task(batch_id, &task)?;
+        }
+    }
+    Ok(())
+}
+
+fn batch_cancel_transition(state: &str) -> Option<&'static str> {
+    match state {
+        "queued" | "retry_wait" | "interrupted" => Some("cancelled"),
+        "running" | "preparing" | "publishing" => Some("cancel_requested"),
+        _ => None,
+    }
 }
 
 #[tauri::command]
@@ -297,14 +386,21 @@ pub fn cancel_batch(
     })?;
     let mut tasks = load_live_tasks(&batch_id)?;
     for task in &mut tasks {
-        if matches!(task.state.as_str(), "queued" | "retry_wait") {
-            task.state = "cancelled".into();
+        if let Some(next_state) = batch_cancel_transition(&task.state) {
+            task.state = next_state.into();
             save_task(&batch_id, task)?;
-        } else if matches!(task.state.as_str(), "running" | "preparing" | "publishing") {
-            task.state = "cancel_requested".into();
-            save_task(&batch_id, task)?;
-            let _ = state.queue.request_cancel();
+            if next_state == "cancel_requested" {
+                state.batch_workers.cancel(&batch_id, None);
+            }
         }
+    }
+    if !state
+        .batch_inflight
+        .lock()
+        .expect("batch inflight")
+        .contains(&batch_id)
+    {
+        finalize_batch(&batch_id, &load_live_tasks(&batch_id)?);
     }
     let snap = batch_snapshot(&batch_id)?;
     emit_batch(&app, &batch_id, &snap);
@@ -330,7 +426,7 @@ pub fn cancel_batch_task(
         "running" | "preparing" | "publishing" => {
             task.state = "cancel_requested".into();
             save_task(&batch_id, task)?;
-            let _ = state.queue.request_cancel();
+            state.batch_workers.cancel(&batch_id, Some(&task_id));
         }
         _ => {}
     }
@@ -346,6 +442,7 @@ pub async fn retry_batch_tasks(
     batch_id: String,
     task_ids: Vec<String>,
 ) -> Result<serde_json::Value, String> {
+    let _configuration = super::settings::guard_model_snapshot(&state)?;
     let mut tasks = load_live_tasks(&batch_id)?;
     for task in &mut tasks {
         if task_ids.contains(&task.task_id)
@@ -389,27 +486,44 @@ fn is_transient(err: &str) -> bool {
         || lower.contains("connection")
         || lower.contains("worker")
         || lower.contains("refus de connexion")
+        || lower.contains("error sending request")
 }
 
 async fn run_batch_loop(app: AppHandle, batch_id: String) {
+    let mut jobs = tokio::task::JoinSet::new();
+    let mut job_task_ids = HashMap::new();
     loop {
         let Ok(man) = load_manifest(&batch_id) else {
             break;
         };
-        let cancel = man
-            .get("cancelRequested")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-        let pause = man
-            .get("pauseRequested")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        let cancel = man["cancelRequested"].as_bool().unwrap_or(false);
+        let pause = man["pauseRequested"].as_bool().unwrap_or(false);
         let Ok(mut tasks) = load_live_tasks(&batch_id) else {
             break;
         };
-        let on_error = load_plan_on_error(&batch_id);
-        let retry_max = load_plan_retry_max(&batch_id);
-
+        let state = app.state::<AppState>();
+        let plan = load_plan(&batch_id).unwrap_or_default();
+        let verified = super::batch_capacity::verified_for_plan(&state, &batch_id);
+        let requested = plan["effectiveParallel"].as_u64().unwrap_or(1) as usize;
+        let limit = if verified { requested.clamp(1, 2) } else { 1 };
+        if man.get("effectiveParallel").and_then(|v| v.as_u64()) != Some(limit as u64) {
+            let _ = patch_manifest(&batch_id, |m| {
+                m["effectiveParallel"] = json!(limit);
+                m["capacityReasonFr"] = if requested > limit {
+                    json!("Une prise à la fois : la vérification pour deux prises simultanées n’est plus valable dans cette session.")
+                } else {
+                    plan["capacityReasonFr"].clone()
+                };
+            });
+        }
+        let capacity_lost = requested > limit && plan["parallelismPolicy"] == "requireRequested";
+        if capacity_lost && !pause && !cancel {
+            let _ = patch_manifest(&batch_id, |m| {
+                m["pauseRequested"] = json!(true);
+                m["state"] = json!("pausing");
+                m["capacityReasonFr"] = json!("La simultanéité doit être vérifiée à nouveau avant de reprendre avec cette exigence.");
+            });
+        }
         if cancel {
             for task in &mut tasks {
                 if matches!(task.state.as_str(), "queued" | "retry_wait") {
@@ -417,76 +531,158 @@ async fn run_batch_loop(app: AppHandle, batch_id: String) {
                     let _ = save_task(&batch_id, task);
                 }
             }
-            let still_active = tasks
-                .iter()
-                .any(|t| matches!(t.state.as_str(), "running" | "preparing" | "publishing"));
-            if !still_active {
-                let _ = patch_manifest(&batch_id, |m| {
-                    m["state"] = json!("cancelled");
-                    m["cancelRequested"] = json!(false);
-                });
-                if let Ok(snap) = batch_snapshot(&batch_id) {
-                    emit_batch(&app, &batch_id, &snap);
+        }
+        if !pause && !cancel && !capacity_lost {
+            for task in tasks.iter_mut().filter(|t| t.state == "queued") {
+                if jobs.len() >= limit {
+                    break;
                 }
-                break;
+                task.state = "preparing".into();
+                if save_task(&batch_id, task).is_err() {
+                    break;
+                }
+                let task = task.clone();
+                let task_id = task.task_id.clone();
+                let task_app = app.clone();
+                let task_batch = batch_id.clone();
+                let handle = jobs.spawn(async move {
+                    run_attempt(task_app, task_batch, task).await;
+                });
+                job_task_ids.insert(handle.id(), task_id);
             }
         }
-
-        if pause && !cancel {
-            let still_active = tasks
-                .iter()
-                .any(|t| matches!(t.state.as_str(), "running" | "preparing" | "publishing"));
-            if !still_active {
-                let _ = patch_manifest(&batch_id, |m| {
-                    m["state"] = json!("paused");
-                });
-                if let Ok(snap) = batch_snapshot(&batch_id) {
-                    emit_batch(&app, &batch_id, &snap);
-                }
-                break;
+        if jobs.is_empty() {
+            if cancel {
+                finalize_batch(&batch_id, &tasks);
+            } else if (pause || capacity_lost) && tasks.iter().any(|t| batch_task_pending(&t.state))
+            {
+                let _ = patch_manifest(&batch_id, |m| m["state"] = json!("paused"));
+            } else {
+                finalize_batch(&batch_id, &tasks);
             }
-        }
-
-        let next = tasks.iter().position(|t| t.state == "queued");
-        let Some(idx) = next else {
-            finalize_batch(&batch_id, &tasks);
             if let Ok(snap) = batch_snapshot(&batch_id) {
                 emit_batch(&app, &batch_id, &snap);
             }
             break;
-        };
-        if pause || cancel {
-            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
-            continue;
         }
+        match jobs.join_next_with_id().await {
+            Some(Ok((id, _))) => {
+                job_task_ids.remove(&id);
+            }
+            Some(Err(error)) => {
+                let task_id = job_task_ids.remove(&error.id());
+                let isolated = task_id.as_deref().is_some_and(|task_id| {
+                    let Ok(mut tasks) = load_live_tasks(&batch_id) else {
+                        return false;
+                    };
+                    let Some(task) = tasks.iter_mut().find(|task| task.task_id == task_id) else {
+                        return false;
+                    };
+                    reconcile_unexpected_worker_exit(task);
+                    save_task(&batch_id, task).is_ok()
+                });
 
-        let mut task = tasks[idx].clone();
-        if let Err(e) = run_one_task(&app, &batch_id, &mut task).await {
-            task.last_error = Some(e.clone());
-            let attempts_used = task.attempt.max(1);
-            if is_transient(&e) && attempts_used < retry_max {
-                let wait = 2u64.saturating_pow(attempts_used.min(4));
-                task.state = "retry_wait".into();
-                let _ = save_task(&batch_id, &task);
-                tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
-                if task.state == "retry_wait" {
-                    task.attempt = attempts_used.saturating_add(1);
-                    task.state = "queued".into();
-                    let _ = save_task(&batch_id, &task);
-                }
-            } else {
-                task.state = "failed".into();
-                let _ = save_task(&batch_id, &task);
-                if on_error == "pause" {
+                if isolated {
+                    if load_plan_on_error(&batch_id) == "pause" {
+                        let _ = patch_manifest(&batch_id, |m| {
+                            m["pauseRequested"] = json!(true);
+                            m["state"] = json!("pausing");
+                        });
+                    }
+                } else {
+                    // Without a task identity, pause safely rather than finalizing a
+                    // batch whose persistent task state cannot be reconciled.
                     let _ = patch_manifest(&batch_id, |m| {
                         m["pauseRequested"] = json!(true);
                         m["state"] = json!("pausing");
+                        m["error"] = json!(format!("Une tâche a été interrompue : {error}"));
                     });
+                    let active_ids: Vec<_> = load_live_tasks(&batch_id)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|task| task.state == "running" || task.state == "preparing")
+                        .collect();
+                    // Surviving workers drain before recovery marks their task states.
+                    while let Some(joined) = jobs.join_next_with_id().await {
+                        if let Ok((id, _)) = joined {
+                            job_task_ids.remove(&id);
+                        }
+                    }
+                    for mut task in active_ids {
+                        let current = load_live_tasks(&batch_id)
+                            .unwrap_or_default()
+                            .into_iter()
+                            .find(|t| t.task_id == task.task_id);
+                        if current
+                            .is_some_and(|t| matches!(t.state.as_str(), "running" | "preparing"))
+                        {
+                            task.state = "interrupted".into();
+                            let _ = save_task(&batch_id, &task);
+                        }
+                    }
                 }
             }
+            None => {}
         }
         if let Ok(snap) = batch_snapshot(&batch_id) {
             emit_batch(&app, &batch_id, &snap);
+        }
+    }
+    // Never drop a running worker future while its child process still owns GPU memory.
+    while let Some(joined) = jobs.join_next_with_id().await {
+        if let Ok((id, _)) = joined {
+            job_task_ids.remove(&id);
+        }
+    }
+}
+
+async fn run_attempt(app: AppHandle, batch_id: String, mut task: PlannedTask) {
+    if let Err(e) = run_one_task(&app, &batch_id, &mut task).await {
+        task.last_error = Some(e.clone());
+        let lower = e.to_lowercase();
+        if lower.contains("oom") || lower.contains("out of memory") || lower.contains("mémoire") {
+            *app.state::<AppState>()
+                .batch_workers
+                .proof
+                .lock()
+                .expect("capacity proof") = None;
+            let _ = patch_manifest(&batch_id, |m| {
+                m["effectiveParallel"] = json!(1);
+                m["capacityReasonFr"] = json!(
+                    "Mémoire insuffisante : une prise à la fois après la fin des tâches en cours."
+                );
+            });
+        }
+        let attempts_used = task.attempt.max(1);
+        if is_transient(&e) && attempts_used < load_plan_retry_max(&batch_id) {
+            task.state = "retry_wait".into();
+            let _ = save_task(&batch_id, &task);
+            tokio::time::sleep(std::time::Duration::from_secs(
+                2u64.saturating_pow(attempts_used.min(4)),
+            ))
+            .await;
+            let still_waiting = load_live_tasks(&batch_id)
+                .ok()
+                .and_then(|tasks| tasks.into_iter().find(|live| live.task_id == task.task_id))
+                .is_some_and(|live| live.state == "retry_wait");
+            let cancelled = load_manifest(&batch_id)
+                .ok()
+                .and_then(|m| m["cancelRequested"].as_bool())
+                .unwrap_or(true);
+            if still_waiting && !cancelled {
+                task.attempt = attempts_used.saturating_add(1);
+                task.state = "queued".into();
+                let _ = save_task(&batch_id, &task);
+            }
+        } else {
+            task.state = "failed".into();
+            let _ = save_task(&batch_id, &task);
+            if load_plan_on_error(&batch_id) == "pause" {
+                let _ = patch_manifest(&batch_id, |m| {
+                    m["pauseRequested"] = json!(true);
+                    m["state"] = json!("pausing");
+                });
+            }
         }
     }
 }
@@ -509,7 +705,7 @@ fn load_plan_retry_max(batch_id: &str) -> u32 {
         .unwrap_or(1) as u32
 }
 
-fn finalize_batch(batch_id: &str, tasks: &[PlannedTask]) {
+pub(crate) fn finalize_batch(batch_id: &str, tasks: &[PlannedTask]) {
     let failed = tasks.iter().any(|t| {
         matches!(
             t.state.as_str(),
@@ -539,6 +735,19 @@ async fn run_one_task(
     batch_id: &str,
     task: &mut PlannedTask,
 ) -> Result<(), String> {
+    let plan = load_plan(batch_id)?;
+    let settings = load_settings()?;
+    if plan.get("generationSettings") != Some(&batch_generation_settings(&settings))
+        || plan.get("profileId") != Some(&json!(crate::profiles::active_profile_id()))
+    {
+        return Err("Les réglages du moteur ont changé depuis le lancement de ce lot, ou ce lot ancien ne les conserve pas. Rétablissez les réglages initiaux ou importez un nouveau lot.".into());
+    }
+    if plan
+        .get("generationAssets")
+        .is_some_and(|assets| *assets != super::batch_capacity::asset_fingerprints(&settings))
+    {
+        return Err("Les fichiers du moteur ou du modèle ont changé depuis le lancement du lot. Rétablissez les fichiers initiaux ou importez un nouveau lot.".into());
+    }
     let Some(project_id) = task.project_id.clone() else {
         return Err("Projet manquant pour la tâche.".into());
     };
@@ -549,17 +758,64 @@ async fn run_one_task(
     save_task(batch_id, task)?;
     let form = task_to_form(task);
     let state = app.state::<AppState>();
+    let verified = super::batch_capacity::verified_for_plan(&state, batch_id);
+    let admission = wait_for_batch_admission(
+        state
+            .batch_workers
+            .acquire(&state, batch_id, &task.task_id, settings, verified),
+        || {
+            let manifest = load_manifest(batch_id)?;
+            let cancelled = load_live_tasks(batch_id)?.iter().any(|live| {
+                live.task_id == task.task_id
+                    && matches!(live.state.as_str(), "cancelled" | "cancel_requested")
+            });
+            Ok(cancelled
+                || manifest["cancelRequested"].as_bool().unwrap_or(false)
+                || manifest["pauseRequested"].as_bool().unwrap_or(false))
+        },
+    )
+    .await?;
+    let Some(lease) = admission else {
+        let manifest = load_manifest(batch_id)?;
+        let cancelled = load_live_tasks(batch_id)?.iter().any(|live| {
+            live.task_id == task.task_id
+                && matches!(live.state.as_str(), "cancelled" | "cancel_requested")
+        }) || manifest["cancelRequested"].as_bool().unwrap_or(false);
+        task.state = if cancelled { "cancelled" } else { "queued" }.into();
+        save_task(batch_id, task)?;
+        return Ok(());
+    };
+    let lease = lease?;
+    if verified && !super::batch_capacity::verify_attempt_assets(&state, batch_id).await {
+        task.state = "queued".into();
+        save_task(batch_id, task)?;
+        return Ok(());
+    }
+    // Cancellation/pause can arrive while this task waits for another lot or an
+    // interactive job to release the GPU. Never start inference in that case.
+    let live = load_live_tasks(batch_id)?;
+    let cancelled = live
+        .iter()
+        .find(|t| t.task_id == task.task_id)
+        .is_some_and(|t| matches!(t.state.as_str(), "cancelled" | "cancel_requested"));
+    let manifest = load_manifest(batch_id)?;
+    if cancelled || manifest["cancelRequested"].as_bool().unwrap_or(false) {
+        task.state = "cancelled".into();
+        save_task(batch_id, task)?;
+        return Ok(());
+    }
+    if manifest["pauseRequested"].as_bool().unwrap_or(false) {
+        task.state = "queued".into();
+        save_task(batch_id, task)?;
+        return Ok(());
+    }
     task.state = "running".into();
     save_task(batch_id, task)?;
-    let result = start_generation(
-        state,
+    let result = generate_worker_take(
+        app.state::<AppState>(),
         project_id.clone(),
         form,
-        None,
-        None,
-        None,
-        None,
-        None,
+        &lease.worker,
     )
     .await;
     let live = load_live_tasks(batch_id).unwrap_or_default();
@@ -568,8 +824,8 @@ async fn run_one_task(
         .find(|t| t.task_id == task.task_id)
         .is_some_and(|t| t.state == "cancel_requested");
     match result {
-        Ok(doc) => {
-            let gen_id = doc.active_generation_id.clone();
+        Ok(result) => {
+            let gen_id = Some(result.generation_id);
             if cancelled {
                 task.state = "cancelled".into();
                 task.generation_id = gen_id;
@@ -593,6 +849,28 @@ async fn run_one_task(
             Ok(())
         }
         Err(e) => Err(e),
+    }
+}
+
+/// Drop only an admission waiter: no worker process has started at these await points.
+async fn wait_for_batch_admission<F, C, T>(admission: F, mut stop: C) -> Result<Option<T>, String>
+where
+    F: std::future::Future<Output = T>,
+    C: FnMut() -> Result<bool, String>,
+{
+    if stop()? {
+        return Ok(None);
+    }
+    tokio::pin!(admission);
+    let mut poll = tokio::time::interval(std::time::Duration::from_millis(200));
+    loop {
+        tokio::select! {
+            biased;
+            _ = poll.tick() => {
+                if stop()? { return Ok(None); }
+            }
+            result = &mut admission => return Ok(Some(result)),
+        }
     }
 }
 
@@ -623,7 +901,7 @@ fn tag_generation_request(
     let _ = atomic_write_json(&path, &value);
 }
 
-fn restore_smallest_active(batch_id: &str, song_id: &str, project_id: &str) {
+pub(crate) fn restore_smallest_active(batch_id: &str, song_id: &str, project_id: &str) {
     let Ok(tasks) = load_live_tasks(batch_id) else {
         return;
     };
@@ -635,10 +913,354 @@ fn restore_smallest_active(batch_id: &str, song_id: &str, project_id: &str) {
         return;
     };
     let folder = project_folder(project_id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
     let Ok(mut doc) = load_project(&folder) else {
         return;
     };
-    doc.active_generation_id = best.generation_id.clone();
+    if !select_batch_default(&mut doc.active_generation_id, &best.generation_id) {
+        return;
+    }
     let _ = save_project(&folder, &doc);
     let _ = upsert_library_row(&library_row_from_project(&folder, &doc));
+}
+
+fn select_batch_default(active: &mut Option<String>, candidate: &Option<String>) -> bool {
+    if active.is_some() || candidate.is_none() {
+        return false;
+    }
+    *active = candidate.clone();
+    true
+}
+
+fn batch_task_pending(state: &str) -> bool {
+    matches!(
+        state,
+        "queued" | "retry_wait" | "preparing" | "running" | "publishing" | "cancel_requested"
+    )
+}
+
+fn reconcile_unexpected_worker_exit(task: &mut PlannedTask) {
+    if task.state == "cancel_requested" {
+        task.state = "cancelled".into();
+    } else if batch_task_pending(&task.state) {
+        task.state = "failed".into();
+        task.last_error = Some(
+            "La génération s’est arrêtée sans résultat. Les autres générations continuent.".into(),
+        );
+    }
+    // Keep an already terminal state: the worker may have saved it before a
+    // non-essential follow-up panicked.
+}
+
+pub(crate) fn batch_generation_settings(settings: &AppSettings) -> serde_json::Value {
+    // Only generation configuration is persisted; assistant credentials are excluded.
+    json!({
+        "engine": settings.generation_engine,
+        "cacheDir": settings.cache_dir,
+        "binaryTag": settings.binary_tag,
+        "binaryArchive": settings.binary_archive,
+        "binarySha256": settings.binary_sha256,
+        "modelPack": settings.model_pack,
+        "modelGguf": settings.model_gguf,
+        "modelSha256": settings.model_sha256,
+        "localYue2Enabled": settings.local_yue2_enabled,
+        "arLora": settings.yue2_ar_lora,
+        "narLora": settings.yue2_nar_lora,
+        "arLoraScale": settings.yue2_ar_lora_scale,
+        "narLoraScale": settings.yue2_nar_lora_scale,
+    })
+}
+
+#[cfg(test)]
+mod selection_tests {
+    use super::{
+        batch_cancel_transition, batch_generation_settings, batch_task_pending,
+        reconcile_unexpected_worker_exit, select_batch_default, wait_for_batch_admission,
+        PlannedTask,
+    };
+
+    #[tokio::test]
+    async fn cancellation_removes_waiter_and_releases_partial_admission() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        };
+        let pool = Arc::new(tokio::sync::Semaphore::new(2));
+        let device = Arc::new(crate::device_admission::DeviceAdmission::default());
+        let interactive = device.interactive().await;
+        let stopped = Arc::new(AtomicBool::new(false));
+        let signal = stopped.clone();
+        let admission_pool = pool.clone();
+        let admission_device = device.clone();
+        let waiter = tokio::spawn(async move {
+            wait_for_batch_admission(
+                async move {
+                    let permit = admission_pool.acquire_many_owned(2).await.unwrap();
+                    let device = admission_device.batch().await;
+                    (permit, device)
+                },
+                || Ok(signal.load(Ordering::Acquire)),
+            )
+            .await
+        });
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while pool.available_permits() != 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        stopped.store(true, Ordering::Release);
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_secs(2), waiter)
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(pool.available_permits(), 2);
+        // Cancellation does not release or interrupt the unrelated interactive job.
+        assert!(device.try_interactive().is_none());
+        drop(interactive);
+        assert!(device.try_interactive().is_some());
+    }
+
+    #[tokio::test]
+    async fn batch_admission_stops_before_start_and_accepts_ready_work() {
+        assert!(
+            wait_for_batch_admission(std::future::ready(42), || Ok(true))
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            wait_for_batch_admission(std::future::ready(42), || Ok(false))
+                .await
+                .unwrap(),
+            Some(42)
+        );
+        assert!(
+            wait_for_batch_admission(std::future::pending::<()>(), || Err(
+                "manifest unreadable".into()
+            ))
+            .await
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn batch_configuration_tracks_generation_changes_only() {
+        let mut settings = crate::library::default_settings();
+        let original = batch_generation_settings(&settings);
+        settings.mix_llm_provider = "external".into();
+        assert_eq!(original, batch_generation_settings(&settings));
+        settings.generation_engine = "ace_step".into();
+        assert_ne!(original, batch_generation_settings(&settings));
+        settings.generation_engine = "yue2".into();
+        settings.yue2_ar_lora = Some("models/lora/another.gguf".into());
+        assert_ne!(original, batch_generation_settings(&settings));
+    }
+
+    #[test]
+    fn a_finished_batch_has_no_work_to_pause() {
+        for state in ["succeeded", "failed", "cancelled", "interrupted"] {
+            assert!(!batch_task_pending(state));
+        }
+        assert!(batch_task_pending("queued"));
+        assert!(batch_task_pending("running"));
+    }
+
+    fn task_with_state(state: &str) -> PlannedTask {
+        let file = crate::batch::parse_batch_bytes(crate::batch::EXAMPLE_JSON.as_bytes(), "panic")
+            .unwrap();
+        let mut task = crate::batch::plan_batch(&file, None, None)
+            .unwrap()
+            .tasks
+            .into_iter()
+            .next()
+            .unwrap();
+        task.state = state.into();
+        task
+    }
+
+    #[test]
+    fn cancelling_batch_preserves_finished_tasks_and_stops_only_pending_work() {
+        for state in ["queued", "retry_wait", "interrupted"] {
+            assert_eq!(batch_cancel_transition(state), Some("cancelled"), "{state}");
+        }
+        for state in ["running", "preparing", "publishing"] {
+            assert_eq!(
+                batch_cancel_transition(state),
+                Some("cancel_requested"),
+                "{state}"
+            );
+        }
+        for state in ["succeeded", "failed", "cancelled", "cancel_requested"] {
+            assert_eq!(batch_cancel_transition(state), None, "{state}");
+        }
+    }
+
+    #[test]
+    fn unexpected_worker_exit_fails_pending_states_including_retry_wait() {
+        for state in ["queued", "retry_wait", "preparing", "running", "publishing"] {
+            let mut task = task_with_state(state);
+            reconcile_unexpected_worker_exit(&mut task);
+
+            assert_eq!(task.state, "failed", "state before worker exit: {state}");
+            assert_eq!(
+                task.last_error.as_deref(),
+                Some(
+                    "La génération s’est arrêtée sans résultat. Les autres générations continuent."
+                )
+            );
+            assert!(!batch_task_pending(&task.state));
+        }
+    }
+
+    #[test]
+    fn unexpected_worker_exit_respects_cancel_and_existing_terminal_states() {
+        let mut cancelled = task_with_state("cancel_requested");
+        reconcile_unexpected_worker_exit(&mut cancelled);
+        assert_eq!(cancelled.state, "cancelled");
+
+        let mut succeeded = task_with_state("succeeded");
+        succeeded.last_error = Some("already persisted".into());
+        reconcile_unexpected_worker_exit(&mut succeeded);
+        assert_eq!(succeeded.state, "succeeded");
+        assert_eq!(succeeded.last_error.as_deref(), Some("already persisted"));
+    }
+
+    #[tokio::test]
+    async fn panicked_worker_does_not_abort_sibling_or_fail_its_task() {
+        use std::sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc,
+        };
+
+        let mut jobs = tokio::task::JoinSet::new();
+        let panicked_id = jobs.spawn(async { panic!("injected worker panic") }).id();
+        let sibling_finished = Arc::new(AtomicBool::new(false));
+        let sibling_signal = sibling_finished.clone();
+        let sibling_id = jobs
+            .spawn(async move {
+                sibling_signal.store(true, Ordering::Release);
+            })
+            .id();
+        let mut panicked_task = task_with_state("running");
+        let mut sibling_task = task_with_state("running");
+        let mut saw_panic = false;
+        let mut saw_sibling_success = false;
+
+        while let Some(joined) = jobs.join_next_with_id().await {
+            match joined {
+                Ok((id, ())) if id == sibling_id => {
+                    sibling_task.state = "succeeded".into();
+                    saw_sibling_success = true;
+                }
+                Err(error) if error.id() == panicked_id => {
+                    reconcile_unexpected_worker_exit(&mut panicked_task);
+                    saw_panic = true;
+                }
+                result => panic!("unexpected worker result: {result:?}"),
+            }
+        }
+
+        assert!(saw_panic);
+        assert!(saw_sibling_success);
+        assert!(sibling_finished.load(Ordering::Acquire));
+        assert_eq!(panicked_task.state, "failed");
+        assert_eq!(sibling_task.state, "succeeded");
+    }
+
+    #[test]
+    fn later_batch_results_preserve_the_user_selection() {
+        let mut active = None;
+        assert!(select_batch_default(&mut active, &Some("gen-001".into())));
+        active = Some("gen-user-choice".into());
+        assert!(!select_batch_default(&mut active, &Some("gen-002".into())));
+        assert_eq!(active.as_deref(), Some("gen-user-choice"));
+    }
+}
+#[cfg(test)]
+#[test]
+fn resume_requeues_only_interrupted_and_retry_wait_preserving_inputs() {
+    let _docs = crate::test_docs_env::guard::TempDocs::new("batch-resume");
+    let file =
+        crate::batch::parse_batch_bytes(crate::batch::EXAMPLE_JSON.as_bytes(), "resume").unwrap();
+    let mut preview = crate::batch::plan_batch(&file, None, None).unwrap();
+    for (task, state) in preview.tasks.iter_mut().zip([
+        "succeeded",
+        "failed",
+        "cancelled",
+        "interrupted",
+        "retry_wait",
+    ]) {
+        task.state = state.into();
+        task.attempt = 2;
+        task.last_error = Some("previous attempt".into());
+    }
+    let id = crate::batch::persist_new_batch(&preview, crate::batch::EXAMPLE_JSON, &preview.tasks)
+        .unwrap();
+    prepare_batch_resume(&id).unwrap();
+    let tasks = crate::batch::load_live_tasks(&id).unwrap();
+    for (before, after) in preview.tasks.iter().zip(&tasks) {
+        assert_eq!(before.seed, after.seed);
+        assert_eq!(before.style, after.style);
+        assert_eq!(before.lyrics, after.lyrics);
+        assert_eq!(before.target_duration_sec, after.target_duration_sec);
+        if matches!(before.state.as_str(), "interrupted" | "retry_wait") {
+            assert_eq!(after.state, "queued");
+            assert_eq!(after.attempt, 3);
+            assert!(after.last_error.is_none());
+        } else {
+            assert_eq!(before.state, after.state);
+            assert_eq!(before.attempt, after.attempt);
+            assert_eq!(before.last_error, after.last_error);
+        }
+    }
+    // A second resume before admission must not add another attempt.
+    prepare_batch_resume(&id).unwrap();
+    assert_eq!(crate::batch::load_live_tasks(&id).unwrap()[3].attempt, 3);
+}
+
+#[cfg(test)]
+#[test]
+fn preview_replacement_rejects_stale_and_consumed_tokens() {
+    let file = crate::batch::parse_batch_bytes(EXAMPLE_JSON.as_bytes(), "preview").unwrap();
+    let preview = plan_batch(&file, None, None).unwrap();
+    let pending = PendingImport {
+        file,
+        input_raw: EXAMPLE_JSON.into(),
+        preview,
+    };
+    let old_token = pending.preview.start_token.clone();
+    let old_revision = pending.preview.revision;
+    let mut registry = std::collections::BTreeMap::new();
+    registry.insert(old_token.clone(), pending.clone());
+    let mut next = pending.clone();
+    next.preview.start_token = uuid::Uuid::new_v4().to_string();
+    next.preview.revision += 1;
+    replace_pending_preview(&mut registry, &old_token, old_revision, next.clone()).unwrap();
+    assert_eq!(registry.len(), 1);
+    assert!(!registry.contains_key(&old_token));
+    assert!(
+        replace_pending_preview(&mut registry, &old_token, old_revision, pending.clone()).is_err()
+    );
+    assert!(replace_pending_preview(
+        &mut registry,
+        &next.preview.start_token,
+        old_revision,
+        pending.clone()
+    )
+    .is_err());
+    registry.clear();
+    assert!(replace_pending_preview(
+        &mut registry,
+        &next.preview.start_token,
+        next.preview.revision,
+        pending
+    )
+    .is_err());
 }

@@ -320,7 +320,7 @@ export function buildTakeDisplays(input: BuildTimelineInput): TakeDisplay[] {
       fromParent,
       parentId: parentKnown ? parentIdRaw : null,
       createdAt: g.createdAt,
-      hasAudio: Boolean(g.audioPath),
+      hasAudio: hasMusic,
       hasScore: g.hasScore,
       hasMusic,
       hasMix: Boolean(mixId),

@@ -12,6 +12,8 @@
 
 La version 1.1 ajoute une vision produit cible au §3.4. Elle ne réécrit pas le contrat historique du premier build ni ses critères d’acceptation. Pour connaître les capacités livrées aujourd’hui, consulter le [README](../README.md).
 
+**Évolution de périmètre (6 octobre 2026) :** l’ancien hors-périmètre VST/AU décrit plus bas est conservé comme historique du premier build. Une livraison VST3 Windows est maintenant prioritaire, d’abord sous forme d’effet master rendu hors ligne avec aperçu, export et état sauvegardé dans le projet. Ce parcours n’est pas encore livré. AU reste prévu avec une future version macOS. Suivi : [#326](https://github.com/azerothl/song-maker/issues/326).
+
 Les images de `specs/maquettes/` sont des références visuelles. Elles ne décrivent pas le produit.
 
 ## 1. Résumé exécutif
@@ -480,14 +482,18 @@ Le libellé de `off` dans le formulaire : « avancé : pas de partition en retou
 
 ### 8.2 Contrat du formulaire
 
-audio.cpp accepte, pour YuE2, `style`, les paroles, `cot`, `abc` / `abc_file`, `seed`, `num_inference_steps`, `guidance_scale` (alias `cfg_scale`), `semantic_min_tokens`, `semantic_max_tokens`, `export_semantic` et les options d’échantillonnage. Le formulaire traduit la durée cible en bornes sémantiques ; il ne promet pas une durée exacte du WAV.
+audio.cpp accepte, pour YuE2, `style`, les paroles, `cot`, `abc` / `abc_file`, `seed`, `num_inference_steps`, `guidance_scale` (alias `cfg_scale`), `semantic_min_tokens`, `semantic_max_tokens`, `export_semantic` et les options d’échantillonnage. En durée fixe (dont instrumental), les deux bornes valent `durée × 25` afin d’empêcher un arrêt prématuré. Le WAV est mesuré avant publication : tolérance 250 ms, sinon prise conservée mais non activée et échec explicite. Aucun remplissage par silence ni répétition automatique. En priorité aux paroles, la durée reste une cible avec marge. Pour une continuation, la durée attendue inclut le préfixe existant.
+
+ACE-Step reçoit `duration_seconds` depuis la même durée cible. L’application mesure son WAV avant publication et après retrait des voix ; tout écart supérieur à 250 ms laisse la prise en échec et la version active intacte. La durée annoncée ne doit pas devenir un simple réglage de requête sans vérification du fichier retourné.
+
+Le mode instrumental ne se limite pas aux paroles vides : YuE2 ou ACE-Step peut produire une voix même sans texte. Après génération audio YuE2 ou ACE-Step, Song Maker conserve `audio-original.wav`, applique le séparateur sélectionné dans les réglages de production, puis publie les pistes d’accompagnement sans inclure la piste voix. L’étape est annoncée dans le formulaire et le statut. Les artefacts et empreintes sont consignés dans `result.json.instrumentalProcessing`. Les poids du séparateur sont vérifiés avant génération et font partie de l’empreinte batch. Une séparation échouée ne publie pas l’original comme instrumental. La séparation reste une estimation : des résidus de voix sont possibles et l’absence de chant doit être contrôlée à l’écoute. Lego et partition seule n’utilisent pas cette étape.
 
 | Champ | Règle | Où il va |
 |---|---|---|
 | Titre | Obligatoire. 1 à 120 caractères. Interdits : `/ \ : * ? " < > \|` et le point final. | `project.json` `title`. Pas envoyé au modèle. |
 | Style | Obligatoire. 1 à 1000 caractères, après assemblage. | `style` de la requête. |
-| Mode instrumental | Case à cocher, désactivée par défaut. Persistée dans `project.json` (`instrumentalMode`) et `request.json`. | Si activé : paroles facultatives ; chaîne vide après trim acceptée. |
-| Paroles | Hors mode instrumental : obligatoire, non vides après trim, 1 à 4000 caractères. En mode instrumental : 0 à 4000 caractères. | fichier `lyrics.txt`, envoyé comme paroles (peut être vide). |
+| Mode instrumental | Case à cocher, désactivée par défaut. Persistée dans `project.json` (`instrumentalMode`) et `request.json`. | Si activé : toujours envoyer une chaîne vide, même si le projet contient des paroles. Ne pas ajouter la langue du chant au style. |
+| Paroles | Hors mode instrumental : obligatoire, non vides après trim, 1 à 4000 caractères. En mode instrumental : conserver le brouillon et désactiver son édition. | `lyrics.txt` et la requête restent vides en instrumental ; les paroles du projet sont conservées pour revenir au mode chanté. |
 | `cot` | Obligatoire. Défaut `full`. Valeurs `full`, `melody`, `off`. | `cot` de la requête. |
 | Langue du chant | Facultative. Texte libre, 1 à 40 caractères si présente. Pas de liste de codes. | Préfixée au style : `"{langue}, {style}"`. Jamais un champ `lang`. |
 | Tempo | Facultatif. Entier 40 à 220. | Suffixé au style : `", {n} BPM"`. Stocké dans `project.json`. Pas un contrôle du WAV. |
@@ -512,7 +518,7 @@ Le bouton Générer est inactif tant que le titre, le style et les paroles ne pa
 
 ### 8.3 Structure des paroles
 
-Balises autorisées dans le texte envoyé : `[Intro]`, `[Verse]`, `[Verse 2]`, `[Pre-Chorus]`, `[Chorus]`, `[Bridge]`, `[Outro]`, `[Instrumental]`. Toute autre ligne entre crochets est refusée avant l’appel, avec la ligne citée.
+Balises libres dans le texte envoyé, notamment `[Intro]`, `[Verse]`, `[Verse 2]`, `[Pre-Chorus]`, `[Chorus]`, `[Bridge]`, `[Outro]`, `[Instrumental]`, `[Solo]` et `[Breakdown]`. Le formulaire ne refuse pas une balise inconnue. En instrumental, aucune balise ni parole du brouillon n’est transmise.
 
 `[Instrumental]` est une balise de section. Ce n’est pas le mode instrumental (case à cocher) et ce n’est pas le LoRA instrumental. Le mode instrumental envoie une chaîne de paroles vide (ou des balises de structure sans texte chanté) ; la balise seule n’active pas ce mode.
 
@@ -1378,7 +1384,7 @@ Pas d’import MIDI. Pas de piano roll.
 - guitare et piano, marqués moins fiables ;
 - export de stems déjà couvert par les fichiers du dossier ; des présets de mix peuvent s’y ajouter ;
 - séparateur interchangeable, si un second provider existe alors — candidat documenté : BS-RoFormer (`bs_roformer`) via audio.cpp ;
-- packs LoRA optionnels, hors installeur du premier build : AR instrumental et NAR « realaudio » (CC BY-NC), chargés via `yue2.ar_lora` / `yue2.nar_lora` en SafeTensors non ComfyUI.
+- packs LoRA optionnels, hors installeur du premier build : AR instrumental (CC BY-NC), fichier BF16 non ComfyUI avec révision et SHA épinglés. NAR « realaudio » reste informatif jusqu’à validation du chargement complet de l’adaptateur et de sa tête tokenizer ; l’installation n’est pas proposée. Le moteur accepte les options `yue2.ar_lora` / `yue2.nar_lora`.
 
 ### Phase 4 — Agent et collaboration
 
@@ -1387,7 +1393,7 @@ Pas d’import MIDI. Pas de piano roll.
 - worker GPU distant ;
 - intégration hôte (Akasha, DeclUI) selon le §18.5 ;
 - synchronisation optionnelle ;
-- catalogue de packs LoRA de style (ex. chanson), seulement s’ils chargent via les session options audio.cpp, avec le même écran licences CC BY-NC.
+- catalogue unique de packs LoRA, avec licence CC BY-NC, inventaire installé et activation persistée distincts. L’import de fichiers externes est visible en tête de page. Les styles chanson française et rock industriel sont informatifs, sans bouton d’installation utilisable tant que leur format n’est pas confirmé avec le moteur épinglé (#386).
 
 ### Pistes de développement
 

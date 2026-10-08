@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
   LORA_PACK_CATALOG,
@@ -20,7 +20,10 @@ import type { AppSettings, InstallProgress, Phase3Status } from "../lib/types";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 import { SeparatorLicenseBadge } from "./SeparatorLicenseBadge";
-import { SeparatorLicenseNotice } from "./SeparatorLicenseNotice";
+import {
+  SeparatorLicenseNotice,
+  separatorDisplayNameText,
+} from "./SeparatorLicenseNotice";
 
 export function Phase3SettingsPanel({
   view,
@@ -29,11 +32,24 @@ export function Phase3SettingsPanel({
 }) {
   const settings = useAppStore((s) => s.settings);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
-  const setError = useAppStore((s) => s.setError);
+  const [panelError, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (panelError) errorRef.current?.scrollIntoView({ block: "nearest" });
+  }, [panelError]);
   const [phase3, setPhase3] = useState<Phase3Status | null>(null);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
+  const [downloadNoticeDetails, setDownloadNoticeDetails] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [installingHtDemucs6s, setInstallingHtDemucs6s] = useState(false);
+
+  const showDownloadNotice = (
+    message: string | null,
+    details: string | null = null,
+  ) => {
+    setDownloadNotice(message);
+    setDownloadNoticeDetails(details);
+  };
   const [installingHtDemucs, setInstallingHtDemucs] = useState(false);
   const [installingBsRoFormer, setInstallingBsRoFormer] = useState(false);
   const [installingMelBand, setInstallingMelBand] = useState(false);
@@ -124,18 +140,18 @@ export function Phase3SettingsPanel({
           phase3?.acceptedSeparatorLicenses,
       )
     ) {
-      setDownloadNotice(t("separate.license.blocked"));
+      showDownloadNotice(t("separate.license.blocked"));
       return;
     }
     setInstallingBsRoFormer(true);
-    setDownloadNotice(null);
+    showDownloadNotice(null);
     setBsProgress(null);
     try {
       const path = await api.installBsRoFormer();
       await refreshPhase3();
-      setDownloadNotice(`${t("phase3.separator.bsInstallOk")}\n${path}`);
+      showDownloadNotice(t("phase3.separator.bsInstallOk"), path);
     } catch (e) {
-      setDownloadNotice(String(e));
+      showDownloadNotice(t("phase3.download.failed"), String(e));
     } finally {
       setInstallingBsRoFormer(false);
     }
@@ -149,17 +165,17 @@ export function Phase3SettingsPanel({
           phase3?.acceptedSeparatorLicenses,
       )
     ) {
-      setDownloadNotice(t("separate.license.blocked"));
+      showDownloadNotice(t("separate.license.blocked"));
       return;
     }
     setInstallingMelBand(true);
-    setDownloadNotice(null);
+    showDownloadNotice(null);
     try {
       const path = await api.installMelBandRoFormer();
       await refreshPhase3();
-      setDownloadNotice(`${t("phase3.separator.melInstallOk")}\n${path}`);
+      showDownloadNotice(t("phase3.separator.melInstallOk"), path);
     } catch (e) {
-      setDownloadNotice(String(e));
+      showDownloadNotice(t("phase3.download.failed"), String(e));
     } finally {
       setInstallingMelBand(false);
     }
@@ -173,17 +189,17 @@ export function Phase3SettingsPanel({
           phase3?.acceptedSeparatorLicenses,
       )
     ) {
-      setDownloadNotice(t("separate.license.blocked"));
+      showDownloadNotice(t("separate.license.blocked"));
       return;
     }
     setInstallingHtDemucs6s(true);
-    setDownloadNotice(null);
+    showDownloadNotice(null);
     try {
       const path = await api.installHtDemucs6sRuntime();
       await refreshPhase3();
-      setDownloadNotice(`${t("phase3.separator.onnxInstallOk")}\n${path}`);
+      showDownloadNotice(t("phase3.separator.onnxInstallOk"), path);
     } catch (e) {
-      setDownloadNotice(String(e));
+      showDownloadNotice(t("phase3.download.failed"), String(e));
     } finally {
       setInstallingHtDemucs6s(false);
     }
@@ -197,17 +213,17 @@ export function Phase3SettingsPanel({
           phase3?.acceptedSeparatorLicenses,
       )
     ) {
-      setDownloadNotice(t("separate.license.blocked"));
+      showDownloadNotice(t("separate.license.blocked"));
       return;
     }
     setInstallingHtDemucs(true);
-    setDownloadNotice(null);
+    showDownloadNotice(null);
     try {
       const path = await api.installMixOnlyAssets();
       await refreshPhase3();
-      setDownloadNotice(`${t("separate.license.htdemucs.install")}\n${path}`);
+      showDownloadNotice(t("phase3.separator.htdemucsInstallOk"), path);
     } catch (e) {
-      setDownloadNotice(String(e));
+      showDownloadNotice(t("phase3.download.failed"), String(e));
     } finally {
       setInstallingHtDemucs(false);
     }
@@ -234,7 +250,7 @@ export function Phase3SettingsPanel({
     try {
       await api.cancelBsRoFormerInstall();
     } catch (e) {
-      setDownloadNotice(String(e));
+      showDownloadNotice(t("phase3.download.cancelFailed"), String(e));
     }
   };
 
@@ -246,12 +262,12 @@ export function Phase3SettingsPanel({
   const onPlanDownload = (pack: LoraPack) => {
     const gated = gateLoraPackAccess(pack.id, acceptance());
     if (!gated.ok) {
-      setDownloadNotice(gated.message);
+      showDownloadNotice(gated.message);
       return;
     }
     const planned = planOptionalLoraDownload(pack.id, acceptance());
     if (!planned.ok || !planned.plan) {
-      setDownloadNotice(
+      showDownloadNotice(
         !planned.ok ? planned.message : t("phase3.lora.planFailed"),
       );
       return;
@@ -259,14 +275,14 @@ export function Phase3SettingsPanel({
     const lines = planned.plan.files
       .map((f) => `• ${f.filename}\n  ${f.url}\n  → cache/${f.relativeCachePath}`)
       .join("\n");
-    setDownloadNotice(
+    showDownloadNotice(
       `${planned.plan.noticeFr}\n\n${lines}\n\n${t("phase3.lora.manualDownload")}`,
     );
   };
 
   const onDownloadToCache = async (pack: LoraPack) => {
     setDownloadingId(pack.id);
-    setDownloadNotice(null);
+    showDownloadNotice(null);
     try {
       const result = await requestOptionalLoraDownload(
         pack.id,
@@ -275,15 +291,13 @@ export function Phase3SettingsPanel({
           api.downloadCacheFile(url, relativeCachePath, expectedSha256),
       );
       if (!result.ok) {
-        setDownloadNotice(result.message);
+        showDownloadNotice(result.message);
         return;
       }
       const paths = result.savedPaths?.join("\n") ?? "";
-      setDownloadNotice(
-        `${t("phase3.lora.downloadOk")}\n${paths}\n\n${result.plan?.noticeFr ?? ""}`,
-      );
+      showDownloadNotice(t("phase3.lora.downloadOk"), `${paths}\n\n${result.plan?.noticeFr ?? ""}`);
     } catch (e) {
-      setDownloadNotice(String(e));
+      showDownloadNotice(t("phase3.download.failed"), String(e));
     } finally {
       setDownloadingId(null);
     }
@@ -312,7 +326,8 @@ export function Phase3SettingsPanel({
       {view === "separation" && (
         <>
       <h3>{t("phase3.separator.title")}</h3>
-      <p className="hint">{phase3?.honestyFr}</p>
+      <p className="hint">{t("phase3.separator.instrumentalHint")}</p>
+      <details className="advanced-details"><summary>{t("settings.separator.technicalDetails")}</summary><p className="hint">{phase3?.honestyFr}</p></details>
       <div className="phase3-provider-list">
         {providers.map((p) => {
           const selected =
@@ -343,7 +358,7 @@ export function Phase3SettingsPanel({
                   onChange={() => void selectSeparator(p.id)}
                 />
                 <span>
-                  <strong>{p.displayNameFr}</strong>
+                  <strong>{separatorDisplayNameText(p.id)}</strong>
                   {license && (
                     <>
                       {" "}
@@ -351,31 +366,13 @@ export function Phase3SettingsPanel({
                     </>
                   )}
                   <br />
-                  <span className="hint">{p.stemLayoutNoteFr}</span>
-                  {license && (
-                    <>
-                      <br />
-                      <a
-                        href={license.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {license.sourceLabelFr}
-                      </a>
-                      <br />
-                      <SeparatorLicenseNotice
-                        licenseId={p.id}
-                        className="hint warn"
-                        data-testid={`sep-license-notice-${p.id}`}
-                      />
-                    </>
-                  )}
+                  <span className="hint">{t(`settings.separator.summary.${p.id}`)}</span>
                   {!p.runnable && p.id === "bs_roformer" && (
                     <>
                       <br />
                       <span className="hint warn">
                         {t("phase3.separator.bsMissing")}
-                        {phase3 ? ` — ${phase3.bsRoformerPath}` : ""}
+
                       </span>
                     </>
                   )}
@@ -384,7 +381,7 @@ export function Phase3SettingsPanel({
                       <br />
                       <span className="hint warn">
                         {t("phase3.separator.melMissing")}
-                        {phase3 ? ` — ${phase3.melBandRoformerPath}` : ""}
+
                       </span>
                     </>
                   )}
@@ -407,6 +404,12 @@ export function Phase3SettingsPanel({
                     )}
                 </span>
               </label>
+              {license && (
+                <details className="advanced-details">
+                  <summary>{t("settings.licenseDetails")}</summary>
+                  <SeparatorLicenseNotice licenseId={p.id} className="hint warn" data-testid={`sep-license-notice-${p.id}`} />
+                </details>
+              )}
               {showLicenseAccept && license && (
                 <label className="sep-license-cb" htmlFor={licenseCbId}>
                   <input
@@ -414,14 +417,14 @@ export function Phase3SettingsPanel({
                     type="checkbox"
                     checked={accepted}
                     aria-label={t("separate.license.acceptNamed", {
-                      name: p.displayNameFr,
+                      name: separatorDisplayNameText(p.id),
                     })}
                     onChange={(e) => {
                       void toggleLicense(p.id, e.target.checked);
                     }}
                   />
                   {t("separate.license.acceptNamed", {
-                    name: p.displayNameFr,
+                    name: separatorDisplayNameText(p.id),
                   })}
                 </label>
               )}
@@ -429,7 +432,8 @@ export function Phase3SettingsPanel({
           );
         })}
       </div>
-      <h4>{t("separate.license.exclusions")}</h4>
+      <details className="advanced-details">
+      <summary>{t("separate.license.exclusions")}</summary>
       <ul
         className="sep-license-exclusions"
         data-testid="sep-license-exclusions"
@@ -438,10 +442,11 @@ export function Phase3SettingsPanel({
           <li key={note}>{note}</li>
         ))}
       </ul>
+      </details>
       {!phase3?.melBandRoformerAvailable && (
         <div className="phase3-bs-install">
           <p className="hint">{t("phase3.separator.melInstallHint")}</p>
-          {melInfo && <p className="hint">{melInfo.licenseNoticeFr}</p>}
+          {melInfo && <details className="advanced-details"><summary>{t("settings.licenseDetails")}</summary><p className="hint">{melInfo.licenseNoticeFr}</p></details>}
           <button
             type="button"
             className="btn"
@@ -474,13 +479,13 @@ export function Phase3SettingsPanel({
         <div className="phase3-bs-install">
           <p className="hint">{t("phase3.separator.bsInstallHint")}</p>
           {bsInfo && (
-            <p className="hint">
+            <details className="advanced-details"><summary>{t("settings.installDetails")}</summary><p className="hint">
               {bsInfo.licenseNoticeFr}
               <br />
               {t("phase3.separator.bsInstallMeta")
                 .replace("{size}", bsBytesLabel)
                 .replace("{sha}", bsInfo.sha256.slice(0, 12))}
-            </p>
+            </p></details>
           )}
           <div className="btn-row">
             <button
@@ -599,8 +604,17 @@ export function Phase3SettingsPanel({
           ? t("phase3.available")
           : t("phase3.unavailable")}
       </p>
+      {panelError && <p ref={errorRef} className="error" role="alert">{panelError}</p>}
       {downloadNotice && (
-        <pre className="phase3-download-notice">{downloadNotice}</pre>
+        <div className="phase3-download-notice" role="status">
+          <span>{downloadNotice}</span>
+          {downloadNoticeDetails && (
+            <details>
+              <summary>{t("phase3.download.supportDetails")}</summary>
+              <pre>{downloadNoticeDetails}</pre>
+            </details>
+          )}
+        </div>
       )}
         </>
       )}
@@ -669,8 +683,17 @@ export function Phase3SettingsPanel({
           );
         })}
       </ul>
+      {panelError && <p ref={errorRef} className="error" role="alert">{panelError}</p>}
       {downloadNotice && (
-        <pre className="phase3-download-notice">{downloadNotice}</pre>
+        <div className="phase3-download-notice" role="status">
+          <span>{downloadNotice}</span>
+          {downloadNoticeDetails && (
+            <details>
+              <summary>{t("phase3.download.supportDetails")}</summary>
+              <pre>{downloadNoticeDetails}</pre>
+            </details>
+          )}
+        </div>
       )}
         </>
       )}

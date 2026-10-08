@@ -25,10 +25,15 @@ import type {
   SeparationInfo,
   SeparationVersionSummary,
   SetupGpuInfo,
+  Vst3CatalogEntry,
+  Vst3PluginDescription,
+  Vst3MidiNote,
+  Vst3ProcessedPcm,
 } from "./types";
 
 export const api = {
   getHealth: () => invoke<HealthSnapshot>("get_health"),
+  restartAudioRuntime: () => invoke<string>("restart_audio_runtime"),
   getSetupGpuInfo: () => invoke<SetupGpuInfo>("get_setup_gpu_info"),
   getInstallPlan: (pack: "q4" | "q8", mixOnly?: boolean) =>
     invoke<InstallPlan>("get_install_plan", { pack, mixOnly: mixOnly ?? null }),
@@ -76,6 +81,76 @@ export const api = {
     }>("vst3_spike_load", { path }),
   vst3SpikeAttach: (projectId: string, trackId: string, path: string) =>
     invoke<MixDoc>("vst3_spike_attach", { projectId, trackId, path }),
+  vst3ListPlugins: () => invoke<Vst3CatalogEntry[]>("vst3_list_plugins"),
+  vst3PluginParameters: (
+    path: string,
+    parameters: Record<string, number> = {},
+    pluginStateB64?: string,
+  ) =>
+    invoke<Vst3PluginDescription>("vst3_plugin_parameters", {
+      path,
+      parameters,
+      pluginStateB64: pluginStateB64 ?? null,
+    }),
+  vst3OpenPluginEditor: (
+    path: string,
+    parameters: Record<string, number>,
+    pluginStateB64?: string,
+  ) =>
+    invoke<{ parameters: Record<string, number>; pluginStateB64: string | null }>(
+      "vst3_open_plugin_editor",
+      { path, parameters, pluginStateB64: pluginStateB64 ?? null },
+    ),
+  vst3RenderMidiPreview: (request: {
+    projectId: string;
+    pluginPath: string;
+    parameters: Record<string, number>;
+    pluginStateB64?: string;
+    renderFrames: number;
+    midiNotes: Vst3MidiNote[];
+  }) =>
+    invoke<string>("vst3_render_midi_preview", {
+      id: request.projectId,
+      pluginPath: request.pluginPath,
+      parameters: request.parameters,
+      pluginStateB64: request.pluginStateB64 ?? null,
+      renderFrames: request.renderFrames,
+      midiNotes: request.midiNotes,
+    }),
+  vst3RenderMidiToMixTrack: (request: {
+    projectId: string;
+    displayName: string;
+    pluginPath: string;
+    parameters: Record<string, number>;
+    pluginStateB64?: string;
+    renderFrames: number;
+    midiNotes: Vst3MidiNote[];
+  }) =>
+    invoke<MixDoc>("vst3_render_midi_to_mix_track", {
+      id: request.projectId,
+      displayName: request.displayName,
+      pluginPath: request.pluginPath,
+      parameters: request.parameters,
+      pluginStateB64: request.pluginStateB64 ?? null,
+      renderFrames: request.renderFrames,
+      midiNotes: request.midiNotes,
+    }),
+  vst3ProcessPcm: (request: {
+    path: string;
+    parameters: Record<string, number>;
+    pluginStateB64?: string;
+    sampleRate: number;
+    peakCeilingDb: number;
+    pcmLe: number[];
+  }) =>
+    invoke<Vst3ProcessedPcm>("vst3_process_pcm", {
+      path: request.path,
+      parameters: request.parameters,
+      pluginStateB64: request.pluginStateB64 ?? null,
+      sampleRate: request.sampleRate,
+      peakCeilingDb: request.peakCeilingDb,
+      pcmLe: request.pcmLe,
+    }),
   getPhase3Status: () => invoke<Phase3Status>("get_phase3_status"),
   installHtDemucs6sRuntime: () =>
     invoke<string>("install_htdemucs_6s_runtime"),
@@ -129,7 +204,7 @@ export const api = {
   deleteProject: (id: string) => invoke<void>("delete_project", { id }),
   revealProject: (id: string) => invoke<string>("reveal_project", { id }),
   getJobStatus: () => invoke<JobStatus>("get_job_status"),
-  cancelJob: () => invoke<string>("cancel_job"),
+  cancelJob: () => invoke<boolean>("cancel_job"),
   startGeneration: (
     id: string,
     form: FormInput,
@@ -152,6 +227,23 @@ export const api = {
       engine: options?.engine ?? null,
       instrumentalRole: options?.instrumentalRole ?? null,
     }),
+  generateInstrumentalPart: (
+    id: string,
+    form: FormInput,
+    role: "bass" | "drums" | "other",
+    engine?: "ace_step_lego",
+  ) => invoke<{ project: ProjectDoc; generationId: string }>("generate_instrumental_part", {
+    id, form, role, engine: engine ?? null,
+  }),
+  generateComparisonTake: (
+    id: string,
+    form: FormInput,
+    abc?: string | null,
+    engine?: "yue2" | "ace_step",
+    stopAfter?: "abc" | null,
+  ) => invoke<{ project: ProjectDoc; generationId: string }>("generate_comparison_take", {
+    id, form, abc: abc ?? null, engine: engine ?? null, stopAfter: stopAfter ?? null,
+  }),
   /** Render audio from an existing gen's immutable score.abc (parent = source). */
   renderFromGeneration: (
     id: string,
@@ -202,6 +294,8 @@ export const api = {
       tempoMap?: MixDoc["tempoMap"];
       timeSignatures?: MixDoc["timeSignatures"];
       markers?: MixDoc["markers"];
+      vst3MasterInsert?: NonNullable<MixDoc["vst3MasterInsert"]>;
+      clearVst3MasterInsert?: boolean;
     },
   ) => invoke<MixDoc>("update_mix", { id, update }),
   /** Native dialog → copy + normalize → append user MixTrack (#40). Null if cancelled. */
@@ -211,11 +305,13 @@ export const api = {
     id: string,
     generationId: string,
     displayName?: string | null,
+    muteExisting = false,
   ) =>
     invoke<MixDoc>("import_generation_as_user_track", {
       id,
       generationId,
       displayName: displayName ?? null,
+      muteExisting,
     }),
   beginUserAudioCapture: (id: string) =>
     invoke<{ sessionId: string; relativePath: string }>(
@@ -255,10 +351,15 @@ export const api = {
   nativeCaptureBackend: () => invoke<NativeCaptureBackend>("native_capture_backend"),
   listNativeCaptureDevices: () =>
     invoke<NativeInputDevice[]>("list_native_capture_devices"),
-  startNativeCapture: (id: string, deviceId?: string | null) =>
+  startNativeCapture: (
+    id: string,
+    deviceId?: string | null,
+    backend?: "shared" | "exclusive",
+  ) =>
     invoke<{ sessionId: string; relativePath: string }>("start_native_capture", {
       id,
       deviceId: deviceId ?? null,
+      backend: backend ?? "shared",
     }),
   pollNativeCapture: () => invoke<NativeCapturePoll | null>("poll_native_capture"),
   pauseNativeCapture: (paused: boolean) =>
@@ -457,6 +558,12 @@ export const api = {
       { modelId: modelId ?? null },
     ),
   validateBatchImport: () => invoke<BatchValidateResult>("validate_batch_import"),
+  verifyBatchParallelism: (startToken: string) =>
+    invoke<BatchValidateResult & {
+      messageFr: string;
+      verified?: boolean;
+      audioEngineRestartFailed?: boolean;
+    }>("verify_batch_parallelism", {startToken}),
   updateBatchPreview: (
     startToken: string,
     overrides: { generations?: number | null; maxParallelGenerations?: number | null },
@@ -492,6 +599,9 @@ export type BatchSongPreview = {
   stylePreview: string;
   generations: number;
   lyricsChars: number;
+  lyrics?: string;
+  style?: string;
+  instrumentalMode?: boolean;
 };
 
 export type BatchTask = {
@@ -502,6 +612,7 @@ export type BatchTask = {
   title: string;
   projectId?: string | null;
   generationId?: string | null;
+  audioPath?: string | null;
   state: string;
   lastError?: string | null;
 };

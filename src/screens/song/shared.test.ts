@@ -124,12 +124,15 @@ describe("validateFormFields", () => {
     assert.equal(validateFormFields(form({ targetDurationSec: 210 })).duration, undefined);
   });
 
-  it("refuse audio_input / inpainting tant que YuE2 ne les consomme pas", () => {
+  it("oriente les morceaux importés vers Reprise sans jargon moteur", () => {
     const errors = validateFormFields(
       form({ audioInputPath: "/tmp/ref.wav", inpaintStartMs: 0, inpaintEndMs: 2000 }),
     );
-    assert.match(errors.audioInput ?? "", /audio_input/);
-    assert.match(errors.audioInput ?? "", /SheetSage2/);
+    assert.match(errors.audioInput ?? "", /remplacer une seule partie d’un morceau importé/);
+    assert.match(errors.audioInput ?? "", /Reprise/);
+    assert.match(errors.audioInput ?? "", /transforme d’abord l’audio en partition/);
+    assert.match(errors.audioInput ?? "", /ne guide pas directement la génération/);
+    assert.doesNotMatch(errors.audioInput ?? "", /audio_input|décodeur|inpainting|transcription/);
   });
 });
 
@@ -145,6 +148,11 @@ describe("primaryFormError", () => {
 });
 
 describe("soundSummaryValue", () => {
+  it("ne présente pas la priorité aux paroles ou la langue chantée en instrumental", () => {
+    const summary = soundSummaryValue(form({ instrumentalMode: true, preferFullLyrics: true, singingLanguage: "French" }));
+    assert.ok(summary.includes("Instrumental"));
+    assert.doesNotMatch(summary, /French|Paroles|stricte/i);
+  });
   it("inclut la durée et la préférence de paroles", () => {
     const summary = soundSummaryValue(form());
     assert.ok(summary.includes(formatDurationLabel(180)));

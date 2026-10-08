@@ -23,6 +23,20 @@ describe("captureLatency", () => {
     assert.equal(r.roundTripMs, null);
     assert.equal(formatLatencyReading(r), "—");
   });
+
+  it("shows a simple estimate without exposing audio-engine details", () => {
+    assert.equal(
+      formatLatencyReading({
+        preference: "balanced",
+        baseLatencySec: 0.005,
+        outputLatencySec: 0.007,
+        roundTripMs: 12,
+        compensationMs: 12,
+        sampleRate: 48_000,
+      }),
+      "12 ms",
+    );
+  });
 });
 
 describe("takes", () => {

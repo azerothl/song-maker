@@ -48,6 +48,21 @@ Placer un reverse-proxy TLS (Caddy / nginx) devant le port worker pour la prod.
 
 Les logs n’écrivent **jamais** la valeur du jeton.
 
+### Instrumental sans piste voix
+
+Sur la machine worker, installez aussi FFmpeg avec libsoxr et enregistrez le
+modèle `htdemucs` dans audio.cpp. Le worker et audio.cpp doivent pouvoir lire
+le dossier de données au même chemin absolu (processus sur la même machine,
+ou volume partagé identique). `SONG_MAKER_FFMPEG` permet de préciser le chemin
+de FFmpeg si celui-ci n’est pas dans PATH.
+
+Le worker conserve l’original et les quatre pistes séparées, puis publie le
+mix batterie + basse + autres, après contrôle de durée. Il ne publie pas
+l’original si cette étape échoue. La séparation peut laisser des résidus de
+voix ; l’écoute reste nécessaire. Les fichiers conservés suivent la même
+politique de rétention que le job. L’application refuse les résultats du mode
+simulate : ce mode permet uniquement de tester le protocole.
+
 ## TLS / auth / rétention
 
 - Prod : `https://` uniquement côté client (`requireTls`)  

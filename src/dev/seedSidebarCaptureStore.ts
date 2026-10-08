@@ -57,6 +57,10 @@ const captureHealth: HealthSnapshot = {
   binaryOk: true,
   serverHealthy: true,
   serverUrl: null,
+  generationModelId: "yue2",
+  generationModel: "YuE2 Q4",
+  generationModelAvailable: true,
+  generationModelLoaded: false,
   message: "Capture navigateur — backend mocké.",
 };
 

@@ -32,6 +32,7 @@ import { MixBakeStatusIndicator } from "../../components/MixBakeStatusIndicator"
 import { PlaybackTime } from "../../components/PlaybackTime";
 import { Waveform } from "../../components/Waveform";
 import { t } from "../../ui/i18n";
+import { useAppStore } from "../../store/appStore";
 import { appendEmptyUserTrack } from "../../lib/appendEmptyUserTrack";
 import {
   planProjectInstrumentalPart,
@@ -72,6 +73,7 @@ import {
   type ProductionClipViewPrefs,
 } from "../../lib/productionClipViewPrefs";
 import { MixAssistPanel } from "../../components/MixAssistPanel";
+import { PopinCloseButton } from "../../components/PopinCloseButton";
 import type { ScoreGate } from "../../lib/score";
 import type { PlaybackView } from "../../components/AudioPlayer";
 import { separationAudioDurationSec } from "../../lib/separationDuration";
@@ -270,7 +272,7 @@ export function ProductionWorkspace({
   const openMixAssistFrom = (button: HTMLButtonElement | null) => {
     if (!button) return;
     mixAssistBtnRef.current = button;
-    setMixAssistOpen(true);
+    setMixAssistOpen((open) => !open);
   };
 
 
@@ -289,6 +291,8 @@ export function ProductionWorkspace({
       aria-haspopup="dialog"
       aria-expanded={mixSettingsOpen}
       aria-controls={mixSettingsPanelId}
+      disabled={!mix}
+      title={!mix ? t("production.mixSettings.needTracks") : undefined}
       onClick={() => toggleMixSettingsFrom(mixSettingsBtnRef.current)}
     >
       {t("production.mixSettings")}
@@ -429,6 +433,16 @@ export function ProductionWorkspace({
         >
           <ClipEditToolbar editTool={editTool} onEditToolChange={setEditTool} />
           <div className="production-main-toolbar-actions">
+            <button
+              type="button"
+              className="btn production-separate-trigger"
+              data-testid="production-separate-trigger"
+              disabled={separateDisabled}
+              aria-describedby={separateDisabledReason ? "production-separate-reason" : undefined}
+              onClick={(event) => openSeparateFrom(event.currentTarget)}
+            >
+              {hasAiStems ? t("separate.again") : t("separate.button")}
+            </button>
             <ProductionAddTrackMenu
               busy={busy}
               importingAudio={importingAudio}
@@ -465,6 +479,7 @@ export function ProductionWorkspace({
             {mixSettingsTrigger}
           </div>
         </div>
+        {separateDisabledReason && <p id="production-separate-reason" className="hint">{separateDisabledReason}</p>}
         <RecordTrackPanel
           projectId={project.id}
           open={recordOpen}
@@ -517,6 +532,15 @@ export function ProductionWorkspace({
                 <span>{t("production.instrumental.conditioning.mix")}</span>
               </label>
             </fieldset>
+            {instrumentalCond === "mix_stems" && !mix?.tracks.length && <p className="hint" role="status">{t("production.instrumental.needAudio")}</p>}
+            {instrumentalCond === "mix_stems" && (!legoSidecarReady || !legoLicenseAccepted) && (
+              <div className="hint" role="status">
+                <p>{t("production.instrumental.installRequired")}</p>
+                <button type="button" className="btn" onClick={() => useAppStore.getState().openModelSettings("lego")}>
+                  {t("production.instrumental.openSettings")}
+                </button>
+              </div>
+            )}
             {instrumentalNotice ? (
               <p className="hint warn" role="status">
                 {instrumentalNotice}
@@ -526,7 +550,7 @@ export function ProductionWorkspace({
               <button
                 type="button"
                 className="btn"
-                disabled={busy}
+                disabled={busy || (instrumentalCond === "mix_stems" && (!mix?.tracks.length || !legoSidecarReady || !legoLicenseAccepted))}
                 onClick={() => {
                   const plan = planProjectInstrumentalPart({
                     role: instrumentalRole,
@@ -885,6 +909,7 @@ export function ProductionWorkspace({
                             }
                             aria-pressed={tr.mute}
                             aria-label={t("mix.muteNamed", { track: tr.name })}
+                            title={t("mix.muteNamed", { track: tr.name })}
                             onClick={() =>
                               scheduleMixUpdate(patchTrack(mix, tr.id, { mute: !tr.mute }))
                             }
@@ -902,6 +927,7 @@ export function ProductionWorkspace({
                             }
                             aria-pressed={tr.solo}
                             aria-label={t("mix.soloNamed", { track: tr.name })}
+                            title={t("mix.soloNamed", { track: tr.name })}
                             onClick={() =>
                               scheduleMixUpdate(patchTrack(mix, tr.id, { solo: !tr.solo }))
                             }
@@ -998,6 +1024,7 @@ export function ProductionWorkspace({
                               }
                               aria-pressed={gMute}
                               aria-label={t("mix.group.muteNamed", { group: groupName })}
+                              title={t("mix.group.muteNamed", { group: groupName })}
                               onClick={() => {
                                 scheduleMixUpdate(
                                   patchTracks(mix, trackIds, { mute: !gMute }),
@@ -1017,6 +1044,7 @@ export function ProductionWorkspace({
                               }
                               aria-pressed={gSolo}
                               aria-label={t("mix.group.soloNamed", { group: groupName })}
+                              title={t("mix.group.soloNamed", { group: groupName })}
                               onClick={() => {
                                 scheduleMixUpdate(
                                   patchTracks(mix, trackIds, { solo: !gSolo }),
@@ -1089,6 +1117,7 @@ export function ProductionWorkspace({
             }
             onDensityPreference={setDensityPreferencePersist}
             mix={mix}
+            onMixChange={scheduleMixUpdate}
             sources={playbackSources}
             tempoBpm={form.tempoBpm}
             onMasterGainChange={(gainDb, persist) =>
@@ -1116,6 +1145,10 @@ export function ProductionWorkspace({
           >
             <header className="anchored-popin-header">
               <h3 id={mixAssistTitleId}>{t("qwen.mix.title")}</h3>
+              <PopinCloseButton
+                label={t("qwen.mix.close")}
+                onClick={() => setMixAssistOpen(false)}
+              />
             </header>
             <QwenMixAssistant
               mix={mix}

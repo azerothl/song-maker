@@ -5,8 +5,8 @@ import { isMixMsActivationKey } from "./productionMixA11y";
 
 describe("production mix M/S accessibilité", () => {
   it("utilise des aria-label explicites en français", () => {
-    assert.equal(t("mix.muteNamed", { track: "Chœurs" }), "Muet : Chœurs");
-    assert.equal(t("mix.soloNamed", { track: "Voix lead" }), "Solo : Voix lead");
+    assert.equal(t("mix.muteNamed", { track: "Chœurs" }), "Couper le son de Chœurs");
+    assert.equal(t("mix.soloNamed", { track: "Voix lead" }), "N’écouter que Voix lead");
   });
 
   it("documente Tab pour le focus et Entrée/Espace pour activer (boutons natifs)", () => {

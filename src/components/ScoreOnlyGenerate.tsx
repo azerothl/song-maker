@@ -4,6 +4,7 @@ import { t } from "../ui/i18n";
 export type ScoreOnlyGenerateProps = {
   /** True when form + cot allow score-only (cot ≠ off, no external ABC). */
   canGenerate: boolean;
+  disabledReason: string;
   busy: boolean;
   onGenerateScoreOnly: () => void | Promise<void>;
 };
@@ -14,6 +15,7 @@ export type ScoreOnlyGenerateProps = {
  */
 export function ScoreOnlyGenerate({
   canGenerate,
+  disabledReason,
   busy,
   onGenerateScoreOnly,
 }: ScoreOnlyGenerateProps) {
@@ -31,7 +33,11 @@ export function ScoreOnlyGenerate({
       >
         {t("stopAfter.generateScoreOnly")}
       </button>
-      <p className="hint">{t("stopAfter.generateScoreOnlyHint")}</p>
+      <p className="hint">
+        {busy || !canGenerate
+          ? disabledReason
+          : t("stopAfter.generateScoreOnlyHint")}
+      </p>
     </div>
   );
 }

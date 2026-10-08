@@ -12,12 +12,25 @@ import {
   METERS,
   snapDurationSec,
   soundSummaryValue,
+  primaryFormError,
   TONIC_LABELS,
   TONICS,
   workspaceIntro,
   workspaceTitle,
   type AdvancedSettingsPage, FormFieldErrors
 } from "./shared";
+
+const VOCAL_STYLE_CUE = /\b(vocal(?:s|ist|ists)?|voices?|sing(?:ing|er|ers)?|sung|growl(?:s|ing|ed)?|spoken(?:\s+word)?|choir|rapping|rapper(?:s)?|chant(?:er|é|ée|eur|euse)?|voix|paroles|chanteur|chanteuse)\b/gi;
+const NEGATED_VOCAL_CUE = /(?:\bno\b|\bnot\b|\bwithout\b|\bavoid(?:ing)?\b|\bexclude(?:d|ing)?\b|\bremove(?:d)?\b|\bsans\b|\bpas\s+de\b|\baucun(?:e)?\b|\bnon\b|\béviter\b|\bretirer\b)\s+(?:(?:any|the|a|male|female|lead|background|les?|des)\s+){0,2}$/i;
+
+function findInstrumentalVocalCue(style: string): string | null {
+  for (const match of style.matchAll(VOCAL_STYLE_CUE)) {
+    const index = match.index ?? 0;
+    const prefix = style.slice(Math.max(0, index - 40), index);
+    if (!NEGATED_VOCAL_CUE.test(prefix)) return match[0];
+  }
+  return null;
+}
 
 /** Onglet Create : formulaire de génération, réglages avancés et reprise. */
 type CreateWorkspaceProps = {
@@ -27,10 +40,15 @@ type CreateWorkspaceProps = {
   form: FormInput;
   formFieldErrors: FormFieldErrors;
   onGenerate: () => Promise<void>;
+  onOpenInstrumentalSettings: () => void;
+  onOpenVocalRemovalSettings: () => void;
   scoreDocument: ScoreDocument | null;
   scoreGate: ScoreGate;
   setAdvancedSettingsPage: Dispatch<SetStateAction<AdvancedSettingsPage>>;
   setForm: (patch: Partial<FormInput>) => void;
+  instrumentalPackState: "active" | "installed" | "missing" | "unknown";
+  showVocalRemovalGuidance: boolean;
+  showInstrumentalPackGuidance: boolean;
   showFormErrors: boolean;
 };
 
@@ -41,12 +59,21 @@ export function CreateWorkspace({
   form,
   formFieldErrors,
   onGenerate,
+  onOpenInstrumentalSettings,
+  onOpenVocalRemovalSettings,
   scoreDocument,
   scoreGate,
   setAdvancedSettingsPage,
   setForm,
+  instrumentalPackState,
+  showVocalRemovalGuidance,
+  showInstrumentalPackGuidance,
   showFormErrors,
 }: CreateWorkspaceProps) {
+  const generationBlockedReason = primaryFormError(formFieldErrors);
+  const instrumentalVocalCue = form.instrumentalMode
+    ? findInstrumentalVocalCue(form.style)
+    : null;
   return (
     <section
       className="song-workspace-panel song-create-panel"
@@ -120,6 +147,11 @@ export function CreateWorkspace({
                       : "form.style.hint",
                   )}
                 </span>
+                {instrumentalVocalCue && (
+                  <span className="hint warn instrumental-style-warning" role="status" aria-live="polite">
+                    {t("form.style.instrumentalVocalWarning")}
+                  </span>
+                )}
                 {showFormErrors && formFieldErrors.style && (
                   <span className="hint error" role="alert">
                     {formFieldErrors.style}
@@ -134,6 +166,7 @@ export function CreateWorkspace({
                 )}
                 <textarea
                   value={form.lyrics}
+                  disabled={form.instrumentalMode}
                   onChange={(e) => setForm({ lyrics: e.target.value })}
                   rows={8}
                   placeholder={
@@ -176,17 +209,47 @@ export function CreateWorkspace({
                     <small>{t("form.instrumental.hint")}</small>
                   </span>
                 </label>
-                {form.instrumentalMode && (
-                  <p className="hint ok" role="status">
-                    {t("form.instrumental.active")}
-                  </p>
+                {form.instrumentalMode &&
+                  (showVocalRemovalGuidance || showInstrumentalPackGuidance) && (
+                  <div className="hint instrumental-pack-guidance">
+                    {showVocalRemovalGuidance && (
+                      <>
+                        <p>{t("form.instrumental.vocalRemovalHelp")}</p>
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          onClick={onOpenVocalRemovalSettings}
+                        >
+                          {t("form.instrumental.vocalRemovalSettings")}
+                        </button>
+                      </>
+                    )}
+                    {showInstrumentalPackGuidance && (
+                      <>
+                        <p>
+                          {t(
+                            instrumentalPackState === "active"
+                              ? "form.instrumental.packActive"
+                              : instrumentalPackState === "installed"
+                                ? "form.instrumental.packInstalled"
+                                : "form.instrumental.packHint",
+                          )}
+                        </p>
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          onClick={onOpenInstrumentalSettings}
+                        >
+                          {t(
+                            instrumentalPackState === "active"
+                              ? "form.instrumental.managePackSettings"
+                              : "form.instrumental.openPackSettings",
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
-                <p className="hint warn" role="note">
-                  {t("form.audioInput.incapacity")}
-                </p>
-                <p className="hint" role="note">
-                  {t("form.houseModel.unavailable")}
-                </p>
                 <button
                   type="button"
                   className="form-advanced-entry"
@@ -204,20 +267,19 @@ export function CreateWorkspace({
               </div>
 
               <div className="song-actions song-actions-sticky song-create-generate">
+                {generationBlockedReason && <p className="hint" id="create-generation-reason">{generationBlockedReason}</p>}
                 {scoreGate.error && (
                   <p className="hint error">{scoreGate.error}</p>
                 )}
                 {scoreDocument && !scoreGate.error && (
                   <p className="hint ok">{t("score.willSendAbc")}</p>
                 )}
-                {!scoreDocument && (
-                  <p className="hint">{t("score.phase1Path")}</p>
-                )}
                 <div className="btn-row song-actions-primary">
                   <button
                     type="button"
                     className="btn primary song-create-generate-btn"
-                    disabled={busy || Boolean(scoreGate.error)}
+                    disabled={busy || Boolean(scoreGate.error) || Boolean(generationBlockedReason)}
+                    aria-describedby={generationBlockedReason ? "create-generation-reason" : undefined}
                     onClick={() => void onGenerate()}
                     aria-keyshortcuts="Control+Enter"
                   >
@@ -298,12 +360,13 @@ export function CreateWorkspace({
                   <input
                     placeholder={t("form.language.placeholder")}
                     value={form.singingLanguage ?? ""}
+                    disabled={form.instrumentalMode}
                     onChange={(e) =>
                       setForm({ singingLanguage: e.target.value || null })
                     }
                     maxLength={40}
                   />
-                  <span className="hint">{t("form.language.hint")}</span>
+                  <span className="hint">{t(form.instrumentalMode ? "form.language.instrumental" : "form.language.hint")}</span>
                 </label>
                 <label className="form-field">
                   {t("form.tempo")}
@@ -364,12 +427,14 @@ export function CreateWorkspace({
                 )}
                 <p className="hint">
                   {t(
-                    form.preferFullLyrics
+                    form.instrumentalMode
+                      ? "form.duration.instrumentalHint"
+                      : form.preferFullLyrics
                       ? "form.duration.hint"
                       : "form.duration.strictActiveHint",
                   )}
                 </p>
-                <fieldset className="duration-policy">
+                {!form.instrumentalMode && <fieldset className="duration-policy">
                   <legend className="sr-only">
                     {t("form.duration.policy")}
                   </legend>
@@ -399,7 +464,7 @@ export function CreateWorkspace({
                       <small>{t("form.duration.strictHint")}</small>
                     </span>
                   </label>
-                </fieldset>
+                </fieldset>}
               </div>
             </fieldset>
           </section>

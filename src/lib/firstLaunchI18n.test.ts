@@ -170,21 +170,32 @@ describe("firstLaunch i18n (#202 / #221)", () => {
   it("English GPU / no-GPU headlines and units (#221)", () => {
     localStorage.setItem(LOCALE_KEY, "en");
     const metal = detectHeadline("appleMetal");
-    assert.equal(metal.status, "Apple Metal detected");
+    assert.equal(metal.status, "Compatible Apple chip detected");
     assert.doesNotMatch(metal.status, /détecté|Carte graphique|Aucune/i);
     const nvidia = detectHeadline("nvidiaCuda");
     assert.equal(nvidia.status, "Graphics card detected");
     const none = detectHeadline("none");
-    assert.match(none.status, /No compatible graphics card/i);
-    assert.doesNotMatch(none.sub, /n’est pas proposée|La génération YuE2/i);
+    assert.equal(none.status, "Music generation unavailable");
+    assert.doesNotMatch(none.sub, /Metal|CUDA|YuE2/i);
 
     const gpu = demoSetupGpu("nvidiaCuda");
-    assert.match(gpuDetailLine(gpu), /VRAM/);
-    assert.doesNotMatch(gpuDetailLine(gpu), /de VRAM/);
+    assert.match(gpuDetailLine(gpu), /graphics memory/);
+    assert.doesNotMatch(gpuDetailLine(gpu), /VRAM|CUDA|Metal/);
     assert.equal(formatVramGo(8192), "8 GB");
     const reason = suggestedPackReasonCopy(gpu);
-    assert.match(reason, /Detected VRAM|below|Q4 recommended/i);
-    assert.doesNotMatch(reason, /détectée|en dessous|recommandé/i);
+    assert.match(reason, /graphics card|memory|lighter version/i);
+    assert.doesNotMatch(reason, /VRAM|CUDA|Q4|Q8/i);
+  });
+
+  it("shows a plain commercial-use summary while keeping the license source available", () => {
+    localStorage.setItem(LOCALE_KEY, "fr");
+    assert.match(t("firstLaunch.license.htdemucsSummary"), /usage commercial.*ne sont pas confirmés/i);
+    assert.equal(t("firstLaunch.license.htdemucsDetails"), "Détails sur les fichiers et leur licence");
+    assert.equal(t("firstLaunch.license.htdemucsSource"), "Lire la discussion d’origine sur la licence");
+
+    localStorage.setItem(LOCALE_KEY, "en");
+    assert.match(t("firstLaunch.license.htdemucsSummary"), /commercial-use rights.*not confirmed/i);
+    assert.equal(t("firstLaunch.license.htdemucsDetails"), "Details about the files and their license");
   });
 
   it("English no-GPU and GPU chrome strings (#221)", () => {

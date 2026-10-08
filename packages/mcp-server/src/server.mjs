@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { auditPromptDiversity, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
+import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
 
 const server = new McpServer({ name: 'song-maker-yue2', version: '0.1.0' });
 const reply = value => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
@@ -92,5 +92,10 @@ server.registerTool('resume_job', {
   description: 'Reprend un job arrêté par les limites GPU, ou confirme la validation de la piste affichée dans reviewRequired avant de lancer la suivante. Consulte job_status et vérifie le WAV avant de reprendre.',
   inputSchema: { jobId: z.string().uuid() },
 }, call(async ({ jobId }) => resumeJob(jobId)));
+
+server.registerTool('cancel_job', {
+  description: 'Annule un job YuE2 en cours. La piste en cours est arrêtée et les pistes déjà exportées sont conservées. job_status indique quand l’annulation est terminée.',
+  inputSchema: { jobId: z.string().uuid() },
+}, call(async ({ jobId }) => cancelJob(jobId)));
 
 await server.connect(new StdioServerTransport());

@@ -1,11 +1,13 @@
 import { api } from "../lib/api";
+import { generationErrorMessage } from "../lib/generationError";
+import { TakePreviewPlayer } from "../components/TakePreviewPlayer";
 import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
 import { buildGenerationPayload, loadRemotePrefs, runRemoteGenerationToProject } from "../lib/remoteGenerate";
 import { CreateWorkspace } from "./song/CreateWorkspace";
 import { matchesGenerateShortcut } from "./song/createWorkspaceLayout";
 import { ensureProductionOverlay, normalizeProductionOverlay, setProductionDiskPersist, setProductionOverlay, setProductionProjectScope, setProductionTempoBpm, undoProductionOverlay, redoProductionOverlay } from "../lib/productionState";
 import { exportProjectAudio } from "../lib/exportMix";
-import { generateScoreOnly, renderNFromScore } from "../lib/scoreOnlyApi";
+import { generateInstrumentalComparisonTake, generateInstrumentalTake, generateScoreOnly, renderNFromScore } from "../lib/scoreOnlyApi";
 import { importAbcText, importMidiBytes, prepareAbcForGeneration, type ScoreDocument } from "../lib/score";
 import { midiBytesToUint8Array } from "../lib/basicPitchProduct";
 import {
@@ -19,13 +21,16 @@ import { ProductionWorkspace } from "./song/ProductionWorkspace";
 import { ProfileKindBadge } from "../components/ProfileKindBadge";
 import { RegenerationGate } from "../components/RegenerationGate";
 import { RemoteGenerateConfirm } from "../components/RemoteGenerateConfirm";
+import { SeparationAgainConfirmDialog } from "../components/SeparationAgainConfirmDialog";
 import { ScoreWorkspace } from "./song/ScoreWorkspace";
 import { t } from "../ui/i18n";
 import { useAppStore } from "../store/appStore";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { VersionsWorkspace } from "./song/VersionsWorkspace";
 import type { BuiltRemotePayload, RemoteWorkerPreferences } from "@song-maker/remote-worker";
+import { LORA_PACK_CATALOG } from "@song-maker/lora-packs";
 import type { FormInput, MixDoc, MixTrack, SeparationInfo } from "../lib/types";
+import { packLibraryState } from "../lib/loraLibrary";
 import {
   advancedSettingsSummary,
   primaryFormError,
@@ -40,6 +45,7 @@ import {
 export function SongScreen() {
   const project = useAppStore((s) => s.project);
   const form = useAppStore((s) => s.form);
+  const settings = useAppStore((s) => s.settings);
   const setForm = useAppStore((s) => s.setForm);
   const mix = useAppStore((s) => s.mix);
   const setMix = useAppStore((s) => s.setMix);
@@ -52,12 +58,51 @@ export function SongScreen() {
   const playbackSources = useAppStore((s) => s.playbackSources);
   const setError = useAppStore((s) => s.setError);
   const openProject = useAppStore((s) => s.openProject);
+  const refreshJob = useAppStore((s) => s.refreshJob);
   const job = useAppStore((s) => s.job);
   const setProfileOperationBusy = useAppStore((s) => s.setProfileOperationBusy);
+  const openLoraSettings = useAppStore((s) => s.openLoraSettings);
+  const openSeparationSettings = useAppStore((s) => s.openSeparationSettings);
 
+  const [pendingPart, setPendingPart] = useState<{ projectId: string; generationId: string; audioPath: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [cancelRequestPending, setCancelRequestPending] = useState(false);
+  const [cancelRequested, setCancelRequested] = useState(false);
+  const [cancelMessage, setCancelMessage] = useState<string | null>(null);
   const [legoSidecarReady, setLegoSidecarReady] = useState(false);
   const [legoLicenseAccepted, setLegoLicenseAccepted] = useState(false);
+  const [instrumentalPackState, setInstrumentalPackState] =
+    useState<"active" | "installed" | "missing" | "unknown">("unknown");
+  useEffect(() => {
+    let cancelled = false;
+    const instrumentalPack = LORA_PACK_CATALOG.find(
+      (pack) => pack.id === "mothersuperior-instrumental-ar",
+    );
+    if (
+      !settings ||
+      settings.generationEngine !== "yue2" ||
+      !isTauriRuntime() ||
+      !instrumentalPack
+    ) {
+      setInstrumentalPackState("unknown");
+      return;
+    }
+    void api
+      .listLoraAdapters()
+      .then((adapters) => {
+        if (cancelled) return;
+        const state = packLibraryState(instrumentalPack, adapters, settings);
+        setInstrumentalPackState(
+          state.active ? "active" : state.installed ? "installed" : "missing",
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setInstrumentalPackState("unknown");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [settings]);
   useEffect(() => {
     if (!isTauriRuntime()) return;
     let cancelled = false;
@@ -76,7 +121,7 @@ export function SongScreen() {
     return () => {
       cancelled = true;
     };
-  }, [project?.id]);
+  }, [project?.id, settings?.cacheDir, settings?.aceStepLegoLicenseAccepted]);
   useEffect(() => {
     setProfileOperationBusy(busy);
     return () => setProfileOperationBusy(false);
@@ -93,6 +138,7 @@ export function SongScreen() {
   const [remotePayload, setRemotePayload] = useState<BuiltRemotePayload | null>(
     null,
   );
+  const [remoteProgress, setRemoteProgress] = useState<string | null>(null);
   const [advancedSettingsPage, setAdvancedSettingsPage] =
     useState<AdvancedSettingsPage>(null);
   const [workspace, setWorkspace] = useState<SongWorkspace>("create");
@@ -109,6 +155,8 @@ export function SongScreen() {
     separationId: string;
     mixId: string;
   } | null>(null);
+  const [separationAgainConfirmOpen, setSeparationAgainConfirmOpen] =
+    useState(false);
   const [importingAudio, setImportingAudio] = useState(false);
   const [transcribingTrackId, setTranscribingTrackId] = useState<string | null>(
     null,
@@ -123,6 +171,35 @@ export function SongScreen() {
     useState<ScoreDocument | null>(null);
   const saveTimer = useRef<number | null>(null);
   const mixTimer = useRef<number | null>(null);
+  const canCancelCurrentJob = Boolean(
+    project &&
+      job?.projectId === project.id &&
+      ["preparing", "generating", "separating", "importing_tracks"].includes(job.state),
+  );
+  const projectJob = job?.projectId === project?.id ? job : null;
+
+  useEffect(() => {
+    if (!canCancelCurrentJob) {
+      setCancelRequested(false);
+      setCancelRequestPending(false);
+      setCancelMessage(null);
+    }
+  }, [canCancelCurrentJob]);
+
+  async function onCancelCurrentJob() {
+    if (!canCancelCurrentJob || cancelRequestPending || cancelRequested) return;
+    setCancelRequestPending(true);
+    try {
+      const requested = await api.cancelJob();
+      setCancelRequested(requested);
+      setCancelMessage(t(requested ? "cancel.message" : "cancel.none"));
+      await refreshJob();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setCancelRequestPending(false);
+    }
+  }
 
   async function onImportUserAudio() {
     if (!project || importingAudio) return;
@@ -132,7 +209,7 @@ export function SongScreen() {
       const next = await api.importUserAudioTrack(project.id);
       if (next) {
         setMix(next);
-        await openProject(project.id);
+        await openProject(project.id, { preserveForm: true });
       }
     } catch (e) {
       setError(String(e));
@@ -143,7 +220,7 @@ export function SongScreen() {
 
   async function onUserTrackAdded(next: MixDoc) {
     setMix(next);
-    if (project) await openProject(project.id);
+    if (project) await openProject(project.id, { preserveForm: true });
   }
 
   async function onTranscribeBasicPitch(track: MixTrack) {
@@ -197,19 +274,27 @@ export function SongScreen() {
         lyrics: "",
         instrumentalMode: true,
       };
-      const doc = await api.startGeneration(
+      const result = await api.generateInstrumentalPart(
         project.id,
         nextForm,
-        null,
+        plan.role,
         plan.conditioning === "mix_stems"
-          ? { engine: "ace_step_lego", instrumentalRole: plan.role }
-          : { instrumentalRole: plan.role },
+          ? "ace_step_lego"
+          : undefined,
       );
-      const genId = doc.activeGenerationId;
+      const genId = result.generationId;
       if (!genId) {
         throw new Error(
           "Génération sans identifiant actif — piste non ajoutée à l’arrangement.",
         );
+      }
+      if (plan.conditioning === "mix_stems") {
+        const takes = await api.listGenerations(project.id);
+        const audioPath = takes.find(take => take.id === genId)?.audioPath;
+        if (!audioPath) throw new Error(t("production.instrumental.previewMissing"));
+        await openProject(project.id, { preserveForm: true });
+        setPendingPart({ projectId: project.id, generationId: genId, audioPath, name: plan.displayName });
+        return;
       }
       const nextMix = await api.importGenerationAsUserTrack(
         project.id,
@@ -217,15 +302,25 @@ export function SongScreen() {
         plan.displayName,
       );
       await onUserTrackAdded(nextMix);
-      if (plan.conditioning === "mix_stems") {
-        setError(plan.leftoverNotesFr);
-      }
+
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-      throw e;
     } finally {
       setBusy(false);
     }
+  }
+
+  async function acceptPendingPart(muteExisting: boolean) {
+    if (!pendingPart || pendingPart.projectId !== project?.id || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const nextMix = await api.importGenerationAsUserTrack(project.id, pendingPart.generationId, pendingPart.name, muteExisting);
+      setPendingPart(null);
+      await onUserTrackAdded(nextMix);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally { setBusy(false); }
   }
 
   async function onExport(format: "wav" | "flac" | "mp3") {
@@ -261,6 +356,15 @@ export function SongScreen() {
   /** Score-only forbids external ABC and cot=off. */
   const canGenerateScoreOnly =
     !formError && form.cot !== "off" && !scoreGate.abc;
+  const scoreOnlyDisabledReason = busy
+    ? t("stopAfter.generateScoreOnlyBusy")
+    : formError
+      ? t("stopAfter.generateScoreOnlyFixFields")
+      : form.cot === "off"
+        ? t("stopAfter.generateScoreOnlyEnablePlan")
+        : scoreGate.abc
+          ? t("stopAfter.generateScoreOnlyAlreadyHasScore")
+          : t("stopAfter.generateScoreOnlyUnavailable");
 
   useEffect(() => {
     setShowFormErrors(false);
@@ -418,7 +522,14 @@ export function SongScreen() {
 
   async function onGenerateLocal() {
     if (!project) return;
-    await api.startGeneration(project.id, form, scoreGate.abc);
+    if (form.instrumentalMode && settings?.generationEngine !== "ace_step") {
+      if (form.cot === "off") {
+        throw new Error(t("form.instrumental.scoreRequired"));
+      }
+      await generateInstrumentalTake(project.id, form, scoreGate.abc);
+    } else {
+      await api.startGeneration(project.id, form, scoreGate.abc);
+    }
     await openProject(project.id);
   }
 
@@ -431,6 +542,11 @@ export function SongScreen() {
     try {
       const prefs = loadRemotePrefs();
       if (prefs.remoteEnabled) {
+        if (form.instrumentalMode && settings?.generationEngine !== "ace_step") {
+          setRemoteProgress(t("generation.instrumentalLocal"));
+          await onGenerateLocal();
+          return;
+        }
         const authToken = prefs.accessToken;
         const payload = await buildGenerationPayload(
           project.id,
@@ -445,9 +561,10 @@ export function SongScreen() {
       }
       await onGenerateLocal();
     } catch (e) {
-      setError(String(e));
+      setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
+      setRemoteProgress(null);
     }
   }
 
@@ -475,6 +592,7 @@ export function SongScreen() {
   async function onConfirmRemoteGenerate() {
     if (!project || !remotePrefs || !remotePayload) return;
     setBusy(true);
+    setRemoteProgress(t("phase4.remote.progress"));
     setError(null);
     try {
       const outcome = await runRemoteGenerationToProject(
@@ -482,22 +600,27 @@ export function SongScreen() {
         remotePrefs,
         remotePayload,
         {
-          onStatus: (h) => {
-            setError(`Worker distant: ${h.status} (${h.id})`);
+          onStatus: (handle) => {
+            if (handle.status === "queued" || handle.status === "running") {
+              setRemoteProgress(t("phase4.remote.progress"));
+            } else if (handle.status === "succeeded") {
+              setRemoteProgress(t("phase4.remote.importing"));
+            }
           },
         },
       );
       setRemoteConfirmOpen(false);
       if (outcome.ok) {
+        setRemoteProgress(null);
         setError(null);
         await openProject(project.id);
       } else {
-        setError(
-          `${outcome.status}: ${outcome.error} — génération locale non démarrée.`,
-        );
+        setRemoteProgress(null);
+        setError(t("phase4.remote.notAdded", { reason: outcome.error }));
       }
     } catch (e) {
-      setError(String(e));
+      setRemoteProgress(null);
+      setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -518,19 +641,14 @@ export function SongScreen() {
       setContinuationLyrics("");
       await openProject(project.id);
     } catch (e) {
-      setError(String(e));
+      setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
     }
   }
 
-  async function onSeparate() {
+  async function runSeparation(isRepeat: boolean) {
     if (!project) return;
-    const hasAiStems = mix?.tracks.some((tr) => tr.aiSeparated) ?? false;
-    if (hasAiStems) {
-      const ok = window.confirm(t("separate.again.confirm"));
-      if (!ok) return;
-    }
     const prevSep = project.activeSeparationId ?? null;
     const prevMix = project.activeMixId ?? null;
     setBusy(true);
@@ -541,7 +659,7 @@ export function SongScreen() {
       await openProject(project.id);
       const info = await api.loadSeparationInfo(project.id);
       setSeparationInfo(info);
-      if (hasAiStems && prevSep && prevMix) {
+      if (isRepeat && prevSep && prevMix) {
         setSeparationUndo({ separationId: prevSep, mixId: prevMix });
       } else {
         setSeparationUndo(null);
@@ -551,6 +669,21 @@ export function SongScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onSeparate() {
+    if (!project) return;
+    const hasAiStems = mix?.tracks.some((track) => track.aiSeparated) ?? false;
+    if (hasAiStems) {
+      setSeparationAgainConfirmOpen(true);
+      return;
+    }
+    await runSeparation(false);
+  }
+
+  function confirmSeparationAgain() {
+    setSeparationAgainConfirmOpen(false);
+    void runSeparation(true);
   }
 
   async function onRevertSeparation() {
@@ -584,10 +717,9 @@ export function SongScreen() {
     setBusy(true);
     setError(null);
     try {
-      await api.startGeneration(project.id, form, scoreGate.abc);
-      await openProject(project.id);
+      await onGenerateLocal();
     } catch (e) {
-      setError(String(e));
+      setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -610,11 +742,15 @@ export function SongScreen() {
           i === 0 || form.seed == null
             ? form
             : { ...form, seed: null };
-        await api.startGeneration(project.id, formForCall, scoreGate.abc);
+        if (form.instrumentalMode && settings?.generationEngine !== "ace_step") {
+          await generateInstrumentalComparisonTake(project.id, formForCall, scoreGate.abc);
+        } else {
+          await api.generateComparisonTake(project.id, formForCall, scoreGate.abc);
+        }
       }
       await openProject(project.id);
     } catch (e) {
-      setError(String(e));
+      setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -630,12 +766,10 @@ export function SongScreen() {
     setBusy(true);
     setError(null);
     try {
-      await api.startGeneration(project.id, form, scoreGate.abc, {
-        engine: "ace_step",
-      });
+      await api.generateComparisonTake(project.id, form, scoreGate.abc, "ace_step");
       await openProject(project.id);
     } catch (e) {
-      setError(String(e));
+      setError(generationErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -744,6 +878,8 @@ export function SongScreen() {
           tempoMap: next.tempoMap ?? [],
           timeSignatures: next.timeSignatures ?? [],
           markers: next.markers ?? [],
+          vst3MasterInsert: next.vst3MasterInsert ?? undefined,
+          clearVst3MasterInsert: !next.vst3MasterInsert,
         })
         .then((m) => {
           setMix(m);
@@ -788,9 +924,33 @@ export function SongScreen() {
               {project.title || t("form.createTitle")}
               <ProfileKindBadge />
             </h1>
-            {job && job.state !== "idle" && (
+            {projectJob && projectJob.state !== "idle" && (
+              <div className="song-job-banner" role="status" aria-live="polite">
+                <span>
+                  {projectJob.state === "completed"
+                    ? t("job.completed")
+                    : projectJob.state === "cancelled"
+                      ? t("job.cancelled")
+                      : projectJob.label || t("job.generating")}
+                </span>
+                {canCancelCurrentJob && (
+                  <button
+                    type="button"
+                    className="btn ghost song-job-cancel"
+                    disabled={cancelRequestPending || cancelRequested}
+                    onClick={() => void onCancelCurrentJob()}
+                  >
+                    {cancelRequestPending ? t("job.canceling") : t("job.cancel")}
+                  </button>
+                )}
+              </div>
+            )}
+            {cancelMessage && canCancelCurrentJob && (
+              <p className="song-job-cancel-message" role="status">{cancelMessage}</p>
+            )}
+            {remoteProgress && (
               <p className="song-job-banner" role="status" aria-live="polite">
-                {job.label || t("job.generating")}
+                {remoteProgress}
               </p>
             )}
           </div>
@@ -829,6 +989,20 @@ export function SongScreen() {
         </div>
       </header>
 
+      {pendingPart?.projectId === project.id && (
+        <section className="panel" aria-label={t("production.instrumental.previewTitle")}>
+          <h2>{t("production.instrumental.previewTitle")}</h2>
+          <p>{t("production.instrumental.previewHelp")}</p>
+          <TakePreviewPlayer audioPath={pendingPart.audioPath} label={pendingPart.name} />
+          <div className="actions">
+            <button type="button" disabled={busy} onClick={() => void acceptPendingPart(false)}>{t("production.instrumental.addSeparate")}</button>
+            <button type="button" disabled={busy} onClick={() => void acceptPendingPart(true)}>{t("production.instrumental.useFullMix")}</button>
+            <button type="button" disabled={busy} onClick={() => setPendingPart(null)}>{t("production.instrumental.keepForLater")}</button>
+          </div>
+          <p className="hint">{t("production.instrumental.fullMixHelp")}</p>
+        </section>
+      )}
+
       <div className="song-workspace-body">
         {workspace === "create" && (
           <CreateWorkspace
@@ -838,10 +1012,18 @@ export function SongScreen() {
             form={form}
             formFieldErrors={formFieldErrors}
             onGenerate={onGenerate}
+            onOpenInstrumentalSettings={openLoraSettings}
+            onOpenVocalRemovalSettings={openSeparationSettings}
             scoreDocument={scoreDocument}
             scoreGate={scoreGate}
             setAdvancedSettingsPage={setAdvancedSettingsPage}
             setForm={setForm}
+            instrumentalPackState={instrumentalPackState}
+            showVocalRemovalGuidance={
+              settings?.generationEngine === "yue2" ||
+              settings?.generationEngine === "ace_step"
+            }
+            showInstrumentalPackGuidance={settings?.generationEngine === "yue2"}
             showFormErrors={showFormErrors}
           />
         )}
@@ -850,6 +1032,7 @@ export function SongScreen() {
           <ScoreWorkspace
             busy={busy}
             canGenerateScoreOnly={canGenerateScoreOnly}
+            scoreOnlyDisabledReason={scoreOnlyDisabledReason}
             form={form}
             generations={generations}
             mix={mix}
@@ -944,10 +1127,19 @@ export function SongScreen() {
           prefs={remotePrefs}
           payloadPreview={remotePayload}
           busy={busy}
-          onCancel={() => setRemoteConfirmOpen(false)}
+          onCancel={() => {
+            setRemoteConfirmOpen(false);
+            setRemoteProgress(null);
+          }}
           onConfirm={onConfirmRemoteGenerate}
         />
       )}
+
+      <SeparationAgainConfirmDialog
+        open={separationAgainConfirmOpen}
+        onCancel={() => setSeparationAgainConfirmOpen(false)}
+        onConfirm={confirmSeparationAgain}
+      />
 
       {project && (
         <RegenerationGate
