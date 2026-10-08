@@ -28,6 +28,8 @@ type Props = {
   initialMode?: ExportMode;
   /** Ancre externe (tiroir production, harness capture). */
   triggerRef?: RefObject<HTMLButtonElement | null>;
+  /** Close competing production panels before showing export. */
+  onOpen?: () => void;
 };
 
 /**
@@ -42,6 +44,7 @@ export function ExportDialog({
   onError,
   initialMode = "mix",
   triggerRef,
+  onOpen,
 }: Props) {
   const [open, setOpen] = useState(false);
   const internalAnchorRef = useRef<HTMLButtonElement>(null);
@@ -189,7 +192,10 @@ export function ExportDialog({
         disabled={!hasExportAudio || busy}
         aria-describedby={triggerDisabledReason ? triggerDisabledId : undefined}
         title={triggerDisabledReason ?? undefined}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          onOpen?.();
+          setOpen(true);
+        }}
       >
         {t("export.button")}
       </button>

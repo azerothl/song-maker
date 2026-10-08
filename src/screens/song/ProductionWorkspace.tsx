@@ -473,6 +473,12 @@ export function ProductionWorkspace({
                 busy={busy}
                 onBusy={setBusy}
                 onError={setError}
+                onOpen={() => {
+                  setMixSettingsOpen(false);
+                  setMixAssistOpen(false);
+                  setSeparateOpen(false);
+                  setOpenTrackToolsId(null);
+                }}
                 initialMode={hasAiStems ? "stems" : "mix"}
               />
             ) : null}
