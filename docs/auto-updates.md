@@ -1,11 +1,13 @@
 # Mises à jour de Song Maker
 
-Song Maker vérifie les mises à jour au démarrage. Lorsqu’une version plus récente est publiée, l’application affiche ses notes et propose de la télécharger puis de l’installer. L’installation n’est jamais lancée sans action de l’utilisateur.
+Au démarrage, Song Maker vérifie les mises à jour. Lorsqu’une version plus récente est publiée, l’application affiche ses notes et propose de la télécharger puis de l’installer. L’installation attend toujours une action de l’utilisateur.
 
-Les paquets sont signés par Tauri et vérifiés avec la clé publique intégrée à `src-tauri/tauri.conf.json`. Le workflow GitHub Actions utilise les secrets `TAURI_SIGNING_PRIVATE_KEY` et `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` pour signer les builds et publier `latest.json` avec les artefacts de mise à jour. Ne publiez jamais la clé privée. Sa perte ou son remplacement empêche les installations existantes de vérifier les prochaines versions.
+Les paquets de mise à jour sont signés par Tauri et vérifiés avec la clé publique intégrée dans `src-tauri/tauri.conf.json`. Le workflow GitHub Actions utilise `TAURI_SIGNING_PRIVATE_KEY` et `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` pour signer les artefacts et publier `latest.json`. Ne publiez jamais la clé privée. Sa perte ou son remplacement empêche les installations existantes de vérifier les prochaines versions.
 
-Sur la machine de maintenance, la clé privée est conservée sous `%USERPROFILE%\.tauri\song-maker-updater-v2.key` et son mot de passe dans `%USERPROFILE%\.tauri\song-maker-updater-password.dpapi` (chiffré par Windows pour le compte local). Le fichier DPAPI ne se restaure que sous le même compte Windows ; une copie de ce seul fichier n’est pas une sauvegarde portable.
+Sur la machine de maintenance, la clé privée est conservée sous `%USERPROFILE%\.tauri\song-maker-updater-v2.key` et son mot de passe dans `%USERPROFILE%\.tauri\song-maker-updater-password.dpapi`. Le fichier DPAPI ne se restaure que sous le même compte Windows.
 
-Pour une nouvelle version, augmentez ensemble la version de `package.json` et de `src-tauri/tauri.conf.json`, puis poussez le tag correspondant (`vX.Y.Z`). Le workflow construit les installateurs et leurs signatures pour chaque plateforme, met à jour le manifeste GitHub Releases et publie la release après réussite de tous les builds.
+Pour préparer une version, aligner `package.json`, `website/package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` et l’entrée locale de `src-tauri/Cargo.lock`. Ajouter les notes bilingues dans `docs/releases/vX.Y.Z.md` et mettre à jour les pages Nouveautés. Vérifier le workflow et CI avant de pousser le tag `vX.Y.Z`. Le workflow crée un brouillon, construit les artefacts des plateformes puis publie seulement si chaque build réussit.
 
-Les installations de Song Maker antérieures à l’activation de ce mécanisme ne contiennent pas sa clé publique. Elles ne peuvent pas se mettre à jour automatiquement vers cette version : leur première mise à niveau vers la version `0.1.1` doit se faire depuis la page des [releases](https://github.com/azerothl/song-maker/releases/latest). Les versions suivantes pourront ensuite se mettre à jour depuis l’application.
+Les releases avant v1.0.0 ne requièrent pas Authenticode ni notarisation macOS. Ces deux contrôles deviennent obligatoires à partir de v1.0.0. Les signatures Tauri de mise à jour restent obligatoires pour toutes les versions.
+
+Les installations antérieures à l’activation du mécanisme de mise à jour n’ont pas la clé publique intégrée. Leur première mise à niveau doit se faire depuis la page des Releases ; les suivantes peuvent utiliser le mécanisme intégré.

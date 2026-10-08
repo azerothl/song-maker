@@ -1,48 +1,32 @@
 ---
-title: What’s new in v0.2.0
-description: Changes in Song Maker 0.2.0 — JSON batch, setup, instrumental part, Lego, punch.
+title: What’s new in v0.3.0
+description: Windows VST3 effects and instruments, recording, Lego, and generation improvements.
 order: 2
 ---
 
-# What’s new — v0.2.0
+# What’s new — v0.3.0
 
-Compared with **v0.1.1**, the app and this site now document:
+This release gathers changes since the last published release, v0.1.1. The v0.2.0 draft did not contain every installer.
 
-1. **[Batch generation](/en/docs/batch-generation)** — UTF-8 JSON in the Library, full field list and example.
-2. **[Setup](/en/docs/setup)** — first-launch assistant, Q4/Q8, Settings, ffmpeg, opt-in Lego.
-3. **Instrumental part** from Production (YuE2 from the project, or mix/stems via Lego).
-4. Grid-snapped punch, native `startMs`, FR/EN UI, YuE2 pack download that does not freeze the window.
+## Production and plugins
 
-## Library — several songs
+- **VST3 on Windows:** offline master effects feed both preview and export. Native plugin editor windows and MIDI-controlled VST3 instruments are available. Plugins are installed by the user. AU/macOS is not included.
+- **Recording on Windows:** choose shared or exclusive WASAPI capture. Unsupported device formats return an explicit error; switch back to shared mode when needed. ASIO is not included.
+- **ACE-Step Lego:** project audio is now sent for mix- or stem-conditioned parts.
 
-**Library → Batch generation.** The file must be UTF-8 JSON with `"schemaVersion": 1` and a `songs` array. Each entry needs `id`, `title`, `style`, `lyrics`.
+## Generation and editing
 
-Inferences stay **serial** (admitted GPU capacity = 1). `allowReduction` (default) starts at 1; `requireRequested` blocks a higher demand.
+- Instrumental processing reduces vocal residue and checks ACE-Step output duration before activation. A model can still leave audible residue.
+- Batch jobs isolate task failures more reliably; cancellation, recovery, and recording feedback have been improved.
+- YuE2 score export preserves the final chord. Production and export received additional fixes.
+- The release also includes the first-launch assistant, model setup, JSON batch import, instrumental parts, grid-snapped punch, and French/English desktop UI introduced since v0.1.1.
 
-Fields, defaults, and a copy-paste example: [Batch generation](/en/docs/batch-generation).
+## Install and update notes
 
-## Setup
+The audio engine and model packs download separately. YuE2 requires acceptance of its CC BY-NC 4.0 license before download.
 
-This is no longer “run a script” only. After the installer:
+Windows installers in this release are not Authenticode-signed, and macOS apps are not notarized. Windows SmartScreen or a macOS first-launch approval may appear. Tauri updater packages remain signed. Authenticode signing and notarization are planned starting with v1.0.0.
 
-- GPU / licenses / Q4 or Q8 pack / resumable download assistant ;
-- **Settings → System** for FR/EN UI language ;
-- YuE2 by default ; ACE-Step Turbo and Lego are separate opt-ins.
+## Limits
 
-Walkthrough: [Set up Song Maker](/en/docs/setup).
-
-## Production — instrumental part
-
-- **Tempo / key / style (YuE2):** bass, drums, or accompaniment, then import into the arrangement.
-- **Mix / stems (opt-in):** ACE-Step 1.5 **Base Lego** Python sidecar (not the Turbo GGUF, not YuE2 `audio_input`). YuE2 **refuses** audio input. Lego may return a **fused mix**, not a dry stem. Import at `start_ms = 0`. ACE-Step card is MIT; a YuE2 mix stays **CC BY-NC**. ≥ 12 GB VRAM recommended.
-
-See [Mix & export](/en/docs/mix-export) and [Setup](/en/docs/setup).
-
-## Other
-
-- Grid-snapped punch; native `startMs` on user audio clips.
-- YuE2 pack download from Settings no longer freezes the window.
-- Opt-in embedded DeclUI host (`127.0.0.1`); YuE2 generation stays local.
-- Desktop UI is **French / English** (Settings → System).
-
-VST3 plugins are not a product feature (flagged spike only). The in-house model and YuE2 `audio_input` remain unavailable.
+The VST3 host is Windows-only and renders offline. AU/macOS and real-time VST3 monitoring are not included. ASIO is not supported. YuE2 does not accept reference audio.

@@ -35,7 +35,7 @@ Réglage : Paramètres → Système → Latence audio, ou panneau instrument sou
 
 ## Hors périmètre
 
-Plugins VST3 (ticket d’étude séparé). Soundfonts GM propriétaires **bundlées**. FluidR3 / GeneralUser : l’utilisateur peut les charger s’il en a les droits ; Song Maker ne les redistribue pas.
+Les instruments VST3 sous Windows sont pris en charge dans Production (PR #402 et #406) ; les éditeurs natifs et effets audio utilisent un hôte distinct. AU/macOS reste hors du périmètre.
 
 ## Sortie MIDI native (midir, #170 / #338)
 
