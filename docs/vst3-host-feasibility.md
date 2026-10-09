@@ -11,7 +11,7 @@ Les PR #402 et #406 ont intégré l’hôte VST3 Windows dans Production : effet
 Les sections suivantes conservent l’étude de faisabilité et le statut antérieur à l’implémentation ; elles ne décrivent pas l’état courant du produit.
 ## Décision
 
-**Décision révisée le 6 octobre 2026 :** l’hôte VST3 passe en priorité. Première tranche : plugins VST3 Windows utilisés comme effets master, rendus hors ligne dans le mix, avec aperçu, export et réglages persistés. AU suivra avec une future version macOS. Cette fonctionnalité n’est pas encore livrée.
+**Historique :** le 6 octobre 2026, l’hôte VST3 Windows hors ligne a été priorisé. Cette première tranche a depuis été intégrée dans Production par les PR #402 et #406 ; l’état courant est résumé en tête de ce document. AU/macOS et le monitoring VST3 en temps réel restent différés.
 
 Raisons principales :
 
@@ -21,7 +21,7 @@ Raisons principales :
 4. La spécification du premier build classait les plugins VST/AU comme **hors produit** (`specs/SONG_MAKER_SPEC.md` §4) ; ce périmètre est rouvert pour la tranche ci-dessus.
 5. Les effets natifs de `@song-maker/mix-production` couvrent déjà le rack in-app (EQ, dynamique, réverb, etc.) pour le parcours générer → séparer → mixer.
 
-La capture native est désormais présente, mais le graphe DSP duplex requis reste à construire (#330/#342). La première tranche hors ligne ne dépend pas de la capture native ; elle ne livrera ni effets pendant l’enregistrement ni écoute temps réel des plugins.
+L’hôte hors ligne intégré n’utilise pas un graphe DSP duplex : les plugins ne s’appliquent pas pendant l’enregistrement et ne sont pas lus en temps réel. Ces capacités restent dans le périmètre de #330/#342.
 
 **Contrainte de livraison :** le contrôle d’expérimentation existant reste un diagnostic uniquement. Un contrôle produit ne pourra apparaître dans Production qu’avec le traitement hors ligne effectif, la persistance et l’aperçu/export branchés.
 
@@ -31,7 +31,7 @@ Incrément derrière `SONG_MAKER_VST3_SPIKE=1` : scan de bundles `.vst3`, `dlope
 
 **Ce n’était pas** : callback audio, effet audible, AU ni isolation des traitements DSP. L’ancien panneau de diagnostic est masqué sans le flag et ne constitue pas l’interface produit.
 
-Un prototype d’hôte hors ligne est en cours sur la branche `codex/vst3-host-windows`. Il ajoute le scan et les réglages dans Production, le rendu isolé d’un effet master et le branchement de la préécoute et de l’export. Il n’a pas encore été testé dans l’application Windows avec un véritable effet VST3; il reste donc en cours et l’issue reste ouverte.
+L’hôte hors ligne a été intégré par #402 et #406. Le scan, les réglages, l’éditeur natif, le rendu master et les instruments de partition sont présents dans le produit. Il reste à le vérifier dans l’application Windows avec un véritable effet et un instrument VST3, puis à confirmer la persistance, l’aperçu, l’export et le comportement en cas de plantage.
 
 ## Stack audio actuelle (constat)
 
@@ -88,15 +88,15 @@ cpal est présent pour la capture. Pas de graphe hôte VST3, de JUCE, de PortAud
 - **CLAP-first** ([free-audio/clap-host](https://github.com/free-audio/clap-host)) : hôte de référence utile, mais ne remplace pas la demande VST3 du ticket et n’élimine pas #93.
 - **Déléguer à un DAW externe** (Reaper, Carla…) : hors produit Song Maker ; utile comme contournement utilisateur, pas comme feature in-app.
 
-## Prototype isolé — état actuel
+## Hôte intégré — état des preuves
 
 | Critère #100 | Statut ici |
 |---|---|
-| Scan et choix dans Production | **Implémentés localement** — pas encore vérifiés dans l’application Windows. |
-| Traitement d’un effet master hors ligne | **Implémenté localement** — processus auxiliaire, paramètres normalisés et écrêtage de sécurité; pas encore essayé avec un plugin réel. |
-| Préécoute et export | **Branchés localement** — même chemin de rendu dans Production et export; pas encore validés à l’écoute ni avec un export réimporté. |
-| Sauvegarde des réglages | **Implémentée localement** — chemin, activation et paramètres par mix; restauration d’état interne propre au plugin non fournie. |
-| Proto Windows load / play / restore | **En attente de preuve** — il faut charger un effet VST3 réel, modifier un réglage, relire, réouvrir le projet, préécouter et exporter. |
+| Scan et choix dans Production | **Intégrés par #402/#406** — validation visuelle avec plugins réels encore à faire. |
+| Traitement d’un effet master hors ligne | **Intégré** — sous-processus isolé ; le rendu avec un effet réel reste à écouter. |
+| Préécoute et export | **Branchés sur le même rendu** — réimport et comparaison audio réelle à vérifier. |
+| Sauvegarde des réglages | **Paramètres et activation persistés par mix** ; l’état interne arbitraire du plugin n’est pas restauré. |
+| Windows load / play / restore | **En attente de preuve produit** — charger un effet et un instrument réels, modifier leurs réglages, rouvrir le projet, préécouter puis exporter. Vérifier aussi un plugin qui plante ou se bloque. |
 | Voie Linux testée | **Limites documentées** : libs ALSA/JACK peuvent être présentes sur une machine de build, mais **sans** session PipeWire/GUI plugin, **sans** inventaire commercial de `.vst3` Linux, et **sans** moteur RT produit, un proto Linux ne vaudrait pas validation produit. Wine n’est **pas** une stratégie produit. |
 | AU/macOS et effet pendant l’enregistrement | **Hors de cette tranche**. |
 
