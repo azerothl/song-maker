@@ -1,32 +1,12 @@
 ---
-title: Nouveautés v0.3.0
-description: Effets et instruments VST3 Windows, enregistrement, Lego et améliorations de génération.
+title: Nouveautés v0.3.1
+description: Correctifs de sélection du modèle YuE2 et de lancement du moteur audio Windows.
 order: 2
 ---
 
-# Nouveautés — v0.3.0
+# Nouveautés — v0.3.1
 
-Cette release rassemble les changements depuis la dernière version publiée, la v0.1.1. Le brouillon v0.2.0 ne contenait pas tous les installateurs.
+Cette mise à jour apporte deux correctifs :
 
-## Production et plugins
-
-- **VST3 sous Windows :** les effets master sont calculés hors ligne pour l’aperçu et l’export. Les fenêtres graphiques natives des plugins et les instruments VST3 pilotés en MIDI sont disponibles. Chaque utilisateur installe ses plugins. AU/macOS n’est pas inclus.
-- **Enregistrement Windows :** choix de la capture WASAPI partagée ou exclusive. Si le périphérique ne prend pas en charge le format requis, Song Maker affiche une erreur ; repassez en mode partagé si nécessaire. ASIO n’est pas inclus.
-- **ACE-Step Lego :** l’audio du projet est maintenant transmis pour générer des parties conditionnées par le mix ou les stems.
-
-## Génération et édition
-
-- Le traitement instrumental réduit les résidus vocaux et vérifie la durée ACE-Step avant activation du résultat. Un modèle peut encore laisser des résidus audibles.
-- Les tâches batch isolent mieux les échecs ; l’annulation, la reprise et les retours pendant l’enregistrement ont été améliorés.
-- L’export de partition YuE2 conserve le dernier accord. La production et les exports incluent d’autres corrections.
-- La release comprend aussi l’assistant de premier lancement, la configuration des modèles, l’import batch JSON, les parties instrumentales, le punch aimanté et l’interface FR/EN ajoutés depuis la v0.1.1.
-
-## Installation et mises à jour
-
-Le moteur audio et les packs de modèles se téléchargent séparément. YuE2 demande l’acceptation de sa licence CC BY-NC 4.0 avant le téléchargement.
-
-Les installateurs Windows ne sont pas signés Authenticode et les applications macOS ne sont pas notariées. Windows peut afficher SmartScreen ; macOS peut demander une autorisation au premier lancement. Les paquets de mise à jour Tauri restent signés. La signature Authenticode et la notarisation sont prévues à partir de la v1.0.0.
-
-## Limites
-
-L’hôte VST3 fonctionne sous Windows et calcule les effets hors ligne. AU/macOS et le monitoring VST3 en temps réel ne sont pas inclus. ASIO n’est pas pris en charge. YuE2 n’accepte pas d’audio de référence en entrée.
+- **YuE2 :** le moteur audio reçoit le chemin du modèle GGUF sélectionné lors de l’installation (Q4 ou Q8), y compris pour les tâches isolées et batch.
+- **Windows :** le moteur audio démarre sans ouvrir une fenêtre de terminal supplémentaire.
