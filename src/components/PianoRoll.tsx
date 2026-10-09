@@ -495,222 +495,230 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
       aria-label={t("score.pianoHint")}
     >
       <div className="piano-toolbar">
-        <label>
-          {t("score.voice")}
-          <select
-            value={voiceId ?? ""}
-            onChange={(e) => {
-              setVoiceId(e.target.value || null);
-              setSelectedId(null);
-            }}
-          >
-            {document.voices.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name} ({v.abcVoice ?? v.role})
-              </option>
-            ))}
-          </select>
-        </label>
-        {voiceId && (
-          <label>
-            {t("score.abcRole")}
+        <div className="piano-toolbar-main">
+          <label className="piano-voice-picker">
+            {t("score.voice")}
             <select
-              value={voice?.abcVoice ?? (voice?.role === "vocal" || voice?.role === "melody" ? "Vocal" : "Ins")}
-              onChange={(e) =>
-                onChange(
-                  setVoiceAbcRole(
-                    document,
-                    voiceId,
-                    e.target.value as AbcVoiceTarget,
-                    e.target.value === "Vocal" ? "vocal" : "other",
-                  ),
-                )
-              }
+              value={voiceId ?? ""}
+              onChange={(e) => {
+                setVoiceId(e.target.value || null);
+                setSelectedId(null);
+              }}
             >
-              <option value="Vocal">Vocal</option>
-              <option value="Ins">Ins</option>
+              {document.voices.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name} ({v.abcVoice ?? v.role})
+                </option>
+              ))}
             </select>
           </label>
-        )}
-        <label>
-          {t("score.tempo")}
-          <input
-            type="number"
-            min={40}
-            max={220}
-            value={tempo}
-            onChange={(e) =>
-              onChange(updateScoreTempo(document, Number(e.target.value) || 120))
-            }
-          />
-        </label>
-        <label>
-          {t("score.key")}
-          <select
-            value={key.tonic}
-            onChange={(e) =>
-              onChange(updateScoreKey(document, e.target.value, key.mode))
-            }
-          >
-            {TONICS.map((tonic) => (
-              <option key={tonic} value={tonic}>
-                {tonic}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t("score.mode")}
-          <select
-            value={key.mode}
-            onChange={(e) =>
-              onChange(
-                updateScoreKey(document, key.tonic, e.target.value as ModeName),
-              )
-            }
-          >
-            <option value="major">major</option>
-            <option value="minor">minor</option>
-          </select>
-        </label>
-        <label>
-          {t("score.meterNum")}
-          <input
-            type="number"
-            min={1}
-            max={16}
-            value={meter.numerator}
-            onChange={(e) =>
-              onChange(
-                updateScoreMeter(
-                  document,
-                  Number(e.target.value) || 4,
-                  meter.denominator,
-                ),
-              )
-            }
-          />
-        </label>
-        <label>
-          {t("score.meterDen")}
-          <select
-            value={meter.denominator}
-            onChange={(e) =>
-              onChange(
-                updateScoreMeter(
-                  document,
-                  meter.numerator,
-                  Number(e.target.value) || 4,
-                ),
-              )
-            }
-          >
-            {[1, 2, 4, 8, 16].map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t("score.velocity")}
-          <input
-            type="number"
-            min={1}
-            max={127}
-            disabled={!selectedNote}
-            value={selectedNote?.velocity ?? 90}
-            onChange={(e) => {
-              if (!voiceId || !selectedId) return;
-              onChange(
-                updateNote(document, voiceId, selectedId, {
-                  velocity: Math.min(
-                    127,
-                    Math.max(1, Number(e.target.value) || 90),
-                  ),
-                }),
-              );
-            }}
-          />
-        </label>
-        <label>
-          {t("score.section")}
-          <select
-            value={sectionKind}
-            onChange={(e) => setSectionKind(e.target.value as SectionKind)}
-          >
-            {SECTION_KINDS.map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" className="btn" onClick={addSectionAtPlayhead}>
-          {t("score.sectionAdd")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={!selectedId}
-          onClick={deleteSelected}
-        >
-          {t("score.noteDelete")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={!selectedId}
-          onClick={() => bumpDuration(120)}
-        >
-          {t("score.noteLonger")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={!selectedId}
-          onClick={() => bumpDuration(-120)}
-        >
-          {t("score.noteShorter")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => applyTranspose(1)}
-          title={t("score.transposeHint")}
-        >
-          {t("score.transposeUp")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => applyTranspose(-1)}
-          title={t("score.transposeHint")}
-        >
-          {t("score.transposeDown")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => applyTranspose(12)}
-        >
-          {t("score.transposeOctUp")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => applyTranspose(-12)}
-        >
-          {t("score.transposeOctDown")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => setPendingQuantize(true)}
-        >
-          {t("score.quantize")}
-        </button>
-        <span className="hint">{t("score.pianoHint")}</span>
+          <div className="piano-note-tools" role="group" aria-label={t("score.piano.noteTools")}>
+            <button
+              type="button"
+              className="btn"
+              disabled={!selectedId}
+              onClick={deleteSelected}
+            >
+              {t("score.noteDelete")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={!selectedId}
+              onClick={() => bumpDuration(120)}
+            >
+              {t("score.noteLonger")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={!selectedId}
+              onClick={() => bumpDuration(-120)}
+            >
+              {t("score.noteShorter")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => applyTranspose(1)}
+              title={t("score.transposeHint")}
+            >
+              {t("score.transposeUp")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => applyTranspose(-1)}
+              title={t("score.transposeHint")}
+            >
+              {t("score.transposeDown")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => applyTranspose(12)}
+            >
+              {t("score.transposeOctUp")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => applyTranspose(-12)}
+            >
+              {t("score.transposeOctDown")}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setPendingQuantize(true)}
+            >
+              {t("score.quantize")}
+            </button>
+          </div>
+          <span className="hint">{t("score.pianoHint")}</span>
+        </div>
+
+        <details className="piano-advanced-settings">
+          <summary>{t("score.piano.settings")}</summary>
+          <div className="piano-advanced-grid">
+            {voiceId && (
+              <label>
+                {t("score.abcRole")}
+                <select
+                  value={voice?.abcVoice ?? (voice?.role === "vocal" || voice?.role === "melody" ? "Vocal" : "Ins")}
+                  onChange={(e) =>
+                    onChange(
+                      setVoiceAbcRole(
+                        document,
+                        voiceId,
+                        e.target.value as AbcVoiceTarget,
+                        e.target.value === "Vocal" ? "vocal" : "other",
+                      ),
+                    )
+                  }
+                >
+                  <option value="Vocal">Vocal</option>
+                  <option value="Ins">Ins</option>
+                </select>
+              </label>
+            )}
+            <label>
+              {t("score.tempo")}
+              <input
+                type="number"
+                min={40}
+                max={220}
+                value={tempo}
+                onChange={(e) =>
+                  onChange(updateScoreTempo(document, Number(e.target.value) || 120))
+                }
+              />
+            </label>
+            <label>
+              {t("score.key")}
+              <select
+                value={key.tonic}
+                onChange={(e) =>
+                  onChange(updateScoreKey(document, e.target.value, key.mode))
+                }
+              >
+                {TONICS.map((tonic) => (
+                  <option key={tonic} value={tonic}>
+                    {tonic}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {t("score.mode")}
+              <select
+                value={key.mode}
+                onChange={(e) =>
+                  onChange(updateScoreKey(document, key.tonic, e.target.value as ModeName))
+                }
+              >
+                <option value="major">major</option>
+                <option value="minor">minor</option>
+              </select>
+            </label>
+            <label>
+              {t("score.meterNum")}
+              <input
+                type="number"
+                min={1}
+                max={16}
+                value={meter.numerator}
+                onChange={(e) =>
+                  onChange(
+                    updateScoreMeter(
+                      document,
+                      Number(e.target.value) || 4,
+                      meter.denominator,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <label>
+              {t("score.meterDen")}
+              <select
+                value={meter.denominator}
+                onChange={(e) =>
+                  onChange(
+                    updateScoreMeter(
+                      document,
+                      meter.numerator,
+                      Number(e.target.value) || 4,
+                    ),
+                  )
+                }
+              >
+                {[1, 2, 4, 8, 16].map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {t("score.velocity")}
+              <input
+                type="number"
+                min={1}
+                max={127}
+                disabled={!selectedNote}
+                value={selectedNote?.velocity ?? 90}
+                onChange={(e) => {
+                  if (!voiceId || !selectedId) return;
+                  onChange(
+                    updateNote(document, voiceId, selectedId, {
+                      velocity: Math.min(
+                        127,
+                        Math.max(1, Number(e.target.value) || 90),
+                      ),
+                    }),
+                  );
+                }}
+              />
+            </label>
+            <label>
+              {t("score.section")}
+              <select
+                value={sectionKind}
+                onChange={(e) => setSectionKind(e.target.value as SectionKind)}
+              >
+                {SECTION_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="btn" onClick={addSectionAtPlayhead}>
+              {t("score.sectionAdd")}
+            </button>
+          </div>
+        </details>
       </div>
 
       {pendingQuantize && (
@@ -735,48 +743,51 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
         </div>
       )}
 
-      <div className="chord-editor">
-        <label>
-          {t("score.chordTick")}
-          <input
-            type="number"
-            min={0}
-            step={120}
-            value={chordTick}
-            onChange={(e) => setChordTick(Math.max(0, Number(e.target.value) || 0))}
-          />
-        </label>
-        <label>
-          {t("score.chordSymbol")}
-          <input
-            type="text"
-            value={chordSymbol}
-            onChange={(e) => setChordSymbol(e.target.value)}
-          />
-        </label>
-        <button type="button" className="btn" onClick={addChord}>
-          {t("score.chordAdd")}
-        </button>
-      </div>
+      <details className="piano-advanced-settings piano-chord-settings">
+        <summary>{t("score.piano.chords")}</summary>
+        <div className="chord-editor">
+          <label>
+            {t("score.chordTick")}
+            <input
+              type="number"
+              min={0}
+              step={120}
+              value={chordTick}
+              onChange={(e) => setChordTick(Math.max(0, Number(e.target.value) || 0))}
+            />
+          </label>
+          <label>
+            {t("score.chordSymbol")}
+            <input
+              type="text"
+              value={chordSymbol}
+              onChange={(e) => setChordSymbol(e.target.value)}
+            />
+          </label>
+          <button type="button" className="btn" onClick={addChord}>
+            {t("score.chordAdd")}
+          </button>
+        </div>
 
-      {document.chordEvents.length > 0 && (
-        <ul className="section-list chord-list">
-          {document.chordEvents.map((c) => (
-            <li key={`ch-${c.tick}`}>
-              <span>
-                {c.symbol} @ {c.tick}
-              </span>
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={() => onChange(removeChord(document, c.tick))}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+        {document.chordEvents.length > 0 && (
+          <ul className="section-list chord-list">
+            {document.chordEvents.map((c) => (
+              <li key={`ch-${c.tick}`}>
+                <span>
+                  {c.symbol} @ {c.tick}
+                </span>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => onChange(removeChord(document, c.tick))}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </details>
 
       {document.sections.length > 0 && (
         <ul className="section-list">

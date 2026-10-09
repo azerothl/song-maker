@@ -6755,9 +6755,68 @@ details[open] > summary {
 
 .piano-toolbar {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
+.piano-toolbar-main {
+  display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
   align-items: end;
+  gap: 0.45rem;
+}
+
+.piano-voice-picker {
+  flex: 0 1 14rem;
+}
+
+.piano-note-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg1) 88%, white);
+}
+
+.piano-note-tools .btn {
+  min-height: 38px;
+}
+
+.piano-toolbar-main > .hint {
+  flex: 1 1 100%;
+  margin: 0.05rem 0 0.15rem;
+}
+
+.piano-advanced-settings {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg1) 76%, transparent);
+}
+
+.piano-advanced-settings > summary {
+  padding: 0.48rem 0.65rem;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.piano-advanced-settings > summary:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: -2px;
+}
+
+.piano-advanced-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem 0.65rem;
+  border-top: 1px solid var(--line);
 }
 
 .piano-toolbar label {
