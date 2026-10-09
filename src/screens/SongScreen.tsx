@@ -2,7 +2,6 @@ import { api } from "../lib/api";
 import { generationErrorMessage } from "../lib/generationError";
 import { TakePreviewPlayer } from "../components/TakePreviewPlayer";
 import { BatchGenerationPanel } from "../components/BatchGenerationPanel";
-import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
 import { buildGenerationPayload, loadRemotePrefs, runRemoteGenerationToProject } from "../lib/remoteGenerate";
 import { CreateWorkspace } from "./song/CreateWorkspace";
 import { matchesGenerateShortcut } from "./song/createWorkspaceLayout";
@@ -24,6 +23,7 @@ import { RegenerationGate } from "../components/RegenerationGate";
 import { RemoteGenerateConfirm } from "../components/RemoteGenerateConfirm";
 import { SeparationAgainConfirmDialog } from "../components/SeparationAgainConfirmDialog";
 import { ScoreWorkspace } from "./song/ScoreWorkspace";
+import { StudioMidiTrackEditor } from "../components/StudioMidiTrackEditor";
 import { t } from "../ui/i18n";
 import { useAppStore } from "../store/appStore";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -59,6 +59,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
   const scoreOpen = useAppStore((s) => s.scoreOpen);
   const setScoreOpen = useAppStore((s) => s.setScoreOpen);
   const playbackSources = useAppStore((s) => s.playbackSources);
+  const playback = useAppStore((s) => s.playback);
   const setError = useAppStore((s) => s.setError);
   const openProject = useAppStore((s) => s.openProject);
   const refreshJob = useAppStore((s) => s.refreshJob);
@@ -130,7 +131,6 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     return () => setProfileOperationBusy(false);
   }, [busy, setProfileOperationBusy]);
   const [showFormErrors, setShowFormErrors] = useState(false);
-  const [playback, setPlayback] = useState<PlaybackView | null>(null);
   const [candidateCount, setCandidateCount] = useState(2);
   const [renderFromScoreCount, setRenderFromScoreCount] = useState(2);
   const [continuationLyrics, setContinuationLyrics] = useState("");
@@ -145,6 +145,10 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
   const [advancedSettingsPage, setAdvancedSettingsPage] =
     useState<AdvancedSettingsPage>(null);
   const [workspace, setWorkspace] = useState<SongWorkspace>(initialWorkspace);
+  const [midiEditorVoiceId, setMidiEditorVoiceId] = useState<string | null>(null);
+  const [midiEditorTrackName, setMidiEditorTrackName] = useState<string | null>(null);
+  const midiEditorCloseRef = useRef<HTMLButtonElement>(null);
+  const midiEditorReturnFocusRef = useRef<HTMLElement | null>(null);
   const [batchOpen, setBatchOpen] = useState(false);
   const [productionClipViewPrefs, setProductionClipViewPrefs] =
     useState<ProductionClipViewPrefs>(() => DEFAULT_PRODUCTION_CLIP_VIEW_PREFS);
@@ -166,6 +170,45 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     null,
   );
   const [mixPreview, setMixPreview] = useState<MixDoc | null>(null);
+  const [midiTrackMix, setMidiTrackMix] = useState<MixDoc | null>(null);
+  const scoreMidiFallbackMix = useMemo(() => {
+    if (!project || !scoreDocument) return null;
+    const midiVoices = scoreDocument.voices.filter((voice) => voice.id.startsWith("midi-"));
+    if (!midiVoices.length) return null;
+    const base = midiTrackMix ?? mix ?? {
+      schema: "songmaker.mix",
+      schemaVersion: 1,
+      id: project.activeMixId ?? `midi-${project.id}`,
+      separationId: project.activeSeparationId ?? "",
+      sampleRate: project.sampleRate,
+      masterGainDb: 0,
+      peakCeilingDb: -1,
+      tracks: [],
+      vst3MasterInsert: null,
+      tempoMap: [],
+      timeSignatures: [],
+      markers: [],
+    } satisfies MixDoc;
+    const present = new Set(base.tracks.map((track) => track.id));
+    const missingMidiTracks = midiVoices
+      .filter((voice) => !present.has(voice.id))
+      .map((voice) => ({
+        id: voice.id,
+        role: "midi",
+        name: voice.name,
+        gainDb: 0,
+        pan: 0,
+        mute: false,
+        solo: false,
+        locked: false,
+        aiSeparated: false,
+        clips: [],
+      }));
+    return missingMidiTracks.length
+      ? { ...base, tracks: [...base.tracks, ...missingMidiTracks] }
+      : null;
+  }, [mix, midiTrackMix, project, scoreDocument]);
+  const displayedMix = scoreMidiFallbackMix ?? midiTrackMix ?? mix;
   const [mixSavedAt, setMixSavedAt] = useState<Date | null>(null);
   const [recordOpen, setRecordOpen] = useState(false);
   const [regenGateOpen, setRegenGateOpen] = useState(false);
@@ -227,15 +270,47 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     setBusy(true);
     setError(null);
     try {
-      const document = createEmptyScoreDocument({
+      midiEditorReturnFocusRef.current = document.activeElement as HTMLElement | null;
+      const base = scoreDocument ?? createEmptyScoreDocument({
         tempoBpm: form.tempoBpm ?? 120,
         branchName: "main",
       });
-      const saved = await api.saveScore(project.id, document);
-      setScoreDocument({ ...document, id: saved.project.activeScoreId ?? saved.scoreId });
-      await openProject(project.id, { preserveForm: true });
-      setWorkspace("score");
-      setScoreOpen(true);
+      const voiceId = `midi-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
+      const name = `Instrument MIDI ${(mix?.tracks.filter((track) => track.role === "midi").length ?? 0) + 1}`;
+      const score: ScoreDocument = {
+        ...base,
+        version: base.version + 1,
+        voices: [
+          ...(scoreDocument ? base.voices : []),
+          { id: voiceId, name, role: "other", notes: [], abcVoice: "Ins" },
+        ],
+        source: "manual",
+      };
+      const saved = await api.saveScore(project.id, score);
+      const savedScore = {
+        ...score,
+        id: saved.project.activeScoreId ?? saved.scoreId,
+      };
+      const nextMix = await api.addEmptyMidiTrack(project.id, voiceId, name);
+      if (!nextMix || !Array.isArray(nextMix.tracks)) {
+        throw new Error("Le mix du projet n’a pas été retourné après l’ajout de la piste.");
+      }
+      const persistedMix = await api.loadMix(project.id);
+      const activeMix = persistedMix?.tracks.some((track) => track.id === voiceId)
+        ? persistedMix
+        : nextMix;
+      setScoreDocument(savedScore);
+      // The command response already contains the authoritative project mix.
+      // Reopening the project here can race a first-time mix creation and
+      // replace this result with a null mix.
+      useAppStore.setState({ mix: activeMix });
+      if (!useAppStore.getState().mix?.tracks.some((track) => track.id === voiceId)) {
+        throw new Error("La piste MIDI n’a pas été ajoutée au mix actif.");
+      }
+      setWorkspace("production");
+      setMidiEditorVoiceId(voiceId);
+      setMidiEditorTrackName(name);
+      setMidiTrackMix(activeMix);
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -246,6 +321,12 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
   async function onUserTrackAdded(next: MixDoc) {
     setMix(next);
     if (project) await openProject(project.id, { preserveForm: true });
+  }
+
+  function onEditMidiTrack(trackId: string, trackName: string) {
+    midiEditorReturnFocusRef.current = document.activeElement as HTMLElement | null;
+    setMidiEditorVoiceId(trackId);
+    setMidiEditorTrackName(trackName);
   }
 
   async function onTranscribeBasicPitch(track: MixTrack) {
@@ -406,6 +487,45 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     if (workspace !== "create" && screen === "create") setScreen("studio");
   }, [screen, setScreen, workspace]);
 
+  useEffect(() => {
+    if (!midiEditorVoiceId) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    requestAnimationFrame(() => midiEditorCloseRef.current?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMidiEditorVoiceId(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const dialog = document.querySelector<HTMLElement>(".studio-midi-editor");
+      if (!dialog) return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+      midiEditorReturnFocusRef.current?.focus();
+      midiEditorReturnFocusRef.current = null;
+    };
+  }, [midiEditorVoiceId]);
+
   function selectWorkspace(next: SongWorkspace) {
     setWorkspace(next);
     if (next !== "create") setAdvancedSettingsPage(null);
@@ -461,22 +581,22 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
 
   const roleByTrack = useMemo(() => {
     const out: Record<string, string> = {};
-    if (!mix) return out;
-    for (const tr of mix.tracks) {
+    if (!displayedMix) return out;
+    for (const tr of displayedMix.tracks) {
       out[tr.id] = tr.role.toLowerCase();
     }
     return out;
-  }, [mix]);
+  }, [displayedMix]);
 
   const sourceDurationMsByTrack = useMemo(() => {
     const out: Record<string, number> = {};
-    if (!mix || !playback?.duration || playback.duration <= 0) return out;
+    if (!displayedMix || !playback?.duration || playback.duration <= 0) return out;
     const ms = Math.round(playback.duration * 1000);
-    for (const tr of mix.tracks) {
+    for (const tr of displayedMix.tracks) {
       out[tr.id] = ms;
     }
     return out;
-  }, [mix, playback?.duration]);
+  }, [displayedMix, playback?.duration]);
 
   useEffect(() => {
     if (!project?.id) {
@@ -890,6 +1010,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     const persist = opts?.persist !== false;
     setMixPreview(null);
     setMix(next);
+    if (midiTrackMix) setMidiTrackMix(next);
     if (mixTimer.current) window.clearTimeout(mixTimer.current);
     if (!persist) return;
     // Persist on gesture end (caller skips persist during knob drag).
@@ -913,24 +1034,20 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
         })
         .then((m) => {
           setMix(m);
+          if (midiTrackMix) setMidiTrackMix(m);
           setMixSavedAt(new Date());
         })
         .catch((e) => setError(String(e)));
     }, 50);
   }
 
-  const listeningMix = mixPreview ?? mix;
+  const listeningMix = mixPreview ?? displayedMix;
   const showMixAssist =
-    !!mix &&
-    mix.tracks.length > 0 &&
+    !!displayedMix &&
+    displayedMix.tracks.length > 0 &&
     playbackSources?.mode === "stems" &&
     (playbackSources.stems?.length ?? 0) > 0;
-  const showProductionCopilot = !!mix && mix.tracks.length > 0;
-  const splitTransport =
-    workspace === "production" &&
-    playbackSources?.mode === "stems" &&
-    (mix?.tracks.some((tr) => tr.aiSeparated) ?? false);
-
+  const showProductionCopilot = !!displayedMix && displayedMix.tracks.length > 0;
   const retryTakeBlockedReason = busy
     ? t("versions.interrupted.retryBlockedBusy")
     : formError || scoreGate.error
@@ -943,7 +1060,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     <div
       className={`song-layout${
         workspace === "production"
-          ? " song-layout-production song-layout-production-fill"
+          ? " song-layout-production song-layout-production-fill song-layout-has-dock"
           : ""
       }`}
     >
@@ -1020,17 +1137,6 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
             </nav>
           )}
         </div>
-        <div className="song-workspace-transport">
-          <AudioPlayer
-            projectId={project.id}
-            sources={playbackSources}
-            mix={listeningMix}
-            delegateTransport={splitTransport}
-            hideMixBakeStatus={workspace === "production"}
-            onError={setError}
-            onPlaybackChange={setPlayback}
-          />
-        </div>
       </header>
 
       {screen === "create" && (
@@ -1083,7 +1189,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
             scoreOnlyDisabledReason={scoreOnlyDisabledReason}
             form={form}
             generations={generations}
-            mix={mix}
+            mix={displayedMix}
             onGenerateScoreOnly={onGenerateScoreOnly}
             onRenderFromScore={onRenderFromScore}
             onSheetsageOpenScoreDraft={onSheetsageOpenScoreDraft}
@@ -1111,10 +1217,11 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
             form={form}
             importingAudio={importingAudio}
             listeningMix={listeningMix}
-            mix={mix}
+            mix={displayedMix}
             onExport={onExport}
             onImportUserAudio={onImportUserAudio}
             onAddMidiTrack={() => void onAddMidiTrack()}
+            onEditMidiTrack={onEditMidiTrack}
             onSeparate={onSeparate}
             onRevertSeparation={
               separationUndo ? () => void onRevertSeparation() : undefined
@@ -1169,6 +1276,54 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
           />
         )}
       </div>
+
+      {midiEditorVoiceId && scoreDocument && (
+        <div
+          className="studio-midi-editor-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setMidiEditorVoiceId(null);
+          }}
+        >
+          <section
+            className="studio-midi-editor"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="studio-midi-editor-title"
+          >
+            <header className="studio-midi-editor-header">
+              <div>
+                <p className="studio-midi-editor-eyebrow">{t("production.addTrack.midi")}</p>
+                <h2 id="studio-midi-editor-title">{midiEditorTrackName ?? t("production.midi.editorTitle")}</h2>
+                <p className="studio-midi-editor-state" role="status">
+                  {displayedMix?.tracks.some((track) => track.id === midiEditorVoiceId)
+                    ? t("production.midi.inArrangement")
+                    : t("production.midi.addingToArrangement")}
+                </p>
+              </div>
+              <button
+                ref={midiEditorCloseRef}
+                type="button"
+                className="btn"
+                onClick={() => setMidiEditorVoiceId(null)}
+                aria-label={t("production.midi.close")}
+              >
+                {t("production.midi.close")}
+              </button>
+            </header>
+            <div className="studio-midi-editor-content">
+              <StudioMidiTrackEditor
+                projectId={project.id}
+                document={scoreDocument}
+                voiceId={midiEditorVoiceId}
+                onDocumentChange={setScoreDocument}
+                onProjectRefresh={() => openProject(project.id, { preserveForm: true })}
+                onError={setError}
+              />
+            </div>
+          </section>
+        </div>
+      )}
 
       {remotePrefs && (
         <RemoteGenerateConfirm

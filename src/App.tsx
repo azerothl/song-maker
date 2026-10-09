@@ -14,6 +14,7 @@ import {
   writeSidebarCollapsedPref,
 } from "./lib/sidebarCollapse";
 import { UpdateNotice } from "./components/UpdateNotice";
+import { AudioPlayer } from "./components/AudioPlayer";
 import { UserLibraryScreen } from "./screens/UserLibraryScreen";
 import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { LicensesScreen, SettingsScreen } from "./screens/SettingsScreen";
@@ -544,6 +545,17 @@ export default function App() {
   const refreshHealth = useAppStore((s) => s.refreshHealth);
   const refreshProfiles = useAppStore((s) => s.refreshProfiles);
   const profilesState = useAppStore((s) => s.profilesState);
+  const project = useAppStore((s) => s.project);
+  const mix = useAppStore((s) => s.mix);
+  const playbackSources = useAppStore((s) => s.playbackSources);
+  const playerSelection = useAppStore((s) => s.playerSelection);
+  const setPlayback = useAppStore((s) => s.setPlayback);
+  const activePlayerProjectId = playerSelection?.projectId ?? project?.id;
+  const activePlayerSources = playerSelection?.sources ?? playbackSources;
+  const activePlayerMix = playerSelection ? null : mix;
+  const showPlayerDock = Boolean(
+    screen !== "profiles" && screen !== "splash",
+  );
   const [availableUpdate, setAvailableUpdate] = useState<Update | null>(null);
   const [profileBoot, setProfileBoot] = useState(false);
 
@@ -617,6 +629,19 @@ export default function App() {
         {screen === "settings" && <SettingsScreen />}
         {screen === "licenses" && <LicensesScreen />}
       </main>
+      {showPlayerDock && (
+        <div className="persistent-player-dock" aria-label={t("player.globalDock")}>
+          <AudioPlayer
+            projectId={activePlayerProjectId ?? undefined}
+            sources={activePlayerSources}
+            mix={activePlayerMix}
+            playbackKey={playerSelection?.trackKey}
+            hideMixBakeStatus={screen === "studio" || screen === "song"}
+            onError={setError}
+            onPlaybackChange={setPlayback}
+          />
+        </div>
+      )}
     </div>
   );
 }

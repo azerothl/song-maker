@@ -38,6 +38,8 @@ type Props = {
   playbackSeconds?: number;
   playbackReady?: boolean;
   onSeekPlayback?: (seconds: number) => void;
+  initialViewMode?: ScoreViewMode;
+  initialVoiceId?: string;
 };
 
 function scoreViewLabel(mode: ScoreViewMode): string {
@@ -102,12 +104,14 @@ export function ScorePanel({
   playbackSeconds = 0,
   playbackReady = false,
   onSeekPlayback,
+  initialViewMode = "staff",
+  initialVoiceId,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const vocalToInsHelpId = useId();
   const [issues, setIssues] = useState<ScoreIssue[]>([]);
   const [abcPreview, setAbcPreview] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ScoreViewMode>("staff");
+  const [viewMode, setViewMode] = useState<ScoreViewMode>(initialViewMode);
   const [busy, setBusy] = useState(false);
   const [pendingImport, setPendingImport] = useState<{
     bytes: Uint8Array;
@@ -539,6 +543,7 @@ export function ScorePanel({
               <>
                 <PianoRoll
                   document={document}
+                  initialVoiceId={initialVoiceId}
                   onChange={(doc) => {
                     onDocumentChange(doc);
                     setAbcPreview(null);

@@ -2,6 +2,7 @@ import type {
   AppSettings,
   FormInput,
   HealthSnapshot,
+  MixDoc,
   PlaybackSources,
   ProjectDoc,
 } from "../lib/types";
@@ -18,6 +19,8 @@ import { CAPTURE_PROJECT_ID } from "./seedCreateTabCaptureStore";
 import { SIDEBAR_CAPTURE_PROJECT_ID } from "./seedSidebarCaptureStore";
 
 let project: ProjectDoc | null = null;
+let captureMix: MixDoc | null = null;
+let captureScore: unknown = null;
 let captureProfilesState: ProfilesState | null = null;
 let captureLibraryProjects: Array<Record<string, unknown>> | null = null;
 
@@ -185,10 +188,7 @@ export async function invoke<T>(
       ] as T;
     case "open_project": {
       const id = String(args?.id ?? CAPTURE_PROJECT_ID);
-      if (id !== CAPTURE_PROJECT_ID && id !== SIDEBAR_CAPTURE_PROJECT_ID) {
-        throw new Error(`Projet inconnu : ${id}`);
-      }
-      if (!project) {
+      if (!project || id !== project.id) {
         throw new Error(`Projet inconnu : ${id}`);
       }
       return project as T;
@@ -216,11 +216,54 @@ export async function invoke<T>(
       return project as T;
     }
     case "load_mix":
-      return null as T;
+      return captureMix as T;
+    case "add_empty_midi_track": {
+      const id = String(args?.id ?? "");
+      const voiceId = String(args?.voiceId ?? "");
+      const name = String(args?.name ?? "Instrument MIDI");
+      const base = ensureProject();
+      if (id !== base.id || !voiceId) throw new Error("Piste MIDI invalide dans le mock.");
+      const mixId = base.activeMixId ?? "capture-mix";
+      const current = captureMix ?? {
+        schema: "songmaker.mix",
+        schemaVersion: 1,
+        id: mixId,
+        separationId: "",
+        sampleRate: 44100,
+        masterGainDb: 0,
+        peakCeilingDb: -1,
+        tracks: [],
+        vst3MasterInsert: null,
+        tempoMap: [],
+        timeSignatures: [],
+        markers: [],
+      } satisfies MixDoc;
+      if (!current.tracks.some((track) => track.id === voiceId)) {
+        captureMix = {
+          ...current,
+          tracks: [...current.tracks, {
+            id: voiceId,
+            role: "midi",
+            name,
+            gainDb: 0,
+            pan: 0,
+            mute: false,
+            solo: false,
+            locked: false,
+            aiSeparated: false,
+            clips: [],
+          }],
+        };
+      } else {
+        captureMix = current;
+      }
+      project = { ...base, activeMixId: mixId };
+      return captureMix as T;
+    }
     case "list_generations":
       return [] as T;
     case "load_score":
-      return null as T;
+      return captureScore as T;
     case "playback_sources":
       return emptyPlayback as T;
     case "render_preview":
@@ -270,8 +313,13 @@ export async function invoke<T>(
       return [] as T;
     case "load_score_version":
       return null as T;
-    case "save_score":
-      return { project: ensureProject() } as T;
+    case "save_score": {
+      const base = ensureProject();
+      const scoreId = "capture-score";
+      captureScore = { ...(args?.document as Record<string, unknown>), id: scoreId };
+      project = { ...base, activeScoreId: scoreId };
+      return [project, scoreId] as T;
+    }
     case "set_active_score":
       return ensureProject() as T;
     case "get_phase3_status":
@@ -394,5 +442,9 @@ export async function invoke<T>(
 
 /** Appelé par la page capture après construction du ProjectDoc. */
 export function registerCaptureProject(doc: ProjectDoc): void {
+  if (project?.id !== doc.id) {
+    captureMix = null;
+    captureScore = null;
+  }
   project = doc;
 }

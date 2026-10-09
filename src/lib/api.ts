@@ -298,6 +298,8 @@ export const api = {
       clearVst3MasterInsert?: boolean;
     },
   ) => invoke<MixDoc>("update_mix", { id, update }),
+  addEmptyMidiTrack: (id: string, voiceId: string, name: string) =>
+    invoke<MixDoc>("add_empty_midi_track", { id, voiceId, name }),
   /** Native dialog → copy + normalize → append user MixTrack (#40). Null if cancelled. */
   importUserAudioTrack: (id: string) =>
     invoke<MixDoc | null>("import_user_audio_track", { id }),

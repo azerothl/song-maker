@@ -101,6 +101,7 @@ type ProductionWorkspaceProps = {
   onExport: (format: "wav" | "flac" | "mp3") => Promise<void>;
   onImportUserAudio: () => Promise<void>;
   onAddMidiTrack?: () => void;
+  onEditMidiTrack?: (trackId: string, trackName: string) => void;
   onSeparate: () => Promise<void>;
   onRevertSeparation?: () => void;
   onUserTrackAdded: (next: MixDoc) => Promise<void>;
@@ -179,6 +180,7 @@ export function ProductionWorkspace({
   onExport: _onExport,
   onImportUserAudio,
   onAddMidiTrack,
+  onEditMidiTrack,
   onSeparate,
   onRevertSeparation,
   onUserTrackAdded,
@@ -858,6 +860,17 @@ export function ProductionWorkspace({
                               </>
                             )}
                           </TruncatedTrackLabel>
+                          {tr.role === "midi" && onEditMidiTrack && (
+                            <button
+                              type="button"
+                              className="btn studio-midi-edit-track"
+                              onClick={() => onEditMidiTrack(tr.id, tr.name)}
+                              aria-label={`${t("production.midi.openPianoRoll")} — ${tr.name}`}
+                              title={t("production.midi.openPianoRoll")}
+                            >
+                              <span aria-hidden="true">♬</span>
+                            </button>
+                          )}
                         </div>
                         <MixSlider
                           className="track-gain-knob track-gain-slider"
