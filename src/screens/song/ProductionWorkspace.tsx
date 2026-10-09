@@ -33,7 +33,6 @@ import { PlaybackTime } from "../../components/PlaybackTime";
 import { Waveform } from "../../components/Waveform";
 import { t } from "../../ui/i18n";
 import { useAppStore } from "../../store/appStore";
-import { appendEmptyUserTrack } from "../../lib/appendEmptyUserTrack";
 import {
   planProjectInstrumentalPart,
   type InstrumentalConditioning,
@@ -101,6 +100,7 @@ type ProductionWorkspaceProps = {
   mixSavedAt: Date | null;
   onExport: (format: "wav" | "flac" | "mp3") => Promise<void>;
   onImportUserAudio: () => Promise<void>;
+  onAddMidiTrack?: () => void;
   onSeparate: () => Promise<void>;
   onRevertSeparation?: () => void;
   onUserTrackAdded: (next: MixDoc) => Promise<void>;
@@ -178,6 +178,7 @@ export function ProductionWorkspace({
   mixSavedAt,
   onExport: _onExport,
   onImportUserAudio,
+  onAddMidiTrack,
   onSeparate,
   onRevertSeparation,
   onUserTrackAdded,
@@ -449,13 +450,7 @@ export function ProductionWorkspace({
               recordOpen={recordOpen}
               onImport={() => void onImportUserAudio()}
               onToggleRecord={() => setRecordOpen((v) => !v)}
-              onAddEmptyTrack={
-                mix
-                  ? () => {
-                      scheduleMixUpdate(appendEmptyUserTrack(mix));
-                    }
-                  : undefined
-              }
+              onAddMidiTrack={onAddMidiTrack}
               onAddInstrumentalPart={
                 onRequestInstrumentalPart
                   ? () => {

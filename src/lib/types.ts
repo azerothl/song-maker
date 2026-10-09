@@ -454,6 +454,9 @@ export type Screen =
   | "profiles"
   | "splash"
   | "library"
+  | "projects"
+  | "studio"
+  | "create"
   | "song"
   | "settings"
   | "licenses";

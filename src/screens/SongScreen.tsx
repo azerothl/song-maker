@@ -1,6 +1,7 @@
 import { api } from "../lib/api";
 import { generationErrorMessage } from "../lib/generationError";
 import { TakePreviewPlayer } from "../components/TakePreviewPlayer";
+import { BatchGenerationPanel } from "../components/BatchGenerationPanel";
 import { AudioPlayer, type PlaybackView } from "../components/AudioPlayer";
 import { buildGenerationPayload, loadRemotePrefs, runRemoteGenerationToProject } from "../lib/remoteGenerate";
 import { CreateWorkspace } from "./song/CreateWorkspace";
@@ -8,7 +9,7 @@ import { matchesGenerateShortcut } from "./song/createWorkspaceLayout";
 import { ensureProductionOverlay, normalizeProductionOverlay, setProductionDiskPersist, setProductionOverlay, setProductionProjectScope, setProductionTempoBpm, undoProductionOverlay, redoProductionOverlay } from "../lib/productionState";
 import { exportProjectAudio } from "../lib/exportMix";
 import { generateInstrumentalComparisonTake, generateInstrumentalTake, generateScoreOnly, renderNFromScore } from "../lib/scoreOnlyApi";
-import { importAbcText, importMidiBytes, prepareAbcForGeneration, type ScoreDocument } from "../lib/score";
+import { createEmptyScoreDocument, importAbcText, importMidiBytes, prepareAbcForGeneration, type ScoreDocument } from "../lib/score";
 import { midiBytesToUint8Array } from "../lib/basicPitchProduct";
 import {
   DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
@@ -42,7 +43,9 @@ import {
   type SongWorkspace,
 } from "./song/shared";
 
-export function SongScreen() {
+export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?: SongWorkspace }) {
+  const screen = useAppStore((s) => s.screen);
+  const setScreen = useAppStore((s) => s.setScreen);
   const project = useAppStore((s) => s.project);
   const form = useAppStore((s) => s.form);
   const settings = useAppStore((s) => s.settings);
@@ -141,7 +144,8 @@ export function SongScreen() {
   const [remoteProgress, setRemoteProgress] = useState<string | null>(null);
   const [advancedSettingsPage, setAdvancedSettingsPage] =
     useState<AdvancedSettingsPage>(null);
-  const [workspace, setWorkspace] = useState<SongWorkspace>("create");
+  const [workspace, setWorkspace] = useState<SongWorkspace>(initialWorkspace);
+  const [batchOpen, setBatchOpen] = useState(false);
   const [productionClipViewPrefs, setProductionClipViewPrefs] =
     useState<ProductionClipViewPrefs>(() => DEFAULT_PRODUCTION_CLIP_VIEW_PREFS);
   const patchProductionClipViewPrefs = (patch: Partial<ProductionClipViewPrefs>) => {
@@ -215,6 +219,27 @@ export function SongScreen() {
       setError(String(e));
     } finally {
       setImportingAudio(false);
+    }
+  }
+
+  async function onAddMidiTrack() {
+    if (!project || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const document = createEmptyScoreDocument({
+        tempoBpm: form.tempoBpm ?? 120,
+        branchName: "main",
+      });
+      const saved = await api.saveScore(project.id, document);
+      setScoreDocument({ ...document, id: saved.project.activeScoreId ?? saved.scoreId });
+      await openProject(project.id, { preserveForm: true });
+      setWorkspace("score");
+      setScoreOpen(true);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -371,10 +396,15 @@ export function SongScreen() {
     setRegenGateOpen(false);
     setRegenAfterDocument(null);
     setRegenBaselineDoc(null);
-    setWorkspace("create");
+    setWorkspace(initialWorkspace);
     setAdvancedSettingsPage(null);
     setScoreMode("edit");
-  }, [project?.id]);
+  }, [project?.id, initialWorkspace]);
+
+  useEffect(() => {
+    if (workspace === "create" && screen === "studio") setScreen("create");
+    if (workspace !== "create" && screen === "create") setScreen("studio");
+  }, [screen, setScreen, workspace]);
 
   function selectWorkspace(next: SongWorkspace) {
     setWorkspace(next);
@@ -920,10 +950,22 @@ export function SongScreen() {
       <header className="song-workspace-chrome">
         <div className="song-workspace-chrome-top">
           <div className="song-workspace-project">
-            <h1 className="song-title-with-badge">
-              {project.title || t("form.createTitle")}
-              <ProfileKindBadge />
-            </h1>
+            <div className="song-workspace-title-row">
+              <h1 className="song-title-with-badge">
+                {project.title || t("form.createTitle")}
+                <ProfileKindBadge />
+              </h1>
+              {screen === "create" && (
+                <button
+                  type="button"
+                  className="btn song-create-batch-trigger"
+                  onClick={() => setBatchOpen((open) => !open)}
+                  aria-expanded={batchOpen}
+                >
+                  {t("batch.open")}
+                </button>
+              )}
+            </div>
             {projectJob && projectJob.state !== "idle" && (
               <div className="song-job-banner" role="status" aria-live="polite">
                 <span>
@@ -954,12 +996,13 @@ export function SongScreen() {
               </p>
             )}
           </div>
-          <nav
-            className="song-workspace-tabs"
-            role="tablist"
-            aria-label={t("workspace.nav")}
-          >
-            {WORKSPACES.map((space) => (
+          {screen !== "create" && (
+            <nav
+              className="song-workspace-tabs"
+              role="tablist"
+              aria-label={t("workspace.nav")}
+            >
+              {WORKSPACES.filter((space) => screen !== "studio" || space !== "create").map((space) => (
               <button
                 key={space}
                 type="button"
@@ -973,8 +1016,9 @@ export function SongScreen() {
               >
                 {workspaceLabel(space)}
               </button>
-            ))}
-          </nav>
+              ))}
+            </nav>
+          )}
         </div>
         <div className="song-workspace-transport">
           <AudioPlayer
@@ -988,6 +1032,10 @@ export function SongScreen() {
           />
         </div>
       </header>
+
+      {screen === "create" && (
+        <BatchGenerationPanel open={batchOpen} onClose={() => setBatchOpen(false)} />
+      )}
 
       {pendingPart?.projectId === project.id && (
         <section className="panel" aria-label={t("production.instrumental.previewTitle")}>
@@ -1066,6 +1114,7 @@ export function SongScreen() {
             mix={mix}
             onExport={onExport}
             onImportUserAudio={onImportUserAudio}
+            onAddMidiTrack={() => void onAddMidiTrack()}
             onSeparate={onSeparate}
             onRevertSeparation={
               separationUndo ? () => void onRevertSeparation() : undefined

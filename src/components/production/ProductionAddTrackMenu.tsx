@@ -12,7 +12,7 @@ type Props = {
   recordOpen: boolean;
   onImport: () => void;
   onToggleRecord: () => void;
-  onAddEmptyTrack?: () => void;
+  onAddMidiTrack?: () => void;
   onAddInstrumentalPart?: () => void;
 };
 
@@ -22,26 +22,25 @@ export function ProductionAddTrackMenu({
   recordOpen,
   onImport,
   onToggleRecord,
-  onAddEmptyTrack,
+  onAddMidiTrack,
   onAddInstrumentalPart,
 }: Props) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const menuId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogId = useId();
 
-  const closeMenu = () => {
+  const closeDialog = () => {
     setOpen(false);
     window.setTimeout(() => focusProfileElement(triggerRef.current), 0);
   };
 
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (triggerRef.current?.contains(target)) return;
-      if (menuRef.current?.contains(target)) return;
-      closeMenu();
+    const onDoc = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || dialogRef.current?.contains(target)) return;
+      closeDialog();
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
@@ -49,17 +48,15 @@ export function ProductionAddTrackMenu({
 
   useEffect(() => {
     if (!open) return;
-    const menu = menuRef.current;
-    if (!menu) return;
-    const items = listProfileFocusables(menu);
-    focusProfileElement(items[0] ?? menu);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Tab") {
-        e.preventDefault();
-        closeMenu();
-        return;
-      }
-      handleProfileOverlayKeydown(e, menu, closeMenu);
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const items = listProfileFocusables(dialog);
+    const firstChoice = dialog.querySelector<HTMLButtonElement>(
+      ".production-add-track-choice-actions button:not(:disabled)",
+    );
+    focusProfileElement(firstChoice ?? items[0] ?? dialog);
+    const onKey = (event: KeyboardEvent) => {
+      handleProfileOverlayKeydown(event, dialog, closeDialog);
     };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
@@ -71,75 +68,94 @@ export function ProductionAddTrackMenu({
         ref={triggerRef}
         type="button"
         className="btn production-add-track-btn"
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={open}
-        aria-controls={menuId}
-        onClick={() => setOpen((v) => !v)}
+        aria-controls={dialogId}
+        onClick={() => setOpen((value) => !value)}
       >
         {t("production.addTrack")}
       </button>
       {open && (
         <div
-          ref={menuRef}
-          id={menuId}
-          className="production-add-track-menu"
-          role="menu"
-          aria-label={t("production.addTrack.menu")}
+          ref={dialogRef}
+          id={dialogId}
+          className="production-add-track-dialog"
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby={`${dialogId}-title`}
+          aria-describedby={`${dialogId}-hint`}
         >
-          <button
-            type="button"
-            role="menuitem"
-            className="btn production-add-track-item"
-            disabled={busy || importingAudio}
-            onClick={() => {
-              closeMenu();
-              onImport();
-            }}
-          >
-            {importingAudio ? t("mix.importing") : t("mix.importAudio")}
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="btn production-add-track-item"
-            disabled={busy}
-            aria-expanded={recordOpen}
-            onClick={() => {
-              closeMenu();
-              onToggleRecord();
-            }}
-          >
-            {t("mix.recordAudio")}
-          </button>
-          {onAddEmptyTrack ? (
-            <button
-              type="button"
-              role="menuitem"
-              className="btn production-add-track-item"
-              disabled={busy}
-              onClick={() => {
-                closeMenu();
-                onAddEmptyTrack();
-              }}
-            >
-              {t("production.addTrack.empty")}
+          <div className="production-add-track-dialog-head">
+            <div>
+              <h2 id={`${dialogId}-title`}>{t("production.addTrack.dialogTitle")}</h2>
+              <p id={`${dialogId}-hint`} className="hint">{t("production.addTrack.dialogHint")}</p>
+            </div>
+            <button type="button" className="btn ghost" onClick={closeDialog} aria-label={t("production.addTrack.close")}>
+              ×
             </button>
-          ) : null}
-          {onAddInstrumentalPart ? (
-            <button
-              type="button"
-              role="menuitem"
-              className="btn production-add-track-item"
-              disabled={busy}
-              onClick={() => {
-                closeMenu();
-                onAddInstrumentalPart();
-              }}
-            >
-              {t("production.addTrack.instrumental")}
-            </button>
-          ) : null}
-          <p className="hint production-add-track-hint">{t("production.addTrack.menuHint")}</p>
+          </div>
+          <div className="production-add-track-choices">
+            <section className="production-add-track-choice">
+              <span className="production-add-track-symbol" aria-hidden="true">♫</span>
+              <div>
+                <h3>{t("production.addTrack.audio")}</h3>
+                <p>{t("production.addTrack.audioHint")}</p>
+              </div>
+              <div className="production-add-track-choice-actions">
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={busy || importingAudio}
+                  onClick={() => { closeDialog(); onImport(); }}
+                >
+                  {importingAudio ? t("mix.importing") : t("production.addTrack.audioImport")}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  aria-expanded={recordOpen}
+                  onClick={() => { closeDialog(); onToggleRecord(); }}
+                >
+                  {t("production.addTrack.audioRecord")}
+                </button>
+              </div>
+            </section>
+            <section className="production-add-track-choice">
+              <span className="production-add-track-symbol" aria-hidden="true">▦</span>
+              <div>
+                <h3>{t("production.addTrack.midi")}</h3>
+                <p>{t("production.addTrack.midiHint")}</p>
+              </div>
+              <div className="production-add-track-choice-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy || !onAddMidiTrack}
+                  onClick={() => { closeDialog(); onAddMidiTrack?.(); }}
+                >
+                  {t("production.addTrack.midiCreate")}
+                </button>
+              </div>
+            </section>
+            <section className="production-add-track-choice">
+              <span className="production-add-track-symbol" aria-hidden="true">✦</span>
+              <div>
+                <h3>{t("production.addTrack.ai")}</h3>
+                <p>{t("production.addTrack.aiHint")}</p>
+              </div>
+              <div className="production-add-track-choice-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy || !onAddInstrumentalPart}
+                  onClick={() => { closeDialog(); onAddInstrumentalPart?.(); }}
+                >
+                  {t("production.addTrack.aiCreate")}
+                </button>
+              </div>
+            </section>
+          </div>
         </div>
       )}
     </div>
