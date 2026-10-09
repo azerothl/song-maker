@@ -1,5 +1,7 @@
 # Song Maker MCP — YuE2 sans application desktop
 
+La couverture réelle du serveur par rapport aux parcours de l’application est suivie dans la [matrice de parité MCP](../../docs/mcp-capability-matrix.md). Le serveur ne pilote pas encore les projets ni le studio de Song Maker.
+
 Ce serveur MCP permet à Codex de lancer YuE2 sur le GPU local sans démarrer l'application Tauri Song Maker. Il utilise `audiocpp_server` quand le binaire est présent : le serveur est démarré une fois par lot et garde YuE2 chargé pour les morceaux suivants. Si ce binaire manque ou ne démarre pas, le runner reprend le chemin compatible `audiocpp_cli`. Les poids GGUF et le moteur viennent de la même [version épinglée](../../scripts/phase0/README.md). **Le MCP ne fournit pas de GPU distant gratuit** : le calcul, les poids et le binaire audio.cpp doivent être présents sur la machine où il tourne.
 
 ## Préparer le moteur
