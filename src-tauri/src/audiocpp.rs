@@ -194,10 +194,7 @@ impl AudioCppServer {
         // The downloaded model config may name Q8 even when only Q4 was installed.
         // audio.cpp resolves this name relative to `models[].path`; an absolute
         // path is rejected by the server's path validation.
-        session_options.insert(
-            "yue2.model_gguf".into(),
-            json!(settings.model_gguf),
-        );
+        session_options.insert("yue2.model_gguf".into(), json!(settings.model_gguf));
         if let Some(path) = settings.yue2_ar_lora.as_deref() {
             session_options.insert("yue2.ar_lora".into(), json!(path));
             session_options.insert(
