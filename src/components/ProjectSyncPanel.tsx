@@ -106,12 +106,13 @@ function createTauriFsBackend(): SyncFsBackend {
 
 export type ProjectSyncPanelProps = {
   projectId?: string | null;
+  onClose?: () => void;
 };
 
 /**
  * Per-project sync opt-in. Filesystem (NAS/USB) or self-hosted HTTP.
  */
-export function ProjectSyncPanel({ projectId }: ProjectSyncPanelProps) {
+export function ProjectSyncPanel({ projectId, onClose }: ProjectSyncPanelProps) {
   const [map, setMap] = useState<StoredMap>(loadAll);
   const keyBytes = useMemo(() => loadOrCreateKey(), []);
   const [defaultFsRoot, setDefaultFsRoot] = useState("");
@@ -252,7 +253,19 @@ export function ProjectSyncPanel({ projectId }: ProjectSyncPanelProps) {
 
   return (
     <section className="project-sync-panel" aria-labelledby="project-sync-title">
-      <h2 id="project-sync-title">{t("phase4.sync.title")}</h2>
+      <div className="project-sync-panel-heading">
+        <h2 id="project-sync-title">{t("phase4.sync.title")}</h2>
+        {onClose && (
+          <button
+            type="button"
+            className="btn ghost"
+            aria-label={t("phase4.sync.close")}
+            onClick={onClose}
+          >
+            ×
+          </button>
+        )}
+      </div>
       <p className="hint">{t("phase4.sync.intro")}</p>
       <p className="hint">{t("phase4.sync.localWorks")}</p>
       {!projectId && (

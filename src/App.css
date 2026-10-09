@@ -8510,3 +8510,13 @@ details[open] > summary {
   gap: 0.35rem;
 }
 .batch-lyrics { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.project-sync-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.project-sync-panel-heading h2 {
+  margin: 0;
+}

@@ -31,6 +31,7 @@ export function ProjectsScreen() {
   const setError = useAppStore((s) => s.setError);
   const [query, setQuery] = useState("");
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [syncProjectId, setSyncProjectId] = useState<string | null>(null);
   const [savedTracks, setSavedTracks] = useState<SavedLibraryTrack[]>(
     () => readUserLibrary(activeProfileId).tracks,
   );
@@ -211,6 +212,15 @@ export function ProjectsScreen() {
                       >
                         {t("library.reveal")}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuId(null);
+                          setSyncProjectId(p.id);
+                        }}
+                      >
+                        {t("projects.sync")}
+                      </button>
                       <button type="button" onClick={() => void onDelete(p.id, p.title)}>
                         {t("library.delete")}
                       </button>
@@ -222,8 +232,11 @@ export function ProjectsScreen() {
           </tbody>
         </table>
       )}
-      {menuId && (
-        <ProjectSyncPanel projectId={menuId} />
+      {syncProjectId && (
+        <ProjectSyncPanel
+          projectId={syncProjectId}
+          onClose={() => setSyncProjectId(null)}
+        />
       )}
     </div>
   );
