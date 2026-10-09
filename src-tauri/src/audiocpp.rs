@@ -195,7 +195,10 @@ impl AudioCppServer {
         // Always pass the selected weights explicitly, including batch workers.
         session_options.insert(
             "yue2.model_gguf".into(),
-            json!(yue2_dir(&cache).join(&settings.model_gguf).display().to_string()),
+            json!(yue2_dir(&cache)
+                .join(&settings.model_gguf)
+                .display()
+                .to_string()),
         );
         if let Some(path) = settings.yue2_ar_lora.as_deref() {
             session_options.insert("yue2.ar_lora".into(), json!(path));
