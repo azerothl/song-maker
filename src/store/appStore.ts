@@ -139,6 +139,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ projects });
   },
   openProject: async (id, options) => {
+    const currentScreen = get().screen;
+    const destinationScreen = currentScreen === "create" ? "create" : "studio";
     const project = await api.openProject(id);
     const mix = await api.loadMix(id);
     const generations = await api.listGenerations(id);
@@ -191,7 +193,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       audioPath,
       playbackSources,
       form,
-      screen: "song",
+      screen: destinationScreen,
       error: null,
     });
   },

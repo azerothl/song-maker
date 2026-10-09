@@ -14,7 +14,8 @@ import {
   writeSidebarCollapsedPref,
 } from "./lib/sidebarCollapse";
 import { UpdateNotice } from "./components/UpdateNotice";
-import { LibraryScreen } from "./screens/LibraryScreen";
+import { UserLibraryScreen } from "./screens/UserLibraryScreen";
+import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { LicensesScreen, SettingsScreen } from "./screens/SettingsScreen";
 import { SongScreen } from "./screens/SongScreen";
 import { ProfileMigrationBanner } from "./components/ProfileMigrationBanner";
@@ -54,15 +55,6 @@ function IconLibrary(props: IconProps) {
       <path d="M4 5h5v14H4z" />
       <path d="M10 5h5v14h-5z" />
       <path d="M16 7.5 20 5v14l-4-2.5z" />
-    </Icon>
-  );
-}
-
-function IconPlus(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M12 5v14" />
-      <path d="M5 12h14" />
     </Icon>
   );
 }
@@ -136,8 +128,26 @@ function IconRestart(props: IconProps) {
 function IconProject(props: IconProps) {
   return (
     <Icon {...props}>
-      <path d="M9 18V7.5a2.5 2.5 0 0 1 4.2-1.8L15 7" />
-      <circle cx="9" cy="18" r="2.5" />
+      <path d="M3.5 6.5h6l2 2h9v10.8h-17z" />
+      <path d="M3.5 9h17" />
+    </Icon>
+  );
+}
+
+function IconStudio(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3.5" y="5" width="17" height="14" rx="2" />
+      <path d="M7 9v6M10 11v2M13 8v8M16 10v4M19 9v6" />
+    </Icon>
+  );
+}
+
+function IconCreate(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m12 3 1.8 6.2L20 11l-6.2 1.8L12 19l-1.8-6.2L4 11l6.2-1.8z" />
+      <path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7z" />
     </Icon>
   );
 }
@@ -213,7 +223,6 @@ export function Sidebar() {
   const health = useAppStore((s) => s.health);
   const job = useAppStore((s) => s.job);
   const project = useAppStore((s) => s.project);
-  const openProject = useAppStore((s) => s.openProject);
   const setError = useAppStore((s) => s.setError);
   const refreshHealth = useAppStore((s) => s.refreshHealth);
   const { collapsed, narrow, toggle, toggleRef, liveMessage } = useSidebarCollapsed();
@@ -287,6 +296,8 @@ export function Sidebar() {
     ? toggleLabel
     : t("nav.collapseMenuShortcutTitle");
   const autoCollapsed = narrow && collapsed;
+  const goToStudio = () => setScreen(project ? "studio" : "projects");
+  const goToCreate = () => setScreen(project ? "create" : "projects");
 
   return (
     <aside
@@ -346,22 +357,43 @@ export function Sidebar() {
             <span className="sidebar-label">{t("nav.library")}</span>
           </button>
         </SidebarRow>
-        <SidebarRow tip={t("nav.new")}>
+        <SidebarRow tip={t("nav.projects")}>
           <button
             type="button"
-            onClick={() => {
-              const title = window.prompt("Titre") || "Sans titre";
-              void api
-                .createProject(title)
-                .then((p) => openProject(p.id))
-                .catch((e) => setError(String(e)));
-            }}
-            aria-label={t("nav.new")}
+            className={screen === "projects" ? "active" : ""}
+            onClick={() => setScreen("projects")}
+            aria-label={t("nav.projects")}
+            aria-current={screen === "projects" ? "page" : undefined}
           >
-            <IconPlus />
-            <span className="sidebar-label">{t("nav.new")}</span>
+            <IconProject />
+            <span className="sidebar-label">{t("nav.projects")}</span>
           </button>
         </SidebarRow>
+        <SidebarRow tip={t("nav.studio")}>
+          <button
+            type="button"
+            className={screen === "studio" || screen === "song" ? "active" : ""}
+            onClick={goToStudio}
+            aria-label={t("nav.studio")}
+            aria-current={screen === "studio" || screen === "song" ? "page" : undefined}
+          >
+            <IconStudio />
+            <span className="sidebar-label">{t("nav.studio")}</span>
+          </button>
+        </SidebarRow>
+        <SidebarRow tip={t("nav.create")}>
+          <button
+            type="button"
+            className={screen === "create" ? "active" : ""}
+            onClick={goToCreate}
+            aria-label={t("nav.create")}
+            aria-current={screen === "create" ? "page" : undefined}
+          >
+            <IconCreate />
+            <span className="sidebar-label">{t("nav.create")}</span>
+          </button>
+        </SidebarRow>
+        <div className="sidebar-sep" role="presentation" />
         <SidebarRow tip={t("nav.settings")}>
           <button
             type="button"
@@ -577,8 +609,11 @@ export default function App() {
         <ProfileMigrationBanner />
         {screen === "profiles" && <ProfileOnboardingScreen />}
         {screen === "splash" && <SplashScreen />}
-        {screen === "library" && <LibraryScreen />}
-        {screen === "song" && <SongScreen />}
+        {screen === "library" && <UserLibraryScreen />}
+        {screen === "projects" && <ProjectsScreen />}
+        {(screen === "song" || screen === "studio" || screen === "create") && (
+          <SongScreen initialWorkspace={screen === "studio" ? "production" : "create"} />
+        )}
         {screen === "settings" && <SettingsScreen />}
         {screen === "licenses" && <LicensesScreen />}
       </main>
