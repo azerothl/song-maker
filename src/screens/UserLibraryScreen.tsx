@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { TakePreviewPlayer } from "../components/TakePreviewPlayer";
+import { LibraryTrackPlayer } from "../components/LibraryTrackPlayer";
 import { api } from "../lib/api";
 import {
   createLibraryId,
@@ -196,7 +196,12 @@ export function UserLibraryScreen() {
                     <span>{t("library.savedFromProject")}</span>
                   </div>
                   {audioPath ? (
-                    <TakePreviewPlayer audioPath={audioPath} label={title} />
+                    <LibraryTrackPlayer
+                      audioPath={audioPath}
+                      label={title}
+                      projectId={track.projectId}
+                      trackKey={key}
+                    />
                   ) : (
                     <p className="hint" role="status">{t("library.audioUnavailable")}</p>
                   )}

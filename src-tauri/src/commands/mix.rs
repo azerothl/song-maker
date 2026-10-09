@@ -117,6 +117,67 @@ pub fn load_mix(id: String) -> Result<Option<MixDoc>, String> {
     ))
 }
 
+/// Create a persistent empty MIDI lane in the active arrangement (#420).
+#[tauri::command]
+pub fn add_empty_midi_track(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    voice_id: String,
+    name: String,
+) -> Result<MixDoc, String> {
+    let voice_id = voice_id.trim();
+    let name = name.trim();
+    if voice_id.is_empty() || voice_id.len() > 128 {
+        return Err("Identifiant de voix MIDI invalide.".into());
+    }
+    if name.is_empty() || name.len() > 120 {
+        return Err("Nom de piste MIDI invalide.".into());
+    }
+
+    let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
+    let mut doc = load_project(&folder)?;
+    let (mut mix, path) = if let Some(mix_id) = doc.active_mix_id.as_deref() {
+        let path = folder.join("mixes").join(format!("{mix_id}.json"));
+        let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        (
+            serde_json::from_str::<MixDoc>(&text).map_err(|e| e.to_string())?,
+            path,
+        )
+    } else {
+        let mixes_dir = folder.join("mixes");
+        ensure_dir(&mixes_dir).map_err(|e| e.to_string())?;
+        let mix_id = next_folder_id(&mixes_dir, "mix-v")?;
+        let mix = crate::mix::empty_mix(&mix_id);
+        let path = mixes_dir.join(format!("{mix_id}.json"));
+        doc.active_mix_id = Some(mix_id);
+        (mix, path)
+    };
+
+    if mix.tracks.iter().any(|track| track.id == voice_id) {
+        return Ok(mix);
+    }
+    push_undo(&state, &id, serde_json::to_value(&mix).unwrap());
+    mix.tracks.push(MixTrack {
+        id: voice_id.to_string(),
+        role: "midi".into(),
+        name: name.into(),
+        gain_db: 0.0,
+        pan: 0.0,
+        mute: false,
+        solo: false,
+        locked: false,
+        ai_separated: false,
+        clips: Vec::new(),
+        experimental_vst3_insert: None,
+    });
+    atomic_write_json(&path, &mix)?;
+    doc.updated_at = now_iso();
+    save_project(&folder, &doc)?;
+    Ok(mix)
+}
+
 #[tauri::command]
 pub fn update_mix(
     state: tauri::State<'_, AppState>,

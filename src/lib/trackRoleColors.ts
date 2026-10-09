@@ -16,6 +16,7 @@ const RAW_STEM_COLORS: Record<string, string> = {
   guitar: "#b79cff",
   piano: "#ffd76a",
   percussion: "#5ed8c9",
+  midi: "#bb9bff",
 };
 
 /** Opacité partie à venir (65 %) sur le fond réel de la waveform. */

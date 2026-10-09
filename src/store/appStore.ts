@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api } from "../lib/api";
 import type { ScoreDocument } from "../lib/score";
+import type { PlaybackView } from "../components/AudioPlayer";
 import type {
   AppSettings,
   FormInput,
@@ -37,6 +38,12 @@ type AppStore = {
   error: string | null;
   audioPath: string | null;
   playbackSources: PlaybackSources | null;
+  playback: PlaybackView | null;
+  playerSelection: {
+    trackKey: string;
+    projectId: string;
+    sources: PlaybackSources;
+  } | null;
   /** Song screen export / long operations — blocks profile switch (#201). */
   profileOperationBusy: boolean;
   setProfileOperationBusy: (busy: boolean) => void;
@@ -49,6 +56,8 @@ type AppStore = {
   openProject: (id: string, options?: { preserveForm?: boolean }) => Promise<void>;
   setForm: (patch: Partial<FormInput>) => void;
   setMix: (mix: MixDoc | null) => void;
+  setPlayback: (playback: PlaybackView | null) => void;
+  setPlayerSelection: (selection: AppStore["playerSelection"]) => void;
   setScoreDocument: (doc: ScoreDocument | null) => void;
   setError: (e: string | null) => void;
   setScoreOpen: (v: boolean) => void;
@@ -105,6 +114,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   error: null,
   audioPath: null,
   playbackSources: null,
+  playback: null,
+  playerSelection: null,
   profileOperationBusy: false,
   setProfileOperationBusy: (profileOperationBusy) =>
     set({ profileOperationBusy }),
@@ -140,6 +151,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   openProject: async (id, options) => {
     const currentScreen = get().screen;
+    const currentProjectId = get().project?.id;
     const destinationScreen = currentScreen === "create" ? "create" : "studio";
     const project = await api.openProject(id);
     const mix = await api.loadMix(id);
@@ -192,6 +204,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       scoreDocument,
       audioPath,
       playbackSources,
+      playerSelection: currentProjectId === id ? get().playerSelection : null,
+      playback: null,
       form,
       screen: destinationScreen,
       error: null,
@@ -199,6 +213,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   setForm: (patch) => set({ form: { ...get().form, ...patch } }),
   setMix: (mix) => set({ mix }),
+  setPlayback: (playback) => set({ playback }),
+  setPlayerSelection: (playerSelection) => set({ playerSelection }),
   setScoreDocument: (scoreDocument) => set({ scoreDocument }),
   setError: (error) => set({ error }),
   setScoreOpen: (scoreOpen) => set({ scoreOpen }),

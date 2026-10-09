@@ -16,6 +16,7 @@ function formatTime(seconds: number): string {
 }
 
 export type PlaybackView = {
+  sourceKey?: string;
   current: number;
   duration: number;
   mode: PlaybackSnapshot["mode"];
@@ -31,13 +32,14 @@ export type PlaybackView = {
 };
 
 type Props = {
-  projectId: string;
+  projectId?: string;
   sources: PlaybackSources | null;
   mix: MixDoc | null;
   /** Vue split : le master porte lecture et temps (#132). */
   delegateTransport?: boolean;
   /** Onglet Production : indicateur porté par ProductionWorkspace. */
   hideMixBakeStatus?: boolean;
+  playbackKey?: string;
   onError?: (message: string) => void;
   onPlaybackChange?: (view: PlaybackView | null) => void;
 };
@@ -70,6 +72,7 @@ export function AudioPlayer({
   mix,
   delegateTransport = false,
   hideMixBakeStatus = false,
+  playbackKey,
   onError,
   onPlaybackChange,
 }: Props) {
@@ -85,15 +88,19 @@ export function AudioPlayer({
     await engine.toggle();
   }
   const [snap, setSnap] = useState<PlaybackSnapshot>(emptySnap);
-  const key = sourcesKey(sources);
-  const sourcesRef = useRef(sources);
-  sourcesRef.current = sources;
+  const hasAudioSource = Boolean(sources?.generationWav || sources?.stems?.length);
+  const effectiveSources = hasAudioSource ? sources : null;
+  const key = sourcesKey(effectiveSources);
+  const sourcesRef = useRef(effectiveSources);
+  sourcesRef.current = effectiveSources;
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
   const mixRef = useRef(mix);
   mixRef.current = mix;
   const onPlaybackChangeRef = useRef(onPlaybackChange);
   onPlaybackChangeRef.current = onPlaybackChange;
+  const playbackKeyRef = useRef(playbackKey ?? projectId);
+  playbackKeyRef.current = playbackKey ?? projectId;
 
   useEffect(() => {
     const stopForPreview = (event: Event) => {
@@ -112,6 +119,7 @@ export function AudioPlayer({
         peaksByTrack[tp.trackId] = tp.peaks;
       }
       onPlaybackChangeRef.current?.({
+        sourceKey: playbackKeyRef.current,
         current: next.current,
         duration: next.duration,
         mode: next.mode,
@@ -216,6 +224,12 @@ export function AudioPlayer({
         />
       )}
 
+      {!delegateTransport && !hasAudioSource && (
+        <div className="player-empty-wave" aria-live="polite">
+          {t("player.emptyHint")}
+        </div>
+      )}
+
       {!delegateTransport && (
         <div className="player">
           <button
@@ -238,7 +252,7 @@ export function AudioPlayer({
             <span className="player-time">{formatTime(Math.round(snap.duration))}</span>
           </div>
           <span className="path" title={snap.label}>
-            {snap.label || t("library.dash")}
+            {snap.label || t("player.emptyTitle")}
           </span>
         </div>
       )}
