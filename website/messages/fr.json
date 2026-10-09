@@ -44,8 +44,8 @@
     },
     "news": {
       "eyebrow": "Version {version}",
-      "title": "VST3, enregistrement et production",
-      "body": "v{version} : effets et instruments VST3 sous Windows, enregistrement natif amélioré, audio du projet transmis à ACE-Step Lego et génération/export plus fiables.",
+      "title": "Correctifs Windows et YuE2",
+      "body": "v{version} : respecte le choix du modèle YuE2 Q4/Q8 et lance le moteur audio Windows sans ouvrir de terminal.",
       "whatsNew": "Lire les nouveautés",
       "setup": "Guide de configuration",
       "batch": "Structure du fichier batch"
@@ -299,7 +299,7 @@
     "eyebrow": "Song Maker v{version}",
     "title": "Télécharger Song Maker",
     "intro": "Choisissez la version prévue pour votre système. Le moteur audio et les modèles se téléchargent séparément pendant la configuration initiale.",
-    "whatsNew": "Nouveautés de la v{version} : effets et instruments VST3 sous Windows, enregistrement amélioré, audio du projet dans ACE-Step Lego, correctifs de génération et export.",
+    "whatsNew": "Nouveautés de la v{version} : correctif du modèle YuE2 Q4/Q8 choisi et du terminal ouvert pendant les générations Windows.",
     "whatsNewCta": "Lire le détail",
     "setupCta": "Configuration",
     "batchCta": "Fichier batch JSON",

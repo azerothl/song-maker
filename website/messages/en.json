@@ -44,8 +44,8 @@
     },
     "news": {
       "eyebrow": "Version {version}",
-      "title": "VST3 plugins, recording, and production",
-      "body": "v{version}: Windows VST3 effects and MIDI instruments, native recording improvements, ACE-Step Lego project audio, and more reliable generation and export.",
+      "title": "Windows and YuE2 fixes",
+      "body": "v{version}: honors the selected YuE2 Q4/Q8 model and starts the Windows audio engine without opening a terminal.",
       "whatsNew": "What’s new",
       "setup": "Setup guide",
       "batch": "Batch file structure"
@@ -299,7 +299,7 @@
     "eyebrow": "Song Maker v{version}",
     "title": "Download Song Maker",
     "intro": "Choose the version for your system. The audio engine and models download separately during setup.",
-    "whatsNew": "New in v{version}: Windows VST3 effects and MIDI instruments, improved recording, ACE-Step Lego project audio, and generation and export fixes.",
+    "whatsNew": "New in v{version}: fixes for the selected YuE2 Q4/Q8 model and the terminal opening during Windows generation.",
     "whatsNewCta": "Read the details",
     "setupCta": "Setup",
     "batchCta": "Batch JSON file",

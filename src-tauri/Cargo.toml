@@ -1,6 +1,6 @@
 [package]
 name = "song-maker"
-version = "0.3.0"
+version = "0.3.1"
 description = "Song Maker — local desktop music production app"
 authors = ["Song Maker"]
 license = "Apache-2.0"
