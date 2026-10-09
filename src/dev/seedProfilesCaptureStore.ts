@@ -1,6 +1,7 @@
 import { useAppStore } from "../store/appStore";
 import type { ProfilesState } from "../lib/profilesTypes";
-import { registerCaptureProfilesState } from "./tauriInvokeMock";
+import { registerCaptureProfilesState, registerCaptureProject } from "./tauriInvokeMock";
+import type { ProjectDoc } from "../lib/types";
 
 const hobby: ProfilesState = {
   profiles: [
@@ -43,24 +44,41 @@ const hobby: ProfilesState = {
 export function seedProfilesCaptureStore(patch?: Partial<ProfilesState>): void {
   const profilesState = { ...hobby, ...patch };
   registerCaptureProfilesState(profilesState);
+  const project: ProjectDoc = {
+    schema: "song-maker.project",
+    schemaVersion: 1,
+    id: "capture-profile",
+    title: "Nuit claire",
+    createdAt: "2026-09-30T00:00:00.000Z",
+    updatedAt: "2026-09-30T00:00:00.000Z",
+    sampleRate: 48000,
+    channels: 2,
+    bitDepth: 16,
+    style: "Piano lent",
+    lyrics: "Paroles d'exemple",
+    cot: "full",
+  };
+  registerCaptureProject(project);
   useAppStore.setState({
     screen: "library",
     profilesState,
     job: null,
     profileOperationBusy: false,
-    project: {
-      schema: "song-maker.project",
-      schemaVersion: 1,
-      id: "capture-profile",
-      title: "Nuit claire",
-      createdAt: "2026-09-30T00:00:00.000Z",
-      updatedAt: "2026-09-30T00:00:00.000Z",
-      sampleRate: 48000,
-      channels: 2,
-      bitDepth: 16,
-      style: "Piano lent",
-      lyrics: "Paroles d'exemple",
-      cot: "full",
+    project,
+    form: {
+      title: project.title,
+      style: project.style ?? "",
+      lyrics: project.lyrics ?? "",
+      cot: project.cot ?? "full",
+      singingLanguage: project.singingLanguage ?? null,
+      tempoBpm: project.tempoBpm ?? null,
+      key: project.key ?? null,
+      meter: project.meter ?? null,
+      seed: null,
+      targetDurationSec: project.targetDurationSec ?? 180,
+      preferFullLyrics: project.preferFullLyrics ?? true,
+      instrumentalMode: project.instrumentalMode ?? false,
+      continuationGenerationId: null,
     },
   });
 }

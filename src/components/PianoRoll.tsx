@@ -75,11 +75,12 @@ type Props = {
   document: ScoreDocument;
   onChange: (doc: ScoreDocument) => void;
   onError?: (msg: string | null) => void;
+  initialVoiceId?: string;
 };
 
-export function PianoRoll({ document, onChange, onError }: Props) {
+export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props) {
   const defaultVoice = primaryVoiceId(document);
-  const [voiceId, setVoiceId] = useState<string | null>(defaultVoice);
+  const [voiceId, setVoiceId] = useState<string | null>(initialVoiceId ?? defaultVoice);
   const voice = document.voices.find((v) => v.id === voiceId) ?? null;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focusedNoteId, setFocusedNoteId] = useState<string | null>(null);

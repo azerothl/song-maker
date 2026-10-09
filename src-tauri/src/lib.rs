@@ -174,6 +174,7 @@ pub fn run() {
             commands::separation::export_separation_stems,
             // Mixage, rendu, export
             commands::mix::load_mix,
+            commands::mix::add_empty_midi_track,
             commands::mix::update_mix,
             commands::mix::undo_mix,
             commands::mix::redo_mix,
