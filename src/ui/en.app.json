@@ -176,6 +176,7 @@
   "workspace.create": "Create",
   "workspace.score": "Score",
   "workspace.production": "Production",
+  "workspace.arrangement": "Arrangement",
   "workspace.versions": "Versions",
   "workspace.nav": "Song workspaces",
   "workspace.create.title": "Create",

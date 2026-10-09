@@ -1062,7 +1062,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
         workspace === "production"
           ? " song-layout-production song-layout-production-fill song-layout-has-dock"
           : ""
-      }`}
+      }${screen === "studio" && workspace === "production" ? " song-layout-studio" : ""}`}
     >
       <header className="song-workspace-chrome">
         <div className="song-workspace-chrome-top">
@@ -1131,7 +1131,9 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
                 tabIndex={workspace === space ? 0 : -1}
                 onClick={() => selectWorkspace(space)}
               >
-                {workspaceLabel(space)}
+                {screen === "studio" && space === "production"
+                  ? t("workspace.arrangement")
+                  : workspaceLabel(space)}
               </button>
               ))}
             </nav>
@@ -1213,6 +1215,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
 
         {workspace === "production" && (
           <ProductionWorkspace
+            studioMode={screen === "studio"}
             busy={busy}
             form={form}
             importingAudio={importingAudio}

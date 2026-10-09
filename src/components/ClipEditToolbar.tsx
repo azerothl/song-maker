@@ -96,6 +96,7 @@ export function ClipEditToolbar({
               {editTool === tool ? "✓" : ""}
             </span>
             <span>{t(`production.edit.${tool}`)}</span>
+            <kbd aria-hidden="true">{shortcut}</kbd>
           </button>
         );
       })}

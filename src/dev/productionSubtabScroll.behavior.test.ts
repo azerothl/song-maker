@@ -162,7 +162,8 @@ describe("Production commune (#223, #230)", () => {
       await buttons.first().focus();
       await page.keyboard.press("ArrowRight");
       assert.equal(await buttons.nth(1).getAttribute("aria-pressed"), "true");
-      assert.equal(await buttons.nth(1).locator("span").last().innerText(),"Split [C]");
+      assert.equal(await buttons.nth(1).locator("span").nth(1).innerText(),"Split");
+      assert.equal(await buttons.nth(1).locator("kbd").innerText(),"C");
       assert.equal(await buttons.nth(1).locator(".clip-edit-tool-check").innerText(),"✓");
       assert.equal(await buttons.nth(1).getAttribute("tabindex"),"0");
       assert.equal(await buttons.first().getAttribute("tabindex"),"-1");

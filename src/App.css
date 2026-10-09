@@ -8872,3 +8872,301 @@ details[open] > summary {
 .project-sync-panel-heading h2 {
   margin: 0;
 }
+
+/* #420 — keep Studio focused on the arrangement while retaining its tools. */
+.song-layout-studio .song-workspace-chrome {
+  gap: 0.35rem;
+  padding: 0.45rem 1rem 0.35rem;
+  background: var(--bg1);
+  border-bottom-color: var(--line);
+}
+
+.song-layout-studio .song-workspace-chrome-top {
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.song-layout-studio .song-workspace-project h1 {
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.production-workspace-studio .production-heading-compact {
+  display: none;
+}
+
+.song-layout-studio .song-workspace-tabs {
+  display: none;
+}
+
+.song-layout-studio .song-workspace-body {
+  min-height: 0;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.song-layout-studio .song-workspace-chrome-top {
+  min-height: 32px;
+}
+
+.production-workspace-studio {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.45rem;
+  overflow: hidden;
+  padding: 0.45rem 0.65rem 0.55rem;
+  background: var(--bg0);
+}
+
+.production-workspace-studio .production-chrome-stack {
+  flex: 0 0 auto;
+  gap: 0.25rem;
+}
+
+.production-workspace-studio .production-main-toolbar {
+  min-height: 46px;
+  gap: 0.4rem 0.6rem;
+  margin: 0;
+  padding: 0.25rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg1);
+}
+
+.production-workspace-studio .production-main-toolbar .btn,
+.production-workspace-studio .production-main-toolbar .mix-assist-trigger {
+  min-height: 40px;
+  border-radius: 5px;
+}
+
+.production-workspace-studio .production-main-toolbar-actions {
+  gap: 0.3rem;
+}
+
+.production-workspace-studio .production-main-toolbar .clip-edit-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.15rem;
+  padding: 0.15rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg0);
+}
+
+.production-workspace-studio .clip-edit-toolbar .btn {
+  min-width: 40px;
+  min-height: 40px;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.production-workspace-studio .clip-edit-tool-check {
+  width: 0.8em;
+  margin-inline-end: 0.15rem;
+}
+
+.production-workspace-studio .clip-edit-toolbar kbd {
+  display: inline-grid;
+  min-width: 1.25em;
+  height: 1.25em;
+  place-items: center;
+  border: 1px solid var(--line2);
+  border-radius: 3px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1;
+  margin-inline-start: 0.15rem;
+}
+
+.production-workspace-studio .production-add-track-btn {
+  border-color: var(--accent-2);
+  background: var(--accent-2);
+  color: var(--bg0);
+}
+
+.production-workspace-studio .production-main-toolbar-actions > .btn.primary {
+  border-color: var(--line);
+  background: var(--bg2);
+  color: var(--text);
+}
+
+.production-workspace-studio .production-mix-region {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg1);
+}
+
+.production-workspace-studio .production-mix-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+  padding: 0 0.35rem;
+  background: transparent;
+}
+
+.production-workspace-studio .production-mix-sticky-master {
+  top: 0;
+  padding: 0;
+  background: var(--bg1);
+}
+
+.production-workspace-studio .production-mix-master.mix-master-banner {
+  min-height: 42px;
+  gap: 0.4rem;
+  padding: 0.2rem 0.45rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--bg1);
+  backdrop-filter: none;
+}
+
+.production-workspace-studio .mix-master-density {
+  margin-left: auto;
+}
+
+.production-workspace-studio .production-context-bar {
+  min-height: 24px;
+  padding: 0.1rem 0.35rem;
+}
+
+.production-workspace-studio .production-mix-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  padding: 0;
+  overflow: auto;
+}
+
+.production-workspace-studio .production-common-timeline {
+  display: block;
+  min-height: 0;
+  margin: 0;
+}
+
+.production-workspace-studio .clip-timeline {
+  height: 100%;
+  min-height: 0;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.production-workspace-studio .clip-timeline-lanes-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+
+.production-workspace-studio .production-mix-grid {
+  grid-template-columns: minmax(180px, 220px) 64px 64px 68px 36px minmax(320px, 1fr);
+  min-width: 760px;
+  column-gap: 0.35rem;
+}
+
+.production-workspace-studio .production-mix-colheaders {
+  min-height: 26px;
+  padding: 0.2rem 0.35rem;
+  border-bottom-color: var(--line);
+  background: var(--bg1);
+}
+
+.production-workspace-studio .production-mix-row {
+  border-bottom-color: var(--line);
+  background: var(--bg1);
+}
+
+.production-workspace-studio .production-mix-row:hover {
+  background: var(--bg2);
+}
+
+.production-workspace-studio .production-mix-row .production-mix-wave {
+  min-width: 0;
+  padding-left: 0.35rem;
+  border-left: 1px solid var(--line);
+}
+
+.production-workspace-studio .production-mix-strip {
+  width: 4px;
+  border-radius: 1px;
+}
+
+.production-workspace-studio .clip-lane-rail {
+  height: 52px;
+  border-color: var(--line);
+  border-radius: 3px;
+  background-color: var(--bg0);
+}
+
+.production-workspace-studio .production-mix-group-header {
+  border-color: var(--line);
+  background: var(--bg2);
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn {
+  width: 32px;
+  min-width: 32px;
+  min-height: 28px;
+  height: 28px;
+  border-color: var(--line2);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn-m .track-ms-glyph,
+.production-workspace-studio .mixer-density .track-ms-btn-s .track-ms-glyph {
+  font-size: 0;
+  text-decoration: none;
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn-m .track-ms-glyph::before,
+.production-workspace-studio .mixer-density .track-ms-btn-s .track-ms-glyph::before {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn-m .track-ms-glyph::before {
+  content: "M";
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn-s .track-ms-glyph::before {
+  content: "S";
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn-m.pressed,
+.production-workspace-studio .mixer-density .track-ms-btn-m[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--stem-vocals) 28%, var(--bg1));
+  color: var(--text);
+  border-color: var(--stem-vocals);
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn-s.pressed,
+.production-workspace-studio .mixer-density .track-ms-btn-s[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--stem-midi) 28%, var(--bg1));
+  color: var(--text);
+  border-color: var(--stem-midi);
+}
+
+@media (max-width: 900px) {
+  .production-workspace-studio .production-main-toolbar {
+    align-items: flex-start;
+  }
+
+  .production-workspace-studio .production-main-toolbar .clip-edit-toolbar {
+    flex-wrap: wrap;
+  }
+}

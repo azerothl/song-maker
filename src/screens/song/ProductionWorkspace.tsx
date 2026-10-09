@@ -92,6 +92,7 @@ type MixUpdateOpts = { persist?: boolean };
 
 /** Onglet Production : mixage, clips, séparation et outils. */
 type ProductionWorkspaceProps = {
+  studioMode?: boolean;
   busy: boolean;
   form: FormInput;
   importingAudio: boolean;
@@ -171,6 +172,7 @@ function familyLabel(family: TrackFamilyId): string {
 }
 
 export function ProductionWorkspace({
+  studioMode = false,
   busy,
   form,
   importingAudio,
@@ -411,14 +413,15 @@ export function ProductionWorkspace({
 
   return (
     <section
-      className={
-        tightMixLayout
-          ? "song-workspace-panel wide production-workspace production-workspace-common production-workspace-tight production-workspace-maquette"
-          : "song-workspace-panel wide production-workspace production-workspace-common production-workspace-maquette"
-      }
+      className={[
+        "song-workspace-panel wide production-workspace production-workspace-common production-workspace-maquette",
+        tightMixLayout ? "production-workspace-tight" : "",
+        studioMode ? "production-workspace-studio" : "",
+      ].filter(Boolean).join(" ")}
       role="tabpanel"
       id="song-panel-production"
-      aria-labelledby="song-tab-production"
+      aria-labelledby={studioMode ? undefined : "song-tab-production"}
+      aria-label={studioMode ? t("nav.studio") : undefined}
     >
       <div className="production-chrome-stack">
         <header className="song-workspace-heading production-heading-compact">
