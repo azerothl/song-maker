@@ -2466,11 +2466,13 @@ option {
 }
 
 .production-add-track-dialog {
-  position: absolute;
+  position: fixed;
   z-index: 40;
-  top: calc(100% + 8px);
-  left: 0;
+  top: 1rem;
+  left: 1rem;
   width: min(760px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
   padding: 1rem;
   border-radius: 12px;
   border: 1px solid var(--line);
@@ -2741,15 +2743,6 @@ option {
     justify-content: flex-start;
   }
 
-  .production-add-track-dialog {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    width: min(620px, calc(100vw - 1rem));
-    max-height: calc(100vh - 1rem);
-    overflow: auto;
-    transform: translate(-50%, -50%);
-  }
 
   .production-add-track-choices {
     display: flex;

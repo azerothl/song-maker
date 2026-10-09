@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import {
   handleProfileOverlayKeydown,
   listProfileFocusables,
@@ -35,6 +35,32 @@ export function ProductionAddTrackMenu({
     window.setTimeout(() => focusProfileElement(triggerRef.current), 0);
   };
 
+  useLayoutEffect(() => {
+    if (!open) return;
+    const dialog = dialogRef.current;
+    const trigger = triggerRef.current;
+    if (!dialog || !trigger) return;
+
+    const placeDialog = () => {
+      const triggerBounds = trigger.getBoundingClientRect();
+      const dialogBounds = dialog.getBoundingClientRect();
+      const margin = 16;
+      const maxLeft = Math.max(margin, window.innerWidth - dialogBounds.width - margin);
+      const left = Math.min(Math.max(margin, triggerBounds.left), maxLeft);
+      const below = triggerBounds.bottom + 8;
+      const maxTop = Math.max(margin, window.innerHeight - dialogBounds.height - margin);
+      const top = below + dialogBounds.height <= window.innerHeight - margin
+        ? below
+        : Math.max(margin, triggerBounds.top - dialogBounds.height - 8);
+
+      dialog.style.left = `${left}px`;
+      dialog.style.top = `${Math.min(top, maxTop)}px`;
+    };
+
+    placeDialog();
+    window.addEventListener("resize", placeDialog);
+    return () => window.removeEventListener("resize", placeDialog);
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const onDoc = (event: MouseEvent) => {
