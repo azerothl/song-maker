@@ -70,6 +70,9 @@ const PX_PER_TICK = 0.04;
 /** Aligné sur NOTE_HIT_PX pour éviter le chevauchement vertical des cibles 44 px. */
 const ROW_H = NOTE_HIT_PX;
 const QUANTIZE_TICKS = 120;
+const PIANO_KEYBOARD_WIDTH = 56;
+const PIANO_RULER_HEIGHT = 28;
+const TICKS_PER_QUARTER = 480;
 
 type Props = {
   document: ScoreDocument;
@@ -109,8 +112,9 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const scrollRafRef = useRef<number | null>(null);
-  const hScrollRef = useRef({ left: 0, width: 900 });
-  const [hScroll, setHScroll] = useState({ left: 0, width: 900 });
+  const centeredVoiceIdRef = useRef<string | null>(null);
+  const hScrollRef = useRef({ left: 0, width: 844 });
+  const [hScroll, setHScroll] = useState({ left: 0, width: 844 });
 
   const clearFocusedNote = useCallback(() => {
     focusedNoteIdRef.current = null;
@@ -130,7 +134,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
       focusedNoteIdRef.current = active.dataset.noteId;
     }
     const nextLeft = el.scrollLeft;
-    const nextWidth = el.clientWidth || 900;
+    const nextWidth = Math.max(1, (el.clientWidth || 900) - PIANO_KEYBOARD_WIDTH);
     if (
       !shouldSyncPianoScrollViewport(hScrollRef.current, nextLeft, nextWidth)
     ) {
@@ -163,6 +167,26 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
       setVoiceId(primaryVoiceId(document));
     }
   }, [document, voiceId]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !voice || centeredVoiceIdRef.current === voice.id) return;
+    const pitches = voice.notes
+      .map((note) => note.pitch)
+      .filter((pitch) => pitch >= PITCH_MIN && pitch <= PITCH_MAX);
+    if (pitches.length === 0) return;
+
+    centeredVoiceIdRef.current = voice.id;
+    const centerPitch = (Math.min(...pitches) + Math.max(...pitches)) / 2;
+    const targetTop =
+      (PITCH_MAX - centerPitch) * ROW_H +
+      PIANO_RULER_HEIGHT -
+      el.clientHeight / 2;
+    el.scrollTop = Math.min(
+      Math.max(0, el.scrollHeight - el.clientHeight),
+      Math.max(0, targetTop),
+    );
+  }, [voice]);
 
   useEffect(() => {
     clearFocusedNote();
@@ -250,6 +274,11 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
 
   const width = Math.max(640, maxTick * PX_PER_TICK);
   const height = (PITCH_MAX - PITCH_MIN + 1) * ROW_H;
+  const ticksPerMeasure =
+    meter.numerator * (TICKS_PER_QUARTER * (4 / meter.denominator));
+  const measureWidth = ticksPerMeasure * PX_PER_TICK;
+  const measureCount = Math.ceil(width / measureWidth);
+  const beatWidth = (TICKS_PER_QUARTER * (4 / meter.denominator)) * PX_PER_TICK;
 
   const notesIndex = useMemo(
     () => buildPianoNotesIndex(voice?.notes ?? [], PX_PER_TICK),
@@ -768,27 +797,87 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
         </ul>
       )}
 
-      <div
-        ref={scrollRef}
-        className="piano-scroll"
-        onClick={onCanvasClick}
-      >
+      <div ref={scrollRef} className="piano-scroll">
         <div
-          ref={gridRef}
-          className="piano-grid"
-          style={{ width, height }}
+          className="piano-grid-frame"
+          style={{
+            width: PIANO_KEYBOARD_WIDTH + width,
+            height: PIANO_RULER_HEIGHT + height,
+            gridTemplateColumns: `${PIANO_KEYBOARD_WIDTH}px ${width}px`,
+            gridTemplateRows: `${PIANO_RULER_HEIGHT}px ${height}px`,
+          }}
         >
+          <div className="piano-keyboard-ruler" aria-hidden="true" />
+          <div className="piano-ruler" aria-hidden="true">
+            {Array.from({ length: measureCount }, (_, index) => (
+              <div
+                key={index}
+                className="piano-measure-marker"
+                style={{ left: index * measureWidth, width: measureWidth }}
+              >
+                <span>{index + 1}</span>
+                {Array.from({ length: Math.max(0, meter.numerator - 1) }, (_, beat) => (
+                  <i
+                    key={beat}
+                    className="piano-measure-beat"
+                    style={{ left: (beat + 1) * beatWidth }}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="piano-keyboard" role="group" aria-label={t("score.piano.keyboardAria")}>
+            {Array.from({ length: PITCH_MAX - PITCH_MIN + 1 }, (_, i) => {
+              const pitch = PITCH_MAX - i;
+              const black = [1, 3, 6, 8, 10].includes(pitch % 12);
+              const pitchName = midiPitchName(pitch);
+              return (
+                <button
+                  type="button"
+                  key={pitch}
+                  className={`piano-key ${black ? "black" : "white"} ${pitch % 12 === 0 ? "octave" : ""}`}
+                  aria-label={t("score.piano.keyAria", { pitchName })}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    audition(pitch);
+                  }}
+                >
+                  {pitch % 12 === 0 && <span>{pitchName}</span>}
+                </button>
+              );
+            })}
+          </div>
+          <div
+            ref={gridRef}
+            className="piano-grid"
+            style={{ width, height }}
+            onClick={onCanvasClick}
+          >
           {Array.from({ length: PITCH_MAX - PITCH_MIN + 1 }, (_, i) => {
             const pitch = PITCH_MAX - i;
             const black = [1, 3, 6, 8, 10].includes(pitch % 12);
             return (
               <div
                 key={pitch}
-                className={black ? "piano-row black" : "piano-row"}
+                className={`piano-row ${black ? "black" : ""} ${pitch % 12 === 0 ? "octave" : ""}`}
                 style={{ top: i * ROW_H, height: ROW_H }}
               />
             );
           })}
+          {Array.from({ length: measureCount + 1 }, (_, index) => (
+            <div
+              key={`bar-${index}`}
+              className="piano-bar-line"
+              style={{ left: index * measureWidth }}
+            />
+          ))}
+          {Array.from({ length: Math.ceil(width / beatWidth) + 1 }, (_, index) => (
+            <div
+              key={`beat-${index}`}
+              className="piano-beat-line"
+              style={{ left: index * beatWidth }}
+            />
+          ))}
           {visibleSections.map((s) => (
             <div
               key={s.id}
@@ -832,6 +921,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
               />
             );
           })}
+          </div>
         </div>
       </div>
     </div>

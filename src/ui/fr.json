@@ -987,6 +987,8 @@
   "score.quantize": "Quantifier…",
   "score.pianoHint": "Double-clic : ajouter · glisser : déplacer · Suppr / flèches : éditer",
   "score.piano.noteAria": "Note {pitchName}, départ {startTick}, durée {durationTick}",
+  "score.piano.keyboardAria": "Clavier du piano-roll",
+  "score.piano.keyAria": "Jouer la note {pitchName}",
   "score.quantizeAsk": "Quantifier sur la triple-croche (120 ticks) ?",
   "score.quantizeYes": "Quantifier",
   "score.quantizeNo": "Garder tel quel",

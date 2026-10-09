@@ -6805,6 +6805,112 @@ details[open] > summary {
   background: #0b0e13;
 }
 
+.piano-grid-frame {
+  display: grid;
+  position: relative;
+  min-width: max-content;
+}
+
+.piano-keyboard-ruler,
+.piano-keyboard {
+  position: sticky;
+  left: 0;
+  border-right: 1px solid var(--line2);
+  background: #202633;
+}
+
+.piano-keyboard-ruler {
+  z-index: 7;
+  top: 0;
+  border-bottom: 1px solid var(--line2);
+}
+
+.piano-ruler {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line2);
+  background: #171d28;
+}
+
+.piano-measure-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid #69778a;
+  color: #d6dce6;
+}
+
+.piano-measure-marker > span {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.piano-measure-beat {
+  position: absolute;
+  top: 15px;
+  bottom: 0;
+  width: 1px;
+  background: #343e4d;
+}
+
+.piano-keyboard {
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  width: 56px;
+  background: #171c26;
+}
+
+.piano-key {
+  position: relative;
+  display: flex;
+  flex: 0 0 44px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 56px;
+  min-height: 44px;
+  padding: 0 0.25rem;
+  border: 0;
+  border-bottom: 1px solid #7f8999;
+  color: #171b22;
+  background: linear-gradient(180deg, #e4e7ed, #bdc4d0);
+  cursor: pointer;
+}
+
+.piano-key.black {
+  align-self: flex-start;
+  z-index: 1;
+  width: 68%;
+  border-right: 1px solid #3c4555;
+  border-bottom-color: #10141c;
+  color: #e6eaf1;
+  background: linear-gradient(180deg, #343d4d, #222a37);
+}
+
+.piano-key.octave {
+  font-weight: 750;
+}
+
+.piano-key.octave.white {
+  border-left: 3px solid var(--accent-cyan);
+}
+
+.piano-key:focus-visible {
+  z-index: 8;
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: -3px;
+}
+
+.piano-key span {
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .piano-grid {
   position: relative;
   min-width: 100%;
@@ -6820,6 +6926,31 @@ details[open] > summary {
 
 .piano-row.black {
   background: #0c1018;
+}
+
+.piano-row.octave {
+  border-bottom-color: #3a4555;
+}
+
+.piano-bar-line,
+.piano-beat-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.piano-bar-line {
+  z-index: 1;
+  width: 2px;
+  background: #667487;
+  opacity: 0.62;
+}
+
+.piano-beat-line {
+  z-index: 1;
+  width: 1px;
+  background: #263142;
 }
 
 .piano-note {

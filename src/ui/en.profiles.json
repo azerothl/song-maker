@@ -235,6 +235,8 @@
   "score.staff.loading": "Loading the staff…",
   "score.staff.loadingRegion": "Staff loading",
   "score.piano.noteAria": "Note {pitchName}, start {startTick}, duration {durationTick}",
+  "score.piano.keyboardAria": "Piano roll keyboard",
+  "score.piano.keyAria": "Play note {pitchName}",
   "firstLaunch.error.details": "Diagnostic details (server language)",
   "firstLaunch.error.network.demoMessage": "The connection was interrupted.",
   "settings.model.engine.title": "Alternate generation engine",
