@@ -5,10 +5,13 @@
   "type": "module",
   "bin": { "song-maker-mcp": "./src/server.mjs" },
   "scripts": {
+    "prestart": "pnpm --filter @song-maker/mix-production build",
     "start": "node src/server.mjs",
+    "pretest": "pnpm --filter @song-maker/mix-production build",
     "test": "node --test"
   },
   "dependencies": {
+    "@song-maker/mix-production": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.32.0",
     "zod": "^4.1.0"
   },

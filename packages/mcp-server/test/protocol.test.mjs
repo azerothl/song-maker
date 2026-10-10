@@ -96,7 +96,7 @@ test('MCP exposes the headless tools over stdio', async () => {
       ['add_library_track', 'add_project_midi_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project', 'create_project_midi_track',
         'delete_playlist', 'delete_project', 'edit_project_score', 'export_project_audio', 'export_project_stems', 'get_project', 'get_project_mix',
         'get_project_score', 'gpu_status', 'import_project_audio_track', 'job_status', 'list_library', 'list_local_resources', 'list_project_versions', 'list_projects',
-        'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'resume_job',
+        'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'render_project_mix', 'resume_job',
         'runtime_status', 'start_batch', 'start_song', 'update_project', 'update_project_mix', 'use_project_generation',
         'use_project_mix', 'use_project_score', 'use_project_separation']);
     for (const name of ['start_song', 'start_batch']) {
@@ -290,6 +290,15 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(flacResult.format, 'flac');
     assert.equal(flacResult.delivery.bitDepth, 16);
     assert.equal((await readFile(flacResult.path)).subarray(0, 4).toString('ascii'), 'fLaC');
+    const renderedMix = await client.callTool({ name: 'render_project_mix', arguments: {
+      projectId: 'project-001', outputDirectory: exportDirectory, fileName: 'protocol-mix.wav',
+    } });
+    assert.equal(renderedMix.isError, undefined, renderedMix.content?.[0]?.text);
+    const renderedMixResult = JSON.parse(renderedMix.content[0].text);
+    assert.equal(renderedMixResult.format, 'wav');
+    assert.equal(renderedMixResult.render.clipCount, 1);
+    assert.equal(renderedMixResult.audio.channels, 2);
+    assert.ok(renderedMixResult.bytes > 44);
     const invalid = await client.callTool({ name: 'get_project', arguments: { projectId: '../outside' } });
     assert.equal(invalid.isError, true);
     const created = await client.callTool({ name: 'create_project', arguments: { title: 'MCP created' } });

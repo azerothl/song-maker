@@ -5,8 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { inspectWav } from '../src/audio-quality.mjs';
-import { exportProjectAudio, exportProjectStems } from '../src/project-audio.mjs';
-import { createProject, getProject, getProjectMix, importProjectAudioTrack } from '../src/projects.mjs';
+import { exportProjectAudio, exportProjectStems, renderProjectMix } from '../src/project-audio.mjs';
+import { createProject, createProjectMidiTrack, getProject, getProjectMix, importProjectAudioTrack } from '../src/projects.mjs';
 
 function smallPcmWav() {
   const data = Buffer.alloc(4800 * 2);
@@ -30,6 +30,81 @@ function smallPcmWav() {
   data.copy(wav, 44);
   return wav;
 }
+
+test('project mix render applies saved clip placement and exports a non-overwriting stereo WAV', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-mix-render-'));
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-mix-workspace-'));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(path.join(documentsRoot, 'profiles', 'profile-render'), { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-render', profiles: [{ id: 'profile-render', name: 'Render test', kind: 'hobby' }],
+    }));
+    const { project } = await createProject({ title: 'Offline render', env });
+    const initialized = await createProjectMidiTrack({ projectId: project.id, idempotencyKey: 'render-init', env });
+    const projectFolder = path.join(documentsRoot, 'profiles', 'profile-render', 'projects', project.id);
+    const normalizedDirectory = path.join(projectFolder, 'user-audio', 'normalized');
+    await mkdir(normalizedDirectory, { recursive: true });
+    const wav = smallPcmWav();
+    const sourceSha256 = createHash('sha256').update(wav).digest('hex');
+    await writeFile(path.join(normalizedDirectory, 'clip.wav'), wav);
+    const mix = initialized.mix.mix;
+    mix.tracks = [{
+      id: 'audio-track', role: 'user', name: 'Audio', gainDb: 0, pan: 0, mute: false, solo: false,
+      clips: [{
+        id: 'clip-1', sourcePath: 'user-audio/normalized/clip.wav', sourceSha256,
+        startMs: 0, offsetMs: 0, durationMs: 50, fadeInMs: 0, fadeOutMs: 0, gainDb: 0,
+        takeActive: true, processingEnabled: false,
+      }, {
+        id: 'inactive-take', sourcePath: '../../outside.wav', startMs: 5000, offsetMs: 0,
+        durationMs: 500, fadeInMs: 0, fadeOutMs: 0, gainDb: 0, takeActive: false,
+      }],
+    }];
+    await writeFile(path.join(projectFolder, 'mixes', `${mix.id}.json`), JSON.stringify(mix));
+
+    const rendered = await renderProjectMix({
+      projectId: project.id, outputDirectory: 'exports', fileName: 'offline-render.wav',
+      workspace, env,
+    });
+    assert.equal(rendered.mixId, mix.id);
+    assert.equal(rendered.format, 'wav');
+    assert.equal(rendered.render.path, 'phase1');
+    assert.equal(rendered.render.clipCount, 1);
+    assert.equal(rendered.audio.sampleRateHz, 48_000);
+    assert.equal(rendered.audio.channels, 2);
+    assert.equal(rendered.audio.durationSec, 0.05);
+    const info = await inspectWav(rendered.path);
+    assert.equal(info.bitDepth, 24);
+    assert.equal(info.channels, 2);
+    const output = await readFile(rendered.path);
+    assert.notEqual(output.readIntLE(44, 3), 0);
+    await assert.rejects(renderProjectMix({
+      projectId: project.id, outputDirectory: 'exports', fileName: 'offline-render.wav', workspace, env,
+    }), /Export déjà présent/);
+
+    await writeFile(path.join(projectFolder, 'mixes', `${mix.id}.production.json`), JSON.stringify({
+      mixId: mix.id,
+      volumePointsByTrack: {}, panPointsByTrack: {}, automationLanes: {},
+      effectsByTrack: { 'audio-track': [{ id: 'eq-1', kind: 'eq', enabled: true, params: { gainDb: 3 } }] },
+      sidechainRoutes: [], buses: [], sends: [], trackGroupIds: {},
+    }));
+    const renderedWithEffects = await renderProjectMix({
+      projectId: project.id, outputDirectory: 'exports', fileName: 'offline-render-fx.wav', workspace, env,
+    });
+    assert.equal(renderedWithEffects.render.path, 'production');
+
+    mix.vst3MasterInsert = { enabled: true, pluginPath: 'C:/private/plugin.vst3', parameters: {} };
+    await writeFile(path.join(projectFolder, 'mixes', `${mix.id}.json`), JSON.stringify(mix));
+    await assert.rejects(renderProjectMix({
+      projectId: project.id, outputDirectory: 'exports', fileName: 'vst-unsupported.wav', workspace, env,
+    }), /insert VST3/);
+  } finally {
+    await Promise.all([
+      rm(documentsRoot, { recursive: true, force: true }),
+      rm(workspace, { recursive: true, force: true }),
+    ]);
+  }
+});
 
 test('project audio export copies a finished profile WAV into the workspace without overwriting', async () => {
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-audio-'));

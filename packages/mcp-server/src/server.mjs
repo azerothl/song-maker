@@ -5,7 +5,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
 import { addProjectMidiTrack, createProject, createProjectMidiTrack, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, importProjectAudioTrack, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
-import { exportProjectAudio, exportProjectStems } from './project-audio.mjs';
+import { exportProjectAudio, exportProjectStems, renderProjectMix } from './project-audio.mjs';
 import { listLocalResources } from './resources.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
@@ -219,6 +219,20 @@ server.registerTool('export_project_audio', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => exportProjectAudio(args)));
+
+server.registerTool('render_project_mix', {
+  description: 'Rend le mix actif ou une version sauvegardée du profil Song Maker avec le moteur DSP partagé (clips, niveaux, automation, effets internes, sidechain et routage), puis exporte un WAV/FLAC/MP3 dans le workspace. Les sources doivent être des WAV PCM ou float32 mono/stéréo à la fréquence du mix ; les inserts VST3 master ne sont pas exécutés. Le rendu est borné à 256 Mio de sources et à une estimation de 512 Mio de mémoire. Refuse les révisions de mix périmées et ne remplace jamais un fichier existant.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    mixId: z.string().regex(/^mix-v[0-9]+$/).optional(),
+    outputDirectory: z.string().min(1),
+    fileName: z.string().min(1).max(180).optional(),
+    format: z.enum(['wav', 'flac', 'mp3']).optional(),
+    bitDepth: z.union([z.literal(16), z.literal(24)]).optional(),
+    bitrateKbps: z.union([z.literal(128), z.literal(192), z.literal(320)]).optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => renderProjectMix(args)));
 
 server.registerTool('export_project_stems', {
   description: 'Exporte un ou plusieurs WAV de stems depuis une séparation terminée du profil Song Maker actif vers SONG_MAKER_WORKSPACE_ROOT. Passe separationId depuis list_project_versions ; sans roles, exporte les stems disponibles. Vérifie les hashes et les WAV, refuse les liens symboliques, les révisions invalides et tout écrasement. Ne lance pas une nouvelle séparation.',

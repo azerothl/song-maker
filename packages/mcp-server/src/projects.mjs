@@ -719,6 +719,83 @@ export async function getProjectMix({ projectId, mixId, env = process.env } = {}
   };
 }
 
+/** Resolve in-project clip sources for an offline mix render without returning their paths to MCP. */
+export async function resolveProjectMixRenderInputs({ projectId, mixId, env = process.env } = {}) {
+  const snapshot = await getProjectMix({ projectId, mixId, env });
+  const store = await projectStore(env);
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+
+  const mixesDirectory = await projectSubdirectory(canonicalFolder, 'mixes');
+  if (!mixesDirectory) throw new Error(`Mix introuvable : ${snapshot.mixId}`);
+  const mix = await readBoundedJsonInside(mixesDirectory, `${snapshot.mixId}.json`, `${snapshot.mixId}.json`);
+  if (!mix || mix.id !== snapshot.mixId) throw new Error(`Mix introuvable ou invalide : ${snapshot.mixId}`);
+  if (createHash('sha256').update(JSON.stringify(mix)).digest('hex') !== snapshot.mixRevision) {
+    throw new Error('Le mix a changé pendant sa lecture. Relis-le avant de réessayer.');
+  }
+
+  const clips = [];
+  for (const track of mix.tracks ?? []) {
+    for (const clip of track.clips ?? []) {
+      if (clip?.takeActive === false) continue;
+      const sourcePath = typeof clip?.sourcePath === 'string' ? clip.sourcePath : '';
+      const normalized = sourcePath.replaceAll('\\', '/');
+      const absolute = path.isAbsolute(sourcePath) || /^[A-Za-z]:\//.test(normalized) || normalized.startsWith('//');
+      const relativePath = path.resolve(canonicalFolder, sourcePath);
+      if (!sourcePath || absolute || !isWithin(canonicalFolder, relativePath)) {
+        throw new Error(`La source audio du clip ${clip?.id ?? 'inconnu'} est externe ou sort du projet.`);
+      }
+      let fileInfo;
+      try {
+        fileInfo = await lstat(relativePath);
+      } catch (error) {
+        if (error?.code === 'ENOENT') throw new Error(`Source audio introuvable pour le clip ${clip?.id ?? 'inconnu'}.`);
+        throw new Error(`Lecture de la source audio impossible : ${error?.message || error}`);
+      }
+      const canonicalPath = await realpath(relativePath);
+      if (fileInfo.isSymbolicLink() || !fileInfo.isFile() || !isWithin(canonicalFolder, canonicalPath)) {
+        throw new Error(`Source audio invalide ou hors du projet pour le clip ${clip?.id ?? 'inconnu'}.`);
+      }
+      clips.push({
+        trackId: track.id,
+        clipId: clip.id,
+        sourcePath: canonicalPath,
+        sourceSha256: typeof clip.sourceSha256 === 'string' ? clip.sourceSha256 : null,
+      });
+    }
+  }
+
+  let overlay = null;
+  const overlayName = `${snapshot.mixId}.production.json`;
+  let overlayInfo = null;
+  try {
+    overlayInfo = await lstat(path.join(mixesDirectory, overlayName));
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw new Error(`Lecture ${overlayName} impossible : ${error?.message || error}`);
+  }
+  if (overlayInfo) {
+    if (overlayInfo.isSymbolicLink() || !overlayInfo.isFile()) {
+      throw new Error(`${overlayName} est invalide ou se trouve hors du projet Song Maker.`);
+    }
+    overlay = await readBoundedJsonInside(mixesDirectory, overlayName, overlayName);
+    if (!overlay || overlay.mixId !== snapshot.mixId) {
+      throw new Error('Les réglages de production ne correspondent pas à la version de mix.');
+    }
+  }
+
+  return {
+    ...snapshot,
+    projectDirectory: canonicalFolder,
+    clips,
+    overlay,
+  };
+}
+
 /** Import an audio file from the MCP workspace into the active project's mix. */
 export async function importProjectAudioTrack({
   projectId, sourcePath, name, startMs = 0, muteExisting = false,
