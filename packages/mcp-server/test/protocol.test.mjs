@@ -83,7 +83,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     await client.connect(transport);
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
-      ['add_library_track', 'add_project_midi_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project',
+      ['add_library_track', 'add_project_midi_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project', 'create_project_midi_track',
         'delete_playlist', 'delete_project', 'edit_project_score', 'export_project_audio', 'get_project', 'get_project_mix',
         'get_project_score', 'gpu_status', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'resume_job',
@@ -185,6 +185,32 @@ test('MCP exposes the headless tools over stdio', async () => {
       edits: [{ operation: 'delete', voiceId: 'piano', noteId: 'note-1' }],
     } });
     assert.equal(staleScore.isError, true);
+    const createdMidi = await client.callTool({ name: 'create_project_midi_track', arguments: {
+      projectId: 'project-001', idempotencyKey: 'protocol-test-midi-1', name: 'Synth lead',
+      expectedScoreRevision: editedScoreState.scoreRevision, expectedMixRevision: addedMidiState.mixRevision,
+    } });
+    assert.equal(createdMidi.isError, undefined);
+    const createdMidiState = JSON.parse(createdMidi.content[0].text);
+    assert.equal(createdMidiState.created, true);
+    assert.equal(createdMidiState.linked, true);
+    assert.equal(createdMidiState.voiceId, 'mcp-midi-protocol-test-midi-1');
+    assert.equal(createdMidiState.score.score.voices.find(voice => voice.id === createdMidiState.voiceId).name, 'Synth lead');
+    assert.equal(createdMidiState.mix.mix.tracks.filter(track => track.id === createdMidiState.voiceId).length, 1);
+    const retriedMidi = await client.callTool({ name: 'create_project_midi_track', arguments: {
+      projectId: 'project-001', idempotencyKey: 'protocol-test-midi-1', name: 'Synth lead',
+      expectedScoreRevision: editedScoreState.scoreRevision, expectedMixRevision: addedMidiState.mixRevision,
+    } });
+    assert.equal(retriedMidi.isError, undefined);
+    const retriedMidiState = JSON.parse(retriedMidi.content[0].text);
+    assert.equal(retriedMidiState.created, false);
+    assert.equal(retriedMidiState.linked, true);
+    assert.equal(retriedMidiState.score.scoreId, createdMidiState.score.scoreId);
+    assert.equal(retriedMidiState.mix.mix.tracks.filter(track => track.id === createdMidiState.voiceId).length, 1);
+    const staleCreateMidi = await client.callTool({ name: 'create_project_midi_track', arguments: {
+      projectId: 'project-001', idempotencyKey: 'stale-midi-request',
+      expectedScoreRevision: editedScoreState.scoreRevision, expectedMixRevision: addedMidiState.mixRevision,
+    } });
+    assert.equal(staleCreateMidi.isError, true);
     const exportedAudio = await client.callTool({ name: 'export_project_audio', arguments: {
       projectId: 'project-001', generationId: 'gen-001', outputDirectory: exportDirectory,
     } });

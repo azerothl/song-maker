@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { addProjectMidiTrack, createProject, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
+import { addProjectMidiTrack, createProject, createProjectMidiTrack, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
 import { exportProjectAudio } from './project-audio.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
@@ -136,6 +136,18 @@ server.registerTool('add_project_midi_track', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => addProjectMidiTrack(args)));
+
+server.registerTool('create_project_midi_track', {
+  description: 'Crée une voix MIDI vide dans une nouvelle version de la partition active et ajoute la piste correspondante au mix actif. Appelle get_project_score et get_project_mix, puis passe leurs révisions et une idempotencyKey stable pour réessayer sans doublon. Nécessite déjà une partition et un mix actifs.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    name: z.string().trim().min(1).max(120).optional(),
+    idempotencyKey: z.string().regex(/^[A-Za-z0-9_-]{1,96}$/),
+    expectedScoreRevision: z.string().regex(/^[a-f0-9]{64}$/),
+    expectedMixRevision: z.string().regex(/^[a-f0-9]{64}$/),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+}, call(async args => createProjectMidiTrack(args)));
 
 server.registerTool('get_project_score', {
   description: 'Lit la partition active ou une version sauvegardée d’un projet du profil actif, avec ses voix et notes et scoreRevision pour sécuriser une édition. Les chemins locaux et états propriétaires VST sont masqués.',
