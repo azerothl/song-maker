@@ -17,6 +17,12 @@ const TECHNICAL_ERROR_PATTERNS = [
 
 const MAX_ERROR_DETAILS_LENGTH = 4000;
 
+function boundedDetails(message: string): string {
+  return message.length > MAX_ERROR_DETAILS_LENGTH
+    ? `${message.slice(0, MAX_ERROR_DETAILS_LENGTH)}\n…`
+    : message;
+}
+
 export type ErrorPresentation = {
   message: string;
   details?: string;
@@ -26,15 +32,22 @@ export function presentGlobalError(rawMessage: string): ErrorPresentation {
   const message = rawMessage.trim();
   if (!message) return { message: t("error.actionFailed") };
 
+  const separationRecoveryMessage = t("separate.run.failed");
+  const separationDetailsPrefix = `${separationRecoveryMessage}\n\n`;
+  if (message.startsWith(separationDetailsPrefix)) {
+    const details = message.slice(separationDetailsPrefix.length).trim();
+    return {
+      message: separationRecoveryMessage,
+      ...(details ? { details: boundedDetails(details) } : {}),
+    };
+  }
+
   if (!TECHNICAL_ERROR_PATTERNS.some((pattern) => pattern.test(message))) {
     return { message };
   }
 
   return {
     message: t("error.actionFailed"),
-    details:
-      message.length > MAX_ERROR_DETAILS_LENGTH
-        ? `${message.slice(0, MAX_ERROR_DETAILS_LENGTH)}\n…`
-        : message,
+    details: boundedDetails(message),
   };
 }

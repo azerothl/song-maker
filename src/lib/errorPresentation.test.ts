@@ -24,6 +24,19 @@ it("keeps an existing actionable product message unchanged", () => {
   );
 });
 
+it("keeps separation recovery guidance and exposes the original error on demand", () => {
+  setAppLocale("fr");
+  const result = presentGlobalError(
+    "La séparation n’a pas abouti. Votre morceau d’origine est conservé. Vérifiez le moteur dans Paramètres, puis réessayez.\n\nHTTP 500: audio.cpp model unavailable",
+  );
+
+  assert.equal(
+    result.message,
+    "La séparation n’a pas abouti. Votre morceau d’origine est conservé. Vérifiez le moteur dans Paramètres, puis réessayez.",
+  );
+  assert.equal(result.details, "HTTP 500: audio.cpp model unavailable");
+});
+
 it("bounds the length of expandable technical details", () => {
   setAppLocale("fr");
   const result = presentGlobalError(`HTTP 500 ${"x".repeat(5000)}`);

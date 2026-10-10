@@ -821,8 +821,14 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       } else {
         setSeparationUndo(null);
       }
-    } catch {
-      setError(t("separate.run.failed"));
+    } catch (error) {
+      const details = error instanceof Error ? error.message : String(error ?? "");
+      const recoveryMessage = t("separate.run.failed");
+      setError(
+        details.trim()
+          ? `${recoveryMessage}\n\n${details.trim()}`
+          : recoveryMessage,
+      );
     } finally {
       setBusy(false);
     }
