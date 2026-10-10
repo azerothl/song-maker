@@ -9570,6 +9570,11 @@ details[open] > summary {
   height: 52px;
 }
 
+.production-workspace-studio .production-mix-row > .track-wave,
+.production-workspace-studio .production-mix-row .production-mix-wave {
+  padding-inline-start: 0;
+}
+
 .production-workspace-studio .production-mix-group-header {
   grid-template-columns: minmax(178px, 230px) 76px minmax(0, 1fr);
   min-width: 560px;
@@ -9582,6 +9587,65 @@ details[open] > summary {
 
 .production-workspace-studio .production-mix-group-header .production-mix-group-wave-pad {
   grid-column: 3;
+}
+
+/* Keep the Studio ruler aligned with the track headers, not the full mixer. */
+.production-workspace-studio .production-common-timeline {
+  --production-controls-width: 230px;
+}
+
+/* A DAW surface reads as one workspace; reserve borders for actual lanes. */
+.production-workspace-studio .production-main-toolbar {
+  padding-inline: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line2);
+  border-radius: 0;
+  background: transparent;
+}
+
+.production-workspace-studio .production-mix-region {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.production-workspace-studio .production-mix-panel {
+  padding-inline: 0;
+}
+
+.production-workspace-studio .production-mix-colheaders {
+  color: var(--muted);
+  background: var(--bg0);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.production-workspace-studio .clip-action-bar {
+  min-height: 32px;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0.1rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--line2);
+  border-radius: 0;
+  background: transparent;
+}
+
+.production-workspace-studio .clip-action-bar .btn {
+  min-width: 36px;
+  min-height: 32px;
+}
+
+.production-workspace-studio .clip-action-bar .btn:disabled {
+  display: none;
+}
+
+.production-workspace-studio .production-mix-group-header {
+  background: color-mix(in srgb, var(--bg2) 72%, var(--bg0));
+}
+
+.production-workspace-studio .clip-ruler {
+  background: var(--bg0);
 }
 
 .song-layout-studio:has(.studio-midi-dock) .song-workspace-body {
