@@ -488,6 +488,7 @@ export function ProductionWorkspace({
           open={recordOpen}
           mix={mix}
           clipViewPrefs={clipViewPrefs}
+          playback={playback}
           onClose={() => setRecordOpen(false)}
           onTrackAdded={(m) => void onUserTrackAdded(m)}
           onError={setError}
