@@ -1,5 +1,5 @@
 import { createReadStream, existsSync } from 'node:fs';
-import { lstat, mkdir, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { link, lstat, mkdir, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -908,11 +908,6 @@ export async function editProjectScore({ projectId, expectedScoreRevision, edits
       }
     }
 
-    const names = (await readdir(scoresDirectory)).map(name => /^score-v([0-9]+)\.json$/.exec(name))
-      .filter(Boolean).map(match => Number(match[1])).filter(Number.isSafeInteger);
-    const nextNumber = Math.max(0, ...names) + 1;
-    savedScoreId = `score-v${String(nextNumber).padStart(3, '0')}`;
-    next.id = savedScoreId;
     next.schema = 'songmaker.score';
     next.schemaVersion = 1;
     next.parentScoreId = scoreId;
@@ -921,12 +916,34 @@ export async function editProjectScore({ projectId, expectedScoreRevision, edits
     if (latest.activeScoreId !== scoreId || latestProject.updatedAt !== project.updatedAt) {
       throw new Error('Le projet a changé pendant la modification. Relis-le avant de réessayer.');
     }
-    const nextScorePath = path.join(scoresDirectory, `${savedScoreId}.json`);
-    await writeJsonAtomically(nextScorePath, next, `.score-${randomUUID()}.tmp`);
-    const previous = Date.parse(latest.updatedAt);
+    let savedVersion = false;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const names = (await readdir(scoresDirectory)).map(name => /^score-v([0-9]+)\.json$/.exec(name))
+        .filter(Boolean).map(match => Number(match[1])).filter(Number.isSafeInteger);
+      const nextNumber = Math.max(0, ...names) + 1;
+      savedScoreId = `score-v${String(nextNumber).padStart(3, '0')}`;
+      next.id = savedScoreId;
+      try {
+        await writeJsonExclusive(
+          path.join(scoresDirectory, `${savedScoreId}.json`), next, `.score-${randomUUID()}.tmp`,
+        );
+        savedVersion = true;
+        break;
+      } catch (error) {
+        if (error?.code !== 'EEXIST' || attempt === 2) {
+          throw new Error(`Écriture de la nouvelle version de partition impossible : ${error?.message || error}`);
+        }
+      }
+    }
+    if (!savedVersion) throw new Error('Impossible de créer une version de partition sans écraser une version existante.');
+    const finalProject = await readProjectAt(store.root, projectId);
+    if (finalProject.activeScoreId !== scoreId || finalProject.updatedAt !== project.updatedAt) {
+      throw new Error('Le projet a changé pendant la création de la version. Relis-le avant de réessayer.');
+    }
+    const previous = Date.parse(finalProject.updatedAt);
     const now = Date.now();
     const updatedProject = {
-      ...latest,
+      ...finalProject,
       activeScoreId: savedScoreId,
       updatedAt: new Date(Number.isFinite(previous) && now <= previous ? previous + 1 : now).toISOString(),
     };
@@ -1310,6 +1327,16 @@ async function writeJsonAtomically(file, document, tempName) {
   try {
     await writeFile(temp, `${JSON.stringify(document, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
     await rename(temp, file);
+  } finally {
+    await rm(temp, { force: true }).catch(() => {});
+  }
+}
+
+async function writeJsonExclusive(file, document, tempName) {
+  const temp = path.join(path.dirname(file), tempName);
+  try {
+    await writeFile(temp, `${JSON.stringify(document, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+    await link(temp, file);
   } finally {
     await rm(temp, { force: true }).catch(() => {});
   }

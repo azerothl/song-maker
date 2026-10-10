@@ -58,6 +58,10 @@ test('MCP exposes the headless tools over stdio', async () => {
       stateB64: 'private-plugin-state', parameters: { gain: 0.5 } },
       notes: [{ id: 'note-1', startTick: 0, durationTick: 480, pitch: 60, velocity: 90 }] }],
   }));
+  await writeFile(path.join(scoreFolder, 'score-v002.json'), JSON.stringify({
+    schema: 'songmaker.score', schemaVersion: 1, id: 'score-v002', version: 2,
+    voices: [{ id: 'piano', notes: [{ id: 'other-note', startTick: 0, durationTick: 480, pitch: 72, velocity: 80 }] }],
+  }));
   const existingGeneration = path.join(projectFolder, 'generations', 'gen-001');
   await mkdir(existingGeneration, { recursive: true });
   await writeFile(path.join(existingGeneration, 'request.json'), JSON.stringify({
@@ -147,13 +151,14 @@ test('MCP exposes the headless tools over stdio', async () => {
     } });
     assert.equal(editedScore.isError, undefined);
     const editedScoreState = JSON.parse(editedScore.content[0].text);
-    assert.equal(editedScoreState.scoreId, 'score-v002');
+    assert.equal(editedScoreState.scoreId, 'score-v003');
     assert.equal(editedScoreState.active, true);
     assert.equal(editedScoreState.score.voices[0].notes.length, 1);
     assert.equal(editedScoreState.score.voices[0].notes[0].pitch, 61);
     assert.equal(editedScoreState.score.voices[0].notes[0].velocity, 92);
     assert.equal(editedScoreState.score.voices[0].vst3Instrument.pluginName, 'Private Piano');
     assert.equal(JSON.parse(await readFile(path.join(scoreFolder, 'score-v001.json'), 'utf8')).voices[0].notes[0].pitch, 60);
+    assert.equal(JSON.parse(await readFile(path.join(scoreFolder, 'score-v002.json'), 'utf8')).voices[0].notes[0].pitch, 72);
     const staleScore = await client.callTool({ name: 'edit_project_score', arguments: {
       projectId: 'project-001', expectedScoreRevision: scoreState.scoreRevision,
       edits: [{ operation: 'delete', voiceId: 'piano', noteId: 'note-1' }],
