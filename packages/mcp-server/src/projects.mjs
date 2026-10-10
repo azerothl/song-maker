@@ -631,7 +631,7 @@ export async function getProjectMix({ projectId, mixId, env = process.env } = {}
 
 /** Update active mix controls and arrangement metadata using an optimistic mix revision. */
 export async function updateProjectMix({
-  projectId, mixId, expectedMixRevision, masterGainDb, tracks, addMidiTracks, tempoMap, markers,
+  projectId, mixId, expectedMixRevision, masterGainDb, tracks, addMidiTracks, tempoMap, timeSignatures, markers,
   env = process.env,
 } = {}) {
   if (typeof projectId !== 'string' || !PROJECT_ID_PATTERN.test(projectId)) {
@@ -641,7 +641,8 @@ export async function updateProjectMix({
     throw new Error('expectedMixRevision doit venir de get_project_mix.');
   }
   if (masterGainDb === undefined && (!Array.isArray(tracks) || tracks.length === 0) &&
-      (!Array.isArray(addMidiTracks) || addMidiTracks.length === 0) && tempoMap === undefined && markers === undefined) {
+      (!Array.isArray(addMidiTracks) || addMidiTracks.length === 0) && tempoMap === undefined &&
+      timeSignatures === undefined && markers === undefined) {
     throw new Error('Indique au moins un réglage de mix à modifier.');
   }
   if (masterGainDb !== undefined && (!Number.isFinite(masterGainDb) || masterGainDb < -24 || masterGainDb > 12)) {
@@ -657,6 +658,10 @@ export async function updateProjectMix({
     throw new Error('La carte de tempo doit être une liste.');
   }
   if (tempoMap?.length > 512) throw new Error('La carte de tempo peut contenir au maximum 512 événements.');
+  if (timeSignatures !== undefined && !Array.isArray(timeSignatures)) {
+    throw new Error('La carte de métrique doit être une liste.');
+  }
+  if (timeSignatures?.length > 512) throw new Error('La carte de métrique peut contenir au maximum 512 événements.');
   if (markers !== undefined && !Array.isArray(markers)) {
     throw new Error('Les repères doivent être une liste.');
   }
@@ -677,6 +682,15 @@ export async function updateProjectMix({
     }
     tempoEvents.sort((a, b) => a.startMs - b.startMs);
   }
+  const meterEvents = (timeSignatures ?? []).map(event => {
+    if (!event || !Number.isSafeInteger(event.startMs) || event.startMs < 0 ||
+        !Number.isInteger(event.numerator) || event.numerator < 1 || event.numerator > 4_294_967_295 ||
+        !Number.isInteger(event.denominator) || event.denominator < 1 || event.denominator > 4_294_967_295) {
+      throw new Error('Chaque changement de métrique doit avoir une position positive ou nulle et un numérateur/dénominateur entier positif.');
+    }
+    return { startMs: event.startMs, numerator: event.numerator, denominator: event.denominator };
+  });
+  if (timeSignatures !== undefined) meterEvents.sort((a, b) => a.startMs - b.startMs);
   const markerKinds = new Set(['intro', 'verse', 'prechorus', 'chorus', 'bridge', 'interlude', 'outro', 'other']);
   const sectionMarkers = (markers ?? []).map(marker => {
     const id = typeof marker?.id === 'string' ? marker.id.trim() : '';
@@ -776,6 +790,7 @@ export async function updateProjectMix({
     const next = structuredClone(current);
     if (masterGainDb !== undefined) next.masterGainDb = masterGainDb;
     if (tempoMap !== undefined) next.tempoMap = tempoEvents;
+    if (timeSignatures !== undefined) next.timeSignatures = meterEvents;
     if (markers !== undefined) next.markers = sectionMarkers;
     for (const update of tracks ?? []) {
       const track = next.tracks.find(item => item.id === update.id);
@@ -798,7 +813,7 @@ export async function updateProjectMix({
       });
       addedTrackIds.push(id);
     }
-    if (masterGainDb !== undefined || tempoMap !== undefined || markers !== undefined ||
+    if (masterGainDb !== undefined || tempoMap !== undefined || timeSignatures !== undefined || markers !== undefined ||
         (tracks ?? []).length > 0 || addedTrackIds.length > 0) {
       await writeJsonAtomically(mixPath, next, `.mix-${randomUUID()}.tmp`);
     }

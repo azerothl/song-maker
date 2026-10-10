@@ -126,12 +126,16 @@ test('MCP exposes the headless tools over stdio', async () => {
     const changedArrangement = await client.callTool({ name: 'update_project_mix', arguments: {
       projectId: 'project-001', expectedMixRevision: changedMixState.mixRevision,
       tempoMap: [{ startMs: 0, quarterBpm: 118 }, { startMs: 3600, quarterBpm: 94 }],
+      timeSignatures: [{ startMs: 0, numerator: 4, denominator: 4 }, { startMs: 3600, numerator: 6, denominator: 8 }],
       markers: [{ id: 'verse-1', name: 'Verse 1', kind: 'verse', startMs: 0 }],
     } });
     assert.equal(changedArrangement.isError, undefined);
     const arrangementState = JSON.parse(changedArrangement.content[0].text);
     assert.deepEqual(arrangementState.mix.tempoMap, [
       { startMs: 0, quarterBpm: 118 }, { startMs: 3600, quarterBpm: 94 },
+    ]);
+    assert.deepEqual(arrangementState.mix.timeSignatures, [
+      { startMs: 0, numerator: 4, denominator: 4 }, { startMs: 3600, numerator: 6, denominator: 8 },
     ]);
     assert.deepEqual(arrangementState.mix.markers, [
       { id: 'verse-1', name: 'Verse 1', kind: 'verse', startMs: 0 },

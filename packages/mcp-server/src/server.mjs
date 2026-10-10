@@ -106,7 +106,7 @@ server.registerTool('get_project_mix', {
 }, call(async args => getProjectMix(args)));
 
 server.registerTool('update_project_mix', {
-  description: 'Modifie les niveaux master et de piste, le panoramique, mute, solo, la carte de tempo et les repères de sections du mix actif. Passe mixRevision obtenu par get_project_mix ; l’outil refuse les changements périmés et ne déplace pas les clips ni ne rend l’audio.',
+  description: 'Modifie les niveaux master et de piste, le panoramique, mute, solo, les cartes de tempo et de métrique et les repères de sections du mix actif. Passe mixRevision obtenu par get_project_mix ; l’outil refuse les changements périmés et ne déplace pas les clips ni ne rend l’audio.',
   inputSchema: {
     projectId: z.string().min(1).max(128),
     mixId: z.string().regex(/^mix-v[0-9]+$/).optional(),
@@ -126,6 +126,11 @@ server.registerTool('update_project_mix', {
       startMs: z.number().int().safe().min(0),
       quarterBpm: z.number().int().min(1).max(400),
     }).strict()).min(1).max(512).optional(),
+    timeSignatures: z.array(z.object({
+      startMs: z.number().int().safe().min(0),
+      numerator: z.number().int().min(1).max(4_294_967_295),
+      denominator: z.number().int().min(1).max(4_294_967_295),
+    }).strict()).max(512).optional(),
     markers: z.array(z.object({
       id: z.string().trim().min(1).max(128),
       name: z.string().trim().min(1).max(120),

@@ -288,6 +288,7 @@ test('MCP updates active mix levels and track controls with a current mix revisi
     const arranged = await updateProjectMix({
       projectId: 'project-mix', expectedMixRevision: updated.mixRevision,
       tempoMap: [{ startMs: 2400, quarterBpm: 96 }, { startMs: 0, quarterBpm: 120 }],
+      timeSignatures: [{ startMs: 4800, numerator: 3, denominator: 4 }, { startMs: 0, numerator: 4, denominator: 4 }],
       markers: [
         { id: 'chorus-1', name: 'Refrain', kind: 'chorus', startMs: 2400 },
         { id: 'intro', name: 'Intro', kind: 'intro', startMs: 0 },
@@ -295,6 +296,9 @@ test('MCP updates active mix levels and track controls with a current mix revisi
     });
     assert.deepEqual(arranged.mix.tempoMap, [
       { startMs: 0, quarterBpm: 120 }, { startMs: 2400, quarterBpm: 96 },
+    ]);
+    assert.deepEqual(arranged.mix.timeSignatures, [
+      { startMs: 0, numerator: 4, denominator: 4 }, { startMs: 4800, numerator: 3, denominator: 4 },
     ]);
     assert.deepEqual(arranged.mix.markers, [
       { id: 'intro', name: 'Intro', kind: 'intro', startMs: 0 },
@@ -305,6 +309,10 @@ test('MCP updates active mix levels and track controls with a current mix revisi
       projectId: 'project-mix', expectedMixRevision: arranged.mixRevision,
       tempoMap: [{ startMs: 0, quarterBpm: 120 }, { startMs: 0, quarterBpm: 98 }], env,
     }), /même position/);
+    await assert.rejects(updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: arranged.mixRevision,
+      timeSignatures: [{ startMs: 0, numerator: 0, denominator: 4 }], env,
+    }), /changement de métrique/);
     await assert.rejects(updateProjectMix({
       projectId: 'project-mix', expectedMixRevision: arranged.mixRevision,
       markers: [{ id: 'bad', name: 'Invalid', kind: 'drop', startMs: 0 }], env,
