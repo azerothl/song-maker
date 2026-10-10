@@ -41,7 +41,6 @@ function renderCreateWorkspace(
       onGenerate: async () => undefined,
       onOpenInstrumentalSettings: () => undefined,
       onOpenVocalRemovalSettings: () => undefined,
-      scoreDocument: null,
       scoreGate: { abc: null, error: null, issues: [] },
       setAdvancedSettingsPage: (() => undefined) as React.Dispatch<
         React.SetStateAction<AdvancedSettingsPage>

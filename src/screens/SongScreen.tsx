@@ -1170,7 +1170,6 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
             onGenerate={onGenerate}
             onOpenInstrumentalSettings={openLoraSettings}
             onOpenVocalRemovalSettings={openSeparationSettings}
-            scoreDocument={scoreDocument}
             scoreGate={scoreGate}
             setAdvancedSettingsPage={setAdvancedSettingsPage}
             setForm={setForm}
