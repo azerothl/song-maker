@@ -54,10 +54,10 @@ test('MCP exposes the headless tools over stdio', async () => {
     const versions = await client.callTool({ name: 'list_project_versions', arguments: { projectId: 'project-001' } });
     assert.equal(versions.isError, undefined);
     const versionList = JSON.parse(versions.content[0].text);
-    assert.equal(versionList.versions[0].id, 'gen-001');
-    assert.equal(versionList.versions[0].active, true);
-    assert.equal(versionList.versions[0].name, 'Prise retenue');
-    assert.equal(versionList.versions[0].audioPath, 'generations/gen-001/audio.wav');
+    assert.equal(versionList.generations[0].id, 'gen-001');
+    assert.equal(versionList.generations[0].active, true);
+    assert.equal(versionList.generations[0].name, 'Prise retenue');
+    assert.equal(versionList.generations[0].audioPath, 'generations/gen-001/audio.wav');
     const invalid = await client.callTool({ name: 'get_project', arguments: { projectId: '../outside' } });
     assert.equal(invalid.isError, true);
     const created = await client.callTool({ name: 'create_project', arguments: { title: 'MCP created' } });

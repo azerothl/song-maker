@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { lstat, mkdir, readdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -7,6 +7,9 @@ import path from 'node:path';
 const PROJECT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const PROFILE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
 const GENERATION_ID_PATTERN = /^gen-[0-9]+$/;
+const SEPARATION_ID_PATTERN = /^sep-[0-9]+$/;
+const MIX_ID_PATTERN = /^mix-v[0-9]+$/;
+const SCORE_ID_PATTERN = /^score-v[0-9]+$/;
 
 function documentsCandidates(env) {
   if (env.SONG_MAKER_DOCUMENTS_DIR?.trim()) {
@@ -229,6 +232,34 @@ async function readJsonInside(directory, filename, label) {
   return readJson(path.join(directory, filename), label);
 }
 
+async function projectSubdirectory(projectDirectory, name) {
+  const candidate = path.join(projectDirectory, name);
+  let info;
+  try {
+    info = await lstat(candidate);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+  if (info.isSymbolicLink() || !info.isDirectory()) {
+    throw new Error(`Le dossier ${name} du projet est invalide.`);
+  }
+  const canonical = await realpath(candidate);
+  if (!isWithin(projectDirectory, canonical)) {
+    throw new Error(`Le dossier ${name} se trouve hors du projet Song Maker.`);
+  }
+  return canonical;
+}
+
+async function fileModifiedAt(directory, filename) {
+  if (!await regularFileInside(directory, filename)) return null;
+  try {
+    return (await stat(path.join(directory, filename))).mtime.toISOString();
+  } catch {
+    return null;
+  }
+}
+
 function generationEngineId(request) {
   const explicit = request?.model?.engineId;
   if (typeof explicit === 'string' && explicit) return explicit;
@@ -239,7 +270,7 @@ function generationEngineId(request) {
   }
 }
 
-/** Read the take/version summaries that Song Maker stores in a project's generations folder. */
+/** Read generation, separation, mix, and score version summaries for a project. */
 export async function listProjectVersions({ projectId, env = process.env } = {}) {
   if (typeof projectId !== 'string') throw new Error('Identifiant de projet requis.');
   const store = await projectStore(env);
@@ -252,88 +283,183 @@ export async function listProjectVersions({ projectId, env = process.env } = {})
     throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
   }
 
-  const generationsPath = path.join(canonicalFolder, 'generations');
-  let generationsInfo;
-  try {
-    generationsInfo = await lstat(generationsPath);
-  } catch (error) {
-    if (error?.code === 'ENOENT') {
-      return {
-        profileId: store.profileId,
-        projectId,
-        projectUpdatedAt: project.updatedAt ?? null,
-        activeGenerationId: project.activeGenerationId ?? null,
-        versions: [],
-        skippedInvalid: 0,
-      };
+  const canonicalGenerations = await projectSubdirectory(canonicalFolder, 'generations');
+  const generations = [];
+  let skippedInvalid = 0;
+  if (canonicalGenerations) {
+    const entries = await readdir(canonicalGenerations, { withFileTypes: true });
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !GENERATION_ID_PATTERN.test(entry.name)) continue;
+      const versionDirectory = path.join(canonicalGenerations, entry.name);
+      try {
+        const directoryInfo = await lstat(versionDirectory);
+        const canonicalVersion = await realpath(versionDirectory);
+        if (directoryInfo.isSymbolicLink() || !directoryInfo.isDirectory() || !isWithin(canonicalGenerations, canonicalVersion)) {
+          skippedInvalid += 1;
+          continue;
+        }
+        const request = await readJsonInside(canonicalVersion, 'request.json', 'request.json');
+        if (!request || request.id !== entry.name) {
+          skippedInvalid += 1;
+          continue;
+        }
+        const result = await readJsonInside(canonicalVersion, 'result.json', 'result.json');
+        const job = result ? null : await readJsonInside(canonicalVersion, 'job.json', 'job.json');
+        const state = typeof result?.state === 'string'
+          ? result.state
+          : typeof job?.state === 'string' ? job.state : 'interrupted';
+        const audioAvailable = state === 'generated' && await regularFileInside(canonicalVersion, 'audio.wav');
+        const generationName = Object.hasOwn(project.generationNames ?? {}, entry.name)
+          ? project.generationNames[entry.name]
+          : null;
+        generations.push({
+          id: entry.name,
+          name: typeof generationName === 'string' ? generationName : null,
+          createdAt: typeof request.createdAt === 'string' ? request.createdAt : null,
+          seed: Number.isSafeInteger(request.seed) ? request.seed : null,
+          cot: typeof request.cot === 'string' ? request.cot : null,
+          engineId: generationEngineId(request),
+          state,
+          active: project.activeGenerationId === entry.name,
+          parentGenerationId: typeof request.parentGenerationId === 'string' ? request.parentGenerationId : null,
+          hasScore: await regularFileInside(canonicalVersion, 'score.abc'),
+          audioAvailable,
+          audioPath: audioAvailable ? `generations/${entry.name}/audio.wav` : null,
+        });
+      } catch {
+        skippedInvalid += 1;
+      }
     }
-    throw new Error(`Lecture des versions du projet impossible : ${error?.message || error}`);
-  }
-  if (generationsInfo.isSymbolicLink() || !generationsInfo.isDirectory()) {
-    throw new Error('Le dossier des générations du projet est invalide.');
-  }
-  const canonicalGenerations = await realpath(generationsPath);
-  if (!isWithin(canonicalFolder, canonicalGenerations)) {
-    throw new Error('Le dossier des générations se trouve hors du projet Song Maker.');
   }
 
-  let entries;
-  try {
-    entries = await readdir(canonicalGenerations, { withFileTypes: true });
-  } catch (error) {
-    throw new Error(`Liste des versions du projet impossible : ${error?.message || error}`);
-  }
-  entries.sort((a, b) => a.name.localeCompare(b.name));
-  const versions = [];
-  let skippedInvalid = 0;
-  for (const entry of entries) {
-    if (!entry.isDirectory() || !GENERATION_ID_PATTERN.test(entry.name)) continue;
-    const versionDirectory = path.join(canonicalGenerations, entry.name);
-    try {
-      const directoryInfo = await lstat(versionDirectory);
-      const canonicalVersion = await realpath(versionDirectory);
-      if (directoryInfo.isSymbolicLink() || !directoryInfo.isDirectory() || !isWithin(canonicalGenerations, canonicalVersion)) {
+  const mixesDirectory = await projectSubdirectory(canonicalFolder, 'mixes');
+  const allMixes = [];
+  if (mixesDirectory) {
+    const entries = await readdir(mixesDirectory, { withFileTypes: true });
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      const match = /^(mix-v[0-9]+)\.json$/.exec(entry.name);
+      if (!entry.isFile() || !match || !MIX_ID_PATTERN.test(match[1])) continue;
+      try {
+        const mix = await readJsonInside(mixesDirectory, entry.name, entry.name);
+        if (!mix || mix.id !== match[1]) {
+          skippedInvalid += 1;
+          continue;
+        }
+        const createdAt = [mix.updatedAt, mix.createdAt].find(value => typeof value === 'string')
+          ?? await fileModifiedAt(mixesDirectory, entry.name);
+        allMixes.push({
+          id: mix.id,
+          separationId: typeof mix.separationId === 'string' ? mix.separationId : '',
+          createdAt,
+          active: project.activeMixId === mix.id,
+          trackCount: Array.isArray(mix.tracks) ? mix.tracks.length : 0,
+          masterGainDb: Number.isFinite(mix.masterGainDb) ? mix.masterGainDb : null,
+        });
+      } catch {
         skippedInvalid += 1;
-        continue;
       }
-      const request = await readJsonInside(canonicalVersion, 'request.json', 'request.json');
-      if (!request || request.id !== entry.name) {
-        skippedInvalid += 1;
-        continue;
-      }
-      const result = await readJsonInside(canonicalVersion, 'result.json', 'result.json');
-      const job = result ? null : await readJsonInside(canonicalVersion, 'job.json', 'job.json');
-      const state = typeof result?.state === 'string'
-        ? result.state
-        : typeof job?.state === 'string' ? job.state : 'interrupted';
-      const audioAvailable = state === 'generated' && await regularFileInside(canonicalVersion, 'audio.wav');
-      const generationName = Object.hasOwn(project.generationNames ?? {}, entry.name)
-        ? project.generationNames[entry.name]
-        : null;
-      versions.push({
-        id: entry.name,
-        name: typeof generationName === 'string' ? generationName : null,
-        createdAt: typeof request.createdAt === 'string' ? request.createdAt : null,
-        seed: Number.isSafeInteger(request.seed) ? request.seed : null,
-        cot: typeof request.cot === 'string' ? request.cot : null,
-        engineId: generationEngineId(request),
-        state,
-        active: project.activeGenerationId === entry.name,
-        parentGenerationId: typeof request.parentGenerationId === 'string' ? request.parentGenerationId : null,
-        hasScore: await regularFileInside(canonicalVersion, 'score.abc'),
-        audioAvailable,
-        audioPath: audioAvailable ? `generations/${entry.name}/audio.wav` : null,
-      });
-    } catch {
-      skippedInvalid += 1;
     }
   }
+  const mixesBySeparation = new Map();
+  for (const mix of allMixes) {
+    const rows = mixesBySeparation.get(mix.separationId) ?? [];
+    rows.push(mix);
+    mixesBySeparation.set(mix.separationId, rows);
+  }
+  const mixVersions = [];
+  const initialMixBySeparation = new Map();
+  for (const rows of mixesBySeparation.values()) {
+    rows.sort((a, b) => String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? '')) || a.id.localeCompare(b.id));
+    if (rows.length > 0 && rows[0].separationId) initialMixBySeparation.set(rows[0].separationId, rows[0]);
+    mixVersions.push(...rows.slice(1));
+  }
+  mixVersions.sort((a, b) => String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? '')) || a.id.localeCompare(b.id));
+
+  const separations = [];
+  const separationsDirectory = await projectSubdirectory(canonicalFolder, 'separations');
+  if (separationsDirectory) {
+    const entries = await readdir(separationsDirectory, { withFileTypes: true });
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !SEPARATION_ID_PATTERN.test(entry.name)) continue;
+      const versionDirectory = path.join(separationsDirectory, entry.name);
+      try {
+        const directoryInfo = await lstat(versionDirectory);
+        const canonicalVersion = await realpath(versionDirectory);
+        if (directoryInfo.isSymbolicLink() || !directoryInfo.isDirectory() || !isWithin(separationsDirectory, canonicalVersion)) {
+          skippedInvalid += 1;
+          continue;
+        }
+        const manifest = await readJsonInside(canonicalVersion, 'separation.json', 'separation.json');
+        if (!manifest) {
+          skippedInvalid += 1;
+          continue;
+        }
+        const job = await readJsonInside(canonicalVersion, 'job.json', 'job.json');
+        const associatedMix = initialMixBySeparation.get(entry.name);
+        const createdAt = [manifest.updatedAt, manifest.createdAt].find(value => typeof value === 'string')
+          ?? await fileModifiedAt(canonicalVersion, 'separation.json');
+        separations.push({
+          id: entry.name,
+          mixId: associatedMix?.id ?? null,
+          createdAt,
+          active: project.activeSeparationId === entry.name,
+          generationId: typeof job?.generationId === 'string' ? job.generationId : null,
+          family: typeof manifest.family === 'string' ? manifest.family : null,
+          warnings: Array.isArray(manifest.warnings) ? manifest.warnings.filter(value => typeof value === 'string') : [],
+        });
+      } catch {
+        skippedInvalid += 1;
+      }
+    }
+  }
+
+  const scores = [];
+  const scoresDirectory = await projectSubdirectory(canonicalFolder, 'scores');
+  if (scoresDirectory) {
+    const entries = await readdir(scoresDirectory, { withFileTypes: true });
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      const match = /^(score-v[0-9]+)\.json$/.exec(entry.name);
+      if (!entry.isFile() || !match || !SCORE_ID_PATTERN.test(match[1])) continue;
+      try {
+        const score = await readJsonInside(scoresDirectory, entry.name, entry.name);
+        if (!score || score.id !== match[1]) {
+          skippedInvalid += 1;
+          continue;
+        }
+        const voices = Array.isArray(score.voices) ? score.voices : [];
+        const noteCount = voices.reduce((count, voice) => count + (voice && Array.isArray(voice.notes) ? voice.notes.length : 0), 0);
+        scores.push({
+          id: score.id,
+          parentScoreId: typeof score.parentScoreId === 'string' ? score.parentScoreId : null,
+          branchName: typeof score.branchName === 'string' ? score.branchName : null,
+          version: Number.isSafeInteger(score.version) ? score.version : 1,
+          source: typeof score.source === 'string' ? score.source : 'manual',
+          noteCount,
+          createdAt: [score.createdAt, await fileModifiedAt(scoresDirectory, entry.name)].find(value => typeof value === 'string') ?? null,
+          active: project.activeScoreId === score.id,
+        });
+      } catch {
+        skippedInvalid += 1;
+      }
+    }
+  }
+
   return {
     profileId: store.profileId,
     projectId,
     projectUpdatedAt: project.updatedAt ?? null,
     activeGenerationId: project.activeGenerationId ?? null,
-    versions,
+    activeSeparationId: project.activeSeparationId ?? null,
+    activeMixId: project.activeMixId ?? null,
+    activeScoreId: project.activeScoreId ?? null,
+    generations,
+    separations,
+    mixVersions,
+    scores,
     skippedInvalid,
   };
 }

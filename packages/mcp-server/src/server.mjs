@@ -42,7 +42,7 @@ server.registerTool('get_project', {
 }, call(async args => getProject(args)));
 
 server.registerTool('list_project_versions', {
-  description: 'Liste les prises YuE2/ACE-Step déjà enregistrées pour un projet du profil actif, avec leur état, moteur, nom, sélection active et présence du WAV ou de la partition. Les chemins audio retournés sont relatifs au dossier du projet ; aucune donnée audio ni parole n’est lue.',
+  description: 'Liste les générations, séparations, versions de mix et partitions enregistrées pour un projet du profil actif. Retourne leur état et métadonnées, les sélections actives et les chemins WAV relatifs au projet ; ne lit ni paroles ni données audio.',
   inputSchema: { projectId: z.string().min(1).max(128) },
   annotations: { readOnlyHint: true },
 }, call(async args => listProjectVersions(args)));
