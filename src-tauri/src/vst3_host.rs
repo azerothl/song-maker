@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 #[cfg(windows)]
 use std::path::{Path, PathBuf};
 #[cfg(windows)]
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 #[cfg(windows)]
 use std::time::{Duration, Instant};
 
@@ -448,20 +448,7 @@ fn run_worker_in_dir(
     let mut child = command
         .spawn()
         .map_err(|e| format!("Impossible de démarrer l’hôte VST3 isolé : {e}"))?;
-    let started = Instant::now();
-    let status = loop {
-        if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
-            break status;
-        }
-        if started.elapsed() >= WORKER_TIMEOUT {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(
-                "Le plugin VST3 a dépassé le délai de rendu; Song Maker est resté actif.".into(),
-            );
-        }
-        std::thread::sleep(Duration::from_millis(100));
-    };
+    let status = wait_for_worker_child(&mut child, WORKER_TIMEOUT)?;
     let response_bytes = std::fs::read(&response_path).map_err(|_| {
         format!(
             "Le processus VST3 isolé s’est arrêté sans résultat (code {}). Song Maker est resté actif.",
@@ -486,6 +473,68 @@ fn run_worker_in_dir(
         response,
         output_pcm,
     })
+}
+
+#[cfg(windows)]
+fn wait_for_worker_child(child: &mut Child, timeout: Duration) -> Result<ExitStatus, String> {
+    let started = Instant::now();
+    loop {
+        if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
+            return Ok(status);
+        }
+        if started.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(
+                "Le plugin VST3 a dépassé le délai de rendu; Song Maker est resté actif.".into(),
+            );
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+#[cfg(all(test, windows))]
+mod worker_timeout_tests {
+    use super::wait_for_worker_child;
+    use std::os::windows::process::CommandExt;
+    use std::process::{Command, Stdio};
+    use std::time::{Duration, Instant};
+
+    const CHILD_MARKER: &str = "SONG_MAKER_VST3_TIMEOUT_TEST_CHILD";
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    const TEST_NAME: &str =
+        "vst3_host::worker_timeout_tests::wait_for_worker_child_kills_hung_child";
+
+    #[test]
+    fn wait_for_worker_child_kills_hung_child() {
+        if std::env::var_os(CHILD_MARKER).is_some() {
+            loop {
+                std::thread::sleep(Duration::from_secs(30));
+            }
+        }
+
+        let executable = std::env::current_exe().expect("current test executable");
+        let mut command = Command::new(executable);
+        command
+            .args(["--exact", TEST_NAME, "--nocapture"])
+            .env(CHILD_MARKER, "1")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .creation_flags(CREATE_NO_WINDOW);
+
+        let mut child = command.spawn().expect("start hung worker fixture");
+        let started = Instant::now();
+        let error = wait_for_worker_child(&mut child, Duration::from_millis(250))
+            .expect_err("hung child should hit the timeout");
+
+        assert!(error.contains("dépassé le délai de rendu"));
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert!(
+            child.try_wait().expect("check child exit status").is_some(),
+            "timed-out VST3 worker should be reaped"
+        );
+    }
 }
 
 /// Entry point called by `main` before the Tauri window is created.
