@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject, useProjectGeneration, useProjectScore, useProjectSeparation } from './projects.mjs';
+import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
 import { exportProjectAudio } from './project-audio.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
@@ -67,6 +67,16 @@ server.registerTool('use_project_separation', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => useProjectSeparation(args)));
+
+server.registerTool('use_project_mix', {
+  description: 'Sélectionne un mix sauvegardé comme mix actif et synchronise la séparation associée lorsqu’elle est disponible. Relis le projet et passe son updatedAt comme expectedUpdatedAt. Ne modifie aucun réglage et ne rend pas le mix.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    mixId: z.string().regex(/^mix-v[0-9]+$/),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => useProjectMix(args)));
 
 server.registerTool('use_project_score', {
   description: 'Sélectionne une partition sauvegardée comme partition active du projet. Relis le projet et passe son updatedAt comme expectedUpdatedAt. Ne modifie pas le contenu de la partition.',

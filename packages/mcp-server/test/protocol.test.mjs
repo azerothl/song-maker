@@ -78,7 +78,7 @@ test('MCP exposes the headless tools over stdio', async () => {
         'get_project_score', 'gpu_status', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'resume_job',
         'runtime_status', 'start_batch', 'start_song', 'update_project', 'use_project_generation',
-        'use_project_score', 'use_project_separation']);
+        'use_project_mix', 'use_project_score', 'use_project_separation']);
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
     assert.equal(status.isError, undefined);
     assert.equal(typeof JSON.parse(status.content[0].text).ready, 'boolean');
@@ -165,6 +165,10 @@ test('MCP exposes the headless tools over stdio', async () => {
     await writeFile(path.join(mixesFolder, 'mix-v001.json'), JSON.stringify({
       schema: 'songmaker.mix', schemaVersion: 1, id: 'mix-v001', separationId: 'sep-001', tracks: [],
     }));
+    await writeFile(path.join(mixesFolder, 'mix-v002.json'), JSON.stringify({
+      schema: 'songmaker.mix', schemaVersion: 1, id: 'mix-v002', separationId: 'sep-001',
+      tracks: [{ id: 'piano', role: 'user', name: 'Piano retouché', clips: [] }],
+    }));
     await writeFile(path.join(scoresFolder, 'score-v001.json'), JSON.stringify({
       schema: 'songmaker.score', schemaVersion: 1, id: 'score-v001', voices: [],
     }));
@@ -175,8 +179,20 @@ test('MCP exposes the headless tools over stdio', async () => {
     const separatedProject = JSON.parse(selectedSeparation.content[0].text).project;
     assert.equal(separatedProject.activeSeparationId, 'sep-001');
     assert.equal(separatedProject.activeMixId, 'mix-v001');
+    const staleMixSelection = await client.callTool({ name: 'use_project_mix', arguments: {
+      projectId: createdProject.id, mixId: 'mix-v002', expectedUpdatedAt: selectedProject.updatedAt,
+    } });
+    assert.equal(staleMixSelection.isError, true);
+    const selectedMix = await client.callTool({ name: 'use_project_mix', arguments: {
+      projectId: createdProject.id, mixId: 'mix-v002', expectedUpdatedAt: separatedProject.updatedAt,
+    } });
+    assert.equal(selectedMix.isError, undefined);
+    const mixedProject = JSON.parse(selectedMix.content[0].text).project;
+    assert.equal(mixedProject.activeMixId, 'mix-v002');
+    assert.equal(mixedProject.activeSeparationId, 'sep-001');
+    assert.equal(JSON.parse(selectedMix.content[0].text).mix.tracks[0].name, 'Piano retouché');
     const selectedScore = await client.callTool({ name: 'use_project_score', arguments: {
-      projectId: createdProject.id, scoreId: 'score-v001', expectedUpdatedAt: separatedProject.updatedAt,
+      projectId: createdProject.id, scoreId: 'score-v001', expectedUpdatedAt: mixedProject.updatedAt,
     } });
     assert.equal(selectedScore.isError, undefined);
     const scoredProject = JSON.parse(selectedScore.content[0].text).project;

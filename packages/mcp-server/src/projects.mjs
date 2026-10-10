@@ -769,6 +769,62 @@ export async function useProjectSeparation({
   return { profileId: store.profileId, project: updated, mix: selected.mix };
 }
 
+/** Select a saved mix and keep its associated separation selection in sync. */
+export async function useProjectMix({
+  projectId, mixId, expectedUpdatedAt, env = process.env,
+} = {}) {
+  if (typeof projectId !== 'string') throw new Error('Identifiant de projet requis.');
+  if (typeof mixId !== 'string' || !MIX_ID_PATTERN.test(mixId)) {
+    throw new Error('Identifiant de mix invalide.');
+  }
+  if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt.trim()) {
+    throw new Error('expectedUpdatedAt est requis : relis le projet avant de sélectionner un mix.');
+  }
+
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  if (project.schema !== 'songmaker.project' || project.schemaVersion !== 1) {
+    throw new Error('Version de projet non prise en charge ; aucune modification effectuée.');
+  }
+  if (project.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+
+  const selected = await getProjectMix({ projectId, mixId, env });
+  if (selected.profileId !== store.profileId) {
+    throw new Error('Le profil actif a changé pendant la sélection. Relis le projet avant de réessayer.');
+  }
+  const versions = await listProjectVersions({ projectId, env });
+  if (versions.profileId !== store.profileId) {
+    throw new Error('Le profil actif a changé pendant la sélection. Relis le projet avant de réessayer.');
+  }
+  const associatedSeparation = versions.separations.find(item =>
+    item.id === selected.mix.separationId,
+  );
+
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+  const latest = await readProjectAt(store.root, projectId);
+  if (latest.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+  const previous = Date.parse(latest.updatedAt);
+  const now = Date.now();
+  const updated = {
+    ...latest,
+    activeMixId: mixId,
+    activeSeparationId: associatedSeparation?.id ?? null,
+    updatedAt: new Date(Number.isFinite(previous) && now <= previous ? previous + 1 : now).toISOString(),
+  };
+  await writeProjectAtomically(canonicalFolder, updated);
+  return { profileId: store.profileId, project: updated, mix: selected.mix };
+}
+
 /** Select a saved score version as the active project score. */
 export async function useProjectScore({
   projectId, scoreId, expectedUpdatedAt, env = process.env,
