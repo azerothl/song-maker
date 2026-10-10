@@ -1,15 +1,39 @@
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
+function smallPcmWav() {
+  const data = Buffer.alloc(8);
+  data.writeInt16LE(1200, 0);
+  data.writeInt16LE(-900, 2);
+  data.writeInt16LE(700, 4);
+  data.writeInt16LE(-500, 6);
+  const wav = Buffer.alloc(44 + data.length);
+  wav.write('RIFF', 0, 'ascii');
+  wav.writeUInt32LE(wav.length - 8, 4);
+  wav.write('WAVEfmt ', 8, 'ascii');
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(2, 22);
+  wav.writeUInt32LE(48_000, 24);
+  wav.writeUInt32LE(192_000, 28);
+  wav.writeUInt16LE(4, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write('data', 36, 'ascii');
+  wav.writeUInt32LE(data.length, 40);
+  data.copy(wav, 44);
+  return wav;
+}
+
 test('MCP exposes the headless tools over stdio', async () => {
   const server = fileURLToPath(new URL('../src/server.mjs', import.meta.url));
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-profile-'));
+  const exportDirectory = `.test-mcp-export-${process.pid}`;
   const projectFolder = path.join(documentsRoot, 'profiles', 'profile-001', 'projects', 'project-001');
   await mkdir(projectFolder, { recursive: true });
   await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
@@ -26,7 +50,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     id: 'gen-001', createdAt: '2026-10-10T00:30:00Z', seed: 8, cot: 'full', generationEngine: 'yue2',
   }));
   await writeFile(path.join(existingGeneration, 'result.json'), JSON.stringify({ state: 'generated' }));
-  await writeFile(path.join(existingGeneration, 'audio.wav'), 'temporary generated audio');
+  await writeFile(path.join(existingGeneration, 'audio.wav'), smallPcmWav());
   const client = new Client({ name: 'song-maker-test', version: '0.1.0' });
   const transport = new StdioClientTransport({ command: process.execPath, args: [server],
     env: { ...process.env, SONG_MAKER_WORKSPACE_ROOT: process.cwd(),
@@ -36,7 +60,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
       ['add_library_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project',
-        'delete_playlist', 'delete_project', 'get_project', 'gpu_status', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
+        'delete_playlist', 'delete_project', 'export_project_audio', 'get_project', 'gpu_status', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'resume_job',
         'runtime_status', 'start_batch', 'start_song', 'update_project']);
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
@@ -58,6 +82,14 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(versionList.generations[0].active, true);
     assert.equal(versionList.generations[0].name, 'Prise retenue');
     assert.equal(versionList.generations[0].audioPath, 'generations/gen-001/audio.wav');
+    const exportedAudio = await client.callTool({ name: 'export_project_audio', arguments: {
+      projectId: 'project-001', generationId: 'gen-001', outputDirectory: exportDirectory,
+    } });
+    assert.equal(exportedAudio.isError, undefined);
+    const exportResult = JSON.parse(exportedAudio.content[0].text);
+    assert.equal(exportResult.format, 'wav');
+    assert.equal(exportResult.audio.sampleRateHz, 48_000);
+    assert.deepEqual(await readFile(exportResult.path), smallPcmWav());
     const invalid = await client.callTool({ name: 'get_project', arguments: { projectId: '../outside' } });
     assert.equal(invalid.isError, true);
     const created = await client.callTool({ name: 'create_project', arguments: { title: 'MCP created' } });
@@ -81,7 +113,9 @@ test('MCP exposes the headless tools over stdio', async () => {
     const generationFolder = path.join(documentsRoot, 'profiles', 'profile-001', 'projects',
       createdProject.id, 'generations', generationId);
     await mkdir(generationFolder, { recursive: true });
-    await writeFile(path.join(generationFolder, 'audio.wav'), 'temporary generated audio');
+    await writeFile(path.join(generationFolder, 'request.json'), JSON.stringify({ id: generationId }));
+    await writeFile(path.join(generationFolder, 'result.json'), JSON.stringify({ state: 'generated' }));
+    await writeFile(path.join(generationFolder, 'audio.wav'), smallPcmWav());
     const addedTrack = await client.callTool({ name: 'add_library_track', arguments: {
       projectId: createdProject.id, generationId, expectedUpdatedAt: null,
     } });
@@ -112,5 +146,6 @@ test('MCP exposes the headless tools over stdio', async () => {
   } finally {
     await client.close();
     await rm(documentsRoot, { recursive: true, force: true });
+    await rm(path.join(process.cwd(), exportDirectory), { recursive: true, force: true });
   }
 });

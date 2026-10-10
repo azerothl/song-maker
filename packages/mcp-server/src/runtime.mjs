@@ -37,12 +37,14 @@ const promptStopWords = new Set([
   'drops', 'recognizable', 'existing', 'melodies', 'solos', 'conversation', 'sitting',
 ]);
 
-export function insideWorkspace(userPath) {
-  const absolute = path.resolve(workspaceRoot, userPath);
+export function insideWorkspace(userPath, root = workspaceRoot) {
+  const workspace = path.resolve(root);
+  const canonicalWorkspace = realpathSync(workspace);
+  const absolute = path.resolve(workspace, userPath);
   let existing = absolute;
   while (!existsSync(existing)) existing = path.dirname(existing);
   const canonical = path.resolve(realpathSync(existing), path.relative(existing, absolute));
-  const relative = path.relative(realpathSync(workspaceRoot), canonical);
+  const relative = path.relative(canonicalWorkspace, canonical);
   if (relative.startsWith('..' + path.sep) || relative === '..' || path.isAbsolute(relative)) {
     throw new Error('Le chemin doit rester dans SONG_MAKER_WORKSPACE_ROOT.');
   }

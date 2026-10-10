@@ -5,6 +5,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
 import { createProject, deleteProject, getProject, listProjectVersions, listProjects, renameProject, updateProject } from './projects.mjs';
+import { exportProjectAudio } from './project-audio.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
   listUserLibrary, removeLibraryTrack, removeProjectLibraryTracks, removeTrackFromPlaylist,
@@ -46,6 +47,17 @@ server.registerTool('list_project_versions', {
   inputSchema: { projectId: z.string().min(1).max(128) },
   annotations: { readOnlyHint: true },
 }, call(async args => listProjectVersions(args)));
+
+server.registerTool('export_project_audio', {
+  description: 'Copie le WAV d’une génération terminée depuis le projet du profil Song Maker actif vers le workspace MCP. Vérifie le WAV et ne remplace jamais un fichier existant. Ne rend pas le mix et ne convertit pas en FLAC/MP3.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().regex(/^gen-[0-9]+$/),
+    outputDirectory: z.string().min(1),
+    fileName: z.string().min(1).max(180).optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => exportProjectAudio(args)));
 
 server.registerTool('create_project', {
   description: 'Crée un projet vide dans le profil Song Maker actif. Le projet et ses dossiers sont enregistrés au format de l’application et deviennent visibles dans Projets.',

@@ -213,6 +213,58 @@ export async function getProject({ projectId, env = process.env } = {}) {
   };
 }
 
+/** Resolve one published generation WAV from the active Song Maker profile. */
+export async function resolveGeneratedAudio({ projectId, generationId, env = process.env } = {}) {
+  if (typeof projectId !== 'string' || !PROJECT_ID_PATTERN.test(projectId)) {
+    throw new Error('Identifiant de projet invalide.');
+  }
+  if (typeof generationId !== 'string' || !GENERATION_ID_PATTERN.test(generationId)) {
+    throw new Error('Identifiant de prise invalide.');
+  }
+
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  const canonicalRoot = await realpath(store.root);
+  const projectFolder = path.join(store.root, projectId);
+  const projectInfo = await lstat(projectFolder);
+  const canonicalProject = await realpath(projectFolder);
+  if (projectInfo.isSymbolicLink() || !projectInfo.isDirectory() || !isWithin(canonicalRoot, canonicalProject)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+
+  const generations = await projectSubdirectory(canonicalProject, 'generations');
+  if (!generations) throw new Error(`Prise introuvable : ${generationId}`);
+  const generationFolder = path.join(generations, generationId);
+  const generationInfo = await lstat(generationFolder).catch(error => {
+    if (error?.code === 'ENOENT') throw new Error(`Prise introuvable : ${generationId}`);
+    throw error;
+  });
+  const canonicalGeneration = await realpath(generationFolder);
+  if (generationInfo.isSymbolicLink() || !generationInfo.isDirectory() || !isWithin(generations, canonicalGeneration)) {
+    throw new Error('Le dossier de la prise est invalide.');
+  }
+
+  const request = await readJsonInside(canonicalGeneration, 'request.json', 'request.json');
+  const result = await readJsonInside(canonicalGeneration, 'result.json', 'result.json');
+  if (!request || request.id !== generationId || result?.state !== 'generated') {
+    throw new Error('Cette prise n’est pas publiée comme une génération terminée.');
+  }
+  if (!await regularFileInside(canonicalGeneration, 'audio.wav')) {
+    throw new Error('Le WAV de cette prise est introuvable ou invalide.');
+  }
+
+  return {
+    profileId: store.profileId,
+    projectId,
+    projectTitle: project.title,
+    generationId,
+    generationName: typeof project.generationNames?.[generationId] === 'string'
+      ? project.generationNames[generationId]
+      : null,
+    audioPath: await realpath(path.join(canonicalGeneration, 'audio.wav')),
+  };
+}
+
 async function regularFileInside(directory, filename) {
   const candidate = path.join(directory, filename);
   let info;
