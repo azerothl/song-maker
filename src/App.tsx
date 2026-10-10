@@ -624,7 +624,7 @@ export default function App() {
             <div className="banner-error-copy">
               <span>{presentedError.message}</span>
               {presentedError.details && (
-                <details className="banner-error-details">
+                <details className="error-details">
                   <summary>{t("error.technicalDetails")}</summary>
                   <pre>{presentedError.details}</pre>
                 </details>

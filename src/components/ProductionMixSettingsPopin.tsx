@@ -30,6 +30,7 @@ import {
   parseGainDb,
 } from "../screens/song/shared";
 import { t } from "../ui/i18n";
+import { ErrorNotice } from "./ErrorNotice";
 
 export type ProductionMixSettingsPopinProps = {
   open: boolean;
@@ -646,9 +647,7 @@ export function ProductionMixSettingsPopin({
                 </>
               )}
               {vst3Error && (
-                <p className="hint error" role="alert">
-                  {vst3Error}
-                </p>
+                <ErrorNotice message={vst3Error} />
               )}
             </>
           )}
@@ -711,9 +710,7 @@ export function ProductionMixSettingsPopin({
               : t("phase3.mix.runLimiterMeter")}
           </button>
           {measureError && (
-            <p className="hint error" role="alert">
-              {measureError}
-            </p>
+            <ErrorNotice message={measureError} />
           )}
           {loudness && (
             <p

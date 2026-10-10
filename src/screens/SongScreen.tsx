@@ -1100,7 +1100,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
                       : projectJobError?.message ?? t("job.generating")}
                 </span>
                 {projectJobError?.details && (
-                  <details className="song-job-error-details">
+                  <details className="error-details">
                     <summary>{t("error.technicalDetails")}</summary>
                     <pre>{projectJobError.details}</pre>
                   </details>
