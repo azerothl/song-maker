@@ -26,6 +26,7 @@ mod models;
 mod native_capture;
 mod paths;
 mod pins;
+mod process_utils;
 mod profile_switch;
 mod profiles;
 mod project_sync;
