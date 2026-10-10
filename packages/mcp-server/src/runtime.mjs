@@ -86,9 +86,8 @@ export function runtimeStatus({ modelId, engineId, env = process.env } = {}) {
   const modelPath = model ? path.join(modelDir, model.file) : null;
   const modelName = modelPath && existsSync(modelPath) ? path.basename(modelPath) : null;
   const modelFileValid = model && hasExactFile(modelPath, expectedYue2ModelBytes(selectedModelId));
-  const commonModelDirectory = path.join(modelDir);
   const missingComponents = YUE2_COMMON.filter(item => !hasExactFile(
-    path.join(commonModelDirectory, item.file), item.bytes,
+    path.join(modelDir, item.file), item.bytes,
   ));
   const missing = [
     ...(!binary ? ['audiocpp_cli'] : []),

@@ -1,5 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { runtimeStatus } from './runtime.mjs';
 import { readSongMakerRuntimeSettings } from './song-maker-settings.mjs';
 import { YUE2_COMMON, YUE2_MODELS } from './yue2-assets.mjs';
 const SEPARATORS = [
@@ -95,13 +96,23 @@ export async function listLocalResources({ env = process.env } = {}) {
   const aceStepInstalled = await exactFile(cacheDirectory, ACE_STEP.file.replace(/^models\//, ''), ACE_STEP.bytes);
   const aceStepLegoRuntimeStatus = await aceStepLegoRuntime(cacheDirectory, env);
   const selectedEngine = settings.selectedEngine;
+  const yue2Runtime = runtimeStatus({ env });
   const mcpGenerationBlockers = [];
   if (!settings.localYue2Enabled) mcpGenerationBlockers.push('YuE2 est désactivé dans le profil actif.');
   if (!settings.yue2LicenseAccepted && env.SONG_MAKER_YUE2_NONCOMMERCIAL !== '1') {
     mcpGenerationBlockers.push('La licence non commerciale YuE2 n’a pas été acceptée dans le profil actif.');
   }
-  if (!mcpSelectedYuE2Model || !yue2Models.find(model => model.id === mcpSelectedYuE2Model)?.installed) {
+  if (yue2Runtime.missing.includes('audiocpp_cli')) {
+    mcpGenerationBlockers.push('Le moteur audio YuE2 est absent ou incomplet.');
+  }
+  if (yue2Runtime.missing.includes('YuE2 Q4 ou Q8')) {
     mcpGenerationBlockers.push('Le modèle YuE2 sélectionné ou un composant requis est absent.');
+  }
+  if (yue2Runtime.missing.includes('YuE2 VAE')) {
+    mcpGenerationBlockers.push('Le composant VAE YuE2 est absent ou incomplet.');
+  }
+  for (const sidecar of yue2Runtime.missing.filter(item => item.startsWith('sidecar:'))) {
+    mcpGenerationBlockers.push(`Le composant ${sidecar.slice('sidecar:'.length)} est absent ou incomplet.`);
   }
 
   return {
@@ -126,6 +137,7 @@ export async function listLocalResources({ env = process.env } = {}) {
     mcpUsesActiveAppProfile: true,
     mcpGenerationReady: mcpGenerationBlockers.length === 0,
     mcpGenerationBlockers,
+    mcpRuntimeMissing: yue2Runtime.missing,
     mcpModelSource: settings.modelSource,
     engines: [
       {
