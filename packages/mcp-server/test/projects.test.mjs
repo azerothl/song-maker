@@ -285,6 +285,17 @@ test('MCP updates active mix levels and track controls with a current mix revisi
     const stored = JSON.parse(await readFile(mixPath, 'utf8'));
     assert.equal(stored.vst3MasterInsert.pluginPath, 'C:/private/plugin.vst3');
 
+    const midi = await updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: updated.mixRevision,
+      addMidiTracks: [{ name: 'MIDI Keys' }], env,
+    });
+    assert.equal(midi.addedTrackIds.length, 1);
+    assert.equal(midi.mix.tracks.at(-1).id, midi.addedTrackIds[0]);
+    assert.deepEqual(
+      (({ role, name, gainDb, pan, mute, solo, clips }) => ({ role, name, gainDb, pan, mute, solo, clips }))(midi.mix.tracks.at(-1)),
+      { role: 'midi', name: 'MIDI Keys', gainDb: 0, pan: 0, mute: false, solo: false, clips: [] },
+    );
+
     await assert.rejects(updateProjectMix({
       projectId: 'project-mix', expectedMixRevision: initial.mixRevision, tracks: [{ id: 'voice', mute: false }], env,
     }), /Le mix a changé/);
@@ -293,7 +304,7 @@ test('MCP updates active mix levels and track controls with a current mix revisi
       masterGainDb: 0, env,
     }), /Seul le mix actif/);
     await assert.rejects(updateProjectMix({
-      projectId: 'project-mix', expectedMixRevision: updated.mixRevision,
+      projectId: 'project-mix', expectedMixRevision: midi.mixRevision,
       tracks: [{ id: 'missing', solo: true }], env,
     }), /Piste introuvable/);
   } finally {

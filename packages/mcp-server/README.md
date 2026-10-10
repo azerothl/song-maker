@@ -1,6 +1,6 @@
 # Song Maker MCP — YuE2 sans application desktop
 
-La couverture réelle du serveur par rapport aux parcours de l’application est suivie dans la [matrice de parité MCP](../../docs/mcp-capability-matrix.md). Les outils lisent et modifient les projets du profil actif ; la Bibliothèque MCP partage le même fichier `user-library.json` que l’application. La création, le renommage, les champs du formulaire, la suppression confirmée, l’export WAV d’une génération et la lecture des prises, mixes et partitions sont exposés. Le serveur peut aussi régler le gain master et les contrôles de base des pistes du mix actif ; il n’ajoute pas de piste, ne rend pas le mix et n’exécute pas les effets.
+La couverture réelle du serveur par rapport aux parcours de l’application est suivie dans la [matrice de parité MCP](../../docs/mcp-capability-matrix.md). Les outils lisent et modifient les projets du profil actif ; la Bibliothèque MCP partage le même fichier `user-library.json` que l’application. La création, le renommage, les champs du formulaire, la suppression confirmée, l’export WAV d’une génération et la lecture des prises, mixes et partitions sont exposés. Le serveur peut ajouter une piste MIDI vide et régler le gain master ou les contrôles de base des pistes ; il n’importe pas d’audio, ne rend pas le mix et n’exécute pas les effets.
 
 Ce serveur MCP permet à Codex de lancer YuE2 sur le GPU local sans démarrer l'application Tauri Song Maker. Il utilise `audiocpp_server` quand le binaire est présent : le serveur est démarré une fois par lot et garde YuE2 chargé pour les morceaux suivants. Si ce binaire manque ou ne démarre pas, le runner reprend le chemin compatible `audiocpp_cli`. Les poids GGUF et le moteur viennent de la même [version épinglée](../../scripts/phase0/README.md). **Le MCP ne fournit pas de GPU distant gratuit** : le calcul, les poids et le binaire audio.cpp doivent être présents sur la machine où il tourne.
 
@@ -13,6 +13,8 @@ Ce serveur MCP permet à Codex de lancer YuE2 sur le GPU local sans démarrer l'
 `get_project_mix` retourne le mix actif, ou la version `mix-vN` demandée, avec ses pistes, clips, réglages et arrangement, ainsi qu’une révision `mixRevision`. Les chemins locaux de VST, les états propriétaires des plugins et les sources audio absolues ou hors du projet sont masqués. L’outil ne lit pas les fichiers audio.
 
 `update_project_mix` modifie le gain master (−24 à +12 dB) et les réglages des pistes existantes (gain −24 à +12 dB, pan −1 à +1, mute et solo). Passe `mixRevision` comme `expectedMixRevision` ; l’outil refuse une lecture périmée et n’écrit que dans le mix actif. Il préserve les clips, routages et paramètres VST, n’ajoute pas de piste et ne produit pas de rendu.
+
+`add_project_midi_track` crée une voie MIDI vide dans le mix actif. Il faut appeler `get_project_mix` pour obtenir sa révision, puis transmettre `expectedMixRevision` et un nom. La voie devient visible dans Studio après relecture du projet ; l’outil ne crée ni note ni audio.
 
 `get_project_score` retourne la partition active, ou la version `score-vN` demandée, avec ses voix et notes. Il s’agit d’une lecture seule : l’outil n’édite pas, ne génère pas et ne convertit pas une partition.
 

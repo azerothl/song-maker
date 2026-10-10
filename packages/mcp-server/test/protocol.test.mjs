@@ -73,7 +73,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     await client.connect(transport);
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
-      ['add_library_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project',
+      ['add_library_track', 'add_project_midi_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project',
         'delete_playlist', 'delete_project', 'export_project_audio', 'get_project', 'get_project_mix',
         'get_project_score', 'gpu_status', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'resume_job',
@@ -113,6 +113,16 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(changedMixState.mix.tracks[0].gainDb, -3);
     assert.equal(changedMixState.mix.tracks[0].pan, 0.25);
     assert.equal(changedMixState.mix.tracks[0].mute, true);
+    const addedMidi = await client.callTool({ name: 'add_project_midi_track', arguments: {
+      projectId: 'project-001', expectedMixRevision: changedMixState.mixRevision, name: 'Piano MIDI',
+    } });
+    assert.equal(addedMidi.isError, undefined);
+    const addedMidiState = JSON.parse(addedMidi.content[0].text);
+    assert.match(addedMidiState.addedTrackIds[0], /^midi-/);
+    assert.deepEqual(
+      (({ role, name, gainDb, pan, mute, solo, clips }) => ({ role, name, gainDb, pan, mute, solo, clips }))(addedMidiState.mix.tracks.at(-1)),
+      { role: 'midi', name: 'Piano MIDI', gainDb: 0, pan: 0, mute: false, solo: false, clips: [] },
+    );
     const staleMix = await client.callTool({ name: 'update_project_mix', arguments: {
       projectId: 'project-001', expectedMixRevision: mixState.mixRevision, tracks: [{ id: 'piano', solo: true }],
     } });

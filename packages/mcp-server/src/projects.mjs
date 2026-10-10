@@ -631,7 +631,7 @@ export async function getProjectMix({ projectId, mixId, env = process.env } = {}
 
 /** Update the active mix's basic track controls using an optimistic mix revision. */
 export async function updateProjectMix({
-  projectId, mixId, expectedMixRevision, masterGainDb, tracks, env = process.env,
+  projectId, mixId, expectedMixRevision, masterGainDb, tracks, addMidiTracks, env = process.env,
 } = {}) {
   if (typeof projectId !== 'string' || !PROJECT_ID_PATTERN.test(projectId)) {
     throw new Error('Identifiant de projet invalide.');
@@ -639,7 +639,8 @@ export async function updateProjectMix({
   if (typeof expectedMixRevision !== 'string' || !/^[a-f0-9]{64}$/.test(expectedMixRevision)) {
     throw new Error('expectedMixRevision doit venir de get_project_mix.');
   }
-  if (masterGainDb === undefined && (!Array.isArray(tracks) || tracks.length === 0)) {
+  if (masterGainDb === undefined && (!Array.isArray(tracks) || tracks.length === 0) &&
+      (!Array.isArray(addMidiTracks) || addMidiTracks.length === 0)) {
     throw new Error('Indique au moins un réglage de mix à modifier.');
   }
   if (masterGainDb !== undefined && (!Number.isFinite(masterGainDb) || masterGainDb < -24 || masterGainDb > 12)) {
@@ -648,6 +649,15 @@ export async function updateProjectMix({
   if (tracks !== undefined && !Array.isArray(tracks)) {
     throw new Error('Les réglages de pistes doivent être une liste.');
   }
+  if (addMidiTracks !== undefined && !Array.isArray(addMidiTracks)) {
+    throw new Error('Les nouvelles pistes MIDI doivent être une liste.');
+  }
+  const midiTrackNames = (addMidiTracks ?? []).map(item => {
+    const clean = typeof item?.name === 'string' ? item.name.trim() : '';
+    if (!clean || clean.length > 120) throw new Error('Le nom de piste MIDI doit contenir de 1 à 120 caractères.');
+    return clean;
+  });
+  if (midiTrackNames.length > 32) throw new Error('Tu peux ajouter au maximum 32 pistes MIDI à la fois.');
 
   const seenTrackIds = new Set();
   for (const update of tracks ?? []) {
@@ -692,6 +702,7 @@ export async function updateProjectMix({
   const mixFileName = `${selectedMixId}.json`;
   const mixPath = path.join(mixesDirectory, mixFileName);
 
+  const addedTrackIds = [];
   await withMixLock(mixPath, async () => {
     const latestProject = await readProjectAt(store.root, projectId);
     if (latestProject.activeMixId !== selectedMixId) {
@@ -723,10 +734,19 @@ export async function updateProjectMix({
         if (update[key] !== undefined) track[key] = update[key];
       }
     }
+    for (const name of midiTrackNames) {
+      const id = `midi-${randomUUID()}`;
+      next.tracks.push({
+        id, role: 'midi', name, gainDb: 0, pan: 0, mute: false, solo: false,
+        locked: false, aiSeparated: false, clips: [], experimentalVst3Insert: null,
+      });
+      addedTrackIds.push(id);
+    }
     await writeJsonAtomically(mixPath, next, `.mix-${randomUUID()}.tmp`);
   });
 
-  return getProjectMix({ projectId, mixId: selectedMixId, env });
+  const updated = await getProjectMix({ projectId, mixId: selectedMixId, env });
+  return addedTrackIds.length > 0 ? { ...updated, addedTrackIds } : updated;
 }
 
 async function withMixLock(mixPath, callback) {
