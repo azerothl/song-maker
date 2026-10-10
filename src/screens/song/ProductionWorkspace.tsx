@@ -439,16 +439,18 @@ export function ProductionWorkspace({
         >
           <ClipEditToolbar editTool={editTool} onEditToolChange={setEditTool} />
           <div className="production-main-toolbar-actions">
-            <button
-              type="button"
-              className="btn production-separate-trigger"
-              data-testid="production-separate-trigger"
-              disabled={separateDisabled}
-              aria-describedby={separateDisabledReason ? "production-separate-reason" : undefined}
-              onClick={(event) => openSeparateFrom(event.currentTarget)}
-            >
-              {hasAiStems ? t("separate.again") : t("separate.button")}
-            </button>
+            {!studioMode && (
+              <button
+                type="button"
+                className="btn production-separate-trigger"
+                data-testid="production-separate-trigger"
+                disabled={separateDisabled}
+                aria-describedby={separateDisabledReason ? "production-separate-reason" : undefined}
+                onClick={(event) => openSeparateFrom(event.currentTarget)}
+              >
+                {hasAiStems ? t("separate.again") : t("separate.button")}
+              </button>
+            )}
             <ProductionAddTrackMenu
               busy={busy}
               importingAudio={importingAudio}
@@ -485,7 +487,11 @@ export function ProductionWorkspace({
             {mixSettingsTrigger}
           </div>
         </div>
-        {separateDisabledReason && <p id="production-separate-reason" className="hint">{separateDisabledReason}</p>}
+        {!studioMode && separateDisabledReason && (
+          <p id="production-separate-reason" className="hint">
+            {separateDisabledReason}
+          </p>
+        )}
         <RecordTrackPanel
           projectId={project.id}
           open={recordOpen}
@@ -704,6 +710,9 @@ export function ProductionWorkspace({
                     onSeek={playback?.seek}
                   />
                 </div>
+                {studioMode && (
+                  <span className="studio-master-label">{t("mix.master")}</span>
+                )}
                 <div className="mix-master-level">
                   <MixSlider
                     className="mix-master-fader"
@@ -795,17 +804,26 @@ export function ProductionWorkspace({
             </div>
 
             <div className="production-mix-scroll" ref={mixScrollRef}>
-              {!tightMixLayout && (
+              {(studioMode || !tightMixLayout) && (
                 <div
                   className="production-mix-colheaders production-mix-grid"
                   aria-hidden="true"
                 >
-                  <span>{t("mix.columns.track")}</span>
-                  <span>{t("mix.columns.gain")}</span>
-                  <span>{t("mix.columns.pan")}</span>
-                  <span>{t("mix.columns.ms")}</span>
-                  <span>{t("mix.columns.tools")}</span>
-                  <span>{t("mix.columns.waveform")}</span>
+                  {studioMode ? (
+                    <>
+                      <span>{t("mix.columns.track")}</span>
+                      <span>{t("production.common.clips")}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{t("mix.columns.track")}</span>
+                      <span>{t("mix.columns.gain")}</span>
+                      <span>{t("mix.columns.pan")}</span>
+                      <span>{t("mix.columns.ms")}</span>
+                      <span>{t("mix.columns.tools")}</span>
+                      <span>{t("mix.columns.waveform")}</span>
+                    </>
+                  )}
                 </div>
               )}
 

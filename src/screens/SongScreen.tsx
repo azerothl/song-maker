@@ -489,8 +489,10 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
 
   useEffect(() => {
     if (!midiEditorVoiceId) return;
+    const dockedInStudio =
+      screen === "studio" && workspace === "production";
     const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (!dockedInStudio) document.body.style.overflow = "hidden";
     requestAnimationFrame(() => midiEditorCloseRef.current?.focus());
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -498,7 +500,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
         setMidiEditorVoiceId(null);
         return;
       }
-      if (event.key !== "Tab") return;
+      if (dockedInStudio || event.key !== "Tab") return;
       const dialog = document.querySelector<HTMLElement>(".studio-midi-editor");
       if (!dialog) return;
       const focusable = Array.from(
@@ -519,12 +521,12 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     };
     document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      if (!dockedInStudio) document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKeyDown);
       midiEditorReturnFocusRef.current?.focus();
       midiEditorReturnFocusRef.current = null;
     };
-  }, [midiEditorVoiceId]);
+  }, [midiEditorVoiceId, screen, workspace]);
 
   function selectWorkspace(next: SongWorkspace) {
     setWorkspace(next);
@@ -1279,7 +1281,53 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
         )}
       </div>
 
-      {midiEditorVoiceId && scoreDocument && (
+      {midiEditorVoiceId &&
+        scoreDocument &&
+        screen === "studio" &&
+        workspace === "production" && (
+        <section className="studio-midi-dock" aria-labelledby="studio-midi-dock-title">
+          <header className="studio-midi-dock-header">
+            <div className="studio-midi-dock-track">
+              <span className="studio-midi-editor-eyebrow">
+                {t("production.addTrack.midi")}
+              </span>
+              <h2 id="studio-midi-dock-title">
+                {midiEditorTrackName ?? t("production.midi.editorTitle")}
+              </h2>
+              <span className="studio-midi-editor-state" role="status">
+                {displayedMix?.tracks.some((track) => track.id === midiEditorVoiceId)
+                  ? t("production.midi.inArrangement")
+                  : t("production.midi.addingToArrangement")}
+              </span>
+            </div>
+            <button
+              ref={midiEditorCloseRef}
+              type="button"
+              className="btn ghost studio-midi-dock-close"
+              onClick={() => setMidiEditorVoiceId(null)}
+              aria-label={t("production.midi.close")}
+              title={t("production.midi.close")}
+            >
+              ×
+            </button>
+          </header>
+          <div className="studio-midi-dock-body">
+            <StudioMidiTrackEditor
+              projectId={project.id}
+              document={scoreDocument}
+              voiceId={midiEditorVoiceId}
+              onDocumentChange={setScoreDocument}
+              onProjectRefresh={() => openProject(project.id, { preserveForm: true })}
+              onError={setError}
+              instrumentInspectorPosition="side"
+            />
+          </div>
+        </section>
+      )}
+
+      {midiEditorVoiceId &&
+        scoreDocument &&
+        !(screen === "studio" && workspace === "production") && (
         <div
           className="studio-midi-editor-backdrop"
           role="presentation"

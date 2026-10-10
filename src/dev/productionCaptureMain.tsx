@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ProductionWorkspace } from "../screens/song/ProductionWorkspace";
 import type { PlaybackView } from "../components/AudioPlayer";
+import { Waveform } from "../components/Waveform";
 import { t } from "../ui/i18n";
 import { workspaceLabel, WORKSPACES } from "../screens/song/shared";
 import {
@@ -49,22 +50,33 @@ function useCaptureHashPrefs() {
   return prefs;
 }
 
-function CaptureSidebar() {
+function CaptureSidebar({ studioMode }: { studioMode: boolean }) {
   return (
     <aside className="sidebar" aria-label={t("nav.sidebar")}>
       <div className="sidebar-top">
         <div className="brand">{t("app.name")}</div>
       </div>
       <nav aria-label={t("nav.main")}>
-        <button type="button" className="active" aria-current="page">
-          <span className="sidebar-label">{t("nav.library")}</span>
-        </button>
-        <button type="button">
-          <span className="sidebar-label">{t("nav.new")}</span>
-        </button>
-        <button type="button">
-          <span className="sidebar-label">{t("nav.settings")}</span>
-        </button>
+        {studioMode ? (
+          <>
+            <button type="button"><span className="sidebar-label">{t("nav.library")}</span></button>
+            <button type="button"><span className="sidebar-label">{t("nav.projects")}</span></button>
+            <button type="button" className="active" aria-current="page"><span className="sidebar-label">{t("nav.studio")}</span></button>
+            <button type="button"><span className="sidebar-label">{t("nav.create")}</span></button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="active" aria-current="page">
+              <span className="sidebar-label">{t("nav.library")}</span>
+            </button>
+            <button type="button">
+              <span className="sidebar-label">{t("nav.new")}</span>
+            </button>
+            <button type="button">
+              <span className="sidebar-label">{t("nav.settings")}</span>
+            </button>
+          </>
+        )}
       </nav>
     </aside>
   );
@@ -73,6 +85,7 @@ function CaptureSidebar() {
 function ProductionCaptureApp() {
   const [captureBusy, setCaptureBusy] = useState(false);
   const capturePrefs = useCaptureHashPrefs();
+  const studioMode = globalThis.location.hash.includes("studio");
   const noMix = globalThis.location.hash.includes("no-mix");
   useEffect(() => {
     if (!import.meta.env.VITE_CAPTURE) return;
@@ -167,15 +180,16 @@ function ProductionCaptureApp() {
       className={[
         "app-shell",
         "production-capture-root",
+        studioMode ? "studio-capture-root" : "",
         capturePrefs.mixToolbar44Variant ? "production-capture-mix-toolbar-44" : "",
       ]
         .filter(Boolean)
         .join(" ")}
       data-capture-tracks={capturePrefs.trackCount}
     >
-      <CaptureSidebar />
+      <CaptureSidebar studioMode={studioMode} />
       <main className="main">
-        <div className="song-layout song-layout-production song-layout-production-fill">
+        <div className={`song-layout song-layout-production song-layout-production-fill${studioMode ? " song-layout-studio song-layout-has-dock" : ""}`}>
           <header className="song-workspace-chrome">
             <div className="song-workspace-chrome-top">
               <div className="song-workspace-project">
@@ -206,6 +220,7 @@ function ProductionCaptureApp() {
           </header>
           <div className="song-workspace-body">
             <ProductionWorkspace
+              studioMode={studioMode}
               busy={captureBusy}
               form={{
                 title: project.title,
@@ -246,6 +261,25 @@ function ProductionCaptureApp() {
           </div>
         </div>
       </main>
+      {studioMode && (
+        <div className="persistent-player-dock" aria-label={t("player.globalDock")}>
+          <div className="player-block">
+            <Waveform
+              peaks={syntheticPeaks(71, 180)}
+              progress={82}
+              duration={playbackDuration}
+              height={42}
+              status="ready"
+              ariaLabel={project.title}
+            />
+            <div className="player">
+              <button type="button" className="btn" aria-label={t("player.play")}>▶</button>
+              <span className="player-time">1:22 / 7:24</span>
+              <strong className="path">{project.title}</strong>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
