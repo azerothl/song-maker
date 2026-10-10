@@ -31,6 +31,7 @@ pub mod settings;
 pub mod shared;
 pub mod sheetsage_cmds;
 pub mod sync;
+pub mod user_library;
 pub mod versions;
 
 pub struct AppState {

@@ -4,6 +4,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
+import { addProjectMidiTrack, createProject, createProjectMidiTrack, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, importProjectAudioTrack, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
+import { exportProjectAudio } from './project-audio.mjs';
+import { listLocalResources } from './resources.mjs';
+import {
+  addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
+  listUserLibrary, removeLibraryTrack, removeProjectLibraryTracks, removeTrackFromPlaylist,
+} from './library.mjs';
 
 const server = new McpServer({ name: 'song-maker-yue2', version: '0.1.0' });
 const reply = value => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
@@ -23,6 +30,339 @@ server.registerTool('gpu_status', {
   inputSchema: {},
   annotations: { readOnlyHint: true },
 }, call(async () => gpuStatus()));
+
+server.registerTool('list_local_resources', {
+  description: 'Lit les réglages du profil Song Maker actif et vérifie les modèles, séparateurs et runtimes locaux connus. Masque les chemins absolus ; ne télécharge, n’installe, n’active et ne sélectionne aucune ressource.',
+  inputSchema: {},
+  annotations: { readOnlyHint: true },
+}, call(async () => listLocalResources()));
+
+server.registerTool('list_projects', {
+  description: 'Liste les projets du profil Song Maker actif. Lecture seule ; retourne les métadonnées du projet sans ses paroles.',
+  inputSchema: { query: z.string().max(200).optional() },
+  annotations: { readOnlyHint: true },
+}, call(async args => listProjects(args)));
+
+server.registerTool('get_project', {
+  description: 'Lit une fiche du profil Song Maker actif, notamment son style et ses paroles. Ne modifie pas le projet.',
+  inputSchema: { projectId: z.string().min(1).max(128) },
+  annotations: { readOnlyHint: true },
+}, call(async args => getProject(args)));
+
+server.registerTool('list_project_versions', {
+  description: 'Liste les générations, séparations, versions de mix et partitions enregistrées pour un projet du profil actif. Retourne leur état et métadonnées, les sélections actives et les chemins WAV relatifs au projet ; ne lit ni paroles ni données audio.',
+  inputSchema: { projectId: z.string().min(1).max(128) },
+  annotations: { readOnlyHint: true },
+}, call(async args => listProjectVersions(args)));
+
+server.registerTool('use_project_generation', {
+  description: 'Sélectionne une génération WAV terminée comme prise active du projet, selon le comportement de Versions dans Song Maker. Relis le projet et passe son updatedAt comme expectedUpdatedAt ; la sélection efface la séparation et le mix actifs. Aucun audio n’est généré.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().regex(/^gen-[0-9]+$/),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => useProjectGeneration(args)));
+
+server.registerTool('rename_project_generation', {
+  description: 'Renomme une prise du projet ou retire son nom personnalisé si name est vide. Relis le projet et passe son updatedAt comme expectedUpdatedAt ; aucun fichier audio n’est modifié.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().regex(/^gen-[0-9]+$/),
+    name: z.string().max(500),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => renameProjectGeneration(args)));
+
+server.registerTool('use_project_separation', {
+  description: 'Active une séparation sauvegardée et son mix associé, selon le comportement des versions dans Song Maker. Relis le projet et passe son updatedAt comme expectedUpdatedAt. Ne relance pas la séparation et ne supprime aucun artefact.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    separationId: z.string().regex(/^sep-[0-9]+$/),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => useProjectSeparation(args)));
+
+server.registerTool('use_project_mix', {
+  description: 'Sélectionne un mix sauvegardé comme mix actif et synchronise la séparation associée lorsqu’elle est disponible. Relis le projet et passe son updatedAt comme expectedUpdatedAt. Ne modifie aucun réglage et ne rend pas le mix.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    mixId: z.string().regex(/^mix-v[0-9]+$/),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => useProjectMix(args)));
+
+server.registerTool('use_project_score', {
+  description: 'Sélectionne une partition sauvegardée comme partition active du projet. Relis le projet et passe son updatedAt comme expectedUpdatedAt. Ne modifie pas le contenu de la partition.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    scoreId: z.string().regex(/^score-v[0-9]+$/),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => useProjectScore(args)));
+
+server.registerTool('get_project_mix', {
+  description: 'Lit le mix actif ou une version de mix sauvegardée du profil actif, avec pistes, clips et réglages. Retourne mixRevision pour sécuriser une modification. Les chemins locaux de fichiers VST et les états propriétaires des plugins sont masqués ; les chemins de sources audio hors du projet sont masqués. Ne modifie ni ne rend le mix.',
+  inputSchema: { projectId: z.string().min(1).max(128), mixId: z.string().regex(/^mix-v[0-9]+$/).optional() },
+  annotations: { readOnlyHint: true },
+}, call(async args => getProjectMix(args)));
+
+server.registerTool('update_project_mix', {
+  description: 'Modifie les niveaux master et de piste, le panoramique, mute, solo, les cartes de tempo et de métrique et les repères de sections du mix actif. Passe mixRevision obtenu par get_project_mix ; l’outil refuse les changements périmés et ne déplace pas les clips ni ne rend l’audio.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    mixId: z.string().regex(/^mix-v[0-9]+$/).optional(),
+    expectedMixRevision: z.string().regex(/^[a-f0-9]{64}$/),
+    masterGainDb: z.number().finite().min(-24).max(12).optional(),
+    tracks: z.array(z.object({
+      id: z.string().min(1).max(128),
+      gainDb: z.number().finite().min(-24).max(12).optional(),
+      pan: z.number().finite().min(-1).max(1).optional(),
+      mute: z.boolean().optional(),
+      solo: z.boolean().optional(),
+    }).strict().refine(track => track.gainDb !== undefined || track.pan !== undefined ||
+      track.mute !== undefined || track.solo !== undefined, {
+      message: 'Chaque piste doit contenir au moins un réglage.',
+    })).max(256).optional(),
+    tempoMap: z.array(z.object({
+      startMs: z.number().int().safe().min(0),
+      quarterBpm: z.number().int().min(1).max(400),
+    }).strict()).min(1).max(512).optional(),
+    timeSignatures: z.array(z.object({
+      startMs: z.number().int().safe().min(0),
+      numerator: z.number().int().min(1).max(4_294_967_295),
+      denominator: z.number().int().min(1).max(4_294_967_295),
+    }).strict()).max(512).optional(),
+    markers: z.array(z.object({
+      id: z.string().trim().min(1).max(128),
+      name: z.string().trim().min(1).max(120),
+      kind: z.enum(['intro', 'verse', 'prechorus', 'chorus', 'bridge', 'interlude', 'outro', 'other']),
+      startMs: z.number().int().safe().min(0),
+    }).strict()).max(512).optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => updateProjectMix(args)));
+
+server.registerTool('add_project_midi_track', {
+  description: 'Ajoute au mix actif une voie MIDI reliée à une voix existante de la partition active. Appelle get_project_score et get_project_mix ; passe voiceId, scoreRevision et mixRevision. Refuse les révisions périmées et ne crée aucune note.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    voiceId: z.string().trim().min(1).max(128),
+    expectedScoreRevision: z.string().regex(/^[a-f0-9]{64}$/),
+    expectedMixRevision: z.string().regex(/^[a-f0-9]{64}$/),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => addProjectMidiTrack(args)));
+
+server.registerTool('create_project_midi_track', {
+  description: 'Crée une voix MIDI vide et sa piste liée au mix. Appelle get_project_score et get_project_mix pour fournir les révisions des documents déjà actifs ; dans un projet vierge, omets les révisions manquantes et le serveur initialise partition et mix comme le Studio. Une idempotencyKey stable permet de réessayer sans doublon.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    name: z.string().trim().min(1).max(120).optional(),
+    idempotencyKey: z.string().regex(/^[A-Za-z0-9_-]{1,96}$/),
+    expectedScoreRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+    expectedMixRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+}, call(async args => createProjectMidiTrack(args)));
+
+server.registerTool('get_project_score', {
+  description: 'Lit la partition active ou une version sauvegardée d’un projet du profil actif, avec ses voix et notes et scoreRevision pour sécuriser une édition. Les chemins locaux et états propriétaires VST sont masqués.',
+  inputSchema: { projectId: z.string().min(1).max(128), scoreId: z.string().regex(/^score-v[0-9]+$/).optional() },
+  annotations: { readOnlyHint: true },
+}, call(async args => getProjectScore(args)));
+
+const midiNoteSchema = z.object({
+  id: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+  startTick: z.number().int().min(0).max(10_000_000),
+  durationTick: z.number().int().min(1).max(10_000_000),
+  pitch: z.number().int().min(0).max(127),
+  velocity: z.number().int().min(1).max(127),
+  tieStart: z.boolean().optional(),
+  tieEnd: z.boolean().optional(),
+}).strict();
+const scoreEditSchema = z.discriminatedUnion('operation', [
+  z.object({ operation: z.literal('add'), voiceId: z.string().min(1).max(128), note: midiNoteSchema }).strict(),
+  z.object({ operation: z.literal('update'), voiceId: z.string().min(1).max(128), noteId: z.string().min(1).max(128),
+    changes: z.object({ startTick: z.number().int().min(0).max(10_000_000).optional(),
+      durationTick: z.number().int().min(1).max(10_000_000).optional(), pitch: z.number().int().min(0).max(127).optional(),
+      velocity: z.number().int().min(1).max(127).optional() }).strict()
+      .refine(changes => Object.keys(changes).length > 0, { message: 'Indique au moins un champ MIDI.' }) }).strict(),
+  z.object({ operation: z.literal('delete'), voiceId: z.string().min(1).max(128), noteId: z.string().min(1).max(128) }).strict(),
+]);
+
+server.registerTool('edit_project_score', {
+  description: 'Ajoute, modifie ou supprime des notes MIDI de la partition active. Passe scoreRevision de get_project_score. Chaque édition crée une nouvelle version de partition et conserve les versions précédentes. Les opérations sont limitées aux notes.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    expectedScoreRevision: z.string().regex(/^[a-f0-9]{64}$/),
+    edits: z.array(scoreEditSchema).min(1).max(512),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => editProjectScore(args)));
+
+server.registerTool('export_project_audio', {
+  description: 'Exporte le WAV d’une génération terminée depuis le projet du profil Song Maker actif vers le workspace MCP. WAV conserve la source par défaut ; WAV et FLAC acceptent une profondeur de 16 ou 24 bits, MP3 un débit de 128, 192 ou 320 kbit/s. Les conversions nécessitent FFmpeg. Vérifie le résultat et ne remplace jamais un fichier existant. N’exporte pas le mix actif.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().regex(/^gen-[0-9]+$/),
+    outputDirectory: z.string().min(1),
+    format: z.enum(['wav', 'flac', 'mp3']).optional(),
+    fileName: z.string().min(1).max(180).optional(),
+    bitDepth: z.union([z.literal(16), z.literal(24)]).optional(),
+    bitrateKbps: z.union([z.literal(128), z.literal(192), z.literal(320)]).optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => exportProjectAudio(args)));
+
+server.registerTool('import_project_audio_track', {
+  description: 'Importe un WAV, MP3 ou FLAC depuis SONG_MAKER_WORKSPACE_ROOT dans une nouvelle piste audio du mix actif. Appelle get_project puis, si un mix est actif, get_project_mix pour fournir les révisions. Conserve l’original, normalise une copie en WAV float32 stéréo 48 kHz avec FFmpeg/libsoxr et retourne les chemins, la durée, le hash, la piste et la nouvelle mixRevision. Ne rend pas le mix.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    sourcePath: z.string().min(1).max(4096),
+    name: z.string().trim().min(1).max(120).optional(),
+    startMs: z.number().int().safe().min(0).max(86_400_000).optional(),
+    muteExisting: z.boolean().optional(),
+    expectedUpdatedAt: z.string().min(1).max(80),
+    expectedMixRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => importProjectAudioTrack(args)));
+
+server.registerTool('create_project', {
+  description: 'Crée un projet vide dans le profil Song Maker actif. Le projet et ses dossiers sont enregistrés au format de l’application et deviennent visibles dans Projets.',
+  inputSchema: { title: z.string().min(1).max(120) },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => createProject(args)));
+
+server.registerTool('rename_project', {
+  description: 'Renomme un projet du profil actif. Utilise updatedAt renvoyé par get_project comme expectedUpdatedAt ; l’outil refuse une écriture fondée sur une fiche périmée.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    title: z.string().min(1).max(120),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => renameProject(args)));
+
+server.registerTool('update_project', {
+  description: 'Met à jour les champs fournis du formulaire d’un projet Song Maker. Relis d’abord le projet et passe son updatedAt comme expectedUpdatedAt. Les règles de validation du formulaire sont appliquées avant sauvegarde.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().min(1).max(80),
+    title: z.string().min(1).max(120).optional(),
+    style: z.string().optional(),
+    lyrics: z.string().max(4000).optional(),
+    cot: z.enum(['full', 'melody', 'off']).optional(),
+    singingLanguage: z.string().max(4000).nullable().optional(),
+    tempoBpm: z.number().int().min(40).max(220).nullable().optional(),
+    key: z.object({
+      tonic: z.enum(['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']),
+      mode: z.enum(['major', 'minor']),
+    }).nullable().optional(),
+    meter: z.object({
+      numerator: z.number().int(), denominator: z.number().int(),
+    }).nullable().optional(),
+    targetDurationSec: z.number().int().min(30).max(360).refine(value => value % 30 === 0).optional(),
+    preferFullLyrics: z.boolean().optional(),
+    instrumentalMode: z.boolean().optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => updateProject(args)));
+
+server.registerTool('delete_project', {
+  description: 'Supprime définitivement un projet du profil actif et retire ses titres de la Bibliothèque. Relis le projet, passe son updatedAt comme expectedUpdatedAt et confirme avec confirm=true.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().min(1).max(80),
+    confirm: z.literal(true),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+}, call(async args => {
+  const deleted = await deleteProject(args);
+  try {
+    const library = await removeProjectLibraryTracks({ projectId: args.projectId });
+    return { ...deleted, removedLibraryTracks: library.removedCount, libraryUpdatedAt: library.updatedAt };
+  } catch (error) {
+    return {
+      ...deleted,
+      libraryCleanupWarning: `Projet supprimé, mais nettoyage de la Bibliothèque impossible : ${error?.message || error}`,
+    };
+  }
+}));
+
+server.registerTool('list_library', {
+  description: 'Liste les titres explicitement conservés dans la Bibliothèque et ses playlists pour le profil actif. Aucun projet non sélectionné n’est ajouté.',
+  inputSchema: {},
+  annotations: { readOnlyHint: true },
+}, call(async args => listUserLibrary(args)));
+
+server.registerTool('create_playlist', {
+  description: 'Crée une playlist dans la Bibliothèque du profil actif. Passe updatedAt obtenu par list_library comme expectedUpdatedAt ; utilise null si la Bibliothèque n’a pas encore été créée.',
+  inputSchema: {
+    title: z.string().min(1).max(120),
+    expectedUpdatedAt: z.string().max(80).nullable(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => createUserPlaylist(args)));
+
+server.registerTool('delete_playlist', {
+  description: 'Supprime une playlist et retire son identifiant des titres associés. Les titres restent dans la Bibliothèque. Requiert confirm=true et la révision issue de list_library.',
+  inputSchema: {
+    playlistId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().min(1).max(80),
+    confirm: z.literal(true),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+}, call(async args => deleteUserPlaylist(args)));
+
+server.registerTool('add_library_track', {
+  description: 'Ajoute à la Bibliothèque une prise générée qui possède un WAV dans le projet du profil actif. La validation du fichier audio précède l’inscription.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().max(80).nullable(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => addLibraryTrack(args)));
+
+server.registerTool('remove_library_track', {
+  description: 'Retire un titre de la Bibliothèque sans supprimer le projet ni le fichier audio. Requiert confirm=true et la révision issue de list_library.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().min(1).max(80),
+    confirm: z.literal(true),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+}, call(async args => removeLibraryTrack(args)));
+
+server.registerTool('add_track_to_playlist', {
+  description: 'Ajoute un titre déjà conservé dans la Bibliothèque à une playlist.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().min(1).max(128),
+    playlistId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => addTrackToPlaylist(args)));
+
+server.registerTool('remove_track_from_playlist', {
+  description: 'Retire un titre d’une playlist sans le retirer de la Bibliothèque.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().min(1).max(128),
+    playlistId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => removeTrackFromPlaylist(args)));
 
 server.registerTool('start_song', {
   description: 'Lance une génération YuE2 locale en arrière-plan et retourne un job ID. La sortie WAV reste dans le workspace autorisé. Ne publie rien.',

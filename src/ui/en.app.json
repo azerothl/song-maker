@@ -50,6 +50,7 @@
   "library.allTracks": "All songs",
   "library.playlistCreate": "Create playlist",
   "library.playlistNamePrompt": "Playlist name",
+  "library.playlistNameInvalid": "Playlist names must contain 1 to 120 characters.",
   "library.playlistDelete": "Delete playlist {title}",
   "library.playlistDeleteConfirm": "Delete “{title}”? Its songs will stay in your Library.",
   "library.addToPlaylist": "Add to a playlist",

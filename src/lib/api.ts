@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { PortablePackagePlan } from "./projectPackage";
 import type { ProfilesState, ProfileSummary } from "./profilesTypes";
+import type { UserLibrary } from "./userLibrary";
 import type {
   NativeCaptureBackend,
   NativeCapturePoll,
@@ -203,6 +204,9 @@ export const api = {
     invoke<ProjectDoc>("duplicate_project", { id }),
   deleteProject: (id: string) => invoke<void>("delete_project", { id }),
   revealProject: (id: string) => invoke<string>("reveal_project", { id }),
+  getUserLibrary: () => invoke<UserLibrary | null>("get_user_library"),
+  saveUserLibrary: (library: UserLibrary, expectedUpdatedAt: string | null) =>
+    invoke<UserLibrary>("save_user_library", { library, expectedUpdatedAt }),
   getJobStatus: () => invoke<JobStatus>("get_job_status"),
   cancelJob: () => invoke<boolean>("cancel_job"),
   startGeneration: (

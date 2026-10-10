@@ -105,6 +105,7 @@
   "library.allTracks": "Tous les titres",
   "library.playlistCreate": "Créer une playlist",
   "library.playlistNamePrompt": "Nom de la playlist",
+  "library.playlistNameInvalid": "Le nom de la playlist doit contenir de 1 à 120 caractères.",
   "library.playlistDelete": "Supprimer la playlist {title}",
   "library.playlistDeleteConfirm": "Supprimer la playlist « {title} » ? Les titres restent dans la Bibliothèque.",
   "library.addToPlaylist": "Ajouter à une playlist",

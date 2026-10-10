@@ -16,6 +16,7 @@ export type UserLibrary = {
   version: 1;
   tracks: SavedLibraryTrack[];
   playlists: UserPlaylist[];
+  updatedAt?: string;
 };
 
 const emptyLibrary = (): UserLibrary => ({ version: 1, tracks: [], playlists: [] });
@@ -34,6 +35,7 @@ export function readUserLibrary(profileId: string | null): UserLibrary {
       version: 1,
       tracks: Array.isArray(parsed.tracks) ? parsed.tracks : [],
       playlists: Array.isArray(parsed.playlists) ? parsed.playlists : [],
+      updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : undefined,
     };
   } catch {
     return emptyLibrary();
