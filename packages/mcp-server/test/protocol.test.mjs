@@ -35,6 +35,9 @@ test('MCP exposes the headless tools over stdio', async () => {
   const server = fileURLToPath(new URL('../src/server.mjs', import.meta.url));
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-profile-'));
   const exportDirectory = `.test-mcp-export-${process.pid}`;
+  const importDirectory = `.test-mcp-audio-${process.pid}`;
+  await mkdir(path.join(process.cwd(), importDirectory), { recursive: true });
+  await writeFile(path.join(process.cwd(), importDirectory, 'source.wav'), smallPcmWav());
   const projectFolder = path.join(documentsRoot, 'profiles', 'profile-001', 'projects', 'project-001');
   const mixFolder = path.join(projectFolder, 'mixes');
   const scoreFolder = path.join(projectFolder, 'scores');
@@ -85,7 +88,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
       ['add_library_track', 'add_project_midi_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project', 'create_project_midi_track',
         'delete_playlist', 'delete_project', 'edit_project_score', 'export_project_audio', 'get_project', 'get_project_mix',
-        'get_project_score', 'gpu_status', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
+        'get_project_score', 'gpu_status', 'import_project_audio_track', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'resume_job',
         'runtime_status', 'start_batch', 'start_song', 'update_project', 'update_project_mix', 'use_project_generation',
         'use_project_mix', 'use_project_score', 'use_project_separation']);
@@ -140,6 +143,21 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.deepEqual(arrangementState.mix.markers, [
       { id: 'verse-1', name: 'Verse 1', kind: 'verse', startMs: 0 },
     ]);
+    const projectBeforeAudioImport = await client.callTool({ name: 'get_project', arguments: { projectId: 'project-001' } });
+    assert.equal(projectBeforeAudioImport.isError, undefined);
+    const importedAudio = await client.callTool({ name: 'import_project_audio_track', arguments: {
+      projectId: 'project-001', sourcePath: path.join(importDirectory, 'source.wav'), name: 'Clip audio',
+      startMs: 900, expectedUpdatedAt: JSON.parse(projectBeforeAudioImport.content[0].text).project.updatedAt,
+      expectedMixRevision: arrangementState.mixRevision,
+    } });
+    assert.equal(importedAudio.isError, undefined, importedAudio.content?.[0]?.text);
+    const importedAudioState = JSON.parse(importedAudio.content[0].text);
+    assert.equal(importedAudioState.track.role, 'user');
+    assert.equal(importedAudioState.track.name, 'Clip audio');
+    assert.equal(importedAudioState.track.clips[0].startMs, 900);
+    assert.equal(importedAudioState.importedAudio.durationMs, 50);
+    assert.equal(importedAudioState.mixRevision.length, 64);
+    assert.equal((await readFile(path.join(projectFolder, importedAudioState.importedAudio.originalPath))).length, smallPcmWav().length);
     const openedScore = await client.callTool({ name: 'get_project_score', arguments: { projectId: 'project-001' } });
     assert.equal(openedScore.isError, undefined);
     const scoreState = JSON.parse(openedScore.content[0].text);
@@ -149,7 +167,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal('stateB64' in scoreState.score.voices[0].vst3Instrument, false);
     const addedMidi = await client.callTool({ name: 'add_project_midi_track', arguments: {
       projectId: 'project-001', voiceId: 'midi-keys', expectedScoreRevision: scoreState.scoreRevision,
-      expectedMixRevision: arrangementState.mixRevision,
+      expectedMixRevision: importedAudioState.mixRevision,
     } });
     assert.equal(addedMidi.isError, undefined);
     const addedMidiState = JSON.parse(addedMidi.content[0].text);
@@ -390,5 +408,6 @@ test('MCP exposes the headless tools over stdio', async () => {
     await client.close();
     await rm(documentsRoot, { recursive: true, force: true });
     await rm(path.join(process.cwd(), exportDirectory), { recursive: true, force: true });
+    await rm(path.join(process.cwd(), importDirectory), { recursive: true, force: true });
   }
 });

@@ -3,7 +3,8 @@ import { link, lstat, mkdir, readdir, readFile, realpath, rename, rm, stat, writ
 import { createHash, randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
-import { wavDurationMs } from './runtime.mjs';
+import { insideWorkspace, wavDurationMs, workspaceRoot as defaultWorkspaceRoot } from './runtime.mjs';
+import { discardUserAudioAsset, prepareUserAudioAsset } from './audio-assets.mjs';
 
 const PROJECT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const PROFILE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
@@ -629,6 +630,182 @@ export async function getProjectMix({ projectId, mixId, env = process.env } = {}
   };
 }
 
+/** Import an audio file from the MCP workspace into the active project's mix. */
+export async function importProjectAudioTrack({
+  projectId, sourcePath, name, startMs = 0, muteExisting = false,
+  expectedUpdatedAt, expectedMixRevision, env = process.env, workspace = defaultWorkspaceRoot,
+} = {}) {
+  if (typeof projectId !== 'string' || !PROJECT_ID_PATTERN.test(projectId)) {
+    throw new Error('Identifiant de projet invalide.');
+  }
+  if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt.trim() || expectedUpdatedAt.length > 80) {
+    throw new Error('expectedUpdatedAt doit venir de get_project.');
+  }
+  if (!Number.isSafeInteger(startMs) || startMs < 0 || startMs > 86_400_000) {
+    throw new Error('startMs doit être un entier compris entre 0 et 86 400 000 ms.');
+  }
+  if (typeof muteExisting !== 'boolean') throw new Error('muteExisting doit être un booléen.');
+  if (name !== undefined && (typeof name !== 'string' || !name.trim() || [...name.trim()].length > 120)) {
+    throw new Error('name doit contenir de 1 à 120 caractères.');
+  }
+
+  const store = await projectStore(env);
+  const initialProject = await readProjectAt(store.root, projectId);
+  if (initialProject.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+  const hadActiveMix = initialProject.activeMixId != null;
+  if (hadActiveMix) {
+    if (typeof initialProject.activeMixId !== 'string' || !MIX_ID_PATTERN.test(initialProject.activeMixId)) {
+      throw new Error('Référence de mix invalide dans le projet.');
+    }
+    if (typeof expectedMixRevision !== 'string' || !/^[a-f0-9]{64}$/.test(expectedMixRevision)) {
+      throw new Error('expectedMixRevision doit venir de get_project_mix pour le mix actif.');
+    }
+    const mixSnapshot = await getProjectMix({ projectId, env });
+    if (mixSnapshot.mixRevision !== expectedMixRevision) {
+      throw new Error('Le mix a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+    }
+  } else if (expectedMixRevision !== undefined) {
+    throw new Error('Le projet ne possède pas de mix actif ; relis le projet avant de réessayer.');
+  }
+
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+
+  const asset = await prepareUserAudioAsset({
+    folder: canonicalFolder, sourcePath, displayName: name, env, workspace,
+  });
+  try {
+    return await withProjectLock(canonicalFolder, async () => {
+      const currentStore = await projectStore(env);
+      if (currentStore.profileId !== store.profileId || path.resolve(currentStore.root) !== path.resolve(store.root)) {
+        throw new Error('Le profil actif a changé pendant l’import. Relis le projet et réessaie.');
+      }
+      const currentProject = await readProjectAt(store.root, projectId);
+      if (currentProject.updatedAt !== expectedUpdatedAt || currentProject.activeMixId !== initialProject.activeMixId) {
+        throw new Error('Le projet a changé pendant l’import. Relis-le avant de réessayer.');
+      }
+
+      let mixesDirectory = await projectSubdirectory(canonicalFolder, 'mixes');
+      if (!mixesDirectory) {
+        await mkdir(path.join(canonicalFolder, 'mixes'), { recursive: true });
+        mixesDirectory = await realpath(path.join(canonicalFolder, 'mixes'));
+        if (!isWithin(canonicalFolder, mixesDirectory)) throw new Error('Le dossier mixes se trouve hors du projet.');
+      }
+      const selectedMixId = currentProject.activeMixId ?? await nextVersionId(mixesDirectory, 'mix');
+      const mixFileName = `${selectedMixId}.json`;
+      const mixPath = path.join(mixesDirectory, mixFileName);
+      return withMixLock(mixPath, async () => {
+        let currentMix;
+        if (currentProject.activeMixId) {
+          currentMix = await readBoundedJsonInside(mixesDirectory, mixFileName, mixFileName);
+          if (!currentMix || currentMix.id !== selectedMixId || !Array.isArray(currentMix.tracks)) {
+            throw new Error(`Mix introuvable ou invalide : ${selectedMixId}`);
+          }
+          if ((currentMix.schema !== undefined && currentMix.schema !== 'songmaker.mix') ||
+              (currentMix.schemaVersion !== undefined && currentMix.schemaVersion !== 1)) {
+            throw new Error('Version de mix non prise en charge.');
+          }
+          const revision = createHash('sha256').update(JSON.stringify(currentMix)).digest('hex');
+          if (revision !== expectedMixRevision) {
+            throw new Error('Le mix a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+          }
+        } else {
+          currentMix = {
+            schema: 'songmaker.mix', schemaVersion: 1, id: selectedMixId, separationId: '', sampleRate: 48_000,
+            masterGainDb: 0, peakCeilingDb: -1, tracks: [], vst3MasterInsert: null,
+            tempoMap: [], timeSignatures: [], markers: [],
+          };
+        }
+        if (currentMix.tracks.some(track => !track || typeof track !== 'object' || Array.isArray(track) ||
+            typeof track.id !== 'string' || (track.clips !== undefined && !Array.isArray(track.clips)))) {
+          throw new Error('Document de mix invalide : pistes ou clips mal formés.');
+        }
+        if (currentMix.tracks.length >= 256) throw new Error('Le mix contient déjà le maximum de 256 pistes.');
+
+        const nextMix = structuredClone(currentMix);
+        if (muteExisting) {
+          for (const track of nextMix.tracks) { track.mute = true; track.solo = false; }
+        }
+        const baseName = asset.displayName;
+        let trackName = baseName;
+        let suffix = 2;
+        while (nextMix.tracks.some(track => track.name === trackName)) trackName = `${baseName} (${suffix++})`;
+        const trackId = `trk-user-${randomUUID()}`;
+        const clipId = `clip-${randomUUID()}`;
+        const track = {
+          id: trackId, role: 'user', name: trackName, gainDb: 0, pan: 0, mute: false, solo: false,
+          locked: false, aiSeparated: false,
+          clips: [{
+            id: clipId, trackId, sourcePath: asset.normalizedRelativePath, sourceSha256: asset.sha256,
+            startMs, offsetMs: 0, durationMs: asset.durationMs, gainDb: 0, fadeInMs: 0, fadeOutMs: 0,
+            followProjectTempo: false, timeStretchRatio: 1, pitchSemitones: 0, processingEnabled: true,
+            takeActive: true,
+          }],
+          experimentalVst3Insert: null,
+        };
+        nextMix.tracks.push(track);
+
+        const previousUpdatedAt = Date.parse(currentProject.updatedAt);
+        const now = Date.now();
+        const updatedProject = {
+          ...currentProject,
+          activeMixId: selectedMixId,
+          updatedAt: new Date(Number.isFinite(previousUpdatedAt) && now <= previousUpdatedAt
+            ? previousUpdatedAt + 1 : now).toISOString(),
+        };
+        if (currentProject.activeMixId) {
+          await writeJsonAtomically(mixPath, nextMix, `.mix-${randomUUID()}.tmp`);
+        } else {
+          await writeJsonExclusive(mixPath, nextMix, `.mix-${randomUUID()}.tmp`);
+        }
+        try {
+          await writeProjectAtomically(canonicalFolder, updatedProject);
+        } catch (error) {
+          try {
+            if (currentProject.activeMixId) {
+              await writeJsonAtomically(mixPath, currentMix, `.mix-rollback-${randomUUID()}.tmp`);
+            } else {
+              await rm(mixPath, { force: true });
+            }
+          } catch (rollbackError) {
+            const incompleteRollback = new Error(`Impossible de finaliser le projet après l’écriture du mix ; restauration incomplète : ${rollbackError?.message || rollbackError}`, { cause: error });
+            incompleteRollback.preserveAudioAsset = true;
+            throw incompleteRollback;
+          }
+          throw error;
+        }
+
+        return {
+          profileId: store.profileId,
+          projectId,
+          projectTitle: updatedProject.title,
+          projectUpdatedAt: updatedProject.updatedAt,
+          mixId: selectedMixId,
+          mixRevision: createHash('sha256').update(JSON.stringify(nextMix)).digest('hex'),
+          track,
+          importedAudio: {
+            originalPath: asset.originalRelativePath,
+            normalizedPath: asset.normalizedRelativePath,
+            sourceFileName: asset.sourceFileName,
+            sha256: asset.sha256,
+            durationMs: asset.durationMs,
+          },
+        };
+      });
+    });
+  } catch (error) {
+    if (error?.preserveAudioAsset !== true) await discardUserAudioAsset(canonicalFolder, asset).catch(() => {});
+    throw error;
+  }
+}
+
 /** Update active mix controls and arrangement metadata using an optimistic mix revision. */
 export async function updateProjectMix({
   projectId, mixId, expectedMixRevision, masterGainDb, tracks, addMidiTracks, tempoMap, timeSignatures, markers,
@@ -967,7 +1144,7 @@ export async function addProjectMidiTrack({
 }
 
 async function withProjectLock(projectDirectory, callback) {
-  const lockPath = path.join(projectDirectory, '.mcp-midi-create.lock');
+  const lockPath = path.join(projectDirectory, '.mcp-project.lock');
   let locked = false;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
@@ -980,10 +1157,10 @@ async function withProjectLock(projectDirectory, callback) {
       try { stale = Date.now() - (await stat(lockPath)).mtimeMs > 300_000; }
       catch (statError) { if (statError?.code !== 'ENOENT') throw statError; }
       if (stale && attempt === 0) { await rm(lockPath, { force: true }); continue; }
-      throw new Error('Une création de piste MIDI est déjà en cours. Réessaie dans un instant.');
+      throw new Error('Une modification du projet est déjà en cours. Réessaie dans un instant.');
     }
   }
-  if (!locked) throw new Error('Impossible de verrouiller le projet pour créer une piste MIDI.');
+  if (!locked) throw new Error('Impossible de verrouiller le projet pour le modifier.');
   try { return await callback(); }
   finally { await rm(lockPath, { force: true }).catch(() => {}); }
 }

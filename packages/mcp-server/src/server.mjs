@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { addProjectMidiTrack, createProject, createProjectMidiTrack, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
+import { addProjectMidiTrack, createProject, createProjectMidiTrack, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, importProjectAudioTrack, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
 import { exportProjectAudio } from './project-audio.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
@@ -209,6 +209,20 @@ server.registerTool('export_project_audio', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => exportProjectAudio(args)));
+
+server.registerTool('import_project_audio_track', {
+  description: 'Importe un WAV, MP3 ou FLAC depuis SONG_MAKER_WORKSPACE_ROOT dans une nouvelle piste audio du mix actif. Appelle get_project puis, si un mix est actif, get_project_mix pour fournir les révisions. Conserve l’original, normalise une copie en WAV float32 stéréo 48 kHz avec FFmpeg/libsoxr et retourne les chemins, la durée, le hash, la piste et la nouvelle mixRevision. Ne rend pas le mix.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    sourcePath: z.string().min(1).max(4096),
+    name: z.string().trim().min(1).max(120).optional(),
+    startMs: z.number().int().safe().min(0).max(86_400_000).optional(),
+    muteExisting: z.boolean().optional(),
+    expectedUpdatedAt: z.string().min(1).max(80),
+    expectedMixRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => importProjectAudioTrack(args)));
 
 server.registerTool('create_project', {
   description: 'Crée un projet vide dans le profil Song Maker actif. Le projet et ses dossiers sont enregistrés au format de l’application et deviennent visibles dans Projets.',

@@ -4,8 +4,9 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { inspectWav } from '../src/audio-quality.mjs';
 import { exportProjectAudio } from '../src/project-audio.mjs';
-import { createProject } from '../src/projects.mjs';
+import { createProject, getProject, getProjectMix, importProjectAudioTrack } from '../src/projects.mjs';
 
 function smallPcmWav() {
   const data = Buffer.alloc(4800 * 2);
@@ -111,6 +112,79 @@ test('project audio export refuses unfinished generations, unsafe names, and pat
     }), /nom de fichier WAV simple/);
     await assert.rejects(exportProjectAudio({
       ...base, generationId: 'gen-8', outputDirectory: path.dirname(workspace),
+    }), /SONG_MAKER_WORKSPACE_ROOT/);
+  } finally {
+    await Promise.all([
+      rm(documentsRoot, { recursive: true, force: true }),
+      rm(workspace, { recursive: true, force: true }),
+    ]);
+  }
+});
+
+test('project audio import preserves the original and adds normalized clips with revision checks', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-audio-import-profile-'));
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'song-maker-audio-import-workspace-'));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(path.join(documentsRoot, 'profiles', 'profile-import'), { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-import', profiles: [{ id: 'profile-import', name: 'Test', kind: 'hobby' }],
+    }));
+    const { project } = await createProject({ title: 'Audio import', env });
+    const source = smallPcmWav();
+    await writeFile(path.join(workspace, 'source.wav'), source);
+
+    const imported = await importProjectAudioTrack({
+      projectId: project.id, sourcePath: 'source.wav', name: 'Voix témoin', startMs: 1200,
+      expectedUpdatedAt: project.updatedAt, workspace, env,
+    });
+    assert.equal(imported.profileId, 'profile-import');
+    assert.equal(imported.track.role, 'user');
+    assert.equal(imported.track.name, 'Voix témoin');
+    assert.equal(imported.track.clips[0].startMs, 1200);
+    assert.equal(imported.track.clips[0].durationMs, 50);
+    assert.match(imported.mixRevision, /^[a-f0-9]{64}$/);
+
+    const projectFolder = path.join(documentsRoot, 'profiles', 'profile-import', 'projects', project.id);
+    const originalPath = path.join(projectFolder, imported.importedAudio.originalPath);
+    const normalizedPath = path.join(projectFolder, imported.importedAudio.normalizedPath);
+    assert.deepEqual(await readFile(originalPath), source);
+    const normalizedInfo = await inspectWav(normalizedPath);
+    assert.equal(normalizedInfo.sampleRateHz, 48_000);
+    assert.equal(normalizedInfo.channels, 2);
+    assert.equal(normalizedInfo.bitDepth, 32);
+    assert.equal(imported.importedAudio.sha256, createHash('sha256').update(await readFile(normalizedPath)).digest('hex'));
+    const provenance = JSON.parse(await readFile(path.join(projectFolder, 'user-audio', 'provenance', `${path.basename(normalizedPath, '.wav')}.json`), 'utf8'));
+    assert.equal(provenance.displayName, 'Voix témoin');
+    assert.equal(provenance.durationMs, 50);
+
+    const projectAfter = await getProject({ projectId: project.id, env });
+    assert.equal(projectAfter.project.activeMixId, imported.mixId);
+    const mixAfter = await getProjectMix({ projectId: project.id, env });
+    assert.equal(mixAfter.mixRevision, imported.mixRevision);
+    assert.equal(mixAfter.mix.tracks[0].clips[0].sourcePath, imported.importedAudio.normalizedPath);
+
+    await assert.rejects(importProjectAudioTrack({
+      projectId: project.id, sourcePath: 'source.wav', expectedUpdatedAt: project.updatedAt,
+      workspace, env,
+    }), /projet a changé/);
+
+    const second = await importProjectAudioTrack({
+      projectId: project.id, sourcePath: 'source.wav', name: 'Voix témoin', startMs: 0, muteExisting: true,
+      expectedUpdatedAt: projectAfter.project.updatedAt, expectedMixRevision: mixAfter.mixRevision, workspace, env,
+    });
+    assert.equal(second.track.name, 'Voix témoin (2)');
+    const secondMix = await getProjectMix({ projectId: project.id, env });
+    assert.equal(secondMix.mix.tracks.length, 2);
+    assert.equal(secondMix.mix.tracks[0].mute, true);
+    assert.equal(secondMix.mix.tracks[1].mute, false);
+    await assert.rejects(importProjectAudioTrack({
+      projectId: project.id, sourcePath: 'source.wav', expectedUpdatedAt: second.projectUpdatedAt,
+      expectedMixRevision: mixAfter.mixRevision, workspace, env,
+    }), /mix a changé/);
+    await assert.rejects(importProjectAudioTrack({
+      projectId: project.id, sourcePath: path.join(path.dirname(workspace), 'outside.wav'),
+      expectedUpdatedAt: second.projectUpdatedAt, expectedMixRevision: second.mixRevision, workspace, env,
     }), /SONG_MAKER_WORKSPACE_ROOT/);
   } finally {
     await Promise.all([
