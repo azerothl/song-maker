@@ -32,7 +32,7 @@ server.registerTool('gpu_status', {
 }, call(async () => gpuStatus()));
 
 server.registerTool('list_local_resources', {
-  description: 'Lit les réglages du profil Song Maker actif et vérifie les modèles et séparateurs locaux connus. Masque les chemins absolus ; ne télécharge, n’active et ne sélectionne aucune ressource.',
+  description: 'Lit les réglages du profil Song Maker actif et vérifie les modèles, séparateurs et runtimes locaux connus. Masque les chemins absolus ; ne télécharge, n’installe, n’active et ne sélectionne aucune ressource.',
   inputSchema: {},
   annotations: { readOnlyHint: true },
 }, call(async () => listLocalResources()));

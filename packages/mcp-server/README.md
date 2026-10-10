@@ -28,7 +28,7 @@ Ce serveur MCP permet à Codex de lancer YuE2 sur le GPU local sans démarrer l'
 
 Le serveur lit le manifeste `profiles.json` et les fichiers `project.json` dans le même dossier de données que l’application. Il détecte les emplacements usuels de Documents ; si Song Maker utilise un dossier redirigé ou personnalisé, définis `SONG_MAKER_DOCUMENTS_DIR` dans l’environnement du serveur vers le dossier `Song Maker` qui contient `profiles.json` (ou le dossier historique `projects`). Les projets corrompus ou hors du profil actif sont ignorés dans la liste. Les paroles ne sont jamais incluses dans les résultats de `list_projects`.
 
-`list_local_resources` lit les choix, consentements et ressources du profil actif. Il indique les composants manquants d’un pack YuE2 incomplet et vérifie la taille des modèles épinglés. Il masque les chemins locaux et ne télécharge, n’installe ni n’active les ressources ; le choix d’un moteur dans l’application et le runner YuE2 du MCP restent séparés.
+`list_local_resources` lit les choix, consentements et ressources du profil actif. Il indique les composants manquants d’un pack YuE2 incomplet, vérifie la taille des modèles épinglés et distingue le moteur ACE-Step Turbo du runtime Python ACE-Step Lego installé et vérifié. Il masque les chemins locaux et ne télécharge, n’installe ni n’active les ressources ; le choix d’un moteur dans l’application et le runner YuE2 du MCP restent séparés.
 
 ## Préparer le moteur
 

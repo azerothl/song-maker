@@ -17,26 +17,38 @@ test('local resource inventory reads the active profile, reports incomplete pack
       cacheDir: cacheRoot, modelPack: 'q4', modelGguf: 'yue2-3b-q4_0.gguf',
     }));
     await writeFile(path.join(documentsRoot, 'profiles', 'profile-003', 'profile-settings.json'), JSON.stringify({
-      generationEngine: 'ace_step', stemSeparator: 'bs_roformer', localYue2Enabled: true,
-      yue2LicenseAccepted: true, aceStepLicenseAccepted: false,
+      generationEngine: 'ace_step_lego', stemSeparator: 'bs_roformer', localYue2Enabled: true,
+      yue2LicenseAccepted: true, aceStepLicenseAccepted: false, aceStepLegoLicenseAccepted: true,
       acceptedSeparatorLicenses: { bs_roformer: true },
     }));
     const partialModel = path.join(cacheRoot, 'models', 'Yue2-3B-GGUF');
     await mkdir(partialModel, { recursive: true });
     await writeFile(path.join(partialModel, 'yue2-3b-q4_0.gguf'), 'partial');
+    const legoRoot = path.join(cacheRoot, 'tools', 'ace-step-lego');
+    const legoPython = process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python';
+    await mkdir(path.join(legoRoot, path.dirname(legoPython)), { recursive: true });
+    await writeFile(path.join(legoRoot, legoPython), 'test-python');
+    await writeFile(path.join(legoRoot, 'installation-verified.json'), JSON.stringify({
+      gitSource: 'git+https://github.com/ace-step/ACE-Step-1.5.git@ca1e85fe9430179831e6bc6be790c332190a3866',
+    }));
 
     const inventory = await listLocalResources({ env: { SONG_MAKER_DOCUMENTS_DIR: documentsRoot } });
     assert.equal(inventory.profileId, 'profile-003');
-    assert.equal(inventory.selectedEngine, 'ace_step');
+    assert.equal(inventory.selectedEngine, 'ace_step_lego');
     assert.equal(inventory.selectedYuE2Model, 'q4');
     assert.equal(inventory.engines[0].models[0].selected, true);
     assert.equal(inventory.engines[0].models[0].installed, false);
     assert.ok(inventory.engines[0].models[0].missingComponents.includes('yue2-3b-q4_0.gguf'));
     assert.ok(inventory.engines[0].models[0].missingComponents.includes('sidecar:yue2-model-config.json'));
-    assert.equal(inventory.engines[1].selected, true);
+    assert.equal(inventory.engines[1].selected, false);
     assert.equal(inventory.engines[1].mcpGenerationSupported, false);
     assert.equal(inventory.mcpGenerationEngine, 'yue2');
     assert.equal(inventory.mcpUsesActiveAppProfile, false);
+    assert.equal(inventory.engines[2].id, 'ace_step_lego');
+    assert.equal(inventory.engines[2].selected, true);
+    assert.equal(inventory.engines[2].runtimeInstalled, true);
+    assert.equal(inventory.engines[2].licenseAccepted, true);
+    assert.equal(inventory.engines[2].mcpGenerationSupported, false);
     assert.equal(inventory.separators.find(item => item.id === 'bs_roformer').licenseAccepted, true);
     assert.equal(inventory.selectionAndInstallationViaMcp, 'unavailable');
     const serialized = JSON.stringify(inventory);

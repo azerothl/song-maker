@@ -24,6 +24,14 @@ const ACE_STEP = {
   file: 'models/ACE-Step1.5-GGUF/turbo/ace-step-1.5-turbo-bf16.gguf',
   bytes: 10_090_398_272,
 };
+const ACE_STEP_LEGO = {
+  id: 'ace_step_lego',
+  runtimeId: 'ace_step_1_5_base_lego',
+  pythonWindows: 'Scripts/python.exe',
+  pythonUnix: 'bin/python',
+  receipt: 'installation-verified.json',
+  gitSource: 'git+https://github.com/ace-step/ACE-Step-1.5.git@ca1e85fe9430179831e6bc6be790c332190a3866',
+};
 
 function defaultCacheDirectory(env) {
   if (process.platform === 'win32') {
@@ -58,6 +66,37 @@ async function exactFile(cacheDirectory, relativePath, expectedBytes) {
   } catch {
     return false;
   }
+}
+
+async function isFile(filePath) {
+  try { return (await stat(filePath)).isFile(); }
+  catch { return false; }
+}
+
+async function aceStepLegoRuntime(cacheDirectory, env) {
+  const root = path.join(cacheDirectory, 'tools', 'ace-step-lego');
+  const pythonPath = path.join(root, process.platform === 'win32'
+    ? ACE_STEP_LEGO.pythonWindows
+    : ACE_STEP_LEGO.pythonUnix);
+  const pythonPresent = await isFile(pythonPath);
+  const [sidecarScriptPresent, receiptText] = await Promise.all([
+    isFile(path.join(root, 'ace-step-lego-sidecar.py')),
+    readFile(path.join(root, ACE_STEP_LEGO.receipt), 'utf8').catch(() => null),
+  ]);
+  let installationVerified = false;
+  try {
+    const receipt = receiptText ? JSON.parse(receiptText) : null;
+    installationVerified = receipt?.gitSource === ACE_STEP_LEGO.gitSource;
+  } catch {}
+  const mock = ['1', 'true', 'TRUE', 'yes'].includes(env.SONG_MAKER_ACE_STEP_LEGO_MOCK || '');
+  return {
+    runtimeInstalled: pythonPresent && installationVerified,
+    inferenceAvailable: mock || (pythonPresent && installationVerified),
+    pythonPresent,
+    sidecarScriptPresent,
+    installationVerified,
+    mock,
+  };
 }
 
 async function inspectModel(cacheDirectory, model) {
@@ -101,6 +140,7 @@ export async function listLocalResources({ env = process.env } = {}) {
     licenseAccepted: profileSettings.acceptedSeparatorLicenses?.[separator.id] === true,
   })));
   const aceStepInstalled = await exactFile(cacheDirectory, ACE_STEP.file.replace(/^models\//, ''), ACE_STEP.bytes);
+  const aceStepLegoRuntimeStatus = await aceStepLegoRuntime(cacheDirectory, env);
   const selectedEngine = typeof profileSettings.generationEngine === 'string'
     ? profileSettings.generationEngine
     : 'yue2';
@@ -131,6 +171,14 @@ export async function listLocalResources({ env = process.env } = {}) {
         selected: selectedEngine === ACE_STEP.id,
         installed: aceStepInstalled,
         licenseAccepted: profileSettings.aceStepLicenseAccepted === true,
+        mcpGenerationSupported: false,
+      },
+      {
+        id: ACE_STEP_LEGO.id,
+        runtimeId: ACE_STEP_LEGO.runtimeId,
+        selected: selectedEngine === ACE_STEP_LEGO.id,
+        ...aceStepLegoRuntimeStatus,
+        licenseAccepted: profileSettings.aceStepLegoLicenseAccepted === true,
         mcpGenerationSupported: false,
       },
     ],
