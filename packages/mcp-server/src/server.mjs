@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
+import { createProject, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
 import { exportProjectAudio } from './project-audio.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
@@ -137,10 +137,39 @@ server.registerTool('add_project_midi_track', {
 }, call(async args => updateProjectMix({ ...args, addMidiTracks: [{ name: args.name }] })));
 
 server.registerTool('get_project_score', {
-  description: 'Lit la partition active ou une version sauvegardée d’un projet du profil actif, avec ses voix et notes. Ne modifie ni ne convertit la partition.',
+  description: 'Lit la partition active ou une version sauvegardée d’un projet du profil actif, avec ses voix et notes et scoreRevision pour sécuriser une édition. Les chemins locaux et états propriétaires VST sont masqués.',
   inputSchema: { projectId: z.string().min(1).max(128), scoreId: z.string().regex(/^score-v[0-9]+$/).optional() },
   annotations: { readOnlyHint: true },
 }, call(async args => getProjectScore(args)));
+
+const midiNoteSchema = z.object({
+  id: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+  startTick: z.number().int().min(0).max(10_000_000),
+  durationTick: z.number().int().min(1).max(10_000_000),
+  pitch: z.number().int().min(0).max(127),
+  velocity: z.number().int().min(1).max(127),
+  tieStart: z.boolean().optional(),
+  tieEnd: z.boolean().optional(),
+}).strict();
+const scoreEditSchema = z.discriminatedUnion('operation', [
+  z.object({ operation: z.literal('add'), voiceId: z.string().min(1).max(128), note: midiNoteSchema }).strict(),
+  z.object({ operation: z.literal('update'), voiceId: z.string().min(1).max(128), noteId: z.string().min(1).max(128),
+    changes: z.object({ startTick: z.number().int().min(0).max(10_000_000).optional(),
+      durationTick: z.number().int().min(1).max(10_000_000).optional(), pitch: z.number().int().min(0).max(127).optional(),
+      velocity: z.number().int().min(1).max(127).optional() }).strict()
+      .refine(changes => Object.keys(changes).length > 0, { message: 'Indique au moins un champ MIDI.' }) }).strict(),
+  z.object({ operation: z.literal('delete'), voiceId: z.string().min(1).max(128), noteId: z.string().min(1).max(128) }).strict(),
+]);
+
+server.registerTool('edit_project_score', {
+  description: 'Ajoute, modifie ou supprime des notes MIDI de la partition active. Passe scoreRevision de get_project_score. Chaque édition crée une nouvelle version de partition et conserve les versions précédentes. Les opérations sont limitées aux notes.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    expectedScoreRevision: z.string().regex(/^[a-f0-9]{64}$/),
+    edits: z.array(scoreEditSchema).min(1).max(512),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => editProjectScore(args)));
 
 server.registerTool('export_project_audio', {
   description: 'Copie le WAV d’une génération terminée depuis le projet du profil Song Maker actif vers le workspace MCP. Vérifie le WAV et ne remplace jamais un fichier existant. Ne rend pas le mix et ne convertit pas en FLAC/MP3.',

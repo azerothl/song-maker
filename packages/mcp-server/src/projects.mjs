@@ -801,14 +801,173 @@ export async function getProjectScore({ projectId, scoreId, env = process.env } 
       (score.schemaVersion !== undefined && score.schemaVersion !== 1)) {
     throw new Error('Version de partition non prise en charge.');
   }
+  const safeScore = structuredClone(score);
+  if (Array.isArray(safeScore.voices)) {
+    for (const voice of safeScore.voices) {
+      if (voice && typeof voice === 'object' && voice.vst3Instrument) {
+        voice.vst3Instrument = {
+          pluginName: typeof voice.vst3Instrument.pluginName === 'string' ? voice.vst3Instrument.pluginName : '',
+          parameters: voice.vst3Instrument.parameters && typeof voice.vst3Instrument.parameters === 'object'
+            && !Array.isArray(voice.vst3Instrument.parameters)
+            ? voice.vst3Instrument.parameters
+            : {},
+        };
+      }
+    }
+  }
   return {
     profileId: store.profileId,
     projectId,
     projectTitle: project.title,
     scoreId: selectedScoreId,
+    scoreRevision: createHash('sha256').update(JSON.stringify(score)).digest('hex'),
     active: project.activeScoreId === selectedScoreId,
-    score,
+    score: safeScore,
   };
+}
+
+/** Apply bounded MIDI note edits as a new immutable Song Maker score version. */
+export async function editProjectScore({ projectId, expectedScoreRevision, edits, env = process.env } = {}) {
+  if (typeof projectId !== 'string' || !PROJECT_ID_PATTERN.test(projectId)) {
+    throw new Error('Identifiant de projet invalide.');
+  }
+  if (typeof expectedScoreRevision !== 'string' || !/^[a-f0-9]{64}$/.test(expectedScoreRevision)) {
+    throw new Error('expectedScoreRevision doit venir de get_project_score.');
+  }
+  if (!Array.isArray(edits) || edits.length === 0 || edits.length > 512) {
+    throw new Error('Fournis de 1 à 512 modifications de notes MIDI.');
+  }
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  const scoreId = project.activeScoreId;
+  if (typeof scoreId !== 'string' || !SCORE_ID_PATTERN.test(scoreId)) {
+    throw new Error('Aucune partition active à modifier.');
+  }
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+  const scoresDirectory = await projectSubdirectory(canonicalFolder, 'scores');
+  if (!scoresDirectory) throw new Error(`Partition introuvable : ${scoreId}`);
+  const scorePath = path.join(scoresDirectory, `${scoreId}.json`);
+
+  let savedScoreId = null;
+  await withScoreLock(scorePath, async () => {
+    const latestProject = await readProjectAt(store.root, projectId);
+    if (latestProject.activeScoreId !== scoreId) {
+      throw new Error('La partition active a changé. Relis le projet avant de réessayer.');
+    }
+    const current = await readBoundedJsonInside(scoresDirectory, `${scoreId}.json`, `${scoreId}.json`);
+    if (!current || current.id !== scoreId || !Array.isArray(current.voices)) {
+      throw new Error(`Partition introuvable ou invalide : ${scoreId}`);
+    }
+    if ((current.schema !== undefined && current.schema !== 'songmaker.score') ||
+        (current.schemaVersion !== undefined && current.schemaVersion !== 1)) {
+      throw new Error('Version de partition non prise en charge.');
+    }
+    if (createHash('sha256').update(JSON.stringify(current)).digest('hex') !== expectedScoreRevision) {
+      throw new Error('La partition a changé depuis sa dernière lecture. Relis-la avant de réessayer.');
+    }
+
+    const next = structuredClone(current);
+    for (const edit of edits) {
+      if (!edit || typeof edit !== 'object' || !['add', 'update', 'delete'].includes(edit.operation) ||
+          typeof edit.voiceId !== 'string' || !edit.voiceId.trim()) {
+        throw new Error('Modification de note invalide : opération ou voix manquante.');
+      }
+      const voice = next.voices.find(item => item && item.id === edit.voiceId);
+      if (!voice || !Array.isArray(voice.notes)) throw new Error(`Voix introuvable dans la partition : ${edit.voiceId}`);
+      if (edit.operation === 'add') {
+        const note = edit.note;
+        if (!isValidMidiNote(note) || next.voices.some(item => item?.notes?.some(existing => existing?.id === note.id))) {
+          throw new Error('La nouvelle note doit avoir un identifiant unique, un départ positif, une durée valide et des valeurs MIDI dans les bornes.');
+        }
+        voice.notes.push(structuredClone(note));
+      } else {
+        if (typeof edit.noteId !== 'string' || !edit.noteId.trim()) throw new Error('Identifiant de note requis.');
+        const index = voice.notes.findIndex(note => note?.id === edit.noteId);
+        if (index < 0) throw new Error(`Note introuvable dans la voix ${edit.voiceId} : ${edit.noteId}`);
+        if (edit.operation === 'delete') {
+          voice.notes.splice(index, 1);
+          for (const anchor of next.lyricAnchors ?? []) {
+            if (Array.isArray(anchor?.noteIds)) anchor.noteIds = anchor.noteIds.filter(id => id !== edit.noteId);
+          }
+        } else {
+          const changes = edit.changes;
+          if (!changes || typeof changes !== 'object' || Array.isArray(changes) ||
+              Object.keys(changes).length === 0 || Object.keys(changes).some(key => !['startTick', 'durationTick', 'pitch', 'velocity'].includes(key))) {
+            throw new Error('Une modification doit contenir au moins un champ MIDI autorisé.');
+          }
+          const updatedNote = { ...voice.notes[index], ...changes };
+          if (!isValidMidiNote(updatedNote)) throw new Error('Départ, durée, hauteur ou vélocité MIDI hors limites.');
+          voice.notes[index] = updatedNote;
+        }
+      }
+    }
+
+    const names = (await readdir(scoresDirectory)).map(name => /^score-v([0-9]+)\.json$/.exec(name))
+      .filter(Boolean).map(match => Number(match[1])).filter(Number.isSafeInteger);
+    const nextNumber = Math.max(0, ...names) + 1;
+    savedScoreId = `score-v${String(nextNumber).padStart(3, '0')}`;
+    next.id = savedScoreId;
+    next.schema = 'songmaker.score';
+    next.schemaVersion = 1;
+    next.parentScoreId = scoreId;
+    next.version = (Number.isSafeInteger(current.version) && current.version > 0 ? current.version : 1) + 1;
+    const latest = await readProjectAt(store.root, projectId);
+    if (latest.activeScoreId !== scoreId || latestProject.updatedAt !== project.updatedAt) {
+      throw new Error('Le projet a changé pendant la modification. Relis-le avant de réessayer.');
+    }
+    const nextScorePath = path.join(scoresDirectory, `${savedScoreId}.json`);
+    await writeJsonAtomically(nextScorePath, next, `.score-${randomUUID()}.tmp`);
+    const previous = Date.parse(latest.updatedAt);
+    const now = Date.now();
+    const updatedProject = {
+      ...latest,
+      activeScoreId: savedScoreId,
+      updatedAt: new Date(Number.isFinite(previous) && now <= previous ? previous + 1 : now).toISOString(),
+    };
+    await writeProjectAtomically(canonicalFolder, updatedProject);
+  });
+
+  return getProjectScore({ projectId, scoreId: savedScoreId, env });
+}
+
+function isValidMidiNote(note) {
+  return note && typeof note === 'object' && !Array.isArray(note) &&
+    typeof note.id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(note.id) &&
+    Number.isSafeInteger(note.startTick) && note.startTick >= 0 && note.startTick <= 10_000_000 &&
+    Number.isSafeInteger(note.durationTick) && note.durationTick >= 1 && note.durationTick <= 10_000_000 &&
+    Number.isInteger(note.pitch) && note.pitch >= 0 && note.pitch <= 127 &&
+    Number.isInteger(note.velocity) && note.velocity >= 1 && note.velocity <= 127 &&
+    (note.tieStart === undefined || typeof note.tieStart === 'boolean') &&
+    (note.tieEnd === undefined || typeof note.tieEnd === 'boolean') &&
+    Object.keys(note).every(key => ['id', 'startTick', 'durationTick', 'pitch', 'velocity', 'tieStart', 'tieEnd'].includes(key));
+}
+
+async function withScoreLock(scorePath, callback) {
+  const lockPath = `${scorePath}.mcp.lock`;
+  let locked = false;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await writeFile(lockPath, `pid=${process.pid} time=${new Date().toISOString()}\n`, { encoding: 'utf8', flag: 'wx' });
+      locked = true;
+      break;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw new Error(`Verrouillage de la partition impossible : ${error?.message || error}`);
+      let stale = false;
+      try { stale = Date.now() - (await stat(lockPath)).mtimeMs > 300_000; }
+      catch (statError) { if (statError?.code !== 'ENOENT') throw statError; }
+      if (stale && attempt === 0) { await rm(lockPath, { force: true }); continue; }
+      throw new Error('La partition est en cours de modification. Réessaie dans un instant.');
+    }
+  }
+  if (!locked) throw new Error('La partition est en cours de modification. Réessaie dans un instant.');
+  try { return await callback(); }
+  finally { await rm(lockPath, { force: true }).catch(() => {}); }
 }
 
 /** Select one already-published generation as the active project version. */

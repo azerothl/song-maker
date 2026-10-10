@@ -53,7 +53,10 @@ test('MCP exposes the headless tools over stdio', async () => {
     masterGainDb: 0, tracks: [{ id: 'piano', role: 'user', name: 'Piano', clips: [] }],
   }));
   await writeFile(path.join(scoreFolder, 'score-v001.json'), JSON.stringify({
-    schema: 'songmaker.score', schemaVersion: 1, id: 'score-v001', voices: [{ id: 'piano', notes: [{ pitch: 60 }] }],
+    schema: 'songmaker.score', schemaVersion: 1, id: 'score-v001', version: 1,
+    voices: [{ id: 'piano', vst3Instrument: { pluginPath: 'C:/private/piano.vst3', pluginName: 'Private Piano',
+      stateB64: 'private-plugin-state', parameters: { gain: 0.5 } },
+      notes: [{ id: 'note-1', startTick: 0, durationTick: 480, pitch: 60, velocity: 90 }] }],
   }));
   const existingGeneration = path.join(projectFolder, 'generations', 'gen-001');
   await mkdir(existingGeneration, { recursive: true });
@@ -74,7 +77,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
       ['add_library_track', 'add_project_midi_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project',
-        'delete_playlist', 'delete_project', 'export_project_audio', 'get_project', 'get_project_mix',
+        'delete_playlist', 'delete_project', 'edit_project_score', 'export_project_audio', 'get_project', 'get_project_mix',
         'get_project_score', 'gpu_status', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'resume_job',
         'runtime_status', 'start_batch', 'start_song', 'update_project', 'update_project_mix', 'use_project_generation',
@@ -129,7 +132,33 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(staleMix.isError, true);
     const openedScore = await client.callTool({ name: 'get_project_score', arguments: { projectId: 'project-001' } });
     assert.equal(openedScore.isError, undefined);
-    assert.equal(JSON.parse(openedScore.content[0].text).score.voices[0].notes[0].pitch, 60);
+    const scoreState = JSON.parse(openedScore.content[0].text);
+    assert.equal(scoreState.score.voices[0].notes[0].pitch, 60);
+    assert.match(scoreState.scoreRevision, /^[a-f0-9]{64}$/);
+    assert.equal('pluginPath' in scoreState.score.voices[0].vst3Instrument, false);
+    assert.equal('stateB64' in scoreState.score.voices[0].vst3Instrument, false);
+    const editedScore = await client.callTool({ name: 'edit_project_score', arguments: {
+      projectId: 'project-001', expectedScoreRevision: scoreState.scoreRevision,
+      edits: [
+        { operation: 'add', voiceId: 'piano', note: { id: 'note-2', startTick: 480, durationTick: 240, pitch: 64, velocity: 75 } },
+        { operation: 'update', voiceId: 'piano', noteId: 'note-1', changes: { pitch: 61, velocity: 92 } },
+        { operation: 'delete', voiceId: 'piano', noteId: 'note-2' },
+      ],
+    } });
+    assert.equal(editedScore.isError, undefined);
+    const editedScoreState = JSON.parse(editedScore.content[0].text);
+    assert.equal(editedScoreState.scoreId, 'score-v002');
+    assert.equal(editedScoreState.active, true);
+    assert.equal(editedScoreState.score.voices[0].notes.length, 1);
+    assert.equal(editedScoreState.score.voices[0].notes[0].pitch, 61);
+    assert.equal(editedScoreState.score.voices[0].notes[0].velocity, 92);
+    assert.equal(editedScoreState.score.voices[0].vst3Instrument.pluginName, 'Private Piano');
+    assert.equal(JSON.parse(await readFile(path.join(scoreFolder, 'score-v001.json'), 'utf8')).voices[0].notes[0].pitch, 60);
+    const staleScore = await client.callTool({ name: 'edit_project_score', arguments: {
+      projectId: 'project-001', expectedScoreRevision: scoreState.scoreRevision,
+      edits: [{ operation: 'delete', voiceId: 'piano', noteId: 'note-1' }],
+    } });
+    assert.equal(staleScore.isError, true);
     const exportedAudio = await client.callTool({ name: 'export_project_audio', arguments: {
       projectId: 'project-001', generationId: 'gen-001', outputDirectory: exportDirectory,
     } });
