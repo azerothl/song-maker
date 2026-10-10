@@ -1172,6 +1172,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
             scoreGate={scoreGate}
             setAdvancedSettingsPage={setAdvancedSettingsPage}
             setForm={setForm}
+            showScoreSettings={settings?.generationEngine === "yue2"}
             instrumentalPackState={instrumentalPackState}
             showVocalRemovalGuidance={
               settings?.generationEngine === "yue2" ||

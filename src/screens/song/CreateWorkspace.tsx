@@ -46,6 +46,7 @@ type CreateWorkspaceProps = {
   scoreGate: ScoreGate;
   setAdvancedSettingsPage: Dispatch<SetStateAction<AdvancedSettingsPage>>;
   setForm: (patch: Partial<FormInput>) => void;
+  showScoreSettings: boolean;
   instrumentalPackState: "active" | "installed" | "missing" | "unknown";
   showVocalRemovalGuidance: boolean;
   showInstrumentalPackGuidance: boolean;
@@ -65,12 +66,17 @@ export function CreateWorkspace({
   scoreGate,
   setAdvancedSettingsPage,
   setForm,
+  showScoreSettings,
   instrumentalPackState,
   showVocalRemovalGuidance,
   showInstrumentalPackGuidance,
   showFormErrors,
 }: CreateWorkspaceProps) {
   const generationBlockedReason = primaryFormError(formFieldErrors);
+  const visibleAdvancedSettingsPage =
+    advancedSettingsPage === "plan" && !showScoreSettings
+      ? "index"
+      : advancedSettingsPage;
   const instrumentalVocalCue = form.instrumentalMode
     ? findInstrumentalVocalCue(form.style)
     : null;
@@ -83,34 +89,34 @@ export function CreateWorkspace({
     >
       <div className="song-form song-create-form">
         <header className="song-form-heading song-workspace-heading">
-          {advancedSettingsPage !== null && (
+          {visibleAdvancedSettingsPage !== null && (
             <button
               type="button"
               className="btn ghost form-page-back"
               onClick={() =>
                 setAdvancedSettingsPage(
-                  advancedSettingsPage === "index" ? null : "index",
+                  visibleAdvancedSettingsPage === "index" ? null : "index",
                 )
               }
             >
-              {advancedSettingsPage === "index"
+              {visibleAdvancedSettingsPage === "index"
                 ? t("form.backToSong")
                 : t("form.backToAdvanced")}
             </button>
           )}
           <h2>
-            {advancedSettingsPage === null
+            {visibleAdvancedSettingsPage === null
               ? workspaceTitle("create")
-              : advancedSettingsTitle(advancedSettingsPage)}
+              : advancedSettingsTitle(visibleAdvancedSettingsPage)}
           </h2>
           <p className="hint">
-            {advancedSettingsPage === null
+            {visibleAdvancedSettingsPage === null
               ? workspaceIntro("create")
-              : advancedSettingsIntro(advancedSettingsPage)}
+              : advancedSettingsIntro(visibleAdvancedSettingsPage)}
           </p>
         </header>
 
-        {advancedSettingsPage === null && (
+        {visibleAdvancedSettingsPage === null && (
           <div className="song-primary-settings song-create-layout">
             <div className="song-create-main">
               <label className="form-field">
@@ -294,7 +300,7 @@ export function CreateWorkspace({
           </div>
         )}
 
-        {advancedSettingsPage === "index" && (
+        {visibleAdvancedSettingsPage === "index" && (
           <nav
             className="form-parameter-grid"
             aria-label={t("form.advanced")}
@@ -305,18 +311,20 @@ export function CreateWorkspace({
               value={soundSummaryValue(form)}
               onClick={() => setAdvancedSettingsPage("sound")}
             />
-            <FormParameterCard
-              title={t("form.plan")}
-              description={t("form.parameter.plan.cardHint")}
-              value={t(
-                form.cot === "off"
-                  ? "form.plan.off"
-                  : form.cot === "melody"
-                    ? "form.plan.melody"
-                    : "form.plan.full",
-              )}
-              onClick={() => setAdvancedSettingsPage("plan")}
-            />
+            {showScoreSettings && (
+              <FormParameterCard
+                title={t("form.plan")}
+                description={t("form.parameter.plan.cardHint")}
+                value={t(
+                  form.cot === "off"
+                    ? "form.plan.off"
+                    : form.cot === "melody"
+                      ? "form.plan.melody"
+                      : "form.plan.full",
+                )}
+                onClick={() => setAdvancedSettingsPage("plan")}
+              />
+            )}
             <FormParameterCard
               title={t("form.key")}
               description={t("form.parameter.key.cardHint")}
@@ -350,7 +358,7 @@ export function CreateWorkspace({
           </nav>
         )}
 
-        {advancedSettingsPage === "sound" && (
+        {visibleAdvancedSettingsPage === "sound" && (
           <section className="form-parameter-page">
             <fieldset className="form-section">
               <legend>{t("form.section.sound")}</legend>
@@ -470,7 +478,7 @@ export function CreateWorkspace({
           </section>
         )}
 
-        {advancedSettingsPage === "plan" && (
+        {visibleAdvancedSettingsPage === "plan" && showScoreSettings && (
           <section className="form-parameter-page">
             <p className="hint">
               {t(
@@ -495,7 +503,7 @@ export function CreateWorkspace({
           </section>
         )}
 
-        {advancedSettingsPage === "key" && (
+        {visibleAdvancedSettingsPage === "key" && (
           <section className="form-parameter-page">
             <label className="form-field">
               {t("form.key")}
@@ -540,7 +548,7 @@ export function CreateWorkspace({
           </section>
         )}
 
-        {advancedSettingsPage === "meter" && (
+        {visibleAdvancedSettingsPage === "meter" && (
           <section className="form-parameter-page">
             <label className="form-field">
               {t("form.meter")}
@@ -571,7 +579,7 @@ export function CreateWorkspace({
           </section>
         )}
 
-        {advancedSettingsPage === "seed" && (
+        {visibleAdvancedSettingsPage === "seed" && (
           <section className="form-parameter-page">
             <label className="form-field">
               {t("form.seed")}
@@ -601,7 +609,7 @@ export function CreateWorkspace({
           </section>
         )}
 
-        {advancedSettingsPage !== null && (
+        {visibleAdvancedSettingsPage !== null && (
           <div className="song-actions">
             <div className="btn-row song-actions-primary">
               <button
