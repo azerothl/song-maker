@@ -18,7 +18,7 @@ Les outils ci-dessous sont ceux enregistrés par `packages/mcp-server/src/server
 | Parcours Song Maker | État MCP | Outil / limite réelle |
 |---|---|---|
 | Vérifier le moteur et les poids YuE2 | Disponible | `runtime_status` lit les prérequis locaux ; il ne démarre pas le moteur. |
-| Inventorier les ressources et réglages du profil actif | Partiel | `list_local_resources` lit le moteur, le modèle et le séparateur choisis, les consentements et la présence des ressources épinglées ; les chemins absolus sont masqués. Le téléchargement, l’installation et l’activation restent indisponibles via MCP. |
+| Inventorier les ressources et réglages du profil actif | Partiel | `list_local_resources` lit le moteur, le modèle et le séparateur choisis, les consentements et la présence des ressources épinglées. Pour ACE-Step Lego, il distingue le runtime Python et son reçu d’installation vérifié du modèle ACE-Step Turbo ; les chemins absolus sont masqués. Le téléchargement, l’installation, l’activation et la génération ACE-Step restent indisponibles via MCP. |
 | Vérifier température et VRAM NVIDIA | Disponible | `gpu_status` lit les capteurs et les seuils du runner ; matériel NVIDIA et outils de mesure requis. |
 | Créer/renommer/supprimer un projet ; lister et lire les projets | Partiel | `list_projects`, `get_project`, `create_project`, `rename_project`, `update_project` et `delete_project` lisent et modifient les métadonnées du profil actif ; suppression protégée par confirmation et révision. |
 | Prises et historique de projet | Partiel | `list_project_versions` expose les versions avec métadonnées ; `rename_project_generation` renomme une prise, et `use_project_generation`, `use_project_separation`, `use_project_mix` et `use_project_score` sélectionnent une génération terminée, une séparation, un mix sauvegardé ou une partition. Il ne lit pas le son. |
@@ -46,7 +46,7 @@ Les outils ci-dessous sont ceux enregistrés par `packages/mcp-server/src/server
 | Outil | Entrée et résultat | Effets / garde-fous |
 |---|---|---|
 | `runtime_status` | Aucun argument ; état des fichiers et du moteur YuE2 local. | Lecture seule ; ne lance aucune génération. |
-| `list_local_resources` | Aucun argument ; réglages du profil actif et état des ressources locales connues. | Lecture seule ; masque les chemins absolus et compare les tailles aux artefacts épinglés. Ne télécharge, n’installe ni n’active une ressource. |
+| `list_local_resources` | Aucun argument ; réglages du profil actif et état des ressources locales connues, dont le runtime ACE-Step Lego et son reçu d’installation. | Lecture seule ; masque les chemins absolus et compare les tailles aux artefacts épinglés. Ne télécharge, n’installe ni n’active une ressource, et ne démarre pas le moteur. |
 | `gpu_status` | Aucun argument ; température et VRAM du GPU NVIDIA. | Lecture seule ; ne change pas les limites du pilote ou de la carte. |
 | `list_projects` | `query` facultatif ; profil actif et résumés des projets, triés par dernière modification. | Lecture seule du dossier de données Song Maker ; les paroles sont omises des résumés. |
 | `get_project` | `projectId` ; fiche de projet avec style, paroles, paramètres et identifiants de prises actives. | Lecture seule ; ne modifie ni le projet ni la bibliothèque. |
