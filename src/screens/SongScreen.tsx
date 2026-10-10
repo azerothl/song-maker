@@ -1091,8 +1091,8 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
               )}
             </div>
             {projectJob && projectJob.state !== "idle" && (
-              <div className="song-job-banner" role="status" aria-live="polite">
-                <span>
+              <div className="song-job-banner">
+                <span role={projectJob.state === "failed" ? "alert" : "status"}>
                   {projectJob.state === "completed"
                     ? t("job.completed")
                     : projectJob.state === "cancelled"

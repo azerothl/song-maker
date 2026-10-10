@@ -24,6 +24,7 @@ import { ProfileMigrationBanner } from "./components/ProfileMigrationBanner";
 import { ProfileSelector } from "./components/ProfileSelector";
 import { ProfileOnboardingScreen } from "./screens/ProfileOnboardingScreen";
 import { SplashScreen } from "./screens/SplashScreen";
+import { ErrorBanner } from "./components/ErrorBanner";
 import { useAppStore } from "./store/appStore";
 import { t, useAppLocale } from "./ui/i18n";
 import "./App.css";
@@ -620,24 +621,7 @@ export default function App() {
           />
         )}
         {presentedError && (
-          <div className="banner error" role="alert">
-            <div className="banner-error-copy">
-              <span>{presentedError.message}</span>
-              {presentedError.details && (
-                <details className="error-details">
-                  <summary>{t("error.technicalDetails")}</summary>
-                  <pre>{presentedError.details}</pre>
-                </details>
-              )}
-            </div>
-            <button
-              type="button"
-              aria-label={t("error.dismiss")}
-              onClick={() => setError(null)}
-            >
-              ×
-            </button>
-          </div>
+          <ErrorBanner presentation={presentedError} onDismiss={() => setError(null)} />
         )}
         <ProfileMigrationBanner />
         {screen === "profiles" && <ProfileOnboardingScreen />}
