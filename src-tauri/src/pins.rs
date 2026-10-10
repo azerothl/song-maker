@@ -220,6 +220,11 @@ pub const DURATION_SEC_MAX: u32 = 360;
 pub const DURATION_SEC_STEP: u32 = 30;
 pub const DURATION_SEC_DEFAULT: u32 = 180;
 
+const YUE2_ABC_MIN_TOKENS: u32 = 1_024;
+const YUE2_ABC_MAX_TOKENS: u32 = 4_096;
+const YUE2_ABC_TOKENS_PER_SECOND: u32 = 16;
+const YUE2_ABC_TOKEN_HEADROOM: u32 = 512;
+
 pub fn default_target_duration_sec() -> u32 {
     DURATION_SEC_DEFAULT
 }
@@ -262,6 +267,18 @@ pub fn semantic_token_budget(sec: u32, lyrics: &str, prefer_full_lyrics: bool) -
     )
 }
 
+/// Bound the score-planning window by the expected audio duration. audio.cpp
+/// defaults this stage to 4096 tokens even for short tracks, which reserves a
+/// much larger AR prefill graph than the request needs. Keep generous headroom
+/// and retain the engine ceiling for long, lyric-heavy generations.
+pub fn yue2_abc_token_budget(semantic_max_tokens: u32) -> u32 {
+    let planned_duration_sec = semantic_max_tokens.div_ceil(SEMANTIC_HZ);
+    planned_duration_sec
+        .saturating_mul(YUE2_ABC_TOKENS_PER_SECOND)
+        .saturating_add(YUE2_ABC_TOKEN_HEADROOM)
+        .clamp(YUE2_ABC_MIN_TOKENS, YUE2_ABC_MAX_TOKENS)
+}
+
 pub const TONICS: &[&str] = &[
     "C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B",
 ];
@@ -302,5 +319,12 @@ mod semantic_budget_tests {
         let plain = semantic_token_budget(30, "word word word", true);
         let tagged = semantic_token_budget(30, "[Verse]\nword word word", true);
         assert_eq!(plain, tagged);
+    }
+
+    #[test]
+    fn abc_budget_scales_with_short_duration_and_keeps_long_headroom() {
+        assert_eq!(yue2_abc_token_budget(750), 1_024);
+        assert_eq!(yue2_abc_token_budget(1_500), 1_472);
+        assert_eq!(yue2_abc_token_budget(5_625), 4_096);
     }
 }

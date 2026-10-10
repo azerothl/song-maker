@@ -789,6 +789,8 @@ async fn run_generation(
         &lyrics_sent,
         form.prefer_full_lyrics && !form.instrumental_mode,
     );
+    let abc_max_tokens = (requested_engine == "yue2" && form.cot != "off")
+        .then(|| yue2_abc_token_budget(semantic_max_tokens));
     let fixed_duration = engine_requires_fixed_duration(
         &requested_engine,
         form.prefer_full_lyrics,
@@ -1087,6 +1089,7 @@ async fn run_generation(
         "leftoverNotesFr": if use_lego { Some(crate::ace_step_lego::leftover_notes_fr()) } else { None },
         "semanticMinTokens": semantic_min_tokens,
         "semanticMaxTokens": semantic_max_tokens,
+        "abcMaxTokens": abc_max_tokens,
         "lora": lora_provenance,
         "loraWarnings": lora_warnings
     });
@@ -1296,6 +1299,9 @@ async fn run_generation(
                     "semantic_max_tokens": semantic_max_tokens,
                     "export_semantic": !stop_after_abc
                 });
+                if let Some(max_tokens) = abc_max_tokens {
+                    options["abc_max_tokens"] = json!(max_tokens);
+                }
                 if stop_after_abc {
                     options
                         .as_object_mut()
