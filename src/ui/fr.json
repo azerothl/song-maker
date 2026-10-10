@@ -1,4 +1,8 @@
 {
+  "app.errorBoundary.title": "Song Maker n’a pas pu afficher cet écran.",
+  "app.errorBoundary.description": "Rechargez l’application. Si l’écran reste vide, transmettez le détail technique ci-dessous.",
+  "app.errorBoundary.details": "Détail technique",
+  "app.errorBoundary.reload": "Recharger l’application",
   "aceStep.ab.checking": "Vérification du modèle disponible…",
   "aceStep.ab.installRequired": "Installez le modèle ACE-Step et acceptez sa licence pour générer une prise à comparer.",
   "separate.recommend.licenseDetails": "Lire les détails et les sources de la licence",

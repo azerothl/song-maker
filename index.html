@@ -13,7 +13,81 @@
     <title>Song Maker</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main id="startup-fallback" role="status" aria-live="polite">
+        <section>
+          <h1>Song Maker</h1>
+          <p data-startup-message>L’application démarre…</p>
+          <pre data-startup-details hidden></pre>
+          <button id="startup-reload" type="button" hidden>Recharger l’application</button>
+        </section>
+      </main>
+    </div>
+    <style>
+      #startup-fallback {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+        color: #eff0fb;
+        background: #0c0e18;
+        font: 16px/1.5 "Segoe UI", sans-serif;
+      }
+      #startup-fallback[hidden] { display: none; }
+      #startup-fallback section { width: min(100%, 42rem); }
+      #startup-fallback h1 { margin: 0; font-size: 1.75rem; }
+      #startup-fallback p { color: #a7aec4; }
+      #startup-fallback pre {
+        max-height: 16rem;
+        overflow: auto;
+        padding: 1rem;
+        color: #eff0fb;
+        background: #151827;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      #startup-fallback button {
+        min-height: 44px;
+        padding: 0.6rem 1rem;
+        border: 1px solid #8b7ab8;
+        border-radius: 0.5rem;
+        color: #eff0fb;
+        background: #20243a;
+        cursor: pointer;
+      }
+    </style>
+    <script>
+      (() => {
+        const fallback = document.getElementById("startup-fallback");
+        const message = fallback?.querySelector("[data-startup-message]");
+        const details = fallback?.querySelector("[data-startup-details]");
+        const reload = document.getElementById("startup-reload");
+        const showFailure = (reason) => {
+          if (!fallback?.isConnected) return;
+          fallback.setAttribute("role", "alert");
+          if (message) message.textContent = "L’interface n’a pas pu démarrer.";
+          if (details) {
+            details.hidden = false;
+            details.textContent = String(reason || "Aucun détail technique fourni.").slice(0, 4000);
+          }
+          if (reload) reload.hidden = false;
+        };
+        window.addEventListener("error", (event) => {
+          if (event.target === window || event.target instanceof HTMLScriptElement) {
+            showFailure(event.error?.stack || event.message || "Le script de l’interface n’a pas pu être chargé.");
+          }
+        }, true);
+        window.addEventListener("unhandledrejection", (event) => {
+          showFailure(event.reason?.stack || event.reason);
+        });
+        reload?.addEventListener("click", () => window.location.reload());
+        window.setTimeout(() => {
+          if (fallback?.isConnected) showFailure("Aucun écran Song Maker ne s’est affiché après 15 secondes.");
+        }, 15000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
