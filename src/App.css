@@ -6479,11 +6479,55 @@ details[open] > summary {
 
 .banner.error {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap;
   background: color-mix(in srgb, var(--danger) 12%, var(--bg1));
   border-bottom: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line));
   padding: 0.55rem 1rem;
+}
+
+.banner-error-copy {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+
+.banner-error-details {
+  margin-top: 0.5rem;
+}
+
+.banner-error-details summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.banner-error-details pre {
+  max-height: 10rem;
+  overflow: auto;
+  margin: 0.5rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 0.75rem/1.45 var(--font-mono, ui-monospace, monospace);
+}
+
+.song-job-error-details {
+  margin-top: 0.35rem;
+}
+
+.song-job-error-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.song-job-error-details pre {
+  max-height: 10rem;
+  overflow: auto;
+  margin: 0.35rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 0.75rem/1.45 var(--font-mono, ui-monospace, monospace);
 }
 
 .score-panel {

@@ -3,6 +3,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { api } from "./lib/api";
 import { generationErrorMessage } from "./lib/generationError";
+import { presentGlobalError } from "./lib/errorPresentation";
 import { shouldHandleSidebarToggleShortcut } from "./lib/sidebarKeyboard";
 import { bindSidebarTipDismiss } from "./lib/sidebarTooltips";
 import {
@@ -292,6 +293,13 @@ export function Sidebar() {
       (job.state === "failed" && job.projectId === project?.id))
       ? job
       : null;
+  const sidebarJobMessage = sidebarJob
+    ? sidebarJob.state === "failed"
+      ? presentGlobalError(
+          generationErrorMessage(sidebarJob.error || sidebarJob.label),
+        ).message
+      : generationErrorMessage(sidebarJob.label)
+    : "";
   const toggleLabel = collapsed ? t("nav.expandMenu") : t("nav.collapseMenu");
   const toggleTitle = collapsed
     ? toggleLabel
@@ -488,7 +496,7 @@ export function Sidebar() {
                 ? t("job.completed")
                 : sidebarJob.state === "cancelled"
                   ? t("job.cancelled")
-                  : generationErrorMessage(sidebarJob.label)
+                  : sidebarJobMessage
             }
           >
             <div
@@ -499,7 +507,7 @@ export function Sidebar() {
                   ? t("job.completed")
                   : sidebarJob.state === "cancelled"
                     ? t("job.cancelled")
-                    : generationErrorMessage(sidebarJob.label)
+                    : sidebarJobMessage
               }
               tabIndex={collapsed ? 0 : undefined}
             >
@@ -509,7 +517,7 @@ export function Sidebar() {
                   ? t("job.completed")
                   : sidebarJob.state === "cancelled"
                     ? t("job.cancelled")
-                    : generationErrorMessage(sidebarJob.label)}
+                    : sidebarJobMessage}
               </span>
             </div>
           </SidebarRow>
@@ -556,6 +564,7 @@ export default function App() {
   const showPlayerDock = Boolean(
     screen !== "profiles" && screen !== "splash",
   );
+  const presentedError = error ? presentGlobalError(error) : null;
   const [availableUpdate, setAvailableUpdate] = useState<Update | null>(null);
   const [profileBoot, setProfileBoot] = useState(false);
 
@@ -610,10 +619,22 @@ export default function App() {
             }}
           />
         )}
-        {error && (
+        {presentedError && (
           <div className="banner error" role="alert">
-            <span>{error}</span>
-            <button type="button" onClick={() => setError(null)}>
+            <div className="banner-error-copy">
+              <span>{presentedError.message}</span>
+              {presentedError.details && (
+                <details className="banner-error-details">
+                  <summary>{t("error.technicalDetails")}</summary>
+                  <pre>{presentedError.details}</pre>
+                </details>
+              )}
+            </div>
+            <button
+              type="button"
+              aria-label={t("error.dismiss")}
+              onClick={() => setError(null)}
+            >
               ×
             </button>
           </div>
