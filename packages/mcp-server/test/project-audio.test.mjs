@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { inspectWav } from '../src/audio-quality.mjs';
-import { exportProjectAudio } from '../src/project-audio.mjs';
+import { exportProjectAudio, exportProjectStems } from '../src/project-audio.mjs';
 import { createProject, getProject, getProjectMix, importProjectAudioTrack } from '../src/projects.mjs';
 
 function smallPcmWav() {
@@ -144,6 +144,104 @@ test('project audio export refuses unfinished generations, unsafe names, and pat
     await assert.rejects(exportProjectAudio({
       ...base, generationId: 'gen-8', outputDirectory: path.dirname(workspace),
     }), /SONG_MAKER_WORKSPACE_ROOT/);
+  } finally {
+    await Promise.all([
+      rm(documentsRoot, { recursive: true, force: true }),
+      rm(workspace, { recursive: true, force: true }),
+    ]);
+  }
+});
+
+test('project stems export copies validated files from a completed separation without overwriting', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-stems-'));
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-stems-workspace-'));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(path.join(documentsRoot, 'profiles', 'profile-stems'), { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-stems', profiles: [{ id: 'profile-stems', name: 'Test', kind: 'hobby' }],
+    }));
+    const { project } = await createProject({ title: 'Blue Hour', env });
+    const separationFolder = path.join(documentsRoot, 'profiles', 'profile-stems', 'projects', project.id,
+      'separations', 'sep-001');
+    await mkdir(separationFolder, { recursive: true });
+    const wav = smallPcmWav();
+    const sha256 = createHash('sha256').update(wav).digest('hex');
+    await Promise.all([
+      writeFile(path.join(separationFolder, 'drums-48000.wav'), wav),
+      writeFile(path.join(separationFolder, 'vocals-48000.wav'), wav),
+      writeFile(path.join(separationFolder, 'separation.json'), JSON.stringify({
+        id: 'sep-001', family: 'htdemucs', warnings: ['guitar-piano-unavailable'],
+        stems: [
+          { role: 'drums', path: 'drums-48000.wav', sha256 },
+          { role: 'vocals', path: 'vocals-48000.wav', sha256 },
+        ],
+      })),
+      writeFile(path.join(separationFolder, 'job.json'), JSON.stringify({
+        id: 'sep-001', generationId: 'gen-001', state: 'completed',
+      })),
+    ]);
+
+    const exported = await exportProjectStems({
+      projectId: project.id, separationId: 'sep-001', outputDirectory: 'exports/stems', workspace, env,
+    });
+    assert.equal(exported.profileId, 'profile-stems');
+    assert.equal(exported.separationId, 'sep-001');
+    assert.equal(exported.family, 'htdemucs');
+    assert.deepEqual(exported.warnings, ['guitar-piano-unavailable']);
+    assert.deepEqual(exported.files.map(file => file.role), ['drums', 'vocals']);
+    assert.equal(exported.files[0].audio.sampleRateHz, 48_000);
+    assert.deepEqual(await readFile(exported.files[0].path), wav);
+
+    const selected = await exportProjectStems({
+      projectId: project.id, separationId: 'sep-001', outputDirectory: 'exports/selected',
+      roles: ['vocals'], workspace, env,
+    });
+    assert.deepEqual(selected.files.map(file => file.role), ['vocals']);
+    await assert.rejects(exportProjectStems({
+      projectId: project.id, separationId: 'sep-001', outputDirectory: 'exports/selected',
+      roles: ['bass'], workspace, env,
+    }), /n’existe pas dans la séparation/);
+    await assert.rejects(exportProjectStems({
+      projectId: project.id, separationId: 'sep-001', outputDirectory: 'exports/stems', workspace, env,
+    }), /Export déjà présent/);
+    await assert.rejects(exportProjectStems({
+      projectId: project.id, separationId: 'sep-001', outputDirectory: path.dirname(workspace), workspace, env,
+    }), /SONG_MAKER_WORKSPACE_ROOT/);
+    assert.deepEqual(await readFile(exported.files[0].path), wav);
+  } finally {
+    await Promise.all([
+      rm(documentsRoot, { recursive: true, force: true }),
+      rm(workspace, { recursive: true, force: true }),
+    ]);
+  }
+});
+
+test('project stems export rejects an incomplete separation and a stem whose hash changed', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-stems-guards-'));
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-stems-guards-'));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(path.join(documentsRoot, 'profiles', 'profile-stems'), { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-stems', profiles: [{ id: 'profile-stems', name: 'Test', kind: 'hobby' }],
+    }));
+    const { project } = await createProject({ title: 'Incomplete stems', env });
+    const separationFolder = path.join(documentsRoot, 'profiles', 'profile-stems', 'projects', project.id,
+      'separations', 'sep-002');
+    await mkdir(separationFolder, { recursive: true });
+    const wav = smallPcmWav();
+    const sha256 = createHash('sha256').update(wav).digest('hex');
+    await writeFile(path.join(separationFolder, 'bass-48000.wav'), wav);
+    await writeFile(path.join(separationFolder, 'separation.json'), JSON.stringify({
+      id: 'sep-002', stems: [{ role: 'bass', path: 'bass-48000.wav', sha256 }],
+    }));
+    await writeFile(path.join(separationFolder, 'job.json'), JSON.stringify({ id: 'sep-002', state: 'running' }));
+    const base = { projectId: project.id, separationId: 'sep-002', outputDirectory: 'exports', workspace, env };
+    await assert.rejects(exportProjectStems(base), /pas publiée/);
+    await writeFile(path.join(separationFolder, 'job.json'), JSON.stringify({ id: 'sep-002', state: 'completed' }));
+    await writeFile(path.join(separationFolder, 'bass-48000.wav'), Buffer.from('not the recorded wav'));
+    await assert.rejects(exportProjectStems(base), /a changé ou est incomplet/);
   } finally {
     await Promise.all([
       rm(documentsRoot, { recursive: true, force: true }),

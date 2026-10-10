@@ -5,7 +5,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
 import { addProjectMidiTrack, createProject, createProjectMidiTrack, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, importProjectAudioTrack, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
-import { exportProjectAudio } from './project-audio.mjs';
+import { exportProjectAudio, exportProjectStems } from './project-audio.mjs';
 import { listLocalResources } from './resources.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
@@ -219,6 +219,17 @@ server.registerTool('export_project_audio', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => exportProjectAudio(args)));
+
+server.registerTool('export_project_stems', {
+  description: 'Exporte un ou plusieurs WAV de stems depuis une séparation terminée du profil Song Maker actif vers SONG_MAKER_WORKSPACE_ROOT. Passe separationId depuis list_project_versions ; sans roles, exporte les stems disponibles. Vérifie les hashes et les WAV, refuse les liens symboliques, les révisions invalides et tout écrasement. Ne lance pas une nouvelle séparation.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    separationId: z.string().regex(/^sep-[0-9]+$/),
+    outputDirectory: z.string().min(1),
+    roles: z.array(z.enum(['vocals', 'drums', 'bass', 'other', 'guitar', 'piano'])).min(1).max(6).refine(values => new Set(values).size === values.length).optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => exportProjectStems(args)));
 
 server.registerTool('import_project_audio_track', {
   description: 'Importe un WAV, MP3 ou FLAC depuis SONG_MAKER_WORKSPACE_ROOT dans une nouvelle piste audio du mix actif. Appelle get_project puis, si un mix est actif, get_project_mix pour fournir les révisions. Conserve l’original, normalise une copie en WAV float32 stéréo 48 kHz avec FFmpeg/libsoxr et retourne les chemins, la durée, le hash, la piste et la nouvelle mixRevision. Ne rend pas le mix.',

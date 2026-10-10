@@ -1,14 +1,20 @@
+import { constants, createReadStream } from 'node:fs';
 import { spawn } from 'node:child_process';
-import { constants } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
 import { copyFile, mkdir, realpath, rm, stat } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { resolveFfmpeg } from './audio-assets.mjs';
 import { inspectWav } from './audio-quality.mjs';
 import { publishExclusive, insideWorkspace, workspaceRoot as defaultWorkspaceRoot } from './runtime.mjs';
-import { resolveGeneratedAudio } from './projects.mjs';
+import { resolveGeneratedAudio, resolveProjectSeparationStems } from './projects.mjs';
 
 const AUDIO_FORMATS = new Set(['wav', 'flac', 'mp3']);
+
+async function sha256File(filePath) {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(filePath)) hash.update(chunk);
+  return hash.digest('hex');
+}
 
 function isWithin(parent, child) {
   const relative = path.relative(parent, child);
@@ -164,5 +170,94 @@ export async function exportProjectAudio({
       sampleRateHz: sourceAudio.sampleRateHz,
       channels: sourceAudio.channels,
     },
+  };
+}
+
+/** Export validated stems from an existing separation without starting another job. */
+export async function exportProjectStems({
+  projectId,
+  separationId,
+  outputDirectory,
+  roles,
+  env = process.env,
+  workspace = defaultWorkspaceRoot,
+} = {}) {
+  if (typeof outputDirectory !== 'string' || !outputDirectory.trim()) {
+    throw new Error('outputDirectory est requis.');
+  }
+  if (roles !== undefined && (!Array.isArray(roles) || roles.length < 1 || roles.length > 6 ||
+      roles.some(role => typeof role !== 'string') || new Set(roles).size !== roles.length)) {
+    throw new Error('roles doit contenir 1 à 6 rôles distincts parmi vocals, drums, bass, other, guitar, piano.');
+  }
+
+  const separation = await resolveProjectSeparationStems({ projectId, separationId, env });
+  const selectedRoles = roles ?? separation.stems.map(stem => stem.role);
+  const unknownRoles = selectedRoles.filter(role => !['vocals', 'drums', 'bass', 'other', 'guitar', 'piano'].includes(role));
+  if (unknownRoles.length) throw new Error(`Rôle de stem non pris en charge : ${unknownRoles.join(', ')}.`);
+  const stemsByRole = new Map(separation.stems.map(stem => [stem.role, stem]));
+  const selected = selectedRoles.map(role => {
+    const stem = stemsByRole.get(role);
+    if (!stem) throw new Error(`Le rôle ${role} n’existe pas dans la séparation ${separationId}.`);
+    return stem;
+  });
+
+  const targetDirectory = insideWorkspace(outputDirectory, workspace);
+  await mkdir(targetDirectory, { recursive: true });
+  const canonicalWorkspace = await realpath(workspace);
+  const canonicalDirectory = await realpath(targetDirectory);
+  if (!isWithin(canonicalWorkspace, canonicalDirectory)) {
+    throw new Error('Le dossier d’export doit rester dans SONG_MAKER_WORKSPACE_ROOT.');
+  }
+
+  const baseTitle = separation.projectTitle
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
+    .replace(/[. ]+$/g, '')
+    .trim()
+    .slice(0, 120) || separation.projectId;
+  const published = [];
+  const temporaryFiles = [];
+  try {
+    for (const stem of selected) {
+      const fileName = safeAudioName(
+        `${baseTitle}-${separation.separationId}-${stem.role}.wav`,
+        `${separation.projectId}-${separation.separationId}-${stem.role}.wav`,
+        'wav',
+      );
+      const destination = path.join(canonicalDirectory, fileName);
+      const temporary = path.join(canonicalDirectory, `.song-maker-stem-${randomUUID()}.wav`);
+      temporaryFiles.push(temporary);
+      await copyFile(stem.audioPath, temporary, constants.COPYFILE_EXCL);
+      const outputAudio = await inspectWav(temporary);
+      if (!outputAudio.durationSec || await sha256File(temporary) !== stem.sha256) {
+        throw new Error(`La copie exportée du stem ${stem.role} est invalide.`);
+      }
+      await publishExclusive(temporary, destination);
+      temporaryFiles.pop();
+      published.push({
+        role: stem.role,
+        path: destination,
+        bytes: (await stat(destination)).size,
+        sha256: stem.sha256,
+        audio: outputAudio,
+      });
+    }
+  } catch (error) {
+    await Promise.all(temporaryFiles.map(file => rm(file, { force: true }).catch(() => {})));
+    await Promise.all(published.map(async file => {
+      try {
+        if (await sha256File(file.path) === file.sha256) await rm(file.path, { force: true });
+      } catch {}
+    }));
+    throw error;
+  }
+
+  return {
+    profileId: separation.profileId,
+    projectId: separation.projectId,
+    separationId: separation.separationId,
+    generationId: separation.generationId,
+    family: separation.family,
+    warnings: separation.warnings,
+    files: published,
   };
 }

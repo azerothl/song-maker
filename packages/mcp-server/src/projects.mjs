@@ -288,6 +288,86 @@ export async function resolveGeneratedAudio({ projectId, generationId, env = pro
   };
 }
 
+/** Resolve validated WAV stems from a saved separation in the active profile. */
+export async function resolveProjectSeparationStems({ projectId, separationId, env = process.env } = {}) {
+  if (typeof projectId !== 'string' || !PROJECT_ID_PATTERN.test(projectId)) {
+    throw new Error('Identifiant de projet invalide.');
+  }
+  if (typeof separationId !== 'string' || !SEPARATION_ID_PATTERN.test(separationId)) {
+    throw new Error('Identifiant de séparation invalide.');
+  }
+
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  const canonicalRoot = await realpath(store.root);
+  const projectFolder = path.join(store.root, projectId);
+  const projectInfo = await lstat(projectFolder);
+  const canonicalProject = await realpath(projectFolder);
+  if (projectInfo.isSymbolicLink() || !projectInfo.isDirectory() || !isWithin(canonicalRoot, canonicalProject)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+
+  const separations = await projectSubdirectory(canonicalProject, 'separations');
+  if (!separations) throw new Error(`Séparation introuvable : ${separationId}`);
+  const separationFolder = path.join(separations, separationId);
+  const separationInfo = await lstat(separationFolder).catch(error => {
+    if (error?.code === 'ENOENT') throw new Error(`Séparation introuvable : ${separationId}`);
+    throw error;
+  });
+  const canonicalSeparation = await realpath(separationFolder);
+  if (separationInfo.isSymbolicLink() || !separationInfo.isDirectory() || !isWithin(separations, canonicalSeparation)) {
+    throw new Error('Le dossier de séparation est invalide.');
+  }
+
+  const [manifest, job] = await Promise.all([
+    readJsonInside(canonicalSeparation, 'separation.json', 'separation.json'),
+    readJsonInside(canonicalSeparation, 'job.json', 'job.json'),
+  ]);
+  if (!manifest || manifest.id !== separationId || !Array.isArray(manifest.stems) ||
+      job?.id !== separationId || job.state !== 'completed') {
+    throw new Error('Cette séparation n’est pas publiée comme une séparation terminée.');
+  }
+
+  const supportedRoles = new Set(['vocals', 'drums', 'bass', 'other', 'guitar', 'piano']);
+  const seenRoles = new Set();
+  const stems = [];
+  for (const stem of manifest.stems) {
+    const role = stem?.role;
+    const fileName = stem?.path;
+    if (typeof role !== 'string' || !supportedRoles.has(role) || seenRoles.has(role) ||
+        typeof fileName !== 'string' || path.basename(fileName) !== fileName ||
+        !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}\.wav$/i.test(fileName) ||
+        !/^[a-f0-9]{64}$/.test(stem?.sha256 ?? '')) {
+      throw new Error('La fiche de séparation contient une piste WAV invalide.');
+    }
+    seenRoles.add(role);
+    if (!await regularFileInside(canonicalSeparation, fileName)) {
+      throw new Error(`Le stem ${role} est introuvable ou invalide.`);
+    }
+    const audioPath = await realpath(path.join(canonicalSeparation, fileName));
+    if (await sha256File(audioPath) !== stem.sha256) {
+      throw new Error(`Le stem ${role} a changé ou est incomplet.`);
+    }
+    let durationMs;
+    try { durationMs = await wavDurationMs(audioPath); }
+    catch { throw new Error(`Le fichier WAV du stem ${role} est illisible.`); }
+    if (!durationMs) throw new Error(`Le fichier WAV du stem ${role} est vide.`);
+    stems.push({ role, audioPath, sha256: stem.sha256, durationMs });
+  }
+  if (stems.length === 0) throw new Error('Cette séparation ne contient aucun stem exportable.');
+
+  return {
+    profileId: store.profileId,
+    projectId,
+    projectTitle: project.title,
+    separationId,
+    generationId: typeof job.generationId === 'string' ? job.generationId : null,
+    family: typeof manifest.family === 'string' ? manifest.family : null,
+    warnings: Array.isArray(manifest.warnings) ? manifest.warnings.filter(value => typeof value === 'string') : [],
+    stems,
+  };
+}
+
 async function sha256File(filePath) {
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(filePath)) hash.update(chunk);
