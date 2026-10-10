@@ -20,7 +20,7 @@ export function ErrorNotice({
       {presentation.details && (
         <details className="error-details">
           <summary>{t("error.technicalDetails")}</summary>
-          <pre>{presentation.details}</pre>
+          <pre tabIndex={0}>{presentation.details}</pre>
         </details>
       )}
     </div>

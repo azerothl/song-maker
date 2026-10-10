@@ -6511,6 +6511,11 @@ details[open] > summary {
   font: 0.75rem/1.45 var(--font-mono, ui-monospace, monospace);
 }
 
+.error-details pre:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
 .score-panel {
   display: flex;
   flex-direction: column;
