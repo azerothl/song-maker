@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { createProject, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
+import { addProjectMidiTrack, createProject, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
 import { exportProjectAudio } from './project-audio.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
@@ -127,14 +127,15 @@ server.registerTool('update_project_mix', {
 }, call(async args => updateProjectMix(args)));
 
 server.registerTool('add_project_midi_track', {
-  description: 'Ajoute une piste MIDI vide au mix actif, comme dans Studio. Passe mixRevision obtenu par get_project_mix ; l’outil ne crée aucune note et refuse les modifications périmées.',
+  description: 'Ajoute au mix actif une voie MIDI reliée à une voix existante de la partition active. Appelle get_project_score et get_project_mix ; passe voiceId, scoreRevision et mixRevision. Refuse les révisions périmées et ne crée aucune note.',
   inputSchema: {
     projectId: z.string().min(1).max(128),
+    voiceId: z.string().trim().min(1).max(128),
+    expectedScoreRevision: z.string().regex(/^[a-f0-9]{64}$/),
     expectedMixRevision: z.string().regex(/^[a-f0-9]{64}$/),
-    name: z.string().trim().min(1).max(120),
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-}, call(async args => updateProjectMix({ ...args, addMidiTracks: [{ name: args.name }] })));
+}, call(async args => addProjectMidiTrack(args)));
 
 server.registerTool('get_project_score', {
   description: 'Lit la partition active ou une version sauvegardée d’un projet du profil actif, avec ses voix et notes et scoreRevision pour sécuriser une édition. Les chemins locaux et états propriétaires VST sont masqués.',

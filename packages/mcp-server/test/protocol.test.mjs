@@ -54,9 +54,12 @@ test('MCP exposes the headless tools over stdio', async () => {
   }));
   await writeFile(path.join(scoreFolder, 'score-v001.json'), JSON.stringify({
     schema: 'songmaker.score', schemaVersion: 1, id: 'score-v001', version: 1,
-    voices: [{ id: 'piano', vst3Instrument: { pluginPath: 'C:/private/piano.vst3', pluginName: 'Private Piano',
-      stateB64: 'private-plugin-state', parameters: { gain: 0.5 } },
-      notes: [{ id: 'note-1', startTick: 0, durationTick: 480, pitch: 60, velocity: 90 }] }],
+    voices: [
+      { id: 'piano', name: 'Piano', vst3Instrument: { pluginPath: 'C:/private/piano.vst3', pluginName: 'Private Piano',
+        stateB64: 'private-plugin-state', parameters: { gain: 0.5 } },
+        notes: [{ id: 'note-1', startTick: 0, durationTick: 480, pitch: 60, velocity: 90 }] },
+      { id: 'midi-keys', name: 'Clavier MIDI', role: 'other', notes: [], abcVoice: 'Ins' },
+    ],
   }));
   await writeFile(path.join(scoreFolder, 'score-v002.json'), JSON.stringify({
     schema: 'songmaker.score', schemaVersion: 1, id: 'score-v002', version: 2,
@@ -120,20 +123,6 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(changedMixState.mix.tracks[0].gainDb, -3);
     assert.equal(changedMixState.mix.tracks[0].pan, 0.25);
     assert.equal(changedMixState.mix.tracks[0].mute, true);
-    const addedMidi = await client.callTool({ name: 'add_project_midi_track', arguments: {
-      projectId: 'project-001', expectedMixRevision: changedMixState.mixRevision, name: 'Piano MIDI',
-    } });
-    assert.equal(addedMidi.isError, undefined);
-    const addedMidiState = JSON.parse(addedMidi.content[0].text);
-    assert.match(addedMidiState.addedTrackIds[0], /^midi-/);
-    assert.deepEqual(
-      (({ role, name, gainDb, pan, mute, solo, clips }) => ({ role, name, gainDb, pan, mute, solo, clips }))(addedMidiState.mix.tracks.at(-1)),
-      { role: 'midi', name: 'Piano MIDI', gainDb: 0, pan: 0, mute: false, solo: false, clips: [] },
-    );
-    const staleMix = await client.callTool({ name: 'update_project_mix', arguments: {
-      projectId: 'project-001', expectedMixRevision: mixState.mixRevision, tracks: [{ id: 'piano', solo: true }],
-    } });
-    assert.equal(staleMix.isError, true);
     const openedScore = await client.callTool({ name: 'get_project_score', arguments: { projectId: 'project-001' } });
     assert.equal(openedScore.isError, undefined);
     const scoreState = JSON.parse(openedScore.content[0].text);
@@ -141,12 +130,38 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.match(scoreState.scoreRevision, /^[a-f0-9]{64}$/);
     assert.equal('pluginPath' in scoreState.score.voices[0].vst3Instrument, false);
     assert.equal('stateB64' in scoreState.score.voices[0].vst3Instrument, false);
+    const addedMidi = await client.callTool({ name: 'add_project_midi_track', arguments: {
+      projectId: 'project-001', voiceId: 'midi-keys', expectedScoreRevision: scoreState.scoreRevision,
+      expectedMixRevision: changedMixState.mixRevision,
+    } });
+    assert.equal(addedMidi.isError, undefined);
+    const addedMidiState = JSON.parse(addedMidi.content[0].text);
+    assert.deepEqual(addedMidiState.addedTrackIds, ['midi-keys']);
+    assert.deepEqual(
+      (({ role, name, gainDb, pan, mute, solo, clips }) => ({ role, name, gainDb, pan, mute, solo, clips }))(addedMidiState.mix.tracks.at(-1)),
+      { role: 'midi', name: 'Clavier MIDI', gainDb: 0, pan: 0, mute: false, solo: false, clips: [] },
+    );
+    assert.deepEqual(addedMidiState.existingTrackIds, []);
+    const repeatedMidi = await client.callTool({ name: 'add_project_midi_track', arguments: {
+      projectId: 'project-001', voiceId: 'midi-keys', expectedScoreRevision: scoreState.scoreRevision,
+      expectedMixRevision: addedMidiState.mixRevision,
+    } });
+    assert.equal(repeatedMidi.isError, undefined);
+    const repeatedMidiState = JSON.parse(repeatedMidi.content[0].text);
+    assert.deepEqual(repeatedMidiState.addedTrackIds, []);
+    assert.deepEqual(repeatedMidiState.existingTrackIds, ['midi-keys']);
+    assert.equal(repeatedMidiState.mixRevision, addedMidiState.mixRevision);
+    const staleMix = await client.callTool({ name: 'update_project_mix', arguments: {
+      projectId: 'project-001', expectedMixRevision: mixState.mixRevision, tracks: [{ id: 'piano', solo: true }],
+    } });
+    assert.equal(staleMix.isError, true);
     const editedScore = await client.callTool({ name: 'edit_project_score', arguments: {
       projectId: 'project-001', expectedScoreRevision: scoreState.scoreRevision,
       edits: [
         { operation: 'add', voiceId: 'piano', note: { id: 'note-2', startTick: 480, durationTick: 240, pitch: 64, velocity: 75 } },
         { operation: 'update', voiceId: 'piano', noteId: 'note-1', changes: { pitch: 61, velocity: 92 } },
         { operation: 'delete', voiceId: 'piano', noteId: 'note-2' },
+        { operation: 'add', voiceId: 'midi-keys', note: { id: 'keys-note', startTick: 480, durationTick: 240, pitch: 67, velocity: 78 } },
       ],
     } });
     assert.equal(editedScore.isError, undefined);
@@ -156,9 +171,15 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(editedScoreState.score.voices[0].notes.length, 1);
     assert.equal(editedScoreState.score.voices[0].notes[0].pitch, 61);
     assert.equal(editedScoreState.score.voices[0].notes[0].velocity, 92);
+    assert.equal(editedScoreState.score.voices.find(voice => voice.id === 'midi-keys').notes[0].pitch, 67);
     assert.equal(editedScoreState.score.voices[0].vst3Instrument.pluginName, 'Private Piano');
     assert.equal(JSON.parse(await readFile(path.join(scoreFolder, 'score-v001.json'), 'utf8')).voices[0].notes[0].pitch, 60);
     assert.equal(JSON.parse(await readFile(path.join(scoreFolder, 'score-v002.json'), 'utf8')).voices[0].notes[0].pitch, 72);
+    const staleMidi = await client.callTool({ name: 'add_project_midi_track', arguments: {
+      projectId: 'project-001', voiceId: 'midi-keys', expectedScoreRevision: scoreState.scoreRevision,
+      expectedMixRevision: addedMidiState.mixRevision,
+    } });
+    assert.equal(staleMidi.isError, true);
     const staleScore = await client.callTool({ name: 'edit_project_score', arguments: {
       projectId: 'project-001', expectedScoreRevision: scoreState.scoreRevision,
       edits: [{ operation: 'delete', voiceId: 'piano', noteId: 'note-1' }],
