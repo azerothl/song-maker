@@ -4,6 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
+import { getProject, listProjects } from './projects.mjs';
 
 const server = new McpServer({ name: 'song-maker-yue2', version: '0.1.0' });
 const reply = value => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
@@ -23,6 +24,18 @@ server.registerTool('gpu_status', {
   inputSchema: {},
   annotations: { readOnlyHint: true },
 }, call(async () => gpuStatus()));
+
+server.registerTool('list_projects', {
+  description: 'Liste les projets du profil Song Maker actif. Lecture seule ; retourne les métadonnées du projet sans ses paroles.',
+  inputSchema: { query: z.string().max(200).optional() },
+  annotations: { readOnlyHint: true },
+}, call(async args => listProjects(args)));
+
+server.registerTool('get_project', {
+  description: 'Lit une fiche du profil Song Maker actif, notamment son style et ses paroles. Lecture seule ; les opérations d’écriture restent dans l’application.',
+  inputSchema: { projectId: z.string().min(1).max(128) },
+  annotations: { readOnlyHint: true },
+}, call(async args => getProject(args)));
 
 server.registerTool('start_song', {
   description: 'Lance une génération YuE2 locale en arrière-plan et retourne un job ID. La sortie WAV reste dans le workspace autorisé. Ne publie rien.',
