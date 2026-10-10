@@ -439,18 +439,16 @@ export function ProductionWorkspace({
         >
           <ClipEditToolbar editTool={editTool} onEditToolChange={setEditTool} />
           <div className="production-main-toolbar-actions">
-            {!studioMode && (
-              <button
-                type="button"
-                className="btn production-separate-trigger"
-                data-testid="production-separate-trigger"
-                disabled={separateDisabled}
-                aria-describedby={separateDisabledReason ? "production-separate-reason" : undefined}
-                onClick={(event) => openSeparateFrom(event.currentTarget)}
-              >
-                {hasAiStems ? t("separate.again") : t("separate.button")}
-              </button>
-            )}
+            <button
+              type="button"
+              className="btn production-separate-trigger"
+              data-testid="production-separate-trigger"
+              disabled={separateDisabled}
+              aria-describedby={separateDisabledReason ? "production-separate-reason" : undefined}
+              onClick={(event) => openSeparateFrom(event.currentTarget)}
+            >
+              {hasAiStems ? t("separate.again") : t("separate.button")}
+            </button>
             <ProductionAddTrackMenu
               busy={busy}
               importingAudio={importingAudio}
@@ -487,7 +485,7 @@ export function ProductionWorkspace({
             {mixSettingsTrigger}
           </div>
         </div>
-        {!studioMode && separateDisabledReason && (
+        {separateDisabledReason && (
           <p id="production-separate-reason" className="hint">
             {separateDisabledReason}
           </p>
