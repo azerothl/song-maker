@@ -485,6 +485,7 @@
   "separate.install": "Télécharger le modèle",
   "separate.install.busy": "Téléchargement…",
   "separate.model.unavailable": "Ce modèle n'est pas installé. Téléchargez-le d'abord (après avoir accepté la licence).",
+  "separate.run.failed": "La séparation n’a pas abouti. Votre morceau d’origine est conservé. Vérifiez le moteur dans Paramètres, puis réessayez.",
   "separation.estimated.marker": "Estimé *",
   "separation.revert.hint": "Vous pouvez revenir à la séparation précédente et à son mix.",
   "separation.revert.action": "Revenir à la séparation précédente",

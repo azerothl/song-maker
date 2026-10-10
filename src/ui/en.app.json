@@ -333,6 +333,7 @@
   "separate.install": "Download model",
   "separate.install.busy": "Downloading…",
   "separate.model.unavailable": "This model is not installed. Download it first (after accepting the license).",
+  "separate.run.failed": "Separation could not finish. Your original song is preserved. Check the separator in Settings, then try again.",
   "separation.estimated.marker": "Estimated *",
   "separation.revert.hint": "You can return to the previous separation and its mix.",
   "separation.revert.action": "Return to previous separation",
