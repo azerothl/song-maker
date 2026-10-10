@@ -367,9 +367,10 @@ describe("Production commune (#223, #230)", () => {
       assert.ok(bounds, "missing Studio track scroll region");
       await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
       await page.mouse.wheel(0, 1200);
-      await page.waitForFunction(() =>
-        (document.querySelector(".production-mix-scroll") as HTMLElement | null)?.scrollTop > 0,
-      );
+      await page.waitForFunction(() => {
+        const element = document.querySelector(".production-mix-scroll");
+        return element instanceof HTMLElement && element.scrollTop > 0;
+      });
 
       const [lastLane, player] = await Promise.all([
         page.locator(".production-mix-row").last().boundingBox(),
