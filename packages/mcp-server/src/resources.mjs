@@ -1,7 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
-import { activeProfileContext } from './projects.mjs';
+import { readSongMakerRuntimeSettings } from './song-maker-settings.mjs';
 
 const YUE2_MODELS = [
   { id: 'q4', file: 'yue2-3b-q4_0.gguf', bytes: 2_665_632_320 },
@@ -32,32 +31,6 @@ const ACE_STEP_LEGO = {
   receipt: 'installation-verified.json',
   gitSource: 'git+https://github.com/ace-step/ACE-Step-1.5.git@ca1e85fe9430179831e6bc6be790c332190a3866',
 };
-
-function defaultCacheDirectory(env) {
-  if (process.platform === 'win32') {
-    return path.join(env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'song-maker');
-  }
-  if (process.platform === 'darwin') {
-    return path.join(os.homedir(), 'Library', 'Caches', 'song-maker');
-  }
-  return path.join(env.XDG_CACHE_HOME || path.join(os.homedir(), '.cache'), 'song-maker');
-}
-
-async function readSettings(filePath, label) {
-  let text;
-  try {
-    text = await readFile(filePath, 'utf8');
-  } catch (error) {
-    if (error?.code === 'ENOENT') return {};
-    throw new Error(`Lecture des réglages ${label} impossible.`);
-  }
-  try {
-    const value = JSON.parse(text);
-    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-  } catch {
-    throw new Error(`Les réglages ${label} sont invalides.`);
-  }
-}
 
 async function exactFile(cacheDirectory, relativePath, expectedBytes) {
   try {
@@ -117,20 +90,11 @@ async function inspectModel(cacheDirectory, model) {
 }
 
 export async function listLocalResources({ env = process.env } = {}) {
-  const context = await activeProfileContext(env);
-  const globalSettings = await readSettings(path.join(context.documentsDirectory, 'settings.json'), 'globaux');
-  const profileSettingsPath = path.join(context.profileDirectory, 'profile-settings.json');
-  const profileSettings = context.profileId
-    ? await readSettings(profileSettingsPath, 'du profil actif')
-    : globalSettings;
-  const configuredCache = typeof globalSettings.cacheDir === 'string' ? globalSettings.cacheDir.trim() : '';
-  const cacheDirectory = configuredCache ? path.resolve(configuredCache) : defaultCacheDirectory(env);
-
-  const configuredModel = typeof globalSettings.modelGguf === 'string' ? globalSettings.modelGguf : '';
-  const configuredPack = typeof globalSettings.modelPack === 'string' ? globalSettings.modelPack.toLowerCase() : '';
-  const selectedYuE2Model = configuredModel === YUE2_MODELS[0].file ? 'q4'
-    : configuredModel === YUE2_MODELS[1].file ? 'q8'
-      : (!configuredModel && ['q4', 'q8'].includes(configuredPack) ? configuredPack : null);
+  const settings = readSongMakerRuntimeSettings(env);
+  const { profileSettings } = settings;
+  const cacheDirectory = settings.cacheDirectory;
+  const selectedYuE2Model = settings.appModelId;
+  const mcpSelectedYuE2Model = settings.modelId;
   const yue2Models = await Promise.all(YUE2_MODELS.map(model => inspectModel(cacheDirectory, model)));
   const selectedSeparator = typeof profileSettings.stemSeparator === 'string' ? profileSettings.stemSeparator : 'htdemucs';
   const separators = await Promise.all(SEPARATORS.map(async separator => ({
@@ -141,15 +105,22 @@ export async function listLocalResources({ env = process.env } = {}) {
   })));
   const aceStepInstalled = await exactFile(cacheDirectory, ACE_STEP.file.replace(/^models\//, ''), ACE_STEP.bytes);
   const aceStepLegoRuntimeStatus = await aceStepLegoRuntime(cacheDirectory, env);
-  const selectedEngine = typeof profileSettings.generationEngine === 'string'
-    ? profileSettings.generationEngine
-    : 'yue2';
+  const selectedEngine = settings.selectedEngine;
+  const mcpGenerationBlockers = [];
+  if (!settings.localYue2Enabled) mcpGenerationBlockers.push('YuE2 est désactivé dans le profil actif.');
+  if (!settings.yue2LicenseAccepted && env.SONG_MAKER_YUE2_NONCOMMERCIAL !== '1') {
+    mcpGenerationBlockers.push('La licence non commerciale YuE2 n’a pas été acceptée dans le profil actif.');
+  }
+  if (!mcpSelectedYuE2Model || !yue2Models.find(model => model.id === mcpSelectedYuE2Model)?.installed) {
+    mcpGenerationBlockers.push('Le modèle YuE2 sélectionné ou un composant requis est absent.');
+  }
 
   return {
-    profileId: context.profileId,
+    profileId: settings.profileId,
     selectedEngine,
-    localYue2Enabled: profileSettings.localYue2Enabled !== false,
+    localYue2Enabled: settings.localYue2Enabled,
     selectedYuE2Model,
+    mcpSelectedYuE2Model,
     selectedSeparator,
     licenses: {
       yue2Accepted: profileSettings.yue2LicenseAccepted === true,
@@ -158,13 +129,25 @@ export async function listLocalResources({ env = process.env } = {}) {
       ccByNcAccepted: profileSettings.ccByNcAccepted === true,
     },
     mcpGenerationEngine: 'yue2',
-    mcpUsesActiveAppProfile: false,
+    mcpGenerationEngines: [
+      { id: 'yue2', supported: true, default: true, selectedInApp: selectedEngine === 'yue2' },
+      { id: ACE_STEP.id, supported: false, reason: 'Le moteur ACE-Step n’est pas pilotable depuis MCP.' },
+      { id: ACE_STEP_LEGO.id, supported: false, reason: 'Le moteur ACE-Step Lego n’est pas pilotable depuis MCP.' },
+    ],
+    mcpUsesActiveAppProfile: true,
+    mcpGenerationReady: mcpGenerationBlockers.length === 0,
+    mcpGenerationBlockers,
+    mcpModelSource: settings.modelSource,
     engines: [
       {
         id: 'yue2',
         selected: selectedEngine === 'yue2',
         mcpGenerationSupported: true,
-        models: yue2Models.map(model => ({ ...model, selected: model.id === selectedYuE2Model })),
+        models: yue2Models.map(model => ({
+          ...model,
+          selected: model.id === selectedYuE2Model,
+          mcpSelected: model.id === mcpSelectedYuE2Model,
+        })),
       },
       {
         id: ACE_STEP.id,

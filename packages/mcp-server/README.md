@@ -30,7 +30,7 @@ Ce serveur MCP permet à Codex de lancer YuE2 sur le GPU local sans démarrer l'
 
 Le serveur lit le manifeste `profiles.json` et les fichiers `project.json` dans le même dossier de données que l’application. Il détecte les emplacements usuels de Documents ; si Song Maker utilise un dossier redirigé ou personnalisé, définis `SONG_MAKER_DOCUMENTS_DIR` dans l’environnement du serveur vers le dossier `Song Maker` qui contient `profiles.json` (ou le dossier historique `projects`). Les projets corrompus ou hors du profil actif sont ignorés dans la liste. Les paroles ne sont jamais incluses dans les résultats de `list_projects`.
 
-`list_local_resources` lit les choix, consentements et ressources du profil actif. Il indique les composants manquants d’un pack YuE2 incomplet, vérifie la taille des modèles épinglés et distingue le moteur ACE-Step Turbo du runtime Python ACE-Step Lego installé et vérifié. Il masque les chemins locaux et ne télécharge, n’installe ni n’active les ressources ; le choix d’un moteur dans l’application et le runner YuE2 du MCP restent séparés.
+`list_local_resources` lit les choix, consentements et ressources du profil actif. Il indique les composants manquants d’un pack YuE2 incomplet, vérifie la taille des modèles épinglés et distingue le moteur ACE-Step Turbo du runtime Python ACE-Step Lego installé et vérifié. Il masque les chemins locaux et ne télécharge, n’installe ni n’active les ressources. La réponse indique les moteurs pilotables via MCP : actuellement, seul YuE2 peut être lancé. Les appels `start_song` et `start_batch` acceptent `engineId: "yue2"` et `modelId: "q4"` ou `"q8"` ; le modèle choisi dans les réglages Song Maker sert par défaut. Les demandes d’un moteur non pris en charge, d’un moteur YuE2 désactivé, d’un modèle manquant ou d’un consentement absent sont refusées.
 
 ## Préparer le moteur
 
@@ -43,7 +43,7 @@ cd scripts\phase0
 .\verify-hashes.cmd
 ```
 
-Ces scripts téléchargent le moteur et les poids dans `%LOCALAPPDATA%\song-maker` sans installer l'application `.exe`. Le serveur choisit Q4 par défaut, comme le réglage initial de Song Maker. Pour utiliser Q8, télécharge ce pack et définis `SONG_MAKER_MODEL=q8` dans l'environnement MCP; Q8 n'est jamais sélectionné automatiquement. Les poids YuE2 sont [CC BY-NC 4.0](https://huggingface.co/m-a-p/YuE2-3B/blob/main/LICENSE) : ce serveur refuse la génération tant que `SONG_MAKER_YUE2_NONCOMMERCIAL=1` n'est pas défini. N'utilise cette option que pour un usage non commercial conforme à la licence.
+Ces scripts téléchargent le moteur et les poids dans `%LOCALAPPDATA%\song-maker` sans installer l'application `.exe`. Le serveur suit le modèle sélectionné dans les réglages Song Maker (Q4 ou Q8). Tu peux remplacer ce choix par `SONG_MAKER_MODEL=q4` ou `SONG_MAKER_MODEL=q8` dans l'environnement MCP ; le modèle doit être installé dans le cache configuré. Les poids YuE2 sont [CC BY-NC 4.0](https://huggingface.co/m-a-p/YuE2-3B/blob/main/LICENSE) : la génération est refusée si le profil actif n’a pas accepté la licence. Une configuration explicite `SONG_MAKER_YUE2_NONCOMMERCIAL=1` reste possible après lecture de la licence, pour un usage non commercial conforme à ses conditions.
 
 ## Protection du GPU
 

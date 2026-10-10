@@ -376,7 +376,7 @@ server.registerTool('remove_track_from_playlist', {
 }, call(async args => removeTrackFromPlaylist(args)));
 
 server.registerTool('start_song', {
-  description: 'Lance une génération YuE2 locale en arrière-plan et retourne un job ID. La sortie WAV reste dans le workspace autorisé. Ne publie rien.',
+  description: 'Lance une génération YuE2 locale et retourne un job ID. engineId est facultatif ; choisis-le parmi les moteurs marqués mcpGenerationSupported dans list_local_resources. YuE2 est actuellement le seul disponible. Le modèle actif dans Song Maker sert par défaut ; modelId permet de choisir q4 ou q8 explicitement. Le serveur vérifie le profil actif, le consentement et la présence du modèle. La sortie WAV reste dans le workspace autorisé. Ne publie rien.',
   inputSchema: {
     title: z.string().min(1).max(120),
     style: z.string().min(1).max(4000),
@@ -386,6 +386,8 @@ server.registerTool('start_song', {
     cot: z.enum(['full', 'melody', 'off']).default('full'),
     instrumentalMode: z.boolean().default(false),
     seed: z.number().int().min(0).max(4294967295).optional(),
+    engineId: z.enum(['yue2']).optional(),
+    modelId: z.enum(['q4', 'q8']).optional(),
     creativeDirection: z.object({
       scene: z.string().max(240).optional(),
       groove: z.string().max(240).optional(),
@@ -395,18 +397,21 @@ server.registerTool('start_song', {
       motif: z.string().max(240).optional(),
     }).optional(),
   },
-}, call(async args => startJob([normalizeSong({ ...args, id: '01' })], args.outputDirectory)));
+}, call(async args => startJob([normalizeSong({ ...args, id: '01' })], args.outputDirectory,
+  { engineId: args.engineId, modelId: args.modelId })));
 
 server.registerTool('start_batch', {
-  description: 'Lit un lot Song Maker V1 du workspace. Passe dryRun=true pour auditer les prompts sans utiliser le GPU. Par défaut, les lots doivent fournir scene, groove, foreground, harmony, arrangement et motif par titre; les doublons exacts sont refusés. Le job se met en pause après chaque piste pour son contrôle audio; resume_job confirme la validation et lance la piste suivante. Les exports suspects restent en pause qualité. Les WAV sont nommés 01 - Titre.wav, etc. Ne remplace aucun export existant.',
+  description: 'Lit un lot Song Maker V1 du workspace. Passe dryRun=true pour auditer les prompts sans utiliser le GPU. Choisis engineId parmi les moteurs marqués mcpGenerationSupported dans list_local_resources ; YuE2 est actuellement le seul disponible. modelId permet de choisir q4 ou q8 explicitement, sinon Song Maker fournit le modèle actif. Les lots doivent fournir scene, groove, foreground, harmony, arrangement et motif par titre; les doublons exacts sont refusés. Le job se met en pause après chaque piste pour son contrôle audio; resume_job confirme la validation et lance la piste suivante. Les exports suspects restent en pause qualité. Les WAV sont nommés 01 - Titre.wav, etc. Ne remplace aucun export existant.',
   inputSchema: {
     batchFile: z.string().min(1),
     outputDirectory: z.string().min(1).optional(),
+    engineId: z.enum(['yue2']).optional(),
+    modelId: z.enum(['q4', 'q8']).optional(),
     dryRun: z.boolean().default(false),
     reviewBeforeNext: z.boolean().default(true),
     requireCreativeDirection: z.boolean().default(true),
   },
-}, call(async ({ batchFile, outputDirectory, dryRun, reviewBeforeNext, requireCreativeDirection }) => {
+}, call(async ({ batchFile, outputDirectory, engineId, modelId, dryRun, reviewBeforeNext, requireCreativeDirection }) => {
   const songs = parseBatch(await readFile(insideWorkspace(batchFile), 'utf8'));
   const promptAudit = auditPromptDiversity(songs);
   if (dryRun) return promptAudit;
@@ -421,7 +426,7 @@ server.registerTool('start_batch', {
     const examples = promptAudit.similarPairs.slice(0, 10).map(pair => `${pair.first}/${pair.second} (${pair.similarity})`);
     throw new Error(`Le lot contient ${promptAudit.similarPairs.length} paires de directions lexicalement proches (seuil 0,65), par exemple ${examples.join(', ')}. Varie les scènes, grooves, timbres, harmonies, arrangements et motifs avant de lancer.`);
   }
-  return startJob(songs, outputDirectory, { reviewBeforeNext });
+  return startJob(songs, outputDirectory, { reviewBeforeNext, engineId, modelId });
 }));
 
 server.registerTool('job_status', {
@@ -432,7 +437,7 @@ server.registerTool('job_status', {
   const job = await getJob(jobId);
   return { id: job.id, state: job.state, total: job.songs.length, current: job.current,
     completed: job.completed, failures: job.failures || [], error: job.error, outputDirectory: job.outputDirectory,
-    engine: job.engine || null, warnings: job.warnings || [], promptAudit: job.promptAudit || null,
+    engine: job.engine || null, modelId: job.modelId || null, warnings: job.warnings || [], promptAudit: job.promptAudit || null,
     reviewBeforeNext: job.reviewBeforeNext || false, reviewRequired: job.reviewRequired || null,
     reviewWorkerActive: job.reviewWorkerActive || false,
     reviewAcknowledgedAt: job.reviewAcknowledgedAt || null,

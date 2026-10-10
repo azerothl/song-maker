@@ -43,7 +43,16 @@ test('local resource inventory reads the active profile, reports incomplete pack
     assert.equal(inventory.engines[1].selected, false);
     assert.equal(inventory.engines[1].mcpGenerationSupported, false);
     assert.equal(inventory.mcpGenerationEngine, 'yue2');
-    assert.equal(inventory.mcpUsesActiveAppProfile, false);
+    assert.equal(inventory.mcpUsesActiveAppProfile, true);
+    assert.equal(inventory.mcpSelectedYuE2Model, 'q4');
+    assert.equal(inventory.mcpModelSource, 'song-maker-settings');
+    assert.equal(inventory.mcpGenerationReady, false);
+    assert.ok(inventory.mcpGenerationBlockers.some(blocker => blocker.includes('modèle')));
+    assert.deepEqual(inventory.mcpGenerationEngines, [
+      { id: 'yue2', supported: true, default: true, selectedInApp: false },
+      { id: 'ace_step', supported: false, reason: 'Le moteur ACE-Step n’est pas pilotable depuis MCP.' },
+      { id: 'ace_step_lego', supported: false, reason: 'Le moteur ACE-Step Lego n’est pas pilotable depuis MCP.' },
+    ]);
     assert.equal(inventory.engines[2].id, 'ace_step_lego');
     assert.equal(inventory.engines[2].selected, true);
     assert.equal(inventory.engines[2].runtimeInstalled, true);

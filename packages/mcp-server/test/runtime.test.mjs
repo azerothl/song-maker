@@ -4,7 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
-import { acquireGpuLock, assertGpuSafe, assertRequestedDuration, auditPromptDiversity, cancelJob, cliArgs, getJob, gpuLimits,
+import { acquireGpuLock, assertGpuSafe, assertRequestedDuration, assertYue2GenerationAllowed, auditPromptDiversity, cancelJob, cliArgs, getJob, gpuLimits,
   inferenceThreads, insideWorkspace, normalizeSong, outputName, parseBatch, parseGpuTelemetry, publishExclusive,
   releaseGpuLock, runtimeStatus, semanticBudget, serverSongRequest, wavDurationMs,
   workspaceRoot } from '../src/runtime.mjs';
@@ -101,15 +101,17 @@ test('GPU telemetry parsing distinguishes unreadable sensors from overheating', 
     gpuLimits('q4')), { code: 'GPU_SAFETY_STOP' });
 });
 
-test('Q4 is selected by default; Q8 requires an explicit choice', async () => {
+test('YuE2 runtime follows the active Song Maker cache and model, with an explicit per-job override', async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'song-maker-runtime-'));
-  const previousCache = process.env.SONG_MAKER_CACHE;
-  const previousModel = process.env.SONG_MAKER_MODEL;
+  const documents = path.join(dir, 'documents');
+  const profileDirectory = path.join(documents, 'profiles', 'profile-001');
   const cache = path.join(dir, 'cache');
-  const binaries = path.join(cache, 'binaries', 'v0.8.2', 'windows-cuda12.4');
+  const binaryFolder = process.platform === 'win32' ? 'windows-cuda12.4' : 'linux-cuda12.8-colab';
+  const binaryName = process.platform === 'win32' ? 'audiocpp_cli.exe' : 'audiocpp_cli';
+  const binaries = path.join(cache, 'binaries', 'v0.8.2', binaryFolder);
   const modelDir = path.join(cache, 'models', 'Yue2-3B-GGUF');
   const files = [
-    path.join(binaries, 'audiocpp_cli.exe'),
+    path.join(binaries, binaryName),
     path.join(modelDir, 'yue2-3b-q4_0.gguf'),
     path.join(modelDir, 'yue2-3b-q8_0.gguf'),
     path.join(modelDir, 'yue2-vae-f16.gguf'),
@@ -121,16 +123,34 @@ test('Q4 is selected by default; Q8 requires an explicit choice', async () => {
       await mkdir(path.dirname(file), { recursive: true });
       await writeFile(file, '');
     }));
-    process.env.SONG_MAKER_CACHE = cache;
-    delete process.env.SONG_MAKER_MODEL;
-    assert.equal(runtimeStatus().modelName, 'yue2-3b-q4_0.gguf');
-    process.env.SONG_MAKER_MODEL = 'q8';
-    assert.equal(runtimeStatus().modelName, 'yue2-3b-q8_0.gguf');
+    await mkdir(profileDirectory, { recursive: true });
+    await writeFile(path.join(documents, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-001', profiles: [{ id: 'profile-001', kind: 'hobby' }],
+    }));
+    await writeFile(path.join(documents, 'settings.json'), JSON.stringify({
+      cacheDir: cache, modelPack: 'q4', modelGguf: 'yue2-3b-q8_0.gguf',
+    }));
+    await writeFile(path.join(profileDirectory, 'profile-settings.json'), JSON.stringify({
+      generationEngine: 'yue2', localYue2Enabled: true, yue2LicenseAccepted: true,
+    }));
+
+    const env = { ...process.env, SONG_MAKER_DOCUMENTS_DIR: documents };
+    delete env.SONG_MAKER_CACHE;
+    delete env.SONG_MAKER_MODEL;
+    const appRuntime = runtimeStatus({ env });
+    assert.equal(appRuntime.modelName, 'yue2-3b-q8_0.gguf');
+    assert.equal(appRuntime.modelId, 'q8');
+    assert.equal(appRuntime.profileId, 'profile-001');
+    assert.equal(appRuntime.yue2LicenseAccepted, true);
+    assert.doesNotThrow(() => assertYue2GenerationAllowed(appRuntime));
+    assert.throws(() => assertYue2GenerationAllowed({ ...appRuntime, localYue2Enabled: false }, {}), /désactivé/);
+    assert.throws(() => assertYue2GenerationAllowed({ ...appRuntime, yue2LicenseAccepted: false }, {}), /licence non commerciale/);
+
+    const explicitQ4 = runtimeStatus({ modelId: 'q4', env });
+    assert.equal(explicitQ4.modelName, 'yue2-3b-q4_0.gguf');
+    assert.equal(explicitQ4.modelId, 'q4');
+    assert.throws(() => runtimeStatus({ engineId: 'ace_step', env }), /Moteur MCP indisponible/);
   } finally {
-    if (previousCache === undefined) delete process.env.SONG_MAKER_CACHE;
-    else process.env.SONG_MAKER_CACHE = previousCache;
-    if (previousModel === undefined) delete process.env.SONG_MAKER_MODEL;
-    else process.env.SONG_MAKER_MODEL = previousModel;
     await rm(dir, { recursive: true, force: true });
   }
 });

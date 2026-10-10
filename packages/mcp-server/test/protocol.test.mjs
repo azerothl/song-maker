@@ -38,12 +38,19 @@ test('MCP exposes the headless tools over stdio', async () => {
   const importDirectory = `.test-mcp-audio-${process.pid}`;
   await mkdir(path.join(process.cwd(), importDirectory), { recursive: true });
   await writeFile(path.join(process.cwd(), importDirectory, 'source.wav'), smallPcmWav());
+  const profileDirectory = path.join(documentsRoot, 'profiles', 'profile-001');
   const projectFolder = path.join(documentsRoot, 'profiles', 'profile-001', 'projects', 'project-001');
   const mixFolder = path.join(projectFolder, 'mixes');
   const scoreFolder = path.join(projectFolder, 'scores');
   await Promise.all([mkdir(mixFolder, { recursive: true }), mkdir(scoreFolder, { recursive: true })]);
   await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
     activeProfileId: 'profile-001', profiles: [{ id: 'profile-001', name: 'Test', kind: 'hobby' }],
+  }));
+  await writeFile(path.join(documentsRoot, 'settings.json'), JSON.stringify({
+    cacheDir: path.join(documentsRoot, 'cache'), modelPack: 'q4', modelGguf: 'yue2-3b-q8_0.gguf',
+  }));
+  await writeFile(path.join(profileDirectory, 'profile-settings.json'), JSON.stringify({
+    generationEngine: 'yue2', localYue2Enabled: true, yue2LicenseAccepted: true,
   }));
   await writeFile(path.join(projectFolder, 'project.json'), JSON.stringify({
     id: 'project-001', title: 'Piste de test', createdAt: '2026-10-10T00:00:00Z',
@@ -92,12 +99,26 @@ test('MCP exposes the headless tools over stdio', async () => {
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'resume_job',
         'runtime_status', 'start_batch', 'start_song', 'update_project', 'update_project_mix', 'use_project_generation',
         'use_project_mix', 'use_project_score', 'use_project_separation']);
+    for (const name of ['start_song', 'start_batch']) {
+      assert.deepEqual(tools.tools.find(tool => tool.name === name).inputSchema.properties.engineId.enum, ['yue2']);
+      assert.deepEqual(tools.tools.find(tool => tool.name === name).inputSchema.properties.modelId.enum, ['q4', 'q8']);
+    }
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
     assert.equal(status.isError, undefined);
-    assert.equal(typeof JSON.parse(status.content[0].text).ready, 'boolean');
+    const runtime = JSON.parse(status.content[0].text);
+    assert.equal(typeof runtime.ready, 'boolean');
+    assert.equal(runtime.profileId, 'profile-001');
+    assert.equal(runtime.modelId, 'q8');
+    assert.equal(runtime.yue2LicenseAccepted, true);
     const resources = await client.callTool({ name: 'list_local_resources', arguments: {} });
     assert.equal(resources.isError, undefined);
-    assert.equal(JSON.parse(resources.content[0].text).profileId, 'profile-001');
+    const resourceInventory = JSON.parse(resources.content[0].text);
+    assert.equal(resourceInventory.profileId, 'profile-001');
+    assert.equal(resourceInventory.mcpUsesActiveAppProfile, true);
+    assert.equal(resourceInventory.mcpSelectedYuE2Model, 'q8');
+    assert.equal(resourceInventory.mcpModelSource, 'song-maker-settings');
+    assert.equal(resourceInventory.mcpGenerationReady, false);
+    assert.deepEqual(resourceInventory.mcpGenerationEngines.map(engine => engine.id), ['yue2', 'ace_step', 'ace_step_lego']);
     const listed = await client.callTool({ name: 'list_projects', arguments: { query: 'test' } });
     assert.equal(listed.isError, undefined);
     const list = JSON.parse(listed.content[0].text);
