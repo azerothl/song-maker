@@ -6,6 +6,7 @@ import { ProductionTrackFxLinePopin } from "./ProductionTrackFxLinePopin";
 import { ProductionTrackRoutingPopin } from "./ProductionTrackRoutingPopin";
 import { isVocalEffectEligibleTrack } from "../../lib/productionState";
 import { setTrackAutomationVisible } from "../../lib/productionTrackAutomationVisible";
+import { handleRovingTabListKeyDown } from "../../lib/rovingTabList";
 import type { MixDoc, MixTrack } from "../../lib/types";
 import { t } from "../../ui/i18n";
 
@@ -108,6 +109,7 @@ export function ProductionTrackTools({
           role="tablist"
           aria-label={t("production.track.tabs")}
           id={tablistId}
+          onKeyDown={handleRovingTabListKeyDown}
         >
           {tabs.map((item) => (
             <button

@@ -1,6 +1,7 @@
 import { api } from "../lib/api";
 import { generationErrorMessage } from "../lib/generationError";
 import { presentGlobalError } from "../lib/errorPresentation";
+import { handleRovingTabListKeyDown } from "../lib/rovingTabList";
 import { TakePreviewPlayer } from "../components/TakePreviewPlayer";
 import { BatchGenerationPanel } from "../components/BatchGenerationPanel";
 import { buildGenerationPayload, loadRemotePrefs, runRemoteGenerationToProject } from "../lib/remoteGenerate";
@@ -1137,6 +1138,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
               className="song-workspace-tabs"
               role="tablist"
               aria-label={t("workspace.nav")}
+              onKeyDown={handleRovingTabListKeyDown}
             >
               {WORKSPACES.filter((space) => screen !== "studio" || space !== "create").map((space) => (
               <button
