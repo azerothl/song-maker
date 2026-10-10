@@ -1,43 +1,43 @@
 {
   "audioCpp": {
-    "tag": "v0.8.2",
-    "commit": "4d88768fbcae4e6eb3352c6ab1422dabb7d90b58",
-    "baseUrl": "https://github.com/0xShug0/audio.cpp/releases/download/v0.8.2",
+    "tag": "v0.9.1",
+    "commit": "cf124a67cc55d8f65a9a15eec69edbff0fb212c8",
+    "baseUrl": "https://github.com/0xShug0/audio.cpp/releases/download/v0.9.1",
     "archives": [
       {
         "id": "windows-cuda12.4",
-        "name": "audio-v0.8.2-bin-windows-x64-cuda12.4.zip",
-        "sha256": "6055122c7199897ff21ca6cda9f9207712bd91273d21dc2d137d5fa610c43c86",
-        "bytes": 444938499,
+        "name": "audio-v0.9.1-bin-windows-x64-cuda12.4.zip",
+        "sha256": "f32a40f8fb14ac4772c9c25525f97715db228979178e51654da73aa65005c0ef",
+        "bytes": 462376707,
         "platform": "windows"
       },
       {
         "id": "windows-cudart-12.4",
-        "name": "audio-v0.8.2-cudart-windows-x64-cuda12.4.zip",
-        "sha256": "e2a31fb1030423319e686c6ec65da8952b2c095feb8a1e716c2adfbb6c46fac1",
+        "name": "audio-v0.9.1-cudart-windows-x64-cuda12.4.zip",
+        "sha256": "8bfdce7cb00b5a51560b5ab0d444344d86a2f0d7e2727bb7f18c15ef4734451b",
         "bytes": 607273675,
         "platform": "windows",
         "role": "runtime"
       },
       {
         "id": "linux-cuda12.8-colab",
-        "name": "audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz",
-        "sha256": "1190ba46bb45e1acd2ca42edca53074c7935b96de67f3719c8c4943df5fe1b6f",
-        "bytes": 65293844,
+        "name": "audio-v0.9.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz",
+        "sha256": "de068e8a22eb8f9c229c8ecaf77e12b6340be4d7d91606604fae7ccc48c174b6",
+        "bytes": 225245487,
         "platform": "linux"
       },
       {
         "id": "macos-arm64-metal",
-        "name": "audio-v0.8.2-bin-macos-arm64-metal.tar.gz",
-        "sha256": "d33db13695fbf3ba73ea85a8b59575b98a66f7b6ff89bbb59599c75b4689f9a5",
-        "bytes": 28446530,
+        "name": "audio-v0.9.1-bin-macos-arm64-metal.tar.gz",
+        "sha256": "960436787b84bf137a70ea1713ac460207ef2ac7b2617380fb7a1f4650d1100d",
+        "bytes": 30519606,
         "platform": "macos-arm64"
       },
       {
         "id": "macos-x64-metal",
-        "name": "audio-v0.8.2-bin-macos-x64-metal.tar.gz",
-        "sha256": "6edcf84ea530f782c465fb9b37c7f3c1e8ac1e8ded865a9a59ebacc5140d8b67",
-        "bytes": 30120475,
+        "name": "audio-v0.9.1-bin-macos-x64-metal.tar.gz",
+        "sha256": "e8987115a6150330c4a3ba6a00494b0a1f28db8c5553d1f457ba2279a15f9ff1",
+        "bytes": 32363206,
         "platform": "macos-x64"
       }
     ]

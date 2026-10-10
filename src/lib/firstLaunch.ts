@@ -897,11 +897,11 @@ export function demoInstallPlan(
   // Real installer artifact names (`installer::artifacts` / pins).
   const files: InstallFilePlan[] = [
     {
-      name: "audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz",
+      name: "audio-v0.9.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz",
       status: done ? "complete" : "missing",
-      totalBytes: 65_293_844,
-      receivedBytes: done ? 65_293_844 : 0,
-      remainingBytes: done ? 0 : 65_293_844,
+      totalBytes: 225_245_487,
+      receivedBytes: done ? 225_245_487 : 0,
+      remainingBytes: done ? 0 : 225_245_487,
     },
     {
       name: "yue2-model-config.json",
@@ -968,8 +968,8 @@ export function demoProgressError(): InstallProgress {
     bytesPerSec: 0,
     etaSeconds: 85,
     etaIsEstimate: true,
-    overallReceivedBytes: Math.round(YUE2_Q4_BYTES * 0.43) + 65_293_844,
-    overallTotalBytes: YUE2_Q4_BYTES + 65_293_844 + 265_218_656 + 61_940_768,
+    overallReceivedBytes: Math.round(YUE2_Q4_BYTES * 0.43) + 225_245_487,
+    overallTotalBytes: YUE2_Q4_BYTES + 225_245_487 + 265_218_656 + 61_940_768,
     overallEtaIsEstimate: true,
     error: {
       message: t("firstLaunch.error.network.demoMessage"),
@@ -1014,7 +1014,7 @@ export function demoProgressDownloading(pack: ModelPack = "q8"): InstallProgress
   const model = pack === "q8" ? "yue2-3b-q8_0.gguf" : "yue2-3b-q4_0.gguf";
   const modelTotal = packModelBytes(pack);
   const received = Math.round(modelTotal * 0.99);
-  const engine = 65_293_844 + 959;
+  const engine = 225_245_487 + 959;
   const rest = 265_218_656 + 2_561_218 + 61_940_768;
   return {
     state: "downloading",

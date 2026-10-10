@@ -195,6 +195,20 @@ impl AudioCppServer {
         // audio.cpp resolves this name relative to `models[].path`; an absolute
         // path is rejected by the server's path validation.
         session_options.insert("yue2.model_gguf".into(), json!(settings.model_gguf));
+        // Keep host-side metadata arenas bounded. audio.cpp v0.8.2's multi-GiB
+        // defaults could abort the Windows server during long-form YuE2 NAR
+        // graph setup when system commit was low. Upstream v0.9.1 reduces these
+        // defaults to 32 MiB; pin the same safe values in our generated config.
+        for option in [
+            "yue2.model_weight_context_mb",
+            "yue2.ar_prefill_graph_arena_mb",
+            "yue2.ar_decode_graph_arena_mb",
+            "yue2.nar_graph_arena_mb",
+            "yue2.vae_graph_arena_mb",
+            "yue2.vae_weight_context_mb",
+        ] {
+            session_options.insert(option.into(), json!(32));
+        }
         if let Some(path) = settings.yue2_ar_lora.as_deref() {
             session_options.insert("yue2.ar_lora".into(), json!(path));
             session_options.insert(
@@ -832,6 +846,16 @@ mod semantic_metadata_tests {
                 .unwrap();
             assert_eq!(model["session_options"]["yue2.model_gguf"], selected);
             assert!(!std::path::Path::new(selected).is_absolute());
+            for option in [
+                "yue2.model_weight_context_mb",
+                "yue2.ar_prefill_graph_arena_mb",
+                "yue2.ar_decode_graph_arena_mb",
+                "yue2.nar_graph_arena_mb",
+                "yue2.vae_graph_arena_mb",
+                "yue2.vae_weight_context_mb",
+            ] {
+                assert_eq!(model["session_options"][option], 32);
+            }
         }
 
         let _ = std::fs::remove_dir_all(dir);

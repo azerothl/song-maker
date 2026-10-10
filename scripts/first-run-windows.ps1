@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$tag = 'v0.8.2'
+$tag = 'v0.9.1'
 $release = "https://github.com/0xShug0/audio.cpp/releases/download/$tag"
 $yue2 = 'https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/eb116220931de5f373d024d48800338178c7de51'
 $htdemucs = 'https://huggingface.co/audio-cpp/audio.cpp-gguf/resolve/main'
@@ -26,10 +26,10 @@ function Get-VerifiedFile([string]$Url, [string]$Path, [string]$Sha256) {
   if ($actual -ne $Sha256) { Remove-Item -LiteralPath $Path -Force; throw "SHA-256 invalide : $Path" }
 }
 
-$cudaZip = 'audio-v0.8.2-bin-windows-x64-cuda12.4.zip'
-$cudaSha = '6055122c7199897ff21ca6cda9f9207712bd91273d21dc2d137d5fa610c43c86'
-$runtimeZip = 'audio-v0.8.2-cudart-windows-x64-cuda12.4.zip'
-$runtimeSha = 'e2a31fb1030423319e686c6ec65da8952b2c095feb8a1e716c2adfbb6c46fac1'
+$cudaZip = 'audio-v0.9.1-bin-windows-x64-cuda12.4.zip'
+$cudaSha = 'f32a40f8fb14ac4772c9c25525f97715db228979178e51654da73aa65005c0ef'
+$runtimeZip = 'audio-v0.9.1-cudart-windows-x64-cuda12.4.zip'
+$runtimeSha = '8bfdce7cb00b5a51560b5ab0d444344d86a2f0d7e2727bb7f18c15ef4734451b'
 Get-VerifiedFile "$release/$cudaZip" (Join-Path $binDir $cudaZip) $cudaSha
 Get-VerifiedFile "$release/$runtimeZip" (Join-Path $binDir $runtimeZip) $runtimeSha
 $runtimeDir = Join-Path $binDir 'windows-cuda12.4'
