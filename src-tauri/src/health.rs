@@ -32,13 +32,7 @@ fn run_nvidia_smi(bin: &Path) -> Option<std::process::Output> {
         "--query-gpu=name,driver_version,memory.total",
         "--format=csv,noheader,nounits",
     ]);
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        // Évite l'échec silencieux des spawns console depuis une app GUI Tauri.
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
+    crate::process_utils::configure_no_window(&mut cmd);
     cmd.output().ok()
 }
 

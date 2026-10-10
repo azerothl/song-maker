@@ -162,7 +162,8 @@ describe("Production commune (#223, #230)", () => {
       await buttons.first().focus();
       await page.keyboard.press("ArrowRight");
       assert.equal(await buttons.nth(1).getAttribute("aria-pressed"), "true");
-      assert.equal(await buttons.nth(1).locator("span").last().innerText(),"Split [C]");
+      assert.equal(await buttons.nth(1).locator("span").nth(1).innerText(),"Split");
+      assert.equal(await buttons.nth(1).locator("kbd").innerText(),"C");
       assert.equal(await buttons.nth(1).locator(".clip-edit-tool-check").innerText(),"✓");
       assert.equal(await buttons.nth(1).getAttribute("tabindex"),"0");
       assert.equal(await buttons.first().getAttribute("tabindex"),"-1");
@@ -321,4 +322,28 @@ describe("Production commune (#223, #230)", () => {
       assert.notEqual(await start.inputValue(), oldValue);
     } finally { await page.close(); }
   });
+  it("keeps the add-track dialog and its actions inside wide and medium viewports", async () => {
+    for (const width of [1440, 1024]) {
+      const page = await browser.newPage({ viewport: { width, height: 900 } });
+      try {
+        await page.goto(BASE, { waitUntil: "networkidle" });
+        await page.locator(".production-add-track-btn").click();
+        const dialog = page.locator(".production-add-track-dialog");
+        await dialog.waitFor({ state: "visible" });
+        const bounds = await dialog.boundingBox();
+        assert.ok(bounds, `missing dialog bounds at ${width}px`);
+        assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width, JSON.stringify(bounds));
+        const actions = await dialog.locator("button").evaluateAll((buttons) =>
+          buttons.map((button) => {
+            const rect = button.getBoundingClientRect();
+            return { left: rect.left, right: rect.right };
+          }),
+        );
+        assert.ok(actions.every((action) => action.left >= 0 && action.right <= width), JSON.stringify(actions));
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
 });

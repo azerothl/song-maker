@@ -76,12 +76,7 @@ pub(crate) fn python_bootstrap() -> Result<(PathBuf, Vec<String>), String> {
             continue;
         }
         let mut command = Command::new(&program);
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-            command.creation_flags(CREATE_NO_WINDOW);
-        }
+        crate::process_utils::configure_no_window(&mut command);
         let Ok(output) = command
             .args(&prefix)
             .arg("-c")
@@ -109,7 +104,9 @@ fn install_blocking(cache: PathBuf) -> Result<String, String> {
         crate::paths::ensure_dir(parent).map_err(|e| e.to_string())?;
     }
 
-    let output = Command::new(&bootstrap)
+    let mut command = Command::new(&bootstrap);
+    crate::process_utils::configure_no_window(&mut command);
+    let output = command
         .args(&prefix)
         .args(["-m", "venv"])
         .arg(&venv)
@@ -122,7 +119,9 @@ fn install_blocking(cache: PathBuf) -> Result<String, String> {
         ));
     }
 
-    let output = Command::new(&python)
+    let mut command = Command::new(&python);
+    crate::process_utils::configure_no_window(&mut command);
+    let output = command
         .args([
             "-m",
             "pip",
@@ -224,7 +223,9 @@ import numpy as np, soundfile as sf, pathlib
             sf.write(str(path), stereo, sr)
 "#
     );
-    let output = tokio::process::Command::new(&python)
+    let mut command = tokio::process::Command::new(&python);
+    crate::process_utils::configure_tokio_no_window(&mut command);
+    let output = command
         .arg("-c")
         .arg(worker)
         .arg(&input)

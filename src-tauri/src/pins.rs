@@ -13,24 +13,24 @@ pub const SEPARATOR_SAMPLE_RATE: u32 = 44_100;
 pub const CHANNELS: u16 = 2;
 pub const BIT_DEPTH: u16 = 24;
 
-pub const AUDIOCPP_TAG: &str = "v0.8.2";
-pub const AUDIOCPP_COMMIT: &str = "4d88768fbcae4e6eb3352c6ab1422dabb7d90b58";
+pub const AUDIOCPP_TAG: &str = "v0.9.1";
+pub const AUDIOCPP_COMMIT: &str = "cf124a67cc55d8f65a9a15eec69edbff0fb212c8";
 
-pub const ARCHIVE_WINDOWS: &str = "audio-v0.8.2-bin-windows-x64-cuda12.4.zip";
+pub const ARCHIVE_WINDOWS: &str = "audio-v0.9.1-bin-windows-x64-cuda12.4.zip";
 pub const ARCHIVE_WINDOWS_SHA: &str =
-    "6055122c7199897ff21ca6cda9f9207712bd91273d21dc2d137d5fa610c43c86";
-pub const ARCHIVE_WINDOWS_CUDART: &str = "audio-v0.8.2-cudart-windows-x64-cuda12.4.zip";
+    "f32a40f8fb14ac4772c9c25525f97715db228979178e51654da73aa65005c0ef";
+pub const ARCHIVE_WINDOWS_CUDART: &str = "audio-v0.9.1-cudart-windows-x64-cuda12.4.zip";
 pub const ARCHIVE_WINDOWS_CUDART_SHA: &str =
-    "e2a31fb1030423319e686c6ec65da8952b2c095feb8a1e716c2adfbb6c46fac1";
-pub const ARCHIVE_LINUX: &str = "audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz";
+    "8bfdce7cb00b5a51560b5ab0d444344d86a2f0d7e2727bb7f18c15ef4734451b";
+pub const ARCHIVE_LINUX: &str = "audio-v0.9.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz";
 pub const ARCHIVE_LINUX_SHA: &str =
-    "1190ba46bb45e1acd2ca42edca53074c7935b96de67f3719c8c4943df5fe1b6f";
-pub const ARCHIVE_MACOS_ARM64: &str = "audio-v0.8.2-bin-macos-arm64-metal.tar.gz";
+    "de068e8a22eb8f9c229c8ecaf77e12b6340be4d7d91606604fae7ccc48c174b6";
+pub const ARCHIVE_MACOS_ARM64: &str = "audio-v0.9.1-bin-macos-arm64-metal.tar.gz";
 pub const ARCHIVE_MACOS_ARM64_SHA: &str =
-    "d33db13695fbf3ba73ea85a8b59575b98a66f7b6ff89bbb59599c75b4689f9a5";
-pub const ARCHIVE_MACOS_X64: &str = "audio-v0.8.2-bin-macos-x64-metal.tar.gz";
+    "960436787b84bf137a70ea1713ac460207ef2ac7b2617380fb7a1f4650d1100d";
+pub const ARCHIVE_MACOS_X64: &str = "audio-v0.9.1-bin-macos-x64-metal.tar.gz";
 pub const ARCHIVE_MACOS_X64_SHA: &str =
-    "6edcf84ea530f782c465fb9b37c7f3c1e8ac1e8ded865a9a59ebacc5140d8b67";
+    "e8987115a6150330c4a3ba6a00494b0a1f28db8c5553d1f457ba2279a15f9ff1";
 
 pub fn backend_name() -> &'static str {
     if cfg!(target_os = "macos") {
@@ -59,11 +59,11 @@ pub const HTDEMUCS_SHA: &str = "b0f532ac6e5f373aeb11fa0df73253251e133832d9c8b994
 pub const HTDEMUCS_BYTES: u64 = 61_940_768;
 
 /// Tailles des archives moteur audio.cpp pour l’assistant premier lancement.
-pub const ARCHIVE_WINDOWS_BYTES: u64 = 444_938_499;
+pub const ARCHIVE_WINDOWS_BYTES: u64 = 462_376_707;
 pub const ARCHIVE_WINDOWS_CUDART_BYTES: u64 = 607_273_675;
-pub const ARCHIVE_LINUX_BYTES: u64 = 65_293_844;
-pub const ARCHIVE_MACOS_ARM64_BYTES: u64 = 28_446_530;
-pub const ARCHIVE_MACOS_X64_BYTES: u64 = 30_120_475;
+pub const ARCHIVE_LINUX_BYTES: u64 = 225_245_487;
+pub const ARCHIVE_MACOS_ARM64_BYTES: u64 = 30_519_606;
+pub const ARCHIVE_MACOS_X64_BYTES: u64 = 32_363_206;
 
 pub const YUE2_SIDECAR_MODEL_CONFIG_BYTES: u64 = 959;
 pub const YUE2_SIDECAR_GENERATION_CONFIG_BYTES: u64 = 466;
@@ -220,6 +220,11 @@ pub const DURATION_SEC_MAX: u32 = 360;
 pub const DURATION_SEC_STEP: u32 = 30;
 pub const DURATION_SEC_DEFAULT: u32 = 180;
 
+const YUE2_ABC_MIN_TOKENS: u32 = 1_024;
+const YUE2_ABC_MAX_TOKENS: u32 = 4_096;
+const YUE2_ABC_TOKENS_PER_SECOND: u32 = 6;
+const YUE2_ABC_TOKEN_HEADROOM: u32 = 256;
+
 pub fn default_target_duration_sec() -> u32 {
     DURATION_SEC_DEFAULT
 }
@@ -232,7 +237,7 @@ pub fn normalize_target_duration_sec(sec: u32) -> u32 {
 }
 
 /// YuE samples 25 semantic frames per second. In lyrics-first mode the target
-/// is a minimum; max tokens gets a conservative lyric estimate plus headroom.
+/// is a minimum; max tokens follows the larger of the target and lyric estimate.
 pub fn semantic_token_budget(sec: u32, lyrics: &str, prefer_full_lyrics: bool) -> (u32, u32) {
     let target_sec = normalize_target_duration_sec(sec);
     let target_tokens = target_sec.saturating_mul(SEMANTIC_HZ);
@@ -251,15 +256,25 @@ pub fn semantic_token_budget(sec: u32, lyrics: &str, prefer_full_lyrics: bool) -
     // musical space. Real vocal pacing varies and the old 80 wpm estimate cut
     // off a full test verse before its final lines.
     let lyric_estimate_sec = lyric_words.saturating_add(30);
-    let target_with_headroom = target_sec.saturating_add((target_sec / 4).max(DURATION_SEC_STEP));
     let max_sec = lyric_estimate_sec
-        .max(target_with_headroom)
+        .max(target_sec)
         .min(SEMANTIC_MAX_DURATION_SEC);
     let max_sec = max_sec.div_ceil(DURATION_SEC_STEP) * DURATION_SEC_STEP;
     (
         target_tokens,
         max_sec.min(SEMANTIC_MAX_DURATION_SEC) * SEMANTIC_HZ,
     )
+}
+
+/// Bound the score-planning window by the expected audio duration. The score is
+/// part of the later AR conditioning prefix, so its cap must leave room for the
+/// semantic audio tokens in the same prefill graph.
+pub fn yue2_abc_token_budget(semantic_max_tokens: u32) -> u32 {
+    let planned_duration_sec = semantic_max_tokens.div_ceil(SEMANTIC_HZ);
+    planned_duration_sec
+        .saturating_mul(YUE2_ABC_TOKENS_PER_SECOND)
+        .saturating_add(YUE2_ABC_TOKEN_HEADROOM)
+        .clamp(YUE2_ABC_MIN_TOKENS, YUE2_ABC_MAX_TOKENS)
 }
 
 pub const TONICS: &[&str] = &[
@@ -302,5 +317,22 @@ mod semantic_budget_tests {
         let plain = semantic_token_budget(30, "word word word", true);
         let tagged = semantic_token_budget(30, "[Verse]\nword word word", true);
         assert_eq!(plain, tagged);
+    }
+
+    #[test]
+    fn abc_budget_scales_with_short_duration_and_keeps_long_headroom() {
+        assert_eq!(yue2_abc_token_budget(750), 1_024);
+        assert_eq!(yue2_abc_token_budget(1_500), 1_024);
+        assert_eq!(yue2_abc_token_budget(3_000), 1_024);
+        assert_eq!(yue2_abc_token_budget(3_750), 1_156);
+        assert_eq!(yue2_abc_token_budget(5_625), 1_606);
+    }
+
+    #[test]
+    fn short_lyrics_do_not_add_unrequested_duration_headroom() {
+        assert_eq!(
+            semantic_token_budget(120, "short test lyric", true),
+            (3_000, 3_000)
+        );
     }
 }

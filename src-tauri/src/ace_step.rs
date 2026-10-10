@@ -94,13 +94,14 @@ fn ensure_disk_space(dest_dir: &Path) -> Result<(), String> {
     #[cfg(windows)]
     let output = {
         let escaped = probe.display().to_string().replace('\'', "''");
-        std::process::Command::new("powershell")
-            .args([
-                "-NoProfile",
-                "-Command",
-                &format!("(Get-Item -LiteralPath '{escaped}').PSDrive.Free"),
-            ])
-            .output()
+        let mut command = std::process::Command::new("powershell");
+        command.args([
+            "-NoProfile",
+            "-Command",
+            &format!("(Get-Item -LiteralPath '{escaped}').PSDrive.Free"),
+        ]);
+        crate::process_utils::configure_no_window(&mut command);
+        command.output()
     };
     #[cfg(unix)]
     let output = std::process::Command::new("df")

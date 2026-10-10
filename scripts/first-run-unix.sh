@@ -2,7 +2,7 @@
 # Install the pinned audio.cpp runtime and YuE2/HTDemucs models for macOS/Linux.
 set -euo pipefail
 
-TAG="v0.8.2"
+TAG="v0.9.1"
 RELEASE="https://github.com/0xShug0/audio.cpp/releases/download/${TAG}"
 YUE2="https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/eb116220931de5f373d024d48800338178c7de51"
 HTDEMUCS="https://huggingface.co/audio-cpp/audio.cpp-gguf/resolve/main"
@@ -17,12 +17,12 @@ case "$(uname -s)" in
     ARCH="$(uname -m)"
     if [[ "$ARCH" == "arm64" ]]; then
       PLATFORM="macos-arm64-metal"
-      ARCHIVE="audio-v0.8.2-bin-macos-arm64-metal.tar.gz"
-      ARCHIVE_SHA="d33db13695fbf3ba73ea85a8b59575b98a66f7b6ff89bbb59599c75b4689f9a5"
+      ARCHIVE="audio-v0.9.1-bin-macos-arm64-metal.tar.gz"
+      ARCHIVE_SHA="960436787b84bf137a70ea1713ac460207ef2ac7b2617380fb7a1f4650d1100d"
     elif [[ "$ARCH" == "x86_64" ]]; then
       PLATFORM="macos-x64-metal"
-      ARCHIVE="audio-v0.8.2-bin-macos-x64-metal.tar.gz"
-      ARCHIVE_SHA="6edcf84ea530f782c465fb9b37c7f3c1e8ac1e8ded865a9a59ebacc5140d8b67"
+      ARCHIVE="audio-v0.9.1-bin-macos-x64-metal.tar.gz"
+      ARCHIVE_SHA="e8987115a6150330c4a3ba6a00494b0a1f28db8c5553d1f457ba2279a15f9ff1"
     else
       echo "Architecture macOS non prise en charge : $ARCH" >&2; exit 1
     fi
@@ -30,8 +30,8 @@ case "$(uname -s)" in
     ;;
   Linux)
     PLATFORM="linux-cuda12.8-colab"
-    ARCHIVE="audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz"
-    ARCHIVE_SHA="1190ba46bb45e1acd2ca42edca53074c7935b96de67f3719c8c4943df5fe1b6f"
+    ARCHIVE="audio-v0.9.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz"
+    ARCHIVE_SHA="de068e8a22eb8f9c229c8ecaf77e12b6340be4d7d91606604fae7ccc48c174b6"
     CACHE="${SONG_MAKER_CACHE:-${HOME}/.cache/song-maker}"
     if [[ "$(uname -m)" != "x86_64" ]]; then
       echo "La release Linux demande actuellement un PC x86_64." >&2; exit 1

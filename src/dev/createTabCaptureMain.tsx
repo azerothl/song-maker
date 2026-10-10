@@ -20,7 +20,6 @@ if (seededProject) {
 function CreateTabCaptureApp() {
   const form = useAppStore((s) => s.form);
   const setForm = useAppStore((s) => s.setForm);
-  const scoreDocument = useAppStore((s) => s.scoreDocument);
   const [busy, setBusy] = useState(false);
   const [advancedSettingsPage, setAdvancedSettingsPage] =
     useState<AdvancedSettingsPage>(null);
@@ -62,7 +61,6 @@ function CreateTabCaptureApp() {
           }}
           onOpenInstrumentalSettings={() => undefined}
           onOpenVocalRemovalSettings={() => undefined}
-          scoreDocument={scoreDocument}
           scoreGate={scoreGate}
           setAdvancedSettingsPage={setAdvancedSettingsPage}
           setForm={setForm}

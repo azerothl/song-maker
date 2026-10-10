@@ -60,7 +60,7 @@ export const HTDEMUCS_MAINTAINER_STATEMENT_EN =
 /** Extrait badge / tests — dernière phrase de la citation. */
 export const HTDEMUCS_MAINTAINER_QUOTE_EN = "only for scientific purposes";
 
-export const HTDEMUCS_NOTICE_FR = `Poids HTDemucs : le mainteneur adefossez a écrit le 23 mai 2022 (Demucs #327) que les poids « ${HTDEMUCS_MAINTAINER_STATEMENT_EN} ». Lu le 2026-09-29. La fiche audio.cpp indique « MIT, usage commercial : oui » mais aucune source amont ne le confirme ; cette mention ne doit pas être lue comme la licence des poids. Le code d'audio.cpp v0.8.2 est sous Apache-2.0 (les poids gardent leur licence d'origine).`;
+export const HTDEMUCS_NOTICE_FR = `Poids HTDemucs : le mainteneur adefossez a écrit le 23 mai 2022 (Demucs #327) que les poids « ${HTDEMUCS_MAINTAINER_STATEMENT_EN} ». Lu le 2026-09-29. La fiche audio.cpp indique « MIT, usage commercial : oui » mais aucune source amont ne le confirme ; cette mention ne doit pas être lue comme la licence des poids. Le code d'audio.cpp v0.9.1 est sous Apache-2.0 (les poids gardent leur licence d'origine).`;
 
 export const HTDEMUCS_6S_NOTICE_FR = `Même famille Demucs, licence des poids 6 stems non vérifiée. ${HTDEMUCS_NOTICE_FR}`;
 

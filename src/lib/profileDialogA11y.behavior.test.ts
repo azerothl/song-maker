@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:net";
 import { afterEach, describe, it } from "node:test";
 import { chromium, type Page } from "playwright";
 import {
@@ -8,11 +9,25 @@ import {
 } from "../dev/captureViteServer.ts";
 import type { ViteDevServer } from "vite";
 
-const PORT = 5192;
-const BASE = captureBaseUrl(PORT, "profiles-app-capture.html");
 const IT_TIMEOUT_MS = 60_000;
 
 let activeServer: ViteDevServer | null = null;
+
+async function findAvailablePort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    throw new Error("port disponible introuvable");
+  }
+  const port = address.port;
+  await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  return port;
+}
 
 async function waitServer(url: string): Promise<void> {
   for (let i = 0; i < 120; i++) {
@@ -36,8 +51,8 @@ async function withPage(fn: (page: Page) => Promise<void>): Promise<void> {
   }
 }
 
-async function openRenameDialog(page: Page): Promise<void> {
-  await page.goto(`${BASE}#onboarding-commercial-disabled`, { waitUntil: "networkidle" });
+async function openRenameDialog(page: Page, baseUrl: string): Promise<void> {
+  await page.goto(`${baseUrl}#onboarding-commercial-disabled`, { waitUntil: "networkidle" });
   await page.waitForSelector('[data-testid="profile-rename-profile-002"]', {
     timeout: 15_000,
   });
@@ -60,11 +75,12 @@ describe("profile rename dialog keyboard (#212 B1)", () => {
     "ArrowLeft and Home keep focus in the text field; Tab and Escape still work",
     { timeout: IT_TIMEOUT_MS },
     async () => {
-      activeServer = await startCaptureViteServer(PORT);
-      await waitServer(BASE);
+      const port = await findAvailablePort();
+      activeServer = await startCaptureViteServer(port);
+      await waitServer(captureBaseUrl(port, "profiles-app-capture.html"));
 
       await withPage(async (page) => {
-        await openRenameDialog(page);
+        await openRenameDialog(page, captureBaseUrl(port, "profiles-app-capture.html"));
 
         const inputSel = '[data-testid="profile-rename-input"]';
         await page.evaluate((sel) => {

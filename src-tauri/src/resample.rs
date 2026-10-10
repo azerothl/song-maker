@@ -78,12 +78,7 @@ fn ffmpeg_candidates() -> Vec<PathBuf> {
 fn run_ffmpeg_version(bin: &Path) -> Option<String> {
     let mut cmd = Command::new(bin);
     cmd.arg("-hide_banner").arg("-version");
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
+    crate::process_utils::configure_no_window(&mut cmd);
     let output = cmd.output().ok()?;
     if !output.status.success() {
         return None;
@@ -147,9 +142,7 @@ fn which_ffmpeg() -> Option<PathBuf> {
     {
         let mut cmd = Command::new("where");
         cmd.arg("ffmpeg");
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
+        crate::process_utils::configure_no_window(&mut cmd);
         let output = cmd.output().ok()?;
         if !output.status.success() {
             return None;
@@ -178,18 +171,9 @@ fn which_ffmpeg() -> Option<PathBuf> {
 }
 
 fn ffmpeg_command(bin: &Path) -> Command {
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        let mut cmd = Command::new(bin);
-        cmd.creation_flags(CREATE_NO_WINDOW);
-        cmd
-    }
-    #[cfg(not(windows))]
-    {
-        Command::new(bin)
-    }
+    let mut cmd = Command::new(bin);
+    crate::process_utils::configure_no_window(&mut cmd);
+    cmd
 }
 
 pub fn resample_soxr(input: &Path, output: &Path, target_rate: u32) -> Result<(), String> {

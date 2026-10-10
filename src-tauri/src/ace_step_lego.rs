@@ -291,12 +291,7 @@ fn spawn_sidecar(
     if mock {
         cmd.env("SONG_MAKER_ACE_STEP_LEGO_MOCK", "1");
     }
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
+    crate::process_utils::configure_no_window(&mut cmd);
     cmd.spawn()
         .map_err(|e| format!("Impossible de démarrer le sidecar Lego : {e}"))
 }
@@ -310,10 +305,10 @@ impl Drop for InstallerProcess {
         }
         #[cfg(windows)]
         {
-            use std::os::windows::process::CommandExt;
-            let _ = Command::new("taskkill")
+            let mut command = Command::new("taskkill");
+            crate::process_utils::configure_no_window(&mut command);
+            let _ = command
                 .args(["/PID", &self.0.id().to_string(), "/T", "/F"])
-                .creation_flags(0x0800_0000)
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .status();
@@ -343,11 +338,7 @@ async fn run_install_command(
     command
         .stdout(log.try_clone().map_err(|e| e.to_string())?)
         .stderr(log);
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000);
-    }
+    crate::process_utils::configure_no_window(&mut command);
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;
@@ -477,11 +468,7 @@ async fn start_local_engine(
     .env("ACESTEP_OFFLOAD_TO_CPU", "true")
     .stdout(log.try_clone().map_err(|e| e.to_string())?)
     .stderr(log);
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x0800_0000);
-    }
+    crate::process_utils::configure_no_window(&mut cmd);
     *sidecar
         .engine
         .lock()
@@ -537,7 +524,9 @@ pub async fn ensure_started(sidecar: &AceStepLegoSidecar, cache: &Path) -> Resul
                 ensure_dir(parent).map_err(|e| e.to_string())?;
             }
             if !python.is_file() {
-                let output = Command::new(&bootstrap)
+                let mut command = Command::new(&bootstrap);
+                crate::process_utils::configure_no_window(&mut command);
+                let output = command
                     .args(["-m", "venv"])
                     .arg(&venv)
                     .output()
@@ -765,11 +754,7 @@ mod tests {
         command
             .args(prefix)
             .args(["-c", "import time; time.sleep(120)"]);
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            command.creation_flags(0x0800_0000);
-        }
+        crate::process_utils::configure_no_window(&mut command);
         let sidecar = AceStepLegoSidecar::default();
         *sidecar.engine.lock().unwrap() = Some(command.spawn().unwrap());
         let started = std::time::Instant::now();

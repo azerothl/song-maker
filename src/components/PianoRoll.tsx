@@ -70,6 +70,9 @@ const PX_PER_TICK = 0.04;
 /** Aligné sur NOTE_HIT_PX pour éviter le chevauchement vertical des cibles 44 px. */
 const ROW_H = NOTE_HIT_PX;
 const QUANTIZE_TICKS = 120;
+const PIANO_KEYBOARD_WIDTH = 56;
+const PIANO_RULER_HEIGHT = 28;
+const TICKS_PER_QUARTER = 480;
 
 type Props = {
   document: ScoreDocument;
@@ -109,8 +112,9 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const scrollRafRef = useRef<number | null>(null);
-  const hScrollRef = useRef({ left: 0, width: 900 });
-  const [hScroll, setHScroll] = useState({ left: 0, width: 900 });
+  const centeredVoiceIdRef = useRef<string | null>(null);
+  const hScrollRef = useRef({ left: 0, width: 844 });
+  const [hScroll, setHScroll] = useState({ left: 0, width: 844 });
 
   const clearFocusedNote = useCallback(() => {
     focusedNoteIdRef.current = null;
@@ -130,7 +134,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
       focusedNoteIdRef.current = active.dataset.noteId;
     }
     const nextLeft = el.scrollLeft;
-    const nextWidth = el.clientWidth || 900;
+    const nextWidth = Math.max(1, (el.clientWidth || 900) - PIANO_KEYBOARD_WIDTH);
     if (
       !shouldSyncPianoScrollViewport(hScrollRef.current, nextLeft, nextWidth)
     ) {
@@ -163,6 +167,26 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
       setVoiceId(primaryVoiceId(document));
     }
   }, [document, voiceId]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !voice || centeredVoiceIdRef.current === voice.id) return;
+    const pitches = voice.notes
+      .map((note) => note.pitch)
+      .filter((pitch) => pitch >= PITCH_MIN && pitch <= PITCH_MAX);
+    if (pitches.length === 0) return;
+
+    centeredVoiceIdRef.current = voice.id;
+    const centerPitch = (Math.min(...pitches) + Math.max(...pitches)) / 2;
+    const targetTop =
+      (PITCH_MAX - centerPitch) * ROW_H +
+      PIANO_RULER_HEIGHT -
+      el.clientHeight / 2;
+    el.scrollTop = Math.min(
+      Math.max(0, el.scrollHeight - el.clientHeight),
+      Math.max(0, targetTop),
+    );
+  }, [voice]);
 
   useEffect(() => {
     clearFocusedNote();
@@ -248,12 +272,18 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
     return m;
   }, [voice, document.sections]);
 
-  const width = Math.max(640, maxTick * PX_PER_TICK);
+  const ticksPerMeasure =
+    meter.numerator * (TICKS_PER_QUARTER * (4 / meter.denominator));
+  const pxPerTick = Math.max(PX_PER_TICK, hScroll.width / (ticksPerMeasure * 8));
+  const width = Math.max(640, maxTick * pxPerTick, hScroll.width);
   const height = (PITCH_MAX - PITCH_MIN + 1) * ROW_H;
+  const measureWidth = ticksPerMeasure * pxPerTick;
+  const measureCount = Math.ceil(width / measureWidth);
+  const beatWidth = (TICKS_PER_QUARTER * (4 / meter.denominator)) * pxPerTick;
 
   const notesIndex = useMemo(
-    () => buildPianoNotesIndex(voice?.notes ?? [], PX_PER_TICK),
-    [voice?.notes],
+    () => buildPianoNotesIndex(voice?.notes ?? [], pxPerTick),
+    [voice?.notes, pxPerTick],
   );
 
   const visibleNotes = useMemo(
@@ -271,9 +301,9 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
         document.sections,
         hScroll.left,
         hScroll.width,
-        PX_PER_TICK,
+        pxPerTick,
       ),
-    [document.sections, hScroll.left, hScroll.width],
+    [document.sections, hScroll.left, hScroll.width, pxPerTick],
   );
 
   function pitchToY(pitch: number): number {
@@ -291,7 +321,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
     const x = e.clientX - rect.left + e.currentTarget.scrollLeft;
     const y = e.clientY - rect.top;
     if (e.detail === 2) {
-      const startTick = Math.max(0, Math.round(x / PX_PER_TICK / 120) * 120);
+      const startTick = Math.max(0, Math.round(x / pxPerTick / 120) * 120);
       const pitch = yToPitch(y);
       const id = `n-${Date.now().toString(36)}`;
       onChange(
@@ -333,7 +363,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
       const dy = ev.clientY - originY;
       const nextStart = Math.max(
         0,
-        Math.round((startTick + dx / PX_PER_TICK) / 120) * 120,
+        Math.round((startTick + dx / pxPerTick) / 120) * 120,
       );
       const nextPitch = Math.min(
         PITCH_MAX,
@@ -466,222 +496,213 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
       aria-label={t("score.pianoHint")}
     >
       <div className="piano-toolbar">
-        <label>
-          {t("score.voice")}
-          <select
-            value={voiceId ?? ""}
-            onChange={(e) => {
-              setVoiceId(e.target.value || null);
-              setSelectedId(null);
-            }}
-          >
-            {document.voices.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name} ({v.abcVoice ?? v.role})
-              </option>
-            ))}
-          </select>
-        </label>
-        {voiceId && (
-          <label>
-            {t("score.abcRole")}
+        <div className="piano-toolbar-main">
+          <label className="piano-voice-picker">
+            {t("score.voice")}
             <select
-              value={voice?.abcVoice ?? (voice?.role === "vocal" || voice?.role === "melody" ? "Vocal" : "Ins")}
-              onChange={(e) =>
-                onChange(
-                  setVoiceAbcRole(
-                    document,
-                    voiceId,
-                    e.target.value as AbcVoiceTarget,
-                    e.target.value === "Vocal" ? "vocal" : "other",
-                  ),
-                )
-              }
+              value={voiceId ?? ""}
+              onChange={(e) => {
+                setVoiceId(e.target.value || null);
+                setSelectedId(null);
+              }}
             >
-              <option value="Vocal">Vocal</option>
-              <option value="Ins">Ins</option>
+              {document.voices.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name} ({v.abcVoice ?? v.role})
+                </option>
+              ))}
             </select>
           </label>
-        )}
-        <label>
-          {t("score.tempo")}
-          <input
-            type="number"
-            min={40}
-            max={220}
-            value={tempo}
-            onChange={(e) =>
-              onChange(updateScoreTempo(document, Number(e.target.value) || 120))
-            }
-          />
-        </label>
-        <label>
-          {t("score.key")}
-          <select
-            value={key.tonic}
-            onChange={(e) =>
-              onChange(updateScoreKey(document, e.target.value, key.mode))
-            }
-          >
-            {TONICS.map((tonic) => (
-              <option key={tonic} value={tonic}>
-                {tonic}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t("score.mode")}
-          <select
-            value={key.mode}
-            onChange={(e) =>
-              onChange(
-                updateScoreKey(document, key.tonic, e.target.value as ModeName),
-              )
-            }
-          >
-            <option value="major">major</option>
-            <option value="minor">minor</option>
-          </select>
-        </label>
-        <label>
-          {t("score.meterNum")}
-          <input
-            type="number"
-            min={1}
-            max={16}
-            value={meter.numerator}
-            onChange={(e) =>
-              onChange(
-                updateScoreMeter(
-                  document,
-                  Number(e.target.value) || 4,
-                  meter.denominator,
-                ),
-              )
-            }
-          />
-        </label>
-        <label>
-          {t("score.meterDen")}
-          <select
-            value={meter.denominator}
-            onChange={(e) =>
-              onChange(
-                updateScoreMeter(
-                  document,
-                  meter.numerator,
-                  Number(e.target.value) || 4,
-                ),
-              )
-            }
-          >
-            {[1, 2, 4, 8, 16].map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t("score.velocity")}
-          <input
-            type="number"
-            min={1}
-            max={127}
-            disabled={!selectedNote}
-            value={selectedNote?.velocity ?? 90}
-            onChange={(e) => {
-              if (!voiceId || !selectedId) return;
-              onChange(
-                updateNote(document, voiceId, selectedId, {
-                  velocity: Math.min(
-                    127,
-                    Math.max(1, Number(e.target.value) || 90),
-                  ),
-                }),
-              );
-            }}
-          />
-        </label>
-        <label>
-          {t("score.section")}
-          <select
-            value={sectionKind}
-            onChange={(e) => setSectionKind(e.target.value as SectionKind)}
-          >
-            {SECTION_KINDS.map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" className="btn" onClick={addSectionAtPlayhead}>
-          {t("score.sectionAdd")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={!selectedId}
-          onClick={deleteSelected}
-        >
-          {t("score.noteDelete")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={!selectedId}
-          onClick={() => bumpDuration(120)}
-        >
-          {t("score.noteLonger")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={!selectedId}
-          onClick={() => bumpDuration(-120)}
-        >
-          {t("score.noteShorter")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => applyTranspose(1)}
-          title={t("score.transposeHint")}
-        >
-          {t("score.transposeUp")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => applyTranspose(-1)}
-          title={t("score.transposeHint")}
-        >
-          {t("score.transposeDown")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => applyTranspose(12)}
-        >
-          {t("score.transposeOctUp")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => applyTranspose(-12)}
-        >
-          {t("score.transposeOctDown")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => setPendingQuantize(true)}
-        >
-          {t("score.quantize")}
-        </button>
-        <span className="hint">{t("score.pianoHint")}</span>
+          {(selectedNote || (voice?.notes.length ?? 0) > 0) && (
+            <div className="piano-note-tools" role="group" aria-label={t("score.piano.noteTools")}>
+              {selectedNote && (
+                <>
+                  <button type="button" className="btn" onClick={deleteSelected}>
+                    {t("score.noteDelete")}
+                  </button>
+                  <button type="button" className="btn" onClick={() => bumpDuration(120)}>
+                    {t("score.noteLonger")}
+                  </button>
+                  <button type="button" className="btn" onClick={() => bumpDuration(-120)}>
+                    {t("score.noteShorter")}
+                  </button>
+                </>
+              )}
+              {(voice?.notes.length ?? 0) > 0 && (
+                <>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => applyTranspose(1)}
+                    title={t("score.transposeHint")}
+                  >
+                    {t("score.transposeUp")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => applyTranspose(-1)}
+                    title={t("score.transposeHint")}
+                  >
+                    {t("score.transposeDown")}
+                  </button>
+                  <button type="button" className="btn" onClick={() => applyTranspose(12)}>
+                    {t("score.transposeOctUp")}
+                  </button>
+                  <button type="button" className="btn" onClick={() => applyTranspose(-12)}>
+                    {t("score.transposeOctDown")}
+                  </button>
+                  <button type="button" className="btn" onClick={() => setPendingQuantize(true)}>
+                    {t("score.quantize")}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+          <span className="hint">{t("score.pianoHint")}</span>
+        </div>
+
+        <details className="piano-advanced-settings">
+          <summary>{t("score.piano.settings")}</summary>
+          <div className="piano-advanced-grid">
+            {voiceId && (
+              <label>
+                {t("score.abcRole")}
+                <select
+                  value={voice?.abcVoice ?? (voice?.role === "vocal" || voice?.role === "melody" ? "Vocal" : "Ins")}
+                  onChange={(e) =>
+                    onChange(
+                      setVoiceAbcRole(
+                        document,
+                        voiceId,
+                        e.target.value as AbcVoiceTarget,
+                        e.target.value === "Vocal" ? "vocal" : "other",
+                      ),
+                    )
+                  }
+                >
+                  <option value="Vocal">Vocal</option>
+                  <option value="Ins">Ins</option>
+                </select>
+              </label>
+            )}
+            <label>
+              {t("score.tempo")}
+              <input
+                type="number"
+                min={40}
+                max={220}
+                value={tempo}
+                onChange={(e) =>
+                  onChange(updateScoreTempo(document, Number(e.target.value) || 120))
+                }
+              />
+            </label>
+            <label>
+              {t("score.key")}
+              <select
+                value={key.tonic}
+                onChange={(e) =>
+                  onChange(updateScoreKey(document, e.target.value, key.mode))
+                }
+              >
+                {TONICS.map((tonic) => (
+                  <option key={tonic} value={tonic}>
+                    {tonic}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {t("score.mode")}
+              <select
+                value={key.mode}
+                onChange={(e) =>
+                  onChange(updateScoreKey(document, key.tonic, e.target.value as ModeName))
+                }
+              >
+                <option value="major">major</option>
+                <option value="minor">minor</option>
+              </select>
+            </label>
+            <label>
+              {t("score.meterNum")}
+              <input
+                type="number"
+                min={1}
+                max={16}
+                value={meter.numerator}
+                onChange={(e) =>
+                  onChange(
+                    updateScoreMeter(
+                      document,
+                      Number(e.target.value) || 4,
+                      meter.denominator,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <label>
+              {t("score.meterDen")}
+              <select
+                value={meter.denominator}
+                onChange={(e) =>
+                  onChange(
+                    updateScoreMeter(
+                      document,
+                      meter.numerator,
+                      Number(e.target.value) || 4,
+                    ),
+                  )
+                }
+              >
+                {[1, 2, 4, 8, 16].map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {t("score.velocity")}
+              <input
+                type="number"
+                min={1}
+                max={127}
+                disabled={!selectedNote}
+                value={selectedNote?.velocity ?? 90}
+                onChange={(e) => {
+                  if (!voiceId || !selectedId) return;
+                  onChange(
+                    updateNote(document, voiceId, selectedId, {
+                      velocity: Math.min(
+                        127,
+                        Math.max(1, Number(e.target.value) || 90),
+                      ),
+                    }),
+                  );
+                }}
+              />
+            </label>
+            <label>
+              {t("score.section")}
+              <select
+                value={sectionKind}
+                onChange={(e) => setSectionKind(e.target.value as SectionKind)}
+              >
+                {SECTION_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="btn" onClick={addSectionAtPlayhead}>
+              {t("score.sectionAdd")}
+            </button>
+          </div>
+        </details>
       </div>
 
       {pendingQuantize && (
@@ -706,48 +727,51 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
         </div>
       )}
 
-      <div className="chord-editor">
-        <label>
-          {t("score.chordTick")}
-          <input
-            type="number"
-            min={0}
-            step={120}
-            value={chordTick}
-            onChange={(e) => setChordTick(Math.max(0, Number(e.target.value) || 0))}
-          />
-        </label>
-        <label>
-          {t("score.chordSymbol")}
-          <input
-            type="text"
-            value={chordSymbol}
-            onChange={(e) => setChordSymbol(e.target.value)}
-          />
-        </label>
-        <button type="button" className="btn" onClick={addChord}>
-          {t("score.chordAdd")}
-        </button>
-      </div>
+      <details className="piano-advanced-settings piano-chord-settings">
+        <summary>{t("score.piano.chords")}</summary>
+        <div className="chord-editor">
+          <label>
+            {t("score.chordTick")}
+            <input
+              type="number"
+              min={0}
+              step={120}
+              value={chordTick}
+              onChange={(e) => setChordTick(Math.max(0, Number(e.target.value) || 0))}
+            />
+          </label>
+          <label>
+            {t("score.chordSymbol")}
+            <input
+              type="text"
+              value={chordSymbol}
+              onChange={(e) => setChordSymbol(e.target.value)}
+            />
+          </label>
+          <button type="button" className="btn" onClick={addChord}>
+            {t("score.chordAdd")}
+          </button>
+        </div>
 
-      {document.chordEvents.length > 0 && (
-        <ul className="section-list chord-list">
-          {document.chordEvents.map((c) => (
-            <li key={`ch-${c.tick}`}>
-              <span>
-                {c.symbol} @ {c.tick}
-              </span>
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={() => onChange(removeChord(document, c.tick))}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+        {document.chordEvents.length > 0 && (
+          <ul className="section-list chord-list">
+            {document.chordEvents.map((c) => (
+              <li key={`ch-${c.tick}`}>
+                <span>
+                  {c.symbol} @ {c.tick}
+                </span>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => onChange(removeChord(document, c.tick))}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </details>
 
       {document.sections.length > 0 && (
         <ul className="section-list">
@@ -768,32 +792,92 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
         </ul>
       )}
 
-      <div
-        ref={scrollRef}
-        className="piano-scroll"
-        onClick={onCanvasClick}
-      >
+      <div ref={scrollRef} className="piano-scroll">
         <div
-          ref={gridRef}
-          className="piano-grid"
-          style={{ width, height }}
+          className="piano-grid-frame"
+          style={{
+            width: PIANO_KEYBOARD_WIDTH + width,
+            height: PIANO_RULER_HEIGHT + height,
+            gridTemplateColumns: `${PIANO_KEYBOARD_WIDTH}px ${width}px`,
+            gridTemplateRows: `${PIANO_RULER_HEIGHT}px ${height}px`,
+          }}
         >
+          <div className="piano-keyboard-ruler" aria-hidden="true" />
+          <div className="piano-ruler" aria-hidden="true">
+            {Array.from({ length: measureCount }, (_, index) => (
+              <div
+                key={index}
+                className="piano-measure-marker"
+                style={{ left: index * measureWidth, width: measureWidth }}
+              >
+                <span>{index + 1}</span>
+                {Array.from({ length: Math.max(0, meter.numerator - 1) }, (_, beat) => (
+                  <i
+                    key={beat}
+                    className="piano-measure-beat"
+                    style={{ left: (beat + 1) * beatWidth }}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="piano-keyboard" role="group" aria-label={t("score.piano.keyboardAria")}>
+            {Array.from({ length: PITCH_MAX - PITCH_MIN + 1 }, (_, i) => {
+              const pitch = PITCH_MAX - i;
+              const black = [1, 3, 6, 8, 10].includes(pitch % 12);
+              const pitchName = midiPitchName(pitch);
+              return (
+                <button
+                  type="button"
+                  key={pitch}
+                  className={`piano-key ${black ? "black" : "white"} ${pitch % 12 === 0 ? "octave" : ""}`}
+                  aria-label={t("score.piano.keyAria", { pitchName })}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    audition(pitch);
+                  }}
+                >
+                  {pitch % 12 === 0 && <span>{pitchName}</span>}
+                </button>
+              );
+            })}
+          </div>
+          <div
+            ref={gridRef}
+            className="piano-grid"
+            style={{ width, height }}
+            onClick={onCanvasClick}
+          >
           {Array.from({ length: PITCH_MAX - PITCH_MIN + 1 }, (_, i) => {
             const pitch = PITCH_MAX - i;
             const black = [1, 3, 6, 8, 10].includes(pitch % 12);
             return (
               <div
                 key={pitch}
-                className={black ? "piano-row black" : "piano-row"}
+                className={`piano-row ${black ? "black" : ""} ${pitch % 12 === 0 ? "octave" : ""}`}
                 style={{ top: i * ROW_H, height: ROW_H }}
               />
             );
           })}
+          {Array.from({ length: measureCount + 1 }, (_, index) => (
+            <div
+              key={`bar-${index}`}
+              className="piano-bar-line"
+              style={{ left: index * measureWidth }}
+            />
+          ))}
+          {Array.from({ length: Math.ceil(width / beatWidth) + 1 }, (_, index) => (
+            <div
+              key={`beat-${index}`}
+              className="piano-beat-line"
+              style={{ left: index * beatWidth }}
+            />
+          ))}
           {visibleSections.map((s) => (
             <div
               key={s.id}
               className="section-marker"
-              style={{ left: s.startTick * PX_PER_TICK }}
+              style={{ left: s.startTick * pxPerTick }}
               title={`% ${s.kind}`}
             />
           ))}
@@ -814,9 +898,9 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
                 })}
                 aria-pressed={selected}
                 style={{
-                  left: n.startTick * PX_PER_TICK,
+                  left: n.startTick * pxPerTick,
                   top: pitchToY(n.pitch) - (NOTE_HIT_PX - ROW_H) / 2,
-                  width: Math.max(NOTE_HIT_PX, n.durationTick * PX_PER_TICK),
+                  width: Math.max(NOTE_HIT_PX, n.durationTick * pxPerTick),
                   height: NOTE_HIT_PX,
                   opacity: 0.55 + (n.velocity / 127) * 0.45,
                 }}
@@ -832,6 +916,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
               />
             );
           })}
+          </div>
         </div>
       </div>
     </div>

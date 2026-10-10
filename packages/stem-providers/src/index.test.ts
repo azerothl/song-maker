@@ -238,7 +238,7 @@ describe("stem-providers", () => {
     );
     expect(ht?.sourceUrl).not.toContain("issuecomment");
     expect(ht?.noticeFr).toMatch(/MIT, usage commercial : oui/);
-    expect(ht?.noticeFr).toMatch(/audio\.cpp v0\.8\.2/);
+    expect(ht?.noticeFr).toMatch(/audio\.cpp v0\.9\.1/);
 
     const ht6 = separatorLicense("htdemucs_6s");
     expect(ht6?.noticeFr).toMatch(/6 stems non vérifiée/);

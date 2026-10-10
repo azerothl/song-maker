@@ -192,14 +192,23 @@ impl AudioCppServer {
         });
         let mut session_options = serde_json::Map::new();
         // The downloaded model config may name Q8 even when only Q4 was installed.
-        // Always pass the selected weights explicitly, including batch workers.
-        session_options.insert(
-            "yue2.model_gguf".into(),
-            json!(yue2_dir(&cache)
-                .join(&settings.model_gguf)
-                .display()
-                .to_string()),
-        );
+        // audio.cpp resolves this name relative to `models[].path`; an absolute
+        // path is rejected by the server's path validation.
+        session_options.insert("yue2.model_gguf".into(), json!(settings.model_gguf));
+        // Keep host-side metadata arenas bounded. audio.cpp v0.8.2's multi-GiB
+        // defaults could abort the Windows server during long-form YuE2 NAR
+        // graph setup when system commit was low. Upstream v0.9.1 reduces these
+        // defaults to 32 MiB; pin the same safe values in our generated config.
+        for option in [
+            "yue2.model_weight_context_mb",
+            "yue2.ar_prefill_graph_arena_mb",
+            "yue2.ar_decode_graph_arena_mb",
+            "yue2.nar_graph_arena_mb",
+            "yue2.vae_graph_arena_mb",
+            "yue2.vae_weight_context_mb",
+        ] {
+            session_options.insert(option.into(), json!(32));
+        }
         if let Some(path) = settings.yue2_ar_lora.as_deref() {
             session_options.insert("yue2.ar_lora".into(), json!(path));
             session_options.insert(
@@ -469,12 +478,7 @@ impl AudioCppServer {
             }
 
             // The packaged console binary must not open a terminal window.
-            #[cfg(windows)]
-            {
-                use std::os::windows::process::CommandExt;
-                const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-                cmd.creation_flags(CREATE_NO_WINDOW);
-            }
+            crate::process_utils::configure_no_window(&mut cmd);
 
             match cmd.spawn() {
                 Ok(mut child) => {
@@ -817,6 +821,45 @@ mod semantic_metadata_tests {
     use serde_json::json;
     use std::process::{Child, Command, Stdio};
     use std::time::{Duration, Instant};
+
+    #[test]
+    fn selected_yue2_gguf_is_relative_to_the_model_root() {
+        let dir = std::env::temp_dir().join(format!(
+            "song-maker-yue2-model-path-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let cache = dir.join("cache");
+        let mut settings = crate::library::default_settings();
+        settings.cache_dir = cache.display().to_string();
+
+        for selected in [crate::pins::YUE2_Q4, crate::pins::YUE2_Q8] {
+            settings.model_gguf = selected.into();
+            let path = dir.join(format!("{selected}.json"));
+            AudioCppServer::write_config_at(&settings, &path, true).unwrap();
+            let config: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+            let model = config["models"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|model| model["id"] == "yue2")
+                .unwrap();
+            assert_eq!(model["session_options"]["yue2.model_gguf"], selected);
+            assert!(!std::path::Path::new(selected).is_absolute());
+            for option in [
+                "yue2.model_weight_context_mb",
+                "yue2.ar_prefill_graph_arena_mb",
+                "yue2.ar_decode_graph_arena_mb",
+                "yue2.nar_graph_arena_mb",
+                "yue2.vae_graph_arena_mb",
+                "yue2.vae_weight_context_mb",
+            ] {
+                assert_eq!(model["session_options"][option], 32);
+            }
+        }
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
 
     #[test]
     fn isolated_worker_registers_vocal_removal_with_one_loaded_model() {

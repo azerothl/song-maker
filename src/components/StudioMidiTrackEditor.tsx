@@ -13,6 +13,7 @@ export function StudioMidiTrackEditor({
   onDocumentChange,
   onProjectRefresh,
   onError,
+  instrumentInspectorPosition = "below",
 }: {
   projectId: string;
   document: ScoreDocument;
@@ -20,6 +21,7 @@ export function StudioMidiTrackEditor({
   onDocumentChange: (document: ScoreDocument) => void;
   onProjectRefresh: () => Promise<void>;
   onError: (message: string | null) => void;
+  instrumentInspectorPosition?: "below" | "side";
 }) {
   const settings = useAppStore((state) => state.settings);
   const [saving, setSaving] = useState(false);
@@ -43,7 +45,10 @@ export function StudioMidiTrackEditor({
   }
 
   return (
-    <div className="studio-midi-edit-content">
+    <div
+      className="studio-midi-edit-content"
+      data-inspector-position={instrumentInspectorPosition}
+    >
       <div className="studio-midi-edit-toolbar">
         <strong>{t("production.midi.pianoRoll")}</strong>
         {saveMessage && <span role="status">{saveMessage}</span>}
@@ -57,7 +62,9 @@ export function StudioMidiTrackEditor({
         onChange={onDocumentChange}
         onError={onError}
       />
-      <details className="studio-midi-instrument-settings">
+      <details
+        className="studio-midi-instrument-settings"
+      >
         <summary>{t("production.midi.instrumentSettings")}</summary>
         <MidiInstrumentPanel
           projectId={projectId}

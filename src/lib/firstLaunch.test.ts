@@ -57,10 +57,10 @@ function plan(partial: Partial<InstallPlan> = {}): InstallPlan {
     hasPartialDownloads: false,
     files: [
       {
-        name: "audio-v0.8.2-bin-ubuntu-x64-cuda12.8-colab.tar.gz",
+        name: "audio-v0.9.1-bin-ubuntu-x64-cuda12.8-colab.tar.gz",
         status: "complete",
-        totalBytes: 65_293_844,
-        receivedBytes: 65_293_844,
+        totalBytes: 225_245_487,
+        receivedBytes: 225_245_487,
         remainingBytes: 0,
       },
       {

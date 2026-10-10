@@ -41,7 +41,6 @@ function renderCreateWorkspace(
       onGenerate: async () => undefined,
       onOpenInstrumentalSettings: () => undefined,
       onOpenVocalRemovalSettings: () => undefined,
-      scoreDocument: null,
       scoreGate: { abc: null, error: null, issues: [] },
       setAdvancedSettingsPage: (() => undefined) as React.Dispatch<
         React.SetStateAction<AdvancedSettingsPage>
@@ -84,6 +83,12 @@ describe("instrumental voice removal entry", () => {
 
     assert.match(html, /Le réglage instrumental sera appliqué à cette génération/);
     assert.doesNotMatch(html, /voix résiduelles|Some vocals may still remain/i);
+  });
+
+  it("does not claim an empty score will be sent", () => {
+    const html = renderCreateWorkspace(true);
+
+    assert.doesNotMatch(html, /La partition guidera cette génération|The score will guide this generation/);
   });
 
   it("opens the separation settings page from the new action", () => {

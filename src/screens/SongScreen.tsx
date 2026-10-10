@@ -146,6 +146,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     useState<AdvancedSettingsPage>(null);
   const [workspace, setWorkspace] = useState<SongWorkspace>(initialWorkspace);
   const [midiEditorVoiceId, setMidiEditorVoiceId] = useState<string | null>(null);
+  const [midiEditorExpanded, setMidiEditorExpanded] = useState(false);
   const [midiEditorTrackName, setMidiEditorTrackName] = useState<string | null>(null);
   const midiEditorCloseRef = useRef<HTMLButtonElement>(null);
   const midiEditorReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -308,6 +309,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
         throw new Error("La piste MIDI n’a pas été ajoutée au mix actif.");
       }
       setWorkspace("production");
+      setMidiEditorExpanded(false);
       setMidiEditorVoiceId(voiceId);
       setMidiEditorTrackName(name);
       setMidiTrackMix(activeMix);
@@ -318,13 +320,20 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     }
   }
 
+  async function refreshStudioProject() {
+    if (!project) return;
+    await openProject(project.id, { preserveForm: true });
+    setMidiTrackMix(null);
+  }
+
   async function onUserTrackAdded(next: MixDoc) {
     setMix(next);
-    if (project) await openProject(project.id, { preserveForm: true });
+    if (project) await refreshStudioProject();
   }
 
   function onEditMidiTrack(trackId: string, trackName: string) {
     midiEditorReturnFocusRef.current = document.activeElement as HTMLElement | null;
+    setMidiEditorExpanded(false);
     setMidiEditorVoiceId(trackId);
     setMidiEditorTrackName(trackName);
   }
@@ -487,18 +496,25 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     if (workspace !== "create" && screen === "create") setScreen("studio");
   }, [screen, setScreen, workspace]);
 
+  const closeMidiEditor = () => {
+    setMidiEditorVoiceId(null);
+    setMidiEditorExpanded(false);
+  };
+
   useEffect(() => {
     if (!midiEditorVoiceId) return;
+    const dockedInStudio =
+      screen === "studio" && workspace === "production" && !midiEditorExpanded;
     const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (!dockedInStudio) document.body.style.overflow = "hidden";
     requestAnimationFrame(() => midiEditorCloseRef.current?.focus());
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setMidiEditorVoiceId(null);
+        closeMidiEditor();
         return;
       }
-      if (event.key !== "Tab") return;
+      if (dockedInStudio || event.key !== "Tab") return;
       const dialog = document.querySelector<HTMLElement>(".studio-midi-editor");
       if (!dialog) return;
       const focusable = Array.from(
@@ -519,12 +535,12 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     };
     document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      if (!dockedInStudio) document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKeyDown);
       midiEditorReturnFocusRef.current?.focus();
       midiEditorReturnFocusRef.current = null;
     };
-  }, [midiEditorVoiceId]);
+  }, [midiEditorVoiceId, midiEditorExpanded, screen, workspace]);
 
   function selectWorkspace(next: SongWorkspace) {
     setWorkspace(next);
@@ -1062,7 +1078,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
         workspace === "production"
           ? " song-layout-production song-layout-production-fill song-layout-has-dock"
           : ""
-      }`}
+      }${screen === "studio" && workspace === "production" ? " song-layout-studio" : ""}`}
     >
       <header className="song-workspace-chrome">
         <div className="song-workspace-chrome-top">
@@ -1131,7 +1147,9 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
                 tabIndex={workspace === space ? 0 : -1}
                 onClick={() => selectWorkspace(space)}
               >
-                {workspaceLabel(space)}
+                {screen === "studio" && space === "production"
+                  ? t("workspace.arrangement")
+                  : workspaceLabel(space)}
               </button>
               ))}
             </nav>
@@ -1168,7 +1186,6 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
             onGenerate={onGenerate}
             onOpenInstrumentalSettings={openLoraSettings}
             onOpenVocalRemovalSettings={openSeparationSettings}
-            scoreDocument={scoreDocument}
             scoreGate={scoreGate}
             setAdvancedSettingsPage={setAdvancedSettingsPage}
             setForm={setForm}
@@ -1213,6 +1230,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
 
         {workspace === "production" && (
           <ProductionWorkspace
+            studioMode={screen === "studio"}
             busy={busy}
             form={form}
             importingAudio={importingAudio}
@@ -1228,6 +1246,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
             }
             onUserTrackAdded={onUserTrackAdded}
             onRequestInstrumentalPart={onRequestInstrumentalPart}
+            onOpenInstrumentalPart={closeMidiEditor}
             legoSidecarReady={legoSidecarReady}
             legoLicenseAccepted={legoLicenseAccepted}
             playback={playback}
@@ -1277,12 +1296,66 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
         )}
       </div>
 
-      {midiEditorVoiceId && scoreDocument && (
+      {midiEditorVoiceId &&
+        scoreDocument &&
+        screen === "studio" &&
+        workspace === "production" &&
+        !midiEditorExpanded && (
+        <section className="studio-midi-dock" aria-labelledby="studio-midi-dock-title">
+          <header className="studio-midi-dock-header">
+            <div className="studio-midi-dock-track">
+              <span className="studio-midi-editor-eyebrow">
+                {t("production.addTrack.midi")}
+              </span>
+              <h2 id="studio-midi-dock-title">
+                {midiEditorTrackName ?? t("production.midi.editorTitle")}
+              </h2>
+              <span className="studio-midi-editor-state" role="status">
+                {displayedMix?.tracks.some((track) => track.id === midiEditorVoiceId)
+                  ? t("production.midi.inArrangement")
+                  : t("production.midi.addingToArrangement")}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="btn ghost studio-midi-dock-expand"
+              onClick={() => setMidiEditorExpanded(true)}
+            >
+              {t("production.midi.expand")}
+            </button>
+            <button
+              ref={midiEditorCloseRef}
+              type="button"
+              className="btn ghost studio-midi-dock-close"
+              onClick={closeMidiEditor}
+              aria-label={t("production.midi.close")}
+              title={t("production.midi.close")}
+            >
+              ×
+            </button>
+          </header>
+          <div className="studio-midi-dock-body">
+            <StudioMidiTrackEditor
+              projectId={project.id}
+              document={scoreDocument}
+              voiceId={midiEditorVoiceId}
+              onDocumentChange={setScoreDocument}
+              onProjectRefresh={refreshStudioProject}
+              onError={setError}
+              instrumentInspectorPosition="side"
+            />
+          </div>
+        </section>
+      )}
+
+      {midiEditorVoiceId &&
+        scoreDocument &&
+        (midiEditorExpanded || !(screen === "studio" && workspace === "production")) && (
         <div
           className="studio-midi-editor-backdrop"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setMidiEditorVoiceId(null);
+            if (event.target === event.currentTarget) closeMidiEditor();
           }}
         >
           <section
@@ -1305,7 +1378,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
                 ref={midiEditorCloseRef}
                 type="button"
                 className="btn"
-                onClick={() => setMidiEditorVoiceId(null)}
+                onClick={closeMidiEditor}
                 aria-label={t("production.midi.close")}
               >
                 {t("production.midi.close")}
@@ -1317,7 +1390,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
                 document={scoreDocument}
                 voiceId={midiEditorVoiceId}
                 onDocumentChange={setScoreDocument}
-                onProjectRefresh={() => openProject(project.id, { preserveForm: true })}
+                onProjectRefresh={refreshStudioProject}
                 onError={setError}
               />
             </div>

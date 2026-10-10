@@ -259,11 +259,7 @@ fn free_vram_mib() -> Option<u64> {
         "--format=csv,noheader,nounits",
         "--id=0",
     ]);
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x08000000);
-    }
+    crate::process_utils::configure_no_window(&mut command);
     let output = command.output().ok()?;
     if !output.status.success() {
         return None;

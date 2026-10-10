@@ -57,7 +57,7 @@ export function runtimeStatus() {
         ? path.join(os.homedir(), 'Library', 'Caches', 'song-maker')
         : path.join(os.homedir(), '.cache', 'song-maker')
   ));
-  const folder = path.join(cache, 'binaries', 'v0.8.2');
+  const folder = path.join(cache, 'binaries', 'v0.9.1');
   const binaryName = process.platform === 'win32' ? 'audiocpp_cli.exe' : 'audiocpp_cli';
   const binary = [
     path.join(folder, 'windows-cuda12.4', binaryName),

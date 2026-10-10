@@ -2125,8 +2125,9 @@ option {
   display: flex;
   flex-direction: column;
   width: min(1440px, 100%);
+  height: min(92vh, 980px);
   max-height: min(92vh, 980px);
-  min-height: 0;
+  min-height: min(620px, 92vh);
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--stem-midi) 34%, var(--line));
   border-radius: 14px;
@@ -2170,9 +2171,11 @@ option {
 }
 
 .studio-midi-editor-content {
+  display: flex;
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
-  padding: 1rem;
+  overflow: hidden;
+  padding: 0.7rem;
 }
 
 .studio-midi-editor-content .score-panel {
@@ -2181,14 +2184,25 @@ option {
 
 .studio-midi-edit-content {
   display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: 0.45rem;
+}
+
+.studio-midi-edit-content .piano-roll {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
 }
 
 .studio-midi-edit-content .piano-scroll {
-  min-height: min(340px, 44vh);
-  max-height: min(460px, 58vh);
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: min(280px, 36vh);
+  max-height: none;
 }
 
 .studio-midi-edit-toolbar {
@@ -2234,6 +2248,24 @@ option {
 
 .studio-midi-instrument-settings > :not(summary) {
   padding: 0.65rem;
+}
+
+@media (max-width: 760px), (max-height: 700px) {
+  .studio-midi-editor-content {
+    display: block;
+    overflow: auto;
+  }
+
+  .studio-midi-edit-content {
+    flex: none;
+    width: 100%;
+  }
+
+  .studio-midi-edit-content .piano-scroll {
+    flex: 0 0 auto;
+    height: min(24vh, 300px);
+    min-height: 160px;
+  }
 }
 
 .mixer-density .mix-knob-dial {
@@ -2432,7 +2464,8 @@ option {
 .mix-slider-range {
   width: 100%;
   min-width: 0;
-  height: 22px;
+  height: 24px;
+  min-height: 24px;
   margin: 0;
   accent-color: var(--accent, #7c6cf0);
 }
@@ -2443,7 +2476,7 @@ option {
   font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
   text-align: center;
-  min-height: 22px;
+  min-height: 24px;
   padding: 0 0.2rem;
   border: 0;
   background: transparent;
@@ -2466,11 +2499,13 @@ option {
 }
 
 .production-add-track-dialog {
-  position: absolute;
+  position: fixed;
   z-index: 40;
-  top: calc(100% + 8px);
-  left: 0;
+  top: 1rem;
+  left: 1rem;
   width: min(760px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
   padding: 1rem;
   border-radius: 12px;
   border: 1px solid var(--line);
@@ -2741,15 +2776,6 @@ option {
     justify-content: flex-start;
   }
 
-  .production-add-track-dialog {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    width: min(620px, calc(100vw - 1rem));
-    max-height: calc(100vh - 1rem);
-    overflow: auto;
-    transform: translate(-50%, -50%);
-  }
 
   .production-add-track-choices {
     display: flex;
@@ -2806,7 +2832,20 @@ option {
   }
 
   .studio-midi-editor-content {
+    display: block;
+    overflow: auto;
     padding: 0.6rem;
+  }
+
+  .studio-midi-edit-content {
+    flex: none;
+    width: 100%;
+  }
+
+  .studio-midi-edit-content .piano-scroll {
+    flex: 0 0 auto;
+    height: min(42vh, 320px);
+    min-height: 220px;
   }
 }
 
@@ -6762,9 +6801,71 @@ details[open] > summary {
 
 .piano-toolbar {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
+.piano-toolbar-main {
+  display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
   align-items: end;
+  min-width: 0;
+  gap: 0.45rem;
+}
+
+.piano-voice-picker {
+  flex: 0 1 14rem;
+}
+
+.piano-note-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  gap: 0.3rem;
+  padding: 0.28rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg1) 88%, white);
+}
+
+.piano-note-tools .btn {
+  min-height: 38px;
+}
+
+.piano-toolbar-main > .hint {
+  flex: 1 1 100%;
+  margin: 0.05rem 0 0.15rem;
+}
+
+.piano-advanced-settings {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg1) 76%, transparent);
+}
+
+.piano-advanced-settings > summary {
+  padding: 0.48rem 0.65rem;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.piano-advanced-settings > summary:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: -2px;
+}
+
+.piano-advanced-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem 0.65rem;
+  border-top: 1px solid var(--line);
 }
 
 .piano-toolbar label {
@@ -6812,6 +6913,112 @@ details[open] > summary {
   background: #0b0e13;
 }
 
+.piano-grid-frame {
+  display: grid;
+  position: relative;
+  min-width: max-content;
+}
+
+.piano-keyboard-ruler,
+.piano-keyboard {
+  position: sticky;
+  left: 0;
+  border-right: 1px solid var(--line2);
+  background: #202633;
+}
+
+.piano-keyboard-ruler {
+  z-index: 7;
+  top: 0;
+  border-bottom: 1px solid var(--line2);
+}
+
+.piano-ruler {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line2);
+  background: #171d28;
+}
+
+.piano-measure-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid #69778a;
+  color: #d6dce6;
+}
+
+.piano-measure-marker > span {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.piano-measure-beat {
+  position: absolute;
+  top: 15px;
+  bottom: 0;
+  width: 1px;
+  background: #343e4d;
+}
+
+.piano-keyboard {
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  width: 56px;
+  background: #171c26;
+}
+
+.piano-key {
+  position: relative;
+  display: flex;
+  flex: 0 0 44px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 56px;
+  min-height: 44px;
+  padding: 0 0.25rem;
+  border: 0;
+  border-bottom: 1px solid #7f8999;
+  color: #171b22;
+  background: linear-gradient(180deg, #e4e7ed, #bdc4d0);
+  cursor: pointer;
+}
+
+.piano-key.black {
+  align-self: flex-start;
+  z-index: 1;
+  width: 68%;
+  border-right: 1px solid #3c4555;
+  border-bottom-color: #10141c;
+  color: #e6eaf1;
+  background: linear-gradient(180deg, #343d4d, #222a37);
+}
+
+.piano-key.octave {
+  font-weight: 750;
+}
+
+.piano-key.octave.white {
+  border-left: 3px solid var(--accent-cyan);
+}
+
+.piano-key:focus-visible {
+  z-index: 8;
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: -3px;
+}
+
+.piano-key span {
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .piano-grid {
   position: relative;
   min-width: 100%;
@@ -6827,6 +7034,31 @@ details[open] > summary {
 
 .piano-row.black {
   background: #0c1018;
+}
+
+.piano-row.octave {
+  border-bottom-color: #3a4555;
+}
+
+.piano-bar-line,
+.piano-beat-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.piano-bar-line {
+  z-index: 1;
+  width: 2px;
+  background: #667487;
+  opacity: 0.62;
+}
+
+.piano-beat-line {
+  z-index: 1;
+  width: 1px;
+  background: #263142;
 }
 
 .piano-note {
@@ -8871,4 +9103,857 @@ details[open] > summary {
 
 .project-sync-panel-heading h2 {
   margin: 0;
+}
+
+.app-error-fallback {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: clamp(1.25rem, 5vw, 4rem);
+  color: var(--text);
+  background: var(--bg0);
+}
+
+.app-error-card {
+  width: min(100%, 44rem);
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--bg1);
+  box-shadow: 0 1.5rem 4rem color-mix(in srgb, #000 36%, transparent);
+}
+
+.app-error-mark {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  margin-bottom: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 55%, transparent);
+  border-radius: 50%;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg1));
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.app-error-card h1 {
+  margin: 0;
+  font: 600 clamp(1.5rem, 3vw, 2.1rem)/1.2 var(--font-display);
+}
+
+.app-error-card h1:focus {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 4px;
+}
+
+.app-error-message {
+  max-width: 38rem;
+  margin: 0.8rem 0 1.25rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.app-error-details {
+  margin: 1rem 0 1.4rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.app-error-details summary {
+  width: fit-content;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--accent-cyan);
+}
+
+.app-error-details pre {
+  max-height: 16rem;
+  overflow: auto;
+  margin: 0 0 1rem;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  color: var(--text);
+  background: var(--bg0);
+  font: 0.8rem/1.5 var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.app-error-card button:focus-visible,
+.app-error-details summary:focus-visible,
+.app-error-details pre:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 3px;
+}
+
+/* #420 — keep Studio focused on the arrangement while retaining its tools. */
+.song-layout-studio .song-workspace-chrome {
+  gap: 0.35rem;
+  padding: 0.45rem 1rem 0.35rem;
+  background: var(--bg1);
+  border-bottom-color: var(--line);
+}
+
+.song-layout-studio .song-workspace-chrome-top {
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.song-layout-studio .song-workspace-project h1 {
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.production-workspace-studio .production-heading-compact {
+  display: none;
+}
+
+.song-layout-studio .song-workspace-tabs {
+  display: none;
+}
+
+.song-layout-studio .song-workspace-body {
+  min-height: 0;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.song-layout-studio .song-workspace-chrome-top {
+  min-height: 32px;
+}
+
+.production-workspace-studio {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.45rem;
+  overflow: hidden;
+  padding: 0.45rem 0.65rem 0.55rem;
+  background: var(--bg0);
+}
+
+.production-workspace-studio .production-chrome-stack {
+  flex: 0 0 auto;
+  gap: 0.25rem;
+}
+
+.production-workspace-studio .production-main-toolbar {
+  min-height: 46px;
+  gap: 0.4rem 0.6rem;
+  margin: 0;
+  padding: 0.25rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg1);
+}
+
+.production-workspace-studio .production-main-toolbar .btn,
+.production-workspace-studio .production-main-toolbar .mix-assist-trigger {
+  min-height: 40px;
+  border-radius: 5px;
+}
+
+.production-workspace-studio .production-main-toolbar-actions {
+  gap: 0.3rem;
+}
+
+.production-workspace-studio .production-main-toolbar .clip-edit-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.15rem;
+  padding: 0.15rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg0);
+}
+
+.production-workspace-studio .clip-edit-toolbar .btn {
+  min-width: 40px;
+  min-height: 40px;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.production-workspace-studio .clip-edit-tool-check {
+  width: 0.8em;
+  margin-inline-end: 0.15rem;
+}
+
+.production-workspace-studio .clip-edit-toolbar kbd {
+  display: inline-grid;
+  min-width: 1.25em;
+  height: 1.25em;
+  place-items: center;
+  border: 1px solid var(--line2);
+  border-radius: 3px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1;
+  margin-inline-start: 0.15rem;
+}
+
+.production-workspace-studio .production-add-track-btn {
+  border-color: var(--accent-2);
+  background: var(--accent-2);
+  color: var(--bg0);
+}
+
+.production-workspace-studio .production-main-toolbar-actions > .btn.primary {
+  border-color: var(--line);
+  background: var(--bg2);
+  color: var(--text);
+}
+
+.production-workspace-studio .production-mix-region {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg1);
+}
+
+.production-workspace-studio .production-mix-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+  padding: 0 0.35rem;
+  background: transparent;
+}
+
+.production-workspace-studio .production-mix-sticky-master {
+  top: 0;
+  padding: 0;
+  background: var(--bg1);
+}
+
+.production-workspace-studio .mix-master-level {
+  margin-left: auto;
+}
+
+.production-workspace-studio .production-mix-master.mix-master-banner {
+  min-height: 42px;
+  gap: 0.4rem;
+  padding: 0.2rem 0.45rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--bg1);
+  backdrop-filter: none;
+}
+
+.production-workspace-studio .mix-master-density {
+  margin-left: auto;
+}
+
+.production-workspace-studio .production-context-bar {
+  min-height: 24px;
+  padding: 0.1rem 0.35rem;
+}
+
+.production-workspace-studio .production-mix-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  padding: 0;
+  overflow: auto;
+}
+
+.production-workspace-studio .production-common-timeline {
+  display: block;
+  min-height: 0;
+  margin: 0;
+}
+
+.production-workspace-studio .clip-timeline {
+  height: 100%;
+  min-height: 0;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.production-workspace-studio .clip-timeline-lanes-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+
+.production-workspace-studio .production-mix-grid {
+  grid-template-columns: minmax(180px, 220px) 64px 64px 68px 36px minmax(320px, 1fr);
+  min-width: 760px;
+  column-gap: 0.35rem;
+}
+
+.production-workspace-studio .production-mix-colheaders {
+  min-height: 26px;
+  padding: 0.2rem 0.35rem;
+  border-bottom-color: var(--line);
+  background: var(--bg1);
+}
+
+.production-workspace-studio .production-mix-row {
+  border-bottom-color: var(--line);
+  background: var(--bg1);
+}
+
+.production-workspace-studio .production-mix-row:hover {
+  background: var(--bg2);
+}
+
+.production-workspace-studio .production-mix-row .production-mix-wave {
+  min-width: 0;
+  padding-left: 0.35rem;
+  border-left: 1px solid var(--line);
+}
+
+.production-workspace-studio .production-mix-strip {
+  width: 4px;
+  border-radius: 1px;
+}
+
+.production-workspace-studio .clip-lane-rail {
+  height: 52px;
+  border-color: var(--line);
+  border-radius: 3px;
+  background-color: var(--bg0);
+}
+
+.production-workspace-studio .production-mix-group-header {
+  border-color: var(--line);
+  background: var(--bg2);
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn {
+  width: 32px;
+  min-width: 32px;
+  min-height: 28px;
+  height: 28px;
+  border-color: var(--line2);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn-m .track-ms-glyph,
+.production-workspace-studio .mixer-density .track-ms-btn-s .track-ms-glyph {
+  font-size: 0;
+  text-decoration: none;
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn-m .track-ms-glyph::before,
+.production-workspace-studio .mixer-density .track-ms-btn-s .track-ms-glyph::before {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn-m .track-ms-glyph::before {
+  content: "M";
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn-s .track-ms-glyph::before {
+  content: "S";
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn-m.pressed,
+.production-workspace-studio .mixer-density .track-ms-btn-m[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--stem-vocals) 28%, var(--bg1));
+  color: var(--text);
+  border-color: var(--stem-vocals);
+}
+
+.production-workspace-studio .mixer-density .track-ms-btn-s.pressed,
+.production-workspace-studio .mixer-density .track-ms-btn-s[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--stem-midi) 28%, var(--bg1));
+  color: var(--text);
+  border-color: var(--stem-midi);
+}
+
+@media (max-width: 900px) {
+  .production-workspace-studio .production-main-toolbar {
+    align-items: flex-start;
+  }
+
+  .production-workspace-studio .production-main-toolbar .clip-edit-toolbar {
+    flex-wrap: wrap;
+  }
+}
+
+/* Studio arrangement: keep mixing controls out of the main editing surface. */
+.song-layout-studio .production-workspace-studio {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 240px;
+  overflow: hidden;
+}
+
+.song-layout-studio .production-workspace-studio .mix-master-density {
+  display: none;
+}
+
+.production-workspace-studio .mix-master-transport-controls,
+.production-workspace-studio .mix-master-wave {
+  display: none;
+}
+
+.studio-master-label {
+  flex: 0 0 auto;
+  margin-inline-start: 0.35rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.production-workspace-studio .production-mix-colheaders.production-mix-grid {
+  display: grid;
+  grid-template-columns: minmax(178px, 230px) minmax(320px, 1fr);
+  min-width: 560px;
+}
+
+.production-workspace-studio .production-mix-row {
+  grid-template-columns: minmax(178px, 230px) minmax(320px, 1fr);
+  grid-template-rows: minmax(24px, auto) 25px;
+  min-width: 560px;
+  min-height: 62px;
+  align-items: center;
+  padding: 0.3rem 0.45rem;
+  column-gap: 0;
+}
+
+.production-workspace-studio .production-mix-row > .production-mix-name {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.production-workspace-studio .production-mix-row > .track-gain-slider,
+.production-workspace-studio .production-mix-row > .track-pan-slider {
+  display: none;
+}
+
+.production-workspace-studio .production-mix-row > .track-ms {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
+  margin-left: 18px;
+}
+
+.production-workspace-studio .production-mix-row > .production-mix-track-tools {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: end;
+  margin-right: 0.2rem;
+}
+
+.production-workspace-studio .production-mix-row > .track-wave {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-width: 0;
+  padding-left: 0.55rem;
+}
+
+.production-workspace-studio .production-mix-row .clip-lane-rail {
+  height: 52px;
+}
+
+.production-workspace-studio .production-mix-row > .track-wave,
+.production-workspace-studio .production-mix-row .production-mix-wave {
+  padding-inline-start: 0;
+}
+
+.production-workspace-studio .production-mix-group-header {
+  grid-template-columns: minmax(178px, 230px) 76px minmax(0, 1fr);
+  min-width: 560px;
+}
+
+.production-workspace-studio .production-mix-group-header .production-mix-group-summary {
+  grid-column: 3;
+  min-width: 0;
+}
+
+.production-workspace-studio .production-mix-group-header .production-mix-group-wave-pad {
+  grid-column: 3;
+}
+
+/* Keep the Studio ruler aligned with the track headers, not the full mixer. */
+.production-workspace-studio .production-common-timeline {
+  --production-controls-width: 230px;
+}
+
+/* A DAW surface reads as one workspace; reserve borders for actual lanes. */
+.production-workspace-studio .production-main-toolbar {
+  padding-inline: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line2);
+  border-radius: 0;
+  background: transparent;
+}
+
+.production-workspace-studio .production-mix-region {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.production-workspace-studio .production-mix-panel {
+  padding-inline: 0;
+}
+
+.production-workspace-studio .production-mix-colheaders {
+  color: var(--muted);
+  background: var(--bg0);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.production-workspace-studio .clip-action-bar {
+  min-height: 32px;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0.1rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--line2);
+  border-radius: 0;
+  background: transparent;
+}
+
+.production-workspace-studio .clip-action-bar .btn {
+  min-width: 36px;
+  min-height: 32px;
+}
+
+.production-workspace-studio .clip-action-bar .btn:disabled {
+  display: none;
+}
+
+.production-workspace-studio .production-mix-group-header {
+  background: color-mix(in srgb, var(--bg2) 72%, var(--bg0));
+}
+
+.production-workspace-studio .clip-ruler {
+  background: var(--bg0);
+}
+
+.song-layout-studio:has(.studio-midi-dock) .song-workspace-body {
+  gap: 0.35rem;
+  padding-top: 0.2rem;
+  padding-bottom: 0;
+}
+
+.studio-midi-dock {
+  display: flex;
+  flex: 0 1 54%;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 250px;
+  overflow: hidden;
+  border-top: 1px solid color-mix(in srgb, var(--stem-midi) 28%, var(--line));
+  background: linear-gradient(180deg, #151827, #10131e);
+}
+
+.studio-midi-dock-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  min-height: 54px;
+  padding: 0.4rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg1) 94%, #252b43);
+}
+
+.studio-midi-dock-track {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.65rem;
+}
+
+.studio-midi-dock-track .studio-midi-editor-eyebrow {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.studio-midi-dock-track h2 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.95rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-midi-dock-track .studio-midi-editor-state {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-midi-dock-close {
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  font-size: 1.15rem;
+}
+
+.studio-midi-dock-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0.4rem 0.65rem 0.65rem;
+}
+
+.studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr) minmax(245px, 310px);
+  grid-template-rows: 38px minmax(160px, 1fr);
+  gap: 0.45rem;
+  min-width: 0;
+  min-height: 0;
+}
+
+.studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] > .studio-midi-edit-toolbar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-height: 36px;
+  padding: 0.25rem 0.55rem;
+  border-radius: 5px;
+}
+
+.studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] > .piano-roll {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+}
+
+.studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] > .studio-midi-instrument-settings {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 5px;
+}
+
+.studio-midi-dock .studio-midi-instrument-settings > summary {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg1);
+}
+
+.studio-midi-dock .studio-midi-instrument-settings {
+  align-self: start;
+  width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.studio-midi-dock .midi-instrument-panel,
+.studio-midi-dock .midi-vst3-block {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.studio-midi-dock .midi-instrument-panel {
+  margin: 0;
+}
+
+.studio-midi-dock .midi-vst3-block > .btn-row,
+.studio-midi-dock .midi-vst3-block > .btn-row > label {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.studio-midi-dock .midi-vst3-block select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.studio-midi-dock .midi-instrument-controls > label {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.studio-midi-dock .midi-instrument-controls select,
+.studio-midi-dock .midi-instrument-controls input[type="file"] {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.studio-midi-dock .midi-instrument-controls input[type="file"] {
+  font-size: 0.7rem;
+}
+
+.production-instrumental-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: clamp(0.75rem, 3vw, 2rem);
+  background: rgba(5, 7, 13, 0.76);
+  backdrop-filter: blur(7px);
+}
+
+.production-instrumental-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: min(620px, 100%);
+  max-height: min(88vh, 760px);
+  overflow: auto;
+  padding: 1.15rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
+  border-radius: 14px;
+  background: linear-gradient(150deg, #191a2b, #10131e 70%);
+  box-shadow: 0 26px 90px rgba(0, 0, 0, 0.58);
+}
+
+.production-instrumental-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.production-instrumental-header h2,
+.production-instrumental-header p {
+  margin-top: 0;
+}
+
+.production-instrumental-header h2 {
+  margin-bottom: 0.4rem;
+  font-size: 1.1rem;
+}
+
+.production-instrumental-header .hint {
+  margin-bottom: 0;
+}
+
+.production-instrumental-close {
+  flex: 0 0 36px;
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  font-size: 1.15rem;
+}
+
+.production-instrumental-panel .settings-engine-options {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.production-instrumental-panel .btn-row {
+  justify-content: flex-end;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 680px) {
+  .production-instrumental-panel {
+    max-height: 92vh;
+    padding: 0.9rem;
+  }
+
+  .production-instrumental-header {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-height: 760px) {
+  .studio-midi-dock {
+    flex-basis: 50%;
+    min-height: 210px;
+  }
+
+  .song-layout-studio .production-workspace-studio {
+    min-height: 210px;
+  }
+}
+
+@media (max-width: 900px) {
+  .studio-midi-dock {
+    flex-basis: 44%;
+    min-height: 230px;
+  }
+
+  .studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+  }
+}
+
+@media (max-width: 680px) {
+  .studio-midi-dock {
+    flex-basis: 48%;
+    min-height: 250px;
+  }
+
+  .studio-midi-dock-track {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.2rem 0.45rem;
+  }
+
+  .studio-midi-dock-track .studio-midi-editor-state {
+    display: none;
+  }
+
+  .studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 36px minmax(150px, 1fr) auto;
+  }
+
+  .studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] > .piano-roll {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] > .studio-midi-instrument-settings {
+    grid-column: 1;
+    grid-row: 3;
+    max-height: 34vh;
+  }
+}
+.app-shell:has(.persistent-player-dock) .studio-midi-editor-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.app-shell:has(.persistent-player-dock) .studio-midi-editor {
+  height: min(92vh, calc(100% - 1rem));
+  max-height: min(92vh, calc(100% - 1rem));
+  min-height: min(620px, calc(100% - 1rem));
 }
