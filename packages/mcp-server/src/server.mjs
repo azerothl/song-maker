@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
 import { addProjectMidiTrack, createProject, createProjectMidiTrack, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, importProjectAudioTrack, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
 import { exportProjectAudio } from './project-audio.mjs';
+import { listLocalResources } from './resources.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
   listUserLibrary, removeLibraryTrack, removeProjectLibraryTracks, removeTrackFromPlaylist,
@@ -29,6 +30,12 @@ server.registerTool('gpu_status', {
   inputSchema: {},
   annotations: { readOnlyHint: true },
 }, call(async () => gpuStatus()));
+
+server.registerTool('list_local_resources', {
+  description: 'Lit les réglages du profil Song Maker actif et vérifie les modèles et séparateurs locaux connus. Masque les chemins absolus ; ne télécharge, n’active et ne sélectionne aucune ressource.',
+  inputSchema: {},
+  annotations: { readOnlyHint: true },
+}, call(async () => listLocalResources()));
 
 server.registerTool('list_projects', {
   description: 'Liste les projets du profil Song Maker actif. Lecture seule ; retourne les métadonnées du projet sans ses paroles.',

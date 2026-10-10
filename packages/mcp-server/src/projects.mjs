@@ -76,6 +76,15 @@ async function projectStore(env = process.env) {
   };
 }
 
+export async function activeProfileContext(env = process.env) {
+  const store = await projectStore(env);
+  return {
+    profileId: store.profileId,
+    profileDirectory: path.dirname(store.root),
+    documentsDirectory: documentsRoot(env),
+  };
+}
+
 export async function userLibraryStore(env = process.env) {
   const store = await projectStore(env);
   const profileRoot = path.dirname(store.root);

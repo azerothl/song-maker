@@ -81,20 +81,23 @@ test('MCP exposes the headless tools over stdio', async () => {
   const client = new Client({ name: 'song-maker-test', version: '0.1.0' });
   const transport = new StdioClientTransport({ command: process.execPath, args: [server],
     env: { ...process.env, SONG_MAKER_WORKSPACE_ROOT: process.cwd(),
-      SONG_MAKER_DOCUMENTS_DIR: documentsRoot } });
+      SONG_MAKER_DOCUMENTS_DIR: documentsRoot, LOCALAPPDATA: path.join(documentsRoot, 'local-app-data') } });
   try {
     await client.connect(transport);
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
       ['add_library_track', 'add_project_midi_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project', 'create_project_midi_track',
         'delete_playlist', 'delete_project', 'edit_project_score', 'export_project_audio', 'get_project', 'get_project_mix',
-        'get_project_score', 'gpu_status', 'import_project_audio_track', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
+        'get_project_score', 'gpu_status', 'import_project_audio_track', 'job_status', 'list_library', 'list_local_resources', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'resume_job',
         'runtime_status', 'start_batch', 'start_song', 'update_project', 'update_project_mix', 'use_project_generation',
         'use_project_mix', 'use_project_score', 'use_project_separation']);
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
     assert.equal(status.isError, undefined);
     assert.equal(typeof JSON.parse(status.content[0].text).ready, 'boolean');
+    const resources = await client.callTool({ name: 'list_local_resources', arguments: {} });
+    assert.equal(resources.isError, undefined);
+    assert.equal(JSON.parse(resources.content[0].text).profileId, 'profile-001');
     const listed = await client.callTool({ name: 'list_projects', arguments: { query: 'test' } });
     assert.equal(listed.isError, undefined);
     const list = JSON.parse(listed.content[0].text);

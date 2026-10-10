@@ -18,12 +18,13 @@ Les outils ci-dessous sont ceux enregistrés par `packages/mcp-server/src/server
 | Parcours Song Maker | État MCP | Outil / limite réelle |
 |---|---|---|
 | Vérifier le moteur et les poids YuE2 | Disponible | `runtime_status` lit les prérequis locaux ; il ne démarre pas le moteur. |
+| Inventorier les ressources et réglages du profil actif | Partiel | `list_local_resources` lit le moteur, le modèle et le séparateur choisis, les consentements et la présence des ressources épinglées ; les chemins absolus sont masqués. Le téléchargement, l’installation et l’activation restent indisponibles via MCP. |
 | Vérifier température et VRAM NVIDIA | Disponible | `gpu_status` lit les capteurs et les seuils du runner ; matériel NVIDIA et outils de mesure requis. |
 | Créer/renommer/supprimer un projet ; lister et lire les projets | Partiel | `list_projects`, `get_project`, `create_project`, `rename_project`, `update_project` et `delete_project` lisent et modifient les métadonnées du profil actif ; suppression protégée par confirmation et révision. |
 | Prises et historique de projet | Partiel | `list_project_versions` expose les versions avec métadonnées ; `rename_project_generation` renomme une prise, et `use_project_generation`, `use_project_separation`, `use_project_mix` et `use_project_score` sélectionnent une génération terminée, une séparation, un mix sauvegardé ou une partition. Il ne lit pas le son. |
 | Bibliothèque et playlists utilisateur | Partiel | `list_library`, `create_playlist`, `delete_playlist`, `add_library_track`, `remove_library_track`, `add_track_to_playlist` et `remove_track_from_playlist` partagent le fichier du profil actif. La suppression d’une playlist ou le retrait d’un titre exigent `confirm=true`. |
 | Générer un morceau YuE2 | Partiel | `start_song` utilise les fichiers, la licence et le worker configurés pour le serveur MCP. Il ne reprend pas le projet, le profil ou les réglages de moteur de l’application. |
-| Choisir ou installer un moteur/modèle dans Song Maker | Absent | Le runner MCP exige une installation et un choix de pack préparés séparément ; il n’expose pas le gestionnaire de ressources de l’application. |
+| Choisir ou installer un moteur/modèle dans Song Maker | Partiel | `list_local_resources` permet de découvrir l’état et les choix actifs, mais ne sélectionne, ne télécharge ni n’active un moteur ou modèle. Le runner MCP reste distinct des réglages du profil de l’application. |
 | Accepter la licence YuE2 | Partiel | Un opt-in d’environnement spécifique au MCP est requis. Ce consentement n’est ni partagé avec le profil de l’application, ni modifiable par outil. |
 | Générer des variantes dans un projet | Partiel | `start_song` lance une génération unique et `start_batch` accepte une prise par titre ; les jobs MCP ne sont pas rattachés automatiquement à un projet Song Maker. |
 | Générer avec ACE-Step ou ACE-Step Lego | Absent | Les outils MCP n’exposent que le runner YuE2. |
@@ -45,6 +46,7 @@ Les outils ci-dessous sont ceux enregistrés par `packages/mcp-server/src/server
 | Outil | Entrée et résultat | Effets / garde-fous |
 |---|---|---|
 | `runtime_status` | Aucun argument ; état des fichiers et du moteur YuE2 local. | Lecture seule ; ne lance aucune génération. |
+| `list_local_resources` | Aucun argument ; réglages du profil actif et état des ressources locales connues. | Lecture seule ; masque les chemins absolus et compare les tailles aux artefacts épinglés. Ne télécharge, n’installe ni n’active une ressource. |
 | `gpu_status` | Aucun argument ; température et VRAM du GPU NVIDIA. | Lecture seule ; ne change pas les limites du pilote ou de la carte. |
 | `list_projects` | `query` facultatif ; profil actif et résumés des projets, triés par dernière modification. | Lecture seule du dossier de données Song Maker ; les paroles sont omises des résumés. |
 | `get_project` | `projectId` ; fiche de projet avec style, paroles, paramètres et identifiants de prises actives. | Lecture seule ; ne modifie ni le projet ni la bibliothèque. |
@@ -83,7 +85,7 @@ Les outils de génération exposent le progrès par `job_status` et les erreurs 
 
 ## Gaps d’acceptation restant
 
-- Les outils de projet utilisent le profil et les fichiers du format Song Maker. Ils exposent les métadonnées des versions, le renommage d’une prise, l’activation d’une génération, d’une séparation, d’un mix sauvegardé ou d’une partition, ainsi que la lecture détaillée des documents.
+- Les outils de projet utilisent le profil et les fichiers du format Song Maker. Ils exposent les métadonnées des versions, le renommage d’une prise, l’activation d’une génération, d’une séparation, d’un mix sauvegardé ou d’une partition, ainsi que la lecture détaillée des documents. `list_local_resources` inventorie les ressources et consentements sans pouvoir modifier les réglages de l’application.
 - La Bibliothèque MCP couvre ses titres choisis et playlists ; l’import d’audio et l’arrangement MIDI de base sont exposés. Les stems, l’édition détaillée des clips/routages/effets du mix, la génération de partition, la transcription audio-vers-MIDI et les réglages de modèles et ressources ne sont pas pilotables via MCP.
 - Les états de job sont consultés par interrogation ; il n’y a pas de flux d’événements MCP ni de reprise de la file batch de l’application.
 - Les tests du package vérifient le protocole et le runner local. Il reste à exercer les capacités annoncées depuis un vrai client MCP Windows et à retrouver un artefact dans l’application lorsqu’une intégration le promettra.
