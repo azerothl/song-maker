@@ -4,6 +4,7 @@ import {
   listProfileFocusables,
   focusProfileElement,
 } from "../../lib/profileDialogA11y";
+import { getProductionAddTrackPosition } from "../../lib/productionAddTrackPosition";
 import { t } from "../../ui/i18n";
 
 type Props = {
@@ -44,22 +45,30 @@ export function ProductionAddTrackMenu({
     const placeDialog = () => {
       const triggerBounds = trigger.getBoundingClientRect();
       const dialogBounds = dialog.getBoundingClientRect();
-      const margin = 16;
-      const maxLeft = Math.max(margin, window.innerWidth - dialogBounds.width - margin);
-      const left = Math.min(Math.max(margin, triggerBounds.left), maxLeft);
-      const below = triggerBounds.bottom + 8;
-      const maxTop = Math.max(margin, window.innerHeight - dialogBounds.height - margin);
-      const top = below + dialogBounds.height <= window.innerHeight - margin
-        ? below
-        : Math.max(margin, triggerBounds.top - dialogBounds.height - 8);
-
-      dialog.style.left = `${left}px`;
-      dialog.style.top = `${Math.min(top, maxTop)}px`;
+      const position = getProductionAddTrackPosition(
+        triggerBounds,
+        dialogBounds.width,
+        dialogBounds.height,
+        window.innerWidth,
+        window.innerHeight,
+      );
+      dialog.style.left = `${position.left}px`;
+      dialog.style.top = `${position.top}px`;
+    };
+    let frame = 0;
+    const schedulePlacement = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(placeDialog);
     };
 
     placeDialog();
-    window.addEventListener("resize", placeDialog);
-    return () => window.removeEventListener("resize", placeDialog);
+    window.addEventListener("resize", schedulePlacement);
+    window.addEventListener("scroll", schedulePlacement, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", schedulePlacement);
+      window.removeEventListener("scroll", schedulePlacement, true);
+    };
   }, [open]);
   useEffect(() => {
     if (!open) return;
