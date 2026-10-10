@@ -4,10 +4,10 @@ import path from 'node:path';
 import test from 'node:test';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
-import { acquireGpuLock, assertGpuSafe, assertRequestedDuration, auditPromptDiversity, cancelJob, cliArgs, getJob, gpuLimits,
-  inferenceThreads, insideWorkspace, normalizeSong, outputName, parseBatch, parseGpuTelemetry, publishExclusive,
-  releaseGpuLock, runtimeStatus, semanticBudget, serverSongRequest, wavDurationMs,
-  workspaceRoot } from '../src/runtime.mjs';
+import { acquireGpuLock, assertGpuSafe, assertRequestedDuration, auditPromptDiversity, cancelJob, cliArgs, cliPlanArgs,
+  fitSongPlan, getJob, gpuLimits, inferenceThreads, insideWorkspace, normalizeSong, outputName, parseBatch,
+  parseGpuTelemetry, plansDuration, publishExclusive, releaseGpuLock, runtimeStatus, scoreFromTaskResult,
+  semanticBudget, serverPlanRequest, serverSongRequest, wavDurationMs, workspaceRoot } from '../src/runtime.mjs';
 
 const basic = { id: '01', title: 'Soft Morning', style: 'chill soul', lyrics: '[Verse]\nA quiet room', seed: 42 };
 
@@ -47,6 +47,48 @@ test('persistent-server instrumental requests leave lyrics empty and keep a fixe
   assert.equal(request.lyrics, '');
   assert.equal(request.options.semantic_min_tokens, 1500);
   assert.equal(request.options.semantic_max_tokens, 1500);
+});
+
+test('instrumental plans are generated alone, then rendered from the fitted ABC', () => {
+  const runtime = { modelDir: 'model', modelName: 'q4.gguf' };
+  const song = normalizeSong({ ...basic, lyrics: '', instrumentalMode: true, targetDurationSec: 210 });
+  assert.equal(plansDuration(song), true);
+  assert.equal(plansDuration({ ...song, cot: 'off' }), false);
+  assert.equal(plansDuration(normalizeSong(basic)), false);
+
+  const planArgs = cliPlanArgs(song, runtime, 'plan-dir');
+  assert.ok(!planArgs.includes('--out'));
+  assert.deepEqual(planArgs.slice(-4), ['--request-option', 'stop_after=abc', '--out-dir', 'plan-dir']);
+  const renderArgs = cliArgs(song, runtime, 'out.wav', { abcFile: 'fitted.abc' });
+  assert.equal(renderArgs[renderArgs.indexOf('abc_file=fitted.abc') - 1], '--request-option');
+  assert.ok(!cliArgs(song, runtime, 'out.wav').some(arg => arg.startsWith('abc_file=')));
+
+  const plan = serverPlanRequest(song).request;
+  assert.deepEqual(Object.keys(plan.options).sort(), ['cot', 'stop_after', 'style']);
+  assert.equal(plan.options.stop_after, 'abc');
+  assert.equal(serverSongRequest(song, { abc: 'X:1' }).request.options.abc, 'X:1');
+  assert.equal(serverSongRequest(song).request.options.abc, undefined);
+});
+
+test('the plan is read from the score artifact and fitted to the fixed duration', () => {
+  const abc = ['X:1', 'M:4/4', 'L:1/32', 'Q:1/4=90', 'K:C', '% intro', 'V: Vocal', 'z32|z32|z32|z32|',
+    '% verse', 'V: Vocal', 'c32|d32|e32|f32|', '% outro', 'V: Vocal', 'c32|z32|'].join('\n');
+  const result = { artifacts: [{ id: 'score', kind: 'custom', payload: Buffer.from(abc).toString('base64'),
+    meta: { format: 'abc', extension: 'abc' } }], timing: { wall_ms: 4269 } };
+  assert.equal(scoreFromTaskResult(result), abc);
+  assert.equal(scoreFromTaskResult({ artifacts: [] }), '');
+
+  const song = normalizeSong({ ...basic, lyrics: '', instrumentalMode: true, targetDurationSec: 60 });
+  const fitted = fitSongPlan(song, abc);
+  assert.equal(fitted.report.action, 'extended');
+  assert.equal(fitted.report.planSec, 26.7);
+  assert.ok(fitted.report.fittedSec >= 62);
+  assert.equal(fitted.warning, null);
+
+  const missing = fitSongPlan(song, '');
+  assert.equal(missing.abc, null);
+  assert.equal(missing.report.action, 'missing');
+  assert.match(missing.warning, /durée n’a pas été ajustée/);
 });
 
 test('batch prompt audit flags incomplete directions, duplicate prompts, and repeated axes', () => {
