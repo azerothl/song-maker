@@ -35,14 +35,24 @@ test('MCP exposes the headless tools over stdio', async () => {
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-profile-'));
   const exportDirectory = `.test-mcp-export-${process.pid}`;
   const projectFolder = path.join(documentsRoot, 'profiles', 'profile-001', 'projects', 'project-001');
-  await mkdir(projectFolder, { recursive: true });
+  const mixFolder = path.join(projectFolder, 'mixes');
+  const scoreFolder = path.join(projectFolder, 'scores');
+  await Promise.all([mkdir(mixFolder, { recursive: true }), mkdir(scoreFolder, { recursive: true })]);
   await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
     activeProfileId: 'profile-001', profiles: [{ id: 'profile-001', name: 'Test', kind: 'hobby' }],
   }));
   await writeFile(path.join(projectFolder, 'project.json'), JSON.stringify({
     id: 'project-001', title: 'Piste de test', createdAt: '2026-10-10T00:00:00Z',
     updatedAt: '2026-10-10T01:00:00Z', style: 'Jazz discret', lyrics: 'Couplet local',
-    activeGenerationId: 'gen-001', generationNames: { 'gen-001': 'Prise retenue' }, activeMixId: 'mix-001',
+    activeGenerationId: 'gen-001', generationNames: { 'gen-001': 'Prise retenue' }, activeMixId: 'mix-v001',
+    activeScoreId: 'score-v001',
+  }));
+  await writeFile(path.join(mixFolder, 'mix-v001.json'), JSON.stringify({
+    schema: 'songmaker.mix', schemaVersion: 1, id: 'mix-v001', separationId: 'sep-001',
+    masterGainDb: 0, tracks: [{ id: 'piano', role: 'user', name: 'Piano', clips: [] }],
+  }));
+  await writeFile(path.join(scoreFolder, 'score-v001.json'), JSON.stringify({
+    schema: 'songmaker.score', schemaVersion: 1, id: 'score-v001', voices: [{ id: 'piano', notes: [{ pitch: 60 }] }],
   }));
   const existingGeneration = path.join(projectFolder, 'generations', 'gen-001');
   await mkdir(existingGeneration, { recursive: true });
@@ -60,7 +70,8 @@ test('MCP exposes the headless tools over stdio', async () => {
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
       ['add_library_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project',
-        'delete_playlist', 'delete_project', 'export_project_audio', 'get_project', 'gpu_status', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
+        'delete_playlist', 'delete_project', 'export_project_audio', 'get_project', 'get_project_mix',
+        'get_project_score', 'gpu_status', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'resume_job',
         'runtime_status', 'start_batch', 'start_song', 'update_project']);
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
@@ -82,6 +93,12 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(versionList.generations[0].active, true);
     assert.equal(versionList.generations[0].name, 'Prise retenue');
     assert.equal(versionList.generations[0].audioPath, 'generations/gen-001/audio.wav');
+    const openedMix = await client.callTool({ name: 'get_project_mix', arguments: { projectId: 'project-001' } });
+    assert.equal(openedMix.isError, undefined);
+    assert.equal(JSON.parse(openedMix.content[0].text).mix.tracks[0].name, 'Piano');
+    const openedScore = await client.callTool({ name: 'get_project_score', arguments: { projectId: 'project-001' } });
+    assert.equal(openedScore.isError, undefined);
+    assert.equal(JSON.parse(openedScore.content[0].text).score.voices[0].notes[0].pitch, 60);
     const exportedAudio = await client.callTool({ name: 'export_project_audio', arguments: {
       projectId: 'project-001', generationId: 'gen-001', outputDirectory: exportDirectory,
     } });

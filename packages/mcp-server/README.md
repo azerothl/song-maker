@@ -1,6 +1,6 @@
 # Song Maker MCP — YuE2 sans application desktop
 
-La couverture réelle du serveur par rapport aux parcours de l’application est suivie dans la [matrice de parité MCP](../../docs/mcp-capability-matrix.md). Les outils lisent et modifient les projets du profil actif ; la Bibliothèque MCP partage le même fichier `user-library.json` que l’application. La création, le renommage, les champs du formulaire, la suppression confirmée, l’export WAV d’une génération et la lecture des prises générées sont exposés. Le Studio (séparation, mixage et effets) ne l’est pas.
+La couverture réelle du serveur par rapport aux parcours de l’application est suivie dans la [matrice de parité MCP](../../docs/mcp-capability-matrix.md). Les outils lisent et modifient les projets du profil actif ; la Bibliothèque MCP partage le même fichier `user-library.json` que l’application. La création, le renommage, les champs du formulaire, la suppression confirmée, l’export WAV d’une génération et la lecture des prises, mixes et partitions sont exposés. Le serveur ne modifie ni ne rend encore le mix et n’exécute pas les effets.
 
 Ce serveur MCP permet à Codex de lancer YuE2 sur le GPU local sans démarrer l'application Tauri Song Maker. Il utilise `audiocpp_server` quand le binaire est présent : le serveur est démarré une fois par lot et garde YuE2 chargé pour les morceaux suivants. Si ce binaire manque ou ne démarre pas, le runner reprend le chemin compatible `audiocpp_cli`. Les poids GGUF et le moteur viennent de la même [version épinglée](../../scripts/phase0/README.md). **Le MCP ne fournit pas de GPU distant gratuit** : le calcul, les poids et le binaire audio.cpp doivent être présents sur la machine où il tourne.
 
@@ -9,6 +9,10 @@ Ce serveur MCP permet à Codex de lancer YuE2 sur le GPU local sans démarrer l'
 `list_projects` retourne les résumés du profil actif. `get_project` lit la fiche du projet demandé, y compris son style et ses paroles. `create_project` initialise un dossier et une fiche compatibles avec Song Maker. `rename_project`, `update_project` et `delete_project` exigent le `updatedAt` obtenu par une lecture récente afin de refuser une action fondée sur une fiche périmée. `update_project` n’écrit que les champs fournis et reprend les règles de validation du brouillon de l’application. `delete_project` exige aussi `confirm=true` ; il supprime le dossier du projet et retire ses titres de la Bibliothèque. Il ne supprime pas les fichiers d’autres projets.
 
 `list_project_versions` liste les générations, séparations, sauvegardes de mix et versions de partition d’un projet, avec leurs métadonnées et les sélections actives. Il indique le WAV d’une génération par un chemin relatif au projet ; aucun contenu audio ni parole n’est lu. Cet outil ne déclenche pas la génération, la séparation, la lecture du mix, l’édition MIDI ou la restauration d’une version.
+
+`get_project_mix` retourne le mix actif, ou la version `mix-vN` demandée, avec ses pistes, clips, réglages et arrangement. Les chemins locaux de VST, les états propriétaires des plugins et les sources audio absolues ou hors du projet sont masqués. L’outil ne lit pas les fichiers audio, ne modifie pas le mix et ne produit pas de rendu.
+
+`get_project_score` retourne la partition active, ou la version `score-vN` demandée, avec ses voix et notes. Il s’agit d’une lecture seule : l’outil n’édite pas, ne génère pas et ne convertit pas une partition.
 
 `export_project_audio` copie le WAV d’une génération terminée vers un dossier du workspace MCP. Le fichier source doit appartenir au profil actif et être un WAV lisible ; l’outil valide son format, retourne ses métadonnées et refuse de remplacer un fichier déjà présent. Il n’exporte pas le mix actif et ne convertit pas en FLAC ou MP3.
 

@@ -20,7 +20,7 @@ Les outils ci-dessous sont ceux enregistrés par `packages/mcp-server/src/server
 | Vérifier le moteur et les poids YuE2 | Disponible | `runtime_status` lit les prérequis locaux ; il ne démarre pas le moteur. |
 | Vérifier température et VRAM NVIDIA | Disponible | `gpu_status` lit les capteurs et les seuils du runner ; matériel NVIDIA et outils de mesure requis. |
 | Créer/renommer/supprimer un projet ; lister et lire les projets | Partiel | `list_projects`, `get_project`, `create_project`, `rename_project`, `update_project` et `delete_project` lisent et modifient les métadonnées du profil actif ; suppression protégée par confirmation et révision. |
-| Prises et historique de projet | Partiel | `list_project_versions` expose les générations, séparations, sauvegardes de mix et scores avec métadonnées et sélections actives. Il ne lit pas le son, ne restaure pas une version et n’exécute aucune opération de Studio. |
+| Prises et historique de projet | Partiel | `list_project_versions` expose les versions avec métadonnées ; `get_project_mix` et `get_project_score` lisent un mix ou une partition sauvegardés. Il ne lit pas le son, ne restaure pas une version et n’exécute aucune opération de Studio. |
 | Bibliothèque et playlists utilisateur | Partiel | `list_library`, `create_playlist`, `delete_playlist`, `add_library_track`, `remove_library_track`, `add_track_to_playlist` et `remove_track_from_playlist` partagent le fichier du profil actif. La suppression d’une playlist ou le retrait d’un titre exigent `confirm=true`. |
 | Générer un morceau YuE2 | Partiel | `start_song` utilise les fichiers, la licence et le worker configurés pour le serveur MCP. Il ne reprend pas le projet, le profil ou les réglages de moteur de l’application. |
 | Choisir ou installer un moteur/modèle dans Song Maker | Absent | Le runner MCP exige une installation et un choix de pack préparés séparément ; il n’expose pas le gestionnaire de ressources de l’application. |
@@ -33,9 +33,9 @@ Les outils ci-dessous sont ceux enregistrés par `packages/mcp-server/src/server
 | Exporter un WAV de projet ou un résultat batch | Partiel | `export_project_audio` copie et valide un WAV généré du profil actif vers le workspace ; le batch écrit ses WAV dans le dossier de sortie. Le rendu du mix et les conversions FLAC/MP3 ne sont pas exposés. |
 | Importer de l’audio dans un projet | Absent | Aucun outil MCP d’import de fichier audio. |
 | Séparer un audio en stems | Absent | Aucun outil MCP de séparation. |
-| Ajouter ou éditer une piste, régler le mix et les effets | Absent | Aucun outil MCP de production ou de mixage. |
+| Ajouter ou éditer une piste, régler le mix et les effets | Partiel | `get_project_mix` lit le mix actif ou une version sauvegardée ; aucun outil ne modifie ou ne rend le mix et aucun outil VST n’est exposé. |
 | Charger un VST3/AU | Absent | Pas d’hôte de plugin exposé par MCP. L’hôte de l’application est suivi séparément dans #326. |
-| Éditer/générer une partition, MIDI ou transcription audio-vers-MIDI | Absent | Aucun outil de composition ou de conversion MIDI. |
+| Lire/éditer/générer une partition, MIDI ou transcription audio-vers-MIDI | Partiel | `get_project_score` lit les voix et notes d’une partition sauvegardée ; l’édition, la génération et la conversion audio-vers-MIDI restent absentes. |
 | Enregistrer un micro ou contrôler une interface audio | Interaction requise | Aucun outil d’enregistrement ; la sélection du périphérique et l’autorisation micro requièrent l’application et l’appareil de l’utilisateur. |
 | Hôte DeclUI / client Akasha | Absent | L’hôte embarqué opt-in de #343 est un service distinct ; il ne constitue pas la parité du serveur MCP de génération. |
 
@@ -48,6 +48,8 @@ Les outils ci-dessous sont ceux enregistrés par `packages/mcp-server/src/server
 | `list_projects` | `query` facultatif ; profil actif et résumés des projets, triés par dernière modification. | Lecture seule du dossier de données Song Maker ; les paroles sont omises des résumés. |
 | `get_project` | `projectId` ; fiche de projet avec style, paroles, paramètres et identifiants de prises actives. | Lecture seule ; ne modifie ni le projet ni la bibliothèque. |
 | `list_project_versions` | `projectId` ; générations (état, moteur, seed, nom, score/WAV disponibles), séparations, sauvegardes de mix et scores (métadonnées), choix actifs et chemin WAV relatif. | Lecture seule du profil actif ; liens symboliques refusés, ni paroles ni octets audio lus. Le WAV doit être ouvert séparément ; aucune version n’est restaurée. |
+| `get_project_mix` | `projectId`, `mixId` facultatif (mix actif par défaut) ; retourne les pistes, clips, réglages d’arrangement et paramètres de mix. | Lecture seule ; liens symboliques refusés, chemins de source absolus ou hors projet masqués, chemins VST locaux et états propriétaires des plugins omis. Ne lit pas l’audio et ne rend pas le mix. |
+| `get_project_score` | `projectId`, `scoreId` facultatif (partition active par défaut) ; retourne le document de partition avec voix et notes. | Lecture seule ; liens symboliques refusés ; document JSON plafonné à 8 Mio. Ne modifie ni ne convertit la partition. |
 | `export_project_audio` | `projectId`, `generationId`, `outputDirectory` dans le workspace MCP ; `fileName` WAV facultatif. Retourne le chemin, le nombre d’octets et les métadonnées audio. | Copie uniquement le WAV d’une génération publiée du profil actif, valide le fichier et refuse tout écrasement ; ne rend pas le mix et ne convertit pas les formats. |
 | `create_project` | `title` (1 à 120 caractères) ; retourne le profil actif et la nouvelle fiche. | Crée les dossiers Song Maker et un `project.json` vide ; la bibliothèque de l’application récupère cette fiche depuis le disque. |
 | `rename_project` | `projectId`, `title`, `expectedUpdatedAt` ; retourne la fiche actualisée. | Refuse les titres interdits et les lectures périmées ; seule la fiche projet est modifiée. |
@@ -70,8 +72,8 @@ Les outils de génération exposent le progrès par `job_status` et les erreurs 
 
 ## Gaps d’acceptation restant
 
-- Les outils de projet utilisent le profil et les fichiers du format Song Maker. Ils exposent la lecture des métadonnées de génération, séparation, mix et partition ; aucune de ces versions ne peut être activée ou restaurée par MCP.
-- La Bibliothèque MCP couvre ses titres choisis et playlists ; l’import audio, les stems, le mixage, le MIDI, les réglages de modèles et ressources ne sont pas pilotables via MCP.
+- Les outils de projet utilisent le profil et les fichiers du format Song Maker. Ils exposent les métadonnées des versions et la lecture détaillée du mix et de la partition actifs ou sauvegardés ; aucune version ne peut être activée ou restaurée par MCP.
+- La Bibliothèque MCP couvre ses titres choisis et playlists ; l’import audio, les stems, l’édition complète du mix et des notes MIDI, les réglages de modèles et ressources ne sont pas pilotables via MCP.
 - Les états de job sont consultés par interrogation ; il n’y a pas de flux d’événements MCP ni de reprise de la file batch de l’application.
 - Les tests du package vérifient le protocole et le runner local. Il reste à exercer les capacités annoncées depuis un vrai client MCP Windows et à retrouver un artefact dans l’application lorsqu’une intégration le promettra.
 

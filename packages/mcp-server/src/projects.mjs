@@ -10,6 +10,7 @@ const GENERATION_ID_PATTERN = /^gen-[0-9]+$/;
 const SEPARATION_ID_PATTERN = /^sep-[0-9]+$/;
 const MIX_ID_PATTERN = /^mix-v[0-9]+$/;
 const SCORE_ID_PATTERN = /^score-v[0-9]+$/;
+const MAX_PROJECT_DOCUMENT_BYTES = 8 * 1024 * 1024;
 
 function documentsCandidates(env) {
   if (env.SONG_MAKER_DOCUMENTS_DIR?.trim()) {
@@ -284,6 +285,28 @@ async function readJsonInside(directory, filename, label) {
   return readJson(path.join(directory, filename), label);
 }
 
+async function readBoundedJsonInside(directory, filename, label, maxBytes = MAX_PROJECT_DOCUMENT_BYTES) {
+  const candidate = path.join(directory, filename);
+  let info;
+  try {
+    info = await lstat(candidate);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw new Error(`Lecture ${label} impossible : ${error?.message || error}`);
+  }
+  if (info.isSymbolicLink() || !info.isFile()) {
+    throw new Error(`${label} est invalide ou se trouve hors du projet Song Maker.`);
+  }
+  if (info.size > maxBytes) {
+    throw new Error(`${label} dépasse la taille maximale de lecture (${maxBytes} octets).`);
+  }
+  const canonical = await realpath(candidate);
+  if (!isWithin(directory, canonical)) {
+    throw new Error(`${label} se trouve hors du projet Song Maker.`);
+  }
+  return readJson(canonical, label);
+}
+
 async function projectSubdirectory(projectDirectory, name) {
   const candidate = path.join(projectDirectory, name);
   let info;
@@ -513,6 +536,112 @@ export async function listProjectVersions({ projectId, env = process.env } = {})
     mixVersions,
     scores,
     skippedInvalid,
+  };
+}
+
+/** Read one saved mix without exposing local plugin paths or opaque plugin state. */
+export async function getProjectMix({ projectId, mixId, env = process.env } = {}) {
+  if (typeof projectId !== 'string') throw new Error('Identifiant de projet requis.');
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  const selectedMixId = mixId ?? project.activeMixId;
+  if (typeof selectedMixId !== 'string' || !MIX_ID_PATTERN.test(selectedMixId)) {
+    throw new Error('Identifiant de mix invalide ou aucun mix actif.');
+  }
+
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+  const mixesDirectory = await projectSubdirectory(canonicalFolder, 'mixes');
+  if (!mixesDirectory) throw new Error(`Mix introuvable : ${selectedMixId}`);
+  const mix = await readBoundedJsonInside(mixesDirectory, `${selectedMixId}.json`, `${selectedMixId}.json`);
+  if (!mix || mix.id !== selectedMixId) throw new Error(`Mix introuvable ou invalide : ${selectedMixId}`);
+  if ((mix.schema !== undefined && mix.schema !== 'songmaker.mix') ||
+      (mix.schemaVersion !== undefined && mix.schemaVersion !== 1)) {
+    throw new Error('Version de mix non prise en charge.');
+  }
+  if (!Array.isArray(mix.tracks) || mix.tracks.some(track => !track || typeof track !== 'object' || Array.isArray(track) ||
+      (track.clips !== undefined && !Array.isArray(track.clips)))) {
+    throw new Error('Document de mix invalide : pistes ou clips mal formés.');
+  }
+
+  const safeMix = {
+    ...mix,
+    tracks: Array.isArray(mix.tracks) ? mix.tracks.map(track => ({
+      ...track,
+      clips: Array.isArray(track.clips) ? track.clips.map(clip => {
+        const sourcePath = typeof clip?.sourcePath === 'string' ? clip.sourcePath : '';
+        const normalized = sourcePath.replaceAll('\\', '/');
+        const absolute = path.isAbsolute(sourcePath) || /^[A-Za-z]:\//.test(normalized) || normalized.startsWith('//');
+        const resolved = absolute ? null : path.resolve(canonicalFolder, sourcePath);
+        const safeRelative = resolved && isWithin(canonicalFolder, resolved)
+          ? path.relative(canonicalFolder, resolved).split(path.sep).join('/')
+          : null;
+        return {
+          ...clip,
+          sourcePath: safeRelative,
+          sourcePathIsExternal: safeRelative === null,
+        };
+      }) : [],
+      experimentalVst3Insert: track.experimentalVst3Insert ? {
+        factoryPresent: track.experimentalVst3Insert.factoryPresent === true,
+      } : null,
+    })) : [],
+    vst3MasterInsert: mix.vst3MasterInsert ? {
+      pluginName: typeof mix.vst3MasterInsert.pluginName === 'string' ? mix.vst3MasterInsert.pluginName : '',
+      enabled: mix.vst3MasterInsert.enabled === true,
+      parameters: mix.vst3MasterInsert.parameters && typeof mix.vst3MasterInsert.parameters === 'object'
+        && !Array.isArray(mix.vst3MasterInsert.parameters)
+        ? mix.vst3MasterInsert.parameters
+        : {},
+    } : null,
+  };
+  return {
+    profileId: store.profileId,
+    projectId,
+    projectTitle: project.title,
+    mixId: selectedMixId,
+    active: project.activeMixId === selectedMixId,
+    mix: safeMix,
+  };
+}
+
+/** Read one saved score document from the active Song Maker profile. */
+export async function getProjectScore({ projectId, scoreId, env = process.env } = {}) {
+  if (typeof projectId !== 'string') throw new Error('Identifiant de projet requis.');
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  const selectedScoreId = scoreId ?? project.activeScoreId;
+  if (typeof selectedScoreId !== 'string' || !SCORE_ID_PATTERN.test(selectedScoreId)) {
+    throw new Error('Identifiant de partition invalide ou aucune partition active.');
+  }
+
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+  const scoresDirectory = await projectSubdirectory(canonicalFolder, 'scores');
+  if (!scoresDirectory) throw new Error(`Partition introuvable : ${selectedScoreId}`);
+  const score = await readBoundedJsonInside(scoresDirectory, `${selectedScoreId}.json`, `${selectedScoreId}.json`);
+  if (!score || score.id !== selectedScoreId) throw new Error(`Partition introuvable ou invalide : ${selectedScoreId}`);
+  if ((score.schema !== undefined && score.schema !== 'songmaker.score') ||
+      (score.schemaVersion !== undefined && score.schemaVersion !== 1)) {
+    throw new Error('Version de partition non prise en charge.');
+  }
+  return {
+    profileId: store.profileId,
+    projectId,
+    projectTitle: project.title,
+    scoreId: selectedScoreId,
+    active: project.activeScoreId === selectedScoreId,
+    score,
   };
 }
 

@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createProject, deleteProject, getProject, listProjectVersions, listProjects, renameProject, updateProject } from '../src/projects.mjs';
+import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject } from '../src/projects.mjs';
 
 test('project tools read the active profile and hide lyrics from list results', async () => {
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-projects-'));
@@ -123,6 +123,71 @@ test('project version listing returns safe generation, separation, mix, and scor
     assert.equal(JSON.stringify(listed).includes('Private lyrics'), false);
     assert.equal(JSON.stringify(listed).includes(projectFolder), false);
     await assert.rejects(listProjectVersions({ projectId: '../outside', env }), /Identifiant de projet invalide/);
+  } finally {
+    await rm(documentsRoot, { recursive: true, force: true });
+  }
+});
+
+test('MCP reads mix and score documents while hiding host-specific plugin and audio paths', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-documents-'));
+  const projectFolder = path.join(documentsRoot, 'profiles', 'profile-documents', 'projects', 'project-001');
+  const mixesFolder = path.join(projectFolder, 'mixes');
+  const scoresFolder = path.join(projectFolder, 'scores');
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await Promise.all([
+      mkdir(mixesFolder, { recursive: true }),
+      mkdir(scoresFolder, { recursive: true }),
+    ]);
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-documents', profiles: [{ id: 'profile-documents', name: 'Hobby', kind: 'hobby' }],
+    }));
+    await writeFile(path.join(projectFolder, 'project.json'), JSON.stringify({
+      id: 'project-001', title: 'Open the mix', activeMixId: 'mix-v002', activeScoreId: 'score-v001',
+    }));
+    await writeFile(path.join(mixesFolder, 'mix-v002.json'), JSON.stringify({
+      schema: 'songmaker.mix', schemaVersion: 1, id: 'mix-v002', separationId: 'sep-001',
+      masterGainDb: -2, tracks: [{
+        id: 'vocals', role: 'vocals', name: 'Vocals', gainDb: -1, pan: 0, mute: false, solo: false,
+        locked: false, aiSeparated: true,
+        clips: [
+          { id: 'clip-relative', sourcePath: 'separations/sep-001/vocals.wav', startMs: 0, durationMs: 1000 },
+          { id: 'clip-host', sourcePath: 'D:\\private\\audio\\take.wav', startMs: 1000, durationMs: 500 },
+          { id: 'clip-escape', sourcePath: '../../outside.wav', startMs: 1500, durationMs: 500 },
+        ],
+        experimentalVst3Insert: { pluginPath: 'C:\\VST\\private.vst3', factoryPresent: true, stateB64: 'opaque' },
+      }],
+      vst3MasterInsert: {
+        pluginPath: 'C:\\VST\\master.vst3', pluginName: 'Master Plug', enabled: true,
+        parameters: { '7': 0.5 }, stateB64: 'opaque-master-state',
+      },
+    }));
+    await writeFile(path.join(scoresFolder, 'score-v001.json'), JSON.stringify({
+      schema: 'songmaker.score', schemaVersion: 1, id: 'score-v001', version: 1,
+      voices: [{ id: 'voice-1', name: 'Piano', notes: [{ pitch: 60, startBeat: 0, durationBeats: 1 }] }],
+    }));
+
+    const mixResult = await getProjectMix({ projectId: 'project-001', env });
+    assert.equal(mixResult.active, true);
+    assert.equal(mixResult.mix.tracks[0].clips[0].sourcePath, 'separations/sep-001/vocals.wav');
+    assert.equal(mixResult.mix.tracks[0].clips[1].sourcePath, null);
+    assert.equal(mixResult.mix.tracks[0].clips[1].sourcePathIsExternal, true);
+    assert.equal(mixResult.mix.tracks[0].clips[2].sourcePath, null);
+    assert.equal(mixResult.mix.tracks[0].experimentalVst3Insert.factoryPresent, true);
+    assert.equal('pluginPath' in mixResult.mix.tracks[0].experimentalVst3Insert, false);
+    assert.equal('stateB64' in mixResult.mix.tracks[0].experimentalVst3Insert, false);
+    assert.deepEqual(mixResult.mix.vst3MasterInsert, {
+      pluginName: 'Master Plug', enabled: true, parameters: { '7': 0.5 },
+    });
+    assert.equal(JSON.stringify(mixResult).includes('C:\\\\VST'), false);
+    assert.equal(JSON.stringify(mixResult).includes('opaque-master-state'), false);
+    assert.equal(JSON.stringify(mixResult).includes('D:\\\\private'), false);
+
+    const scoreResult = await getProjectScore({ projectId: 'project-001', env });
+    assert.equal(scoreResult.active, true);
+    assert.equal(scoreResult.score.voices[0].notes[0].pitch, 60);
+    await assert.rejects(getProjectMix({ projectId: 'project-001', mixId: '../outside', env }), /Identifiant de mix invalide/);
+    await assert.rejects(getProjectScore({ projectId: 'project-001', scoreId: 'score-v999', env }), /introuvable/);
   } finally {
     await rm(documentsRoot, { recursive: true, force: true });
   }

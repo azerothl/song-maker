@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { createProject, deleteProject, getProject, listProjectVersions, listProjects, renameProject, updateProject } from './projects.mjs';
+import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject } from './projects.mjs';
 import { exportProjectAudio } from './project-audio.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
@@ -47,6 +47,18 @@ server.registerTool('list_project_versions', {
   inputSchema: { projectId: z.string().min(1).max(128) },
   annotations: { readOnlyHint: true },
 }, call(async args => listProjectVersions(args)));
+
+server.registerTool('get_project_mix', {
+  description: 'Lit le mix actif ou une version de mix sauvegardée du profil actif, avec pistes, clips et réglages. Les chemins locaux de fichiers VST et les états propriétaires des plugins sont masqués ; les chemins de sources audio hors du projet sont masqués. Ne modifie ni ne rend le mix.',
+  inputSchema: { projectId: z.string().min(1).max(128), mixId: z.string().regex(/^mix-v[0-9]+$/).optional() },
+  annotations: { readOnlyHint: true },
+}, call(async args => getProjectMix(args)));
+
+server.registerTool('get_project_score', {
+  description: 'Lit la partition active ou une version sauvegardée d’un projet du profil actif, avec ses voix et notes. Ne modifie ni ne convertit la partition.',
+  inputSchema: { projectId: z.string().min(1).max(128), scoreId: z.string().regex(/^score-v[0-9]+$/).optional() },
+  annotations: { readOnlyHint: true },
+}, call(async args => getProjectScore(args)));
 
 server.registerTool('export_project_audio', {
   description: 'Copie le WAV d’une génération terminée depuis le projet du profil Song Maker actif vers le workspace MCP. Vérifie le WAV et ne remplace jamais un fichier existant. Ne rend pas le mix et ne convertit pas en FLAC/MP3.',
