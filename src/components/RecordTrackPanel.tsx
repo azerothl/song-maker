@@ -20,6 +20,7 @@ import {
   punchBarDurationMs,
   snapPunchMs,
   snapPunchWindow,
+  punchStartAction,
   punchTransportAction,
 } from "../lib/punchGrid";
 import {
@@ -676,8 +677,20 @@ export function RecordTrackPanel({
   }
 
   async function startPunchOrRecording() {
-    if (!punchEnabled || loopEnabled || playback === undefined) {
+    const startAction = punchStartAction({
+      enabled: punchEnabled,
+      looping: loopEnabled,
+      hasTransport: playback !== undefined,
+    });
+    if (startAction === "record") {
       await startRecording();
+      return;
+    }
+    if (startAction === "missing-transport") {
+      const message = t("record.punch.noPlayback");
+      setStatusMsg(message);
+      onError(message);
+      setPhase("armed");
       return;
     }
     const transport = playbackRef.current;

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   punchBarDurationMs,
+  punchStartAction,
   punchTransportAction,
   snapPunchMs,
   snapPunchWindow,
@@ -25,6 +26,21 @@ function mixAt(bpm: number, numerator = 4, denominator = 4): MixDoc {
 }
 
 describe("punchGrid", () => {
+  it("requires the Studio transport for punch instead of silently recording a plain take", () => {
+    assert.equal(
+      punchStartAction({ enabled: true, looping: false, hasTransport: false }),
+      "missing-transport",
+    );
+    assert.equal(
+      punchStartAction({ enabled: true, looping: false, hasTransport: true }),
+      "punch",
+    );
+    assert.equal(
+      punchStartAction({ enabled: true, looping: true, hasTransport: false }),
+      "record",
+    );
+  });
+
   it("follows the Studio transport and stops at the punch-out point", () => {
     const base = {
       enabled: true,

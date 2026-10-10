@@ -20,6 +20,17 @@ export type PunchTransportAction =
   | "stop-after-pause"
   | "stop-at-punch-out";
 
+export type PunchStartAction = "record" | "punch" | "missing-transport";
+
+export function punchStartAction(input: {
+  enabled: boolean;
+  looping: boolean;
+  hasTransport: boolean;
+}): PunchStartAction {
+  if (!input.enabled || input.looping) return "record";
+  return input.hasTransport ? "punch" : "missing-transport";
+}
+
 export function punchTransportAction(input: {
   enabled: boolean;
   looping: boolean;
