@@ -139,11 +139,39 @@
 }
 
 .profile-type-card {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  grid-template-areas:
+    "icon label"
+    ". hint"
+    "reason reason";
+  column-gap: 0.65rem;
+  row-gap: 0.2rem;
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 0.85rem 1rem;
   cursor: pointer;
   min-height: 44px;
+}
+
+.profile-type-icon {
+  grid-area: icon;
+  align-self: center;
+  line-height: 1.2;
+}
+
+.profile-type-label {
+  grid-area: label;
+  min-width: 0;
+  font-weight: 650;
+}
+
+.profile-type-hint {
+  grid-area: hint;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 /* Commercial tile: ≥3:1 vs --bg1 (#151827); --line alone is ~1.46:1 (#212 R7). */
@@ -167,6 +195,7 @@
 }
 
 .profile-commercial-unavailable-reason {
+  grid-area: reason;
   display: flex;
   gap: 0.5rem;
   align-items: flex-start;
