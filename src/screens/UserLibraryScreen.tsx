@@ -200,6 +200,7 @@ export function UserLibraryScreen() {
                       audioPath={audioPath}
                       label={title}
                       projectId={track.projectId}
+                      generationId={track.generationId}
                       trackKey={key}
                     />
                   ) : (

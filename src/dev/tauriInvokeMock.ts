@@ -288,6 +288,11 @@ export async function invoke<T>(
         hasPartialDownloads: false,
         files: [],
       } as T;
+    case "generation_waveform":
+      return {
+        peaks: Array.from({ length: 320 }, (_, index) => (index % 20 < 3 ? 0.55 : 0.08)),
+        duration: 180,
+      } as T;
     case "install_required_assets": {
       const pack = String(args?.pack ?? "q4");
       captureSettings.modelPack = pack;

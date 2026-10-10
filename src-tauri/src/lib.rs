@@ -217,6 +217,7 @@ pub fn run() {
             // Versions
             commands::versions::use_generation,
             commands::versions::rename_generation,
+            commands::versions::generation_waveform,
             commands::versions::import_remote_generation,
             // SheetSage2
             commands::sheetsage_cmds::install_sheetsage2,
