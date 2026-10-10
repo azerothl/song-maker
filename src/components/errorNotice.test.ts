@@ -17,4 +17,7 @@ it("keeps technical details collapsed below the recovery message", () => {
   assert.match(html, /Technical details|Détails techniques/);
   assert.match(html, /<pre tabindex="0">/);
   assert.match(html, /&quot;error&quot;/);
+  const alertContent = html.match(/<div role="alert">([\s\S]*?)<\/div>/)?.[1] ?? "";
+  assert.match(alertContent, /This action|Cette action/);
+  assert.doesNotMatch(alertContent, /<details|<summary|<pre/);
 });

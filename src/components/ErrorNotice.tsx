@@ -15,8 +15,8 @@ export function ErrorNotice({
   const presentation = presentGlobalError(message);
 
   return (
-    <div className={className} role={role}>
-      <span>{presentation.message}</span>
+    <div className={className}>
+      <div role={role}>{presentation.message}</div>
       {presentation.details && (
         <details className="error-details">
           <summary>{t("error.technicalDetails")}</summary>
