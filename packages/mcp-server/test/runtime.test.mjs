@@ -142,6 +142,8 @@ test('YuE2 runtime follows the active Song Maker cache and model, with an explic
     assert.equal(appRuntime.modelId, 'q8');
     assert.equal(appRuntime.profileId, 'profile-001');
     assert.equal(appRuntime.yue2LicenseAccepted, true);
+    assert.equal(appRuntime.ready, false);
+    assert.ok(appRuntime.missing.includes('YuE2 Q4 ou Q8'));
     assert.doesNotThrow(() => assertYue2GenerationAllowed(appRuntime));
     assert.throws(() => assertYue2GenerationAllowed({ ...appRuntime, localYue2Enabled: false }, {}), /désactivé/);
     assert.throws(() => assertYue2GenerationAllowed({ ...appRuntime, yue2LicenseAccepted: false }, {}), /licence non commerciale/);

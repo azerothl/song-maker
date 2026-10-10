@@ -1,6 +1,6 @@
 import { execFile as execFileCallback, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, realpathSync, statSync } from 'node:fs';
 import { link, mkdir, open, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import net from 'node:net';
 import os from 'node:os';
@@ -9,16 +9,21 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { inspectWav } from './audio-quality.mjs';
 import { readSongMakerRuntimeSettings } from './song-maker-settings.mjs';
+import { expectedYue2ModelBytes, YUE2_COMMON, YUE2_MODELS } from './yue2-assets.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const execFile = promisify(execFileCallback);
 export const workspaceRoot = path.resolve(process.env.SONG_MAKER_WORKSPACE_ROOT || process.cwd());
 const jobsDir = path.join(workspaceRoot, '.song-maker-mcp', 'jobs');
 const gpuLockPath = path.join(workspaceRoot, '.song-maker-mcp', 'gpu.lock');
-const requiredSidecars = [
-  'yue2-model-config.json', 'yue2-generation-config.json',
-  'yue2-qwen.tiktoken', 'yue2-vae-config.json',
-];
+function hasExactFile(filePath, bytes) {
+  try {
+    const metadata = statSync(filePath);
+    return metadata.isFile() && metadata.size === bytes;
+  } catch {
+    return false;
+  }
+}
 const creativeAxes = {
   scene: 'scene',
   groove: 'groove',
@@ -77,15 +82,18 @@ export function runtimeStatus({ modelId, engineId, env = process.env } = {}) {
     path.join(folder, 'extracted', serverName),
   ].find(existsSync) || null;
   const modelDir = path.join(cache, 'models', 'Yue2-3B-GGUF');
-  const modelPath = selectedModelId
-    ? path.join(modelDir, selectedModelId === 'q8' ? 'yue2-3b-q8_0.gguf' : 'yue2-3b-q4_0.gguf')
-    : null;
+  const model = YUE2_MODELS.find(candidate => candidate.id === selectedModelId);
+  const modelPath = model ? path.join(modelDir, model.file) : null;
   const modelName = modelPath && existsSync(modelPath) ? path.basename(modelPath) : null;
+  const modelFileValid = model && hasExactFile(modelPath, expectedYue2ModelBytes(selectedModelId));
+  const commonModelDirectory = path.join(modelDir);
+  const missingComponents = YUE2_COMMON.filter(item => !hasExactFile(
+    path.join(commonModelDirectory, item.file), item.bytes,
+  ));
   const missing = [
     ...(!binary ? ['audiocpp_cli'] : []),
-    ...(!modelName ? ['YuE2 Q4 ou Q8'] : []),
-    ...(!existsSync(path.join(modelDir, 'yue2-vae-f16.gguf')) ? ['YuE2 VAE'] : []),
-    ...requiredSidecars.filter(name => !existsSync(path.join(modelDir, 'sidecars', name))),
+    ...(!modelFileValid ? ['YuE2 Q4 ou Q8'] : []),
+    ...missingComponents.map(item => item.id === 'vae' ? 'YuE2 VAE' : item.id),
   ];
   return {
     ready: missing.length === 0,

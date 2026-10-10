@@ -1,13 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { YUE2_MODELS } from './yue2-assets.mjs';
 
 const PROFILE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
 const MODEL_FILES = new Map([
-  ['q4', 'yue2-3b-q4_0.gguf'],
-  ['q8', 'yue2-3b-q8_0.gguf'],
-  ['yue2-3b-q4_0.gguf', 'yue2-3b-q4_0.gguf'],
-  ['yue2-3b-q8_0.gguf', 'yue2-3b-q8_0.gguf'],
+  ...YUE2_MODELS.flatMap(model => [[model.id, model.file], [model.file, model.file]]),
 ]);
 
 function documentsCandidates(env) {
