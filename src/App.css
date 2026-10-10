@@ -9371,6 +9371,13 @@ details[open] > summary {
   overflow: auto;
 }
 
+/* The shared timeline rule makes this container visible again via :has().
+   Keep the Studio's track list scrollable so new lanes remain reachable
+   above the persistent player in short windows. */
+.production-workspace-studio.production-workspace-common:has(.production-common-timeline) .production-mix-scroll {
+  overflow: auto;
+}
+
 .production-workspace-studio .production-common-timeline {
   display: block;
   min-height: 0;
