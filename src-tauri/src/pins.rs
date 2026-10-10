@@ -325,6 +325,7 @@ mod semantic_budget_tests {
     fn abc_budget_scales_with_short_duration_and_keeps_long_headroom() {
         assert_eq!(yue2_abc_token_budget(750), 1_024);
         assert_eq!(yue2_abc_token_budget(1_500), 1_472);
+        assert_eq!(yue2_abc_token_budget(3_000), 2_432);
         assert_eq!(yue2_abc_token_budget(5_625), 4_096);
     }
 }
