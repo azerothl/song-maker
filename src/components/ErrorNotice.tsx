@@ -16,7 +16,7 @@ export function ErrorNotice({
 
   return (
     <div className={className}>
-      <div role={role}>{presentation.message}</div>
+      <span role={role}>{presentation.message}</span>
       {presentation.details && (
         <details className="error-details">
           <summary>{t("error.technicalDetails")}</summary>
