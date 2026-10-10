@@ -189,7 +189,7 @@ test('MCP exposes the headless tools over stdio', async () => {
       projectId: 'project-001', idempotencyKey: 'protocol-test-midi-1', name: 'Synth lead',
       expectedScoreRevision: editedScoreState.scoreRevision, expectedMixRevision: addedMidiState.mixRevision,
     } });
-    assert.equal(createdMidi.isError, undefined);
+    assert.equal(createdMidi.isError, undefined, createdMidi.content?.[0]?.text);
     const createdMidiState = JSON.parse(createdMidi.content[0].text);
     assert.equal(createdMidiState.created, true);
     assert.equal(createdMidiState.linked, true);
@@ -225,8 +225,31 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(created.isError, undefined);
     const createdProject = JSON.parse(created.content[0].text).project;
     assert.equal(createdProject.title, 'MCP created');
+    const firstMidi = await client.callTool({ name: 'create_project_midi_track', arguments: {
+      projectId: createdProject.id, idempotencyKey: 'blank-project-midi',
+    } });
+    assert.equal(firstMidi.isError, undefined, firstMidi.content?.[0]?.text);
+    const firstMidiState = JSON.parse(firstMidi.content[0].text);
+    assert.equal(firstMidiState.created, true);
+    assert.equal(firstMidiState.linked, true);
+    assert.equal(firstMidiState.score.score.version, 2);
+    assert.equal(firstMidiState.score.score.voices.length, 1);
+    assert.equal(firstMidiState.score.score.voices.some(voice => voice.id === firstMidiState.voiceId), true);
+    assert.equal(firstMidiState.mix.mix.tracks.filter(track => track.id === firstMidiState.voiceId).length, 1);
+    const firstMidiRetry = await client.callTool({ name: 'create_project_midi_track', arguments: {
+      projectId: createdProject.id, idempotencyKey: 'blank-project-midi',
+    } });
+    assert.equal(firstMidiRetry.isError, undefined);
+    assert.equal(JSON.parse(firstMidiRetry.content[0].text).created, false);
+    assert.equal(JSON.parse(firstMidiRetry.content[0].text).mix.mix.tracks.filter(track => track.id === firstMidiState.voiceId).length, 1);
+    const projectAfterFirstMidi = await client.callTool({ name: 'get_project', arguments: { projectId: createdProject.id } });
+    assert.equal(projectAfterFirstMidi.isError, undefined);
+    const firstMidiProject = JSON.parse(projectAfterFirstMidi.content[0].text).project;
+    assert.equal(firstMidiProject.activeScoreId, firstMidiState.score.scoreId);
+    assert.equal(firstMidiProject.activeMixId, firstMidiState.mix.mixId);
     const renamed = await client.callTool({ name: 'rename_project', arguments: {
-      projectId: createdProject.id, title: 'MCP renamed', expectedUpdatedAt: createdProject.updatedAt,
+      projectId: createdProject.id, title: 'MCP renamed',
+      expectedUpdatedAt: firstMidiProject.updatedAt,
     } });
     assert.equal(renamed.isError, undefined);
     const renamedProject = JSON.parse(renamed.content[0].text).project;

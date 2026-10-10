@@ -907,6 +907,121 @@ export async function addProjectMidiTrack({
   });
 }
 
+async function withProjectLock(projectDirectory, callback) {
+  const lockPath = path.join(projectDirectory, '.mcp-midi-create.lock');
+  let locked = false;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await writeFile(lockPath, `pid=${process.pid} time=${new Date().toISOString()}\n`, { encoding: 'utf8', flag: 'wx' });
+      locked = true;
+      break;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw new Error(`Verrouillage du projet impossible : ${error?.message || error}`);
+      let stale = false;
+      try { stale = Date.now() - (await stat(lockPath)).mtimeMs > 300_000; }
+      catch (statError) { if (statError?.code !== 'ENOENT') throw statError; }
+      if (stale && attempt === 0) { await rm(lockPath, { force: true }); continue; }
+      throw new Error('Une création de piste MIDI est déjà en cours. Réessaie dans un instant.');
+    }
+  }
+  if (!locked) throw new Error('Impossible de verrouiller le projet pour créer une piste MIDI.');
+  try { return await callback(); }
+  finally { await rm(lockPath, { force: true }).catch(() => {}); }
+}
+
+async function nextVersionId(directory, prefix) {
+  const pattern = new RegExp(`^${prefix}-v([0-9]+)\\.json$`);
+  const names = (await readdir(directory)).map(name => pattern.exec(name)).filter(Boolean)
+    .map(match => Number(match[1])).filter(Number.isSafeInteger);
+  return `${prefix}-v${String(Math.max(0, ...names) + 1).padStart(3, '0')}`;
+}
+
+async function ensureActiveMidiDocuments({ projectId, voiceId, name, env }) {
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  if ((project.schema !== undefined && project.schema !== 'songmaker.project') ||
+      (project.schemaVersion !== undefined && project.schemaVersion !== 1)) {
+    throw new Error('Version de projet non prise en charge ; aucune partition ni aucun mix créés.');
+  }
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+  for (const [directoryName, activeId, pattern] of [
+    ['scores', project.activeScoreId, SCORE_ID_PATTERN],
+    ['mixes', project.activeMixId, MIX_ID_PATTERN],
+  ]) {
+    if (activeId != null && (typeof activeId !== 'string' || !pattern.test(activeId))) {
+      throw new Error(`Référence de ${directoryName === 'scores' ? 'partition' : 'mix'} invalide dans le projet.`);
+    }
+  }
+
+  const directories = {};
+  for (const name of ['scores', 'mixes']) {
+    let directory = await projectSubdirectory(canonicalFolder, name);
+    if (!directory) {
+      await mkdir(path.join(canonicalFolder, name), { recursive: true });
+      directory = await realpath(path.join(canonicalFolder, name));
+    }
+    directories[name] = directory;
+  }
+
+  const updated = { ...project };
+  let changed = false;
+  let createdScoreWithVoice = false;
+  if (project.activeScoreId == null) {
+    const scoreId = await nextVersionId(directories.scores, 'score');
+    const tempoBpm = Number.isInteger(project.tempoBpm) && project.tempoBpm >= 20 && project.tempoBpm <= 300
+      ? project.tempoBpm : 120;
+    const key = project.key && typeof project.key.tonic === 'string' && typeof project.key.mode === 'string'
+      ? project.key : { tonic: 'C', mode: 'major' };
+    const meter = project.meter && Number.isInteger(project.meter.numerator) && Number.isInteger(project.meter.denominator)
+      ? project.meter : { numerator: 4, denominator: 4 };
+    const score = {
+      schema: 'songmaker.score', schemaVersion: 1, id: scoreId, version: 2, ppq: 960,
+      tempoMap: [{ tick: 0, quarterBpm: tempoBpm }],
+      timeSignatures: [{ tick: 0, numerator: meter.numerator, denominator: meter.denominator }],
+      keySignatures: [{ tick: 0, tonic: key.tonic, mode: key.mode }],
+      sections: [],
+      voices: [{ id: voiceId, name, role: 'other', notes: [], abcVoice: 'Ins' }],
+      chordEvents: [], lyricAnchors: [], source: 'manual', parentScoreId: null, branchName: 'main',
+    };
+    await writeJsonExclusive(path.join(directories.scores, `${scoreId}.json`), score, `.score-${randomUUID()}.tmp`);
+    updated.activeScoreId = scoreId;
+    changed = true;
+    createdScoreWithVoice = true;
+  }
+
+  if (project.activeMixId == null) {
+    const mixId = await nextVersionId(directories.mixes, 'mix');
+    const mix = {
+      schema: 'songmaker.mix', schemaVersion: 1, id: mixId, separationId: '', sampleRate: 48_000,
+      masterGainDb: 0, peakCeilingDb: -1, tracks: [], vst3MasterInsert: null,
+      tempoMap: [], timeSignatures: [], markers: [],
+    };
+    await writeJsonExclusive(path.join(directories.mixes, `${mixId}.json`), mix, `.mix-${randomUUID()}.tmp`);
+    updated.activeMixId = mixId;
+    changed = true;
+  }
+
+  if (changed) {
+    const previous = Date.parse(project.updatedAt);
+    const now = Date.now();
+    updated.updatedAt = new Date(Number.isFinite(previous) && now <= previous ? previous + 1 : now).toISOString();
+    const latest = await readProjectAt(store.root, projectId);
+    if (latest.updatedAt !== project.updatedAt || latest.activeScoreId !== project.activeScoreId ||
+        latest.activeMixId !== project.activeMixId) {
+      throw new Error('Le projet a changé pendant la création de la partition ou du mix. Relis-le avant de réessayer.');
+    }
+    await writeProjectAtomically(canonicalFolder, updated);
+  }
+
+  return { project: updated, createdScoreWithVoice };
+}
+
 /** Create a MIDI score voice and its matching mix lane with a retry-safe request key. */
 export async function createProjectMidiTrack({
   projectId, name, idempotencyKey, expectedScoreRevision, expectedMixRevision, env = process.env,
@@ -920,81 +1035,111 @@ export async function createProjectMidiTrack({
   if (name !== undefined && (typeof name !== 'string' || !name.trim() || name.trim().length > 120)) {
     throw new Error('Le nom de piste MIDI doit contenir de 1 à 120 caractères.');
   }
-  if (typeof expectedScoreRevision !== 'string' || !/^[a-f0-9]{64}$/.test(expectedScoreRevision)) {
-    throw new Error('expectedScoreRevision doit venir de get_project_score.');
-  }
-  if (typeof expectedMixRevision !== 'string' || !/^[a-f0-9]{64}$/.test(expectedMixRevision)) {
-    throw new Error('expectedMixRevision doit venir de get_project_mix.');
+  for (const [value, field] of [[expectedScoreRevision, 'expectedScoreRevision'], [expectedMixRevision, 'expectedMixRevision']]) {
+    if (value !== undefined && (typeof value !== 'string' || !/^[a-f0-9]{64}$/.test(value))) {
+      throw new Error(`${field} doit être une révision renvoyée par Song Maker.`);
+    }
   }
 
   const voiceId = `mcp-midi-${idempotencyKey}`;
-  const [scoreSnapshot, mixSnapshot] = await Promise.all([
-    getProjectScore({ projectId, env }),
-    getProjectMix({ projectId, env }),
-  ]);
-  const existingVoice = scoreSnapshot.score.voices?.find(voice => voice?.id === voiceId);
-  const requestedName = name?.trim();
-  let trackName = requestedName || `Instrument MIDI ${
-    (mixSnapshot.mix.tracks ?? []).filter(track => track?.role === 'midi').length + 1
-  }`;
-
-  let currentScore = scoreSnapshot;
-  let created = false;
-  if (existingVoice) {
-    if (existingVoice.role !== 'other' || existingVoice.abcVoice !== 'Ins' ||
-        !Array.isArray(existingVoice.notes) || existingVoice.notes.length !== 0 ||
-        typeof existingVoice.name !== 'string' || !existingVoice.name.trim() ||
-        (requestedName && existingVoice.name.trim() !== requestedName)) {
-      throw new Error('Cette idempotencyKey est déjà associée à une autre voix MIDI. Utilise une nouvelle clé.');
-    }
-    trackName = existingVoice.name.trim();
-  } else {
-    if (scoreSnapshot.scoreRevision !== expectedScoreRevision || mixSnapshot.mixRevision !== expectedMixRevision) {
-      throw new Error('La partition ou le mix a changé depuis sa dernière lecture. Relis-les avant de créer la piste.');
-    }
-    if (mixSnapshot.mix.tracks?.some(track => track?.id === voiceId)) {
-      throw new Error('Une piste porte déjà cet identifiant sans voix correspondante dans la partition.');
-    }
-    currentScore = await editProjectScore({
-      projectId,
-      expectedScoreRevision,
-      edits: [{ operation: 'add_voice', voice: { id: voiceId, name: trackName } }],
-      env,
-    });
-    created = true;
+  const store = await projectStore(env);
+  await readProjectAt(store.root, projectId);
+  const canonicalRoot = await realpath(store.root);
+  const initialFolder = path.join(store.root, projectId);
+  const canonicalFolder = await realpath(initialFolder);
+  const folderInfo = await lstat(initialFolder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
   }
+  return withProjectLock(canonicalFolder, async () => {
+    const project = await readProjectAt(store.root, projectId);
+    const hadActiveScore = project.activeScoreId != null;
+    const hadActiveMix = project.activeMixId != null;
+    let scoreSnapshot = hadActiveScore ? await getProjectScore({ projectId, env }) : null;
+    let mixSnapshot = hadActiveMix ? await getProjectMix({ projectId, env }) : null;
+    const requestedName = name?.trim();
+    const existingVoice = scoreSnapshot?.score.voices?.find(voice => voice?.id === voiceId);
+    const retrying = Boolean(existingVoice);
+    const midiTrackCount = (mixSnapshot?.mix.tracks ?? []).filter(track => track?.role === 'midi').length;
+    let trackName = requestedName || existingVoice?.name?.trim() || `Instrument MIDI ${midiTrackCount + 1}`;
+    let created = false;
 
-  const existingTrack = mixSnapshot.mix.tracks?.find(track => track?.id === voiceId);
-  if (existingTrack) {
-    if (existingTrack.role !== 'midi' || existingTrack.name !== trackName) {
-      throw new Error('Une piste incompatible utilise déjà l’identifiant de cette voix MIDI.');
+    if (existingVoice) {
+      if (existingVoice.role !== 'other' || existingVoice.abcVoice !== 'Ins' ||
+          !Array.isArray(existingVoice.notes) || existingVoice.notes.length !== 0 ||
+          typeof existingVoice.name !== 'string' || !existingVoice.name.trim() ||
+          (requestedName && existingVoice.name.trim() !== requestedName)) {
+        throw new Error('Cette idempotencyKey est déjà associée à une autre voix MIDI. Utilise une nouvelle clé.');
+      }
+      trackName = existingVoice.name.trim();
+    } else {
+      if (hadActiveScore && scoreSnapshot.scoreRevision !== expectedScoreRevision) {
+        throw new Error('La partition a changé depuis sa dernière lecture. Relis-la avant de créer la piste.');
+      }
+      if (!hadActiveScore && expectedScoreRevision !== undefined) {
+        throw new Error('Aucune partition active à comparer ; omets expectedScoreRevision pour créer la première piste.');
+      }
+      if (hadActiveMix && mixSnapshot.mixRevision !== expectedMixRevision) {
+        throw new Error('Le mix a changé depuis sa dernière lecture. Relis-le avant de créer la piste.');
+      }
+      if (!hadActiveMix && expectedMixRevision !== undefined) {
+        throw new Error('Aucun mix actif à comparer ; omets expectedMixRevision pour créer la première piste.');
+      }
     }
-    return { projectId, voiceId, name: trackName, created, linked: true, score: currentScore, mix: mixSnapshot };
-  }
 
-  try {
-    const mix = await addProjectMidiTrack({
-      projectId,
-      voiceId,
-      expectedScoreRevision: currentScore.scoreRevision,
-      expectedMixRevision: mixSnapshot.mixRevision,
-      env,
-    });
-    return { projectId, voiceId, name: trackName, created, linked: true, score: currentScore, mix };
-  } catch (error) {
-    if (created) {
-      return {
+    const { createdScoreWithVoice } = await ensureActiveMidiDocuments({ projectId, voiceId, name: trackName, env });
+    created = createdScoreWithVoice;
+    scoreSnapshot = await getProjectScore({ projectId, env });
+    mixSnapshot = await getProjectMix({ projectId, env });
+
+    const currentVoice = scoreSnapshot.score.voices?.find(voice => voice?.id === voiceId);
+    if (currentVoice) {
+      if (currentVoice.role !== 'other' || currentVoice.abcVoice !== 'Ins' ||
+          !Array.isArray(currentVoice.notes) || currentVoice.notes.length !== 0 ||
+          typeof currentVoice.name !== 'string' || !currentVoice.name.trim() ||
+          (requestedName && currentVoice.name.trim() !== requestedName)) {
+        throw new Error('Cette idempotencyKey est déjà associée à une autre voix MIDI. Utilise une nouvelle clé.');
+      }
+      trackName = currentVoice.name.trim();
+    } else {
+      scoreSnapshot = await editProjectScore({
+        projectId,
+        expectedScoreRevision: scoreSnapshot.scoreRevision,
+        edits: [{ operation: 'add_voice', voice: { id: voiceId, name: trackName } }],
+        env,
+      });
+      created = true;
+    }
+
+    const existingTrack = mixSnapshot.mix.tracks?.find(track => track?.id === voiceId);
+    if (existingTrack) {
+      if (existingTrack.role !== 'midi' || existingTrack.name !== trackName) {
+        throw new Error('Une piste incompatible utilise déjà l’identifiant de cette voix MIDI.');
+      }
+      return { projectId, voiceId, name: trackName, created: created || !retrying, linked: true,
+        score: scoreSnapshot, mix: mixSnapshot };
+    }
+
+    try {
+      const mix = await addProjectMidiTrack({
         projectId,
         voiceId,
-        name: trackName,
-        created: true,
-        linked: false,
-        score: currentScore,
-        warning: `La voix ${voiceId} est enregistrée dans la partition, mais sa piste n’a pas pu rejoindre le mix : ${error?.message || error}. Relis le mix puis appelle add_project_midi_track pour la relier.`,
-      };
+        expectedScoreRevision: scoreSnapshot.scoreRevision,
+        expectedMixRevision: mixSnapshot.mixRevision,
+        env,
+      });
+      return { projectId, voiceId, name: trackName, created: created || !retrying, linked: true,
+        score: scoreSnapshot, mix };
+    } catch (error) {
+      if (created || !retrying) {
+        return {
+          projectId, voiceId, name: trackName, created: true, linked: false, score: scoreSnapshot,
+          warning: `La voix ${voiceId} est enregistrée dans la partition, mais sa piste n’a pas pu rejoindre le mix : ${error?.message || error}. Relis le mix puis appelle add_project_midi_track pour la relier.`,
+        };
+      }
+      throw error;
     }
-    throw error;
-  }
+  });
 }
 
 /** Apply bounded MIDI note edits as a new immutable Song Maker score version. */

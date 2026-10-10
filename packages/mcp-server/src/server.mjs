@@ -138,13 +138,13 @@ server.registerTool('add_project_midi_track', {
 }, call(async args => addProjectMidiTrack(args)));
 
 server.registerTool('create_project_midi_track', {
-  description: 'Crée une voix MIDI vide dans une nouvelle version de la partition active et ajoute la piste correspondante au mix actif. Appelle get_project_score et get_project_mix, puis passe leurs révisions et une idempotencyKey stable pour réessayer sans doublon. Nécessite déjà une partition et un mix actifs.',
+  description: 'Crée une voix MIDI vide et sa piste liée au mix. Appelle get_project_score et get_project_mix pour fournir les révisions des documents déjà actifs ; dans un projet vierge, omets les révisions manquantes et le serveur initialise partition et mix comme le Studio. Une idempotencyKey stable permet de réessayer sans doublon.',
   inputSchema: {
     projectId: z.string().min(1).max(128),
     name: z.string().trim().min(1).max(120).optional(),
     idempotencyKey: z.string().regex(/^[A-Za-z0-9_-]{1,96}$/),
-    expectedScoreRevision: z.string().regex(/^[a-f0-9]{64}$/),
-    expectedMixRevision: z.string().regex(/^[a-f0-9]{64}$/),
+    expectedScoreRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+    expectedMixRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
 }, call(async args => createProjectMidiTrack(args)));
