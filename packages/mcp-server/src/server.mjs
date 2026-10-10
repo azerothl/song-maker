@@ -4,10 +4,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { createProject, getProject, listProjects, renameProject, updateProject } from './projects.mjs';
+import { createProject, deleteProject, getProject, listProjects, renameProject, updateProject } from './projects.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
-  listUserLibrary, removeLibraryTrack, removeTrackFromPlaylist,
+  listUserLibrary, removeLibraryTrack, removeProjectLibraryTracks, removeTrackFromPlaylist,
 } from './library.mjs';
 
 const server = new McpServer({ name: 'song-maker-yue2', version: '0.1.0' });
@@ -81,6 +81,27 @@ server.registerTool('update_project', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => updateProject(args)));
+
+server.registerTool('delete_project', {
+  description: 'Supprime définitivement un projet du profil actif et retire ses titres de la Bibliothèque. Relis le projet, passe son updatedAt comme expectedUpdatedAt et confirme avec confirm=true.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().min(1).max(80),
+    confirm: z.literal(true),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+}, call(async args => {
+  const deleted = await deleteProject(args);
+  try {
+    const library = await removeProjectLibraryTracks({ projectId: args.projectId });
+    return { ...deleted, removedLibraryTracks: library.removedCount, libraryUpdatedAt: library.updatedAt };
+  } catch (error) {
+    return {
+      ...deleted,
+      libraryCleanupWarning: `Projet supprimé, mais nettoyage de la Bibliothèque impossible : ${error?.message || error}`,
+    };
+  }
+}));
 
 server.registerTool('list_library', {
   description: 'Liste les titres explicitement conservés dans la Bibliothèque et ses playlists pour le profil actif. Aucun projet non sélectionné n’est ajouté.',

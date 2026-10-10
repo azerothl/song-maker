@@ -144,6 +144,20 @@ fn validate_track(track: &SavedLibraryTrack, playlist_ids: &HashSet<&str>) -> Re
     Ok(())
 }
 
+fn next_library_revision(
+    previous: Option<chrono::DateTime<chrono::Utc>>,
+    now: chrono::DateTime<chrono::Utc>,
+) -> chrono::DateTime<chrono::Utc> {
+    match previous {
+        // The on-disk format keeps milliseconds, so compare at that precision
+        // or two writes in the same millisecond can publish the same revision.
+        Some(previous) if previous.timestamp_millis() >= now.timestamp_millis() => {
+            previous + chrono::Duration::milliseconds(1)
+        }
+        _ => now,
+    }
+}
+
 #[tauri::command]
 pub fn get_user_library() -> Result<Option<UserLibraryDoc>, String> {
     read_library(&user_library_path())
@@ -182,10 +196,7 @@ fn save_library_at(
         .as_ref()
         .and_then(|value| chrono::DateTime::parse_from_rfc3339(&value.updated_at).ok())
         .map(|value| value.with_timezone(&chrono::Utc));
-    let timestamp = match previous {
-        Some(previous) if previous >= now => previous + chrono::Duration::milliseconds(1),
-        _ => now,
-    };
+    let timestamp = next_library_revision(previous, now);
     library.updated_at = timestamp.to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
     atomic_write_json(path, &library)?;
     Ok(library)
@@ -201,7 +212,7 @@ pub fn save_user_library(
 
 #[cfg(test)]
 mod tests {
-    use super::{read_library, save_library_at};
+    use super::{next_library_revision, read_library, save_library_at};
     use crate::models::UserLibraryDoc;
     use std::fs;
     use std::path::PathBuf;
@@ -242,5 +253,20 @@ mod tests {
         assert!(error.contains("Bibliothèque a changé"));
         assert_eq!(read_library(&path).unwrap().unwrap().playlists.len(), 1);
         let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn library_revision_advances_when_writes_share_one_millisecond() {
+        let previous = chrono::DateTime::parse_from_rfc3339("2026-10-10T01:02:03.635Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+        let now = chrono::DateTime::parse_from_rfc3339("2026-10-10T01:02:03.635400Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+
+        let next = next_library_revision(Some(previous), now);
+
+        assert_eq!(next.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            "2026-10-10T01:02:03.636Z");
     }
 }

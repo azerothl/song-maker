@@ -19,7 +19,7 @@ Les outils ci-dessous sont ceux enregistrés par `packages/mcp-server/src/server
 |---|---|---|
 | Vérifier le moteur et les poids YuE2 | Disponible | `runtime_status` lit les prérequis locaux ; il ne démarre pas le moteur. |
 | Vérifier température et VRAM NVIDIA | Disponible | `gpu_status` lit les capteurs et les seuils du runner ; matériel NVIDIA et outils de mesure requis. |
-| Créer/renommer/supprimer un projet ; lister et lire les projets | Partiel | `list_projects`, `get_project`, `create_project`, `rename_project` et `update_project` couvrent la création, lecture et édition des champs du formulaire. Suppression, prises et versions restent absentes. |
+| Créer/renommer/supprimer un projet ; lister et lire les projets | Partiel | `list_projects`, `get_project`, `create_project`, `rename_project`, `update_project` et `delete_project` couvrent les métadonnées, la création, l’édition des champs et la suppression confirmée avec contrôle de révision. Les prises et versions restent absentes. |
 | Bibliothèque et playlists utilisateur | Partiel | `list_library`, `create_playlist`, `delete_playlist`, `add_library_track`, `remove_library_track`, `add_track_to_playlist` et `remove_track_from_playlist` partagent le fichier du profil actif. La suppression d’une playlist ou le retrait d’un titre exigent `confirm=true`. |
 | Générer un morceau YuE2 | Partiel | `start_song` utilise les fichiers, la licence et le worker configurés pour le serveur MCP. Il ne reprend pas le projet, le profil ou les réglages de moteur de l’application. |
 | Choisir ou installer un moteur/modèle dans Song Maker | Absent | Le runner MCP exige une installation et un choix de pack préparés séparément ; il n’expose pas le gestionnaire de ressources de l’application. |
@@ -49,6 +49,7 @@ Les outils ci-dessous sont ceux enregistrés par `packages/mcp-server/src/server
 | `create_project` | `title` (1 à 120 caractères) ; retourne le profil actif et la nouvelle fiche. | Crée les dossiers Song Maker et un `project.json` vide ; la bibliothèque de l’application récupère cette fiche depuis le disque. |
 | `rename_project` | `projectId`, `title`, `expectedUpdatedAt` ; retourne la fiche actualisée. | Refuse les titres interdits et les lectures périmées ; seule la fiche projet est modifiée. |
 | `update_project` | `projectId`, `expectedUpdatedAt` et champs facultatifs du formulaire (style, paroles, cot, langue, tempo, tonalité, métrique, durée, options). | Valide les valeurs selon le contrat du brouillon Song Maker, conserve les champs omis et refuse une fiche périmée. |
+| `delete_project` | `projectId`, `expectedUpdatedAt`, `confirm=true`. | Supprime le dossier du projet après contrôle du profil actif, du type de dossier et de la révision ; retire ses titres de la Bibliothèque. Si ce nettoyage échoue, la réponse signale explicitement l’avertissement. |
 | `list_library` | Aucun argument ; retourne les titres explicitement conservés, les playlists et la révision. | Lit `user-library.json` du profil actif ; les projets non sélectionnés ne sont pas ajoutés. |
 | `create_playlist` | `title`, `expectedUpdatedAt` (nullable avant la première écriture). | Crée une playlist dans le fichier partagé avec l’application. |
 | `delete_playlist` | `playlistId`, `expectedUpdatedAt`, `confirm=true`. | Retire la playlist et ses associations ; les titres restent dans la Bibliothèque. |
@@ -66,7 +67,7 @@ Les outils de génération exposent le progrès par `job_status` et les erreurs 
 
 ## Gaps d’acceptation restant
 
-- Les outils de projet utilisent le profil et les fichiers du format Song Maker. Les validations de titre et de formulaire sont couvertes ; les prises, versions et suppressions ne sont pas encore exposées.
+- Les outils de projet utilisent le profil et les fichiers du format Song Maker. Les validations de titre et de formulaire ainsi que la suppression confirmée d’un projet sont exposées ; les prises et versions restent absentes.
 - La Bibliothèque MCP couvre ses titres choisis et playlists ; l’import audio, les stems, le mixage, le MIDI, les réglages de modèles et ressources ne sont pas pilotables via MCP.
 - Les états de job sont consultés par interrogation ; il n’y a pas de flux d’événements MCP ni de reprise de la file batch de l’application.
 - Les tests du package vérifient le protocole et le runner local. Il reste à exercer les capacités annoncées depuis un vrai client MCP Windows et à retrouver un artefact dans l’application lorsqu’une intégration le promettra.

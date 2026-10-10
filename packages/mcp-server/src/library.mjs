@@ -128,19 +128,37 @@ async function writeLibrary(store, library, expectedUpdatedAt) {
     if (actualRevision !== expectedUpdatedAt) {
       throw new Error('La Bibliothèque a changé. Recharge-la avant de réessayer.');
     }
-    const next = structuredClone(library);
-    next.updatedAt = new Date(Math.max(Date.now(), Date.parse(current.updatedAt || '') + 1 || 0)).toISOString();
-    validateLibrary(next);
-    const tempPath = path.join(path.dirname(store.filePath), `.user-library-${randomUUID()}.tmp`);
-    try {
-      const temp = await open(tempPath, 'wx');
-      try { await temp.writeFile(`${JSON.stringify(next, null, 2)}\n`, 'utf8'); }
-      finally { await temp.close(); }
-      await rename(tempPath, store.filePath);
-    } finally {
-      await rm(tempPath, { force: true }).catch(() => {});
+    return writeLibraryLocked(store, library, current);
+  });
+}
+
+async function writeLibraryLocked(store, library, current) {
+  const next = structuredClone(library);
+  next.updatedAt = new Date(Math.max(Date.now(), Date.parse(current.updatedAt || '') + 1 || 0)).toISOString();
+  validateLibrary(next);
+  const tempPath = path.join(path.dirname(store.filePath), `.user-library-${randomUUID()}.tmp`);
+  try {
+    const temp = await open(tempPath, 'wx');
+    try { await temp.writeFile(`${JSON.stringify(next, null, 2)}\n`, 'utf8'); }
+    finally { await temp.close(); }
+    await rename(tempPath, store.filePath);
+  } finally {
+    await rm(tempPath, { force: true }).catch(() => {});
+  }
+  return next;
+}
+
+export async function removeProjectLibraryTracks({ projectId, env = process.env } = {}) {
+  const store = await userLibraryStore(env);
+  return withLibraryLock(store.filePath, async () => {
+    const current = await readLibrary(store);
+    const tracks = current.tracks.filter(track => track.projectId !== projectId);
+    const removedCount = current.tracks.length - tracks.length;
+    if (removedCount === 0) {
+      return { profileId: store.profileId, removedCount, updatedAt: current.updatedAt || null };
     }
-    return next;
+    const next = await writeLibraryLocked(store, { ...current, tracks }, current);
+    return { profileId: store.profileId, removedCount, updatedAt: next.updatedAt };
   });
 }
 

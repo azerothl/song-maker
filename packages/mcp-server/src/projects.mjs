@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdir, readdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -411,4 +411,48 @@ export async function updateProject({ projectId, expectedUpdatedAt, env = proces
   updated.updatedAt = new Date(Number.isFinite(previous) && now <= previous ? previous + 1 : now).toISOString();
   await writeProjectAtomically(canonicalFolder, updated);
   return { profileId: store.profileId, project: updated };
+}
+
+export async function deleteProject({ projectId, expectedUpdatedAt, confirm, env = process.env } = {}) {
+  if (confirm !== true) throw new Error('Confirme la suppression du projet avec confirm=true.');
+  if (typeof projectId !== 'string') throw new Error('Identifiant de projet requis.');
+  if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt.trim()) {
+    throw new Error('expectedUpdatedAt est requis : relis le projet avant de le supprimer.');
+  }
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  if (project.schema !== 'songmaker.project' || project.schemaVersion !== 1) {
+    throw new Error('Version de projet non prise en charge ; aucune suppression effectuée.');
+  }
+  if (project.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+
+  const folder = path.join(store.root, projectId);
+  const canonicalRoot = await realpath(store.root);
+  const canonicalFolder = await realpath(folder);
+  const folderInfo = await lstat(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+
+  // Recheck the revision immediately before removal so stale MCP clients cannot
+  // erase a project that was edited after their last read.
+  const latestProject = await readProjectAt(store.root, projectId);
+  if (latestProject.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+  const latestFolderInfo = await lstat(folder);
+  const latestCanonicalFolder = await realpath(folder);
+  if (latestFolderInfo.isSymbolicLink() || !latestFolderInfo.isDirectory() ||
+      !isWithin(canonicalRoot, latestCanonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+
+  await rm(folder, { recursive: true, force: false });
+  return {
+    profileId: store.profileId,
+    deleted: true,
+    project: { id: project.id, title: project.title, updatedAt: project.updatedAt },
+  };
 }

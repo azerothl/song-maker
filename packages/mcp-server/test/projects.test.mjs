@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createProject, getProject, listProjects, renameProject, updateProject } from '../src/projects.mjs';
+import { createProject, deleteProject, getProject, listProjects, renameProject, updateProject } from '../src/projects.mjs';
 
 test('project tools read the active profile and hide lyrics from list results', async () => {
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-projects-'));
@@ -98,6 +98,31 @@ test('MCP project creation and rename follow Song Maker title and stale-write ru
     }), /projet a changé/);
     assert.equal((await getProject({ projectId: created.project.id, env })).project.title, 'Renamed');
     assert.equal((await getProject({ projectId: created.project.id, env })).project.style, 'Dream pop');
+  } finally {
+    await rm(documentsRoot, { recursive: true, force: true });
+  }
+});
+
+test('project deletion requires confirmation and the current project revision', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-delete-'));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(path.join(documentsRoot, 'profiles', 'profile-delete'), { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-delete', profiles: [{ id: 'profile-delete', name: 'Test', kind: 'hobby' }],
+    }));
+    const created = await createProject({ title: 'Temporary project', env });
+    const args = { projectId: created.project.id, expectedUpdatedAt: created.project.updatedAt, env };
+
+    await assert.rejects(deleteProject({ ...args, confirm: false }), /confirm=true/);
+    await assert.rejects(deleteProject({ ...args, confirm: true, expectedUpdatedAt: 'old-revision' }), /projet a changé/);
+    assert.equal((await getProject({ projectId: created.project.id, env })).project.title, 'Temporary project');
+
+    const result = await deleteProject({ ...args, confirm: true });
+    assert.equal(result.deleted, true);
+    assert.equal(result.project.id, created.project.id);
+    assert.equal((await listProjects({ env })).projects.length, 0);
+    await assert.rejects(getProject({ projectId: created.project.id, env }), /Projet introuvable/);
   } finally {
     await rm(documentsRoot, { recursive: true, force: true });
   }

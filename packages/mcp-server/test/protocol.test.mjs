@@ -29,7 +29,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
       ['add_library_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project',
-        'delete_playlist', 'get_project', 'gpu_status', 'job_status', 'list_library', 'list_projects',
+        'delete_playlist', 'delete_project', 'get_project', 'gpu_status', 'job_status', 'list_library', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'resume_job',
         'runtime_status', 'start_batch', 'start_song', 'update_project']);
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
@@ -80,6 +80,21 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(playlistResult.isError, undefined);
     const playlistState = JSON.parse(playlistResult.content[0].text);
     assert.equal(playlistState.playlists[0].title, 'Client playlist');
+    const unconfirmedDelete = await client.callTool({ name: 'delete_project', arguments: {
+      projectId: createdProject.id, expectedUpdatedAt: JSON.parse(updated.content[0].text).project.updatedAt,
+    } });
+    assert.equal(unconfirmedDelete.isError, true);
+    const deleted = await client.callTool({ name: 'delete_project', arguments: {
+      projectId: createdProject.id, expectedUpdatedAt: JSON.parse(updated.content[0].text).project.updatedAt,
+      confirm: true,
+    } });
+    assert.equal(deleted.isError, undefined);
+    const deletion = JSON.parse(deleted.content[0].text);
+    assert.equal(deletion.deleted, true);
+    assert.equal(deletion.removedLibraryTracks, 1);
+    const remainingLibrary = await client.callTool({ name: 'list_library', arguments: {} });
+    assert.equal(JSON.parse(remainingLibrary.content[0].text).tracks.length, 0);
+    assert.equal(JSON.parse(remainingLibrary.content[0].text).playlists.length, 1);
   } finally {
     await client.close();
     await rm(documentsRoot, { recursive: true, force: true });
