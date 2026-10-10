@@ -63,6 +63,21 @@ export function setScoreVoiceVst3Instrument(
   };
 }
 
+/** Merge native editor state into an existing voice without replacing newer score edits. */
+export function mergeScoreVoiceVst3InstrumentState(
+  document: ScoreDocument,
+  voiceId: string,
+  pluginPath: string,
+  patch: Partial<Pick<ScoreVst3Instrument, "parameters" | "stateB64">>,
+): ScoreDocument {
+  const instrument = document.voices.find((voice) => voice.id === voiceId)?.vst3Instrument;
+  if (!instrument || instrument.pluginPath !== pluginPath) return document;
+  return setScoreVoiceVst3Instrument(document, voiceId, {
+    ...instrument,
+    ...patch,
+  });
+}
+
 export function importMidiBytes(
   bytes: Uint8Array,
   options?: {

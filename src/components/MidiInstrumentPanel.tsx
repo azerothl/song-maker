@@ -20,6 +20,7 @@ import {
 } from "../lib/midiScorePlayer";
 import {
   addNote,
+  mergeScoreVoiceVst3InstrumentState,
   setScoreVoiceVst3Instrument,
   type ScoreDocument,
   type ScoreVst3Instrument,
@@ -451,9 +452,17 @@ export function MidiInstrumentPanel({
         parameters,
         ...(previous?.stateB64 ? { stateB64: previous.stateB64 } : {}),
       };
-      onDocumentChange(
-        setScoreVoiceVst3Instrument(document, resolvedVoiceId, instrument),
+      const latestDocument = docRef.current;
+      if (!latestDocument.voices.some((voice) => voice.id === resolvedVoiceId)) {
+        return;
+      }
+      const nextDocument = setScoreVoiceVst3Instrument(
+        latestDocument,
+        resolvedVoiceId,
+        instrument,
       );
+      docRef.current = nextDocument;
+      onChangeRef.current(nextDocument);
       setStatus(t("midi.vst3.selected", { name: plugin.name }));
     } catch (e) {
       if (!classified) {
@@ -467,23 +476,34 @@ export function MidiInstrumentPanel({
 
   async function openVst3Editor() {
     if (!vst3Instrument || !resolvedVoiceId || vst3Busy) return;
+    const editorVoiceId = resolvedVoiceId;
+    const editorPluginPath = vst3Instrument.pluginPath;
     setVst3Busy(true);
     onError?.(null);
     setStatus(t("midi.vst3.editorOpening"));
     try {
       const result = await api.vst3OpenPluginEditor(
-        vst3Instrument.pluginPath,
+        editorPluginPath,
         vst3Instrument.parameters,
         vst3Instrument.stateB64,
       );
-      const instrument = {
-        ...vst3Instrument,
-        parameters: result.parameters,
-        ...(result.pluginStateB64 ? { stateB64: result.pluginStateB64 } : {}),
-      };
-      onDocumentChange(
-        setScoreVoiceVst3Instrument(document, resolvedVoiceId, instrument),
+      const latestDocument = docRef.current;
+      const nextDocument = mergeScoreVoiceVst3InstrumentState(
+        latestDocument,
+        editorVoiceId,
+        editorPluginPath,
+        {
+          parameters: result.parameters,
+          ...(result.pluginStateB64 ? { stateB64: result.pluginStateB64 } : {}),
+        },
       );
+      if (nextDocument === latestDocument) {
+        setStatus(null);
+        onError?.(t("midi.vst3.assignmentChanged"));
+        return;
+      }
+      docRef.current = nextDocument;
+      onChangeRef.current(nextDocument);
       setStatus(t("midi.vst3.editorSaved"));
     } catch (e) {
       setStatus(null);
