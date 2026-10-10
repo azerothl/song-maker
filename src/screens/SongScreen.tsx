@@ -277,7 +277,15 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
         branchName: "main",
       });
       const voiceId = `midi-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
-      const name = `Instrument MIDI ${(mix?.tracks.filter((track) => track.role === "midi").length ?? 0) + 1}`;
+      const existingTrackNames = new Set([
+        ...(mix?.tracks.map((track) => track.name) ?? []),
+        ...base.voices.map((voice) => voice.name),
+      ]);
+      let nextMidiTrackNumber = 1;
+      while (existingTrackNames.has(`Instrument MIDI ${nextMidiTrackNumber}`)) {
+        nextMidiTrackNumber += 1;
+      }
+      const name = `Instrument MIDI ${nextMidiTrackNumber}`;
       const score: ScoreDocument = {
         ...base,
         version: base.version + 1,
@@ -1392,6 +1400,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
                 onDocumentChange={setScoreDocument}
                 onProjectRefresh={refreshStudioProject}
                 onError={setError}
+                instrumentInspectorPosition="side"
               />
             </div>
           </section>
