@@ -1,8 +1,9 @@
-import { existsSync } from 'node:fs';
+import { createReadStream, existsSync } from 'node:fs';
 import { lstat, mkdir, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
+import { wavDurationMs } from './runtime.mjs';
 
 const PROJECT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const PROFILE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
@@ -247,11 +248,22 @@ export async function resolveGeneratedAudio({ projectId, generationId, env = pro
 
   const request = await readJsonInside(canonicalGeneration, 'request.json', 'request.json');
   const result = await readJsonInside(canonicalGeneration, 'result.json', 'result.json');
-  if (!request || request.id !== generationId || result?.state !== 'generated') {
+  if (!request || request.id !== generationId || result?.state !== 'generated' ||
+      result.audio?.path !== 'audio.wav' || !/^[a-f0-9]{64}$/.test(result.audio?.sha256 ?? '')) {
     throw new Error('Cette prise n’est pas publiée comme une génération terminée.');
   }
   if (!await regularFileInside(canonicalGeneration, 'audio.wav')) {
     throw new Error('Le WAV de cette prise est introuvable ou invalide.');
+  }
+  const audioPath = await realpath(path.join(canonicalGeneration, 'audio.wav'));
+  let durationMs;
+  try {
+    durationMs = await wavDurationMs(audioPath);
+  } catch {
+    throw new Error('Le fichier audio de cette prise est illisible ou vide.');
+  }
+  if (!durationMs || await sha256File(audioPath) !== result.audio.sha256) {
+    throw new Error('Le fichier audio de cette prise a changé ou est incomplet.');
   }
 
   return {
@@ -262,8 +274,14 @@ export async function resolveGeneratedAudio({ projectId, generationId, env = pro
     generationName: typeof project.generationNames?.[generationId] === 'string'
       ? project.generationNames[generationId]
       : null,
-    audioPath: await realpath(path.join(canonicalGeneration, 'audio.wav')),
+    audioPath,
   };
+}
+
+async function sha256File(filePath) {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(filePath)) hash.update(chunk);
+  return hash.digest('hex');
 }
 
 async function regularFileInside(directory, filename) {
@@ -643,6 +661,56 @@ export async function getProjectScore({ projectId, scoreId, env = process.env } 
     active: project.activeScoreId === selectedScoreId,
     score,
   };
+}
+
+/** Select one already-published generation as the active project version. */
+export async function useProjectGeneration({
+  projectId, generationId, expectedUpdatedAt, env = process.env,
+} = {}) {
+  if (typeof projectId !== 'string') throw new Error('Identifiant de projet requis.');
+  if (typeof generationId !== 'string' || !GENERATION_ID_PATTERN.test(generationId)) {
+    throw new Error('Identifiant de prise invalide.');
+  }
+  if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt.trim()) {
+    throw new Error('expectedUpdatedAt est requis : relis le projet avant de sélectionner une prise.');
+  }
+
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  if (project.schema !== 'songmaker.project' || project.schemaVersion !== 1) {
+    throw new Error('Version de projet non prise en charge ; aucune modification effectuée.');
+  }
+  if (project.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+
+  const published = await resolveGeneratedAudio({ projectId, generationId, env });
+  if (published.profileId !== store.profileId) {
+    throw new Error('Le profil actif a changé pendant la sélection. Relis le projet avant de réessayer.');
+  }
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+
+  const latest = await readProjectAt(store.root, projectId);
+  if (latest.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+  const previous = Date.parse(latest.updatedAt);
+  const now = Date.now();
+  const updated = {
+    ...latest,
+    activeGenerationId: generationId,
+    activeSeparationId: null,
+    activeMixId: null,
+    updatedAt: new Date(Number.isFinite(previous) && now <= previous ? previous + 1 : now).toISOString(),
+  };
+  await writeProjectAtomically(canonicalFolder, updated);
+  return { profileId: store.profileId, project: updated };
 }
 
 function validateTitle(title) {

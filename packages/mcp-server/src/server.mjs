@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject } from './projects.mjs';
+import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject, useProjectGeneration } from './projects.mjs';
 import { exportProjectAudio } from './project-audio.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
@@ -47,6 +47,16 @@ server.registerTool('list_project_versions', {
   inputSchema: { projectId: z.string().min(1).max(128) },
   annotations: { readOnlyHint: true },
 }, call(async args => listProjectVersions(args)));
+
+server.registerTool('use_project_generation', {
+  description: 'Sélectionne une génération WAV terminée comme prise active du projet, selon le comportement de Versions dans Song Maker. Relis le projet et passe son updatedAt comme expectedUpdatedAt ; la sélection efface la séparation et le mix actifs. Aucun audio n’est généré.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().regex(/^gen-[0-9]+$/),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => useProjectGeneration(args)));
 
 server.registerTool('get_project_mix', {
   description: 'Lit le mix actif ou une version de mix sauvegardée du profil actif, avec pistes, clips et réglages. Les chemins locaux de fichiers VST et les états propriétaires des plugins sont masqués ; les chemins de sources audio hors du projet sont masqués. Ne modifie ni ne rend le mix.',

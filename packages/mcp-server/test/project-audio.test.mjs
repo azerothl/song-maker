@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -7,7 +8,7 @@ import { exportProjectAudio } from '../src/project-audio.mjs';
 import { createProject } from '../src/projects.mjs';
 
 function smallPcmWav() {
-  const data = Buffer.alloc(8);
+  const data = Buffer.alloc(4800 * 2);
   data.writeInt16LE(1200, 0);
   data.writeInt16LE(-900, 2);
   data.writeInt16LE(700, 4);
@@ -43,8 +44,10 @@ test('project audio export copies a finished profile WAV into the workspace with
       'generations', 'gen-7');
     await mkdir(generationFolder, { recursive: true });
     await writeFile(path.join(generationFolder, 'request.json'), JSON.stringify({ id: 'gen-7' }));
-    await writeFile(path.join(generationFolder, 'result.json'), JSON.stringify({ state: 'generated' }));
     const wav = smallPcmWav();
+    await writeFile(path.join(generationFolder, 'result.json'), JSON.stringify({
+      state: 'generated', audio: { path: 'audio.wav', sha256: createHash('sha256').update(wav).digest('hex') },
+    }));
     await writeFile(path.join(generationFolder, 'audio.wav'), wav);
 
     const exported = await exportProjectAudio({
@@ -95,11 +98,14 @@ test('project audio export refuses unfinished generations, unsafe names, and pat
     await mkdir(generationFolder, { recursive: true });
     await writeFile(path.join(generationFolder, 'request.json'), JSON.stringify({ id: 'gen-8' }));
     await writeFile(path.join(generationFolder, 'result.json'), JSON.stringify({ state: 'running' }));
-    await writeFile(path.join(generationFolder, 'audio.wav'), smallPcmWav());
+    const wav = smallPcmWav();
+    await writeFile(path.join(generationFolder, 'audio.wav'), wav);
 
     const base = { projectId: project.id, generationId: 'gen-8', env, workspace };
     await assert.rejects(exportProjectAudio({ ...base, outputDirectory: 'exports' }), /pas publiée/);
-    await writeFile(path.join(generationFolder, 'result.json'), JSON.stringify({ state: 'generated' }));
+    await writeFile(path.join(generationFolder, 'result.json'), JSON.stringify({
+      state: 'generated', audio: { path: 'audio.wav', sha256: createHash('sha256').update(wav).digest('hex') },
+    }));
     await assert.rejects(exportProjectAudio({
       ...base, generationId: 'gen-8', outputDirectory: 'exports', fileName: '../escape.wav',
     }), /nom de fichier WAV simple/);

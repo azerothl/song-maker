@@ -1,9 +1,28 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject } from '../src/projects.mjs';
+import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject, useProjectGeneration } from '../src/projects.mjs';
+
+function smallPcmWav() {
+  const frames = 800;
+  const wav = Buffer.alloc(44 + frames * 2);
+  wav.write('RIFF', 0, 'ascii');
+  wav.writeUInt32LE(wav.length - 8, 4);
+  wav.write('WAVEfmt ', 8, 'ascii');
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(8000, 24);
+  wav.writeUInt32LE(16000, 28);
+  wav.writeUInt16LE(2, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write('data', 36, 'ascii');
+  wav.writeUInt32LE(frames * 2, 40);
+  return wav;
+}
 
 test('project tools read the active profile and hide lyrics from list results', async () => {
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-projects-'));
@@ -242,6 +261,60 @@ test('MCP project creation and rename follow Song Maker title and stale-write ru
     }), /projet a changé/);
     assert.equal((await getProject({ projectId: created.project.id, env })).project.title, 'Renamed');
     assert.equal((await getProject({ projectId: created.project.id, env })).project.style, 'Dream pop');
+  } finally {
+    await rm(documentsRoot, { recursive: true, force: true });
+  }
+});
+
+test('MCP can select only a published generation using the current project revision', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-use-generation-'));
+  const projectFolder = path.join(documentsRoot, 'profiles', 'profile-use', 'projects', 'project-001');
+  const generationFolder = path.join(projectFolder, 'generations', 'gen-001');
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(generationFolder, { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-use', profiles: [{ id: 'profile-use', name: 'Hobby', kind: 'hobby' }],
+    }));
+    const project = {
+      schema: 'songmaker.project', schemaVersion: 1, id: 'project-001', title: 'Restore a take',
+      updatedAt: '2026-10-09T00:00:00.000Z', activeGenerationId: 'gen-000',
+      activeSeparationId: 'sep-001', activeMixId: 'mix-v001', activeScoreId: 'score-v001',
+    };
+    await writeFile(path.join(projectFolder, 'project.json'), JSON.stringify(project));
+    await writeFile(path.join(generationFolder, 'request.json'), JSON.stringify({ id: 'gen-001' }));
+    const audio = smallPcmWav();
+    const sha256 = createHash('sha256').update(audio).digest('hex');
+    await writeFile(path.join(generationFolder, 'result.json'), JSON.stringify({
+      state: 'generated', audio: { path: 'audio.wav', sha256 },
+    }));
+    await writeFile(path.join(generationFolder, 'audio.wav'), audio);
+
+    await assert.rejects(useProjectGeneration({
+      projectId: project.id, generationId: 'gen-001', expectedUpdatedAt: 'stale', env,
+    }), /projet a changé/);
+    await assert.rejects(useProjectGeneration({
+      projectId: project.id, generationId: 'gen-002', expectedUpdatedAt: project.updatedAt, env,
+    }), /introuvable/);
+    await writeFile(path.join(generationFolder, 'result.json'), JSON.stringify({
+      state: 'generated', audio: { path: 'audio.wav', sha256: '0'.repeat(64) },
+    }));
+    await assert.rejects(useProjectGeneration({
+      projectId: project.id, generationId: 'gen-001', expectedUpdatedAt: project.updatedAt, env,
+    }), /changé ou est incomplet/);
+    await writeFile(path.join(generationFolder, 'result.json'), JSON.stringify({
+      state: 'generated', audio: { path: 'audio.wav', sha256 },
+    }));
+
+    const used = await useProjectGeneration({
+      projectId: project.id, generationId: 'gen-001', expectedUpdatedAt: project.updatedAt, env,
+    });
+    assert.equal(used.project.activeGenerationId, 'gen-001');
+    assert.equal(used.project.activeSeparationId, null);
+    assert.equal(used.project.activeMixId, null);
+    assert.equal(used.project.activeScoreId, 'score-v001');
+    assert.notEqual(used.project.updatedAt, project.updatedAt);
+    assert.equal((await getProject({ projectId: project.id, env })).project.activeGenerationId, 'gen-001');
   } finally {
     await rm(documentsRoot, { recursive: true, force: true });
   }
