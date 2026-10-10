@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createProject, deleteProject, getProject, listProjects, renameProject, updateProject } from '../src/projects.mjs';
+import { createProject, deleteProject, getProject, listProjectVersions, listProjects, renameProject, updateProject } from '../src/projects.mjs';
 
 test('project tools read the active profile and hide lyrics from list results', async () => {
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-projects-'));
@@ -44,6 +44,45 @@ test('project tools use the legacy folder when the manifest has no active profil
     const listed = await listProjects({ env: { SONG_MAKER_DOCUMENTS_DIR: documentsRoot } });
     assert.equal(listed.profileId, null);
     assert.equal(listed.projects[0].title, 'Legacy project');
+  } finally {
+    await rm(documentsRoot, { recursive: true, force: true });
+  }
+});
+
+test('project version listing returns only safe generation metadata and relative artifacts', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-versions-'));
+  const projectFolder = path.join(documentsRoot, 'profiles', 'profile-versions', 'projects', 'project-001');
+  const generationFolder = path.join(projectFolder, 'generations', 'gen-001');
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(generationFolder, { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-versions', profiles: [{ id: 'profile-versions', name: 'Hobby', kind: 'hobby' }],
+    }));
+    await writeFile(path.join(projectFolder, 'project.json'), JSON.stringify({
+      id: 'project-001', title: 'Night Sketch', updatedAt: '2026-10-10T00:00:00Z',
+      activeGenerationId: 'gen-001', generationNames: { 'gen-001': 'Version gardée' }, lyrics: 'Private lyrics',
+    }));
+    await writeFile(path.join(generationFolder, 'request.json'), JSON.stringify({
+      id: 'gen-001', createdAt: '2026-10-09T23:00:00Z', seed: 42, cot: 'full', generationEngine: 'ace_step',
+    }));
+    await writeFile(path.join(generationFolder, 'result.json'), JSON.stringify({ state: 'generated' }));
+    await writeFile(path.join(generationFolder, 'audio.wav'), 'placeholder audio');
+    await writeFile(path.join(generationFolder, 'score.abc'), 'X:1');
+
+    const listed = await listProjectVersions({ projectId: 'project-001', env });
+    assert.equal(listed.profileId, 'profile-versions');
+    assert.equal(listed.activeGenerationId, 'gen-001');
+    assert.equal(listed.versions.length, 1);
+    assert.deepEqual(listed.versions[0], {
+      id: 'gen-001', name: 'Version gardée', createdAt: '2026-10-09T23:00:00Z',
+      seed: 42, cot: 'full', engineId: 'ace_step_1_5', state: 'generated', active: true,
+      parentGenerationId: null, hasScore: true, audioAvailable: true,
+      audioPath: 'generations/gen-001/audio.wav',
+    });
+    assert.equal(JSON.stringify(listed).includes('Private lyrics'), false);
+    assert.equal(JSON.stringify(listed).includes(projectFolder), false);
+    await assert.rejects(listProjectVersions({ projectId: '../outside', env }), /Identifiant de projet invalide/);
   } finally {
     await rm(documentsRoot, { recursive: true, force: true });
   }

@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { createProject, deleteProject, getProject, listProjects, renameProject, updateProject } from './projects.mjs';
+import { createProject, deleteProject, getProject, listProjectVersions, listProjects, renameProject, updateProject } from './projects.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
   listUserLibrary, removeLibraryTrack, removeProjectLibraryTracks, removeTrackFromPlaylist,
@@ -40,6 +40,12 @@ server.registerTool('get_project', {
   inputSchema: { projectId: z.string().min(1).max(128) },
   annotations: { readOnlyHint: true },
 }, call(async args => getProject(args)));
+
+server.registerTool('list_project_versions', {
+  description: 'Liste les prises YuE2/ACE-Step déjà enregistrées pour un projet du profil actif, avec leur état, moteur, nom, sélection active et présence du WAV ou de la partition. Les chemins audio retournés sont relatifs au dossier du projet ; aucune donnée audio ni parole n’est lue.',
+  inputSchema: { projectId: z.string().min(1).max(128) },
+  annotations: { readOnlyHint: true },
+}, call(async args => listProjectVersions(args)));
 
 server.registerTool('create_project', {
   description: 'Crée un projet vide dans le profil Song Maker actif. Le projet et ses dossiers sont enregistrés au format de l’application et deviennent visibles dans Projets.',

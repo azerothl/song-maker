@@ -18,8 +18,15 @@ test('MCP exposes the headless tools over stdio', async () => {
   await writeFile(path.join(projectFolder, 'project.json'), JSON.stringify({
     id: 'project-001', title: 'Piste de test', createdAt: '2026-10-10T00:00:00Z',
     updatedAt: '2026-10-10T01:00:00Z', style: 'Jazz discret', lyrics: 'Couplet local',
-    activeGenerationId: 'gen-001', activeMixId: 'mix-001',
+    activeGenerationId: 'gen-001', generationNames: { 'gen-001': 'Prise retenue' }, activeMixId: 'mix-001',
   }));
+  const existingGeneration = path.join(projectFolder, 'generations', 'gen-001');
+  await mkdir(existingGeneration, { recursive: true });
+  await writeFile(path.join(existingGeneration, 'request.json'), JSON.stringify({
+    id: 'gen-001', createdAt: '2026-10-10T00:30:00Z', seed: 8, cot: 'full', generationEngine: 'yue2',
+  }));
+  await writeFile(path.join(existingGeneration, 'result.json'), JSON.stringify({ state: 'generated' }));
+  await writeFile(path.join(existingGeneration, 'audio.wav'), 'temporary generated audio');
   const client = new Client({ name: 'song-maker-test', version: '0.1.0' });
   const transport = new StdioClientTransport({ command: process.execPath, args: [server],
     env: { ...process.env, SONG_MAKER_WORKSPACE_ROOT: process.cwd(),
@@ -29,7 +36,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
       ['add_library_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project',
-        'delete_playlist', 'delete_project', 'get_project', 'gpu_status', 'job_status', 'list_library', 'list_projects',
+        'delete_playlist', 'delete_project', 'get_project', 'gpu_status', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'resume_job',
         'runtime_status', 'start_batch', 'start_song', 'update_project']);
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
@@ -44,6 +51,13 @@ test('MCP exposes the headless tools over stdio', async () => {
     const opened = await client.callTool({ name: 'get_project', arguments: { projectId: 'project-001' } });
     assert.equal(opened.isError, undefined);
     assert.equal(JSON.parse(opened.content[0].text).project.lyrics, 'Couplet local');
+    const versions = await client.callTool({ name: 'list_project_versions', arguments: { projectId: 'project-001' } });
+    assert.equal(versions.isError, undefined);
+    const versionList = JSON.parse(versions.content[0].text);
+    assert.equal(versionList.versions[0].id, 'gen-001');
+    assert.equal(versionList.versions[0].active, true);
+    assert.equal(versionList.versions[0].name, 'Prise retenue');
+    assert.equal(versionList.versions[0].audioPath, 'generations/gen-001/audio.wav');
     const invalid = await client.callTool({ name: 'get_project', arguments: { projectId: '../outside' } });
     assert.equal(invalid.isError, true);
     const created = await client.callTool({ name: 'create_project', arguments: { title: 'MCP created' } });

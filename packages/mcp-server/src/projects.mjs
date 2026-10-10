@@ -6,6 +6,7 @@ import path from 'node:path';
 
 const PROJECT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const PROFILE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
+const GENERATION_ID_PATTERN = /^gen-[0-9]+$/;
 
 function documentsCandidates(env) {
   if (env.SONG_MAKER_DOCUMENTS_DIR?.trim()) {
@@ -206,6 +207,134 @@ export async function getProject({ projectId, env = process.env } = {}) {
       activeScoreId: project.activeScoreId ?? null,
       generationNames: project.generationNames ?? {},
     },
+  };
+}
+
+async function regularFileInside(directory, filename) {
+  const candidate = path.join(directory, filename);
+  let info;
+  try {
+    info = await lstat(candidate);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
+  }
+  if (info.isSymbolicLink() || !info.isFile()) return false;
+  const canonical = await realpath(candidate);
+  return isWithin(directory, canonical);
+}
+
+async function readJsonInside(directory, filename, label) {
+  if (!await regularFileInside(directory, filename)) return null;
+  return readJson(path.join(directory, filename), label);
+}
+
+function generationEngineId(request) {
+  const explicit = request?.model?.engineId;
+  if (typeof explicit === 'string' && explicit) return explicit;
+  switch (request?.generationEngine || 'yue2') {
+    case 'ace_step': return 'ace_step_1_5';
+    case 'ace_step_lego': return 'ace_step_lego';
+    default: return 'yue2_3b';
+  }
+}
+
+/** Read the take/version summaries that Song Maker stores in a project's generations folder. */
+export async function listProjectVersions({ projectId, env = process.env } = {}) {
+  if (typeof projectId !== 'string') throw new Error('Identifiant de projet requis.');
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+
+  const generationsPath = path.join(canonicalFolder, 'generations');
+  let generationsInfo;
+  try {
+    generationsInfo = await lstat(generationsPath);
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return {
+        profileId: store.profileId,
+        projectId,
+        projectUpdatedAt: project.updatedAt ?? null,
+        activeGenerationId: project.activeGenerationId ?? null,
+        versions: [],
+        skippedInvalid: 0,
+      };
+    }
+    throw new Error(`Lecture des versions du projet impossible : ${error?.message || error}`);
+  }
+  if (generationsInfo.isSymbolicLink() || !generationsInfo.isDirectory()) {
+    throw new Error('Le dossier des générations du projet est invalide.');
+  }
+  const canonicalGenerations = await realpath(generationsPath);
+  if (!isWithin(canonicalFolder, canonicalGenerations)) {
+    throw new Error('Le dossier des générations se trouve hors du projet Song Maker.');
+  }
+
+  let entries;
+  try {
+    entries = await readdir(canonicalGenerations, { withFileTypes: true });
+  } catch (error) {
+    throw new Error(`Liste des versions du projet impossible : ${error?.message || error}`);
+  }
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+  const versions = [];
+  let skippedInvalid = 0;
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !GENERATION_ID_PATTERN.test(entry.name)) continue;
+    const versionDirectory = path.join(canonicalGenerations, entry.name);
+    try {
+      const directoryInfo = await lstat(versionDirectory);
+      const canonicalVersion = await realpath(versionDirectory);
+      if (directoryInfo.isSymbolicLink() || !directoryInfo.isDirectory() || !isWithin(canonicalGenerations, canonicalVersion)) {
+        skippedInvalid += 1;
+        continue;
+      }
+      const request = await readJsonInside(canonicalVersion, 'request.json', 'request.json');
+      if (!request || request.id !== entry.name) {
+        skippedInvalid += 1;
+        continue;
+      }
+      const result = await readJsonInside(canonicalVersion, 'result.json', 'result.json');
+      const job = result ? null : await readJsonInside(canonicalVersion, 'job.json', 'job.json');
+      const state = typeof result?.state === 'string'
+        ? result.state
+        : typeof job?.state === 'string' ? job.state : 'interrupted';
+      const audioAvailable = state === 'generated' && await regularFileInside(canonicalVersion, 'audio.wav');
+      const generationName = Object.hasOwn(project.generationNames ?? {}, entry.name)
+        ? project.generationNames[entry.name]
+        : null;
+      versions.push({
+        id: entry.name,
+        name: typeof generationName === 'string' ? generationName : null,
+        createdAt: typeof request.createdAt === 'string' ? request.createdAt : null,
+        seed: Number.isSafeInteger(request.seed) ? request.seed : null,
+        cot: typeof request.cot === 'string' ? request.cot : null,
+        engineId: generationEngineId(request),
+        state,
+        active: project.activeGenerationId === entry.name,
+        parentGenerationId: typeof request.parentGenerationId === 'string' ? request.parentGenerationId : null,
+        hasScore: await regularFileInside(canonicalVersion, 'score.abc'),
+        audioAvailable,
+        audioPath: audioAvailable ? `generations/${entry.name}/audio.wav` : null,
+      });
+    } catch {
+      skippedInvalid += 1;
+    }
+  }
+  return {
+    profileId: store.profileId,
+    projectId,
+    projectUpdatedAt: project.updatedAt ?? null,
+    activeGenerationId: project.activeGenerationId ?? null,
+    versions,
+    skippedInvalid,
   };
 }
 
