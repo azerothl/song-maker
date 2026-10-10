@@ -64,7 +64,6 @@ export function StudioMidiTrackEditor({
       />
       <details
         className="studio-midi-instrument-settings"
-        open={instrumentInspectorPosition === "side"}
       >
         <summary>{t("production.midi.instrumentSettings")}</summary>
         <MidiInstrumentPanel

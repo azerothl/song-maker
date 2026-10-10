@@ -244,6 +244,7 @@
   "production.midi.openPianoRoll": "Piano roll",
   "production.midi.editorTitle": "MIDI editing",
   "production.midi.close": "Close editor",
+  "production.midi.expand": "Expand editor",
   "production.midi.pianoRoll": "Piano roll",
   "production.midi.instrumentSettings": "Instrument & VST",
   "production.midi.save": "Save notes",

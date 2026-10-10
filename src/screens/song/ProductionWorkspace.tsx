@@ -34,6 +34,11 @@ import { Waveform } from "../../components/Waveform";
 import { t } from "../../ui/i18n";
 import { useAppStore } from "../../store/appStore";
 import {
+  focusProfileElement,
+  handleProfileOverlayKeydown,
+  listProfileFocusables,
+} from "../../lib/profileDialogA11y";
+import {
   planProjectInstrumentalPart,
   type InstrumentalConditioning,
   type InstrumentalRole,
@@ -110,6 +115,7 @@ type ProductionWorkspaceProps = {
     role: "bass" | "drums" | "other";
     conditioning: "project_metadata" | "mix_stems";
   }) => Promise<void>;
+  onOpenInstrumentalPart?: () => void;
   legoSidecarReady?: boolean;
   legoLicenseAccepted?: boolean;
   playback: PlaybackView | null;
@@ -187,6 +193,7 @@ export function ProductionWorkspace({
   onRevertSeparation,
   onUserTrackAdded,
   onRequestInstrumentalPart,
+  onOpenInstrumentalPart,
   legoSidecarReady = false,
   legoLicenseAccepted = false,
   playback,
@@ -236,6 +243,7 @@ export function ProductionWorkspace({
   const [instrumentalNotice, setInstrumentalNotice] = useState<string | null>(
     null,
   );
+  const instrumentalDialogRef = useRef<HTMLDivElement>(null);
   const mixLayoutNarrow = useProductionMixLayoutNarrow();
   const [localClipViewPrefs, setLocalClipViewPrefs] = useState<ProductionClipViewPrefs>(
     () => DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
@@ -280,6 +288,14 @@ export function ProductionWorkspace({
     setMixAssistOpen((open) => !open);
   };
 
+  const closeInstrumentalDialog = () => {
+    setInstrumentalOpen(false);
+    window.setTimeout(() => {
+      focusProfileElement(
+        document.querySelector<HTMLElement>(".production-add-track-btn"),
+      );
+    }, 0);
+  };
 
   const toggleMixSettingsFrom = (button: HTMLButtonElement | null) => {
     if (!button) return;
@@ -312,7 +328,20 @@ export function ProductionWorkspace({
       : undefined;
 
   const mixSettingsDeferEscape =
-    mixAssistOpen || separateOpen;
+    mixAssistOpen || separateOpen || instrumentalOpen;
+
+  useEffect(() => {
+    if (!instrumentalOpen) return;
+    const dialog = instrumentalDialogRef.current;
+    if (!dialog) return;
+    const focusables = listProfileFocusables(dialog);
+    focusProfileElement(focusables[0] ?? dialog);
+    const onKeyDown = (event: KeyboardEvent) => {
+      handleProfileOverlayKeydown(event, dialog, closeInstrumentalDialog);
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [instrumentalOpen]);
 
   const trackGroups = useMemo(
     () => (mix ? buildTrackFamilyGroups(mix.tracks) : []),
@@ -460,6 +489,7 @@ export function ProductionWorkspace({
                 onRequestInstrumentalPart
                   ? () => {
                       setInstrumentalNotice(null);
+                      onOpenInstrumentalPart?.();
                       setInstrumentalOpen(true);
                     }
                   : undefined
@@ -500,101 +530,135 @@ export function ProductionWorkspace({
           onError={setError}
         />
         {instrumentalOpen && onRequestInstrumentalPart ? (
-          <div className="production-instrumental-panel" role="dialog" aria-labelledby="instrumental-part-title">
-            <h3 id="instrumental-part-title">{t("production.instrumental.title")}</h3>
-            <p className="hint">{t("production.instrumental.intro")}</p>
-            {instrumentalCond === "mix_stems" ? (
-              <p className="hint warn" role="note">
-                {t("production.instrumental.legoHonesty")}
-              </p>
-            ) : null}
-            <label className="invariant-level">
-              {t("production.instrumental.role")}
-              <select
-                value={instrumentalRole}
-                onChange={(e) =>
-                  setInstrumentalRole(e.target.value as InstrumentalRole)
-                }
-              >
-                <option value="bass">{t("production.instrumental.role.bass")}</option>
-                <option value="drums">{t("production.instrumental.role.drums")}</option>
-                <option value="other">{t("production.instrumental.role.other")}</option>
-              </select>
-            </label>
-            <fieldset className="settings-engine-options">
-              <legend>{t("production.instrumental.conditioning")}</legend>
-              <label className="settings-engine-option">
-                <input
-                  type="radio"
-                  name="instrumental-cond"
-                  checked={instrumentalCond === "project_metadata"}
-                  onChange={() => setInstrumentalCond("project_metadata")}
-                />
-                <span>{t("production.instrumental.conditioning.meta")}</span>
+          <div
+            className="production-instrumental-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) closeInstrumentalDialog();
+            }}
+          >
+            <div
+              ref={instrumentalDialogRef}
+              className="production-instrumental-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="instrumental-part-title"
+              tabIndex={-1}
+            >
+              <header className="production-instrumental-header">
+                <div>
+                  <p className="studio-midi-editor-eyebrow">{t("production.addTrack.ai")}</p>
+                  <h2 id="instrumental-part-title">{t("production.instrumental.title")}</h2>
+                  <p className="hint">{t("production.instrumental.intro")}</p>
+                </div>
+                <button
+                  type="button"
+                  className="btn ghost production-instrumental-close"
+                  aria-label={t("production.addTrack.close")}
+                  onClick={closeInstrumentalDialog}
+                >
+                  ×
+                </button>
+              </header>
+              {instrumentalCond === "mix_stems" ? (
+                <p className="hint warn" role="note">
+                  {t("production.instrumental.legoHonesty")}
+                </p>
+              ) : null}
+              <label className="invariant-level">
+                {t("production.instrumental.role")}
+                <select
+                  value={instrumentalRole}
+                  onChange={(e) =>
+                    setInstrumentalRole(e.target.value as InstrumentalRole)
+                  }
+                >
+                  <option value="bass">{t("production.instrumental.role.bass")}</option>
+                  <option value="drums">{t("production.instrumental.role.drums")}</option>
+                  <option value="other">{t("production.instrumental.role.other")}</option>
+                </select>
               </label>
-              <label className="settings-engine-option">
-                <input
-                  type="radio"
-                  name="instrumental-cond"
-                  checked={instrumentalCond === "mix_stems"}
-                  onChange={() => setInstrumentalCond("mix_stems")}
-                />
-                <span>{t("production.instrumental.conditioning.mix")}</span>
-              </label>
-            </fieldset>
-            {instrumentalCond === "mix_stems" && !mix?.tracks.length && <p className="hint" role="status">{t("production.instrumental.needAudio")}</p>}
-            {instrumentalCond === "mix_stems" && (!legoSidecarReady || !legoLicenseAccepted) && (
-              <div className="hint" role="status">
-                <p>{t("production.instrumental.installRequired")}</p>
-                <button type="button" className="btn" onClick={() => useAppStore.getState().openModelSettings("lego")}>
-                  {t("production.instrumental.openSettings")}
+              <fieldset className="settings-engine-options">
+                <legend>{t("production.instrumental.conditioning")}</legend>
+                <label className="settings-engine-option">
+                  <input
+                    type="radio"
+                    name="instrumental-cond"
+                    checked={instrumentalCond === "project_metadata"}
+                    onChange={() => setInstrumentalCond("project_metadata")}
+                  />
+                  <span>{t("production.instrumental.conditioning.meta")}</span>
+                </label>
+                <label className="settings-engine-option">
+                  <input
+                    type="radio"
+                    name="instrumental-cond"
+                    checked={instrumentalCond === "mix_stems"}
+                    onChange={() => setInstrumentalCond("mix_stems")}
+                  />
+                  <span>{t("production.instrumental.conditioning.mix")}</span>
+                </label>
+              </fieldset>
+              {instrumentalCond === "mix_stems" && !mix?.tracks.length && (
+                <p className="hint" role="status">
+                  {t("production.instrumental.needAudio")}
+                </p>
+              )}
+              {instrumentalCond === "mix_stems" && (!legoSidecarReady || !legoLicenseAccepted) && (
+                <div className="hint" role="status">
+                  <p>{t("production.instrumental.installRequired")}</p>
+                  <button type="button" className="btn" onClick={() => useAppStore.getState().openModelSettings("lego")}>
+                    {t("production.instrumental.openSettings")}
+                  </button>
+                </div>
+              )}
+              {instrumentalNotice ? (
+                <p className="hint warn" role="status">
+                  {instrumentalNotice}
+                </p>
+              ) : null}
+              <div className="btn-row">
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy || (instrumentalCond === "mix_stems" && (!mix?.tracks.length || !legoSidecarReady || !legoLicenseAccepted))}
+                  onClick={() => {
+                    const plan = planProjectInstrumentalPart({
+                      role: instrumentalRole,
+                      conditioning: instrumentalCond,
+                      style: form.style,
+                      tempoBpm: form.tempoBpm,
+                      key: form.key ?? null,
+                      hasMixOrStems: Boolean(mix?.tracks.length),
+                      legoSidecarReady,
+                      legoLicenseAccepted,
+                    });
+                    if (!plan.ok) {
+                      setInstrumentalNotice(plan.messageFr);
+                      return;
+                    }
+                    void onRequestInstrumentalPart({
+                      role: instrumentalRole,
+                      conditioning: instrumentalCond,
+                    }).then(
+                      closeInstrumentalDialog,
+                      (e) =>
+                        setInstrumentalNotice(
+                          e instanceof Error ? e.message : String(e),
+                        ),
+                    );
+                  }}
+                >
+                  {t("production.instrumental.generate")}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={closeInstrumentalDialog}
+                >
+                  {t("production.instrumental.cancel")}
                 </button>
               </div>
-            )}
-            {instrumentalNotice ? (
-              <p className="hint warn" role="status">
-                {instrumentalNotice}
-              </p>
-            ) : null}
-            <div className="btn-row">
-              <button
-                type="button"
-                className="btn"
-                disabled={busy || (instrumentalCond === "mix_stems" && (!mix?.tracks.length || !legoSidecarReady || !legoLicenseAccepted))}
-                onClick={() => {
-                  const plan = planProjectInstrumentalPart({
-                    role: instrumentalRole,
-                    conditioning: instrumentalCond,
-                    style: form.style,
-                    tempoBpm: form.tempoBpm,
-                    key: form.key ?? null,
-                    hasMixOrStems: Boolean(mix?.tracks.length),
-                    legoSidecarReady,
-                    legoLicenseAccepted,
-                  });
-                  if (!plan.ok) {
-                    setInstrumentalNotice(plan.messageFr);
-                    return;
-                  }
-                  void onRequestInstrumentalPart({
-                    role: instrumentalRole,
-                    conditioning: instrumentalCond,
-                  }).catch((e) =>
-                    setInstrumentalNotice(
-                      e instanceof Error ? e.message : String(e),
-                    ),
-                  );
-                }}
-              >
-                {t("production.instrumental.generate")}
-              </button>
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={() => setInstrumentalOpen(false)}
-              >
-                {t("production.instrumental.cancel")}
-              </button>
             </div>
           </div>
         ) : null}
