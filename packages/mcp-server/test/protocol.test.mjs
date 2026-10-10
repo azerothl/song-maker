@@ -196,6 +196,9 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(createdMidiState.voiceId, 'mcp-midi-protocol-test-midi-1');
     assert.equal(createdMidiState.score.score.voices.find(voice => voice.id === createdMidiState.voiceId).name, 'Synth lead');
     assert.equal(createdMidiState.mix.mix.tracks.filter(track => track.id === createdMidiState.voiceId).length, 1);
+    const interruptedMix = JSON.parse(await readFile(path.join(mixFolder, 'mix-v001.json'), 'utf8'));
+    interruptedMix.tracks = interruptedMix.tracks.filter(track => track.id !== createdMidiState.voiceId);
+    await writeFile(path.join(mixFolder, 'mix-v001.json'), JSON.stringify(interruptedMix));
     const retriedMidi = await client.callTool({ name: 'create_project_midi_track', arguments: {
       projectId: 'project-001', idempotencyKey: 'protocol-test-midi-1', name: 'Synth lead',
       expectedScoreRevision: editedScoreState.scoreRevision, expectedMixRevision: addedMidiState.mixRevision,
