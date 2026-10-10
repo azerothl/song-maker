@@ -162,8 +162,8 @@ fn save_library_at(
     let _process_guard = process_lock
         .lock()
         .map_err(|_| "Verrou de Bibliothèque indisponible.".to_string())?;
-    let _cross_process_guard = acquire_cross_process_lock(&path)?;
-    let current = read_library(&path)?;
+    let _cross_process_guard = acquire_cross_process_lock(path)?;
+    let current = read_library(path)?;
     match (&current, expected_updated_at.as_deref()) {
         (None, None) => {}
         (Some(current), Some(expected)) if current.updated_at == expected => {}
