@@ -44,14 +44,16 @@ function pickVoice(
   doc: ScoreDocument,
   target: "Vocal" | "Ins",
 ): ScoreVoice | undefined {
-  if (target === "Ins") {
-    return doc.voices.find((v) => v.abcVoice === "Ins");
-  }
-  return doc.voices.find(
-    (v) =>
-      v.abcVoice === "Vocal" ||
-      (!v.abcVoice && (v.role === "vocal" || v.role === "melody")),
-  );
+  const matches =
+    target === "Ins"
+      ? doc.voices.filter((voice) => voice.abcVoice === "Ins")
+      : doc.voices.filter(
+          (voice) =>
+            voice.abcVoice === "Vocal" ||
+            (!voice.abcVoice &&
+              (voice.role === "vocal" || voice.role === "melody")),
+        );
+  return matches.find((voice) => voice.notes.length > 0) ?? matches[0];
 }
 
 function sectionComment(kind: SongSection["kind"]): string {
