@@ -1,5 +1,6 @@
 import { api } from "../lib/api";
 import { generationErrorMessage } from "../lib/generationError";
+import { presentGlobalError } from "../lib/errorPresentation";
 import { TakePreviewPlayer } from "../components/TakePreviewPlayer";
 import { BatchGenerationPanel } from "../components/BatchGenerationPanel";
 import { buildGenerationPayload, loadRemotePrefs, runRemoteGenerationToProject } from "../lib/remoteGenerate";
@@ -224,6 +225,12 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       ["preparing", "generating", "separating", "importing_tracks"].includes(job.state),
   );
   const projectJob = job?.projectId === project?.id ? job : null;
+  const projectJobError =
+    projectJob?.state === "failed"
+      ? presentGlobalError(
+          generationErrorMessage(projectJob.error || projectJob.label),
+        )
+      : null;
 
   useEffect(() => {
     if (!canCancelCurrentJob) {
@@ -814,8 +821,8 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       } else {
         setSeparationUndo(null);
       }
-    } catch (e) {
-      setError(String(e));
+    } catch {
+      setError(t("separate.run.failed"));
     } finally {
       setBusy(false);
     }
@@ -1084,14 +1091,20 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
               )}
             </div>
             {projectJob && projectJob.state !== "idle" && (
-              <div className="song-job-banner" role="status" aria-live="polite">
-                <span>
+              <div className="song-job-banner">
+                <span role={projectJob.state === "failed" ? "alert" : "status"}>
                   {projectJob.state === "completed"
                     ? t("job.completed")
                     : projectJob.state === "cancelled"
                       ? t("job.cancelled")
-                      : generationErrorMessage(projectJob.label || t("job.generating"))}
+                      : projectJobError?.message ?? t("job.generating")}
                 </span>
+                {projectJobError?.details && (
+                  <details className="error-details">
+                    <summary>{t("error.technicalDetails")}</summary>
+                    <pre>{projectJobError.details}</pre>
+                  </details>
+                )}
                 {canCancelCurrentJob && (
                   <button
                     type="button"
@@ -1172,6 +1185,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
             scoreGate={scoreGate}
             setAdvancedSettingsPage={setAdvancedSettingsPage}
             setForm={setForm}
+            showScoreSettings={settings?.generationEngine === "yue2"}
             instrumentalPackState={instrumentalPackState}
             showVocalRemovalGuidance={
               settings?.generationEngine === "yue2" ||

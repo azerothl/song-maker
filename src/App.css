@@ -6479,11 +6479,41 @@ details[open] > summary {
 
 .banner.error {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap;
   background: color-mix(in srgb, var(--danger) 12%, var(--bg1));
   border-bottom: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line));
   padding: 0.55rem 1rem;
+}
+
+.banner-error-copy {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+
+.error-details {
+  margin-top: 0.5rem;
+}
+
+.error-details summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.error-details pre {
+  max-height: 10rem;
+  overflow: auto;
+  margin: 0.5rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 0.75rem/1.45 var(--font-mono, ui-monospace, monospace);
+}
+
+.error-details pre:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
 }
 
 .score-panel {
@@ -8871,4 +8901,89 @@ details[open] > summary {
 
 .project-sync-panel-heading h2 {
   margin: 0;
+}
+
+.app-error-fallback {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: clamp(1.25rem, 5vw, 4rem);
+  color: var(--text);
+  background: var(--bg0);
+}
+
+.app-error-card {
+  width: min(100%, 44rem);
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--bg1);
+  box-shadow: 0 1.5rem 4rem color-mix(in srgb, #000 36%, transparent);
+}
+
+.app-error-mark {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  margin-bottom: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 55%, transparent);
+  border-radius: 50%;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg1));
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.app-error-card h1 {
+  margin: 0;
+  font: 600 clamp(1.5rem, 3vw, 2.1rem)/1.2 var(--font-display);
+}
+
+.app-error-card h1:focus {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 4px;
+}
+
+.app-error-message {
+  max-width: 38rem;
+  margin: 0.8rem 0 1.25rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.app-error-details {
+  margin: 1rem 0 1.4rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.app-error-details summary {
+  width: fit-content;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--accent-cyan);
+}
+
+.app-error-details pre {
+  max-height: 16rem;
+  overflow: auto;
+  margin: 0 0 1rem;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  color: var(--text);
+  background: var(--bg0);
+  font: 0.8rem/1.5 var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.app-error-card button:focus-visible,
+.app-error-details summary:focus-visible,
+.app-error-details pre:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 3px;
 }

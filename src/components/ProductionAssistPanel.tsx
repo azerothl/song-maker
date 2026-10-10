@@ -6,6 +6,7 @@ import {
   type StemLevelMeasurement,
   type TrackEffectSlot,
 } from "@song-maker/mix-production";
+import { ErrorNotice } from "./ErrorNotice";
 import { bakeMixPcm, decodeMixStems, type DecodedStem } from "../lib/mixBridge";
 import {
   analyzeProduction,
@@ -345,7 +346,7 @@ export function ProductionAssistPanel({
       {!hasStems && (
         <p className="hint">{t("copilot.needStemsHint")}</p>
       )}
-      {error && <p className="hint error">{error}</p>}
+      {error && <ErrorNotice message={error} />}
       {status && <p className="hint ok">{status}</p>}
       {stale && (
         <p className="hint error">{t("copilot.stale")}</p>

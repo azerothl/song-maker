@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { measurePlanarStemLevel } from "@song-maker/mix-production";
 import { COMMERCIAL_COPY_FORBIDDEN } from "@song-maker/stem-providers";
+import { ErrorNotice } from "./ErrorNotice";
 import { api } from "../lib/api";
 import { decodeMixStems } from "../lib/mixBridge";
 import { fingerprintProductionState } from "../lib/productionAssistant";
@@ -240,7 +241,7 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
     <label>{t("qwen.mix.objective")}<textarea maxLength={1000} value={objective} onChange={e=>setObjective(e.target.value)} /></label>
     <button type="button" className="btn" disabled={busy||!hasStems} onClick={()=>void run()}>{t(busy?"qwen.mix.busy":"qwen.mix.analyze")}</button>
     {!hasStems && <p className="hint">{t("qwen.mix.needStems")}</p>}
-    <div role="status" aria-live="polite">{error && <p className="hint error">{error}</p>}</div>
+    {error && <ErrorNotice message={error} role="status" />}
     {diagnostic && <details><summary>{t("qwen.mix.diagnostic")}</summary><code>{diagnostic}</code></details>}
     {proposal && <>
       <p className="hint">{t("qwen.mix.measured",{model:proposal.result.model,time:nf.format(proposal.result.elapsedMs/1000)})}</p>

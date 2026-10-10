@@ -6,6 +6,7 @@ import {
 import { useMemo, useState } from "react";
 import type { GenerationSummary } from "../lib/types";
 import { candidateGenerateLabel } from "./candidateLabels";
+import { ErrorNotice } from "./ErrorNotice";
 import { t } from "../ui/i18n";
 import { TakePreviewPlayer } from "./TakePreviewPlayer";
 
@@ -113,7 +114,7 @@ export function CandidateCompare({
         </button>
       </div>
 
-      {error && <p className="hint error">{error}</p>}
+      {error && <ErrorNotice message={error} />}
 
       {view && (
         <ul className="candidate-list">

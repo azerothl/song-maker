@@ -20,6 +20,7 @@ import { ScoreAssistantPanel } from "./ScoreAssistantPanel";
 import { ScoreBranchPanel } from "./ScoreBranchPanel";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
+import { ErrorNotice } from "./ErrorNotice";
 
 type ScoreViewMode = "staff" | "piano" | "abc";
 
@@ -517,9 +518,10 @@ export function ScorePanel({
                 />
               ) : (
                 <div className="score-staff-fallback">
-                  <p className="hint" role="alert">
-                    {staffAbc.error ?? t("score.staff.unavailable")}
-                  </p>
+                  <ErrorNotice
+                    message={staffAbc.error ?? t("score.staff.unavailable")}
+                    className="hint"
+                  />
                   <p className="hint">{t("score.staff.switchPiano")}</p>
                   <button
                     type="button"
