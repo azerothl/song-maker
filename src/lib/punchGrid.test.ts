@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   punchBarDurationMs,
+  punchStartAction,
+  punchTransportAction,
   snapPunchMs,
   snapPunchWindow,
 } from "./punchGrid";
@@ -24,6 +26,51 @@ function mixAt(bpm: number, numerator = 4, denominator = 4): MixDoc {
 }
 
 describe("punchGrid", () => {
+  it("requires the Studio transport for punch instead of silently recording a plain take", () => {
+    assert.equal(
+      punchStartAction({ enabled: true, looping: false, hasTransport: false }),
+      "missing-transport",
+    );
+    assert.equal(
+      punchStartAction({ enabled: true, looping: false, hasTransport: true }),
+      "punch",
+    );
+    assert.equal(
+      punchStartAction({ enabled: true, looping: true, hasTransport: false }),
+      "record",
+    );
+  });
+
+  it("follows the Studio transport and stops at the punch-out point", () => {
+    const base = {
+      enabled: true,
+      looping: false,
+      started: true,
+      playing: true,
+      currentMs: 1_999,
+      punchOutMs: 2_000,
+    };
+    assert.equal(punchTransportAction(base), "waiting");
+    assert.equal(
+      punchTransportAction({ ...base, currentMs: 2_000 }),
+      "stop-at-punch-out",
+    );
+  });
+
+  it("stops a punch if the user stops the Studio transport", () => {
+    assert.equal(
+      punchTransportAction({
+        enabled: true,
+        looping: false,
+        started: true,
+        playing: false,
+        currentMs: 1_000,
+        punchOutMs: 2_000,
+      }),
+      "stop-after-pause",
+    );
+  });
+
   it("uses one bar at mix tempo for default window", () => {
     assert.equal(punchBarDurationMs(mixAt(120)), 2000);
     assert.equal(punchBarDurationMs(mixAt(60)), 4000);

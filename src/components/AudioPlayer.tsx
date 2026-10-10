@@ -18,6 +18,8 @@ function formatTime(seconds: number): string {
 export type PlaybackView = {
   sourceKey?: string;
   current: number;
+  /** Fresh transport values for capture/scheduling code outside React render cadence. */
+  readTransport?: () => { current: number; playing: boolean; ready: boolean };
   duration: number;
   mode: PlaybackSnapshot["mode"];
   peaksByTrack: Record<string, Float32Array>;
@@ -121,6 +123,14 @@ export function AudioPlayer({
       onPlaybackChangeRef.current?.({
         sourceKey: playbackKeyRef.current,
         current: next.current,
+        readTransport: () => {
+          const live = engine.getSnapshot();
+          return {
+            current: engine.getCurrentTime(),
+            playing: live.playing,
+            ready: live.ready,
+          };
+        },
         duration: next.duration,
         mode: next.mode,
         peaksByTrack,

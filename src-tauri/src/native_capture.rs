@@ -226,11 +226,17 @@ struct ActiveNativeCapture {
     relative_path: String,
     abs_path: PathBuf,
     stop: Arc<AtomicBool>,
-    paused: Arc<AtomicBool>,
+    capture_sync: CaptureSync,
     peak: Arc<AtomicU32>,
     frames: Arc<AtomicU64>,
     rates: Arc<Mutex<(u32, u16, u32)>>,
     join: Option<JoinHandle<Result<(), String>>>,
+}
+
+#[derive(Clone)]
+struct CaptureSync {
+    paused: Arc<AtomicBool>,
+    gate: Arc<Mutex<()>>,
 }
 
 #[derive(Default)]
@@ -242,7 +248,7 @@ impl Drop for NativeCaptureState {
     fn drop(&mut self) {
         if let Ok(mut g) = self.inner.lock() {
             if let Some(mut active) = g.take() {
-                active.stop.store(true, Ordering::SeqCst);
+                transition_capture_state(&active.capture_sync.gate, &active.stop, true);
                 if let Some(join) = active.join.take() {
                     let _ = join.join();
                 }
@@ -268,11 +274,31 @@ fn open_wav_writer(
 struct InputStreamSink {
     writer: SyncSender<Vec<i16>>,
     stop: Arc<AtomicBool>,
-    paused: Arc<AtomicBool>,
+    capture_sync: CaptureSync,
     peak: Arc<AtomicU32>,
     frames: Arc<AtomicU64>,
     queue_overflow: Arc<AtomicBool>,
     channels: u16,
+}
+
+/// Serializes accepted sample blocks with pause/stop transitions so no block can
+/// be appended after a completed pause or stop command.
+fn with_active_capture<T>(
+    gate: &Mutex<()>,
+    stop: &AtomicBool,
+    paused: &AtomicBool,
+    capture: impl FnOnce() -> T,
+) -> Option<T> {
+    let _guard = gate.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if stop.load(Ordering::Relaxed) || paused.load(Ordering::Relaxed) {
+        return None;
+    }
+    Some(capture())
+}
+
+fn transition_capture_state(gate: &Mutex<()>, state: &AtomicBool, value: bool) {
+    let _guard = gate.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    state.store(value, Ordering::SeqCst);
 }
 
 fn enqueue_capture_samples(
@@ -353,12 +379,13 @@ where
     let InputStreamSink {
         writer,
         stop,
-        paused,
+        capture_sync,
         peak,
         frames,
         queue_overflow,
         channels,
     } = sink;
+    let CaptureSync { paused, gate } = capture_sync;
     let err_flag = Arc::new(Mutex::new(None::<String>));
     let err_cb = {
         let err_flag = Arc::clone(&err_flag);
@@ -370,6 +397,7 @@ where
     };
     let stop_cb = Arc::clone(&stop);
     let paused_cb = Arc::clone(&paused);
+    let capture_gate_cb = Arc::clone(&gate);
     let peak_cb = Arc::clone(&peak);
     let frames_cb = Arc::clone(&frames);
     let writer_cb = writer.clone();
@@ -381,9 +409,6 @@ where
                 if stop_cb.load(Ordering::Relaxed) {
                     return;
                 }
-                if paused_cb.load(Ordering::Relaxed) {
-                    return;
-                }
                 let mut local_peak = 0.0f32;
                 let mut pcm = Vec::with_capacity(data.len());
                 for &sample in data {
@@ -392,15 +417,17 @@ where
                     pcm.push(i16::from_sample(sample));
                 }
                 let milli = (local_peak.clamp(0.0, 1.0) * 1000.0).round() as u32;
-                peak_cb.store(milli, Ordering::Relaxed);
-                enqueue_capture_samples(
-                    &writer_cb,
-                    pcm,
-                    channels,
-                    &frames_cb,
-                    &stop_cb,
-                    &queue_overflow_cb,
-                );
+                with_active_capture(&capture_gate_cb, &stop_cb, &paused_cb, || {
+                    peak_cb.store(milli, Ordering::Relaxed);
+                    enqueue_capture_samples(
+                        &writer_cb,
+                        pcm,
+                        channels,
+                        &frames_cb,
+                        &stop_cb,
+                        &queue_overflow_cb,
+                    );
+                });
             },
             err_cb,
             None,
@@ -436,7 +463,7 @@ where
 fn spawn_capture_thread(
     device: cpal::Device,
     stop: Arc<AtomicBool>,
-    paused: Arc<AtomicBool>,
+    capture_sync: CaptureSync,
     peak: Arc<AtomicU32>,
     frames: Arc<AtomicU64>,
     abs_path: PathBuf,
@@ -477,7 +504,7 @@ fn spawn_capture_thread(
             let make_sink = || InputStreamSink {
                 writer: writer.clone(),
                 stop: Arc::clone(&stop),
-                paused: Arc::clone(&paused),
+                capture_sync: capture_sync.clone(),
                 peak: Arc::clone(&peak),
                 frames: Arc::clone(&frames),
                 queue_overflow: Arc::clone(&queue_overflow),
@@ -564,7 +591,7 @@ fn wasapi_capture_ids_by_name(
 fn spawn_wasapi_exclusive_capture_thread(
     endpoint_id: String,
     stop: Arc<AtomicBool>,
-    paused: Arc<AtomicBool>,
+    capture_sync: CaptureSync,
     peak: Arc<AtomicU32>,
     frames: Arc<AtomicU64>,
     abs_path: PathBuf,
@@ -654,7 +681,7 @@ fn spawn_wasapi_exclusive_capture_thread(
                         if info.flags.silent {
                             raw.fill(0);
                         }
-                        if !paused.load(Ordering::Relaxed) && read_frames > 0 {
+                        if read_frames > 0 {
                             let sample_count = (read_frames as usize)
                                 .checked_mul(channels as usize)
                                 .ok_or_else(|| "Paquet audio WASAPI trop grand.".to_string())?;
@@ -665,18 +692,37 @@ fn spawn_wasapi_exclusive_capture_thread(
                                 local_peak = local_peak.max((sample as f32 / 32768.0).abs());
                                 pcm.push(sample);
                             }
-                            if let Ok(mut output) = writer.lock() {
-                                if let Some(output) = output.as_mut() {
-                                    for sample in pcm {
-                                        output.write_sample(sample).map_err(|e| e.to_string())?;
+                            if let Some(write_result) = with_active_capture(
+                                &capture_sync.gate,
+                                &stop,
+                                &capture_sync.paused,
+                                || {
+                                    let write = (|| {
+                                        let mut output = writer.lock().map_err(|_| {
+                                            "Écriture WAV WASAPI inaccessible.".to_string()
+                                        })?;
+                                        let output = output.as_mut().ok_or_else(|| {
+                                            "Écriture WAV WASAPI déjà finalisée.".to_string()
+                                        })?;
+                                        for sample in pcm {
+                                            output
+                                                .write_sample(sample)
+                                                .map_err(|e| e.to_string())?;
+                                        }
+                                        Ok::<(), String>(())
+                                    })();
+                                    if write.is_ok() {
+                                        peak.store(
+                                            (local_peak.clamp(0.0, 1.0) * 1000.0).round() as u32,
+                                            Ordering::Relaxed,
+                                        );
+                                        frames.fetch_add(read_frames as u64, Ordering::Relaxed);
                                     }
-                                }
+                                    write
+                                },
+                            ) {
+                                write_result?;
                             }
-                            peak.store(
-                                (local_peak.clamp(0.0, 1.0) * 1000.0).round() as u32,
-                                Ordering::Relaxed,
-                            );
-                            frames.fetch_add(read_frames as u64, Ordering::Relaxed);
                         }
                     }
                     let elapsed_ms = frames.load(Ordering::Relaxed).saturating_mul(1000)
@@ -769,7 +815,10 @@ pub fn start_native_capture(
         crate::paths::ensure_dir(parent).map_err(|e| e.to_string())?;
     }
     let stop = Arc::new(AtomicBool::new(false));
-    let paused = Arc::new(AtomicBool::new(false));
+    let capture_sync = CaptureSync {
+        paused: Arc::new(AtomicBool::new(false)),
+        gate: Arc::new(Mutex::new(())),
+    };
     let peak = Arc::new(AtomicU32::new(0));
     let frames = Arc::new(AtomicU64::new(0));
     let rates = Arc::new(Mutex::new((48_000u32, 1u16, 0u32)));
@@ -778,7 +827,7 @@ pub fn start_native_capture(
         spawn_wasapi_exclusive_capture_thread(
             endpoint_id,
             Arc::clone(&stop),
-            Arc::clone(&paused),
+            capture_sync.clone(),
             Arc::clone(&peak),
             Arc::clone(&frames),
             abs_path.clone(),
@@ -789,7 +838,7 @@ pub fn start_native_capture(
         spawn_capture_thread(
             device,
             Arc::clone(&stop),
-            Arc::clone(&paused),
+            capture_sync.clone(),
             Arc::clone(&peak),
             Arc::clone(&frames),
             abs_path.clone(),
@@ -802,7 +851,7 @@ pub fn start_native_capture(
         spawn_capture_thread(
             device,
             Arc::clone(&stop),
-            Arc::clone(&paused),
+            capture_sync.clone(),
             Arc::clone(&peak),
             Arc::clone(&frames),
             abs_path.clone(),
@@ -831,7 +880,7 @@ pub fn start_native_capture(
         relative_path: relative_path.clone(),
         abs_path,
         stop,
-        paused,
+        capture_sync,
         peak,
         frames,
         rates,
@@ -864,7 +913,7 @@ pub fn poll_native_capture(
         channels,
         buffer_frames,
         estimated_round_trip_ms: estimated_round_trip_ms(sample_rate, buffer_frames),
-        paused: active.paused.load(Ordering::Relaxed),
+        paused: active.capture_sync.paused.load(Ordering::Relaxed),
     }))
 }
 
@@ -880,7 +929,11 @@ pub fn pause_native_capture(
     let Some(active) = g.as_ref() else {
         return Err("Aucune capture native en cours.".into());
     };
-    active.paused.store(paused, Ordering::SeqCst);
+    transition_capture_state(
+        &active.capture_sync.gate,
+        &active.capture_sync.paused,
+        paused,
+    );
     Ok(())
 }
 
@@ -895,7 +948,7 @@ pub fn stop_native_capture(
     let Some(mut active) = g.take() else {
         return Err("Aucune capture native en cours.".into());
     };
-    active.stop.store(true, Ordering::SeqCst);
+    transition_capture_state(&active.capture_sync.gate, &active.stop, true);
     let join_err = if let Some(join) = active.join.take() {
         match join.join() {
             Ok(Ok(())) => None,
@@ -1041,6 +1094,57 @@ mod tests {
         assert_eq!(frames.load(Ordering::Relaxed), 32);
         assert!(stop.load(Ordering::SeqCst));
         assert!(queue_overflow.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn pause_waits_for_in_flight_chunk_and_rejects_later_chunks() {
+        let gate = Arc::new(Mutex::new(()));
+        let stop = Arc::new(AtomicBool::new(false));
+        let paused = Arc::new(AtomicBool::new(false));
+        let captured_frames = Arc::new(AtomicU64::new(0));
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+
+        let callback_gate = Arc::clone(&gate);
+        let callback_stop = Arc::clone(&stop);
+        let callback_paused = Arc::clone(&paused);
+        let callback_frames = Arc::clone(&captured_frames);
+        let callback = thread::spawn(move || {
+            with_active_capture(&callback_gate, &callback_stop, &callback_paused, || {
+                entered_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+                callback_frames.fetch_add(480, Ordering::Relaxed);
+            });
+        });
+        entered_rx.recv().unwrap();
+
+        let pause_gate = Arc::clone(&gate);
+        let pause_state = Arc::clone(&paused);
+        let (pause_started_tx, pause_started_rx) = mpsc::channel();
+        let (pause_finished_tx, pause_finished_rx) = mpsc::channel();
+        let pause = thread::spawn(move || {
+            pause_started_tx.send(()).unwrap();
+            transition_capture_state(&pause_gate, &pause_state, true);
+            pause_finished_tx.send(()).unwrap();
+        });
+        pause_started_rx.recv().unwrap();
+        assert!(pause_finished_rx
+            .recv_timeout(Duration::from_millis(50))
+            .is_err());
+
+        release_tx.send(()).unwrap();
+        callback.join().unwrap();
+        pause_finished_rx
+            .recv_timeout(Duration::from_secs(1))
+            .unwrap();
+        pause.join().unwrap();
+
+        assert_eq!(captured_frames.load(Ordering::Relaxed), 480);
+        assert!(with_active_capture(&gate, &stop, &paused, || {
+            captured_frames.fetch_add(480, Ordering::Relaxed);
+        })
+        .is_none());
+        assert_eq!(captured_frames.load(Ordering::Relaxed), 480);
     }
 
     #[test]
