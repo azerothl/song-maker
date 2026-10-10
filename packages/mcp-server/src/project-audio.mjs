@@ -667,8 +667,13 @@ export async function renderProjectMix({
   });
   if (!rendered.frameCount || rendered.pcm.length === 0) throw new Error('Le mix n’a produit aucun échantillon audio.');
 
-  const latest = await getProjectMix({ projectId, mixId: source.mixId, env });
-  if (latest.mixRevision !== source.mixRevision) throw new Error('Le mix a changé pendant le rendu. Relis-le et relance l’export.');
+  const assertMixRevisionUnchanged = async () => {
+    const latest = await getProjectMix({ projectId, mixId: source.mixId, env });
+    if (latest.mixRevision !== source.mixRevision) {
+      throw new Error('Le mix a changé pendant le rendu. Relis-le et relance l’export.');
+    }
+  };
+  await assertMixRevisionUnchanged();
 
   const targetDirectory = insideWorkspace(outputDirectory, workspace);
   await mkdir(targetDirectory, { recursive: true });
@@ -688,11 +693,13 @@ export async function renderProjectMix({
       if (outputAudio.sampleRateHz !== sampleRate || outputAudio.channels !== 2 || outputAudio.bitDepth !== selectedBitDepth) {
         throw new Error('Le WAV rendu ne correspond pas au format demandé.');
       }
+      await assertMixRevisionUnchanged();
       await publishExclusive(temporaryWav, destination);
     } else {
       const ffmpeg = await resolveFfmpeg(env);
       await runFfmpeg(ffmpeg, encodeArgs(temporaryWav, temporaryEncoded, format, selectedBitDepth, selectedBitrate), 'l’export du mix');
       await verifyEncodedAudio(ffmpeg, temporaryEncoded);
+      await assertMixRevisionUnchanged();
       await publishExclusive(temporaryEncoded, destination);
       await rm(temporaryWav, { force: true }).catch(() => {});
     }

@@ -83,7 +83,14 @@ Avant de lancer un lot, appelle `start_batch` avec `dryRun: true` et son `batchF
 
 ## Brancher Codex
 
-Depuis la racine du dépôt : `pnpm install --filter @song-maker/mcp-server...`. Ajoute ensuite ce serveur stdio à la configuration Codex, en adaptant les deux chemins absolus :
+Depuis la racine du dépôt, installe le serveur et compile son moteur de mix partagé :
+
+```powershell
+pnpm install --filter @song-maker/mcp-server...
+pnpm --filter @song-maker/mix-production build
+```
+
+La compilation est nécessaire avant un lancement direct avec `node` ; les scripts `pnpm start` et `pnpm test` la déclenchent aussi. Ajoute ensuite ce serveur stdio à la configuration Codex, en adaptant les deux chemins absolus :
 
 ```toml
 [mcp_servers.song_maker]
