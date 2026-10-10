@@ -85,6 +85,12 @@ describe("instrumental voice removal entry", () => {
     assert.doesNotMatch(html, /voix résiduelles|Some vocals may still remain/i);
   });
 
+  it("does not claim an empty score will be sent", () => {
+    const html = renderCreateWorkspace(true);
+
+    assert.doesNotMatch(html, /La partition guidera cette génération|The score will guide this generation/);
+  });
+
   it("opens the separation settings page from the new action", () => {
     useAppStore.getState().openSeparationSettings();
     const state = useAppStore.getState();
