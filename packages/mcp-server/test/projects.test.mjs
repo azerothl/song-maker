@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject, useProjectGeneration, useProjectScore, useProjectSeparation } from '../src/projects.mjs';
+import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject, updateProjectMix, useProjectGeneration, useProjectScore, useProjectSeparation } from '../src/projects.mjs';
 
 function smallPcmWav() {
   const frames = 800;
@@ -232,6 +232,70 @@ test('MCP reads mix and score documents while hiding host-specific plugin and au
     assert.equal(selectedScore.score.voices[0].notes[0].pitch, 60);
     await assert.rejects(getProjectMix({ projectId: 'project-001', mixId: '../outside', env }), /Identifiant de mix invalide/);
     await assert.rejects(getProjectScore({ projectId: 'project-001', scoreId: 'score-v999', env }), /introuvable/);
+  } finally {
+    await rm(documentsRoot, { recursive: true, force: true });
+  }
+});
+
+test('MCP updates active mix levels and track controls with a current mix revision', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-update-mix-'));
+  const projectFolder = path.join(documentsRoot, 'profiles', 'profile-mix', 'projects', 'project-mix');
+  const mixesFolder = path.join(projectFolder, 'mixes');
+  const mixPath = path.join(mixesFolder, 'mix-v001.json');
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(mixesFolder, { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({ activeProfileId: 'profile-mix' }));
+    await writeFile(path.join(projectFolder, 'project.json'), JSON.stringify({
+      schema: 'songmaker.project', schemaVersion: 1, id: 'project-mix', title: 'Mix controls',
+      updatedAt: '2026-10-10T00:00:00.000Z', activeMixId: 'mix-v001',
+    }));
+    await writeFile(mixPath, JSON.stringify({
+      schema: 'songmaker.mix', schemaVersion: 1, id: 'mix-v001', separationId: '',
+      sampleRate: 48000, masterGainDb: 0, peakCeilingDb: -1,
+      vst3MasterInsert: { pluginPath: 'C:/private/plugin.vst3', pluginName: 'Private plugin', enabled: true },
+      tracks: [
+        { id: 'voice', role: 'vocal', name: 'Voice', gainDb: 0, pan: 0, mute: false, solo: false,
+          locked: false, aiSeparated: false, clips: [], experimentalVst3Insert: null },
+        { id: 'drums', role: 'drums', name: 'Drums', gainDb: -2, pan: 0.1, mute: false, solo: false,
+          locked: false, aiSeparated: false, clips: [], experimentalVst3Insert: null },
+      ],
+      tempoMap: [], timeSignatures: [], markers: [],
+    }));
+
+    const initial = await getProjectMix({ projectId: 'project-mix', env });
+    assert.match(initial.mixRevision, /^[a-f0-9]{64}$/);
+    assert.equal(initial.mix.vst3MasterInsert.pluginName, 'Private plugin');
+    assert.equal('pluginPath' in initial.mix.vst3MasterInsert, false);
+
+    const updated = await updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: initial.mixRevision, masterGainDb: -3.5,
+      tracks: [{ id: 'voice', gainDb: -4, pan: -0.25, mute: true }], env,
+    });
+    assert.notEqual(updated.mixRevision, initial.mixRevision);
+    assert.equal(updated.mix.masterGainDb, -3.5);
+    assert.deepEqual(
+      (({ gainDb, pan, mute, solo }) => ({ gainDb, pan, mute, solo }))(updated.mix.tracks[0]),
+      { gainDb: -4, pan: -0.25, mute: true, solo: false },
+    );
+    assert.deepEqual(
+      (({ gainDb, pan, mute, solo }) => ({ gainDb, pan, mute, solo }))(updated.mix.tracks[1]),
+      { gainDb: -2, pan: 0.1, mute: false, solo: false },
+    );
+    const stored = JSON.parse(await readFile(mixPath, 'utf8'));
+    assert.equal(stored.vst3MasterInsert.pluginPath, 'C:/private/plugin.vst3');
+
+    await assert.rejects(updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: initial.mixRevision, tracks: [{ id: 'voice', mute: false }], env,
+    }), /Le mix a changé/);
+    await assert.rejects(updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: updated.mixRevision, mixId: 'mix-v002',
+      masterGainDb: 0, env,
+    }), /Seul le mix actif/);
+    await assert.rejects(updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: updated.mixRevision,
+      tracks: [{ id: 'missing', solo: true }], env,
+    }), /Piste introuvable/);
   } finally {
     await rm(documentsRoot, { recursive: true, force: true });
   }

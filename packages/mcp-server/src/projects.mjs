@@ -623,9 +623,137 @@ export async function getProjectMix({ projectId, mixId, env = process.env } = {}
     projectId,
     projectTitle: project.title,
     mixId: selectedMixId,
+    mixRevision: createHash('sha256').update(JSON.stringify(mix)).digest('hex'),
     active: project.activeMixId === selectedMixId,
     mix: safeMix,
   };
+}
+
+/** Update the active mix's basic track controls using an optimistic mix revision. */
+export async function updateProjectMix({
+  projectId, mixId, expectedMixRevision, masterGainDb, tracks, env = process.env,
+} = {}) {
+  if (typeof projectId !== 'string' || !PROJECT_ID_PATTERN.test(projectId)) {
+    throw new Error('Identifiant de projet invalide.');
+  }
+  if (typeof expectedMixRevision !== 'string' || !/^[a-f0-9]{64}$/.test(expectedMixRevision)) {
+    throw new Error('expectedMixRevision doit venir de get_project_mix.');
+  }
+  if (masterGainDb === undefined && (!Array.isArray(tracks) || tracks.length === 0)) {
+    throw new Error('Indique au moins un réglage de mix à modifier.');
+  }
+  if (masterGainDb !== undefined && (!Number.isFinite(masterGainDb) || masterGainDb < -24 || masterGainDb > 12)) {
+    throw new Error('Le gain master doit être compris entre -24 et +12 dB.');
+  }
+  if (tracks !== undefined && !Array.isArray(tracks)) {
+    throw new Error('Les réglages de pistes doivent être une liste.');
+  }
+
+  const seenTrackIds = new Set();
+  for (const update of tracks ?? []) {
+    if (!update || typeof update.id !== 'string' || !update.id.trim() || seenTrackIds.has(update.id)) {
+      throw new Error('Identifiant de piste invalide ou répété.');
+    }
+    seenTrackIds.add(update.id);
+    const hasControl = ['gainDb', 'pan', 'mute', 'solo'].some(key => update[key] !== undefined);
+    if (!hasControl) throw new Error(`Aucun réglage fourni pour la piste ${update.id}.`);
+    if (update.gainDb !== undefined && (!Number.isFinite(update.gainDb) || update.gainDb < -24 || update.gainDb > 12)) {
+      throw new Error(`Le gain de la piste ${update.id} doit être compris entre -24 et +12 dB.`);
+    }
+    if (update.pan !== undefined && (!Number.isFinite(update.pan) || update.pan < -1 || update.pan > 1)) {
+      throw new Error(`Le panoramique de la piste ${update.id} doit être compris entre -1 et +1.`);
+    }
+    for (const key of ['mute', 'solo']) {
+      if (update[key] !== undefined && typeof update[key] !== 'boolean') {
+        throw new Error(`Le réglage ${key} de la piste ${update.id} doit être un booléen.`);
+      }
+    }
+  }
+
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  const selectedMixId = mixId ?? project.activeMixId;
+  if (typeof selectedMixId !== 'string' || !MIX_ID_PATTERN.test(selectedMixId)) {
+    throw new Error('Aucun mix actif à modifier.');
+  }
+  if (selectedMixId !== project.activeMixId) {
+    throw new Error('Seul le mix actif peut être modifié ; les anciennes versions restent intactes.');
+  }
+
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+  const mixesDirectory = await projectSubdirectory(canonicalFolder, 'mixes');
+  if (!mixesDirectory) throw new Error(`Mix introuvable : ${selectedMixId}`);
+  const mixFileName = `${selectedMixId}.json`;
+  const mixPath = path.join(mixesDirectory, mixFileName);
+
+  await withMixLock(mixPath, async () => {
+    const latestProject = await readProjectAt(store.root, projectId);
+    if (latestProject.activeMixId !== selectedMixId) {
+      throw new Error('Le mix actif a changé. Relis le projet avant de réessayer.');
+    }
+    const current = await readBoundedJsonInside(mixesDirectory, mixFileName, mixFileName);
+    if (!current || current.id !== selectedMixId || !Array.isArray(current.tracks)) {
+      throw new Error(`Mix introuvable ou invalide : ${selectedMixId}`);
+    }
+    if ((current.schema !== undefined && current.schema !== 'songmaker.mix') ||
+        (current.schemaVersion !== undefined && current.schemaVersion !== 1)) {
+      throw new Error('Version de mix non prise en charge.');
+    }
+    if (current.tracks.some(track => !track || typeof track !== 'object' || Array.isArray(track) ||
+        typeof track.id !== 'string' || (track.clips !== undefined && !Array.isArray(track.clips)))) {
+      throw new Error('Document de mix invalide : pistes ou clips mal formés.');
+    }
+    const currentRevision = createHash('sha256').update(JSON.stringify(current)).digest('hex');
+    if (currentRevision !== expectedMixRevision) {
+      throw new Error('Le mix a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+    }
+
+    const next = structuredClone(current);
+    if (masterGainDb !== undefined) next.masterGainDb = masterGainDb;
+    for (const update of tracks ?? []) {
+      const track = next.tracks.find(item => item.id === update.id);
+      if (!track) throw new Error(`Piste introuvable dans le mix actif : ${update.id}`);
+      for (const key of ['gainDb', 'pan', 'mute', 'solo']) {
+        if (update[key] !== undefined) track[key] = update[key];
+      }
+    }
+    await writeJsonAtomically(mixPath, next, `.mix-${randomUUID()}.tmp`);
+  });
+
+  return getProjectMix({ projectId, mixId: selectedMixId, env });
+}
+
+async function withMixLock(mixPath, callback) {
+  const lockPath = `${mixPath}.mcp.lock`;
+  let locked = false;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await writeFile(lockPath, `pid=${process.pid} time=${new Date().toISOString()}\n`, {
+        encoding: 'utf8', flag: 'wx',
+      });
+      locked = true;
+      break;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw new Error(`Verrouillage du mix impossible : ${error?.message || error}`);
+      let stale = false;
+      try { stale = Date.now() - (await stat(lockPath)).mtimeMs > 300_000; }
+      catch (statError) { if (statError?.code !== 'ENOENT') throw statError; }
+      if (stale && attempt === 0) {
+        await rm(lockPath, { force: true });
+        continue;
+      }
+      throw new Error('Le mix est en cours de modification. Réessaie dans un instant.');
+    }
+  }
+  if (!locked) throw new Error('Le mix est en cours de modification. Réessaie dans un instant.');
+  try { return await callback(); }
+  finally { await rm(lockPath, { force: true }).catch(() => {}); }
 }
 
 /** Read one saved score document from the active Song Maker profile. */
@@ -992,6 +1120,16 @@ async function writeProjectAtomically(folder, project) {
   const temp = path.join(folder, `.project-${randomUUID()}.tmp`);
   try {
     await writeFile(temp, `${JSON.stringify(project, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+    await rename(temp, file);
+  } finally {
+    await rm(temp, { force: true }).catch(() => {});
+  }
+}
+
+async function writeJsonAtomically(file, document, tempName) {
+  const temp = path.join(path.dirname(file), tempName);
+  try {
+    await writeFile(temp, `${JSON.stringify(document, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
     await rename(temp, file);
   } finally {
     await rm(temp, { force: true }).catch(() => {});

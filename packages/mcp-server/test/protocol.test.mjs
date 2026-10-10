@@ -77,7 +77,7 @@ test('MCP exposes the headless tools over stdio', async () => {
         'delete_playlist', 'delete_project', 'export_project_audio', 'get_project', 'get_project_mix',
         'get_project_score', 'gpu_status', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'resume_job',
-        'runtime_status', 'start_batch', 'start_song', 'update_project', 'use_project_generation',
+        'runtime_status', 'start_batch', 'start_song', 'update_project', 'update_project_mix', 'use_project_generation',
         'use_project_mix', 'use_project_score', 'use_project_separation']);
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
     assert.equal(status.isError, undefined);
@@ -100,7 +100,23 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(versionList.generations[0].audioPath, 'generations/gen-001/audio.wav');
     const openedMix = await client.callTool({ name: 'get_project_mix', arguments: { projectId: 'project-001' } });
     assert.equal(openedMix.isError, undefined);
-    assert.equal(JSON.parse(openedMix.content[0].text).mix.tracks[0].name, 'Piano');
+    const mixState = JSON.parse(openedMix.content[0].text);
+    assert.equal(mixState.mix.tracks[0].name, 'Piano');
+    assert.match(mixState.mixRevision, /^[a-f0-9]{64}$/);
+    const changedMix = await client.callTool({ name: 'update_project_mix', arguments: {
+      projectId: 'project-001', expectedMixRevision: mixState.mixRevision,
+      masterGainDb: -2, tracks: [{ id: 'piano', gainDb: -3, pan: 0.25, mute: true }],
+    } });
+    assert.equal(changedMix.isError, undefined);
+    const changedMixState = JSON.parse(changedMix.content[0].text);
+    assert.equal(changedMixState.mix.masterGainDb, -2);
+    assert.equal(changedMixState.mix.tracks[0].gainDb, -3);
+    assert.equal(changedMixState.mix.tracks[0].pan, 0.25);
+    assert.equal(changedMixState.mix.tracks[0].mute, true);
+    const staleMix = await client.callTool({ name: 'update_project_mix', arguments: {
+      projectId: 'project-001', expectedMixRevision: mixState.mixRevision, tracks: [{ id: 'piano', solo: true }],
+    } });
+    assert.equal(staleMix.isError, true);
     const openedScore = await client.callTool({ name: 'get_project_score', arguments: { projectId: 'project-001' } });
     assert.equal(openedScore.isError, undefined);
     assert.equal(JSON.parse(openedScore.content[0].text).score.voices[0].notes[0].pitch, 60);

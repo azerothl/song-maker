@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
+import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
 import { exportProjectAudio } from './project-audio.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
@@ -100,10 +100,31 @@ server.registerTool('use_project_score', {
 }, call(async args => useProjectScore(args)));
 
 server.registerTool('get_project_mix', {
-  description: 'Lit le mix actif ou une version de mix sauvegardée du profil actif, avec pistes, clips et réglages. Les chemins locaux de fichiers VST et les états propriétaires des plugins sont masqués ; les chemins de sources audio hors du projet sont masqués. Ne modifie ni ne rend le mix.',
+  description: 'Lit le mix actif ou une version de mix sauvegardée du profil actif, avec pistes, clips et réglages. Retourne mixRevision pour sécuriser une modification. Les chemins locaux de fichiers VST et les états propriétaires des plugins sont masqués ; les chemins de sources audio hors du projet sont masqués. Ne modifie ni ne rend le mix.',
   inputSchema: { projectId: z.string().min(1).max(128), mixId: z.string().regex(/^mix-v[0-9]+$/).optional() },
   annotations: { readOnlyHint: true },
 }, call(async args => getProjectMix(args)));
+
+server.registerTool('update_project_mix', {
+  description: 'Modifie les niveaux master et de piste, le panoramique, mute et solo du mix actif. Passe mixRevision obtenu par get_project_mix ; l’outil refuse les changements périmés et ne rend pas l’audio.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    mixId: z.string().regex(/^mix-v[0-9]+$/).optional(),
+    expectedMixRevision: z.string().regex(/^[a-f0-9]{64}$/),
+    masterGainDb: z.number().finite().min(-24).max(12).optional(),
+    tracks: z.array(z.object({
+      id: z.string().min(1).max(128),
+      gainDb: z.number().finite().min(-24).max(12).optional(),
+      pan: z.number().finite().min(-1).max(1).optional(),
+      mute: z.boolean().optional(),
+      solo: z.boolean().optional(),
+    }).strict().refine(track => track.gainDb !== undefined || track.pan !== undefined ||
+      track.mute !== undefined || track.solo !== undefined, {
+      message: 'Chaque piste doit contenir au moins un réglage.',
+    })).max(256).optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => updateProjectMix(args)));
 
 server.registerTool('get_project_score', {
   description: 'Lit la partition active ou une version sauvegardée d’un projet du profil actif, avec ses voix et notes. Ne modifie ni ne convertit la partition.',
