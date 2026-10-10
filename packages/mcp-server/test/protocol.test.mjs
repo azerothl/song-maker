@@ -351,8 +351,15 @@ test('MCP exposes the headless tools over stdio', async () => {
       mkdir(mixesFolder, { recursive: true }),
       mkdir(scoresFolder, { recursive: true }),
     ]);
+    const separatedStem = smallPcmWav();
+    const separatedStemHash = createHash('sha256').update(separatedStem).digest('hex');
     await writeFile(path.join(separationFolder, 'separation.json'), JSON.stringify({
-      schema: 'songmaker.separation', schemaVersion: 1, generationId, family: 'htdemucs',
+      schema: 'songmaker.separation', schemaVersion: 1, id: 'sep-001', generationId, family: 'htdemucs',
+      stems: [{ role: 'vocals', path: 'vocals-48000.wav', sha256: separatedStemHash }],
+    }));
+    await writeFile(path.join(separationFolder, 'vocals-48000.wav'), separatedStem);
+    await writeFile(path.join(separationFolder, 'job.json'), JSON.stringify({
+      id: 'sep-001', projectId: createdProject.id, generationId, kind: 'separation', state: 'completed',
     }));
     await writeFile(path.join(mixesFolder, 'mix-v001.json'), JSON.stringify({
       schema: 'songmaker.mix', schemaVersion: 1, id: 'mix-v001', separationId: 'sep-001', tracks: [],
@@ -371,6 +378,21 @@ test('MCP exposes the headless tools over stdio', async () => {
     const separatedProject = JSON.parse(selectedSeparation.content[0].text).project;
     assert.equal(separatedProject.activeSeparationId, 'sep-001');
     assert.equal(separatedProject.activeMixId, 'mix-v001');
+    const exportedStems = await client.callTool({ name: 'export_project_stems', arguments: {
+      projectId: createdProject.id, separationId: 'sep-001', outputDirectory: exportDirectory,
+      roles: ['vocals'],
+    } });
+    assert.equal(exportedStems.isError, undefined, exportedStems.content?.[0]?.text);
+    const exportedStemState = JSON.parse(exportedStems.content[0].text);
+    assert.equal(exportedStemState.separationId, 'sep-001');
+    assert.deepEqual(exportedStemState.files.map(file => file.role), ['vocals']);
+    assert.equal(exportedStemState.files[0].sha256, separatedStemHash);
+    assert.deepEqual(await readFile(exportedStemState.files[0].path), separatedStem);
+    const duplicateStemExport = await client.callTool({ name: 'export_project_stems', arguments: {
+      projectId: createdProject.id, separationId: 'sep-001', outputDirectory: exportDirectory,
+      roles: ['vocals'],
+    } });
+    assert.equal(duplicateStemExport.isError, true);
     const staleMixSelection = await client.callTool({ name: 'use_project_mix', arguments: {
       projectId: createdProject.id, mixId: 'mix-v002', expectedUpdatedAt: selectedProject.updatedAt,
     } });
