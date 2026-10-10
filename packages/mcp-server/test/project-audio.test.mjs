@@ -67,6 +67,37 @@ test('project audio export copies a finished profile WAV into the workspace with
     assert.equal(exported.audio.channels, 2);
     assert.deepEqual(await readFile(exported.path), wav);
 
+    const wav24 = await exportProjectAudio({
+      projectId: project.id, generationId: 'gen-7', outputDirectory: 'exports',
+      format: 'wav', bitDepth: 24, fileName: 'master-24.wav', workspace, env,
+    });
+    assert.equal(wav24.delivery.bitDepth, 24);
+    assert.equal((await inspectWav(wav24.path)).bitDepth, 24);
+
+    const flac = await exportProjectAudio({
+      projectId: project.id, generationId: 'gen-7', outputDirectory: 'exports',
+      format: 'flac', bitDepth: 16, fileName: 'master.flac', workspace, env,
+    });
+    assert.equal(flac.format, 'flac');
+    assert.equal(flac.delivery.bitDepth, 16);
+    assert.equal((await readFile(flac.path)).subarray(0, 4).toString('ascii'), 'fLaC');
+
+    const mp3 = await exportProjectAudio({
+      projectId: project.id, generationId: 'gen-7', outputDirectory: 'exports',
+      format: 'mp3', bitrateKbps: 192, fileName: 'master.mp3', workspace, env,
+    });
+    assert.equal(mp3.format, 'mp3');
+    assert.equal(mp3.delivery.bitrateKbps, 192);
+    assert.ok(mp3.bytes > 0);
+    await assert.rejects(exportProjectAudio({
+      projectId: project.id, generationId: 'gen-7', outputDirectory: 'exports',
+      format: 'flac', fileName: 'wrong.wav', workspace, env,
+    }), /nom de fichier FLAC simple/);
+    await assert.rejects(exportProjectAudio({
+      projectId: project.id, generationId: 'gen-7', outputDirectory: 'exports',
+      format: 'wav', bitrateKbps: 192, workspace, env,
+    }), /bitrateKbps ne s’applique qu’au format MP3/);
+
     await assert.rejects(exportProjectAudio({
       projectId: project.id,
       generationId: 'gen-7',

@@ -31,7 +31,7 @@ function ffmpegCandidates(env) {
   return [...new Set([...absoluteCandidates, process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'])];
 }
 
-async function resolveFfmpeg(env) {
+export async function resolveFfmpeg(env) {
   for (const candidate of ffmpegCandidates(env)) {
     if (path.isAbsolute(candidate)) {
       try {

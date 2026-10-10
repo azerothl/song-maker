@@ -200,12 +200,15 @@ server.registerTool('edit_project_score', {
 }, call(async args => editProjectScore(args)));
 
 server.registerTool('export_project_audio', {
-  description: 'Copie le WAV d’une génération terminée depuis le projet du profil Song Maker actif vers le workspace MCP. Vérifie le WAV et ne remplace jamais un fichier existant. Ne rend pas le mix et ne convertit pas en FLAC/MP3.',
+  description: 'Exporte le WAV d’une génération terminée depuis le projet du profil Song Maker actif vers le workspace MCP. WAV conserve la source par défaut ; WAV et FLAC acceptent une profondeur de 16 ou 24 bits, MP3 un débit de 128, 192 ou 320 kbit/s. Les conversions nécessitent FFmpeg. Vérifie le résultat et ne remplace jamais un fichier existant. N’exporte pas le mix actif.',
   inputSchema: {
     projectId: z.string().min(1).max(128),
     generationId: z.string().regex(/^gen-[0-9]+$/),
     outputDirectory: z.string().min(1),
+    format: z.enum(['wav', 'flac', 'mp3']).optional(),
     fileName: z.string().min(1).max(180).optional(),
+    bitDepth: z.union([z.literal(16), z.literal(24)]).optional(),
+    bitrateKbps: z.union([z.literal(128), z.literal(192), z.literal(320)]).optional(),
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => exportProjectAudio(args)));

@@ -257,6 +257,15 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(exportResult.format, 'wav');
     assert.equal(exportResult.audio.sampleRateHz, 48_000);
     assert.deepEqual(await readFile(exportResult.path), smallPcmWav());
+    const exportedFlac = await client.callTool({ name: 'export_project_audio', arguments: {
+      projectId: 'project-001', generationId: 'gen-001', outputDirectory: exportDirectory,
+      format: 'flac', bitDepth: 16, fileName: 'protocol-export.flac',
+    } });
+    assert.equal(exportedFlac.isError, undefined, exportedFlac.content?.[0]?.text);
+    const flacResult = JSON.parse(exportedFlac.content[0].text);
+    assert.equal(flacResult.format, 'flac');
+    assert.equal(flacResult.delivery.bitDepth, 16);
+    assert.equal((await readFile(flacResult.path)).subarray(0, 4).toString('ascii'), 'fLaC');
     const invalid = await client.callTool({ name: 'get_project', arguments: { projectId: '../outside' } });
     assert.equal(invalid.isError, true);
     const created = await client.callTool({ name: 'create_project', arguments: { title: 'MCP created' } });
