@@ -266,7 +266,9 @@ mod tests {
 
         let next = next_library_revision(Some(previous), now);
 
-        assert_eq!(next.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-            "2026-10-10T01:02:03.636Z");
+        assert_eq!(
+            next.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            "2026-10-10T01:02:03.636Z"
+        );
     }
 }
