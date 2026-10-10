@@ -713,6 +713,71 @@ export async function useProjectGeneration({
   return { profileId: store.profileId, project: updated };
 }
 
+/** Rename a generation in the active profile's project metadata. */
+export async function renameProjectGeneration({
+  projectId, generationId, name, expectedUpdatedAt, env = process.env,
+} = {}) {
+  if (typeof projectId !== 'string') throw new Error('Identifiant de projet requis.');
+  if (typeof generationId !== 'string' || !GENERATION_ID_PATTERN.test(generationId)) {
+    throw new Error('Identifiant de prise invalide.');
+  }
+  if (typeof name !== 'string') throw new Error('Le nom de la prise doit être une chaîne.');
+  if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt.trim()) {
+    throw new Error('expectedUpdatedAt est requis : relis le projet avant de renommer une prise.');
+  }
+
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  if (project.schema !== 'songmaker.project' || project.schemaVersion !== 1) {
+    throw new Error('Version de projet non prise en charge ; aucune modification effectuée.');
+  }
+  if (project.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+  const generations = await projectSubdirectory(canonicalFolder, 'generations');
+  if (!generations) throw new Error(`Génération introuvable : ${generationId}`);
+  const generationFolder = path.join(generations, generationId);
+  const generationInfo = await lstat(generationFolder).catch(error => {
+    if (error?.code === 'ENOENT') throw new Error(`Génération introuvable : ${generationId}`);
+    throw error;
+  });
+  const canonicalGeneration = await realpath(generationFolder);
+  if (generationInfo.isSymbolicLink() || !generationInfo.isDirectory() ||
+      !isWithin(generations, canonicalGeneration)) {
+    throw new Error('Le dossier de la génération est invalide ou se trouve hors du projet.');
+  }
+  const request = await readJsonInside(canonicalGeneration, 'request.json', 'request.json');
+  if (!request || request.id !== generationId) throw new Error(`Génération introuvable ou invalide : ${generationId}`);
+
+  const latest = await readProjectAt(store.root, projectId);
+  if (latest.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+  const generationNames = latest.generationNames && typeof latest.generationNames === 'object' &&
+    !Array.isArray(latest.generationNames) ? { ...latest.generationNames } : {};
+  const trimmed = name.trim();
+  if (trimmed) generationNames[generationId] = trimmed;
+  else delete generationNames[generationId];
+
+  const previous = Date.parse(latest.updatedAt);
+  const now = Date.now();
+  const updated = {
+    ...latest,
+    generationNames,
+    updatedAt: new Date(Number.isFinite(previous) && now <= previous ? previous + 1 : now).toISOString(),
+  };
+  await writeProjectAtomically(canonicalFolder, updated);
+  return { profileId: store.profileId, project: updated };
+}
+
 /** Activate a saved separation and its associated initial mix. */
 export async function useProjectSeparation({
   projectId, separationId, expectedUpdatedAt, env = process.env,

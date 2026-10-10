@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
+import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
 import { exportProjectAudio } from './project-audio.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
@@ -57,6 +57,17 @@ server.registerTool('use_project_generation', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => useProjectGeneration(args)));
+
+server.registerTool('rename_project_generation', {
+  description: 'Renomme une prise du projet ou retire son nom personnalisé si name est vide. Relis le projet et passe son updatedAt comme expectedUpdatedAt ; aucun fichier audio n’est modifié.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().regex(/^gen-[0-9]+$/),
+    name: z.string().max(500),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => renameProjectGeneration(args)));
 
 server.registerTool('use_project_separation', {
   description: 'Active une séparation sauvegardée et son mix associé, selon le comportement des versions dans Song Maker. Relis le projet et passe son updatedAt comme expectedUpdatedAt. Ne relance pas la séparation et ne supprime aucun artefact.',

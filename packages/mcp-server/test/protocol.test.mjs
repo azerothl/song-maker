@@ -76,7 +76,7 @@ test('MCP exposes the headless tools over stdio', async () => {
       ['add_library_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project',
         'delete_playlist', 'delete_project', 'export_project_audio', 'get_project', 'get_project_mix',
         'get_project_score', 'gpu_status', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
-        'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'resume_job',
+        'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'resume_job',
         'runtime_status', 'start_batch', 'start_song', 'update_project', 'use_project_generation',
         'use_project_mix', 'use_project_score', 'use_project_separation']);
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
@@ -150,6 +150,18 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(selectedProject.activeGenerationId, generationId);
     assert.equal(selectedProject.activeSeparationId, null);
     assert.equal(selectedProject.activeMixId, null);
+    const renamedGeneration = await client.callTool({ name: 'rename_project_generation', arguments: {
+      projectId: createdProject.id, generationId, name: '  Prise retenue  ',
+      expectedUpdatedAt: selectedProject.updatedAt,
+    } });
+    assert.equal(renamedGeneration.isError, undefined);
+    const namedProject = JSON.parse(renamedGeneration.content[0].text).project;
+    assert.equal(namedProject.generationNames[generationId], 'Prise retenue');
+    const staleGenerationRename = await client.callTool({ name: 'rename_project_generation', arguments: {
+      projectId: createdProject.id, generationId, name: 'Ancienne révision',
+      expectedUpdatedAt: selectedProject.updatedAt,
+    } });
+    assert.equal(staleGenerationRename.isError, true);
     const createdProjectFolder = path.resolve(generationFolder, '..', '..');
     const separationFolder = path.join(createdProjectFolder, 'separations', 'sep-001');
     const mixesFolder = path.join(createdProjectFolder, 'mixes');
@@ -173,7 +185,7 @@ test('MCP exposes the headless tools over stdio', async () => {
       schema: 'songmaker.score', schemaVersion: 1, id: 'score-v001', voices: [],
     }));
     const selectedSeparation = await client.callTool({ name: 'use_project_separation', arguments: {
-      projectId: createdProject.id, separationId: 'sep-001', expectedUpdatedAt: selectedProject.updatedAt,
+      projectId: createdProject.id, separationId: 'sep-001', expectedUpdatedAt: namedProject.updatedAt,
     } });
     assert.equal(selectedSeparation.isError, undefined);
     const separatedProject = JSON.parse(selectedSeparation.content[0].text).project;
