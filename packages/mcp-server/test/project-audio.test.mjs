@@ -31,6 +31,30 @@ function smallPcmWav() {
   return wav;
 }
 
+function smallExtensiblePcmWav() {
+  const pcm = smallPcmWav();
+  const data = pcm.subarray(44);
+  const wav = Buffer.alloc(68 + data.length);
+  wav.write('RIFF', 0, 'ascii');
+  wav.writeUInt32LE(wav.length - 8, 4);
+  wav.write('WAVEfmt ', 8, 'ascii');
+  wav.writeUInt32LE(40, 16);
+  wav.writeUInt16LE(0xfffe, 20);
+  wav.writeUInt16LE(2, 22);
+  wav.writeUInt32LE(48_000, 24);
+  wav.writeUInt32LE(192_000, 28);
+  wav.writeUInt16LE(4, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.writeUInt16LE(22, 36);
+  wav.writeUInt16LE(16, 38);
+  wav.writeUInt32LE(3, 40);
+  Buffer.from('0100000000001000800000aa00389b71', 'hex').copy(wav, 44);
+  wav.write('data', 60, 'ascii');
+  wav.writeUInt32LE(data.length, 64);
+  data.copy(wav, 68);
+  return wav;
+}
+
 test('project mix render applies saved clip placement and exports a non-overwriting stereo WAV', async () => {
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-mix-render-'));
   const workspace = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-mix-workspace-'));
@@ -92,6 +116,16 @@ test('project mix render applies saved clip placement and exports a non-overwrit
       projectId: project.id, outputDirectory: 'exports', fileName: 'offline-render-fx.wav', workspace, env,
     });
     assert.equal(renderedWithEffects.render.path, 'production');
+
+    const extensibleWav = smallExtensiblePcmWav();
+    await writeFile(path.join(normalizedDirectory, 'clip.wav'), extensibleWav);
+    mix.tracks[0].clips[0].sourceSha256 = createHash('sha256').update(extensibleWav).digest('hex');
+    await writeFile(path.join(projectFolder, 'mixes', `${mix.id}.json`), JSON.stringify(mix));
+    const renderedExtensible = await renderProjectMix({
+      projectId: project.id, outputDirectory: 'exports', fileName: 'offline-render-extensible.wav', workspace, env,
+    });
+    assert.equal(renderedExtensible.render.clipCount, 1);
+    assert.equal(renderedExtensible.audio.channels, 2);
 
     mix.vst3MasterInsert = { enabled: true, pluginPath: 'C:/private/plugin.vst3', parameters: {} };
     await writeFile(path.join(projectFolder, 'mixes', `${mix.id}.json`), JSON.stringify(mix));

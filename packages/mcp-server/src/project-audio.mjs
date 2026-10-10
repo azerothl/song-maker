@@ -311,6 +311,17 @@ function decodePcmWav(bytes, expectedSampleRate) {
       byteRate = bytes.readUInt32LE(start + 8);
       blockAlign = bytes.readUInt16LE(start + 12);
       bitsPerSample = bytes.readUInt16LE(start + 14);
+      if (format === 0xfffe) {
+        const extensionSize = length >= 18 ? bytes.readUInt16LE(start + 16) : 0;
+        const validBitsPerSample = length >= 20 ? bytes.readUInt16LE(start + 18) : 0;
+        const subFormatOffset = start + 24;
+        const subFormatTail = Buffer.from('00001000800000aa00389b71', 'hex');
+        if (extensionSize < 22 || length < 40 || validBitsPerSample !== bitsPerSample ||
+            !bytes.subarray(subFormatOffset + 4, subFormatOffset + 16).equals(subFormatTail)) {
+          throw new Error('Le WAV extensible du projet doit déclarer un format PCM ou float32 standard.');
+        }
+        format = bytes.readUInt32LE(subFormatOffset);
+      }
     } else if (id === 'data') {
       dataOffset = start;
       dataLength = length;
