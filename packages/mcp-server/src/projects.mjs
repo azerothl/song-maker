@@ -213,6 +213,41 @@ function validateTitle(title) {
   return value;
 }
 
+function validateDraftProject(project) {
+  validateTitle(project.title);
+  if (!['full', 'melody', 'off'].includes(project.cot)) {
+    throw new Error('cot doit être full, melody ou off.');
+  }
+  const duration = project.targetDurationSec;
+  if (!Number.isInteger(duration) || duration < 30 || duration > 360 || duration % 30 !== 0) {
+    throw new Error('Durée cible : 30 à 360 s, par pas de 30.');
+  }
+  if (typeof project.lyrics !== 'string' || [...project.lyrics].length > 4000) {
+    throw new Error('Les paroles sont limitées à 4000 caractères.');
+  }
+  if (!project.instrumentalMode && typeof project.singingLanguage === 'string' &&
+      project.singingLanguage.trim() && [...project.singingLanguage.trim()].length > 40) {
+    throw new Error('Langue du chant : 1 à 40 caractères.');
+  }
+  if (project.tempoBpm !== null && project.tempoBpm !== undefined &&
+      (!Number.isInteger(project.tempoBpm) || project.tempoBpm < 40 || project.tempoBpm > 220)) {
+    throw new Error('Tempo : entier 40 à 220.');
+  }
+  if (project.key !== null && project.key !== undefined) {
+    if (!['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'].includes(project.key.tonic)) {
+      throw new Error(`Tonique invalide : ${project.key.tonic}`);
+    }
+    if (project.key.mode !== 'major' && project.key.mode !== 'minor') {
+      throw new Error('Mode invalide (major|minor).');
+    }
+  }
+  if (project.meter !== null && project.meter !== undefined &&
+      ![[4, 4], [3, 4], [6, 8], [2, 4]].some(([numerator, denominator]) =>
+        project.meter.numerator === numerator && project.meter.denominator === denominator)) {
+    throw new Error('Métrique autorisée : 4/4, 3/4, 6/8, 2/4.');
+  }
+}
+
 async function writeProjectAtomically(folder, project) {
   const file = path.join(folder, 'project.json');
   const temp = path.join(folder, `.project-${randomUUID()}.tmp`);
@@ -300,6 +335,69 @@ export async function renameProject({ projectId, title, expectedUpdatedAt, env =
   const previous = Date.parse(project.updatedAt);
   const updatedAt = new Date(Number.isFinite(previous) && now <= previous ? previous + 1 : now).toISOString();
   const updated = { ...project, title: cleanTitle, updatedAt };
+  await writeProjectAtomically(canonicalFolder, updated);
+  return { profileId: store.profileId, project: updated };
+}
+
+export async function updateProject({ projectId, expectedUpdatedAt, env = process.env, ...changes } = {}) {
+  if (typeof projectId !== 'string') throw new Error('Identifiant de projet requis.');
+  if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt.trim()) {
+    throw new Error('expectedUpdatedAt est requis : relis le projet avant de le modifier.');
+  }
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  if (project.schema !== 'songmaker.project' || project.schemaVersion !== 1) {
+    throw new Error('Version de projet non prise en charge ; aucune modification effectuée.');
+  }
+  if (project.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+
+  const updated = { ...project };
+  if (Object.hasOwn(changes, 'title')) updated.title = validateTitle(changes.title);
+  if (Object.hasOwn(changes, 'style')) {
+    if (typeof changes.style !== 'string') throw new Error('style doit être une chaîne.');
+    updated.style = changes.style.trim();
+  }
+  if (Object.hasOwn(changes, 'lyrics')) updated.lyrics = changes.lyrics;
+  if (Object.hasOwn(changes, 'cot')) updated.cot = changes.cot;
+  if (Object.hasOwn(changes, 'targetDurationSec')) updated.targetDurationSec = changes.targetDurationSec;
+  if (Object.hasOwn(changes, 'preferFullLyrics')) updated.preferFullLyrics = changes.preferFullLyrics;
+  if (Object.hasOwn(changes, 'instrumentalMode')) updated.instrumentalMode = changes.instrumentalMode;
+  if (Object.hasOwn(changes, 'singingLanguage')) {
+    if (changes.singingLanguage === null || changes.singingLanguage.trim() === '') delete updated.singingLanguage;
+    else updated.singingLanguage = changes.singingLanguage.trim();
+  }
+  if (Object.hasOwn(changes, 'tempoBpm')) {
+    if (changes.tempoBpm === null) delete updated.tempoBpm;
+    else updated.tempoBpm = changes.tempoBpm;
+  }
+  if (Object.hasOwn(changes, 'key')) {
+    if (changes.key === null) delete updated.key;
+    else updated.key = changes.key;
+  }
+  if (Object.hasOwn(changes, 'meter')) {
+    if (changes.meter === null) delete updated.meter;
+    else updated.meter = changes.meter;
+  }
+
+  updated.lyrics ??= '';
+  updated.cot ??= 'full';
+  updated.targetDurationSec ??= 180;
+  updated.preferFullLyrics ??= true;
+  updated.instrumentalMode ??= false;
+  updated.style ??= '';
+  validateDraftProject(updated);
+
+  const folder = path.join(store.root, projectId);
+  const canonicalRoot = await realpath(store.root);
+  const canonicalFolder = await realpath(folder);
+  if (!isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet se trouve hors du profil Song Maker actif.');
+  }
+  const now = Date.now();
+  const previous = Date.parse(project.updatedAt);
+  updated.updatedAt = new Date(Number.isFinite(previous) && now <= previous ? previous + 1 : now).toISOString();
   await writeProjectAtomically(canonicalFolder, updated);
   return { profileId: store.profileId, project: updated };
 }

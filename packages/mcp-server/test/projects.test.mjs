@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createProject, getProject, listProjects, renameProject } from '../src/projects.mjs';
+import { createProject, getProject, listProjects, renameProject, updateProject } from '../src/projects.mjs';
 
 test('project tools read the active profile and hide lyrics from list results', async () => {
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-projects-'));
@@ -74,11 +74,30 @@ test('MCP project creation and rename follow Song Maker title and stale-write ru
     });
     assert.equal(renamed.project.title, 'Renamed');
     assert.notEqual(renamed.project.updatedAt, created.project.updatedAt);
+
+    const updated = await updateProject({
+      projectId: created.project.id,
+      expectedUpdatedAt: renamed.project.updatedAt,
+      style: '  Dream pop  ', lyrics: 'A quiet night', cot: 'melody',
+      targetDurationSec: 210, tempoBpm: 112,
+      key: { tonic: 'Ab', mode: 'minor' }, meter: { numerator: 6, denominator: 8 }, env,
+    });
+    assert.equal(updated.project.title, 'Renamed');
+    assert.equal(updated.project.style, 'Dream pop');
+    assert.equal(updated.project.lyrics, 'A quiet night');
+    assert.equal(updated.project.cot, 'melody');
+    assert.equal(updated.project.targetDurationSec, 210);
+    assert.deepEqual(updated.project.key, { tonic: 'Ab', mode: 'minor' });
+    await assert.rejects(updateProject({
+      projectId: created.project.id, expectedUpdatedAt: updated.project.updatedAt,
+      meter: { numerator: 5, denominator: 4 }, env,
+    }), /Métrique autorisée/);
     await assert.rejects(renameProject({
       projectId: created.project.id, title: 'Stale write',
-      expectedUpdatedAt: created.project.updatedAt, env,
+      expectedUpdatedAt: renamed.project.updatedAt, env,
     }), /projet a changé/);
     assert.equal((await getProject({ projectId: created.project.id, env })).project.title, 'Renamed');
+    assert.equal((await getProject({ projectId: created.project.id, env })).project.style, 'Dream pop');
   } finally {
     await rm(documentsRoot, { recursive: true, force: true });
   }

@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { createProject, getProject, listProjects, renameProject } from './projects.mjs';
+import { createProject, getProject, listProjects, renameProject, updateProject } from './projects.mjs';
 
 const server = new McpServer({ name: 'song-maker-yue2', version: '0.1.0' });
 const reply = value => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
@@ -52,6 +52,31 @@ server.registerTool('rename_project', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => renameProject(args)));
+
+server.registerTool('update_project', {
+  description: 'Met à jour les champs fournis du formulaire d’un projet Song Maker. Relis d’abord le projet et passe son updatedAt comme expectedUpdatedAt. Les règles de validation du formulaire sont appliquées avant sauvegarde.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().min(1).max(80),
+    title: z.string().min(1).max(120).optional(),
+    style: z.string().optional(),
+    lyrics: z.string().max(4000).optional(),
+    cot: z.enum(['full', 'melody', 'off']).optional(),
+    singingLanguage: z.string().max(4000).nullable().optional(),
+    tempoBpm: z.number().int().min(40).max(220).nullable().optional(),
+    key: z.object({
+      tonic: z.enum(['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']),
+      mode: z.enum(['major', 'minor']),
+    }).nullable().optional(),
+    meter: z.object({
+      numerator: z.number().int(), denominator: z.number().int(),
+    }).nullable().optional(),
+    targetDurationSec: z.number().int().min(30).max(360).refine(value => value % 30 === 0).optional(),
+    preferFullLyrics: z.boolean().optional(),
+    instrumentalMode: z.boolean().optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => updateProject(args)));
 
 server.registerTool('start_song', {
   description: 'Lance une génération YuE2 locale en arrière-plan et retourne un job ID. La sortie WAV reste dans le workspace autorisé. Ne publie rien.',

@@ -29,7 +29,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
       ['cancel_job', 'create_project', 'get_project', 'gpu_status', 'job_status', 'list_projects',
-        'rename_project', 'resume_job', 'runtime_status', 'start_batch', 'start_song']);
+        'rename_project', 'resume_job', 'runtime_status', 'start_batch', 'start_song', 'update_project']);
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
     assert.equal(status.isError, undefined);
     assert.equal(typeof JSON.parse(status.content[0].text).ready, 'boolean');
@@ -52,7 +52,14 @@ test('MCP exposes the headless tools over stdio', async () => {
       projectId: createdProject.id, title: 'MCP renamed', expectedUpdatedAt: createdProject.updatedAt,
     } });
     assert.equal(renamed.isError, undefined);
-    assert.equal(JSON.parse(renamed.content[0].text).project.title, 'MCP renamed');
+    const renamedProject = JSON.parse(renamed.content[0].text).project;
+    assert.equal(renamedProject.title, 'MCP renamed');
+    const updated = await client.callTool({ name: 'update_project', arguments: {
+      projectId: createdProject.id, expectedUpdatedAt: renamedProject.updatedAt,
+      style: 'Ambient piano', lyrics: 'A small beginning', cot: 'melody', tempoBpm: 88,
+    } });
+    assert.equal(updated.isError, undefined);
+    assert.equal(JSON.parse(updated.content[0].text).project.style, 'Ambient piano');
   } finally {
     await client.close();
     await rm(documentsRoot, { recursive: true, force: true });
