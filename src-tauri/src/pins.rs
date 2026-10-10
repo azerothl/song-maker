@@ -222,8 +222,8 @@ pub const DURATION_SEC_DEFAULT: u32 = 180;
 
 const YUE2_ABC_MIN_TOKENS: u32 = 1_024;
 const YUE2_ABC_MAX_TOKENS: u32 = 4_096;
-const YUE2_ABC_TOKENS_PER_SECOND: u32 = 16;
-const YUE2_ABC_TOKEN_HEADROOM: u32 = 512;
+const YUE2_ABC_TOKENS_PER_SECOND: u32 = 6;
+const YUE2_ABC_TOKEN_HEADROOM: u32 = 256;
 
 pub fn default_target_duration_sec() -> u32 {
     DURATION_SEC_DEFAULT
@@ -237,7 +237,7 @@ pub fn normalize_target_duration_sec(sec: u32) -> u32 {
 }
 
 /// YuE samples 25 semantic frames per second. In lyrics-first mode the target
-/// is a minimum; max tokens gets a conservative lyric estimate plus headroom.
+/// is a minimum; max tokens follows the larger of the target and lyric estimate.
 pub fn semantic_token_budget(sec: u32, lyrics: &str, prefer_full_lyrics: bool) -> (u32, u32) {
     let target_sec = normalize_target_duration_sec(sec);
     let target_tokens = target_sec.saturating_mul(SEMANTIC_HZ);
@@ -256,9 +256,8 @@ pub fn semantic_token_budget(sec: u32, lyrics: &str, prefer_full_lyrics: bool) -
     // musical space. Real vocal pacing varies and the old 80 wpm estimate cut
     // off a full test verse before its final lines.
     let lyric_estimate_sec = lyric_words.saturating_add(30);
-    let target_with_headroom = target_sec.saturating_add((target_sec / 4).max(DURATION_SEC_STEP));
     let max_sec = lyric_estimate_sec
-        .max(target_with_headroom)
+        .max(target_sec)
         .min(SEMANTIC_MAX_DURATION_SEC);
     let max_sec = max_sec.div_ceil(DURATION_SEC_STEP) * DURATION_SEC_STEP;
     (
@@ -267,10 +266,9 @@ pub fn semantic_token_budget(sec: u32, lyrics: &str, prefer_full_lyrics: bool) -
     )
 }
 
-/// Bound the score-planning window by the expected audio duration. audio.cpp
-/// defaults this stage to 4096 tokens even for short tracks, which reserves a
-/// much larger AR prefill graph than the request needs. Keep generous headroom
-/// and retain the engine ceiling for long, lyric-heavy generations.
+/// Bound the score-planning window by the expected audio duration. The score is
+/// part of the later AR conditioning prefix, so its cap must leave room for the
+/// semantic audio tokens in the same prefill graph.
 pub fn yue2_abc_token_budget(semantic_max_tokens: u32) -> u32 {
     let planned_duration_sec = semantic_max_tokens.div_ceil(SEMANTIC_HZ);
     planned_duration_sec
@@ -324,8 +322,17 @@ mod semantic_budget_tests {
     #[test]
     fn abc_budget_scales_with_short_duration_and_keeps_long_headroom() {
         assert_eq!(yue2_abc_token_budget(750), 1_024);
-        assert_eq!(yue2_abc_token_budget(1_500), 1_472);
-        assert_eq!(yue2_abc_token_budget(3_000), 2_432);
-        assert_eq!(yue2_abc_token_budget(5_625), 4_096);
+        assert_eq!(yue2_abc_token_budget(1_500), 1_024);
+        assert_eq!(yue2_abc_token_budget(3_000), 1_024);
+        assert_eq!(yue2_abc_token_budget(3_750), 1_156);
+        assert_eq!(yue2_abc_token_budget(5_625), 1_606);
+    }
+
+    #[test]
+    fn short_lyrics_do_not_add_unrequested_duration_headroom() {
+        assert_eq!(
+            semantic_token_budget(120, "short test lyric", true),
+            (3_000, 3_000)
+        );
     }
 }
