@@ -103,6 +103,7 @@ pub fn backend_info() -> NativeCaptureBackend {
     }
 }
 
+#[cfg(windows)]
 fn wasapi_exclusive_period_hns(minimum_period: i64) -> Option<i64> {
     (minimum_period > 0).then_some(minimum_period)
 }
@@ -978,6 +979,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
     fn wasapi_exclusive_uses_the_minimum_device_period() {
         assert_eq!(wasapi_exclusive_period_hns(100_000), Some(100_000));
         assert_eq!(wasapi_exclusive_period_hns(0), None);
