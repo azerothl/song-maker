@@ -106,7 +106,7 @@ server.registerTool('get_project_mix', {
 }, call(async args => getProjectMix(args)));
 
 server.registerTool('update_project_mix', {
-  description: 'Modifie les niveaux master et de piste, le panoramique, mute et solo du mix actif. Passe mixRevision obtenu par get_project_mix ; l’outil refuse les changements périmés et ne rend pas l’audio.',
+  description: 'Modifie les niveaux master et de piste, le panoramique, mute, solo, la carte de tempo et les repères de sections du mix actif. Passe mixRevision obtenu par get_project_mix ; l’outil refuse les changements périmés et ne déplace pas les clips ni ne rend l’audio.',
   inputSchema: {
     projectId: z.string().min(1).max(128),
     mixId: z.string().regex(/^mix-v[0-9]+$/).optional(),
@@ -122,6 +122,16 @@ server.registerTool('update_project_mix', {
       track.mute !== undefined || track.solo !== undefined, {
       message: 'Chaque piste doit contenir au moins un réglage.',
     })).max(256).optional(),
+    tempoMap: z.array(z.object({
+      startMs: z.number().int().safe().min(0),
+      quarterBpm: z.number().int().min(1).max(400),
+    }).strict()).min(1).max(512).optional(),
+    markers: z.array(z.object({
+      id: z.string().trim().min(1).max(128),
+      name: z.string().trim().min(1).max(120),
+      kind: z.enum(['intro', 'verse', 'prechorus', 'chorus', 'bridge', 'interlude', 'outro', 'other']),
+      startMs: z.number().int().safe().min(0),
+    }).strict()).max(512).optional(),
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => updateProjectMix(args)));

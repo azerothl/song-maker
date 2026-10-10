@@ -285,8 +285,38 @@ test('MCP updates active mix levels and track controls with a current mix revisi
     const stored = JSON.parse(await readFile(mixPath, 'utf8'));
     assert.equal(stored.vst3MasterInsert.pluginPath, 'C:/private/plugin.vst3');
 
-    const midi = await updateProjectMix({
+    const arranged = await updateProjectMix({
       projectId: 'project-mix', expectedMixRevision: updated.mixRevision,
+      tempoMap: [{ startMs: 2400, quarterBpm: 96 }, { startMs: 0, quarterBpm: 120 }],
+      markers: [
+        { id: 'chorus-1', name: 'Refrain', kind: 'chorus', startMs: 2400 },
+        { id: 'intro', name: 'Intro', kind: 'intro', startMs: 0 },
+      ], env,
+    });
+    assert.deepEqual(arranged.mix.tempoMap, [
+      { startMs: 0, quarterBpm: 120 }, { startMs: 2400, quarterBpm: 96 },
+    ]);
+    assert.deepEqual(arranged.mix.markers, [
+      { id: 'intro', name: 'Intro', kind: 'intro', startMs: 0 },
+      { id: 'chorus-1', name: 'Refrain', kind: 'chorus', startMs: 2400 },
+    ]);
+    assert.deepEqual(JSON.parse(await readFile(mixPath, 'utf8')).tracks, stored.tracks);
+    await assert.rejects(updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: arranged.mixRevision,
+      tempoMap: [{ startMs: 0, quarterBpm: 120 }, { startMs: 0, quarterBpm: 98 }], env,
+    }), /même position/);
+    await assert.rejects(updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: arranged.mixRevision,
+      markers: [{ id: 'bad', name: 'Invalid', kind: 'drop', startMs: 0 }], env,
+    }), /type valide/);
+    const clearedMarkers = await updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: arranged.mixRevision, markers: [], env,
+    });
+    assert.deepEqual(clearedMarkers.mix.markers, []);
+    assert.deepEqual(clearedMarkers.mix.tempoMap, arranged.mix.tempoMap);
+
+    const midi = await updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: clearedMarkers.mixRevision,
       addMidiTracks: [{ name: 'MIDI Keys' }], env,
     });
     assert.equal(midi.addedTrackIds.length, 1);

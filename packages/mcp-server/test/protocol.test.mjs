@@ -123,6 +123,19 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(changedMixState.mix.tracks[0].gainDb, -3);
     assert.equal(changedMixState.mix.tracks[0].pan, 0.25);
     assert.equal(changedMixState.mix.tracks[0].mute, true);
+    const changedArrangement = await client.callTool({ name: 'update_project_mix', arguments: {
+      projectId: 'project-001', expectedMixRevision: changedMixState.mixRevision,
+      tempoMap: [{ startMs: 0, quarterBpm: 118 }, { startMs: 3600, quarterBpm: 94 }],
+      markers: [{ id: 'verse-1', name: 'Verse 1', kind: 'verse', startMs: 0 }],
+    } });
+    assert.equal(changedArrangement.isError, undefined);
+    const arrangementState = JSON.parse(changedArrangement.content[0].text);
+    assert.deepEqual(arrangementState.mix.tempoMap, [
+      { startMs: 0, quarterBpm: 118 }, { startMs: 3600, quarterBpm: 94 },
+    ]);
+    assert.deepEqual(arrangementState.mix.markers, [
+      { id: 'verse-1', name: 'Verse 1', kind: 'verse', startMs: 0 },
+    ]);
     const openedScore = await client.callTool({ name: 'get_project_score', arguments: { projectId: 'project-001' } });
     assert.equal(openedScore.isError, undefined);
     const scoreState = JSON.parse(openedScore.content[0].text);
@@ -132,7 +145,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal('stateB64' in scoreState.score.voices[0].vst3Instrument, false);
     const addedMidi = await client.callTool({ name: 'add_project_midi_track', arguments: {
       projectId: 'project-001', voiceId: 'midi-keys', expectedScoreRevision: scoreState.scoreRevision,
-      expectedMixRevision: changedMixState.mixRevision,
+      expectedMixRevision: arrangementState.mixRevision,
     } });
     assert.equal(addedMidi.isError, undefined);
     const addedMidiState = JSON.parse(addedMidi.content[0].text);

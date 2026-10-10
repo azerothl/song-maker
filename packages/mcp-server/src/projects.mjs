@@ -629,9 +629,10 @@ export async function getProjectMix({ projectId, mixId, env = process.env } = {}
   };
 }
 
-/** Update the active mix's basic track controls using an optimistic mix revision. */
+/** Update active mix controls and arrangement metadata using an optimistic mix revision. */
 export async function updateProjectMix({
-  projectId, mixId, expectedMixRevision, masterGainDb, tracks, addMidiTracks, env = process.env,
+  projectId, mixId, expectedMixRevision, masterGainDb, tracks, addMidiTracks, tempoMap, markers,
+  env = process.env,
 } = {}) {
   if (typeof projectId !== 'string' || !PROJECT_ID_PATTERN.test(projectId)) {
     throw new Error('Identifiant de projet invalide.');
@@ -640,7 +641,7 @@ export async function updateProjectMix({
     throw new Error('expectedMixRevision doit venir de get_project_mix.');
   }
   if (masterGainDb === undefined && (!Array.isArray(tracks) || tracks.length === 0) &&
-      (!Array.isArray(addMidiTracks) || addMidiTracks.length === 0)) {
+      (!Array.isArray(addMidiTracks) || addMidiTracks.length === 0) && tempoMap === undefined && markers === undefined) {
     throw new Error('Indique au moins un réglage de mix à modifier.');
   }
   if (masterGainDb !== undefined && (!Number.isFinite(masterGainDb) || masterGainDb < -24 || masterGainDb > 12)) {
@@ -651,6 +652,46 @@ export async function updateProjectMix({
   }
   if (addMidiTracks !== undefined && !Array.isArray(addMidiTracks)) {
     throw new Error('Les nouvelles pistes MIDI doivent être une liste.');
+  }
+  if (tempoMap !== undefined && !Array.isArray(tempoMap)) {
+    throw new Error('La carte de tempo doit être une liste.');
+  }
+  if (tempoMap?.length > 512) throw new Error('La carte de tempo peut contenir au maximum 512 événements.');
+  if (markers !== undefined && !Array.isArray(markers)) {
+    throw new Error('Les repères doivent être une liste.');
+  }
+  if (markers?.length > 512) throw new Error('La liste peut contenir au maximum 512 repères.');
+  const tempoEvents = (tempoMap ?? []).map(event => {
+    if (!event || !Number.isSafeInteger(event.startMs) || event.startMs < 0 ||
+        !Number.isInteger(event.quarterBpm) || event.quarterBpm < 1 || event.quarterBpm > 400) {
+      throw new Error('Chaque changement de tempo doit avoir une position positive ou nulle et un tempo entier entre 1 et 400 BPM.');
+    }
+    return { startMs: event.startMs, quarterBpm: event.quarterBpm };
+  });
+  if (tempoMap !== undefined) {
+    if (tempoEvents.length === 0 || !tempoEvents.some(event => event.startMs === 0)) {
+      throw new Error('La carte de tempo doit conserver un tempo de départ à 0 ms.');
+    }
+    if (new Set(tempoEvents.map(event => event.startMs)).size !== tempoEvents.length) {
+      throw new Error('Deux changements de tempo ne peuvent pas partager la même position.');
+    }
+    tempoEvents.sort((a, b) => a.startMs - b.startMs);
+  }
+  const markerKinds = new Set(['intro', 'verse', 'prechorus', 'chorus', 'bridge', 'interlude', 'outro', 'other']);
+  const sectionMarkers = (markers ?? []).map(marker => {
+    const id = typeof marker?.id === 'string' ? marker.id.trim() : '';
+    const name = typeof marker?.name === 'string' ? marker.name.trim() : '';
+    if (!id || id.length > 128 || !name || name.length > 120 || !markerKinds.has(marker?.kind) ||
+        !Number.isSafeInteger(marker?.startMs) || marker.startMs < 0) {
+      throw new Error('Chaque repère doit avoir un identifiant, un nom, un type valide et une position positive ou nulle.');
+    }
+    return { id, name, kind: marker.kind, startMs: marker.startMs };
+  });
+  if (markers !== undefined) {
+    if (new Set(sectionMarkers.map(marker => marker.id)).size !== sectionMarkers.length) {
+      throw new Error('Identifiant de repère répété.');
+    }
+    sectionMarkers.sort((a, b) => a.startMs - b.startMs);
   }
   const midiTrackSpecs = (addMidiTracks ?? []).map(item => {
     const clean = typeof item?.name === 'string' ? item.name.trim() : '';
@@ -734,6 +775,8 @@ export async function updateProjectMix({
 
     const next = structuredClone(current);
     if (masterGainDb !== undefined) next.masterGainDb = masterGainDb;
+    if (tempoMap !== undefined) next.tempoMap = tempoEvents;
+    if (markers !== undefined) next.markers = sectionMarkers;
     for (const update of tracks ?? []) {
       const track = next.tracks.find(item => item.id === update.id);
       if (!track) throw new Error(`Piste introuvable dans le mix actif : ${update.id}`);
@@ -755,7 +798,8 @@ export async function updateProjectMix({
       });
       addedTrackIds.push(id);
     }
-    if (masterGainDb !== undefined || (tracks ?? []).length > 0 || addedTrackIds.length > 0) {
+    if (masterGainDb !== undefined || tempoMap !== undefined || markers !== undefined ||
+        (tracks ?? []).length > 0 || addedTrackIds.length > 0) {
       await writeJsonAtomically(mixPath, next, `.mix-${randomUUID()}.tmp`);
     }
   });
