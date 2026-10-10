@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject, useProjectGeneration } from './projects.mjs';
+import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject, useProjectGeneration, useProjectScore, useProjectSeparation } from './projects.mjs';
 import { exportProjectAudio } from './project-audio.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
@@ -57,6 +57,26 @@ server.registerTool('use_project_generation', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => useProjectGeneration(args)));
+
+server.registerTool('use_project_separation', {
+  description: 'Active une séparation sauvegardée et son mix associé, selon le comportement des versions dans Song Maker. Relis le projet et passe son updatedAt comme expectedUpdatedAt. Ne relance pas la séparation et ne supprime aucun artefact.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    separationId: z.string().regex(/^sep-[0-9]+$/),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => useProjectSeparation(args)));
+
+server.registerTool('use_project_score', {
+  description: 'Sélectionne une partition sauvegardée comme partition active du projet. Relis le projet et passe son updatedAt comme expectedUpdatedAt. Ne modifie pas le contenu de la partition.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    scoreId: z.string().regex(/^score-v[0-9]+$/),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => useProjectScore(args)));
 
 server.registerTool('get_project_mix', {
   description: 'Lit le mix actif ou une version de mix sauvegardée du profil actif, avec pistes, clips et réglages. Les chemins locaux de fichiers VST et les états propriétaires des plugins sont masqués ; les chemins de sources audio hors du projet sont masqués. Ne modifie ni ne rend le mix.',

@@ -713,6 +713,109 @@ export async function useProjectGeneration({
   return { profileId: store.profileId, project: updated };
 }
 
+/** Activate a saved separation and its associated initial mix. */
+export async function useProjectSeparation({
+  projectId, separationId, expectedUpdatedAt, env = process.env,
+} = {}) {
+  if (typeof projectId !== 'string') throw new Error('Identifiant de projet requis.');
+  if (typeof separationId !== 'string' || !SEPARATION_ID_PATTERN.test(separationId)) {
+    throw new Error('Identifiant de séparation invalide.');
+  }
+  if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt.trim()) {
+    throw new Error('expectedUpdatedAt est requis : relis le projet avant de sélectionner une séparation.');
+  }
+
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  if (project.schema !== 'songmaker.project' || project.schemaVersion !== 1) {
+    throw new Error('Version de projet non prise en charge ; aucune modification effectuée.');
+  }
+  if (project.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+
+  const versions = await listProjectVersions({ projectId, env });
+  if (versions.profileId !== store.profileId) {
+    throw new Error('Le profil actif a changé pendant la sélection. Relis le projet avant de réessayer.');
+  }
+  const separation = versions.separations.find(item => item.id === separationId);
+  if (!separation) throw new Error(`Séparation introuvable ou invalide : ${separationId}`);
+  if (!separation.mixId) throw new Error(`Mix associé introuvable pour ${separationId}`);
+  const selected = await getProjectMix({ projectId, mixId: separation.mixId, env });
+  if (selected.profileId !== store.profileId || selected.mix.separationId !== separationId) {
+    throw new Error(`Mix associé introuvable ou invalide pour ${separationId}`);
+  }
+
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+  const latest = await readProjectAt(store.root, projectId);
+  if (latest.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+  const previous = Date.parse(latest.updatedAt);
+  const now = Date.now();
+  const updated = {
+    ...latest,
+    activeSeparationId: separationId,
+    activeMixId: selected.mixId,
+    updatedAt: new Date(Number.isFinite(previous) && now <= previous ? previous + 1 : now).toISOString(),
+  };
+  await writeProjectAtomically(canonicalFolder, updated);
+  return { profileId: store.profileId, project: updated, mix: selected.mix };
+}
+
+/** Select a saved score version as the active project score. */
+export async function useProjectScore({
+  projectId, scoreId, expectedUpdatedAt, env = process.env,
+} = {}) {
+  if (typeof projectId !== 'string') throw new Error('Identifiant de projet requis.');
+  if (typeof scoreId !== 'string' || !SCORE_ID_PATTERN.test(scoreId)) {
+    throw new Error('Identifiant de partition invalide.');
+  }
+  if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt.trim()) {
+    throw new Error('expectedUpdatedAt est requis : relis le projet avant de sélectionner une partition.');
+  }
+
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  if (project.schema !== 'songmaker.project' || project.schemaVersion !== 1) {
+    throw new Error('Version de projet non prise en charge ; aucune modification effectuée.');
+  }
+  if (project.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+  const selected = await getProjectScore({ projectId, scoreId, env });
+  if (selected.profileId !== store.profileId) {
+    throw new Error('Le profil actif a changé pendant la sélection. Relis le projet avant de réessayer.');
+  }
+
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+  const latest = await readProjectAt(store.root, projectId);
+  if (latest.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+  const previous = Date.parse(latest.updatedAt);
+  const now = Date.now();
+  const updated = {
+    ...latest,
+    activeScoreId: scoreId,
+    updatedAt: new Date(Number.isFinite(previous) && now <= previous ? previous + 1 : now).toISOString(),
+  };
+  await writeProjectAtomically(canonicalFolder, updated);
+  return { profileId: store.profileId, project: updated, score: selected.score };
+}
+
 function validateTitle(title) {
   if (typeof title !== 'string') throw new Error('Le titre est obligatoire (1 à 120 caractères).');
   const value = title.trim();

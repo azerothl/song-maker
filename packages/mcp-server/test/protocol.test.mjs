@@ -77,7 +77,8 @@ test('MCP exposes the headless tools over stdio', async () => {
         'delete_playlist', 'delete_project', 'export_project_audio', 'get_project', 'get_project_mix',
         'get_project_score', 'gpu_status', 'job_status', 'list_library', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'resume_job',
-        'runtime_status', 'start_batch', 'start_song', 'update_project', 'use_project_generation']);
+        'runtime_status', 'start_batch', 'start_song', 'update_project', 'use_project_generation',
+        'use_project_score', 'use_project_separation']);
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
     assert.equal(status.isError, undefined);
     assert.equal(typeof JSON.parse(status.content[0].text).ready, 'boolean');
@@ -149,6 +150,37 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(selectedProject.activeGenerationId, generationId);
     assert.equal(selectedProject.activeSeparationId, null);
     assert.equal(selectedProject.activeMixId, null);
+    const createdProjectFolder = path.resolve(generationFolder, '..', '..');
+    const separationFolder = path.join(createdProjectFolder, 'separations', 'sep-001');
+    const mixesFolder = path.join(createdProjectFolder, 'mixes');
+    const scoresFolder = path.join(createdProjectFolder, 'scores');
+    await Promise.all([
+      mkdir(separationFolder, { recursive: true }),
+      mkdir(mixesFolder, { recursive: true }),
+      mkdir(scoresFolder, { recursive: true }),
+    ]);
+    await writeFile(path.join(separationFolder, 'separation.json'), JSON.stringify({
+      schema: 'songmaker.separation', schemaVersion: 1, generationId, family: 'htdemucs',
+    }));
+    await writeFile(path.join(mixesFolder, 'mix-v001.json'), JSON.stringify({
+      schema: 'songmaker.mix', schemaVersion: 1, id: 'mix-v001', separationId: 'sep-001', tracks: [],
+    }));
+    await writeFile(path.join(scoresFolder, 'score-v001.json'), JSON.stringify({
+      schema: 'songmaker.score', schemaVersion: 1, id: 'score-v001', voices: [],
+    }));
+    const selectedSeparation = await client.callTool({ name: 'use_project_separation', arguments: {
+      projectId: createdProject.id, separationId: 'sep-001', expectedUpdatedAt: selectedProject.updatedAt,
+    } });
+    assert.equal(selectedSeparation.isError, undefined);
+    const separatedProject = JSON.parse(selectedSeparation.content[0].text).project;
+    assert.equal(separatedProject.activeSeparationId, 'sep-001');
+    assert.equal(separatedProject.activeMixId, 'mix-v001');
+    const selectedScore = await client.callTool({ name: 'use_project_score', arguments: {
+      projectId: createdProject.id, scoreId: 'score-v001', expectedUpdatedAt: separatedProject.updatedAt,
+    } });
+    assert.equal(selectedScore.isError, undefined);
+    const scoredProject = JSON.parse(selectedScore.content[0].text).project;
+    assert.equal(scoredProject.activeScoreId, 'score-v001');
     const addedTrack = await client.callTool({ name: 'add_library_track', arguments: {
       projectId: createdProject.id, generationId, expectedUpdatedAt: null,
     } });
@@ -162,11 +194,11 @@ test('MCP exposes the headless tools over stdio', async () => {
     const playlistState = JSON.parse(playlistResult.content[0].text);
     assert.equal(playlistState.playlists[0].title, 'Client playlist');
     const unconfirmedDelete = await client.callTool({ name: 'delete_project', arguments: {
-      projectId: createdProject.id, expectedUpdatedAt: selectedProject.updatedAt,
+      projectId: createdProject.id, expectedUpdatedAt: scoredProject.updatedAt,
     } });
     assert.equal(unconfirmedDelete.isError, true);
     const deleted = await client.callTool({ name: 'delete_project', arguments: {
-      projectId: createdProject.id, expectedUpdatedAt: selectedProject.updatedAt,
+      projectId: createdProject.id, expectedUpdatedAt: scoredProject.updatedAt,
       confirm: true,
     } });
     assert.equal(deleted.isError, undefined);

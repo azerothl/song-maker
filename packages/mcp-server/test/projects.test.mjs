@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject, useProjectGeneration } from '../src/projects.mjs';
+import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject, useProjectGeneration, useProjectScore, useProjectSeparation } from '../src/projects.mjs';
 
 function smallPcmWav() {
   const frames = 800;
@@ -151,18 +151,25 @@ test('MCP reads mix and score documents while hiding host-specific plugin and au
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-documents-'));
   const projectFolder = path.join(documentsRoot, 'profiles', 'profile-documents', 'projects', 'project-001');
   const mixesFolder = path.join(projectFolder, 'mixes');
+  const separationFolder = path.join(projectFolder, 'separations', 'sep-001');
   const scoresFolder = path.join(projectFolder, 'scores');
   const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
   try {
     await Promise.all([
       mkdir(mixesFolder, { recursive: true }),
+      mkdir(separationFolder, { recursive: true }),
       mkdir(scoresFolder, { recursive: true }),
     ]);
     await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
       activeProfileId: 'profile-documents', profiles: [{ id: 'profile-documents', name: 'Hobby', kind: 'hobby' }],
     }));
     await writeFile(path.join(projectFolder, 'project.json'), JSON.stringify({
-      id: 'project-001', title: 'Open the mix', activeMixId: 'mix-v002', activeScoreId: 'score-v001',
+      schema: 'songmaker.project', schemaVersion: 1, id: 'project-001', title: 'Open the mix',
+      updatedAt: '2026-10-10T00:00:00.000Z', activeMixId: 'mix-v002', activeSeparationId: null,
+      activeScoreId: null,
+    }));
+    await writeFile(path.join(separationFolder, 'separation.json'), JSON.stringify({
+      schema: 'songmaker.separation', schemaVersion: 1, generationId: 'gen-001', family: 'htdemucs',
     }));
     await writeFile(path.join(mixesFolder, 'mix-v002.json'), JSON.stringify({
       schema: 'songmaker.mix', schemaVersion: 1, id: 'mix-v002', separationId: 'sep-001',
@@ -202,9 +209,27 @@ test('MCP reads mix and score documents while hiding host-specific plugin and au
     assert.equal(JSON.stringify(mixResult).includes('opaque-master-state'), false);
     assert.equal(JSON.stringify(mixResult).includes('D:\\\\private'), false);
 
-    const scoreResult = await getProjectScore({ projectId: 'project-001', env });
-    assert.equal(scoreResult.active, true);
+    const selectedSeparation = await useProjectSeparation({
+      projectId: 'project-001', separationId: 'sep-001',
+      expectedUpdatedAt: '2026-10-10T00:00:00.000Z', env,
+    });
+    assert.equal(selectedSeparation.project.activeSeparationId, 'sep-001');
+    assert.equal(selectedSeparation.project.activeMixId, 'mix-v002');
+    assert.equal(selectedSeparation.mix.id, 'mix-v002');
+    await assert.rejects(useProjectSeparation({
+      projectId: 'project-001', separationId: 'sep-001',
+      expectedUpdatedAt: '2026-10-10T00:00:00.000Z', env,
+    }), /projet a changé/);
+
+    const scoreResult = await getProjectScore({ projectId: 'project-001', scoreId: 'score-v001', env });
+    assert.equal(scoreResult.active, false);
     assert.equal(scoreResult.score.voices[0].notes[0].pitch, 60);
+    const selectedScore = await useProjectScore({
+      projectId: 'project-001', scoreId: 'score-v001',
+      expectedUpdatedAt: selectedSeparation.project.updatedAt, env,
+    });
+    assert.equal(selectedScore.project.activeScoreId, 'score-v001');
+    assert.equal(selectedScore.score.voices[0].notes[0].pitch, 60);
     await assert.rejects(getProjectMix({ projectId: 'project-001', mixId: '../outside', env }), /Identifiant de mix invalide/);
     await assert.rejects(getProjectScore({ projectId: 'project-001', scoreId: 'score-v999', env }), /introuvable/);
   } finally {
