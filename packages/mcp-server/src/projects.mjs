@@ -69,6 +69,17 @@ async function projectStore(env = process.env) {
   };
 }
 
+export async function userLibraryStore(env = process.env) {
+  const store = await projectStore(env);
+  const profileRoot = path.dirname(store.root);
+  return {
+    profileId: store.profileId,
+    projectsRoot: store.root,
+    profileRoot,
+    filePath: path.join(profileRoot, 'user-library.json'),
+  };
+}
+
 function isWithin(parent, child) {
   const relative = path.relative(parent, child);
   return relative === '' || (

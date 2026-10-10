@@ -28,8 +28,10 @@ test('MCP exposes the headless tools over stdio', async () => {
     await client.connect(transport);
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
-      ['cancel_job', 'create_project', 'get_project', 'gpu_status', 'job_status', 'list_projects',
-        'rename_project', 'resume_job', 'runtime_status', 'start_batch', 'start_song', 'update_project']);
+      ['add_library_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project',
+        'delete_playlist', 'get_project', 'gpu_status', 'job_status', 'list_library', 'list_projects',
+        'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'resume_job',
+        'runtime_status', 'start_batch', 'start_song', 'update_project']);
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
     assert.equal(status.isError, undefined);
     assert.equal(typeof JSON.parse(status.content[0].text).ready, 'boolean');
@@ -60,6 +62,24 @@ test('MCP exposes the headless tools over stdio', async () => {
     } });
     assert.equal(updated.isError, undefined);
     assert.equal(JSON.parse(updated.content[0].text).project.style, 'Ambient piano');
+
+    const generationId = 'gen-client-001';
+    const generationFolder = path.join(documentsRoot, 'profiles', 'profile-001', 'projects',
+      createdProject.id, 'generations', generationId);
+    await mkdir(generationFolder, { recursive: true });
+    await writeFile(path.join(generationFolder, 'audio.wav'), 'temporary generated audio');
+    const addedTrack = await client.callTool({ name: 'add_library_track', arguments: {
+      projectId: createdProject.id, generationId, expectedUpdatedAt: null,
+    } });
+    assert.equal(addedTrack.isError, undefined);
+    const library = JSON.parse(addedTrack.content[0].text);
+    assert.equal(library.tracks.length, 1);
+    const playlistResult = await client.callTool({ name: 'create_playlist', arguments: {
+      title: 'Client playlist', expectedUpdatedAt: library.updatedAt,
+    } });
+    assert.equal(playlistResult.isError, undefined);
+    const playlistState = JSON.parse(playlistResult.content[0].text);
+    assert.equal(playlistState.playlists[0].title, 'Client playlist');
   } finally {
     await client.close();
     await rm(documentsRoot, { recursive: true, force: true });

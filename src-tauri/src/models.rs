@@ -72,6 +72,37 @@ pub struct LibraryRow {
     pub active_generation_id: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedLibraryTrack {
+    pub project_id: String,
+    pub generation_id: String,
+    pub title: String,
+    pub added_at: String,
+    #[serde(default)]
+    pub playlist_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserPlaylist {
+    pub id: String,
+    pub title: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserLibraryDoc {
+    pub version: u8,
+    #[serde(default)]
+    pub tracks: Vec<SavedLibraryTrack>,
+    #[serde(default)]
+    pub playlists: Vec<UserPlaylist>,
+    #[serde(default)]
+    pub updated_at: String,
+}
+
 fn default_true() -> bool {
     true
 }

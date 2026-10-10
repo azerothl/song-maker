@@ -5,6 +5,10 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
 import { createProject, getProject, listProjects, renameProject, updateProject } from './projects.mjs';
+import {
+  addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
+  listUserLibrary, removeLibraryTrack, removeTrackFromPlaylist,
+} from './library.mjs';
 
 const server = new McpServer({ name: 'song-maker-yue2', version: '0.1.0' });
 const reply = value => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
@@ -77,6 +81,74 @@ server.registerTool('update_project', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => updateProject(args)));
+
+server.registerTool('list_library', {
+  description: 'Liste les titres explicitement conservés dans la Bibliothèque et ses playlists pour le profil actif. Aucun projet non sélectionné n’est ajouté.',
+  inputSchema: {},
+  annotations: { readOnlyHint: true },
+}, call(async args => listUserLibrary(args)));
+
+server.registerTool('create_playlist', {
+  description: 'Crée une playlist dans la Bibliothèque du profil actif. Passe updatedAt obtenu par list_library comme expectedUpdatedAt ; utilise null si la Bibliothèque n’a pas encore été créée.',
+  inputSchema: {
+    title: z.string().min(1).max(120),
+    expectedUpdatedAt: z.string().max(80).nullable(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => createUserPlaylist(args)));
+
+server.registerTool('delete_playlist', {
+  description: 'Supprime une playlist et retire son identifiant des titres associés. Les titres restent dans la Bibliothèque. Requiert confirm=true et la révision issue de list_library.',
+  inputSchema: {
+    playlistId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().min(1).max(80),
+    confirm: z.literal(true),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+}, call(async args => deleteUserPlaylist(args)));
+
+server.registerTool('add_library_track', {
+  description: 'Ajoute à la Bibliothèque une prise générée qui possède un WAV dans le projet du profil actif. La validation du fichier audio précède l’inscription.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().max(80).nullable(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => addLibraryTrack(args)));
+
+server.registerTool('remove_library_track', {
+  description: 'Retire un titre de la Bibliothèque sans supprimer le projet ni le fichier audio. Requiert confirm=true et la révision issue de list_library.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().min(1).max(80),
+    confirm: z.literal(true),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+}, call(async args => removeLibraryTrack(args)));
+
+server.registerTool('add_track_to_playlist', {
+  description: 'Ajoute un titre déjà conservé dans la Bibliothèque à une playlist.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().min(1).max(128),
+    playlistId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => addTrackToPlaylist(args)));
+
+server.registerTool('remove_track_from_playlist', {
+  description: 'Retire un titre d’une playlist sans le retirer de la Bibliothèque.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    generationId: z.string().min(1).max(128),
+    playlistId: z.string().min(1).max(128),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => removeTrackFromPlaylist(args)));
 
 server.registerTool('start_song', {
   description: 'Lance une génération YuE2 locale en arrière-plan et retourne un job ID. La sortie WAV reste dans le workspace autorisé. Ne publie rien.',

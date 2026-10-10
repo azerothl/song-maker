@@ -20,7 +20,7 @@ Les outils ci-dessous sont ceux enregistrés par `packages/mcp-server/src/server
 | Vérifier le moteur et les poids YuE2 | Disponible | `runtime_status` lit les prérequis locaux ; il ne démarre pas le moteur. |
 | Vérifier température et VRAM NVIDIA | Disponible | `gpu_status` lit les capteurs et les seuils du runner ; matériel NVIDIA et outils de mesure requis. |
 | Créer/renommer/supprimer un projet ; lister et lire les projets | Partiel | `list_projects`, `get_project`, `create_project`, `rename_project` et `update_project` couvrent la création, lecture et édition des champs du formulaire. Suppression, prises et versions restent absentes. |
-| Bibliothèque et playlists utilisateur | Absent | Aucune lecture/écriture du stockage de Bibliothèque. |
+| Bibliothèque et playlists utilisateur | Partiel | `list_library`, `create_playlist`, `delete_playlist`, `add_library_track`, `remove_library_track`, `add_track_to_playlist` et `remove_track_from_playlist` partagent le fichier du profil actif. La suppression d’une playlist ou le retrait d’un titre exigent `confirm=true`. |
 | Générer un morceau YuE2 | Partiel | `start_song` utilise les fichiers, la licence et le worker configurés pour le serveur MCP. Il ne reprend pas le projet, le profil ou les réglages de moteur de l’application. |
 | Choisir ou installer un moteur/modèle dans Song Maker | Absent | Le runner MCP exige une installation et un choix de pack préparés séparément ; il n’expose pas le gestionnaire de ressources de l’application. |
 | Accepter la licence YuE2 | Partiel | Un opt-in d’environnement spécifique au MCP est requis. Ce consentement n’est ni partagé avec le profil de l’application, ni modifiable par outil. |
@@ -49,6 +49,13 @@ Les outils ci-dessous sont ceux enregistrés par `packages/mcp-server/src/server
 | `create_project` | `title` (1 à 120 caractères) ; retourne le profil actif et la nouvelle fiche. | Crée les dossiers Song Maker et un `project.json` vide ; la bibliothèque de l’application récupère cette fiche depuis le disque. |
 | `rename_project` | `projectId`, `title`, `expectedUpdatedAt` ; retourne la fiche actualisée. | Refuse les titres interdits et les lectures périmées ; seule la fiche projet est modifiée. |
 | `update_project` | `projectId`, `expectedUpdatedAt` et champs facultatifs du formulaire (style, paroles, cot, langue, tempo, tonalité, métrique, durée, options). | Valide les valeurs selon le contrat du brouillon Song Maker, conserve les champs omis et refuse une fiche périmée. |
+| `list_library` | Aucun argument ; retourne les titres explicitement conservés, les playlists et la révision. | Lit `user-library.json` du profil actif ; les projets non sélectionnés ne sont pas ajoutés. |
+| `create_playlist` | `title`, `expectedUpdatedAt` (nullable avant la première écriture). | Crée une playlist dans le fichier partagé avec l’application. |
+| `delete_playlist` | `playlistId`, `expectedUpdatedAt`, `confirm=true`. | Retire la playlist et ses associations ; les titres restent dans la Bibliothèque. |
+| `add_library_track` | `projectId`, `generationId`, `expectedUpdatedAt` (nullable pour la première écriture). | Inscrit uniquement une prise dont le WAV se trouve dans le projet du profil actif. |
+| `remove_library_track` | `projectId`, `generationId`, `expectedUpdatedAt`, `confirm=true`. | Retire l’inscription de la Bibliothèque ; le projet et le WAV sont conservés. |
+| `add_track_to_playlist` | `projectId`, `generationId`, `playlistId`, `expectedUpdatedAt`. | Associe un titre déjà présent dans la Bibliothèque à une playlist. |
+| `remove_track_from_playlist` | `projectId`, `generationId`, `playlistId`, `expectedUpdatedAt`. | Retire l’association ; le titre reste dans la Bibliothèque. |
 | `start_song` | `title` (1–120), `style` (1–4000), `lyrics` (0–4000), `outputDirectory`, `targetDurationSec` (30–360, défaut 180), `cot` (`full`/`melody`/`off`), `instrumentalMode`, `seed` (uint32), `creativeDirection` facultatif avec six champs de 240 caractères. Retourne un job ID et l’état initial. | Génère un WAV YuE2 dans le workspace autorisé. Vérifie l’opt-in de licence et les limites GPU. Une erreur de validation, de licence, de prérequis ou de capacité est retournée comme erreur MCP lisible. |
 | `start_batch` | `batchFile` dans le workspace, `outputDirectory` requis hors `dryRun`, `dryRun`, `reviewBeforeNext` et `requireCreativeDirection` (les trois booléens ont des défauts sûrs). Retourne un rapport d’audit en simulation ou job ID et état initial en exécution. | `dryRun` n’utilise pas le GPU. L’exécution est séquentielle, refuse les demandes de parallélisme/retry non supportées et ne remplace pas les exports existants. |
 | `job_status` | `jobId` UUID ; état, compteurs, fichiers terminés, erreurs, dossier de sortie, avertissements, revue audio et horodatages. | Lecture seule ; ne retourne pas les paroles. Le statut se récupère par interrogation. |
@@ -60,7 +67,7 @@ Les outils de génération exposent le progrès par `job_status` et les erreurs 
 ## Gaps d’acceptation restant
 
 - Les outils de projet utilisent le profil et les fichiers du format Song Maker. Les validations de titre et de formulaire sont couvertes ; les prises, versions et suppressions ne sont pas encore exposées.
-- La bibliothèque et les playlists, import audio, stems, mixage, MIDI, réglages de modèles et ressources ne sont pas pilotables via MCP.
+- La Bibliothèque MCP couvre ses titres choisis et playlists ; l’import audio, les stems, le mixage, le MIDI, les réglages de modèles et ressources ne sont pas pilotables via MCP.
 - Les états de job sont consultés par interrogation ; il n’y a pas de flux d’événements MCP ni de reprise de la file batch de l’application.
 - Les tests du package vérifient le protocole et le runner local. Il reste à exercer les capacités annoncées depuis un vrai client MCP Windows et à retrouver un artefact dans l’application lorsqu’une intégration le promettra.
 

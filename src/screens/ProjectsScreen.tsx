@@ -5,7 +5,8 @@ import { exportProjectAudio } from "../lib/exportMix";
 import { useAppStore } from "../store/appStore";
 import { ProfileKindBadge } from "../components/ProfileKindBadge";
 import { t } from "../ui/i18n";
-import { libraryTrackKey, readUserLibrary, writeUserLibrary, type SavedLibraryTrack } from "../lib/userLibrary";
+import { useUserLibrary } from "../lib/useUserLibrary";
+import { libraryTrackKey } from "../lib/userLibrary";
 
 function formatDuration(ms?: number | null): string {
   if (ms == null || ms <= 0) return t("library.dash");
@@ -29,20 +30,15 @@ export function ProjectsScreen() {
   const refreshLibrary = useAppStore((s) => s.refreshLibrary);
   const openProject = useAppStore((s) => s.openProject);
   const setError = useAppStore((s) => s.setError);
+  const { library, commit: commitLibrary, loaded: libraryLoaded, saving: librarySaving } = useUserLibrary(activeProfileId, setError);
   const [query, setQuery] = useState("");
   const [menuId, setMenuId] = useState<string | null>(null);
   const [syncProjectId, setSyncProjectId] = useState<string | null>(null);
-  const [savedTracks, setSavedTracks] = useState<SavedLibraryTrack[]>(
-    () => readUserLibrary(activeProfileId).tracks,
-  );
+  const savedTracks = library.tracks;
 
   useEffect(() => {
     void refreshLibrary(query || undefined);
   }, [query, refreshLibrary]);
-
-  useEffect(() => {
-    setSavedTracks(readUserLibrary(activeProfileId).tracks);
-  }, [activeProfileId]);
 
   async function onNew() {
     const title = window.prompt(t("projects.newNamePrompt"));
@@ -70,13 +66,8 @@ export function ProjectsScreen() {
     if (!window.confirm(t("projects.deleteConfirm", { title }))) return;
     try {
       await api.deleteProject(id);
-      const library = readUserLibrary(activeProfileId);
       const tracks = library.tracks.filter((track) => track.projectId !== id);
-      if (!writeUserLibrary(activeProfileId, { ...library, tracks })) {
-        setError(t("library.storageError"));
-      } else {
-        setSavedTracks(tracks);
-      }
+      await commitLibrary({ ...library, tracks });
       await refreshLibrary(query || undefined);
     } catch (e) {
       setError(String(e));
@@ -84,17 +75,12 @@ export function ProjectsScreen() {
   }
 
   function toggleLibraryTrack(projectId: string, generationId: string, title: string) {
-    const library = readUserLibrary(activeProfileId);
     const key = libraryTrackKey({ projectId, generationId });
     const exists = library.tracks.some((track) => libraryTrackKey(track) === key);
     const tracks = exists
       ? library.tracks.filter((track) => libraryTrackKey(track) !== key)
       : [...library.tracks, { projectId, generationId, title, addedAt: new Date().toISOString(), playlistIds: [] }];
-    if (!writeUserLibrary(activeProfileId, { ...library, tracks })) {
-      setError(t("library.storageError"));
-      return;
-    }
-    setSavedTracks(tracks);
+    void commitLibrary({ ...library, tracks });
   }
 
   return (
@@ -153,6 +139,7 @@ export function ProjectsScreen() {
                     <button
                       type="button"
                       className="btn ghost"
+                      disabled={!libraryLoaded || librarySaving}
                       onClick={() => toggleLibraryTrack(p.id, p.activeGenerationId!, p.title)}
                     >
                       {savedTracks.some((track) => libraryTrackKey(track) === libraryTrackKey({ projectId: p.id, generationId: p.activeGenerationId! }))
@@ -221,7 +208,7 @@ export function ProjectsScreen() {
                       >
                         {t("projects.sync")}
                       </button>
-                      <button type="button" onClick={() => void onDelete(p.id, p.title)}>
+                      <button type="button" disabled={!libraryLoaded || librarySaving} onClick={() => void onDelete(p.id, p.title)}>
                         {t("library.delete")}
                       </button>
                     </div>

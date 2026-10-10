@@ -143,6 +143,8 @@ pub fn run() {
             commands::projects::duplicate_project,
             commands::projects::delete_project,
             commands::projects::reveal_project,
+            commands::user_library::get_user_library,
+            commands::user_library::save_user_library,
             // File de jobs GPU
             commands::jobs::get_job_status,
             commands::jobs::cancel_job,
