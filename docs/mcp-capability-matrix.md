@@ -19,7 +19,7 @@ Les outils ci-dessous sont ceux enregistrés par `packages/mcp-server/src/server
 |---|---|---|
 | Vérifier le moteur et les poids YuE2 | Disponible | `runtime_status` lit les prérequis locaux ; il ne démarre pas le moteur. |
 | Vérifier température et VRAM NVIDIA | Disponible | `gpu_status` lit les capteurs et les seuils du runner ; matériel NVIDIA et outils de mesure requis. |
-| Créer/renommer/supprimer un projet ; lister et lire les projets | Partiel | `list_projects` et `get_project` lisent les fiches du profil actif, sans écriture. La gestion de projet et la synchronisation des modifications restent absentes. |
+| Créer/renommer/supprimer un projet ; lister et lire les projets | Partiel | `list_projects`, `get_project`, `create_project` et `rename_project` couvrent les projets du profil actif. La suppression, les prises, les versions et la modification des autres paramètres restent absentes. |
 | Bibliothèque et playlists utilisateur | Absent | Aucune lecture/écriture du stockage de Bibliothèque. |
 | Générer un morceau YuE2 | Partiel | `start_song` utilise les fichiers, la licence et le worker configurés pour le serveur MCP. Il ne reprend pas le projet, le profil ou les réglages de moteur de l’application. |
 | Choisir ou installer un moteur/modèle dans Song Maker | Absent | Le runner MCP exige une installation et un choix de pack préparés séparément ; il n’expose pas le gestionnaire de ressources de l’application. |
@@ -46,6 +46,8 @@ Les outils ci-dessous sont ceux enregistrés par `packages/mcp-server/src/server
 | `gpu_status` | Aucun argument ; température et VRAM du GPU NVIDIA. | Lecture seule ; ne change pas les limites du pilote ou de la carte. |
 | `list_projects` | `query` facultatif ; profil actif et résumés des projets, triés par dernière modification. | Lecture seule du dossier de données Song Maker ; les paroles sont omises des résumés. |
 | `get_project` | `projectId` ; fiche de projet avec style, paroles, paramètres et identifiants de prises actives. | Lecture seule ; ne modifie ni le projet ni la bibliothèque. |
+| `create_project` | `title` (1 à 120 caractères) ; retourne le profil actif et la nouvelle fiche. | Crée les dossiers Song Maker et un `project.json` vide ; la bibliothèque de l’application récupère cette fiche depuis le disque. |
+| `rename_project` | `projectId`, `title`, `expectedUpdatedAt` ; retourne la fiche actualisée. | Refuse les titres interdits et les lectures périmées ; seule la fiche projet est modifiée. |
 | `start_song` | `title` (1–120), `style` (1–4000), `lyrics` (0–4000), `outputDirectory`, `targetDurationSec` (30–360, défaut 180), `cot` (`full`/`melody`/`off`), `instrumentalMode`, `seed` (uint32), `creativeDirection` facultatif avec six champs de 240 caractères. Retourne un job ID et l’état initial. | Génère un WAV YuE2 dans le workspace autorisé. Vérifie l’opt-in de licence et les limites GPU. Une erreur de validation, de licence, de prérequis ou de capacité est retournée comme erreur MCP lisible. |
 | `start_batch` | `batchFile` dans le workspace, `outputDirectory` requis hors `dryRun`, `dryRun`, `reviewBeforeNext` et `requireCreativeDirection` (les trois booléens ont des défauts sûrs). Retourne un rapport d’audit en simulation ou job ID et état initial en exécution. | `dryRun` n’utilise pas le GPU. L’exécution est séquentielle, refuse les demandes de parallélisme/retry non supportées et ne remplace pas les exports existants. |
 | `job_status` | `jobId` UUID ; état, compteurs, fichiers terminés, erreurs, dossier de sortie, avertissements, revue audio et horodatages. | Lecture seule ; ne retourne pas les paroles. Le statut se récupère par interrogation. |
@@ -56,8 +58,8 @@ Les outils de génération exposent le progrès par `job_status` et les erreurs 
 
 ## Gaps d’acceptation restant
 
-- Les outils de projet lisent le profil et les fichiers du format Song Maker ; ils ne partagent pas encore les validations d’écriture ni les règles de persistance de l’application.
-- Création/modification/suppression de projets, versions, bibliothèque et playlists, import audio, stems, mixage, MIDI, réglages de modèles et ressources ne sont pas pilotables via MCP.
+- Les outils de projet utilisent le profil et les fichiers du format Song Maker. Les validations de titre suivent le contrat de l’application ; les modifications de formulaire, prises, versions et suppressions ne sont pas encore exposées.
+- La bibliothèque et les playlists, import audio, stems, mixage, MIDI, réglages de modèles et ressources ne sont pas pilotables via MCP.
 - Les états de job sont consultés par interrogation ; il n’y a pas de flux d’événements MCP ni de reprise de la file batch de l’application.
 - Les tests du package vérifient le protocole et le runner local. Il reste à exercer les capacités annoncées depuis un vrai client MCP Windows et à retrouver un artefact dans l’application lorsqu’une intégration le promettra.
 

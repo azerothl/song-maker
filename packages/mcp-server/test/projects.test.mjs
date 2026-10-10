@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { getProject, listProjects } from '../src/projects.mjs';
+import { createProject, getProject, listProjects, renameProject } from '../src/projects.mjs';
 
 test('project tools read the active profile and hide lyrics from list results', async () => {
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-projects-'));
@@ -44,6 +44,41 @@ test('project tools use the legacy folder when the manifest has no active profil
     const listed = await listProjects({ env: { SONG_MAKER_DOCUMENTS_DIR: documentsRoot } });
     assert.equal(listed.profileId, null);
     assert.equal(listed.projects[0].title, 'Legacy project');
+  } finally {
+    await rm(documentsRoot, { recursive: true, force: true });
+  }
+});
+
+test('MCP project creation and rename follow Song Maker title and stale-write rules', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-write-'));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(path.join(documentsRoot, 'profiles', 'profile-003'), { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-003', profiles: [{ id: 'profile-003', name: 'Studio', kind: 'hobby' }],
+    }));
+
+    const created = await createProject({ title: '  New track  ', env });
+    assert.equal(created.profileId, 'profile-003');
+    assert.equal(created.project.title, 'New track');
+    assert.equal(created.project.schema, 'songmaker.project');
+    assert.equal(created.project.schemaVersion, 1);
+    assert.equal((await listProjects({ env })).projects[0].title, 'New track');
+
+    await assert.rejects(renameProject({
+      projectId: created.project.id, title: 'Invalid/', expectedUpdatedAt: created.project.updatedAt, env,
+    }), /Caractère interdit/);
+    const renamed = await renameProject({
+      projectId: created.project.id, title: '  Renamed  ',
+      expectedUpdatedAt: created.project.updatedAt, env,
+    });
+    assert.equal(renamed.project.title, 'Renamed');
+    assert.notEqual(renamed.project.updatedAt, created.project.updatedAt);
+    await assert.rejects(renameProject({
+      projectId: created.project.id, title: 'Stale write',
+      expectedUpdatedAt: created.project.updatedAt, env,
+    }), /projet a changé/);
+    assert.equal((await getProject({ projectId: created.project.id, env })).project.title, 'Renamed');
   } finally {
     await rm(documentsRoot, { recursive: true, force: true });
   }

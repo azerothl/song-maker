@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
-import { getProject, listProjects } from './projects.mjs';
+import { createProject, getProject, listProjects, renameProject } from './projects.mjs';
 
 const server = new McpServer({ name: 'song-maker-yue2', version: '0.1.0' });
 const reply = value => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
@@ -32,10 +32,26 @@ server.registerTool('list_projects', {
 }, call(async args => listProjects(args)));
 
 server.registerTool('get_project', {
-  description: 'Lit une fiche du profil Song Maker actif, notamment son style et ses paroles. Lecture seule ; les opérations d’écriture restent dans l’application.',
+  description: 'Lit une fiche du profil Song Maker actif, notamment son style et ses paroles. Ne modifie pas le projet.',
   inputSchema: { projectId: z.string().min(1).max(128) },
   annotations: { readOnlyHint: true },
 }, call(async args => getProject(args)));
+
+server.registerTool('create_project', {
+  description: 'Crée un projet vide dans le profil Song Maker actif. Le projet et ses dossiers sont enregistrés au format de l’application et deviennent visibles dans Projets.',
+  inputSchema: { title: z.string().min(1).max(120) },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => createProject(args)));
+
+server.registerTool('rename_project', {
+  description: 'Renomme un projet du profil actif. Utilise updatedAt renvoyé par get_project comme expectedUpdatedAt ; l’outil refuse une écriture fondée sur une fiche périmée.',
+  inputSchema: {
+    projectId: z.string().min(1).max(128),
+    title: z.string().min(1).max(120),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => renameProject(args)));
 
 server.registerTool('start_song', {
   description: 'Lance une génération YuE2 locale en arrière-plan et retourne un job ID. La sortie WAV reste dans le workspace autorisé. Ne publie rien.',

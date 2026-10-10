@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
-import { readdir, readFile, realpath } from 'node:fs/promises';
+import { mkdir, readdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -195,4 +196,110 @@ export async function getProject({ projectId, env = process.env } = {}) {
       generationNames: project.generationNames ?? {},
     },
   };
+}
+
+function validateTitle(title) {
+  if (typeof title !== 'string') throw new Error('Le titre est obligatoire (1 à 120 caractères).');
+  const value = title.trim();
+  if (!value || [...value].length > 120) {
+    throw new Error('Le titre est obligatoire (1 à 120 caractères).');
+  }
+  if (value.endsWith('.')) throw new Error('Le titre ne doit pas se terminer par un point.');
+  for (const character of value) {
+    if ('/\\:*?"<>|'.includes(character)) {
+      throw new Error(`Caractère interdit dans le titre : ${character}`);
+    }
+  }
+  return value;
+}
+
+async function writeProjectAtomically(folder, project) {
+  const file = path.join(folder, 'project.json');
+  const temp = path.join(folder, `.project-${randomUUID()}.tmp`);
+  try {
+    await writeFile(temp, `${JSON.stringify(project, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+    await rename(temp, file);
+  } finally {
+    await rm(temp, { force: true }).catch(() => {});
+  }
+}
+
+export async function createProject({ title, env = process.env } = {}) {
+  const cleanTitle = validateTitle(title);
+  const store = await projectStore(env);
+  await mkdir(store.root, { recursive: true });
+  const canonicalRoot = await realpath(store.root);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const id = randomUUID();
+    const folder = path.join(store.root, id);
+    try {
+      await mkdir(folder);
+    } catch (error) {
+      if (error?.code === 'EEXIST') continue;
+      throw new Error(`Création du projet impossible : ${error?.message || error}`);
+    }
+    try {
+      const canonicalFolder = await realpath(folder);
+      if (!isWithin(canonicalRoot, canonicalFolder)) {
+        throw new Error('Le dossier du projet se trouve hors du profil Song Maker actif.');
+      }
+      for (const child of ['generations', 'separations', 'mixes', 'exports', 'scores']) {
+        await mkdir(path.join(folder, child));
+      }
+      const now = new Date().toISOString();
+      const project = {
+        schema: 'songmaker.project',
+        schemaVersion: 1,
+        id,
+        title: cleanTitle,
+        createdAt: now,
+        updatedAt: now,
+        sampleRate: 48000,
+        channels: 2,
+        bitDepth: 24,
+        style: '',
+        lyrics: '',
+        cot: 'full',
+        targetDurationSec: 180,
+        preferFullLyrics: true,
+        instrumentalMode: false,
+      };
+      await writeFile(path.join(folder, 'project.json'), `${JSON.stringify(project, null, 2)}\n`, {
+        encoding: 'utf8', flag: 'wx',
+      });
+      return { profileId: store.profileId, project };
+    } catch (error) {
+      await rm(folder, { recursive: true, force: true }).catch(() => {});
+      throw error;
+    }
+  }
+  throw new Error('Création du projet impossible : identifiant déjà utilisé. Réessaie.');
+}
+
+export async function renameProject({ projectId, title, expectedUpdatedAt, env = process.env } = {}) {
+  if (typeof projectId !== 'string') throw new Error('Identifiant de projet requis.');
+  if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt.trim()) {
+    throw new Error('expectedUpdatedAt est requis : relis le projet avant de le renommer.');
+  }
+  const cleanTitle = validateTitle(title);
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  if (project.schema !== 'songmaker.project' || project.schemaVersion !== 1) {
+    throw new Error('Version de projet non prise en charge ; aucune modification effectuée.');
+  }
+  if (project.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+  const folder = path.join(store.root, projectId);
+  const canonicalRoot = await realpath(store.root);
+  const canonicalFolder = await realpath(folder);
+  if (!isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet se trouve hors du profil Song Maker actif.');
+  }
+  const now = Date.now();
+  const previous = Date.parse(project.updatedAt);
+  const updatedAt = new Date(Number.isFinite(previous) && now <= previous ? previous + 1 : now).toISOString();
+  const updated = { ...project, title: cleanTitle, updatedAt };
+  await writeProjectAtomically(canonicalFolder, updated);
+  return { profileId: store.profileId, project: updated };
 }
