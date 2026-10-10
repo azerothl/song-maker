@@ -103,6 +103,11 @@ pub fn backend_info() -> NativeCaptureBackend {
     }
 }
 
+#[cfg(windows)]
+fn wasapi_exclusive_period_hns(minimum_period: i64) -> Option<i64> {
+    (minimum_period > 0).then_some(minimum_period)
+}
+
 fn backend_notes() -> String {
     #[cfg(windows)]
     {
@@ -609,10 +614,12 @@ fn spawn_wasapi_exclusive_capture_thread(
             let actual_sample_rate = format.get_samplespersec();
             let channels = format.get_nchannels();
             let block_align = format.get_blockalign() as usize;
-            let (default_period, minimum_period) = client
+            let (_, minimum_period) = client
                 .get_device_period()
                 .map_err(|e| format!("Lecture de la période WASAPI : {e}"))?;
-            let period_hns = default_period.max(minimum_period).max(1);
+            let period_hns = wasapi_exclusive_period_hns(minimum_period).ok_or_else(|| {
+                "L’entrée WASAPI n’a pas fourni de période exclusive valide.".to_string()
+            })?;
             let mode = StreamMode::PollingExclusive {
                 buffer_duration_hns: period_hns.saturating_mul(2),
                 period_hns,
@@ -969,6 +976,14 @@ mod tests {
         assert_eq!(estimated_round_trip_ms(48_000, 480), 20);
         assert_eq!(estimated_round_trip_ms(0, 480), 0);
         assert_eq!(estimated_round_trip_ms(48_000, 0), 0);
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn wasapi_exclusive_uses_the_minimum_device_period() {
+        assert_eq!(wasapi_exclusive_period_hns(100_000), Some(100_000));
+        assert_eq!(wasapi_exclusive_period_hns(0), None);
+        assert_eq!(wasapi_exclusive_period_hns(-1), None);
     }
 
     #[test]
