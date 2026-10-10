@@ -320,9 +320,15 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     }
   }
 
+  async function refreshStudioProject() {
+    if (!project) return;
+    await openProject(project.id, { preserveForm: true });
+    setMidiTrackMix(null);
+  }
+
   async function onUserTrackAdded(next: MixDoc) {
     setMix(next);
-    if (project) await openProject(project.id, { preserveForm: true });
+    if (project) await refreshStudioProject();
   }
 
   function onEditMidiTrack(trackId: string, trackName: string) {
@@ -1334,7 +1340,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
               document={scoreDocument}
               voiceId={midiEditorVoiceId}
               onDocumentChange={setScoreDocument}
-              onProjectRefresh={() => openProject(project.id, { preserveForm: true })}
+              onProjectRefresh={refreshStudioProject}
               onError={setError}
               instrumentInspectorPosition="side"
             />
@@ -1384,7 +1390,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
                 document={scoreDocument}
                 voiceId={midiEditorVoiceId}
                 onDocumentChange={setScoreDocument}
-                onProjectRefresh={() => openProject(project.id, { preserveForm: true })}
+                onProjectRefresh={refreshStudioProject}
                 onError={setError}
               />
             </div>

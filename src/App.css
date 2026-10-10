@@ -9947,3 +9947,13 @@ details[open] > summary {
     max-height: 34vh;
   }
 }
+.app-shell:has(.persistent-player-dock) .studio-midi-editor-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.app-shell:has(.persistent-player-dock) .studio-midi-editor {
+  height: min(92vh, calc(100% - 1rem));
+  max-height: min(92vh, calc(100% - 1rem));
+  min-height: min(620px, calc(100% - 1rem));
+}
