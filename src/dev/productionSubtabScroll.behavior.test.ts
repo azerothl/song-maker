@@ -346,4 +346,40 @@ describe("Production commune (#223, #230)", () => {
     }
   });
 
+  it("keeps Studio lanes scrollable above the persistent player in a short window", async () => {
+    const page = await browser.newPage({ viewport: { width: 802, height: 632 } });
+    try {
+      await page.goto("http://127.0.0.1:5194/production-capture.html#studio-compact", {
+        waitUntil: "networkidle",
+      });
+      const scroller = page.locator(".production-mix-scroll");
+      await scroller.waitFor();
+      const before = await scroller.evaluate((element) => ({
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+        overflowY: getComputedStyle(element).overflowY,
+        scrollTop: element.scrollTop,
+      }));
+      assert.equal(before.overflowY, "auto");
+      assert.ok(before.scrollHeight > before.clientHeight, JSON.stringify(before));
+
+      const bounds = await scroller.boundingBox();
+      assert.ok(bounds, "missing Studio track scroll region");
+      await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+      await page.mouse.wheel(0, 1200);
+      await page.waitForFunction(() =>
+        (document.querySelector(".production-mix-scroll") as HTMLElement | null)?.scrollTop > 0,
+      );
+
+      const [lastLane, player] = await Promise.all([
+        page.locator(".production-mix-row").last().boundingBox(),
+        page.locator(".persistent-player-dock").boundingBox(),
+      ]);
+      assert.ok(lastLane && player, "missing lane or persistent player");
+      assert.ok(lastLane.y >= 0 && lastLane.y + lastLane.height <= player.y, JSON.stringify({ lastLane, player }));
+    } finally {
+      await page.close();
+    }
+  });
+
 });
