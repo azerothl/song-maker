@@ -272,17 +272,18 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
     return m;
   }, [voice, document.sections]);
 
-  const width = Math.max(640, maxTick * PX_PER_TICK);
-  const height = (PITCH_MAX - PITCH_MIN + 1) * ROW_H;
   const ticksPerMeasure =
     meter.numerator * (TICKS_PER_QUARTER * (4 / meter.denominator));
-  const measureWidth = ticksPerMeasure * PX_PER_TICK;
+  const pxPerTick = Math.max(PX_PER_TICK, hScroll.width / (ticksPerMeasure * 8));
+  const width = Math.max(640, maxTick * pxPerTick, hScroll.width);
+  const height = (PITCH_MAX - PITCH_MIN + 1) * ROW_H;
+  const measureWidth = ticksPerMeasure * pxPerTick;
   const measureCount = Math.ceil(width / measureWidth);
-  const beatWidth = (TICKS_PER_QUARTER * (4 / meter.denominator)) * PX_PER_TICK;
+  const beatWidth = (TICKS_PER_QUARTER * (4 / meter.denominator)) * pxPerTick;
 
   const notesIndex = useMemo(
-    () => buildPianoNotesIndex(voice?.notes ?? [], PX_PER_TICK),
-    [voice?.notes],
+    () => buildPianoNotesIndex(voice?.notes ?? [], pxPerTick),
+    [voice?.notes, pxPerTick],
   );
 
   const visibleNotes = useMemo(
@@ -300,9 +301,9 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
         document.sections,
         hScroll.left,
         hScroll.width,
-        PX_PER_TICK,
+        pxPerTick,
       ),
-    [document.sections, hScroll.left, hScroll.width],
+    [document.sections, hScroll.left, hScroll.width, pxPerTick],
   );
 
   function pitchToY(pitch: number): number {
@@ -320,7 +321,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
     const x = e.clientX - rect.left + e.currentTarget.scrollLeft;
     const y = e.clientY - rect.top;
     if (e.detail === 2) {
-      const startTick = Math.max(0, Math.round(x / PX_PER_TICK / 120) * 120);
+      const startTick = Math.max(0, Math.round(x / pxPerTick / 120) * 120);
       const pitch = yToPitch(y);
       const id = `n-${Date.now().toString(36)}`;
       onChange(
@@ -362,7 +363,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
       const dy = ev.clientY - originY;
       const nextStart = Math.max(
         0,
-        Math.round((startTick + dx / PX_PER_TICK) / 120) * 120,
+        Math.round((startTick + dx / pxPerTick) / 120) * 120,
       );
       const nextPitch = Math.min(
         PITCH_MAX,
@@ -512,69 +513,52 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
               ))}
             </select>
           </label>
-          <div className="piano-note-tools" role="group" aria-label={t("score.piano.noteTools")}>
-            <button
-              type="button"
-              className="btn"
-              disabled={!selectedId}
-              onClick={deleteSelected}
-            >
-              {t("score.noteDelete")}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={!selectedId}
-              onClick={() => bumpDuration(120)}
-            >
-              {t("score.noteLonger")}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={!selectedId}
-              onClick={() => bumpDuration(-120)}
-            >
-              {t("score.noteShorter")}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => applyTranspose(1)}
-              title={t("score.transposeHint")}
-            >
-              {t("score.transposeUp")}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => applyTranspose(-1)}
-              title={t("score.transposeHint")}
-            >
-              {t("score.transposeDown")}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => applyTranspose(12)}
-            >
-              {t("score.transposeOctUp")}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => applyTranspose(-12)}
-            >
-              {t("score.transposeOctDown")}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setPendingQuantize(true)}
-            >
-              {t("score.quantize")}
-            </button>
-          </div>
+          {(selectedNote || (voice?.notes.length ?? 0) > 0) && (
+            <div className="piano-note-tools" role="group" aria-label={t("score.piano.noteTools")}>
+              {selectedNote && (
+                <>
+                  <button type="button" className="btn" onClick={deleteSelected}>
+                    {t("score.noteDelete")}
+                  </button>
+                  <button type="button" className="btn" onClick={() => bumpDuration(120)}>
+                    {t("score.noteLonger")}
+                  </button>
+                  <button type="button" className="btn" onClick={() => bumpDuration(-120)}>
+                    {t("score.noteShorter")}
+                  </button>
+                </>
+              )}
+              {(voice?.notes.length ?? 0) > 0 && (
+                <>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => applyTranspose(1)}
+                    title={t("score.transposeHint")}
+                  >
+                    {t("score.transposeUp")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => applyTranspose(-1)}
+                    title={t("score.transposeHint")}
+                  >
+                    {t("score.transposeDown")}
+                  </button>
+                  <button type="button" className="btn" onClick={() => applyTranspose(12)}>
+                    {t("score.transposeOctUp")}
+                  </button>
+                  <button type="button" className="btn" onClick={() => applyTranspose(-12)}>
+                    {t("score.transposeOctDown")}
+                  </button>
+                  <button type="button" className="btn" onClick={() => setPendingQuantize(true)}>
+                    {t("score.quantize")}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
           <span className="hint">{t("score.pianoHint")}</span>
         </div>
 
@@ -893,7 +877,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
             <div
               key={s.id}
               className="section-marker"
-              style={{ left: s.startTick * PX_PER_TICK }}
+              style={{ left: s.startTick * pxPerTick }}
               title={`% ${s.kind}`}
             />
           ))}
@@ -914,9 +898,9 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
                 })}
                 aria-pressed={selected}
                 style={{
-                  left: n.startTick * PX_PER_TICK,
+                  left: n.startTick * pxPerTick,
                   top: pitchToY(n.pitch) - (NOTE_HIT_PX - ROW_H) / 2,
-                  width: Math.max(NOTE_HIT_PX, n.durationTick * PX_PER_TICK),
+                  width: Math.max(NOTE_HIT_PX, n.durationTick * pxPerTick),
                   height: NOTE_HIT_PX,
                   opacity: 0.55 + (n.velocity / 127) * 0.45,
                 }}
