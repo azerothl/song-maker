@@ -827,7 +827,7 @@ export function ProductionWorkspace({
                 </div>
               )}
 
-              <div className="production-mix-list" role="list" aria-label={t("mix.tracksTitle")}>
+              <div className="production-mix-list" role="group" aria-label={t("mix.tracksTitle")}>
                 <div role="region" aria-label={t("production.common.clips")} className="production-common-timeline">
                 <ClipTimeline
                   mix={mix} onChange={scheduleMixUpdate}
@@ -1023,10 +1023,14 @@ export function ProductionWorkspace({
                     const measureOffscreen =
                       capturePaintCollapsedTracks && collapsed && group.family === "rythmique";
                     return (
-                      <div key={group.family} className="production-mix-family">
+                      <div
+                        key={group.family}
+                        className="production-mix-family"
+                        role="group"
+                        aria-label={groupName}
+                      >
                         <div
                           className="production-mix-grid production-mix-group-header"
-                          role="listitem"
                         >
                           <div className="production-mix-group-name">
                             <button
