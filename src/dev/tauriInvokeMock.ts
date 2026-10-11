@@ -28,6 +28,16 @@ export function registerCaptureProfilesState(state: ProfilesState | null): void 
   captureProfilesState = state;
 }
 
+export function getCaptureMidiTrackState() {
+  const score = captureScore as {
+    voices?: Array<{ id: string; name: string; role: string }>;
+  } | null;
+  return {
+    mix: captureMix,
+    voices: score?.voices ?? [],
+  };
+}
+
 export function registerCaptureLibraryProjects(
   rows: Array<Record<string, unknown>> | null,
 ): void {

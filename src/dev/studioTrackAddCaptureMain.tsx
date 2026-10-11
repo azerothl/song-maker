@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { SongScreen } from "../screens/SongScreen";
 import { useAppStore } from "../store/appStore";
 import { seedCreateTabCaptureStore } from "./seedCreateTabCaptureStore";
-import { registerCaptureProject } from "./tauriInvokeMock";
+import { getCaptureMidiTrackState, registerCaptureProject } from "./tauriInvokeMock";
 import "../App.css";
 
 seedCreateTabCaptureStore();
@@ -17,13 +17,7 @@ if (seededProject) {
 function StudioTrackAddCaptureApp() {
   useEffect(() => {
     if (!import.meta.env.VITE_CAPTURE) return;
-    window.__captureGetMidiTrackState = () => {
-      const state = useAppStore.getState();
-      return {
-        mix: state.mix,
-        voices: state.scoreDocument?.voices ?? [],
-      };
-    };
+    window.__captureGetMidiTrackState = getCaptureMidiTrackState;
     return () => {
       delete window.__captureGetMidiTrackState;
     };

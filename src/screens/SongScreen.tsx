@@ -1175,8 +1175,8 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
           <p>{t("production.instrumental.previewHelp")}</p>
           <TakePreviewPlayer audioPath={pendingPart.audioPath} label={pendingPart.name} />
           <div className="actions">
-            <button type="button" disabled={busy} onClick={() => void acceptPendingPart(false)}>{t("production.instrumental.addSeparate")}</button>
-            <button type="button" disabled={busy} onClick={() => void acceptPendingPart(true)}>{t("production.instrumental.useFullMix")}</button>
+            <button className="btn primary" type="button" disabled={busy} onClick={() => void acceptPendingPart(true)}>{t("production.instrumental.useFullMix")}</button>
+            <button className="btn" type="button" disabled={busy} onClick={() => void acceptPendingPart(false)}>{t("production.instrumental.addSeparate")}</button>
             <button type="button" disabled={busy} onClick={() => setPendingPart(null)}>{t("production.instrumental.keepForLater")}</button>
           </div>
           <p className="hint">{t("production.instrumental.fullMixHelp")}</p>
