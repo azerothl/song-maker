@@ -352,7 +352,7 @@ describe("Production commune (#223, #230)", () => {
       await page.goto("http://127.0.0.1:5194/production-capture.html#studio-compact", {
         waitUntil: "networkidle",
       });
-      const scroller = page.locator(".production-mix-scroll");
+      const scroller = page.getByTestId("clip-timeline-lanes");
       await scroller.waitFor();
       const before = await scroller.evaluate((element) => ({
         scrollHeight: element.scrollHeight,
@@ -368,7 +368,7 @@ describe("Production commune (#223, #230)", () => {
       await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
       await page.mouse.wheel(0, 1200);
       await page.waitForFunction(() => {
-        const element = document.querySelector(".production-mix-scroll");
+        const element = document.querySelector('[data-testid="clip-timeline-lanes"]');
         return element instanceof HTMLElement && element.scrollTop > 0;
       });
 
