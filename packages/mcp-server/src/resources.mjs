@@ -96,23 +96,33 @@ export async function listLocalResources({ env = process.env } = {}) {
   const aceStepInstalled = await exactFile(cacheDirectory, ACE_STEP.file.replace(/^models\//, ''), ACE_STEP.bytes);
   const aceStepLegoRuntimeStatus = await aceStepLegoRuntime(cacheDirectory, env);
   const selectedEngine = settings.selectedEngine;
-  const yue2Runtime = runtimeStatus({ env });
+  const yue2Runtime = runtimeStatus({ engineId: 'yue2', env });
+  const aceStepRuntime = runtimeStatus({ engineId: 'ace_step', env });
+  const mcpGenerationEngine = settings.selectedEngine === 'ace_step' ? 'ace_step' : 'yue2';
+  const selectedRuntime = mcpGenerationEngine === 'ace_step' ? aceStepRuntime : yue2Runtime;
   const mcpGenerationBlockers = [];
-  if (!settings.localYue2Enabled) mcpGenerationBlockers.push('YuE2 est désactivé dans le profil actif.');
-  if (!settings.yue2LicenseAccepted && env.SONG_MAKER_YUE2_NONCOMMERCIAL !== '1') {
-    mcpGenerationBlockers.push('La licence non commerciale YuE2 n’a pas été acceptée dans le profil actif.');
-  }
-  if (yue2Runtime.missing.includes('audiocpp_cli')) {
-    mcpGenerationBlockers.push('Le moteur audio YuE2 est absent ou incomplet.');
-  }
-  if (yue2Runtime.missing.includes('YuE2 Q4 ou Q8')) {
-    mcpGenerationBlockers.push('Le modèle YuE2 sélectionné ou un composant requis est absent.');
-  }
-  if (yue2Runtime.missing.includes('YuE2 VAE')) {
-    mcpGenerationBlockers.push('Le composant VAE YuE2 est absent ou incomplet.');
-  }
-  for (const sidecar of yue2Runtime.missing.filter(item => item.startsWith('sidecar:'))) {
-    mcpGenerationBlockers.push(`Le composant ${sidecar.slice('sidecar:'.length)} est absent ou incomplet.`);
+  if (mcpGenerationEngine === 'ace_step') {
+    if (!profileSettings.aceStepLicenseAccepted) mcpGenerationBlockers.push('L’avertissement de licence ACE-Step n’a pas été accepté dans le profil actif.');
+    if (!aceStepRuntime.aceStepContractAccepted) mcpGenerationBlockers.push('Le profil Commercial doit accepter l’avertissement ACE-Step actuel dans Song Maker.');
+    if (aceStepRuntime.missing.includes('audiocpp_server')) mcpGenerationBlockers.push('Le serveur audio local est absent.');
+    if (aceStepRuntime.missing.includes('ACE-Step 1.5 Turbo BF16')) mcpGenerationBlockers.push('Le modèle ACE-Step 1.5 Turbo BF16 est absent ou incomplet.');
+  } else {
+    if (!settings.localYue2Enabled) mcpGenerationBlockers.push('YuE2 est désactivé dans le profil actif.');
+    if (!settings.yue2LicenseAccepted && env.SONG_MAKER_YUE2_NONCOMMERCIAL !== '1') {
+      mcpGenerationBlockers.push('La licence non commerciale YuE2 n’a pas été acceptée dans le profil actif.');
+    }
+    if (yue2Runtime.missing.includes('audiocpp_cli')) {
+      mcpGenerationBlockers.push('Le moteur audio YuE2 est absent ou incomplet.');
+    }
+    if (yue2Runtime.missing.includes('YuE2 Q4 ou Q8')) {
+      mcpGenerationBlockers.push('Le modèle YuE2 sélectionné ou un composant requis est absent.');
+    }
+    if (yue2Runtime.missing.includes('YuE2 VAE')) {
+      mcpGenerationBlockers.push('Le composant VAE YuE2 est absent ou incomplet.');
+    }
+    for (const sidecar of yue2Runtime.missing.filter(item => item.startsWith('sidecar:'))) {
+      mcpGenerationBlockers.push(`Le composant ${sidecar.slice('sidecar:'.length)} est absent ou incomplet.`);
+    }
   }
 
   return {
@@ -129,17 +139,21 @@ export async function listLocalResources({ env = process.env } = {}) {
       aceStepLegoAccepted: profileSettings.aceStepLegoLicenseAccepted === true,
       ccByNcAccepted: profileSettings.ccByNcAccepted === true,
     },
-    mcpGenerationEngine: 'yue2',
+    mcpGenerationEngine,
     mcpGenerationEngines: [
-      { id: 'yue2', supported: true, default: true, selectedInApp: selectedEngine === 'yue2' },
-      { id: ACE_STEP.id, supported: false, reason: 'Le moteur ACE-Step n’est pas pilotable depuis MCP.' },
+      { id: 'yue2', supported: true, default: mcpGenerationEngine === 'yue2', selectedInApp: selectedEngine === 'yue2' },
+      { id: ACE_STEP.id, supported: true, default: mcpGenerationEngine === ACE_STEP.id, selectedInApp: selectedEngine === ACE_STEP.id,
+        ready: aceStepRuntime.ready && aceStepRuntime.aceStepLicenseAccepted && aceStepRuntime.aceStepContractAccepted,
+        missing: aceStepRuntime.missing,
+        licenseAccepted: aceStepRuntime.aceStepLicenseAccepted,
+        contractAccepted: aceStepRuntime.aceStepContractAccepted },
       { id: ACE_STEP_LEGO.id, supported: false, reason: 'Le moteur ACE-Step Lego n’est pas pilotable depuis MCP.' },
     ],
     mcpUsesActiveAppProfile: true,
-    mcpGenerationReady: mcpGenerationBlockers.length === 0,
+    mcpGenerationReady: selectedRuntime.ready && mcpGenerationBlockers.length === 0,
     mcpGenerationBlockers,
-    mcpRuntimeMissing: yue2Runtime.missing,
-    mcpModelSource: settings.modelSource,
+    mcpRuntimeMissing: selectedRuntime.missing,
+    mcpModelSource: selectedRuntime.modelSource,
     engines: [
       {
         id: 'yue2',
@@ -156,7 +170,10 @@ export async function listLocalResources({ env = process.env } = {}) {
         selected: selectedEngine === ACE_STEP.id,
         installed: aceStepInstalled,
         licenseAccepted: profileSettings.aceStepLicenseAccepted === true,
-        mcpGenerationSupported: false,
+        mcpGenerationSupported: true,
+        mcpGenerationReady: aceStepRuntime.ready && aceStepRuntime.aceStepLicenseAccepted && aceStepRuntime.aceStepContractAccepted,
+        missing: aceStepRuntime.missing,
+        contractAccepted: aceStepRuntime.aceStepContractAccepted,
       },
       {
         id: ACE_STEP_LEGO.id,

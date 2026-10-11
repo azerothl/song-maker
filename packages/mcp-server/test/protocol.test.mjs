@@ -124,9 +124,13 @@ test('MCP exposes the headless tools over stdio', async () => {
         'runtime_status', 'start_batch', 'start_song', 'update_project', 'update_project_mix', 'use_project_generation',
         'use_project_mix', 'use_project_score', 'use_project_separation']);
     for (const name of ['start_song', 'start_batch']) {
-      assert.deepEqual(tools.tools.find(tool => tool.name === name).inputSchema.properties.engineId.enum, ['yue2']);
+      assert.deepEqual(tools.tools.find(tool => tool.name === name).inputSchema.properties.engineId.enum, ['yue2', 'ace_step']);
       assert.deepEqual(tools.tools.find(tool => tool.name === name).inputSchema.properties.modelId.enum, ['q4', 'q8']);
     }
+    assert.ok(tools.tools.find(tool => tool.name === 'start_song').inputSchema.properties.tempoBpm);
+    assert.ok(tools.tools.find(tool => tool.name === 'start_song').inputSchema.properties.key);
+    assert.ok(tools.tools.find(tool => tool.name === 'start_song').inputSchema.properties.meter);
+    assert.equal(tools.tools.find(tool => tool.name === 'start_song').inputSchema.properties.targetDurationSec.multipleOf, 30);
     const multiTakeAudit = await client.callTool({ name: 'start_batch', arguments: {
       batchFile: path.join(importDirectory, 'multi-take.batch.json'), dryRun: true,
     } });

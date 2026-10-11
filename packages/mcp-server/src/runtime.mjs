@@ -1,5 +1,5 @@
 import { execFile as execFileCallback, spawn } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, realpathSync, statSync } from 'node:fs';
 import { link, mkdir, open, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import net from 'node:net';
@@ -32,6 +32,12 @@ const creativeAxes = {
   arrangement: 'arrangement arc',
   motif: 'signature motif',
 };
+const ACE_STEP = {
+  modelPath: path.join('models', 'ACE-Step1.5-GGUF', 'turbo', 'ace-step-1.5-turbo-bf16.gguf'),
+  modelBytes: 10_090_398_272,
+  engineId: 'ace_step_1_5',
+  contractVersion: '2026-10-01-v1',
+};
 const promptStopWords = new Set([
   'the', 'and', 'for', 'with', 'from', 'into', 'that', 'this', 'their', 'your', 'make',
   'track', 'style', 'music', 'instrumental', 'jazz', 'classic', 'classical', 'japanese',
@@ -59,13 +65,18 @@ export function insideWorkspace(userPath, root = workspaceRoot) {
 
 export function runtimeStatus({ modelId, engineId, env = process.env } = {}) {
   const appSettings = readSongMakerRuntimeSettings(env);
-  if (engineId !== undefined && engineId !== 'yue2') {
-    throw new Error('Moteur MCP indisponible. Le seul moteur de génération MCP pris en charge est YuE2.');
+  const selectedEngine = engineId ?? (['yue2', 'ace_step'].includes(appSettings.selectedEngine)
+    ? appSettings.selectedEngine : 'yue2');
+  if (!['yue2', 'ace_step'].includes(selectedEngine)) {
+    throw new Error('Moteur MCP indisponible. Choisis YuE2 ou ACE-Step dans list_local_resources.');
+  }
+  if (modelId !== undefined && selectedEngine !== 'yue2') {
+    throw new Error('modelId ne s’applique qu’au moteur YuE2.');
   }
   if (modelId !== undefined && !['q4', 'q8'].includes(modelId)) {
     throw new Error('Modèle YuE2 invalide. Choisissez q4 ou q8.');
   }
-  const selectedModelId = modelId ?? appSettings.modelId;
+  const selectedModelId = selectedEngine === 'yue2' ? (modelId ?? appSettings.modelId) : null;
   const cache = appSettings.cacheDirectory;
   const folder = path.join(cache, 'binaries', appSettings.binaryTag);
   const binaryName = process.platform === 'win32' ? 'audiocpp_cli.exe' : 'audiocpp_cli';
@@ -81,6 +92,53 @@ export function runtimeStatus({ modelId, engineId, env = process.env } = {}) {
     path.join(folder, 'linux-cuda12.8-colab', serverName),
     path.join(folder, 'extracted', serverName),
   ].find(existsSync) || null;
+  const aceStepPath = path.join(cache, ACE_STEP.modelPath);
+  const aceStepInstalled = hasExactFile(aceStepPath, ACE_STEP.modelBytes);
+  const aceContract = appSettings.engineContractAcceptances?.[ACE_STEP.engineId];
+  const aceContractPayload = [
+    ACE_STEP.contractVersion,
+    "Avant d'utiliser ACE-Step dans ce profil",
+    'Before using ACE-Step in this profile',
+    'Licence des poids : MIT selon la carte du modèle d\'origine ; la conversion distribuée par audio.cpp déclare "other" et renvoie à l\'original ; sortie non vérifiée. Song Maker n\'a pas vérifié les droits d\'usage commercial des poids ACE-Step ni des morceaux générés. Les auteurs formulent cet avertissement :',
+    'Weight license: MIT according to the original model card; the conversion distributed by audio.cpp declares "other" and points back to the original; output rights are unverified. Song Maker has not verified commercial rights for ACE-Step weights or generated tracks. The authors publish this notice:',
+    'The authors are not responsible for any misuse of the model',
+    'J’ai lu l’avertissement des auteurs et je l’accepte pour ce profil.',
+    'I have read the authors’ notice and accept it for this profile.',
+  ].join('\n');
+  const aceContractFingerprint = createHash('sha256').update(aceContractPayload).digest('hex');
+  const aceStepContractAccepted = !appSettings.profileId || appSettings.profileKind !== 'commercial'
+    ? true
+    : aceContract?.textVersion === ACE_STEP.contractVersion &&
+      aceContract?.textFingerprint === aceContractFingerprint;
+  if (selectedEngine === 'ace_step') {
+    const missing = [
+      ...(!serverBinary ? ['audiocpp_server'] : []),
+      ...(!aceStepInstalled ? ['ACE-Step 1.5 Turbo BF16'] : []),
+    ];
+    return {
+      ready: missing.length === 0,
+      binary,
+      serverBinary,
+      modelDir: path.dirname(aceStepPath),
+      modelPath: aceStepPath,
+      modelName: aceStepInstalled ? path.basename(aceStepPath) : null,
+      modelId: null,
+      binaryTag: appSettings.binaryTag,
+      appModelId: appSettings.appModelId,
+      modelSource: 'song-maker-settings',
+      engineId: selectedEngine,
+      engineSource: engineId ? 'request' : (selectedEngine === appSettings.selectedEngine ? 'song-maker-profile' : 'mcp-yue2-fallback'),
+      profileId: appSettings.profileId,
+      profileKind: appSettings.profileKind,
+      selectedEngine: appSettings.selectedEngine,
+      localYue2Enabled: appSettings.localYue2Enabled,
+      yue2LicenseAccepted: appSettings.yue2LicenseAccepted,
+      aceStepLicenseAccepted: appSettings.aceStepLicenseAccepted,
+      aceStepContractAccepted,
+      missing,
+      workspaceRoot,
+    };
+  }
   const modelDir = path.join(cache, 'models', 'Yue2-3B-GGUF');
   const model = YUE2_MODELS.find(candidate => candidate.id === selectedModelId);
   const modelPath = model ? path.join(modelDir, model.file) : null;
@@ -104,8 +162,8 @@ export function runtimeStatus({ modelId, engineId, env = process.env } = {}) {
     binaryTag: appSettings.binaryTag,
     appModelId: appSettings.appModelId,
     modelSource: modelId ? 'request' : appSettings.modelSource,
-    engineId: engineId ?? 'yue2',
-    engineSource: engineId ? 'request' : 'mcp-supported-default',
+    engineId: selectedEngine,
+    engineSource: engineId ? 'request' : (selectedEngine === appSettings.selectedEngine ? 'song-maker-profile' : 'mcp-yue2-fallback'),
     profileId: appSettings.profileId,
     selectedEngine: appSettings.selectedEngine,
     localYue2Enabled: appSettings.localYue2Enabled,
@@ -122,6 +180,20 @@ export function assertYue2GenerationAllowed(runtime, env = process.env) {
   if (!runtime.yue2LicenseAccepted && env.SONG_MAKER_YUE2_NONCOMMERCIAL !== '1') {
     throw new Error('Accepte la licence non commerciale YuE2 dans le profil Song Maker actif ou définis SONG_MAKER_YUE2_NONCOMMERCIAL=1 après lecture de la licence CC BY-NC 4.0.');
   }
+}
+
+export function assertAceStepGenerationAllowed(runtime) {
+  if (!runtime.aceStepLicenseAccepted) {
+    throw new Error('Lisez et acceptez l’avertissement de licence ACE-Step dans le profil Song Maker actif.');
+  }
+  if (!runtime.aceStepContractAccepted) {
+    throw new Error('Le profil Commercial doit accepter l’avertissement ACE-Step actuel dans Paramètres → Modèle.');
+  }
+}
+
+export function assertGenerationAllowed(runtime, env = process.env) {
+  if (runtime.engineId === 'ace_step') return assertAceStepGenerationAllowed(runtime);
+  return assertYue2GenerationAllowed(runtime, env);
 }
 
 function normalizeCreativeDirection(input, title, style) {
@@ -169,7 +241,9 @@ export function normalizeSong(song, defaults = {}) {
     throw new Error('Titre, style ou paroles absents ou trop longs.');
   }
   if (!instrumental && !lyrics) throw new Error(`Paroles manquantes pour « ${title} ».`);
-  if (!Number.isInteger(duration) || duration < 30 || duration > 360) throw new Error(`Durée invalide pour « ${title} » (30–360 s).`);
+  if (!Number.isInteger(duration) || duration < 30 || duration > 360 || duration % 30 !== 0) {
+    throw new Error(`Durée invalide pour « ${title} » (30–360 s, par pas de 30 s).`);
+  }
   if (!['full', 'melody', 'off'].includes(cot)) throw new Error(`Mode cot invalide pour « ${title} ».`);
   if (tempo !== null && (!Number.isInteger(tempo) || tempo < 40 || tempo > 220)) throw new Error(`Tempo invalide pour « ${title} ».`);
   if (key !== null && (!key || !['major', 'minor'].includes(key.mode) ||
@@ -411,8 +485,10 @@ export async function wavDurationMs(filePath) {
 }
 
 export function assertRequestedDuration(song, actualMs) {
-  if (!song.instrumental && song.preferFullLyrics) return;
-  const expectedMs = Math.round(song.duration / 30) * 30 * 1000;
+  if (song.engineId !== 'ace_step' && !song.instrumental && song.preferFullLyrics) return;
+  const expectedMs = song.engineId === 'ace_step'
+    ? song.duration * 1000
+    : Math.round(song.duration / 30) * 30 * 1000;
   if (actualMs <= 0 || Math.abs(actualMs - expectedMs) > 250) {
     const error = new Error('Durée générée (' + Math.round(actualMs / 1000) +
       ' s) différente de la durée demandée (' + expectedMs / 1000 + ' s).');
@@ -429,13 +505,14 @@ function cancellationError() {
 
 export async function runCli(song, destination, runtime = runtimeStatus(), signal) {
   if (signal?.aborted) throw cancellationError();
+  if (runtime.engineId !== 'yue2') throw new Error('ACE-Step MCP requiert audiocpp_server ; aucun repli CLI n’est autorisé.');
   if (!runtime.ready) throw new Error(`Runtime incomplet : ${runtime.missing.join(', ')}`);
   assertYue2GenerationAllowed(runtime);
   if (existsSync(destination)) throw new Error(`Export déjà présent : ${destination}`);
   await mkdir(path.dirname(destination), { recursive: true });
   const temporary = destination + '.partial.wav';
   if (existsSync(temporary)) throw new Error(`Export partiel déjà présent : ${temporary}`);
-  const limits = gpuLimits(runtime.modelName);
+  const limits = gpuLimitsForRuntime(runtime);
   assertGpuSafe(await readGpuTelemetry(), limits);
   let tail = '';
   let telemetryWarning = null;
@@ -516,7 +593,7 @@ async function serverIsHealthy(server) {
   } catch { return false; }
 }
 
-async function stopYue2Server(server) {
+async function stopAudioServer(server) {
   if (!server) return;
   if (server.child.exitCode === null && server.child.signalCode === null) server.child.kill();
   await Promise.race([server.closed, pause(5000)]);
@@ -525,18 +602,22 @@ async function stopYue2Server(server) {
   await unlink(server.configPath).catch(() => {});
 }
 
-export async function startYue2Server(runtime, jobId) {
+export async function startAudioServer(runtime, jobId) {
   if (!runtime.serverBinary) throw new Error('audiocpp_server est absent du runtime local.');
-  assertGpuSafe(await readGpuTelemetry(), gpuLimits(runtime.modelName));
+  assertGpuSafe(await readGpuTelemetry(), gpuLimitsForRuntime(runtime));
   const host = '127.0.0.1';
   const port = await availablePort();
   const backend = process.platform === 'darwin' ? 'metal' : 'cuda';
   const configPath = path.join(jobsDir, `${jobId}.${randomUUID()}.audiocpp-server.json`);
+  const model = runtime.engineId === 'ace_step'
+    ? { id: 'ace_step', family: 'ace_step', path: runtime.modelPath, task: 'gen', mode: 'offline',
+      busy_timeout_ms: yue2ServerTimeoutMs }
+    : { id: 'yue2', family: 'yue2', path: runtime.modelDir, task: 'gen', mode: 'offline',
+      busy_timeout_ms: yue2ServerTimeoutMs, session_options: { 'yue2.model_gguf': runtime.modelName } };
   const config = {
     host, port, backend, device: 0, lazy_load: true, max_loaded_models: 1,
     idle_unload_ms: 0, busy_timeout_ms: yue2ServerTimeoutMs,
-    models: [{ id: 'yue2', family: 'yue2', path: runtime.modelDir, task: 'gen', mode: 'offline',
-      busy_timeout_ms: yue2ServerTimeoutMs, session_options: { 'yue2.model_gguf': runtime.modelName } }],
+    models: [model],
   };
   await writeFile(configPath, JSON.stringify(config, null, 2), { flag: 'wx' });
   const child = spawn(runtime.serverBinary, ['--config', configPath, '--backend', backend], {
@@ -560,12 +641,35 @@ export async function startYue2Server(runtime, jobId) {
     }
     throw new Error(`audiocpp_server ne répond pas sur /health : ${server.tail.slice(-1000)}`);
   } catch (error) {
-    await stopYue2Server(server);
+    await stopAudioServer(server);
     throw error;
   }
 }
 
-export function serverSongRequest(song) {
+export async function startYue2Server(runtime, jobId) {
+  if (runtime.engineId !== 'yue2') throw new Error('startYue2Server ne prend en charge que YuE2.');
+  return startAudioServer(runtime, jobId);
+}
+
+export function serverSongRequest(song, engineId = song.engineId || 'yue2') {
+  if (engineId === 'ace_step') {
+    const request = {
+      task_route: 'text2music',
+      text: song.instrumental
+        ? `${stylePrompt(song)}; instrumental only, no vocals, no singing, no spoken voice`
+        : stylePrompt(song),
+      lyrics: song.instrumental ? '[Instrumental]' : song.lyrics,
+      seed: song.seed,
+      duration_seconds: song.duration,
+      num_inference_steps: 8,
+      guidance_scale: 1.0,
+    };
+    if (song.tempo !== null && song.tempo !== undefined) request.bpm = song.tempo;
+    if (song.key) request.keyscale = `${song.key.tonic} ${song.key.mode}`;
+    if (song.meter) request.timesignature = `${song.meter.numerator}/${song.meter.denominator}`;
+    if (!song.instrumental && song.language) request.language = song.language === 'en' ? 'English' : song.language;
+    return { model: 'ace_step', request };
+  }
   const [min, max] = semanticBudget(song);
   return {
     model: 'yue2',
@@ -584,14 +688,14 @@ export function serverSongRequest(song) {
 export async function runServerSong(song, destination, runtime, server, signal) {
   if (signal?.aborted) throw cancellationError();
   if (!runtime.ready) throw new Error(`Runtime incomplet : ${runtime.missing.join(', ')}`);
-  assertYue2GenerationAllowed(runtime);
+  assertGenerationAllowed(runtime);
   if (existsSync(destination)) throw new Error(`Export déjà présent : ${destination}`);
   await mkdir(path.dirname(destination), { recursive: true });
   const temporary = destination + '.partial.wav';
   if (existsSync(temporary)) throw new Error(`Export partiel déjà présent : ${temporary}`);
-  const limits = gpuLimits(runtime.modelName);
+  const limits = gpuLimitsForRuntime(runtime);
   assertGpuSafe(await readGpuTelemetry(), limits, !server.modelLoaded);
-  const request = serverSongRequest(song);
+  const request = serverSongRequest(song, runtime.engineId);
   const controller = new AbortController();
   let safetyError = null;
   let telemetryWarning = null;
@@ -632,13 +736,13 @@ export async function runServerSong(song, destination, runtime, server, signal) 
     if (safetyError) throw safetyError;
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(`YuE2 a échoué (HTTP ${response.status}) : ${body.slice(-1000)}`);
+      throw new Error(`${runtime.engineId === 'ace_step' ? 'ACE-Step' : 'YuE2'} a échoué (HTTP ${response.status}) : ${body.slice(-1000)}`);
     }
     const result = await response.json();
     const encoded = result?.audio || result?.named_audio_outputs?.[0]?.audio;
     if (typeof encoded !== 'string' || !encoded.length) throw new Error('Réponse audio.cpp sans WAV base64.');
     const wav = Buffer.from(encoded, 'base64');
-    if (wav.length < 1024) throw new Error('YuE2 n’a pas produit un WAV valide.');
+    if (wav.length < 1024) throw new Error(`${runtime.engineId === 'ace_step' ? 'ACE-Step' : 'YuE2'} n’a pas produit un WAV valide.`);
     if (safetyError) throw safetyError;
     await writeFile(temporary, wav, { flag: 'wx' });
     const quality = await inspectWav(temporary);
@@ -651,7 +755,7 @@ export async function runServerSong(song, destination, runtime, server, signal) 
   } catch (error) {
     await unlink(temporary).catch(() => {});
     if (safetyError) throw safetyError;
-    if (timedOut) throw new Error('audio.cpp a dépassé le délai maximal de génération YuE2.');
+    if (timedOut) throw new Error(`audio.cpp a dépassé le délai maximal de génération ${runtime.engineId === 'ace_step' ? 'ACE-Step' : 'YuE2'}.`);
     if (signal?.aborted) throw cancellationError();
     throw error;
   } finally {
@@ -666,7 +770,11 @@ export function gpuLimits(modelName, maxTemperature = process.env.SONG_MAKER_GPU
   if (!Number.isFinite(temperature) || temperature < 65 || temperature > 85) {
     throw new Error('SONG_MAKER_GPU_MAX_TEMP_C doit être entre 65 et 85 °C.');
   }
-  return { maxTemperature: temperature, minimumFreeMemoryMiB: modelName?.includes('q8_0') ? 12 * 1024 : 8 * 1024 };
+  return { maxTemperature: temperature, minimumFreeMemoryMiB: modelName?.includes('ace-step') || modelName?.includes('q8_0') ? 12 * 1024 : 8 * 1024 };
+}
+
+function gpuLimitsForRuntime(runtime) {
+  return gpuLimits(runtime.modelName);
 }
 
 export function parseGpuTelemetry(output) {
@@ -854,31 +962,44 @@ async function launchJob(job) {
     throw error;
   }
   return { id: job.id, state: job.state, total: job.songs.length,
-    sourceSongs: job.sourceSongCount, outputDirectory: job.outputDirectory };
+    sourceSongs: job.sourceSongCount, outputDirectory: job.outputDirectory,
+    generationEngine: job.generationEngine, modelId: job.modelId };
+}
+
+export function createJobRecord(songs, output, runtime, { reviewBeforeNext = true } = {}) {
+  const engineSongs = songs.map(song => ({ ...song, engineId: runtime.engineId }));
+  const uniqueSongs = uniqueBatchSongs(engineSongs);
+  return { id: randomUUID(), state: 'queued', outputDirectory: output, songs: engineSongs,
+    generationEngine: runtime.engineId, modelId: runtime.modelId,
+    current: 0, completed: [], failures: [], warnings: [],
+    sourceSongCount: uniqueSongs.length,
+    promptAudit: uniqueSongs.length > 1 ? auditPromptDiversity(uniqueSongs) : null,
+    reviewBeforeNext: engineSongs.length > 1 && reviewBeforeNext,
+    reviewRequired: null,
+    reviewWorkerActive: false,
+    engine: null, error: null, createdAt: new Date().toISOString() };
 }
 
 export async function startJob(songs, outputDirectory, { reviewBeforeNext = true, modelId, engineId } = {}) {
   const runtime = runtimeStatus({ modelId, engineId });
   if (!runtime.ready) throw new Error(`Runtime incomplet : ${runtime.missing.join(', ')}`);
-  assertYue2GenerationAllowed(runtime);
-  inferenceThreads();
-  assertGpuSafe(await readGpuTelemetry(), gpuLimits(runtime.modelName));
+  assertGenerationAllowed(runtime);
+  if (runtime.engineId === 'yue2') inferenceThreads();
+  assertGpuSafe(await readGpuTelemetry(), gpuLimitsForRuntime(runtime));
   const output = insideWorkspace(outputDirectory);
+  const job = createJobRecord(songs, output, runtime, { reviewBeforeNext });
   await mkdir(output, { recursive: true });
-  for (let i = 0; i < songs.length; i++) {
-    if (existsSync(path.join(output, outputName(songs[i], i)))) throw new Error(`Fichier déjà présent : ${outputName(songs[i], i)}`);
+  for (let i = 0; i < job.songs.length; i++) {
+    if (existsSync(path.join(output, outputName(job.songs[i], i)))) throw new Error(`Fichier déjà présent : ${outputName(job.songs[i], i)}`);
   }
   await mkdir(jobsDir, { recursive: true });
-  const job = { id: randomUUID(), state: 'queued', outputDirectory: output, songs,
-    engine: runtime.engineId, modelId: runtime.modelId,
-    current: 0, completed: [], failures: [], warnings: [],
-    sourceSongCount: uniqueBatchSongs(songs).length,
-    promptAudit: uniqueBatchSongs(songs).length > 1 ? auditPromptDiversity(uniqueBatchSongs(songs)) : null,
-    reviewBeforeNext: songs.length > 1 && reviewBeforeNext,
-    reviewRequired: null,
-    reviewWorkerActive: false,
-    engine: null, error: null, createdAt: new Date().toISOString() };
   return launchJob(job);
+}
+
+export function requestedJobEngine(job) {
+  if (['yue2', 'ace_step'].includes(job.generationEngine)) return job.generationEngine;
+  // Older job files stored only the active engine before overwriting it with the backend name.
+  return ['yue2', 'ace_step'].includes(job.engine) ? job.engine : 'yue2';
 }
 
 export async function resumeJob(id) {
@@ -887,12 +1008,12 @@ export async function resumeJob(id) {
   if (job.state !== 'paused_safety' && !reviewAcknowledgement) {
     throw new Error('Le job doit être en pause de sécurité ou en attente de validation audio pour être repris.');
   }
-  const runtime = runtimeStatus({ modelId: job.modelId, engineId: job.engine || 'yue2' });
+  const runtime = runtimeStatus({ modelId: job.modelId, engineId: requestedJobEngine(job) });
   if (!runtime.ready) throw new Error(`Runtime incomplet : ${runtime.missing.join(', ')}`);
-  assertYue2GenerationAllowed(runtime);
-  inferenceThreads();
+  assertGenerationAllowed(runtime);
+  if (runtime.engineId === 'yue2') inferenceThreads();
   const keepWarmReview = reviewAcknowledgement && job.reviewWorkerActive && await processIsAlive(job.pid);
-  assertGpuSafe(await readGpuTelemetry(), gpuLimits(runtime.modelName), !keepWarmReview);
+  assertGpuSafe(await readGpuTelemetry(), gpuLimitsForRuntime(runtime), !keepWarmReview);
   if (reviewAcknowledgement) {
     job.reviewAcknowledgedAt = new Date().toISOString();
     job.reviewRequired = null;
@@ -939,12 +1060,14 @@ export async function runJob(id) {
   cancelMonitor.unref();
   if (existsSync(cancelPath)) cancelController.abort();
   try {
-    const runtime = runtimeStatus({ modelId: job.modelId, engineId: job.engine || 'yue2' });
+    const runtime = runtimeStatus({ modelId: job.modelId, engineId: requestedJobEngine(job) });
+    if (!runtime.ready) throw new Error(`Runtime incomplet : ${runtime.missing.join(', ')}`);
     if (runtime.serverBinary) {
       try {
-        server = await startYue2Server(runtime, id);
+        server = await startAudioServer(runtime, id);
         job.engine = 'audiocpp_server';
       } catch (error) {
+        if (runtime.engineId === 'ace_step') throw error;
         if (error.code === 'GPU_SAFETY_STOP' || error.code === 'GPU_MEMORY_LOW') throw error;
         job.engine = 'audiocpp_cli';
         job.warnings.push(`Serveur persistant indisponible au démarrage ; utilisation du CLI : ${String(error?.message || error)}`);
@@ -969,8 +1092,8 @@ export async function runJob(id) {
           try {
             result = await runServerSong(job.songs[i], destination, runtime, server, cancelController.signal);
           } catch (error) {
-            if (!server.exited || error.code === 'GPU_SAFETY_STOP' || error.code === 'GPU_MEMORY_LOW') throw error;
-            await stopYue2Server(server);
+            if (runtime.engineId === 'ace_step' || !server.exited || error.code === 'GPU_SAFETY_STOP' || error.code === 'GPU_MEMORY_LOW') throw error;
+            await stopAudioServer(server);
             server = null;
             job.engine = 'audiocpp_cli_fallback';
             job.warnings.push(`audiocpp_server s’est arrêté ; le morceau ${job.songs[i].id} et les suivants passent au CLI.`);
@@ -1083,7 +1206,7 @@ export async function runJob(id) {
     }
     job.finishedAt = new Date().toISOString();
     job.reviewWorkerActive = false;
-    try { await stopYue2Server(server); }
+    try { await stopAudioServer(server); }
     finally {
       try { await saveJob(job); }
       finally {

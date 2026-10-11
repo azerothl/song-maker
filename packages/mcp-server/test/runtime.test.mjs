@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import test from 'node:test';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
-import { acquireGpuLock, assertGpuSafe, assertRequestedDuration, assertYue2GenerationAllowed, auditPromptDiversity, cancelJob, cliArgs, getJob, gpuLimits,
-  inferenceThreads, insideWorkspace, normalizeSong, outputName, parseBatch, parseGpuTelemetry, publishExclusive,
-  releaseGpuLock, runtimeStatus, semanticBudget, serverSongRequest, uniqueBatchSongs, wavDurationMs,
+import { acquireGpuLock, assertGenerationAllowed, assertGpuSafe, assertRequestedDuration, assertYue2GenerationAllowed, auditPromptDiversity, cancelJob, cliArgs, getJob, gpuLimits,
+  createJobRecord, inferenceThreads, insideWorkspace, normalizeSong, outputName, parseBatch, parseGpuTelemetry, publishExclusive,
+  releaseGpuLock, requestedJobEngine, runtimeStatus, semanticBudget, serverSongRequest, uniqueBatchSongs, wavDurationMs,
   workspaceRoot } from '../src/runtime.mjs';
 
 const basic = { id: '01', title: 'Soft Morning', style: 'chill soul', lyrics: '[Verse]\nA quiet room', seed: 42 };
@@ -47,6 +47,80 @@ test('persistent-server instrumental requests leave lyrics empty and keep a fixe
   assert.equal(request.lyrics, '');
   assert.equal(request.options.semantic_min_tokens, 1500);
   assert.equal(request.options.semantic_max_tokens, 1500);
+});
+
+test('ACE-Step requests preserve the app request contract and exact duration checks', () => {
+  const song = normalizeSong({ ...basic, lyrics: '', instrumentalMode: true, targetDurationSec: 90,
+    tempoBpm: 96, key: { tonic: 'Eb', mode: 'minor' }, meter: { numerator: 6, denominator: 8 } });
+  const request = serverSongRequest({ ...song, engineId: 'ace_step' });
+  assert.equal(request.model, 'ace_step');
+  assert.equal(request.request.task_route, 'text2music');
+  assert.equal(request.request.lyrics, '[Instrumental]');
+  assert.equal(request.request.seed, song.seed);
+  assert.equal(request.request.duration_seconds, 90);
+  assert.equal(request.request.num_inference_steps, 8);
+  assert.equal(request.request.guidance_scale, 1.0);
+  assert.equal(request.request.bpm, 96);
+  assert.equal(request.request.keyscale, 'Eb minor');
+  assert.equal(request.request.timesignature, '6/8');
+  assert.equal('language' in request.request, false);
+  assert.doesNotThrow(() => assertRequestedDuration({ ...song, engineId: 'ace_step' }, 90_250));
+  assert.throws(() => assertRequestedDuration({ ...song, engineId: 'ace_step' }, 89_749),
+    { code: 'GENERATION_DURATION_MISMATCH' });
+  assert.throws(() => normalizeSong({ ...basic, lyrics: '', instrumentalMode: true, targetDurationSec: 75 }), /par pas de 30/);
+});
+
+test('generation jobs retain their selected engine across backend status changes and resumes', () => {
+  const song = normalizeSong({ ...basic, lyrics: '', instrumentalMode: true, targetDurationSec: 60 });
+  const job = createJobRecord([song], 'output', { engineId: 'ace_step', modelId: null });
+  assert.equal(job.generationEngine, 'ace_step');
+  assert.equal(job.engine, null);
+  assert.equal(job.songs[0].engineId, 'ace_step');
+  assert.equal(requestedJobEngine(job), 'ace_step');
+  job.engine = 'audiocpp_server';
+  assert.equal(requestedJobEngine(job), 'ace_step');
+  assert.equal(requestedJobEngine({ engine: 'audiocpp_cli' }), 'yue2');
+});
+
+test('commercial ACE-Step generation requires the current profile notice acceptance', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'song-maker-ace-contract-'));
+  const documents = path.join(dir, 'documents');
+  const profileDirectory = path.join(documents, 'profiles', 'profile-commercial');
+  const payload = [
+    '2026-10-01-v1',
+    "Avant d'utiliser ACE-Step dans ce profil",
+    'Before using ACE-Step in this profile',
+    'Licence des poids : MIT selon la carte du modèle d\'origine ; la conversion distribuée par audio.cpp déclare "other" et renvoie à l\'original ; sortie non vérifiée. Song Maker n\'a pas vérifié les droits d\'usage commercial des poids ACE-Step ni des morceaux générés. Les auteurs formulent cet avertissement :',
+    'Weight license: MIT according to the original model card; the conversion distributed by audio.cpp declares "other" and points back to the original; output rights are unverified. Song Maker has not verified commercial rights for ACE-Step weights or generated tracks. The authors publish this notice:',
+    'The authors are not responsible for any misuse of the model',
+    'J’ai lu l’avertissement des auteurs et je l’accepte pour ce profil.',
+    'I have read the authors’ notice and accept it for this profile.',
+  ].join('\n');
+  try {
+    await mkdir(profileDirectory, { recursive: true });
+    await writeFile(path.join(documents, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-commercial',
+      profiles: [{ id: 'profile-commercial', kind: 'commercial' }],
+    }));
+    await writeFile(path.join(documents, 'settings.json'), JSON.stringify({ cacheDir: path.join(dir, 'cache') }));
+    const profileSettingsPath = path.join(profileDirectory, 'profile-settings.json');
+    const env = { ...process.env, SONG_MAKER_DOCUMENTS_DIR: documents };
+    await writeFile(profileSettingsPath, JSON.stringify({ aceStepLicenseAccepted: true,
+      engineContractAcceptances: { ace_step_1_5: { textVersion: '2026-10-01-v1', textFingerprint: 'stale' } } }));
+    const staleRuntime = runtimeStatus({ engineId: 'ace_step', env });
+    assert.equal(staleRuntime.aceStepContractAccepted, false);
+    assert.throws(() => assertGenerationAllowed(staleRuntime), /profil Commercial/);
+
+    await writeFile(profileSettingsPath, JSON.stringify({ aceStepLicenseAccepted: true,
+      engineContractAcceptances: { ace_step_1_5: {
+        textVersion: '2026-10-01-v1', textFingerprint: createHash('sha256').update(payload).digest('hex'),
+      } } }));
+    const acceptedRuntime = runtimeStatus({ engineId: 'ace_step', env });
+    assert.equal(acceptedRuntime.aceStepContractAccepted, true);
+    assert.doesNotThrow(() => assertGenerationAllowed(acceptedRuntime));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test('batch prompt audit flags incomplete directions, duplicate prompts, and repeated axes', () => {
@@ -151,7 +225,12 @@ test('YuE2 runtime follows the active Song Maker cache and model, with an explic
     const explicitQ4 = runtimeStatus({ modelId: 'q4', env });
     assert.equal(explicitQ4.modelName, 'yue2-3b-q4_0.gguf');
     assert.equal(explicitQ4.modelId, 'q4');
-    assert.throws(() => runtimeStatus({ engineId: 'ace_step', env }), /Moteur MCP indisponible/);
+    const aceRuntime = runtimeStatus({ engineId: 'ace_step', env });
+    assert.equal(aceRuntime.engineId, 'ace_step');
+    assert.equal(aceRuntime.ready, false);
+    assert.ok(aceRuntime.missing.includes('ACE-Step 1.5 Turbo BF16'));
+    assert.throws(() => assertGenerationAllowed({ ...aceRuntime, aceStepLicenseAccepted: false }), /avertissement de licence ACE-Step/);
+    assert.throws(() => runtimeStatus({ engineId: 'ace_step', modelId: 'q4', env }), /modelId ne s’applique qu’au moteur YuE2/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob, uniqueBatchSongs } from './runtime.mjs';
+import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, requestedJobEngine, resumeJob, runtimeStatus, startJob, uniqueBatchSongs } from './runtime.mjs';
 import { addProjectMidiTrack, createProject, createProjectMidiTrack, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, importProjectAudioTrack, importProjectGeneration, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
 import { exportProjectAudio, exportProjectStems, renderProjectMix } from './project-audio.mjs';
 import { listLocalResources } from './resources.mjs';
@@ -22,13 +22,13 @@ const call = fn => async args => {
 };
 
 server.registerTool('runtime_status', {
-  description: 'Vérifie la disponibilité du moteur local audio.cpp et des poids YuE2. Ne lance aucune génération.',
+  description: 'Vérifie la disponibilité du moteur audio.cpp et des poids du moteur actif dans le profil Song Maker (YuE2 ou ACE-Step). Ne lance aucune génération.',
   inputSchema: {},
   annotations: { readOnlyHint: true },
 }, call(async () => runtimeStatus()));
 
 server.registerTool('gpu_status', {
-  description: 'Lit la température et la VRAM libre du GPU NVIDIA, puis indique si les limites de génération YuE2 sont respectées. Ne lance aucune génération.',
+  description: 'Lit la température et la VRAM libre du GPU NVIDIA, puis indique si les limites du moteur actif sont respectées. Ne lance aucune génération.',
   inputSchema: {},
   annotations: { readOnlyHint: true },
 }, call(async () => gpuStatus()));
@@ -550,17 +550,27 @@ server.registerTool('remove_track_from_playlist', {
 }, call(async args => removeTrackFromPlaylist(args)));
 
 server.registerTool('start_song', {
-  description: 'Lance une génération YuE2 locale et retourne un job ID. engineId est facultatif ; choisis-le parmi les moteurs marqués mcpGenerationSupported dans list_local_resources. YuE2 est actuellement le seul disponible. Le modèle actif dans Song Maker sert par défaut ; modelId permet de choisir q4 ou q8 explicitement. Le serveur vérifie le profil actif, le consentement et la présence du modèle. La sortie WAV reste dans le workspace autorisé. Ne publie rien.',
+  description: 'Lance une génération locale et retourne un job ID. engineId est facultatif ; par défaut, le moteur actif du profil Song Maker est utilisé. Choisis YuE2 ou ACE-Step uniquement si list_local_resources le marque mcpGenerationSupported. YuE2 accepte modelId=q4|q8 ; ACE-Step exige son modèle installé, le serveur audio local et les consentements du profil. Les deux moteurs appliquent les contrôles GPU, la qualité WAV, la durée et le dossier workspace. La sortie WAV reste locale ; ne publie rien.',
   inputSchema: {
     title: z.string().min(1).max(120),
     style: z.string().min(1).max(4000),
     lyrics: z.string().max(4000),
     outputDirectory: z.string().min(1),
-    targetDurationSec: z.number().int().min(30).max(360).default(180),
+    targetDurationSec: z.number().int().min(30).max(360).multipleOf(30).default(180),
     cot: z.enum(['full', 'melody', 'off']).default('full'),
     instrumentalMode: z.boolean().default(false),
     seed: z.number().int().min(0).max(4294967295).optional(),
-    engineId: z.enum(['yue2']).optional(),
+    singingLanguage: z.string().max(80).optional(),
+    tempoBpm: z.number().int().min(40).max(220).optional(),
+    key: z.object({
+      tonic: z.enum(['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']),
+      mode: z.enum(['major', 'minor']),
+    }).nullable().optional(),
+    meter: z.object({
+      numerator: z.number().int(),
+      denominator: z.number().int(),
+    }).nullable().optional(),
+    engineId: z.enum(['yue2', 'ace_step']).optional(),
     modelId: z.enum(['q4', 'q8']).optional(),
     creativeDirection: z.object({
       scene: z.string().max(240).optional(),
@@ -575,11 +585,11 @@ server.registerTool('start_song', {
   { engineId: args.engineId, modelId: args.modelId })));
 
 server.registerTool('start_batch', {
-  description: 'Lit un lot Song Maker V1 du workspace. Passe dryRun=true pour auditer les prompts sans utiliser le GPU. Choisis engineId parmi les moteurs marqués mcpGenerationSupported dans list_local_resources ; YuE2 est actuellement le seul disponible. modelId permet de choisir q4 ou q8 explicitement, sinon Song Maker fournit le modèle actif. Chaque titre peut demander 1 à 1000 prises, dans une limite de 10000 prises par lot. Les lots doivent fournir scene, groove, foreground, harmony, arrangement et motif par titre; les doublons exacts sont refusés. Par défaut, le job se met en pause après chaque prise pour son contrôle audio; resume_job confirme la validation et lance la suivante. Les exports suspects restent en pause qualité. Les WAV sont nommés 01 - Titre.wav, avec un suffixe de prise si un titre en comporte plusieurs. Ne remplace aucun export existant.',
+  description: 'Lit un lot Song Maker V1 du workspace. Passe dryRun=true pour auditer les prompts sans utiliser le GPU. Choisis engineId parmi YuE2 et ACE-Step si list_local_resources les marque mcpGenerationSupported ; sans engineId, le moteur actif du profil est utilisé. modelId=q4|q8 ne concerne que YuE2. Chaque titre peut demander 1 à 1000 prises, dans une limite de 10000 prises par lot. Les lots doivent fournir scene, groove, foreground, harmony, arrangement et motif par titre; les doublons exacts sont refusés. Par défaut, le job se met en pause après chaque prise pour son contrôle audio; resume_job confirme la validation et lance la suivante. Les exports suspects restent en pause qualité. Les WAV sont nommés 01 - Titre.wav, avec un suffixe de prise si un titre en comporte plusieurs. Ne remplace aucun export existant.',
   inputSchema: {
     batchFile: z.string().min(1),
     outputDirectory: z.string().min(1).optional(),
-    engineId: z.enum(['yue2']).optional(),
+    engineId: z.enum(['yue2', 'ace_step']).optional(),
     modelId: z.enum(['q4', 'q8']).optional(),
     dryRun: z.boolean().default(false),
     reviewBeforeNext: z.boolean().default(true),
@@ -604,7 +614,7 @@ server.registerTool('start_batch', {
 }));
 
 server.registerTool('job_status', {
-  description: 'Lit l’avancement d’un lot YuE2, ses fichiers terminés et une éventuelle erreur. Ne lit pas les paroles.',
+  description: 'Lit l’avancement d’un job YuE2 ou ACE-Step, ses fichiers terminés et une éventuelle erreur. Ne lit pas les paroles.',
   inputSchema: { jobId: z.string().uuid() },
   annotations: { readOnlyHint: true },
 }, call(async ({ jobId }) => {
@@ -612,7 +622,8 @@ server.registerTool('job_status', {
   return { id: job.id, state: job.state, total: job.songs.length,
     sourceSongs: job.sourceSongCount ?? uniqueBatchSongs(job.songs).length, current: job.current,
     completed: job.completed, failures: job.failures || [], error: job.error, outputDirectory: job.outputDirectory,
-    engine: job.engine || null, modelId: job.modelId || null, warnings: job.warnings || [], promptAudit: job.promptAudit || null,
+    engine: job.engine || null, generationEngine: requestedJobEngine(job),
+    modelId: job.modelId || null, warnings: job.warnings || [], promptAudit: job.promptAudit || null,
     reviewBeforeNext: job.reviewBeforeNext || false, reviewRequired: job.reviewRequired || null,
     reviewWorkerActive: job.reviewWorkerActive || false,
     reviewAcknowledgedAt: job.reviewAcknowledgedAt || null,

@@ -41,18 +41,18 @@ test('local resource inventory reads the active profile, reports incomplete pack
     assert.ok(inventory.engines[0].models[0].missingComponents.includes('yue2-3b-q4_0.gguf'));
     assert.ok(inventory.engines[0].models[0].missingComponents.includes('sidecar:yue2-model-config.json'));
     assert.equal(inventory.engines[1].selected, false);
-    assert.equal(inventory.engines[1].mcpGenerationSupported, false);
+    assert.equal(inventory.engines[1].mcpGenerationSupported, true);
     assert.equal(inventory.mcpGenerationEngine, 'yue2');
     assert.equal(inventory.mcpUsesActiveAppProfile, true);
     assert.equal(inventory.mcpSelectedYuE2Model, 'q4');
     assert.equal(inventory.mcpModelSource, 'song-maker-settings');
     assert.equal(inventory.mcpGenerationReady, false);
     assert.ok(inventory.mcpGenerationBlockers.some(blocker => blocker.includes('modèle')));
-    assert.deepEqual(inventory.mcpGenerationEngines, [
-      { id: 'yue2', supported: true, default: true, selectedInApp: false },
-      { id: 'ace_step', supported: false, reason: 'Le moteur ACE-Step n’est pas pilotable depuis MCP.' },
-      { id: 'ace_step_lego', supported: false, reason: 'Le moteur ACE-Step Lego n’est pas pilotable depuis MCP.' },
+    assert.deepEqual(inventory.mcpGenerationEngines.map(engine => [engine.id, engine.supported]), [
+      ['yue2', true], ['ace_step', true], ['ace_step_lego', false],
     ]);
+    assert.equal(inventory.mcpGenerationEngines[1].licenseAccepted, false);
+    assert.equal(inventory.mcpGenerationEngines[1].ready, false);
     assert.equal(inventory.engines[2].id, 'ace_step_lego');
     assert.equal(inventory.engines[2].selected, true);
     assert.equal(inventory.engines[2].runtimeInstalled, true);
@@ -66,6 +66,17 @@ test('local resource inventory reads the active profile, reports incomplete pack
     const serialized = JSON.stringify(inventory);
     assert.equal(serialized.includes(documentsRoot), false);
     assert.equal(serialized.includes(cacheRoot), false);
+
+    await writeFile(path.join(documentsRoot, 'profiles', 'profile-003', 'profile-settings.json'), JSON.stringify({
+      generationEngine: 'ace_step', localYue2Enabled: true, yue2LicenseAccepted: true,
+      aceStepLicenseAccepted: true,
+    }));
+    const aceInventory = await listLocalResources({ env: { SONG_MAKER_DOCUMENTS_DIR: documentsRoot } });
+    assert.equal(aceInventory.mcpGenerationEngine, 'ace_step');
+    assert.equal(aceInventory.mcpGenerationReady, false);
+    assert.equal(aceInventory.mcpGenerationEngines.find(engine => engine.id === 'ace_step').default, true);
+    assert.equal(aceInventory.mcpGenerationEngines.find(engine => engine.id === 'yue2').default, false);
+    assert.ok(aceInventory.mcpGenerationBlockers.some(blocker => blocker.includes('ACE-Step')));
   } finally {
     await Promise.all([
       rm(documentsRoot, { recursive: true, force: true }),

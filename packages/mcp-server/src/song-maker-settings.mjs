@@ -87,6 +87,9 @@ export function readSongMakerRuntimeSettings(env = process.env) {
   const profileDirectory = profileId
     ? path.join(documentsDirectory, 'profiles', profileId)
     : null;
+  const activeProfile = profileId && Array.isArray(manifest.profiles)
+    ? manifest.profiles.find(profile => profile?.id === profileId)
+    : null;
   const profileSettings = profileDirectory
     ? readObject(path.join(profileDirectory, 'profile-settings.json'), 'du profil actif')
     : globalSettings;
@@ -113,6 +116,7 @@ export function readSongMakerRuntimeSettings(env = process.env) {
   return {
     documentsDirectory,
     profileId,
+    profileKind: typeof activeProfile?.kind === 'string' ? activeProfile.kind : null,
     profileDirectory,
     globalSettings,
     profileSettings,
@@ -127,6 +131,8 @@ export function readSongMakerRuntimeSettings(env = process.env) {
       : 'yue2',
     localYue2Enabled: profileSettings.localYue2Enabled !== false,
     yue2LicenseAccepted: profileSettings.yue2LicenseAccepted === true,
+    aceStepLicenseAccepted: profileSettings.aceStepLicenseAccepted === true,
+    engineContractAcceptances: profileSettings.engineContractAcceptances || {},
   };
 }
 
