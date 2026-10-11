@@ -1631,6 +1631,8 @@
   "error.actionFailed": "Cette action n’a pas abouti. Réessayez. Si le problème persiste, ouvrez les détails techniques.",
   "error.yue2ModelUnavailable": "Le modèle YuE2 est introuvable. Vérifiez son installation dans Paramètres > Modèles, puis réessayez.",
   "error.yue2MemoryAllocation": "YuE2 n’a pas pu réserver assez de mémoire. Fermez les autres traitements audio, réduisez la durée demandée, puis réessayez.",
+  "error.diskFull": "Espace disque insuffisant pour enregistrer cette modification. Libérez de l’espace sur le disque du projet, puis réessayez.",
+  "error.projectStorageUnavailable": "Impossible d’ouvrir la bibliothèque de projets. Vérifiez l’espace disponible et l’accès au dossier des projets, puis réessayez.",
   "error.technicalDetails": "Détails techniques",
   "error.dismiss": "Fermer le message d’erreur",
   "error.gpu": "Ce build exige NVIDIA CUDA. Driver Windows ≥ 551.61, ou Linux ≥ 570.26 pour l’archive épinglée.",

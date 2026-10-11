@@ -29,6 +29,28 @@ it("explains how to recover from a YuE2 memory allocation failure", () => {
   assert.match(result.details ?? "", /prefix-state graph/);
 });
 
+it("turns a full project disk into a clear recovery action", () => {
+  setAppLocale("fr");
+  const result = presentGlobalError("Espace insuffisant sur le disque. (os error 112)");
+
+  assert.equal(
+    result.message,
+    "Espace disque insuffisant pour enregistrer cette modification. Libérez de l’espace sur le disque du projet, puis réessayez.",
+  );
+  assert.match(result.details ?? "", /os error 112/);
+});
+
+it("explains how to recover when the project database cannot be opened", () => {
+  setAppLocale("fr");
+  const result = presentGlobalError("unable to open database file");
+
+  assert.equal(
+    result.message,
+    "Impossible d’ouvrir la bibliothèque de projets. Vérifiez l’espace disponible et l’accès au dossier des projets, puis réessayez.",
+  );
+  assert.equal(result.details, "unable to open database file");
+});
+
 it("keeps an existing actionable product message unchanged", () => {
   setAppLocale("fr");
   assert.deepEqual(
@@ -73,5 +95,13 @@ it("includes the same recovery guidance in English", () => {
   assert.equal(
     english["error.yue2MemoryAllocation"],
     "YuE2 could not reserve enough memory. Close other audio tasks, shorten the requested duration, then try again.",
+  );
+  assert.equal(
+    english["error.diskFull"],
+    "There isn't enough disk space to save this change. Free some space on the project drive, then try again.",
+  );
+  assert.equal(
+    english["error.projectStorageUnavailable"],
+    "Song Maker couldn't open the project library. Check free disk space and access to the projects folder, then try again.",
   );
 });
