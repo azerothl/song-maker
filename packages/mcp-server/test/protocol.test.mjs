@@ -117,7 +117,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     await client.connect(transport);
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
-      ['add_library_track', 'add_project_midi_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project', 'create_project_midi_track',
+      ['activate_generation_settings', 'add_library_track', 'add_project_midi_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project', 'create_project_midi_track',
         'delete_playlist', 'delete_project', 'edit_project_score', 'export_project_audio', 'export_project_stems', 'get_project', 'get_project_mix',
         'get_project_score', 'gpu_status', 'import_job_audio_track', 'import_job_generation', 'import_project_audio_track', 'job_status', 'list_library', 'list_local_resources', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'render_project_mix', 'resume_job',

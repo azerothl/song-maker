@@ -1,7 +1,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { runtimeStatus } from './runtime.mjs';
-import { readSongMakerRuntimeSettings } from './song-maker-settings.mjs';
+import { generationSettingsRevision, readSongMakerRuntimeSettings } from './song-maker-settings.mjs';
 import { YUE2_COMMON, YUE2_MODELS } from './yue2-assets.mjs';
 const SEPARATORS = [
   { id: 'htdemucs', file: 'htdemucs/htdemucs-q8_0.gguf', bytes: 61_940_768 },
@@ -117,6 +117,7 @@ export async function listLocalResources({ env = process.env } = {}) {
 
   return {
     profileId: settings.profileId,
+    settingsRevision: generationSettingsRevision(settings),
     selectedEngine,
     localYue2Enabled: settings.localYue2Enabled,
     selectedYuE2Model,
@@ -167,6 +168,8 @@ export async function listLocalResources({ env = process.env } = {}) {
       },
     ],
     separators,
-    selectionAndInstallationViaMcp: 'unavailable',
+    selectionAndInstallationViaMcp: 'activate-installed-only',
+    resourceInstallationViaMcp: 'unavailable',
+    settingsActivationRequiresAppClosed: true,
   };
 }

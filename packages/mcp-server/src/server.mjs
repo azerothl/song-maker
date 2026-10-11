@@ -8,6 +8,7 @@ import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, no
 import { addProjectMidiTrack, createProject, createProjectMidiTrack, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, importProjectAudioTrack, importProjectGeneration, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
 import { exportProjectAudio, exportProjectStems, renderProjectMix } from './project-audio.mjs';
 import { listLocalResources } from './resources.mjs';
+import { activateGenerationSettings } from './generation-settings.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
   listUserLibrary, removeLibraryTrack, removeProjectLibraryTracks, removeTrackFromPlaylist,
@@ -33,10 +34,21 @@ server.registerTool('gpu_status', {
 }, call(async () => gpuStatus()));
 
 server.registerTool('list_local_resources', {
-  description: 'Lit les réglages du profil Song Maker actif et vérifie les modèles, séparateurs et runtimes locaux connus. Masque les chemins absolus ; ne télécharge, n’installe, n’active et ne sélectionne aucune ressource.',
+  description: 'Lit les réglages du profil Song Maker actif et vérifie les modèles, séparateurs et runtimes locaux connus. Masque les chemins absolus. Cet inventaire ne télécharge, n’installe ni ne sélectionne rien.',
   inputSchema: {},
   annotations: { readOnlyHint: true },
 }, call(async () => listLocalResources()));
+
+server.registerTool('activate_generation_settings', {
+  description: 'Sélectionne pour l’application Song Maker un moteur déjà installé et autorisé. Commence par list_local_resources et passe settingsRevision comme expectedSettingsRevision. YuE2 exige modelId q4 ou q8 ; ACE-Step exige ses poids installés et le consentement déjà enregistré dans Song Maker. Ferme l’application et confirme confirmAppClosed=true avant l’écriture ; redémarre-la ensuite. Ne télécharge ni n’installe de ressource et ne modifie aucune licence.',
+  inputSchema: {
+    engineId: z.enum(['yue2', 'ace_step']),
+    modelId: z.enum(['q4', 'q8']).optional(),
+    expectedSettingsRevision: z.string().regex(/^[0-9a-f]{64}$/),
+    confirmAppClosed: z.literal(true),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => activateGenerationSettings(args)));
 
 server.registerTool('list_projects', {
   description: 'Liste les projets du profil Song Maker actif. Lecture seule ; retourne les métadonnées du projet sans ses paroles.',

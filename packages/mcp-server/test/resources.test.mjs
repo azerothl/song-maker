@@ -59,7 +59,10 @@ test('local resource inventory reads the active profile, reports incomplete pack
     assert.equal(inventory.engines[2].licenseAccepted, true);
     assert.equal(inventory.engines[2].mcpGenerationSupported, false);
     assert.equal(inventory.separators.find(item => item.id === 'bs_roformer').licenseAccepted, true);
-    assert.equal(inventory.selectionAndInstallationViaMcp, 'unavailable');
+    assert.equal(inventory.selectionAndInstallationViaMcp, 'activate-installed-only');
+    assert.equal(inventory.resourceInstallationViaMcp, 'unavailable');
+    assert.equal(inventory.settingsActivationRequiresAppClosed, true);
+    assert.match(inventory.settingsRevision, /^[a-f0-9]{64}$/);
     const serialized = JSON.stringify(inventory);
     assert.equal(serialized.includes(documentsRoot), false);
     assert.equal(serialized.includes(cacheRoot), false);

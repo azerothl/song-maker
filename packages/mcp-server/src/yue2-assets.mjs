@@ -1,6 +1,6 @@
 export const YUE2_MODELS = [
-  { id: 'q4', file: 'yue2-3b-q4_0.gguf', bytes: 2_665_632_320 },
-  { id: 'q8', file: 'yue2-3b-q8_0.gguf', bytes: 4_264_186_432 },
+  { id: 'q4', file: 'yue2-3b-q4_0.gguf', bytes: 2_665_632_320, sha256: '97af67d7f800b362faee6e6bec806bddfcccb93f25fd3f9a1012724d95af6f4a' },
+  { id: 'q8', file: 'yue2-3b-q8_0.gguf', bytes: 4_264_186_432, sha256: 'f3a9e3b197bfd05aa4ae6ab2d4b93f6d57c8cc0ea39a4af7d151f58697c7cfb6' },
 ];
 
 export const YUE2_COMMON = [

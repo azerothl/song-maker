@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -127,4 +128,20 @@ export function readSongMakerRuntimeSettings(env = process.env) {
     localYue2Enabled: profileSettings.localYue2Enabled !== false,
     yue2LicenseAccepted: profileSettings.yue2LicenseAccepted === true,
   };
+}
+
+function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+export function generationSettingsRevision(settings) {
+  return createHash('sha256').update(stableJson({
+    profileId: settings.profileId,
+    globalSettings: settings.globalSettings,
+    profileSettings: settings.profileSettings,
+  })).digest('hex');
 }
