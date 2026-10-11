@@ -38,6 +38,15 @@ test('MCP exposes the headless tools over stdio', async () => {
   const importDirectory = `.test-mcp-audio-${process.pid}`;
   await mkdir(path.join(process.cwd(), importDirectory), { recursive: true });
   await writeFile(path.join(process.cwd(), importDirectory, 'source.wav'), smallPcmWav());
+  await writeFile(path.join(process.cwd(), importDirectory, 'multi-take.batch.json'), JSON.stringify({
+    schemaVersion: 1,
+    songs: [{ id: 'variants', title: 'Variantes', style: 'cinematic piano', lyrics: '[Verse]\nUne phrase',
+      generations: 3, creativeDirection: {
+        scene: 'desert observatory at dawn', groove: 'slow asymmetric pulse', foreground: 'prepared piano',
+        harmony: 'open suspended voicings', arrangement: 'single motif grows into a layered ending',
+        motif: 'ascending four note bell figure',
+      } }],
+  }));
   const profileDirectory = path.join(documentsRoot, 'profiles', 'profile-001');
   const projectFolder = path.join(documentsRoot, 'profiles', 'profile-001', 'projects', 'project-001');
   const mixFolder = path.join(projectFolder, 'mixes');
@@ -103,6 +112,14 @@ test('MCP exposes the headless tools over stdio', async () => {
       assert.deepEqual(tools.tools.find(tool => tool.name === name).inputSchema.properties.engineId.enum, ['yue2']);
       assert.deepEqual(tools.tools.find(tool => tool.name === name).inputSchema.properties.modelId.enum, ['q4', 'q8']);
     }
+    const multiTakeAudit = await client.callTool({ name: 'start_batch', arguments: {
+      batchFile: path.join(importDirectory, 'multi-take.batch.json'), dryRun: true,
+    } });
+    assert.equal(multiTakeAudit.isError, undefined, multiTakeAudit.content?.[0]?.text);
+    const multiTakeReport = JSON.parse(multiTakeAudit.content[0].text);
+    assert.equal(multiTakeReport.totalSongs, 1);
+    assert.deepEqual(multiTakeReport.exactDuplicates, []);
+    assert.deepEqual(multiTakeReport.underSpecified, []);
     const status = await client.callTool({ name: 'runtime_status', arguments: {} });
     assert.equal(status.isError, undefined);
     const runtime = JSON.parse(status.content[0].text);
