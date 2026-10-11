@@ -1278,6 +1278,8 @@
   "loraTrain.status.notImplemented": "tool unavailable",
   "loraTrain.status.awaitingValidation": "review before use",
   "error.actionFailed": "This action could not be completed. Try again. If the problem persists, open the technical details.",
+  "error.yue2ModelUnavailable": "The YuE2 model could not be found. Check its installation in Settings > Models, then try again.",
+  "error.yue2MemoryAllocation": "YuE2 could not reserve enough memory. Close other audio tasks, shorten the requested duration, then try again.",
   "error.technicalDetails": "Technical details",
   "error.dismiss": "Dismiss error message",
   "error.gpu": "This build requires NVIDIA CUDA. Windows driver ≥ 551.61, or Linux ≥ 570.26 for the pinned archive.",

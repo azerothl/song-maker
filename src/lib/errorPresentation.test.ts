@@ -11,9 +11,22 @@ it("presents backend error codes as a localized action with opt-in details", () 
 
   assert.equal(
     result.message,
-    "Cette action n’a pas abouti. Réessayez. Si le problème persiste, ouvrez les détails techniques.",
+    "Le modèle YuE2 est introuvable. Vérifiez son installation dans Paramètres > Modèles, puis réessayez.",
   );
   assert.match(result.details ?? "", /yue2\.model_gguf/);
+});
+
+it("explains how to recover from a YuE2 memory allocation failure", () => {
+  setAppLocale("fr");
+  const result = presentGlobalError(
+    'HTTP 500 Internal Server Error: {"error":{"message":"failed to allocate Yue2 AR prefix-state graph"}}',
+  );
+
+  assert.equal(
+    result.message,
+    "YuE2 n’a pas pu réserver assez de mémoire. Fermez les autres traitements audio, réduisez la durée demandée, puis réessayez.",
+  );
+  assert.match(result.details ?? "", /prefix-state graph/);
 });
 
 it("keeps an existing actionable product message unchanged", () => {
@@ -53,4 +66,12 @@ it("includes the same recovery guidance in English", () => {
     "This action could not be completed. Try again. If the problem persists, open the technical details.",
   );
   assert.equal(english["error.technicalDetails"], "Technical details");
+  assert.equal(
+    english["error.yue2ModelUnavailable"],
+    "The YuE2 model could not be found. Check its installation in Settings > Models, then try again.",
+  );
+  assert.equal(
+    english["error.yue2MemoryAllocation"],
+    "YuE2 could not reserve enough memory. Close other audio tasks, shorten the requested duration, then try again.",
+  );
 });

@@ -16,6 +16,8 @@ const TECHNICAL_ERROR_PATTERNS = [
 ];
 
 const MAX_ERROR_DETAILS_LENGTH = 4000;
+const YUE2_MODEL_UNAVAILABLE = /(?:yue2\.)?model_gguf\s+(?:file does not exist|must be relative to the yue2 model root)/i;
+const YUE2_MEMORY_ALLOCATION_FAILED = /failed to allocate yue2 ar prefix-state graph/i;
 
 function boundedDetails(message: string): string {
   return message.length > MAX_ERROR_DETAILS_LENGTH
@@ -39,6 +41,20 @@ export function presentGlobalError(rawMessage: string): ErrorPresentation {
     return {
       message: separationRecoveryMessage,
       ...(details ? { details: boundedDetails(details) } : {}),
+    };
+  }
+
+  if (YUE2_MODEL_UNAVAILABLE.test(message)) {
+    return {
+      message: t("error.yue2ModelUnavailable"),
+      details: boundedDetails(message),
+    };
+  }
+
+  if (YUE2_MEMORY_ALLOCATION_FAILED.test(message)) {
+    return {
+      message: t("error.yue2MemoryAllocation"),
+      details: boundedDetails(message),
     };
   }
 
