@@ -10399,8 +10399,8 @@ details[open] > summary {
 
 @media (max-height: 820px) {
   .studio-midi-dock {
-    flex-basis: 28%;
-    min-height: min(220px, 28vh);
+    flex-basis: 42%;
+    min-height: min(340px, 42vh);
   }
 
   .studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] > .studio-midi-edit-toolbar {
@@ -10493,8 +10493,8 @@ details[open] > summary {
 
 @media (max-height: 820px) and (max-width: 1100px) {
   .studio-midi-dock {
-    flex-basis: 22%;
-    min-height: min(160px, 21vh);
+    flex-basis: 40%;
+    min-height: min(320px, 40vh);
   }
 
   .studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] {
@@ -10528,11 +10528,11 @@ details[open] > summary {
   }
 
   .studio-midi-dock .piano-roll {
-    grid-template-rows: 32px 0 0 minmax(52px, 1fr);
+    grid-template-rows: 32px 0 0 minmax(120px, 1fr);
   }
 
   .studio-midi-dock .piano-roll > .piano-scroll {
-    min-height: 52px;
+    min-height: 120px;
   }
 }
 
@@ -10861,7 +10861,7 @@ details[open] > summary {
 
 /* Compact Studio piano: more visible pitches on desktop; touch keeps full-size keys. */
 .piano-roll-compact-rows {
-  --piano-note-hit-height: 28px;
+  --piano-note-hit-height: 20px;
 }
 
 .piano-roll-compact-rows .piano-note {

@@ -84,8 +84,8 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
   const useCompactRows =
     compactRows &&
     !(typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
-  const ROW_H = useCompactRows ? 20 : NOTE_HIT_PX;
-  const noteHitHeightPx = useCompactRows ? ROW_H : NOTE_HIT_PX;
+  const ROW_H = useCompactRows ? 12 : NOTE_HIT_PX;
+  const noteHitHeightPx = useCompactRows ? 20 : NOTE_HIT_PX;
   const defaultVoice = primaryVoiceId(document);
   const [voiceId, setVoiceId] = useState<string | null>(initialVoiceId ?? defaultVoice);
   const voice = document.voices.find((v) => v.id === voiceId) ?? null;
@@ -178,10 +178,11 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
     const pitches = voice.notes
       .map((note) => note.pitch)
       .filter((pitch) => pitch >= PITCH_MIN && pitch <= PITCH_MAX);
-    if (pitches.length === 0) return;
 
     centeredVoiceIdRef.current = voice.id;
-    const centerPitch = (Math.min(...pitches) + Math.max(...pitches)) / 2;
+    const centerPitch = pitches.length > 0
+      ? (Math.min(...pitches) + Math.max(...pitches)) / 2
+      : (PITCH_MIN + PITCH_MAX) / 2;
     const targetTop =
       (PITCH_MAX - centerPitch) * ROW_H +
       PIANO_RULER_HEIGHT -
