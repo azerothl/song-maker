@@ -2079,7 +2079,7 @@
   "phase4.lora.description.becausereasons-chnsn-chanson-francaise": "Styles de chanson française avec chant. Les fichiers réunissent des parties que Song Maker ne sait pas encore charger séparément ; aucun téléchargement n’est proposé.",
   "phase4.lora.description.monsterovich-industrial-rock": "Style rock industriel. Aucun fichier compatible vérifié n’est disponible dans Song Maker.",
   "production.instrumental.previewTitle": "Écouter la nouvelle partie",
-  "production.instrumental.previewHelp": "Le résultat peut contenir uniquement la nouvelle partie, ou aussi votre morceau d’origine. Écoutez-le avant de l’intégrer.",
+  "production.instrumental.previewHelp": "Le rendu peut déjà contenir le mix de votre morceau. Écoutez-le avant de l’ajouter comme piste séparée pour éviter un doublon.",
   "production.instrumental.addSeparate": "Ajouter comme piste séparée",
   "production.instrumental.useFullMix": "Utiliser comme morceau complet",
   "production.instrumental.keepForLater": "Garder dans les versions",

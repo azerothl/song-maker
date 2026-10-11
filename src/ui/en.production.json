@@ -477,7 +477,7 @@
   "production.instrumental.openSettings": "Install the audio model",
   "production.instrumental.needAudio": "Separate the song or import a track to use your audio.",
   "production.instrumental.previewTitle": "Listen to the new part",
-  "production.instrumental.previewHelp": "The result may contain only the new part, or also your original song. Listen before adding it.",
+  "production.instrumental.previewHelp": "The result may already include your original mix. Listen before adding it as a separate track to avoid doubling it.",
   "production.instrumental.addSeparate": "Add as a separate track",
   "production.instrumental.useFullMix": "Use as the complete song",
   "production.instrumental.keepForLater": "Keep in versions",
