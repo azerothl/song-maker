@@ -250,7 +250,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     const projectForJobImportState = JSON.parse(projectForJobImport.content[0].text).project;
     const mixForJobImportState = JSON.parse(mixForJobImport.content[0].text);
     const importedJobAudio = await client.callTool({ name: 'import_job_audio_track', arguments: {
-      jobId: generatedJobId, completedIndex: 0, projectId: 'project-001', name: 'Rendu YuE2',
+      jobId: generatedJobId, projectId: 'project-001', name: 'Rendu YuE2',
       expectedUpdatedAt: projectForJobImportState.updatedAt,
       expectedMixRevision: mixForJobImportState.mixRevision,
     } });
