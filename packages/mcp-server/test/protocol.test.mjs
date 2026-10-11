@@ -36,8 +36,21 @@ test('MCP exposes the headless tools over stdio', async () => {
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-profile-'));
   const exportDirectory = `.test-mcp-export-${process.pid}`;
   const importDirectory = `.test-mcp-audio-${process.pid}`;
+  const jobDirectory = path.join(process.cwd(), '.song-maker-mcp', 'jobs');
+  const generatedJobId = `aaaaaaaa-aaaa-4aaa-8aaa-${createHash('sha256').update(String(process.pid)).digest('hex').slice(0, 12)}`;
+  const pendingJobId = `bbbbbbbb-bbbb-4bbb-8bbb-${createHash('sha256').update(`pending-${process.pid}`).digest('hex').slice(0, 12)}`;
+  const jobFiles = [path.join(jobDirectory, `${generatedJobId}.json`), path.join(jobDirectory, `${pendingJobId}.json`)];
   await mkdir(path.join(process.cwd(), importDirectory), { recursive: true });
   await writeFile(path.join(process.cwd(), importDirectory, 'source.wav'), smallPcmWav());
+  await mkdir(jobDirectory, { recursive: true });
+  await Promise.all([
+    writeFile(jobFiles[0], JSON.stringify({
+      id: generatedJobId, state: 'completed', outputDirectory: path.resolve(importDirectory),
+      completed: [{ songId: 'generated-01', title: 'Rendu MCP',
+        destination: path.resolve(importDirectory, 'source.wav') }],
+    })),
+    writeFile(jobFiles[1], JSON.stringify({ id: pendingJobId, state: 'running', completed: [] })),
+  ]);
   await writeFile(path.join(process.cwd(), importDirectory, 'multi-take.batch.json'), JSON.stringify({
     schemaVersion: 1,
     songs: [{ id: 'variants', title: 'Variantes', style: 'cinematic piano', lyrics: '[Verse]\nUne phrase',
@@ -104,7 +117,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
       ['add_library_track', 'add_project_midi_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project', 'create_project_midi_track',
         'delete_playlist', 'delete_project', 'edit_project_score', 'export_project_audio', 'export_project_stems', 'get_project', 'get_project_mix',
-        'get_project_score', 'gpu_status', 'import_project_audio_track', 'job_status', 'list_library', 'list_local_resources', 'list_project_versions', 'list_projects',
+        'get_project_score', 'gpu_status', 'import_job_audio_track', 'import_project_audio_track', 'job_status', 'list_library', 'list_local_resources', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'render_project_mix', 'resume_job',
         'runtime_status', 'start_batch', 'start_song', 'update_project', 'update_project_mix', 'use_project_generation',
         'use_project_mix', 'use_project_score', 'use_project_separation']);
@@ -226,6 +239,29 @@ test('MCP exposes the headless tools over stdio', async () => {
       clipEdits: [{ operation: 'move', clipId: importedClipId, startMs: 1200, sourcePath: '../../outside.wav' }],
     } });
     assert.equal(attemptedSourceChange.isError, true);
+    const pendingJobImport = await client.callTool({ name: 'import_job_audio_track', arguments: {
+      jobId: pendingJobId, completedIndex: 0, projectId: 'project-001',
+      expectedUpdatedAt: importedAudioState.projectUpdatedAt, expectedMixRevision: editedClipState.mixRevision,
+    } });
+    assert.equal(pendingJobImport.isError, true);
+    assert.match(pendingJobImport.content[0].text, /job doit être terminé/);
+    const projectForJobImport = await client.callTool({ name: 'get_project', arguments: { projectId: 'project-001' } });
+    const mixForJobImport = await client.callTool({ name: 'get_project_mix', arguments: { projectId: 'project-001' } });
+    const projectForJobImportState = JSON.parse(projectForJobImport.content[0].text).project;
+    const mixForJobImportState = JSON.parse(mixForJobImport.content[0].text);
+    const importedJobAudio = await client.callTool({ name: 'import_job_audio_track', arguments: {
+      jobId: generatedJobId, completedIndex: 0, projectId: 'project-001', name: 'Rendu YuE2',
+      expectedUpdatedAt: projectForJobImportState.updatedAt,
+      expectedMixRevision: mixForJobImportState.mixRevision,
+    } });
+    assert.equal(importedJobAudio.isError, undefined, importedJobAudio.content?.[0]?.text);
+    const importedJobAudioState = JSON.parse(importedJobAudio.content[0].text);
+    assert.equal(importedJobAudioState.jobId, generatedJobId);
+    assert.equal(importedJobAudioState.songId, 'generated-01');
+    assert.equal(importedJobAudioState.track.name, 'Rendu YuE2');
+    assert.equal((await readFile(path.join(projectFolder, importedJobAudioState.importedAudio.originalPath))).length, smallPcmWav().length);
+    const projectAfterJobImport = await client.callTool({ name: 'get_project_mix', arguments: { projectId: 'project-001' } });
+    assert.ok(JSON.parse(projectAfterJobImport.content[0].text).mix.tracks.some(track => track.id === importedJobAudioState.track.id));
     const openedScore = await client.callTool({ name: 'get_project_score', arguments: { projectId: 'project-001' } });
     assert.equal(openedScore.isError, undefined);
     const scoreState = JSON.parse(openedScore.content[0].text);
@@ -235,7 +271,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal('stateB64' in scoreState.score.voices[0].vst3Instrument, false);
     const addedMidi = await client.callTool({ name: 'add_project_midi_track', arguments: {
       projectId: 'project-001', voiceId: 'midi-keys', expectedScoreRevision: scoreState.scoreRevision,
-      expectedMixRevision: editedClipState.mixRevision,
+      expectedMixRevision: importedJobAudioState.mixRevision,
     } });
     assert.equal(addedMidi.isError, undefined);
     const addedMidiState = JSON.parse(addedMidi.content[0].text);
@@ -340,7 +376,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(renderedMix.isError, undefined, renderedMix.content?.[0]?.text);
     const renderedMixResult = JSON.parse(renderedMix.content[0].text);
     assert.equal(renderedMixResult.format, 'wav');
-    assert.equal(renderedMixResult.render.clipCount, 1);
+    assert.equal(renderedMixResult.render.clipCount, 2);
     assert.equal(renderedMixResult.audio.channels, 2);
     assert.ok(renderedMixResult.bytes > 44);
     const invalid = await client.callTool({ name: 'get_project', arguments: { projectId: '../outside' } });
@@ -517,5 +553,6 @@ test('MCP exposes the headless tools over stdio', async () => {
     await rm(documentsRoot, { recursive: true, force: true });
     await rm(path.join(process.cwd(), exportDirectory), { recursive: true, force: true });
     await rm(path.join(process.cwd(), importDirectory), { recursive: true, force: true });
+    await Promise.all(jobFiles.map(file => rm(file, { force: true })));
   }
 });

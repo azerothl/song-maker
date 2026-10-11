@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -296,6 +297,50 @@ server.registerTool('import_project_audio_track', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => importProjectAudioTrack(args)));
+
+server.registerTool('import_job_audio_track', {
+  description: 'Importe dans le mix actif du projet un WAV terminé par start_song ou start_batch. Attend un job completed/completed_with_errors et choisit completedIndex parmi ses sorties validées. Appelle get_project et get_project_mix avant l’import pour fournir les révisions courantes. Le WAV doit toujours être dans SONG_MAKER_WORKSPACE_ROOT ; l’original est conservé et une copie normalisée est ajoutée au mix. Cette opération crée un clip audio du mix, pas une nouvelle version de génération YuE2.',
+  inputSchema: {
+    jobId: z.string().uuid(),
+    completedIndex: z.number().int().safe().min(0).max(9999).default(0),
+    projectId: z.string().min(1).max(128),
+    name: z.string().trim().min(1).max(120).optional(),
+    startMs: z.number().int().safe().min(0).max(86_400_000).optional(),
+    muteExisting: z.boolean().optional(),
+    expectedUpdatedAt: z.string().min(1).max(80),
+    expectedMixRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async ({ jobId, completedIndex, ...args }) => {
+  const job = await getJob(jobId);
+  if (!['completed', 'completed_with_errors'].includes(job.state)) {
+    throw new Error('Le job doit être terminé avant l’import. Consulte job_status et réessaie lorsque son état est completed ou completed_with_errors.');
+  }
+  if (typeof job.outputDirectory !== 'string' || !job.outputDirectory.trim()) {
+    throw new Error('Le job ne déclare pas de dossier de sortie valide.');
+  }
+  if (!Array.isArray(job.completed) || !job.completed[completedIndex]) {
+    throw new Error(`Aucune sortie terminée à l’index ${completedIndex} dans ce job.`);
+  }
+  const completed = job.completed[completedIndex];
+  if (typeof completed.destination !== 'string' || !completed.destination.trim()) {
+    throw new Error('La sortie terminée ne contient pas de chemin WAV valide.');
+  }
+  const outputDirectory = insideWorkspace(job.outputDirectory);
+  const sourcePath = insideWorkspace(completed.destination);
+  const outputRelativePath = path.relative(outputDirectory, sourcePath);
+  if (outputRelativePath === '..' || outputRelativePath.startsWith(`..${path.sep}`) || path.isAbsolute(outputRelativePath)) {
+    throw new Error('Le WAV ne se trouve pas dans le dossier de sortie déclaré par ce job.');
+  }
+  const imported = await importProjectAudioTrack({ ...args, sourcePath });
+  return {
+    jobId,
+    completedIndex,
+    songId: completed.songId ?? null,
+    title: completed.title ?? null,
+    ...imported,
+  };
+}));
 
 server.registerTool('create_project', {
   description: 'Crée un projet vide dans le profil Song Maker actif. Le projet et ses dossiers sont enregistrés au format de l’application et deviennent visibles dans Projets.',
