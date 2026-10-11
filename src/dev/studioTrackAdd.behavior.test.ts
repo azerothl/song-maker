@@ -23,7 +23,27 @@ after(async () => {
   if (server) await stopCaptureViteServer(server);
 });
 
-describe("ajout de piste MIDI dans Studio", () => {
+describe("ajout de piste dans Studio", () => {
+  it("annonce que l'instrument IA peut déjà contenir le mix source", async () => {
+    const page = await browser.newPage();
+    try {
+      await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: "Ajouter une piste" }).click();
+      await page.getByRole("dialog", { name: /Quel type de piste/ }).waitFor({ state: "visible" });
+      await page.getByRole("button", { name: "Choisir une partie" }).click();
+
+      const dialog = page.getByRole("dialog", { name: "Nouvelle partie instrumentale" });
+      await dialog.waitFor({ state: "visible" });
+      await dialog.getByLabel("Le son du morceau").check();
+      const notice = dialog.getByRole("note");
+      assert.match(await notice.innerText(), /mix d’origine/);
+      assert.match(await notice.innerText(), /pas seulement la partie choisie/);
+      assert.equal(await dialog.getByRole("button", { name: "Générer et ajouter à l’arrangement" }).isDisabled(), true);
+    } finally {
+      await page.close();
+    }
+  });
+
   it("crée la piste dans le mix et ouvre son éditeur", async () => {
     const page = await browser.newPage();
     const browserErrors: string[] = [];
