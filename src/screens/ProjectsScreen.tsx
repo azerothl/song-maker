@@ -147,7 +147,11 @@ export function ProjectsScreen() {
                         : t("projects.addToLibrary")}
                     </button>
                   ) : (
-                    <span className="hint">{t("projects.noMixYet")}</span>
+                    <span className="hint">
+                      {p.status === "versions_available"
+                        ? t("projects.versionsAvailable")
+                        : t("projects.noMixYet")}
+                    </span>
                   )}
                 </td>
                 <td className="row-actions">
