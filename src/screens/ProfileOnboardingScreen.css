@@ -131,18 +131,30 @@
   margin-bottom: 1rem;
 }
 
+.profile-field-error {
+  margin: -0.65rem 0 1rem;
+  color: var(--danger);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 .profile-type-radios {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  min-inline-size: 0;
+  border: 0;
+  padding: 0;
   margin-bottom: 1rem;
+}
+
+.profile-type-radios legend {
+  margin-bottom: 0.75rem;
+  padding: 0;
 }
 
 .profile-type-card {
   display: grid;
   grid-template-columns: 1.25rem minmax(0, 1fr);
   grid-template-areas:
-    "icon label"
+    "radio label"
     ". hint"
     "reason reason";
   column-gap: 0.65rem;
@@ -152,12 +164,17 @@
   padding: 0.85rem 1rem;
   cursor: pointer;
   min-height: 44px;
+  margin-bottom: 0.75rem;
 }
 
-.profile-type-icon {
-  grid-area: icon;
-  align-self: center;
-  line-height: 1.2;
+.profile-type-radio {
+  grid-area: radio;
+  align-self: start;
+  justify-self: center;
+  inline-size: 1rem;
+  block-size: 1rem;
+  margin: 0.15rem 0 0;
+  accent-color: var(--accent-cyan);
 }
 
 .profile-type-label {
