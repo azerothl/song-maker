@@ -178,12 +178,15 @@ export function normalizeSong(song, defaults = {}) {
   if (meter !== null && (!meter || !['4/4', '3/4', '6/8', '2/4'].includes(`${meter.numerator}/${meter.denominator}`))) {
     throw new Error(`Métrique invalide pour « ${title} ».`);
   }
-  if (generations !== 1) throw new Error(`Le MCP accepte une seule génération par titre : « ${title} ».`);
+  if (!Number.isInteger(generations) || generations < 1 || generations > 1000) {
+    throw new Error(`Nombre de générations invalide pour « ${title} » (1–1000).`);
+  }
   const index = String(song.id || '').trim();
   const seed = song.seed ?? Math.floor(Math.random() * 0x100000000);
   if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff) throw new Error(`Seed invalide pour « ${title} ».`);
   return { id: index, title, style, lyrics, instrumental: Boolean(instrumental), duration,
     cot, preferFullLyrics: Boolean(preferFullLyrics), language: String(language || ''), tempo, key, meter, seed,
+    generations,
     ...(creativeDirection ? { creativeDirection } : {}) };
 }
 
@@ -197,18 +200,36 @@ export function parseBatch(raw) {
       (batch.retry?.maxAttempts ?? 1) !== 1) {
     throw new Error('Le MCP exécute un flux GPU, continue après les erreurs de chanson et ne retente pas automatiquement. Il refuse les lots en pause, parallèles ou avec retry.');
   }
-  const songs = batch.songs.map(song => normalizeSong(song, batch.defaults));
-  if (new Set(songs.map(song => song.id)).size !== songs.length || songs.some(song => !song.id)) {
+  const sourceSongs = batch.songs.map(song => normalizeSong(song, batch.defaults));
+  if (new Set(sourceSongs.map(song => song.id)).size !== sourceSongs.length || sourceSongs.some(song => !song.id)) {
     throw new Error('Chaque morceau doit avoir un id unique.');
   }
-  return songs;
+  const totalTasks = sourceSongs.reduce((total, song) => total + song.generations, 0);
+  if (totalTasks > 10_000) throw new Error('Un lot MCP est limité à 10 000 prises au total.');
+  return sourceSongs.flatMap(song => Array.from({ length: song.generations }, (_, index) => ({
+    ...song,
+    seed: (song.seed + index) >>> 0,
+    generationIndex: index + 1,
+    generationCount: song.generations,
+  })));
 }
 
 export function outputName(song, position) {
   const index = /^\d{1,3}$/.test(song.id) ? song.id.padStart(2, '0') : String(position + 1).padStart(2, '0');
   const safeTitle = song.title.replace(/[<>:"/\\|?*\x00-\x1f]/g, '').replace(/[. ]+$/g, '').trim();
   if (!safeTitle) throw new Error('Titre inutilisable comme nom de fichier.');
-  return `${index} - ${safeTitle}.wav`;
+  const take = song.generationCount > 1
+    ? ` - Prise ${String(song.generationIndex).padStart(2, '0')}` : '';
+  return `${index} - ${safeTitle}${take}.wav`;
+}
+
+export function uniqueBatchSongs(songs) {
+  const seen = new Set();
+  return songs.filter(song => {
+    if (seen.has(song.id)) return false;
+    seen.add(song.id);
+    return true;
+  });
 }
 
 export function semanticBudget(song) {
@@ -831,7 +852,8 @@ async function launchJob(job) {
     await saveJob(job);
     throw error;
   }
-  return { id: job.id, state: job.state, total: job.songs.length, outputDirectory: job.outputDirectory };
+  return { id: job.id, state: job.state, total: job.songs.length,
+    sourceSongs: job.sourceSongCount, outputDirectory: job.outputDirectory };
 }
 
 export async function startJob(songs, outputDirectory, { reviewBeforeNext = true, modelId, engineId } = {}) {
@@ -849,7 +871,8 @@ export async function startJob(songs, outputDirectory, { reviewBeforeNext = true
   const job = { id: randomUUID(), state: 'queued', outputDirectory: output, songs,
     engine: runtime.engineId, modelId: runtime.modelId,
     current: 0, completed: [], failures: [], warnings: [],
-    promptAudit: songs.length > 1 ? auditPromptDiversity(songs) : null,
+    sourceSongCount: uniqueBatchSongs(songs).length,
+    promptAudit: uniqueBatchSongs(songs).length > 1 ? auditPromptDiversity(uniqueBatchSongs(songs)) : null,
     reviewBeforeNext: songs.length > 1 && reviewBeforeNext,
     reviewRequired: null,
     reviewWorkerActive: false,
@@ -878,6 +901,7 @@ export async function resumeJob(id) {
       job.state = 'running';
       await saveJob(job);
       return { id: job.id, state: job.state, total: job.songs.length,
+        sourceSongs: job.sourceSongCount,
         current: job.current, outputDirectory: job.outputDirectory, engine: job.engine };
     }
   }
@@ -954,7 +978,11 @@ export async function runJob(id) {
         } else {
           result = await runCli(job.songs[i], destination, runtime, cancelController.signal);
         }
-        job.completed.push(result);
+        job.completed.push({ ...result, songId: job.songs[i].id, title: job.songs[i].title,
+          ...(job.songs[i].generationCount > 1 ? {
+            generationIndex: job.songs[i].generationIndex,
+            generationCount: job.songs[i].generationCount,
+          } : {}) });
         job.warnings.push(...(result.warnings || []));
       } catch (error) {
         if (error.code === 'JOB_CANCELLED' || cancelController.signal.aborted) {
@@ -972,6 +1000,10 @@ export async function runJob(id) {
           break;
         }
         const failure = { songId: job.songs[i].id, title: job.songs[i].title,
+          ...(job.songs[i].generationCount > 1 ? {
+            generationIndex: job.songs[i].generationIndex,
+            generationCount: job.songs[i].generationCount,
+          } : {}),
           error: String(error?.message || error) };
         job.failures.push(failure);
         job.current = i + 1;
@@ -1003,6 +1035,10 @@ export async function runJob(id) {
           index: i,
           songId: job.songs[i].id,
           title: job.songs[i].title,
+          ...(job.songs[i].generationCount > 1 ? {
+            generationIndex: job.songs[i].generationIndex,
+            generationCount: job.songs[i].generationCount,
+          } : {}),
           destination,
           quality: completedTrack.quality,
         };

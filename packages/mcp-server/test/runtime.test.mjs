@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import { acquireGpuLock, assertGpuSafe, assertRequestedDuration, assertYue2GenerationAllowed, auditPromptDiversity, cancelJob, cliArgs, getJob, gpuLimits,
   inferenceThreads, insideWorkspace, normalizeSong, outputName, parseBatch, parseGpuTelemetry, publishExclusive,
-  releaseGpuLock, runtimeStatus, semanticBudget, serverSongRequest, wavDurationMs,
+  releaseGpuLock, runtimeStatus, semanticBudget, serverSongRequest, uniqueBatchSongs, wavDurationMs,
   workspaceRoot } from '../src/runtime.mjs';
 
 const basic = { id: '01', title: 'Soft Morning', style: 'chill soul', lyrics: '[Verse]\nA quiet room', seed: 42 };
@@ -180,14 +180,44 @@ test('musical metadata is included in the style prompt', () => {
   assert.ok(args.includes('style=English, chill soul, 76 BPM, key Eb minor, 6/8'));
 });
 
-test('batch rejects modes this headless runner cannot honor', () => {
+test('batch rejects modes this headless runner cannot honor and expands requested takes', () => {
   for (const extra of [{ maxParallelGenerations: 2 }, { onError: 'pause' }, { retry: { maxAttempts: 2 } }]) {
     assert.throws(() => parseBatch(JSON.stringify({ schemaVersion: 1, songs: [basic], ...extra })));
   }
   assert.equal(parseBatch(JSON.stringify({ schemaVersion: 1, songs: [basic] })).length, 1);
   assert.equal(parseBatch(JSON.stringify({ schemaVersion: 1, onError: 'continue', songs: [basic] })).length, 1);
-  assert.throws(() => parseBatch(JSON.stringify({ schemaVersion: 1,
-    defaults: { generations: 2 }, songs: [basic] })));
+  const takes = parseBatch(JSON.stringify({ schemaVersion: 1,
+    defaults: { generations: 2 }, songs: [{ ...basic, seed: 0xffff_ffff }] }));
+  assert.deepEqual(takes.map(song => song.generationIndex), [1, 2]);
+  assert.deepEqual(takes.map(song => song.generationCount), [2, 2]);
+  assert.deepEqual(takes.map(song => song.seed), [0xffff_ffff, 0]);
+  assert.deepEqual(takes.map((song, index) => outputName(song, index)), [
+    '01 - Soft Morning - Prise 01.wav', '01 - Soft Morning - Prise 02.wav',
+  ]);
+  for (const generations of [0, 1001, 1.5]) {
+    assert.throws(() => parseBatch(JSON.stringify({ schemaVersion: 1,
+      songs: [{ ...basic, generations }] })), /Nombre de générations invalide/);
+  }
+  const tooManyTasks = Array.from({ length: 11 }, (_, index) => ({
+    ...basic, id: String(index + 1), generations: 1000,
+  }));
+  assert.throws(() => parseBatch(JSON.stringify({ schemaVersion: 1, songs: tooManyTasks })), /10 000 prises/);
+  const atTaskLimit = parseBatch(JSON.stringify({ schemaVersion: 1,
+    songs: tooManyTasks.slice(0, 10) }));
+  assert.equal(atTaskLimit.length, 10_000);
+});
+
+test('batch prompt audit counts each title once regardless of take count', () => {
+  const direction = {
+    scene: 'rainy station platform', groove: 'broken shuffle rhythm', foreground: 'muted trumpet',
+    harmony: 'open minor ninth chords', arrangement: 'solo piano then bass enters',
+    motif: 'descending three note phrase',
+  };
+  const takes = parseBatch(JSON.stringify({ schemaVersion: 1,
+    songs: [{ ...basic, generations: 3, creativeDirection: direction }] }));
+  assert.equal(takes.length, 3);
+  assert.equal(uniqueBatchSongs(takes).length, 1);
+  assert.deepEqual(auditPromptDiversity(uniqueBatchSongs(takes)).exactDuplicates, []);
 });
 
 test('inference CPU threads use a bounded default and validate overrides', () => {

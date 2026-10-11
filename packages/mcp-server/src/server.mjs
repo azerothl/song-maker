@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob } from './runtime.mjs';
+import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob, uniqueBatchSongs } from './runtime.mjs';
 import { addProjectMidiTrack, createProject, createProjectMidiTrack, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, importProjectAudioTrack, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
 import { exportProjectAudio, exportProjectStems, renderProjectMix } from './project-audio.mjs';
 import { listLocalResources } from './resources.mjs';
@@ -415,7 +415,7 @@ server.registerTool('start_song', {
   { engineId: args.engineId, modelId: args.modelId })));
 
 server.registerTool('start_batch', {
-  description: 'Lit un lot Song Maker V1 du workspace. Passe dryRun=true pour auditer les prompts sans utiliser le GPU. Choisis engineId parmi les moteurs marqués mcpGenerationSupported dans list_local_resources ; YuE2 est actuellement le seul disponible. modelId permet de choisir q4 ou q8 explicitement, sinon Song Maker fournit le modèle actif. Les lots doivent fournir scene, groove, foreground, harmony, arrangement et motif par titre; les doublons exacts sont refusés. Le job se met en pause après chaque piste pour son contrôle audio; resume_job confirme la validation et lance la piste suivante. Les exports suspects restent en pause qualité. Les WAV sont nommés 01 - Titre.wav, etc. Ne remplace aucun export existant.',
+  description: 'Lit un lot Song Maker V1 du workspace. Passe dryRun=true pour auditer les prompts sans utiliser le GPU. Choisis engineId parmi les moteurs marqués mcpGenerationSupported dans list_local_resources ; YuE2 est actuellement le seul disponible. modelId permet de choisir q4 ou q8 explicitement, sinon Song Maker fournit le modèle actif. Chaque titre peut demander 1 à 1000 prises, dans une limite de 10000 prises par lot. Les lots doivent fournir scene, groove, foreground, harmony, arrangement et motif par titre; les doublons exacts sont refusés. Par défaut, le job se met en pause après chaque prise pour son contrôle audio; resume_job confirme la validation et lance la suivante. Les exports suspects restent en pause qualité. Les WAV sont nommés 01 - Titre.wav, avec un suffixe de prise si un titre en comporte plusieurs. Ne remplace aucun export existant.',
   inputSchema: {
     batchFile: z.string().min(1),
     outputDirectory: z.string().min(1).optional(),
@@ -427,7 +427,7 @@ server.registerTool('start_batch', {
   },
 }, call(async ({ batchFile, outputDirectory, engineId, modelId, dryRun, reviewBeforeNext, requireCreativeDirection }) => {
   const songs = parseBatch(await readFile(insideWorkspace(batchFile), 'utf8'));
-  const promptAudit = auditPromptDiversity(songs);
+  const promptAudit = auditPromptDiversity(uniqueBatchSongs(songs));
   if (dryRun) return promptAudit;
   if (!outputDirectory) throw new Error('outputDirectory est requis pour lancer le lot.');
   if (requireCreativeDirection && promptAudit.underSpecified.length) {
@@ -449,7 +449,8 @@ server.registerTool('job_status', {
   annotations: { readOnlyHint: true },
 }, call(async ({ jobId }) => {
   const job = await getJob(jobId);
-  return { id: job.id, state: job.state, total: job.songs.length, current: job.current,
+  return { id: job.id, state: job.state, total: job.songs.length,
+    sourceSongs: job.sourceSongCount ?? uniqueBatchSongs(job.songs).length, current: job.current,
     completed: job.completed, failures: job.failures || [], error: job.error, outputDirectory: job.outputDirectory,
     engine: job.engine || null, modelId: job.modelId || null, warnings: job.warnings || [], promptAudit: job.promptAudit || null,
     reviewBeforeNext: job.reviewBeforeNext || false, reviewRequired: job.reviewRequired || null,
