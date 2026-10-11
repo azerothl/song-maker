@@ -84,7 +84,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
   const useCompactRows =
     compactRows &&
     !(typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
-  const ROW_H = useCompactRows ? 28 : NOTE_HIT_PX;
+  const ROW_H = useCompactRows ? 20 : NOTE_HIT_PX;
   const noteHitHeightPx = useCompactRows ? ROW_H : NOTE_HIT_PX;
   const defaultVoice = primaryVoiceId(document);
   const [voiceId, setVoiceId] = useState<string | null>(initialVoiceId ?? defaultVoice);

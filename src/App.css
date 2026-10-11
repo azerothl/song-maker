@@ -9525,33 +9525,54 @@ details[open] > summary {
 }
 
 .production-workspace-studio .production-mix-scroll {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
   padding: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 
-/* The shared timeline rule makes this container visible again via :has().
-   Keep the Studio's track list scrollable so new lanes remain reachable
-   above the persistent player in short windows. */
+/* Keep one bounded arrangement viewport; the lanes provide the scroll area. */
 .production-workspace-studio.production-workspace-common:has(.production-common-timeline) .production-mix-scroll {
-  overflow: auto;
+  overflow: hidden;
+}
+
+.production-workspace-studio .production-mix-colheaders {
+  flex: 0 0 auto;
+}
+
+.production-workspace-studio .production-mix-list {
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .production-workspace-studio .production-common-timeline {
-  display: block;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  height: 100%;
   min-height: 0;
   margin: 0;
+  overflow: hidden;
 }
 
 .production-workspace-studio .clip-timeline {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   height: 100%;
   min-height: 0;
   gap: 0.35rem;
   margin: 0;
   padding: 0;
   border: 0;
+  overflow: hidden;
+}
+
+.production-workspace-studio .clip-timeline-scroll-chrome {
+  flex: 0 0 auto;
 }
 
 .production-workspace-studio .clip-timeline-lanes-pane {
@@ -10013,10 +10034,10 @@ details[open] > summary {
 
 .studio-midi-dock {
   display: flex;
-  flex: 0 1 58%;
+  flex: 0 1 42%;
   flex-direction: column;
   min-width: 0;
-  min-height: min(420px, 48vh);
+  min-height: min(340px, 40vh);
   overflow: hidden;
   border-top: 1px solid color-mix(in srgb, var(--stem-midi) 28%, var(--line));
   background: linear-gradient(180deg, #151827, #10131e);
@@ -10378,8 +10399,87 @@ details[open] > summary {
 
 @media (max-height: 820px) {
   .studio-midi-dock {
-    flex-basis: 52%;
-    min-height: min(320px, 40vh);
+    flex-basis: 28%;
+    min-height: min(220px, 28vh);
+  }
+
+  .studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] > .studio-midi-edit-toolbar {
+    min-height: 30px;
+    padding: 0.1rem 0.4rem;
+  }
+
+  .studio-midi-dock .studio-midi-edit-toolbar .btn {
+    min-height: 28px;
+    height: 28px;
+    padding-block: 0.1rem;
+  }
+
+  .studio-midi-dock .piano-roll > .piano-advanced-settings:not(.piano-chord-settings),
+  .studio-midi-dock .piano-roll > .piano-chord-settings,
+  .studio-midi-dock .piano-roll > .section-list {
+    display: none;
+  }
+
+  .studio-midi-dock .piano-roll {
+    grid-template-rows: auto 0 0 minmax(90px, 1fr);
+    gap: 0.2rem;
+  }
+
+  .studio-midi-dock .studio-midi-dock-body {
+    overflow: hidden;
+    padding: 0.15rem 0.4rem;
+  }
+
+  .studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] {
+    grid-template-rows: 30px minmax(0, 1fr);
+    gap: 0.25rem;
+  }
+
+  .studio-midi-dock .piano-roll > .piano-toolbar {
+    height: 38px;
+    min-height: 0;
+    max-height: 38px;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .studio-midi-dock .piano-roll .piano-voice-picker {
+    flex: 0 0 8rem;
+    font-size: 0.66rem;
+  }
+
+  .studio-midi-dock .piano-roll .piano-voice-picker select {
+    min-height: 26px;
+    height: 26px;
+    padding: 0.1rem 0.3rem;
+  }
+
+  .studio-midi-dock .piano-roll > .piano-toolbar .piano-toolbar-main {
+    gap: 0.2rem;
+    overflow-x: auto;
+  }
+
+  .studio-midi-dock .piano-roll .piano-note-tools {
+    flex-wrap: nowrap;
+    flex: 0 0 auto;
+    max-width: none;
+    gap: 0.15rem;
+    padding: 0.12rem;
+    overflow-x: auto;
+  }
+
+  .studio-midi-dock .piano-roll .piano-note-tools .btn {
+    flex: 0 0 auto;
+    min-height: 28px;
+    height: 28px;
+    padding: 0 0.3rem;
+    font-size: 0.66rem;
+    white-space: nowrap;
+  }
+
+  .studio-midi-dock .piano-roll {
+    grid-template-rows: 38px 0 0 minmax(80px, 1fr);
+    gap: 0.15rem;
   }
 
   .song-layout-studio .production-workspace-studio {
@@ -10387,7 +10487,52 @@ details[open] > summary {
   }
 
   .studio-midi-dock .piano-roll > .piano-scroll {
-    min-height: 145px;
+    min-height: 80px;
+  }
+}
+
+@media (max-height: 820px) and (max-width: 1100px) {
+  .studio-midi-dock {
+    flex-basis: 22%;
+    min-height: min(160px, 21vh);
+  }
+
+  .studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] {
+    grid-template-rows: 26px minmax(0, 1fr);
+  }
+
+  .studio-midi-dock .studio-midi-edit-content[data-inspector-position="side"] > .studio-midi-edit-toolbar {
+    min-height: 26px;
+  }
+
+  .studio-midi-dock .studio-midi-edit-toolbar .btn {
+    min-height: 24px;
+    height: 24px;
+    font-size: 0.68rem;
+  }
+
+  .studio-midi-dock .piano-roll > .piano-toolbar {
+    height: 32px;
+    max-height: 32px;
+  }
+
+  .studio-midi-dock .piano-roll .piano-voice-picker {
+    flex-basis: 6rem;
+  }
+
+  .studio-midi-dock .piano-roll .piano-note-tools .btn {
+    min-height: 24px;
+    height: 24px;
+    padding-inline: 0.2rem;
+    font-size: 0.6rem;
+  }
+
+  .studio-midi-dock .piano-roll {
+    grid-template-rows: 32px 0 0 minmax(52px, 1fr);
+  }
+
+  .studio-midi-dock .piano-roll > .piano-scroll {
+    min-height: 52px;
   }
 }
 
@@ -10478,18 +10623,18 @@ details[open] > summary {
 }
 
 .production-workspace-studio .clip-tempo-lane {
-  top: 44px;
+  top: 30px;
   z-index: 4;
-  height: 52px;
-  min-height: 52px;
+  height: 32px;
+  min-height: 32px;
 }
 
 .production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane) {
-  top: 44px;
+  top: 30px;
   z-index: 5;
-  height: 52px;
-  min-height: 52px;
-  margin-top: -52px;
+  height: 32px;
+  min-height: 32px;
+  margin-top: -32px;
   pointer-events: none;
   background: transparent;
 }
@@ -10502,31 +10647,37 @@ details[open] > summary {
 
 .production-workspace-studio .clip-tempo-lane > .clip-lane-rail,
 .production-workspace-studio .clip-marker-lane > .clip-lane-rail {
-  height: 52px;
+  height: 32px;
+  min-height: 32px;
   background: transparent !important;
   border: 0;
+}
+
+.production-workspace-studio .clip-ruler[role="slider"] {
+  height: 30px;
+  min-height: 30px;
 }
 
 .production-workspace-studio .clip-tempo-flag {
   top: 0;
   min-width: 48px;
-  min-height: 24px;
-  height: 24px;
+  min-height: 15px;
+  height: 15px;
   padding: 0 0.25rem;
   border-radius: 3px;
   font-size: 0.72rem;
 }
 
 .production-workspace-studio .clip-marker-flag {
-  top: 25px;
-  min-height: 24px;
-  height: 24px;
+  top: 16px;
+  min-height: 16px;
+  height: 16px;
   color: #f6bd60;
   pointer-events: auto;
 }
 
 .production-workspace-studio .clip-marker-flag::before {
-  height: 12px;
+  height: 6px;
   background: #f6bd60;
 }
 
@@ -10546,12 +10697,37 @@ details[open] > summary {
 }
 
 .production-workspace-studio .clip-marker-add {
-  top: 26px;
+  top: 16px;
   right: -42px;
   min-width: 24px;
   width: 24px;
   min-height: 24px;
   height: 24px;
+}
+
+@media (pointer: coarse) {
+  .production-workspace-studio .clip-ruler[role="slider"],
+  .production-workspace-studio .clip-tempo-lane,
+  .production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane),
+  .production-workspace-studio .clip-tempo-lane > .clip-lane-rail,
+  .production-workspace-studio .clip-marker-lane > .clip-lane-rail {
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .production-workspace-studio .clip-tempo-lane,
+  .production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane) {
+    top: 44px;
+  }
+
+  .production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane) {
+    margin-top: -44px;
+  }
+
+  .production-workspace-studio .clip-tempo-flag,
+  .production-workspace-studio .clip-marker-flag {
+    min-height: 44px;
+  }
 }
 
 .production-workspace-studio .clip-marker-lane > .clip-lane-rail {
@@ -10584,8 +10760,8 @@ details[open] > summary {
 
 .production-workspace-studio .production-mix-row {
   grid-template-rows: 1fr;
-  height: 60px;
-  min-height: 60px;
+  height: 52px;
+  min-height: 52px;
   align-items: center;
   padding: 0 0.35rem;
   border-bottom-color: var(--line2);
@@ -10609,11 +10785,11 @@ details[open] > summary {
 
 .production-workspace-studio .studio-track-control {
   display: grid;
-  grid-template-rows: 12px 1fr;
+  grid-template-rows: 11px 1fr;
   justify-items: center;
   align-items: center;
   min-width: 0;
-  height: 54px;
+  height: 48px;
 }
 
 .production-workspace-studio .studio-track-control-label {
