@@ -199,6 +199,33 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal(importedAudioState.importedAudio.durationMs, 50);
     assert.equal(importedAudioState.mixRevision.length, 64);
     assert.equal((await readFile(path.join(projectFolder, importedAudioState.importedAudio.originalPath))).length, smallPcmWav().length);
+    const importedClipId = importedAudioState.track.clips[0].id;
+    const editedClip = await client.callTool({ name: 'update_project_mix', arguments: {
+      projectId: 'project-001', expectedMixRevision: importedAudioState.mixRevision,
+      clipEdits: [
+        { operation: 'move', clipId: importedClipId, startMs: 1200 },
+        { operation: 'trim', clipId: importedClipId, offsetMs: 5, durationMs: 35 },
+        { operation: 'fade', clipId: importedClipId, fadeInMs: 10, fadeOutMs: 10 },
+        { operation: 'gain', clipId: importedClipId, gainDb: -2.5 },
+        { operation: 'processing', clipId: importedClipId, enabled: false },
+        { operation: 'take_active', clipId: importedClipId, active: true },
+      ],
+    } });
+    assert.equal(editedClip.isError, undefined, editedClip.content?.[0]?.text);
+    const editedClipState = JSON.parse(editedClip.content[0].text);
+    assert.deepEqual(editedClipState.clipEditSummary, { modifiedClipIds: [importedClipId], createdClipIds: [] });
+    assert.deepEqual(
+      (({ startMs, offsetMs, durationMs, gainDb, fadeInMs, fadeOutMs, processingEnabled, takeActive }) =>
+        ({ startMs, offsetMs, durationMs, gainDb, fadeInMs, fadeOutMs, processingEnabled, takeActive }))(
+        editedClipState.mix.tracks.find(track => track.id === importedAudioState.track.id).clips[0]),
+      { startMs: 1200, offsetMs: 5, durationMs: 35, gainDb: -2.5, fadeInMs: 10, fadeOutMs: 10,
+        processingEnabled: false, takeActive: true },
+    );
+    const attemptedSourceChange = await client.callTool({ name: 'update_project_mix', arguments: {
+      projectId: 'project-001', expectedMixRevision: editedClipState.mixRevision,
+      clipEdits: [{ operation: 'move', clipId: importedClipId, startMs: 1200, sourcePath: '../../outside.wav' }],
+    } });
+    assert.equal(attemptedSourceChange.isError, true);
     const openedScore = await client.callTool({ name: 'get_project_score', arguments: { projectId: 'project-001' } });
     assert.equal(openedScore.isError, undefined);
     const scoreState = JSON.parse(openedScore.content[0].text);
@@ -208,7 +235,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal('stateB64' in scoreState.score.voices[0].vst3Instrument, false);
     const addedMidi = await client.callTool({ name: 'add_project_midi_track', arguments: {
       projectId: 'project-001', voiceId: 'midi-keys', expectedScoreRevision: scoreState.scoreRevision,
-      expectedMixRevision: importedAudioState.mixRevision,
+      expectedMixRevision: editedClipState.mixRevision,
     } });
     assert.equal(addedMidi.isError, undefined);
     const addedMidiState = JSON.parse(addedMidi.content[0].text);

@@ -974,7 +974,7 @@ export async function importProjectAudioTrack({
 
 /** Update active mix controls and arrangement metadata using an optimistic mix revision. */
 export async function updateProjectMix({
-  projectId, mixId, expectedMixRevision, masterGainDb, tracks, addMidiTracks, tempoMap, timeSignatures, markers,
+  projectId, mixId, expectedMixRevision, masterGainDb, tracks, addMidiTracks, clipEdits, tempoMap, timeSignatures, markers,
   env = process.env,
 } = {}) {
   if (typeof projectId !== 'string' || !PROJECT_ID_PATTERN.test(projectId)) {
@@ -984,7 +984,8 @@ export async function updateProjectMix({
     throw new Error('expectedMixRevision doit venir de get_project_mix.');
   }
   if (masterGainDb === undefined && (!Array.isArray(tracks) || tracks.length === 0) &&
-      (!Array.isArray(addMidiTracks) || addMidiTracks.length === 0) && tempoMap === undefined &&
+      (!Array.isArray(addMidiTracks) || addMidiTracks.length === 0) &&
+      (!Array.isArray(clipEdits) || clipEdits.length === 0) && tempoMap === undefined &&
       timeSignatures === undefined && markers === undefined) {
     throw new Error('Indique au moins un réglage de mix à modifier.');
   }
@@ -1064,6 +1065,60 @@ export async function updateProjectMix({
     throw new Error('Identifiant de piste MIDI répété.');
   }
 
+  if (clipEdits !== undefined && !Array.isArray(clipEdits)) {
+    throw new Error('Les éditions de clips doivent être une liste.');
+  }
+  if ((clipEdits ?? []).length > 1000) throw new Error('Un appel peut contenir au maximum 1 000 éditions de clips.');
+  const clipEditSpecs = (clipEdits ?? []).map(edit => {
+    const clipId = typeof edit?.clipId === 'string' ? edit.clipId.trim() : '';
+    if (!clipId || clipId.length > 128 || typeof edit?.operation !== 'string') {
+      throw new Error('Chaque édition doit indiquer un clip et une opération.');
+    }
+    const nonNegativeMs = (value, field, { positive = false } = {}) => {
+      if (!Number.isSafeInteger(value) || value < (positive ? 1 : 0) || value > 86_400_000) {
+        throw new Error(`${field} doit être un nombre entier de millisecondes ${positive ? 'supérieur à 0' : 'positif ou nul'}, limité à 24 heures.`);
+      }
+      return value;
+    };
+    switch (edit.operation) {
+      case 'move':
+        return { operation: 'move', clipId, startMs: nonNegativeMs(edit.startMs, 'startMs') };
+      case 'trim':
+        return {
+          operation: 'trim', clipId,
+          offsetMs: nonNegativeMs(edit.offsetMs, 'offsetMs'),
+          durationMs: nonNegativeMs(edit.durationMs, 'durationMs', { positive: true }),
+        };
+      case 'fade': {
+        if (edit.fadeInMs === undefined && edit.fadeOutMs === undefined) {
+          throw new Error('Une édition fade doit renseigner fadeInMs ou fadeOutMs.');
+        }
+        return {
+          operation: 'fade', clipId,
+          ...(edit.fadeInMs !== undefined ? { fadeInMs: nonNegativeMs(edit.fadeInMs, 'fadeInMs') } : {}),
+          ...(edit.fadeOutMs !== undefined ? { fadeOutMs: nonNegativeMs(edit.fadeOutMs, 'fadeOutMs') } : {}),
+        };
+      }
+      case 'gain':
+        if (!Number.isFinite(edit.gainDb) || edit.gainDb < -24 || edit.gainDb > 12) {
+          throw new Error('Le gain de clip doit être compris entre −24 et +12 dB.');
+        }
+        return { operation: 'gain', clipId, gainDb: edit.gainDb };
+      case 'processing':
+        if (typeof edit.enabled !== 'boolean') throw new Error('enabled doit être un booléen.');
+        return { operation: 'processing', clipId, enabled: edit.enabled };
+      case 'take_active':
+        if (typeof edit.active !== 'boolean') throw new Error('active doit être un booléen.');
+        return { operation: 'take_active', clipId, active: edit.active };
+      case 'cut':
+        return { operation: 'cut', clipId, atMs: nonNegativeMs(edit.atMs, 'atMs') };
+      case 'duplicate':
+        return { operation: 'duplicate', clipId, startMs: nonNegativeMs(edit.startMs, 'startMs') };
+      default:
+        throw new Error(`Opération de clip non prise en charge : ${edit.operation}.`);
+    }
+  });
+
   const seenTrackIds = new Set();
   for (const update of tracks ?? []) {
     if (!update || typeof update.id !== 'string' || !update.id.trim() || seenTrackIds.has(update.id)) {
@@ -1108,6 +1163,7 @@ export async function updateProjectMix({
   const mixPath = path.join(mixesDirectory, mixFileName);
 
   const addedTrackIds = [];
+  let clipEditSummary;
   await withMixLock(mixPath, async () => {
     const latestProject = await readProjectAt(store.root, projectId);
     if (latestProject.activeMixId !== selectedMixId) {
@@ -1142,6 +1198,143 @@ export async function updateProjectMix({
         if (update[key] !== undefined) track[key] = update[key];
       }
     }
+    const editedClipIds = new Set();
+    const createdClipIds = [];
+    for (const edit of clipEditSpecs) {
+      const matches = [];
+      for (const track of next.tracks) {
+        for (const clip of track.clips ?? []) {
+          if (clip.id === edit.clipId) matches.push({ track, clip });
+        }
+      }
+      if (matches.length !== 1) {
+        throw new Error(matches.length ? `Le clip ${edit.clipId} est ambigu dans ce mix.` : `Clip introuvable dans le mix actif : ${edit.clipId}`);
+      }
+      const { track, clip } = matches[0];
+      const ensureFadeFit = candidate => {
+        if ((candidate.fadeInMs ?? 0) + (candidate.fadeOutMs ?? 0) > candidate.durationMs) {
+          throw new Error(`Les fondus dépassent la durée du clip ${candidate.id}.`);
+        }
+      };
+      const ensureInternalSource = async candidate => {
+        const sourcePath = typeof candidate.sourcePath === 'string' ? candidate.sourcePath : '';
+        const normalized = sourcePath.replaceAll('\\', '/');
+        const absolute = path.isAbsolute(sourcePath) || /^[A-Za-z]:\//.test(normalized) || normalized.startsWith('//');
+        const resolved = path.resolve(canonicalFolder, sourcePath);
+        if (!sourcePath || absolute || !isWithin(canonicalFolder, resolved)) {
+          throw new Error(`La source du clip ${candidate.id} est externe ou sort du projet.`);
+        }
+        let info;
+        try { info = await lstat(resolved); }
+        catch (error) {
+          if (error?.code === 'ENOENT') throw new Error(`Source audio introuvable pour le clip ${candidate.id}.`);
+          throw new Error(`Lecture de la source du clip ${candidate.id} impossible : ${error?.message || error}`);
+        }
+        const canonical = await realpath(resolved);
+        if (info.isSymbolicLink() || !info.isFile() || !isWithin(canonicalFolder, canonical)) {
+          throw new Error(`Source audio invalide ou hors du projet pour le clip ${candidate.id}.`);
+        }
+        if (typeof candidate.sourceSha256 === 'string' &&
+            (!/^[a-f0-9]{64}$/i.test(candidate.sourceSha256) ||
+             (await sha256File(canonical)) !== candidate.sourceSha256.toLowerCase())) {
+          throw new Error(`La source audio du clip ${candidate.id} a changé depuis son import.`);
+        }
+        return canonical;
+      };
+      const assertSourceRange = async candidate => {
+        const source = await ensureInternalSource(candidate);
+        const sourceDurationMs = await wavDurationMs(source);
+        if (!sourceDurationMs) throw new Error(`Durée WAV invalide pour le clip ${candidate.id}.`);
+        const projectTempoBpm = next.tempoMap?.[0]?.quarterBpm ?? project.tempoBpm ?? 120;
+        const followTempoRatio = candidate.followProjectTempo === true &&
+          Number.isFinite(candidate.sourceTempoBpm) && candidate.sourceTempoBpm > 0 &&
+          Number.isFinite(projectTempoBpm) && projectTempoBpm > 0
+          ? candidate.sourceTempoBpm / projectTempoBpm
+          : null;
+        const requestedStretch = candidate.followProjectTempo === true
+          ? followTempoRatio ?? candidate.timeStretchRatio
+          : candidate.timeStretchRatio;
+        const stretch = candidate.processingEnabled !== false && Number.isFinite(requestedStretch) && requestedStretch > 0
+          ? Math.max(0.25, Math.min(4, requestedStretch))
+          : 1;
+        const sourceSpanMs = Math.ceil(candidate.durationMs / stretch);
+        if (candidate.offsetMs + sourceSpanMs > sourceDurationMs + 1) {
+          throw new Error(`Le découpage du clip ${candidate.id} dépasse la durée de son fichier audio.`);
+        }
+      };
+      switch (edit.operation) {
+        case 'move':
+          clip.startMs = edit.startMs;
+          break;
+        case 'trim': {
+          const candidate = {
+            ...clip,
+            offsetMs: edit.offsetMs,
+            durationMs: edit.durationMs,
+            fadeInMs: Math.min(clip.fadeInMs ?? 0, edit.durationMs),
+            fadeOutMs: Math.min(clip.fadeOutMs ?? 0, edit.durationMs),
+          };
+          ensureFadeFit(candidate);
+          await assertSourceRange(candidate);
+          Object.assign(clip, candidate);
+          break;
+        }
+        case 'fade': {
+          const candidate = {
+            ...clip,
+            ...(edit.fadeInMs !== undefined ? { fadeInMs: edit.fadeInMs } : {}),
+            ...(edit.fadeOutMs !== undefined ? { fadeOutMs: edit.fadeOutMs } : {}),
+          };
+          ensureFadeFit(candidate);
+          Object.assign(clip, candidate);
+          break;
+        }
+        case 'gain':
+          clip.gainDb = edit.gainDb;
+          break;
+        case 'processing':
+          clip.processingEnabled = edit.enabled;
+          break;
+        case 'take_active':
+          clip.takeActive = edit.active;
+          break;
+        case 'cut': {
+          if (edit.atMs <= clip.startMs || edit.atMs >= clip.startMs + clip.durationMs) {
+            throw new Error(`atMs doit se trouver à l’intérieur du clip ${clip.id}.`);
+          }
+          await assertSourceRange(clip);
+          const leftDuration = edit.atMs - clip.startMs;
+          const rightDuration = clip.durationMs - leftDuration;
+          const stretch = clip.processingEnabled !== false && clip.followProjectTempo !== true &&
+            Number.isFinite(clip.timeStretchRatio) && clip.timeStretchRatio > 0 ? clip.timeStretchRatio : 1;
+          const left = { ...clip, durationMs: leftDuration, fadeOutMs: Math.min(clip.fadeOutMs ?? 0, leftDuration) };
+          const right = {
+            ...clip,
+            id: `clip-${randomUUID()}`,
+            startMs: edit.atMs,
+            offsetMs: clip.offsetMs + Math.round(leftDuration / stretch),
+            durationMs: rightDuration,
+            fadeInMs: Math.min(clip.fadeInMs ?? 0, rightDuration),
+            fadeOutMs: Math.min(clip.fadeOutMs ?? 0, rightDuration),
+          };
+          ensureFadeFit(left);
+          ensureFadeFit(right);
+          await assertSourceRange(left);
+          await assertSourceRange(right);
+          Object.assign(clip, left);
+          track.clips.splice(track.clips.indexOf(clip) + 1, 0, right);
+          createdClipIds.push(right.id);
+          break;
+        }
+        case 'duplicate': {
+          const copy = { ...clip, id: `clip-${randomUUID()}`, startMs: edit.startMs };
+          track.clips.push(copy);
+          createdClipIds.push(copy.id);
+          break;
+        }
+      }
+      editedClipIds.add(edit.clipId);
+    }
     const existingTrackIds = [];
     for (const { id, name } of midiTrackSpecs) {
       const existing = next.tracks.find(track => track.id === id);
@@ -1157,17 +1350,22 @@ export async function updateProjectMix({
       addedTrackIds.push(id);
     }
     if (masterGainDb !== undefined || tempoMap !== undefined || timeSignatures !== undefined || markers !== undefined ||
-        (tracks ?? []).length > 0 || addedTrackIds.length > 0) {
+        (tracks ?? []).length > 0 || addedTrackIds.length > 0 || clipEditSpecs.length > 0) {
       await writeJsonAtomically(mixPath, next, `.mix-${randomUUID()}.tmp`);
     }
+    clipEditSummary = clipEditSpecs.length
+      ? { modifiedClipIds: [...editedClipIds], createdClipIds }
+      : undefined;
   });
 
   const updated = await getProjectMix({ projectId, mixId: selectedMixId, env });
-  return addMidiTracks?.length
-    ? { ...updated, addedTrackIds, existingTrackIds: updated.mix.tracks
+  return {
+    ...updated,
+    ...(addMidiTracks?.length ? { addedTrackIds, existingTrackIds: updated.mix.tracks
       .filter(track => midiTrackSpecs.some(spec => spec.id === track.id) && !addedTrackIds.includes(track.id))
-      .map(track => track.id) }
-    : updated;
+      .map(track => track.id) } : {}),
+    ...(clipEditSpecs.length ? { clipEditSummary } : {}),
+  };
 }
 
 async function withMixLock(mixPath, callback) {

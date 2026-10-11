@@ -113,7 +113,7 @@ server.registerTool('get_project_mix', {
 }, call(async args => getProjectMix(args)));
 
 server.registerTool('update_project_mix', {
-  description: 'Modifie les niveaux master et de piste, le panoramique, mute, solo, les cartes de tempo et de métrique et les repères de sections du mix actif. Passe mixRevision obtenu par get_project_mix ; l’outil refuse les changements périmés et ne déplace pas les clips ni ne rend l’audio.',
+  description: 'Modifie les niveaux master et de piste, le panoramique, mute, solo, l’arrangement et les clips du mix actif. clipEdits peut déplacer, découper, scinder ou dupliquer un clip, régler ses fondus/gain/traitements et activer une prise. Passe mixRevision obtenu par get_project_mix ; l’outil refuse les changements périmés, vérifie les sources internes lors des trims/scissions, et ne rend pas l’audio.',
   inputSchema: {
     projectId: z.string().min(1).max(128),
     mixId: z.string().regex(/^mix-v[0-9]+$/).optional(),
@@ -129,6 +129,44 @@ server.registerTool('update_project_mix', {
       track.mute !== undefined || track.solo !== undefined, {
       message: 'Chaque piste doit contenir au moins un réglage.',
     })).max(256).optional(),
+    clipEdits: z.array(z.discriminatedUnion('operation', [
+      z.object({
+        operation: z.literal('move'), clipId: z.string().min(1).max(128),
+        startMs: z.number().int().safe().min(0).max(86_400_000),
+      }).strict(),
+      z.object({
+        operation: z.literal('trim'), clipId: z.string().min(1).max(128),
+        offsetMs: z.number().int().safe().min(0).max(86_400_000),
+        durationMs: z.number().int().safe().min(1).max(86_400_000),
+      }).strict(),
+      z.object({
+        operation: z.literal('fade'), clipId: z.string().min(1).max(128),
+        fadeInMs: z.number().int().safe().min(0).max(86_400_000).optional(),
+        fadeOutMs: z.number().int().safe().min(0).max(86_400_000).optional(),
+      }).strict().refine(edit => edit.fadeInMs !== undefined || edit.fadeOutMs !== undefined, {
+        message: 'Renseigne fadeInMs ou fadeOutMs.',
+      }),
+      z.object({
+        operation: z.literal('gain'), clipId: z.string().min(1).max(128),
+        gainDb: z.number().finite().min(-24).max(12),
+      }).strict(),
+      z.object({
+        operation: z.literal('processing'), clipId: z.string().min(1).max(128),
+        enabled: z.boolean(),
+      }).strict(),
+      z.object({
+        operation: z.literal('take_active'), clipId: z.string().min(1).max(128),
+        active: z.boolean(),
+      }).strict(),
+      z.object({
+        operation: z.literal('cut'), clipId: z.string().min(1).max(128),
+        atMs: z.number().int().safe().min(0).max(86_400_000),
+      }).strict(),
+      z.object({
+        operation: z.literal('duplicate'), clipId: z.string().min(1).max(128),
+        startMs: z.number().int().safe().min(0).max(86_400_000),
+      }).strict(),
+    ])).min(1).max(1000).optional(),
     tempoMap: z.array(z.object({
       startMs: z.number().int().safe().min(0),
       quarterBpm: z.number().int().min(1).max(400),

@@ -242,9 +242,14 @@ test('MCP updates active mix levels and track controls with a current mix revisi
   const projectFolder = path.join(documentsRoot, 'profiles', 'profile-mix', 'projects', 'project-mix');
   const mixesFolder = path.join(projectFolder, 'mixes');
   const mixPath = path.join(mixesFolder, 'mix-v001.json');
+  const clipAudioDirectory = path.join(projectFolder, 'generations', 'gen-001');
+  const clipAudioPath = path.join(clipAudioDirectory, 'audio.wav');
+  const clipAudio = smallPcmWav();
   const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
   try {
     await mkdir(mixesFolder, { recursive: true });
+    await mkdir(clipAudioDirectory, { recursive: true });
+    await writeFile(clipAudioPath, clipAudio);
     await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({ activeProfileId: 'profile-mix' }));
     await writeFile(path.join(projectFolder, 'project.json'), JSON.stringify({
       schema: 'songmaker.project', schemaVersion: 1, id: 'project-mix', title: 'Mix controls',
@@ -256,7 +261,12 @@ test('MCP updates active mix levels and track controls with a current mix revisi
       vst3MasterInsert: { pluginPath: 'C:/private/plugin.vst3', pluginName: 'Private plugin', enabled: true },
       tracks: [
         { id: 'voice', role: 'vocal', name: 'Voice', gainDb: 0, pan: 0, mute: false, solo: false,
-          locked: false, aiSeparated: false, clips: [], experimentalVst3Insert: null },
+          locked: false, aiSeparated: false, clips: [{
+            id: 'clip-001', trackId: 'voice', sourcePath: 'generations/gen-001/audio.wav',
+            sourceSha256: createHash('sha256').update(clipAudio).digest('hex'),
+            startMs: 1000, offsetMs: 0, durationMs: 100, gainDb: 0, fadeInMs: 0, fadeOutMs: 0,
+            processingEnabled: true, timeStretchRatio: 1, takeActive: true,
+          }], experimentalVst3Insert: null },
         { id: 'drums', role: 'drums', name: 'Drums', gainDb: -2, pan: 0.1, mute: false, solo: false,
           locked: false, aiSeparated: false, clips: [], experimentalVst3Insert: null },
       ],
@@ -285,8 +295,60 @@ test('MCP updates active mix levels and track controls with a current mix revisi
     const stored = JSON.parse(await readFile(mixPath, 'utf8'));
     assert.equal(stored.vst3MasterInsert.pluginPath, 'C:/private/plugin.vst3');
 
-    const arranged = await updateProjectMix({
+    const clipsEdited = await updateProjectMix({
       projectId: 'project-mix', expectedMixRevision: updated.mixRevision,
+      clipEdits: [
+        { operation: 'move', clipId: 'clip-001', startMs: 2000 },
+        { operation: 'trim', clipId: 'clip-001', offsetMs: 10, durationMs: 70 },
+        { operation: 'fade', clipId: 'clip-001', fadeInMs: 10, fadeOutMs: 20 },
+        { operation: 'gain', clipId: 'clip-001', gainDb: -3.5 },
+        { operation: 'processing', clipId: 'clip-001', enabled: false },
+        { operation: 'take_active', clipId: 'clip-001', active: false },
+      ], env,
+    });
+    const editedClip = clipsEdited.mix.tracks[0].clips[0];
+    assert.deepEqual(
+      (({ startMs, offsetMs, durationMs, gainDb, fadeInMs, fadeOutMs, processingEnabled, takeActive }) =>
+        ({ startMs, offsetMs, durationMs, gainDb, fadeInMs, fadeOutMs, processingEnabled, takeActive }))(editedClip),
+      { startMs: 2000, offsetMs: 10, durationMs: 70, gainDb: -3.5, fadeInMs: 10, fadeOutMs: 20,
+        processingEnabled: false, takeActive: false },
+    );
+    assert.deepEqual(clipsEdited.clipEditSummary, { modifiedClipIds: ['clip-001'], createdClipIds: [] });
+    const cut = await updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: clipsEdited.mixRevision,
+      clipEdits: [{ operation: 'cut', clipId: 'clip-001', atMs: 2035 }], env,
+    });
+    assert.equal(cut.clipEditSummary.createdClipIds.length, 1);
+    const cutRightId = cut.clipEditSummary.createdClipIds[0];
+    assert.deepEqual(
+      cut.mix.tracks[0].clips.map(({ id, startMs, offsetMs, durationMs }) => ({ id, startMs, offsetMs, durationMs })),
+      [
+        { id: 'clip-001', startMs: 2000, offsetMs: 10, durationMs: 35 },
+        { id: cutRightId, startMs: 2035, offsetMs: 45, durationMs: 35 },
+      ],
+    );
+    const duplicated = await updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: cut.mixRevision,
+      clipEdits: [{ operation: 'duplicate', clipId: 'clip-001', startMs: 5000 }], env,
+    });
+    assert.equal(duplicated.clipEditSummary.createdClipIds.length, 1);
+    assert.equal(duplicated.mix.tracks[0].clips.length, 3);
+    assert.equal(duplicated.mix.tracks[0].clips[2].startMs, 5000);
+    await assert.rejects(updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: duplicated.mixRevision,
+      clipEdits: [{ operation: 'fade', clipId: 'clip-001', fadeInMs: 30, fadeOutMs: 10 }], env,
+    }), /fondus dépassent/);
+    await assert.rejects(updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: duplicated.mixRevision,
+      clipEdits: [
+        { operation: 'fade', clipId: 'clip-001', fadeInMs: 5, fadeOutMs: 5 },
+        { operation: 'trim', clipId: 'clip-001', offsetMs: 95, durationMs: 20 },
+      ], env,
+    }), /dépasse la durée/);
+
+    const tracksBeforeArrangement = JSON.parse(await readFile(mixPath, 'utf8')).tracks;
+    const arranged = await updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: duplicated.mixRevision,
       tempoMap: [{ startMs: 2400, quarterBpm: 96 }, { startMs: 0, quarterBpm: 120 }],
       timeSignatures: [{ startMs: 4800, numerator: 3, denominator: 4 }, { startMs: 0, numerator: 4, denominator: 4 }],
       markers: [
@@ -304,7 +366,7 @@ test('MCP updates active mix levels and track controls with a current mix revisi
       { id: 'intro', name: 'Intro', kind: 'intro', startMs: 0 },
       { id: 'chorus-1', name: 'Refrain', kind: 'chorus', startMs: 2400 },
     ]);
-    assert.deepEqual(JSON.parse(await readFile(mixPath, 'utf8')).tracks, stored.tracks);
+    assert.deepEqual(JSON.parse(await readFile(mixPath, 'utf8')).tracks, tracksBeforeArrangement);
     await assert.rejects(updateProjectMix({
       projectId: 'project-mix', expectedMixRevision: arranged.mixRevision,
       tempoMap: [{ startMs: 0, quarterBpm: 120 }, { startMs: 0, quarterBpm: 98 }], env,
