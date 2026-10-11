@@ -35,9 +35,6 @@ import { SoftSynth } from "../lib/midiInstrument";
 import { midiPitchName } from "../lib/midiPitchName";
 import { t } from "../ui/i18n";
 
-/** Cible tactile minimale (WCAG / #246). */
-const NOTE_HIT_PX = 44;
-
 const SECTION_KINDS: SectionKind[] = [
   "intro",
   "verse",
@@ -67,8 +64,8 @@ const TONICS = [
 const PITCH_MIN = 48;
 const PITCH_MAX = 84;
 const PX_PER_TICK = 0.04;
-/** Aligné sur NOTE_HIT_PX pour éviter le chevauchement vertical des cibles 44 px. */
-const ROW_H = NOTE_HIT_PX;
+/** Minimum touch target for notes in the standard piano roll. */
+const NOTE_HIT_PX = 44;
 const QUANTIZE_TICKS = 120;
 const PIANO_KEYBOARD_WIDTH = 56;
 const PIANO_RULER_HEIGHT = 28;
@@ -79,9 +76,16 @@ type Props = {
   onChange: (doc: ScoreDocument) => void;
   onError?: (msg: string | null) => void;
   initialVoiceId?: string;
+  /** Compact, desktop-only pitch rows for the Studio dock. */
+  compactRows?: boolean;
 };
 
-export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props) {
+export function PianoRoll({ document, onChange, onError, initialVoiceId, compactRows = false }: Props) {
+  const useCompactRows =
+    compactRows &&
+    !(typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
+  const ROW_H = useCompactRows ? 28 : NOTE_HIT_PX;
+  const noteHitHeightPx = useCompactRows ? ROW_H : NOTE_HIT_PX;
   const defaultVoice = primaryVoiceId(document);
   const [voiceId, setVoiceId] = useState<string | null>(initialVoiceId ?? defaultVoice);
   const voice = document.voices.find((v) => v.id === voiceId) ?? null;
@@ -489,7 +493,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
 
   return (
     <div
-      className="piano-roll"
+      className={useCompactRows ? "piano-roll piano-roll-compact-rows" : "piano-roll"}
       tabIndex={0}
       onKeyDown={onKeyDown}
       role="application"
@@ -831,6 +835,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
                   type="button"
                   key={pitch}
                   className={`piano-key ${black ? "black" : "white"} ${pitch % 12 === 0 ? "octave" : ""}`}
+                  style={{ height: ROW_H, minHeight: ROW_H, flex: `0 0 ${ROW_H}px` }}
                   aria-label={t("score.piano.keyAria", { pitchName })}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -899,9 +904,9 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId }: Props
                 aria-pressed={selected}
                 style={{
                   left: n.startTick * pxPerTick,
-                  top: pitchToY(n.pitch) - (NOTE_HIT_PX - ROW_H) / 2,
-                  width: Math.max(NOTE_HIT_PX, n.durationTick * pxPerTick),
-                  height: NOTE_HIT_PX,
+                  top: pitchToY(n.pitch) - (noteHitHeightPx - ROW_H) / 2,
+                  width: Math.max(44, n.durationTick * pxPerTick),
+                  height: noteHitHeightPx,
                   opacity: 0.55 + (n.velocity / 127) * 0.45,
                 }}
                 onFocus={() => handleNoteFocus(n.id)}

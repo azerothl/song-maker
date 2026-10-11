@@ -17,6 +17,7 @@ import { EstimatedSeparationMarker } from "../../components/EstimatedSeparationM
 import { AnchoredPopin } from "../../components/AnchoredPopin";
 import { ProductionMixSettingsPopin } from "../../components/ProductionMixSettingsPopin";
 import { MixSlider } from "../../components/MixSlider";
+import { MixKnob } from "../../components/MixKnob";
 import {
   ClipEditToolbar,
   clipEditToolFromKey,
@@ -949,6 +950,10 @@ export function ProductionWorkspace({
                   {studioMode ? (
                     <>
                       <span>{t("mix.columns.track")}</span>
+                      <span>{t("mix.columns.gain")}</span>
+                      <span>{t("mix.columns.pan")}</span>
+                      <span>M / S</span>
+                      <span aria-hidden="true" />
                       <span>{t("production.common.clips")}</span>
                     </>
                   ) : (
@@ -1030,47 +1035,100 @@ export function ProductionWorkspace({
                             </button>
                           )}
                         </div>
-                        <MixSlider
-                          className="track-gain-knob track-gain-slider"
-                          value={tr.gainDb}
-                          min={-24}
-                          max={12}
-                          step={0.5}
-                          defaultValue={0}
-                          ariaLabel={t("mix.gainNamed", { track: tr.name })}
-                          valueText={formatGainDb(tr.gainDb)}
-                          displayValue={formatGainDb(tr.gainDb)}
-                          parseDisplay={parseGainDb}
-                          onChange={(gainDb) =>
-                            scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }), {
-                              persist: false,
-                            })
-                          }
-                          onCommit={(gainDb) =>
-                            scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }))
-                          }
-                        />
-                        <MixSlider
-                          className="track-pan-knob track-pan-slider"
-                          value={tr.pan}
-                          min={-1}
-                          max={1}
-                          step={0.01}
-                          fineStep={0.01}
-                          defaultValue={0}
-                          ariaLabel={t("mix.panNamed", { track: tr.name })}
-                          valueText={formatPan(tr.pan)}
-                          displayValue={formatPan(tr.pan)}
-                          parseDisplay={parsePan}
-                          onChange={(pan) =>
-                            scheduleMixUpdate(patchTrack(mix, tr.id, { pan }), {
-                              persist: false,
-                            })
-                          }
-                          onCommit={(pan) =>
-                            scheduleMixUpdate(patchTrack(mix, tr.id, { pan }))
-                          }
-                        />
+                        {studioMode ? (
+                          <div className="studio-track-control track-gain-knob">
+                            <span className="studio-track-control-label">{t("mix.columns.gain")}</span>
+                            <MixKnob
+                              className="track-gain-slider"
+                              value={tr.gainDb}
+                              min={-24}
+                              max={12}
+                              step={0.5}
+                              defaultValue={0}
+                              ariaLabel={t("mix.gainNamed", { track: tr.name })}
+                              valueText={formatGainDb(tr.gainDb)}
+                              displayValue={formatGainDb(tr.gainDb)}
+                              parseDisplay={parseGainDb}
+                              onChange={(gainDb) =>
+                                scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }), {
+                                  persist: false,
+                                })
+                              }
+                              onCommit={(gainDb) =>
+                                scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }))
+                              }
+                            />
+                          </div>
+                        ) : (
+                          <MixSlider
+                            className="track-gain-knob track-gain-slider"
+                            value={tr.gainDb}
+                            min={-24}
+                            max={12}
+                            step={0.5}
+                            defaultValue={0}
+                            ariaLabel={t("mix.gainNamed", { track: tr.name })}
+                            valueText={formatGainDb(tr.gainDb)}
+                            displayValue={formatGainDb(tr.gainDb)}
+                            parseDisplay={parseGainDb}
+                            onChange={(gainDb) =>
+                              scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }), {
+                                persist: false,
+                              })
+                            }
+                            onCommit={(gainDb) =>
+                              scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }))
+                            }
+                          />
+                        )}
+                        {studioMode ? (
+                          <div className="studio-track-control track-pan-knob">
+                            <span className="studio-track-control-label">{t("mix.columns.pan")}</span>
+                            <MixKnob
+                              className="track-pan-slider"
+                              value={tr.pan}
+                              min={-1}
+                              max={1}
+                              step={0.01}
+                              fineStep={0.01}
+                              defaultValue={0}
+                              ariaLabel={t("mix.panNamed", { track: tr.name })}
+                              valueText={formatPan(tr.pan)}
+                              displayValue={formatPan(tr.pan)}
+                              parseDisplay={parsePan}
+                              onChange={(pan) =>
+                                scheduleMixUpdate(patchTrack(mix, tr.id, { pan }), {
+                                  persist: false,
+                                })
+                              }
+                              onCommit={(pan) =>
+                                scheduleMixUpdate(patchTrack(mix, tr.id, { pan }))
+                              }
+                            />
+                          </div>
+                        ) : (
+                          <MixSlider
+                            className="track-pan-knob track-pan-slider"
+                            value={tr.pan}
+                            min={-1}
+                            max={1}
+                            step={0.01}
+                            fineStep={0.01}
+                            defaultValue={0}
+                            ariaLabel={t("mix.panNamed", { track: tr.name })}
+                            valueText={formatPan(tr.pan)}
+                            displayValue={formatPan(tr.pan)}
+                            parseDisplay={parsePan}
+                            onChange={(pan) =>
+                              scheduleMixUpdate(patchTrack(mix, tr.id, { pan }), {
+                                persist: false,
+                              })
+                            }
+                            onCommit={(pan) =>
+                              scheduleMixUpdate(patchTrack(mix, tr.id, { pan }))
+                            }
+                          />
+                        )}
                         <div className="track-ms" role="group" aria-label={tr.name}>
                           <button
                             type="button"

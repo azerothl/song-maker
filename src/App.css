@@ -10471,3 +10471,338 @@ details[open] > summary {
   max-height: min(92vh, calc(100% - 1rem));
   min-height: min(620px, calc(100% - 1rem));
 }
+
+/* Studio: one compact arrangement header and a single dense lane per track. */
+.production-workspace-studio .clip-lanes {
+  gap: 0;
+}
+
+.production-workspace-studio .clip-tempo-lane {
+  top: 44px;
+  z-index: 4;
+  height: 52px;
+  min-height: 52px;
+}
+
+.production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane) {
+  top: 44px;
+  z-index: 5;
+  height: 52px;
+  min-height: 52px;
+  margin-top: -52px;
+  pointer-events: none;
+  background: transparent;
+}
+
+.production-workspace-studio .clip-ruler > .clip-lane-label,
+.production-workspace-studio .clip-tempo-lane > .clip-lane-label,
+.production-workspace-studio .clip-marker-lane > .clip-lane-label {
+  display: none;
+}
+
+.production-workspace-studio .clip-tempo-lane > .clip-lane-rail,
+.production-workspace-studio .clip-marker-lane > .clip-lane-rail {
+  height: 52px;
+  background: transparent !important;
+  border: 0;
+}
+
+.production-workspace-studio .clip-tempo-flag {
+  top: 0;
+  min-width: 48px;
+  min-height: 24px;
+  height: 24px;
+  padding: 0 0.25rem;
+  border-radius: 3px;
+  font-size: 0.72rem;
+}
+
+.production-workspace-studio .clip-marker-flag {
+  top: 25px;
+  min-height: 24px;
+  height: 24px;
+  color: #f6bd60;
+  pointer-events: auto;
+}
+
+.production-workspace-studio .clip-marker-flag::before {
+  height: 12px;
+  background: #f6bd60;
+}
+
+.production-workspace-studio .clip-marker-flag-label {
+  max-width: 8rem;
+  margin-top: -0.2rem;
+  font-size: 0.64rem;
+}
+
+.production-workspace-studio .clip-tempo-add {
+  top: 0;
+  right: -42px;
+  min-width: 24px;
+  width: 24px;
+  min-height: 24px;
+  height: 24px;
+}
+
+.production-workspace-studio .clip-marker-add {
+  top: 26px;
+  right: -42px;
+  min-width: 24px;
+  width: 24px;
+  min-height: 24px;
+  height: 24px;
+}
+
+.production-workspace-studio .clip-marker-lane > .clip-lane-rail {
+  pointer-events: none;
+}
+
+.production-workspace-studio .clip-marker-lane .clip-marker-flag {
+  pointer-events: auto;
+}
+
+.production-workspace-studio .clip-marker-lane > .clip-marker-add {
+  pointer-events: auto;
+}
+
+.production-workspace-studio .production-common-timeline {
+  --production-controls-width: calc(220px + 72px + 72px + 64px + 34px + 2.45rem);
+}
+
+.production-workspace-studio .production-mix-colheaders.production-mix-grid,
+.production-workspace-studio .production-mix-row {
+  grid-template-columns: minmax(170px, 220px) 72px 72px 64px 34px minmax(300px, 1fr);
+  min-width: 760px;
+  column-gap: 0.35rem;
+}
+
+.production-workspace-studio .production-mix-colheaders.production-mix-grid {
+  min-height: 24px;
+  padding: 0.15rem 0.35rem;
+}
+
+.production-workspace-studio .production-mix-row {
+  grid-template-rows: 1fr;
+  height: 60px;
+  min-height: 60px;
+  align-items: center;
+  padding: 0 0.35rem;
+  border-bottom-color: var(--line2);
+}
+
+.production-workspace-studio .production-mix-row > .production-mix-name {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.production-workspace-studio .production-mix-row > .track-gain-knob {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.production-workspace-studio .production-mix-row > .track-pan-knob {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.production-workspace-studio .studio-track-control {
+  display: grid;
+  grid-template-rows: 12px 1fr;
+  justify-items: center;
+  align-items: center;
+  min-width: 0;
+  height: 54px;
+}
+
+.production-workspace-studio .studio-track-control-label {
+  color: var(--muted);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.production-workspace-studio .studio-track-control .mix-knob {
+  display: flex;
+  justify-content: center;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.production-workspace-studio .studio-track-control .mix-knob-dial {
+  width: 25px;
+  height: 25px;
+  min-width: 25px;
+  min-height: 25px;
+}
+
+.production-workspace-studio .studio-track-control .mix-knob-value,
+.production-workspace-studio .studio-track-control .mix-knob-input {
+  min-width: 2.65rem;
+  font-size: 0.62rem;
+}
+
+.production-workspace-studio .production-mix-row > .track-ms {
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: center;
+  gap: 0.15rem;
+}
+
+.production-workspace-studio .production-mix-row > .track-ms .track-ms-btn {
+  width: 30px;
+  min-width: 30px;
+  height: 28px;
+  min-height: 28px;
+  margin: 0;
+}
+
+.production-workspace-studio .production-mix-row > .production-mix-track-tools {
+  grid-column: 5;
+  grid-row: 1;
+  justify-self: center;
+  margin: 0;
+}
+
+.production-workspace-studio .production-mix-row > .track-wave {
+  grid-column: 6;
+  grid-row: 1;
+  min-width: 0;
+  padding: 0;
+}
+
+.production-workspace-studio .production-mix-row > .track-wave .clip-lane-rail {
+  height: 52px;
+}
+
+.production-workspace-studio .production-mix-row > .track-wave,
+.production-workspace-studio .production-mix-row .production-mix-wave {
+  padding-inline: 0;
+}
+
+/* Compact Studio piano: more visible pitches on desktop; touch keeps full-size keys. */
+.piano-roll-compact-rows {
+  --piano-note-hit-height: 28px;
+}
+
+.piano-roll-compact-rows .piano-note {
+  min-height: var(--piano-note-hit-height);
+  background-size: 100% 10px;
+}
+
+/* Library actions use compact, labeled icon buttons. */
+.project-library-toggle,
+.user-library-icon-button {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--muted);
+  background: var(--bg2);
+  cursor: pointer;
+}
+
+.project-library-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.project-library-toggle[aria-pressed="true"],
+.user-library-icon-button[aria-pressed="true"] {
+  color: var(--accent-cyan);
+  border-color: color-mix(in srgb, var(--accent-cyan) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent-cyan) 12%, var(--bg2));
+}
+
+.user-library-icon-button:hover,
+.project-library-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent-cyan);
+}
+
+.project-library-toggle:focus-visible,
+.user-library-icon-button:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.user-library-track-actions {
+  gap: 0.45rem;
+}
+
+.user-library-play-count {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.user-library-info-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(5, 7, 13, 0.76);
+  backdrop-filter: blur(5px);
+}
+
+.user-library-info-dialog {
+  width: min(680px, 100%);
+  max-height: min(82vh, 760px);
+  overflow: auto;
+  padding: 1.1rem;
+  border: 1px solid var(--line2);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--bg1);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+}
+
+.user-library-info-dialog header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.user-library-info-dialog h2,
+.user-library-info-dialog h3 {
+  margin: 0;
+}
+
+.user-library-info-dialog h3 {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.user-library-info-dialog p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.user-library-info-dialog .library-info-lyrics {
+  max-height: 35vh;
+  overflow: auto;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--bg0);
+}
+
+.user-library-info-dialog .library-info-empty {
+  color: var(--muted);
+  font-style: italic;
+}

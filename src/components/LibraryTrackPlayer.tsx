@@ -59,12 +59,14 @@ export function LibraryTrackPlayer({
   projectId,
   generationId,
   trackKey,
+  onPlay,
 }: {
   audioPath: string;
   label: string;
   projectId: string;
   generationId: string;
   trackKey: string;
+  onPlay?: () => void;
 }) {
   const [peaks, setPeaks] = useState<Float32Array | null>(null);
   const [waveformFailed, setWaveformFailed] = useState(false);
@@ -121,11 +123,13 @@ export function LibraryTrackPlayer({
   useEffect(() => {
     if (!pendingPlayRef.current || !selected || !playback?.ready || playback.sourceKey !== trackKey) return;
     pendingPlayRef.current = false;
+    onPlay?.();
     void playback.toggle();
-  }, [playback, selected, trackKey]);
+  }, [onPlay, playback, selected, trackKey]);
 
   const toggle = () => {
     if (selected && playback?.ready && playback.sourceKey === trackKey) {
+      if (!playback.playing) onPlay?.();
       void playback.toggle();
       return;
     }

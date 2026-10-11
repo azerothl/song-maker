@@ -59,6 +59,7 @@ export function StudioMidiTrackEditor({
       <PianoRoll
         document={document}
         initialVoiceId={voiceId}
+        compactRows
         onChange={onDocumentChange}
         onError={onError}
       />
