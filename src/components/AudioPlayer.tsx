@@ -136,6 +136,32 @@ export function AudioPlayer({
     });
   }, [engine]);
 
+  // A library selection can point at the audio that is already loaded for the
+  // open project. In that case the source key changes without reloading the
+  // engine, so publish the current snapshot for the newly selected library row.
+  useEffect(() => {
+    const next = engine.getSnapshot();
+    const peaksByTrack: Record<string, Float32Array> = {};
+    for (const tp of next.peaks) {
+      peaksByTrack[tp.trackId] = tp.peaks;
+    }
+    onPlaybackChangeRef.current?.({
+      sourceKey: playbackKeyRef.current,
+      current: next.current,
+      duration: next.duration,
+      mode: next.mode,
+      peaksByTrack,
+      mixPeaks: next.mixPeaks,
+      seek: (seconds: number) => engine.seek(seconds),
+      toggle: togglePlayback,
+      playing: next.playing,
+      loading: next.loading,
+      ready: next.ready,
+      mixBakePending: next.productionMixBakePending,
+      mixBakeFailed: next.productionMixBakeFailed,
+    });
+  }, [engine, playbackKey]);
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {

@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "../App";
-import { libraryTrackKey, writeUserLibrary } from "../lib/userLibrary";
+import { writeUserLibrary } from "../lib/userLibrary";
 import { useAppStore } from "../store/appStore";
 import { seedProfilesCaptureStore } from "./seedProfilesCaptureStore";
 import {
@@ -13,7 +13,6 @@ import "../App.css";
 
 const projectId = "capture-profile";
 const generationId = "gen-001";
-const trackKey = libraryTrackKey({ projectId, generationId });
 const audioPath = "capture://nuit-claire.wav";
 
 let releaseWaveform: (() => void) | null = null;
@@ -133,16 +132,29 @@ writeUserLibrary("profile-001", {
 });
 useAppStore.setState({
   screen: "library",
-  playerSelection: {
-    trackKey,
-    projectId,
-    sources: {
-      mode: "generation",
-      generationWav: audioPath,
-      stems: [],
-      label: "Nuit claire",
-    },
+  project: {
+    schema: "songmaker.project",
+    schemaVersion: 1,
+    id: projectId,
+    title: "Nuit claire",
+    createdAt: "2026-09-30T00:00:00.000Z",
+    updatedAt: "2026-10-10T18:20:00.000Z",
+    sampleRate: 48_000,
+    channels: 2,
+    bitDepth: 16,
+    style: "",
+    lyrics: "",
+    cot: "full",
+    activeGenerationId: generationId,
   },
+  playbackSources: {
+    mode: "generation",
+    generationId,
+    generationWav: audioPath,
+    stems: [],
+    label: "Nuit claire",
+  },
+  playerSelection: null,
 });
 
 const root = document.getElementById("root");
