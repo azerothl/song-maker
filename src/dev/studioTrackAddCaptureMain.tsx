@@ -10,7 +10,19 @@ seedCreateTabCaptureStore();
 const seededProject = useAppStore.getState().project;
 if (seededProject) {
   const studioProject = { ...seededProject, activeGenerationId: "gen-001" };
-  useAppStore.setState({ screen: "studio", project: studioProject });
+  useAppStore.setState({
+    screen: "studio",
+    project: studioProject,
+    ...(globalThis.location.hash.includes("job-progress")
+      ? {
+          job: {
+            state: "generating",
+            label: "Génération YuE2 en cours",
+            projectId: studioProject.id,
+          },
+        }
+      : {}),
+  });
   registerCaptureProject(studioProject);
 }
 

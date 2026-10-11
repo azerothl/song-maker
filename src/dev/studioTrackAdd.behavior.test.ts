@@ -24,6 +24,24 @@ after(async () => {
 });
 
 describe("ajout de piste dans Studio", () => {
+  it("garde l’état de génération visible dans le Studio pendant le travail", async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    try {
+      await page.goto(`${baseUrl}#job-progress`, { waitUntil: "domcontentloaded" });
+      const banner = page.locator(".song-job-banner[role='status']").first();
+      await banner.waitFor({ state: "visible" });
+
+      assert.equal(await banner.locator("span").innerText(), "Génération YuE2 en cours");
+      assert.equal(await banner.getAttribute("aria-live"), "polite");
+      assert.equal(
+        await page.getByRole("button", { name: "Annuler l’opération" }).isVisible(),
+        true,
+      );
+    } finally {
+      await page.close();
+    }
+  });
+
   it("annonce que l'instrument IA peut déjà contenir le mix source", async () => {
     const page = await browser.newPage();
     try {
