@@ -36,5 +36,6 @@ test('the MCP user guide documents every playlist operation', () => {
 
 test('the MCP user guide documents importing a completed generation into a project', () => {
   assert.ok(readme.includes(`${markdownCode}import_job_audio_track${markdownCode}`));
-  assert.match(readme, /not a new entry in the YuE2 generation history|pas une nouvelle entrée dans l’historique des générations YuE2/);
+  assert.ok(readme.includes(`${markdownCode}import_job_generation${markdownCode}`));
+  assert.match(readme, /visible in `list_project_versions`|apparaît dans `list_project_versions`/);
 });

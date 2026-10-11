@@ -5,7 +5,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { auditPromptDiversity, cancelJob, getJob, gpuStatus, insideWorkspace, normalizeSong, parseBatch, resumeJob, runtimeStatus, startJob, uniqueBatchSongs } from './runtime.mjs';
-import { addProjectMidiTrack, createProject, createProjectMidiTrack, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, importProjectAudioTrack, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
+import { addProjectMidiTrack, createProject, createProjectMidiTrack, deleteProject, editProjectScore, getProject, getProjectMix, getProjectScore, importProjectAudioTrack, importProjectGeneration, listProjectVersions, listProjects, renameProject, renameProjectGeneration, updateProject, updateProjectMix, useProjectGeneration, useProjectMix, useProjectScore, useProjectSeparation } from './projects.mjs';
 import { exportProjectAudio, exportProjectStems, renderProjectMix } from './project-audio.mjs';
 import { listLocalResources } from './resources.mjs';
 import {
@@ -333,6 +333,60 @@ server.registerTool('import_job_audio_track', {
     throw new Error('Le WAV ne se trouve pas dans le dossier de sortie déclaré par ce job.');
   }
   const imported = await importProjectAudioTrack({ ...args, sourcePath });
+  return {
+    jobId,
+    completedIndex,
+    songId: completed.songId ?? null,
+    title: completed.title ?? null,
+    ...imported,
+  };
+}));
+
+server.registerTool('import_job_generation', {
+  description: 'Importe une sortie WAV terminée de start_song ou start_batch dans l’historique des versions du projet actif. Attends completed/completed_with_errors dans job_status et passe expectedUpdatedAt obtenu avec get_project. La génération importée est visible dans list_project_versions, conserve la sortie d’origine dans le projet et ne devient pas active automatiquement ; appelle use_project_generation après vérification si tu veux la sélectionner. Le job doit encore être dans SONG_MAKER_WORKSPACE_ROOT. Cette opération ne change pas le mix actif.',
+  inputSchema: {
+    jobId: z.string().uuid(),
+    completedIndex: z.number().int().safe().min(0).max(9999).default(0),
+    projectId: z.string().min(1).max(128),
+    name: z.string().trim().min(1).max(120).optional(),
+    expectedUpdatedAt: z.string().min(1).max(80),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async ({ jobId, completedIndex, projectId, name, expectedUpdatedAt }) => {
+  const job = await getJob(jobId);
+  if (!['completed', 'completed_with_errors'].includes(job.state)) {
+    throw new Error('Le job doit être terminé avant l’import. Consulte job_status et réessaie lorsque son état est completed ou completed_with_errors.');
+  }
+  if (typeof job.outputDirectory !== 'string' || !job.outputDirectory.trim()) {
+    throw new Error('Le job ne déclare pas de dossier de sortie valide.');
+  }
+  if (!Array.isArray(job.completed) || !job.completed[completedIndex]) {
+    throw new Error(`Aucune sortie terminée à l’index ${completedIndex} dans ce job.`);
+  }
+  const completed = job.completed[completedIndex];
+  if (typeof completed.destination !== 'string' || !completed.destination.trim()) {
+    throw new Error('La sortie terminée ne contient pas de chemin WAV valide.');
+  }
+  const outputDirectory = insideWorkspace(job.outputDirectory);
+  const sourcePath = insideWorkspace(completed.destination);
+  const outputRelativePath = path.relative(outputDirectory, sourcePath);
+  if (outputRelativePath === '..' || outputRelativePath.startsWith(`..${path.sep}`) || path.isAbsolute(outputRelativePath)) {
+    throw new Error('Le WAV ne se trouve pas dans le dossier de sortie déclaré par ce job.');
+  }
+  const imported = await importProjectGeneration({
+    projectId,
+    sourcePath,
+    sourceDirectory: outputDirectory,
+    name: name ?? completed.title,
+    jobId,
+    songId: completed.songId,
+    engine: job.engine,
+    modelId: job.modelId,
+    seed: completed.seed,
+    jobCreatedAt: job.createdAt,
+    jobFinishedAt: job.finishedAt,
+    expectedUpdatedAt,
+  });
   return {
     jobId,
     completedIndex,

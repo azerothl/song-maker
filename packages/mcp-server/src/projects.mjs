@@ -1,5 +1,5 @@
 import { createReadStream, existsSync } from 'node:fs';
-import { link, lstat, mkdir, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, link, lstat, mkdir, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,6 +13,7 @@ const SEPARATION_ID_PATTERN = /^sep-[0-9]+$/;
 const MIX_ID_PATTERN = /^mix-v[0-9]+$/;
 const SCORE_ID_PATTERN = /^score-v[0-9]+$/;
 const MAX_PROJECT_DOCUMENT_BYTES = 8 * 1024 * 1024;
+const MAX_IMPORTED_GENERATION_BYTES = 256 * 1024 * 1024;
 
 function documentsCandidates(env) {
   if (env.SONG_MAKER_DOCUMENTS_DIR?.trim()) {
@@ -972,6 +973,177 @@ export async function importProjectAudioTrack({
   }
 }
 
+/** Import a completed MCP job output into the project's generation history. */
+export async function importProjectGeneration({
+  projectId, sourcePath, sourceDirectory, name, jobId, songId, engine, modelId, seed, jobCreatedAt, jobFinishedAt,
+  expectedUpdatedAt, env = process.env, workspace = defaultWorkspaceRoot,
+} = {}) {
+  if (typeof projectId !== 'string' || !PROJECT_ID_PATTERN.test(projectId)) {
+    throw new Error('Identifiant de projet invalide.');
+  }
+  if (typeof jobId !== 'string' || !/^[0-9a-f-]{36}$/i.test(jobId)) {
+    throw new Error('Identifiant de job invalide.');
+  }
+  if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt.trim() || expectedUpdatedAt.length > 80) {
+    throw new Error('expectedUpdatedAt doit venir de get_project.');
+  }
+  if (name !== undefined && (typeof name !== 'string' || !name.trim() || [...name.trim()].length > 120)) {
+    throw new Error('name doit contenir de 1 à 120 caractères.');
+  }
+
+  const sourceAbsolute = insideWorkspace(sourcePath, workspace);
+  const allowedDirectory = insideWorkspace(sourceDirectory, workspace);
+  const workspaceReal = await realpath(workspace);
+  const allowedInfo = await lstat(allowedDirectory);
+  if (allowedInfo.isSymbolicLink() || !allowedInfo.isDirectory()) {
+    throw new Error('Le dossier de sortie du job est invalide.');
+  }
+  const allowedReal = await realpath(allowedDirectory);
+  if (!isWithin(workspaceReal, allowedReal)) {
+    throw new Error('Le dossier de sortie du job se trouve hors du workspace MCP.');
+  }
+  const sourceInfo = await lstat(sourceAbsolute);
+  if (sourceInfo.isSymbolicLink() || !sourceInfo.isFile()) {
+    throw new Error('La sortie du job doit être un fichier WAV régulier, sans lien symbolique.');
+  }
+  if (sourceInfo.size === 0 || sourceInfo.size > MAX_IMPORTED_GENERATION_BYTES) {
+    throw new Error(`Le WAV doit peser entre 1 octet et ${MAX_IMPORTED_GENERATION_BYTES} octets.`);
+  }
+  const sourceReal = await realpath(sourceAbsolute);
+  if (!isWithin(allowedReal, sourceReal)) {
+    throw new Error('Le WAV ne se trouve pas réellement dans le dossier de sortie du job.');
+  }
+  let durationMs;
+  try { durationMs = await wavDurationMs(sourceReal); }
+  catch { throw new Error('La sortie du job ne contient pas un WAV lisible.'); }
+  if (!durationMs || durationMs <= 0) throw new Error('La sortie WAV est vide ou de durée invalide.');
+  const sourceSha256 = await sha256File(sourceReal);
+
+  const store = await projectStore(env);
+  const initialProject = await readProjectAt(store.root, projectId);
+  if (initialProject.schema !== 'songmaker.project' || initialProject.schemaVersion !== 1) {
+    throw new Error('Version de projet non prise en charge ; aucune génération importée.');
+  }
+  if (initialProject.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+
+  return withProjectLock(canonicalFolder, async () => {
+    const currentStore = await projectStore(env);
+    if (currentStore.profileId !== store.profileId || path.resolve(currentStore.root) !== path.resolve(store.root)) {
+      throw new Error('Le profil actif a changé pendant l’import. Relis le projet et réessaie.');
+    }
+    const currentProject = await readProjectAt(store.root, projectId);
+    if (currentProject.updatedAt !== expectedUpdatedAt) {
+      throw new Error('Le projet a changé pendant l’import. Relis-le avant de réessayer.');
+    }
+
+    let generations = await projectSubdirectory(canonicalFolder, 'generations');
+    if (!generations) {
+      await mkdir(path.join(canonicalFolder, 'generations'), { recursive: false });
+      generations = await projectSubdirectory(canonicalFolder, 'generations');
+    }
+    if (!generations) throw new Error('Impossible de créer l’historique des générations du projet.');
+
+    const importedAt = new Date().toISOString();
+    const createdAtMs = typeof jobCreatedAt === 'string' ? Date.parse(jobCreatedAt) : NaN;
+    const finishedAtMs = typeof jobFinishedAt === 'string' ? Date.parse(jobFinishedAt) : NaN;
+    const createdAt = Number.isFinite(createdAtMs) ? new Date(createdAtMs).toISOString() : importedAt;
+    const finishedAt = Number.isFinite(finishedAtMs) ? new Date(finishedAtMs).toISOString() : importedAt;
+    const importedName = name?.trim();
+    const provenance = {
+      source: 'mcp_job',
+      jobId,
+      ...(typeof songId === 'string' && songId.length <= 128 ? { songId } : {}),
+      ...(typeof engine === 'string' && engine.length <= 80 ? { engine } : {}),
+      ...(typeof modelId === 'string' && modelId.length <= 80 ? { modelId } : {}),
+      importedAt,
+    };
+
+    // Publish a complete generation folder atomically. Retry if the desktop app
+    // claims the same sequential ID while this import is being prepared.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const generationId = await nextGenerationId(generations);
+      const temporaryDirectory = path.join(generations, `.mcp-generation-${randomUUID()}`);
+      const finalDirectory = path.join(generations, generationId);
+      await mkdir(temporaryDirectory, { recursive: false });
+      let published = false;
+      try {
+        const audioPath = path.join(temporaryDirectory, 'audio.wav');
+        await copyFile(sourceReal, audioPath);
+        const audioInfo = await lstat(audioPath);
+        const audioSha256 = await sha256File(audioPath);
+        if (!audioInfo.isFile() || audioInfo.size !== sourceInfo.size || audioSha256 !== sourceSha256) {
+          throw new Error('La copie du WAV importé est incomplète ou a changé.');
+        }
+        const request = {
+          schema: 'songmaker.generation.request', schemaVersion: 1,
+          id: generationId, createdAt, provider: 'mcp_job_import', generationEngine: 'yue2',
+          model: { engineId: 'yue2_3b', ...(modelId ? { id: modelId } : {}) },
+          ...(Number.isSafeInteger(seed) ? { seed } : {}),
+          provenance,
+        };
+        const result = {
+          schema: 'songmaker.generation.result', schemaVersion: 1,
+          id: generationId, state: 'generated', startedAt: createdAt, finishedAt,
+          audio: { path: 'audio.wav', durationMs, sha256: audioSha256 },
+          score: null, provenance, error: null,
+        };
+        await writeFile(path.join(temporaryDirectory, 'request.json'), `${JSON.stringify(request, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+        await writeFile(path.join(temporaryDirectory, 'result.json'), `${JSON.stringify(result, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+        try {
+          await rename(temporaryDirectory, finalDirectory);
+          published = true;
+        } catch (error) {
+          if (error?.code === 'EEXIST' || error?.code === 'ENOTEMPTY') continue;
+          throw error;
+        }
+
+        const previousUpdatedAt = Date.parse(currentProject.updatedAt);
+        const now = Date.now();
+        const generationNames = currentProject.generationNames && typeof currentProject.generationNames === 'object' &&
+          !Array.isArray(currentProject.generationNames) ? { ...currentProject.generationNames } : {};
+        if (importedName) generationNames[generationId] = importedName;
+        const updatedProject = {
+          ...currentProject,
+          generationNames,
+          updatedAt: new Date(Number.isFinite(previousUpdatedAt) && now <= previousUpdatedAt
+            ? previousUpdatedAt + 1 : now).toISOString(),
+        };
+        try {
+          await writeProjectAtomically(canonicalFolder, updatedProject);
+        } catch (error) {
+          await rm(finalDirectory, { recursive: true, force: true }).catch(() => {});
+          throw error;
+        }
+        return {
+          profileId: store.profileId,
+          projectId,
+          projectTitle: updatedProject.title,
+          projectUpdatedAt: updatedProject.updatedAt,
+          generationId,
+          name: importedName ?? null,
+          audioPath: `generations/${generationId}/audio.wav`,
+          durationMs,
+          sha256: audioSha256,
+          active: updatedProject.activeGenerationId === generationId,
+          provenance,
+        };
+      } finally {
+        if (!published) await rm(temporaryDirectory, { recursive: true, force: true }).catch(() => {});
+      }
+    }
+    throw new Error('Impossible de réserver un identifiant de génération après plusieurs collisions. Relis le projet et réessaie.');
+  });
+}
+
 /** Update active mix controls and arrangement metadata using an optimistic mix revision. */
 export async function updateProjectMix({
   projectId, mixId, expectedMixRevision, masterGainDb, tracks, addMidiTracks, clipEdits, tempoMap, timeSignatures, markers,
@@ -1534,6 +1706,12 @@ async function nextVersionId(directory, prefix) {
   const names = (await readdir(directory)).map(name => pattern.exec(name)).filter(Boolean)
     .map(match => Number(match[1])).filter(Number.isSafeInteger);
   return `${prefix}-v${String(Math.max(0, ...names) + 1).padStart(3, '0')}`;
+}
+
+async function nextGenerationId(directory) {
+  const names = (await readdir(directory)).map(name => /^gen-([0-9]+)$/.exec(name)).filter(Boolean)
+    .map(match => Number(match[1])).filter(Number.isSafeInteger);
+  return `gen-${String(Math.max(0, ...names) + 1).padStart(3, '0')}`;
 }
 
 async function ensureActiveMidiDocuments({ projectId, voiceId, name, env }) {

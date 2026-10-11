@@ -46,7 +46,8 @@ test('MCP exposes the headless tools over stdio', async () => {
   await Promise.all([
     writeFile(jobFiles[0], JSON.stringify({
       id: generatedJobId, state: 'completed', outputDirectory: path.resolve(importDirectory),
-      completed: [{ songId: 'generated-01', title: 'Rendu MCP',
+      createdAt: '2026-10-10T00:55:00.000Z', finishedAt: '2026-10-10T00:56:00.000Z',
+      completed: [{ songId: 'generated-01', title: 'Rendu MCP', seed: 17,
         destination: path.resolve(importDirectory, 'source.wav') }],
     })),
     writeFile(jobFiles[1], JSON.stringify({ id: pendingJobId, state: 'running', completed: [] })),
@@ -75,6 +76,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     generationEngine: 'yue2', localYue2Enabled: true, yue2LicenseAccepted: true,
   }));
   await writeFile(path.join(projectFolder, 'project.json'), JSON.stringify({
+    schema: 'songmaker.project', schemaVersion: 1,
     id: 'project-001', title: 'Piste de test', createdAt: '2026-10-10T00:00:00Z',
     updatedAt: '2026-10-10T01:00:00Z', style: 'Jazz discret', lyrics: 'Couplet local',
     activeGenerationId: 'gen-001', generationNames: { 'gen-001': 'Prise retenue' }, activeMixId: 'mix-v001',
@@ -117,7 +119,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.deepEqual(tools.tools.map(tool => tool.name).sort(),
       ['add_library_track', 'add_project_midi_track', 'add_track_to_playlist', 'cancel_job', 'create_playlist', 'create_project', 'create_project_midi_track',
         'delete_playlist', 'delete_project', 'edit_project_score', 'export_project_audio', 'export_project_stems', 'get_project', 'get_project_mix',
-        'get_project_score', 'gpu_status', 'import_job_audio_track', 'import_project_audio_track', 'job_status', 'list_library', 'list_local_resources', 'list_project_versions', 'list_projects',
+        'get_project_score', 'gpu_status', 'import_job_audio_track', 'import_job_generation', 'import_project_audio_track', 'job_status', 'list_library', 'list_local_resources', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'render_project_mix', 'resume_job',
         'runtime_status', 'start_batch', 'start_song', 'update_project', 'update_project_mix', 'use_project_generation',
         'use_project_mix', 'use_project_score', 'use_project_separation']);
@@ -245,6 +247,12 @@ test('MCP exposes the headless tools over stdio', async () => {
     } });
     assert.equal(pendingJobImport.isError, true);
     assert.match(pendingJobImport.content[0].text, /job doit être terminé/);
+    const pendingGenerationImport = await client.callTool({ name: 'import_job_generation', arguments: {
+      jobId: pendingJobId, completedIndex: 0, projectId: 'project-001',
+      expectedUpdatedAt: importedAudioState.projectUpdatedAt,
+    } });
+    assert.equal(pendingGenerationImport.isError, true);
+    assert.match(pendingGenerationImport.content[0].text, /job doit être terminé/);
     const projectForJobImport = await client.callTool({ name: 'get_project', arguments: { projectId: 'project-001' } });
     const mixForJobImport = await client.callTool({ name: 'get_project_mix', arguments: { projectId: 'project-001' } });
     const projectForJobImportState = JSON.parse(projectForJobImport.content[0].text).project;
@@ -262,6 +270,28 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.equal((await readFile(path.join(projectFolder, importedJobAudioState.importedAudio.originalPath))).length, smallPcmWav().length);
     const projectAfterJobImport = await client.callTool({ name: 'get_project_mix', arguments: { projectId: 'project-001' } });
     assert.ok(JSON.parse(projectAfterJobImport.content[0].text).mix.tracks.some(track => track.id === importedJobAudioState.track.id));
+    const importedJobGeneration = await client.callTool({ name: 'import_job_generation', arguments: {
+      jobId: generatedJobId, projectId: 'project-001',
+      expectedUpdatedAt: importedJobAudioState.projectUpdatedAt,
+    } });
+    assert.equal(importedJobGeneration.isError, undefined, importedJobGeneration.content?.[0]?.text);
+    const importedJobGenerationState = JSON.parse(importedJobGeneration.content[0].text);
+    assert.equal(importedJobGenerationState.generationId, 'gen-002');
+    assert.equal(importedJobGenerationState.name, 'Rendu MCP');
+    assert.equal(importedJobGenerationState.active, false);
+    assert.equal(importedJobGenerationState.provenance.jobId, generatedJobId);
+    assert.equal(importedJobGenerationState.provenance.importedAt != null, true);
+    assert.deepEqual(await readFile(path.join(projectFolder, importedJobGenerationState.audioPath)), smallPcmWav());
+    const importedVersions = await client.callTool({ name: 'list_project_versions', arguments: { projectId: 'project-001' } });
+    assert.equal(importedVersions.isError, undefined, importedVersions.content?.[0]?.text);
+    const importedVersion = JSON.parse(importedVersions.content[0].text).generations.find(generation => generation.id === 'gen-002');
+    assert.equal(importedVersion.name, 'Rendu MCP');
+    assert.equal(importedVersion.audioAvailable, true);
+    assert.equal(importedVersion.active, false);
+    assert.equal(importedVersion.createdAt, '2026-10-10T00:55:00.000Z');
+    assert.equal(importedVersion.seed, 17);
+    const mixAfterGenerationImport = await client.callTool({ name: 'get_project_mix', arguments: { projectId: 'project-001' } });
+    assert.equal(JSON.parse(mixAfterGenerationImport.content[0].text).mixRevision, importedJobAudioState.mixRevision);
     const openedScore = await client.callTool({ name: 'get_project_score', arguments: { projectId: 'project-001' } });
     assert.equal(openedScore.isError, undefined);
     const scoreState = JSON.parse(openedScore.content[0].text);
