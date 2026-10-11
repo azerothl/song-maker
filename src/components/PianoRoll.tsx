@@ -84,8 +84,9 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
   const useCompactRows =
     compactRows &&
     !(typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
-  const ROW_H = useCompactRows ? 8 : NOTE_HIT_PX;
-  const noteHitHeightPx = useCompactRows ? 8 : NOTE_HIT_PX;
+  const ROW_H = useCompactRows ? 7 : NOTE_HIT_PX;
+  // Keep note editing forgiving while the Studio keyboard shows more pitches.
+  const noteHitHeightPx = useCompactRows ? 10 : NOTE_HIT_PX;
   const defaultVoice = primaryVoiceId(document);
   const [voiceId, setVoiceId] = useState<string | null>(initialVoiceId ?? defaultVoice);
   const voice = document.voices.find((v) => v.id === voiceId) ?? null;

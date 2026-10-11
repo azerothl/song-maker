@@ -10627,6 +10627,7 @@ details[open] > summary {
   z-index: 4;
   height: 32px;
   min-height: 32px;
+  background: transparent;
 }
 
 .production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane) {
@@ -10639,9 +10640,7 @@ details[open] > summary {
   background: transparent;
 }
 
-.production-workspace-studio .clip-ruler > .clip-lane-label,
-.production-workspace-studio .clip-tempo-lane > .clip-lane-label,
-.production-workspace-studio .clip-marker-lane > .clip-lane-label {
+.production-workspace-studio .clip-ruler > .clip-lane-label {
   display: none;
 }
 
@@ -10653,23 +10652,60 @@ details[open] > summary {
   border: 0;
 }
 
+.production-workspace-studio .clip-tempo-lane > .clip-lane-rail {
+  border: 1px solid var(--line2);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg2) 76%, var(--bg0)), var(--bg1)) !important;
+}
+
+.production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane) > .clip-lane-rail {
+  border: 1px solid var(--line2);
+  border-top-color: color-mix(in srgb, var(--line2) 65%, transparent);
+  border-radius: 0 0 4px 4px;
+}
+
+.production-workspace-studio .clip-tempo-lane > .clip-lane-label,
+.production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane) > .clip-lane-label {
+  display: flex;
+  grid-column: 1;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 0.75rem;
+  color: var(--muted);
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
+.production-workspace-studio .clip-tempo-lane > .clip-lane-label {
+  align-self: start;
+  padding-top: 0.2rem;
+}
+
+.production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane) > .clip-lane-label {
+  align-self: end;
+  padding-bottom: 0.25rem;
+}
+
 .production-workspace-studio .clip-ruler[role="slider"] {
   height: 30px;
   min-height: 30px;
 }
 
 .production-workspace-studio .clip-tempo-flag {
-  top: 0;
+  top: 1px;
   min-width: 48px;
-  min-height: 15px;
-  height: 15px;
+  min-height: 14px;
+  height: 14px;
   padding: 0 0.25rem;
   border-radius: 3px;
-  font-size: 0.72rem;
+  border-color: transparent;
+  background: color-mix(in srgb, var(--accent-2) 12%, var(--bg1));
+  font-size: 0.68rem;
 }
 
 .production-workspace-studio .clip-marker-flag {
-  top: 16px;
+  top: 15px;
   min-height: 16px;
   height: 16px;
   color: #f6bd60;
@@ -10760,8 +10796,8 @@ details[open] > summary {
 
 .production-workspace-studio .production-mix-row {
   grid-template-rows: 1fr;
-  height: 52px;
-  min-height: 52px;
+  height: 44px;
+  min-height: 44px;
   align-items: center;
   padding: 0 0.35rem;
   border-bottom-color: var(--line2);
@@ -10785,11 +10821,11 @@ details[open] > summary {
 
 .production-workspace-studio .studio-track-control {
   display: grid;
-  grid-template-rows: 11px 1fr;
+  grid-template-rows: 10px 1fr;
   justify-items: center;
   align-items: center;
   min-width: 0;
-  height: 48px;
+  height: 42px;
 }
 
 .production-workspace-studio .studio-track-control-label {
@@ -10809,16 +10845,35 @@ details[open] > summary {
 }
 
 .production-workspace-studio .studio-track-control .mix-knob-dial {
-  width: 25px;
-  height: 25px;
-  min-width: 25px;
-  min-height: 25px;
+  width: 23px;
+  height: 23px;
+  min-width: 23px;
+  min-height: 23px;
 }
 
 .production-workspace-studio .studio-track-control .mix-knob-value,
 .production-workspace-studio .studio-track-control .mix-knob-input {
-  min-width: 2.65rem;
-  font-size: 0.62rem;
+  min-width: 2.45rem;
+  font-size: 0.59rem;
+}
+
+@media (pointer: coarse) {
+  .production-workspace-studio .production-mix-row,
+  .production-workspace-studio .production-mix-row > .track-wave .clip-lane-rail {
+    height: 52px;
+    min-height: 52px;
+  }
+
+  .production-workspace-studio .studio-track-control {
+    height: 48px;
+  }
+
+  .production-workspace-studio .studio-track-control .mix-knob-dial {
+    width: 25px;
+    height: 25px;
+    min-width: 25px;
+    min-height: 25px;
+  }
 }
 
 .production-workspace-studio .production-mix-row > .track-ms {
@@ -10851,7 +10906,7 @@ details[open] > summary {
 }
 
 .production-workspace-studio .production-mix-row > .track-wave .clip-lane-rail {
-  height: 52px;
+  height: 44px;
 }
 
 .production-workspace-studio .production-mix-row > .track-wave,
@@ -10861,12 +10916,12 @@ details[open] > summary {
 
 /* Compact Studio piano: more visible pitches on desktop; touch keeps full-size keys. */
 .piano-roll-compact-rows {
-  --piano-note-hit-height: 8px;
+  --piano-note-hit-height: 10px;
 }
 
 .piano-roll-compact-rows .piano-note {
   min-height: var(--piano-note-hit-height);
-  background-size: 100% 8px;
+  background-size: 100% 7px;
 }
 
 .piano-roll-compact-rows .piano-key {
