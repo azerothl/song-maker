@@ -47,6 +47,27 @@ describe("accessibilité du formulaire Créer (#378)", () => {
     }
   });
 
+  it("annonce le champ invalide dans le parcours clavier anglais", async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    try {
+      await page.addInitScript(() => localStorage.setItem("song-maker.locale", "en"));
+      await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+      assert.equal(await page.locator("html").getAttribute("lang"), "en");
+
+      const generate = page.getByRole("button", { name: "Generate", exact: true }).first();
+      await generate.focus();
+      await page.keyboard.press("Enter");
+
+      const style = page.getByRole("textbox", { name: /style and mood/i });
+      await page.waitForFunction(() => document.activeElement?.id === "create-style");
+      assert.equal(await style.getAttribute("aria-invalid"), "true");
+      assert.equal(await style.getAttribute("aria-describedby"), "create-style-error");
+      assert.match((await page.locator("#create-style-error").textContent()) ?? "", /required/i);
+    } finally {
+      await page.close();
+    }
+  });
+
   it("réorganise le formulaire sans débordement horizontal à 320 px", async () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 740 } });
     try {
