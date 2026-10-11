@@ -154,6 +154,22 @@ function formatPlaybackTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function formatBarBeatPosition(
+  seconds: number,
+  tempoBpm: number | null | undefined,
+  meter: ProjectDoc["meter"],
+): string {
+  const bpm = tempoBpm && Number.isFinite(tempoBpm) && tempoBpm > 0 ? tempoBpm : 120;
+  const numerator = meter?.numerator && meter.numerator > 0 ? meter.numerator : 4;
+  const denominator = meter?.denominator && meter.denominator > 0 ? meter.denominator : 4;
+  const quarterNotesPerBar = numerator * (4 / denominator);
+  const totalQuarterNotes = Math.max(0, Number.isFinite(seconds) ? seconds : 0) * bpm / 60;
+  const quarterNotesInBar = totalQuarterNotes % quarterNotesPerBar;
+  const beat = Math.floor(quarterNotesInBar / (4 / denominator)) + 1;
+  const bar = Math.floor(totalQuarterNotes / quarterNotesPerBar) + 1;
+  return `${String(bar).padStart(3, "0")}.${String(beat).padStart(2, "0")}`;
+}
+
 function patchTrack(
   mix: MixDoc,
   trackId: string,
@@ -461,6 +477,65 @@ export function ProductionWorkspace({
           failed={playback?.mixBakeFailed ?? false}
           className="production-mix-bake-chrome"
         />
+        {studioMode && (
+          <div className="studio-transport" role="group" aria-label={t("production.studio.transport.label")}>
+            <div className="studio-transport-controls">
+              <button
+                type="button"
+                className="btn ghost studio-transport-button"
+                aria-label={t("production.studio.transport.toStart")}
+                title={t("production.studio.transport.toStart")}
+                disabled={!playback?.ready || playback.loading}
+                onClick={() => playback?.seek(0)}
+              >
+                <span aria-hidden>⏮</span>
+              </button>
+              <button
+                type="button"
+                className="btn studio-transport-button studio-transport-play"
+                aria-label={playback?.playing ? t("player.pause") : t("player.play")}
+                title={playback?.playing ? t("player.pause") : t("player.play")}
+                disabled={!playback?.ready || playback.loading}
+                onClick={() => void playback?.toggle().catch((e) => setError(String(e)))}
+              >
+                <span aria-hidden>{playback?.playing ? "Ⅱ" : "▶"}</span>
+              </button>
+              <button
+                type="button"
+                className="btn ghost studio-transport-button"
+                aria-label={t("production.studio.transport.stop")}
+                title={t("production.studio.transport.stop")}
+                disabled={!playback?.ready || playback.loading}
+                onClick={() => {
+                  if (!playback) return;
+                  const reset = () => playback.seek(0);
+                  if (playback.playing) {
+                    void playback.toggle().then(reset).catch((e) => setError(String(e)));
+                  } else {
+                    reset();
+                  }
+                }}
+              >
+                <span aria-hidden>■</span>
+              </button>
+            </div>
+            <div className="studio-transport-position" aria-label={t("production.studio.transport.position")}>
+              <strong>{formatBarBeatPosition(playback?.current ?? 0, project.tempoBpm ?? form.tempoBpm, project.meter ?? form.meter)}</strong>
+              <span>
+                <PlaybackTime seconds={playback?.current ?? 0} className="player-time" />
+                <span className="studio-transport-time-separator"> / </span>
+                {formatPlaybackTime(playback?.duration ?? 0)}
+              </span>
+            </div>
+            <div className="studio-transport-metadata" aria-label={t("production.studio.transport.projectSettings")}>
+              <span><strong>{project.tempoBpm ?? form.tempoBpm ?? 120}</strong> {t("production.studio.transport.bpm")}</span>
+              <span>{(project.meter ?? form.meter)?.numerator ?? 4}/{(project.meter ?? form.meter)?.denominator ?? 4}</span>
+              {(project.key ?? form.key) && (
+                <span>{(project.key ?? form.key)?.tonic} · {t((project.key ?? form.key)?.mode === "minor" ? "form.key.minor" : "form.key.major")}</span>
+              )}
+            </div>
+          </div>
+        )}
         <div
           className="production-main-toolbar"
           role="toolbar"
@@ -669,7 +744,7 @@ export function ProductionWorkspace({
         role="region"
         aria-label={t("production.common.mix")}
       >
-        {mix ? (
+        {mix && (!studioMode || mix.tracks.length > 0) ? (
           <div
             className="mixer mixer-density production-mix-panel"
             data-density={effectiveDensity}
@@ -1194,7 +1269,25 @@ export function ProductionWorkspace({
             </div>
           </div>
         ) : (
-          <p className="hint">{t("mix.needSeparation")}</p>
+          studioMode ? (
+            <div className="studio-empty-arrangement" role="region" aria-label={t("production.studio.empty.label")}>
+              <div className="studio-arrangement-ruler">
+                <span className="studio-arrangement-track-heading">{t("mix.columns.track")}</span>
+                <div className="studio-arrangement-bars" aria-hidden="true">
+                  {Array.from({ length: 8 }, (_, index) => <span key={index}>{index + 1}</span>)}
+                </div>
+              </div>
+              <div className="studio-empty-lane">
+                <div className="studio-empty-track-label">{t("production.studio.empty.track")}</div>
+                <div className="studio-empty-lane-content">
+                  <strong>{t("production.studio.empty.title")}</strong>
+                  <span>{t("production.studio.empty.hint")}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="hint">{t("mix.needSeparation")}</p>
+          )
         )}
       </div>
 

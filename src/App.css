@@ -9516,6 +9516,194 @@ details[open] > summary {
   display: none;
 }
 
+.studio-transport {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 54px;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line2, #7a6ea1);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg1) 88%, var(--accent-cyan));
+  box-shadow: inset 0 1px 0 #ffffff0b;
+}
+
+.studio-transport-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.studio-transport-button {
+  display: inline-grid;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  place-items: center;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.studio-transport-button span[aria-hidden] {
+  line-height: 1;
+}
+
+.studio-transport-play {
+  color: var(--bg0, #10121a);
+  background: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+
+.studio-transport-position {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 116px;
+  padding-inline: 0.5rem;
+  border-inline: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-transport-position > strong {
+  color: var(--text);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+.studio-transport-position > span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.studio-transport-time-separator {
+  color: var(--line2);
+}
+
+.studio-transport-metadata {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.studio-transport-metadata > span {
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg0) 78%, transparent);
+  white-space: nowrap;
+}
+
+.studio-transport-metadata strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-empty-arrangement {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 300px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg0) 88%, #161a25);
+}
+
+.studio-arrangement-ruler,
+.studio-empty-lane {
+  display: grid;
+  grid-template-columns: minmax(178px, 230px) minmax(560px, 1fr);
+  min-width: 760px;
+}
+
+.studio-arrangement-ruler {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  min-height: 34px;
+  border-bottom: 1px solid var(--line2, #7a6ea1);
+  background: var(--bg1);
+}
+
+.studio-arrangement-track-heading,
+.studio-empty-track-label {
+  display: flex;
+  align-items: center;
+  padding-inline: 0.8rem;
+  border-right: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.studio-arrangement-bars {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(70px, 1fr));
+}
+
+.studio-arrangement-bars > span {
+  padding: 0.45rem 0.55rem;
+  border-right: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-empty-lane {
+  flex: 1 1 auto;
+  min-height: 260px;
+}
+
+.studio-empty-track-label {
+  align-items: flex-start;
+  padding-top: 0.85rem;
+  background: color-mix(in srgb, var(--bg1) 64%, transparent);
+}
+
+.studio-empty-lane-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 1.5rem;
+  background-image: linear-gradient(to right, var(--line) 1px, transparent 1px);
+  background-size: 12.5% 100%;
+  text-align: center;
+}
+
+.studio-empty-lane-content > strong {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.studio-empty-lane-content > span {
+  max-width: 34rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 760px) {
+  .studio-transport {
+    flex-wrap: wrap;
+  }
+
+  .studio-transport-metadata {
+    width: 100%;
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+}
+
 .studio-master-label {
   flex: 0 0 auto;
   margin-inline-start: 0.35rem;
