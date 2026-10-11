@@ -832,6 +832,85 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires FFmpeg with libsoxr"]
+    fn complete_song_import_normalizes_source_and_persists_the_arrangement() {
+        let docs = TempDocs::new("complete-song-import-ffmpeg");
+        let project = crate::commands::projects::create_project(CreateProjectInput {
+            title: "Complete song import with FFmpeg".into(),
+        })
+        .unwrap();
+        let folder = project_folder(&project.id);
+        let mut doc = load_project(&folder).unwrap();
+        let (mut mix, mix_path) = load_or_create_active_mix(&folder, &mut doc).unwrap();
+        append_user_audio_track(
+            &mut mix,
+            "user-audio/normalized/original.wav",
+            "original-sha",
+            100,
+            "Original",
+            250,
+        );
+        mix.tracks[0].solo = true;
+        let original_clips = serde_json::to_value(&mix.tracks[0].clips).unwrap();
+        atomic_write_json(&mix_path, &mix).unwrap();
+
+        let source = docs.root.join("fused-source.wav");
+        let mut writer = hound::WavWriter::create(
+            &source,
+            hound::WavSpec {
+                channels: 2,
+                sample_rate: 44_100,
+                bits_per_sample: 16,
+                sample_format: hound::SampleFormat::Int,
+            },
+        )
+        .unwrap();
+        for frame in 0..4_410 {
+            let sample = ((frame as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44_100.0).sin()
+                * 8_000.0) as i16;
+            writer.write_sample(sample).unwrap();
+            writer.write_sample(sample).unwrap();
+        }
+        writer.finalize().unwrap();
+
+        ingest_user_audio_file(
+            &folder,
+            &mut doc,
+            &source,
+            "ACE-Step Lego",
+            true,
+            Some("wav"),
+            AudioPlacement {
+                start_ms: 0,
+                mute_existing: true,
+            },
+        )
+        .unwrap();
+
+        let reloaded = load_project(&folder).unwrap();
+        let active_mix_id = reloaded.active_mix_id.as_deref().unwrap();
+        let saved_mix_path = folder.join("mixes").join(format!("{active_mix_id}.json"));
+        let saved_mix: MixDoc =
+            serde_json::from_slice(&std::fs::read(saved_mix_path).unwrap()).unwrap();
+        assert_eq!(saved_mix.tracks.len(), 2);
+        assert!(saved_mix.tracks[0].mute);
+        assert!(!saved_mix.tracks[0].solo);
+        assert_eq!(
+            serde_json::to_value(&saved_mix.tracks[0].clips).unwrap(),
+            original_clips
+        );
+        let generated_clip = &saved_mix.tracks[1].clips[0];
+        assert!(!saved_mix.tracks[1].mute);
+        assert_eq!(generated_clip.start_ms, 0);
+        let normalized = folder.join(&generated_clip.source_path);
+        assert!(normalized.is_file());
+        let reader = hound::WavReader::open(normalized).unwrap();
+        assert_eq!(reader.spec().channels, 2);
+        assert_eq!(reader.spec().sample_rate, crate::pins::SAMPLE_RATE);
+        assert_eq!(reader.spec().sample_format, hound::SampleFormat::Float);
+    }
+
+    #[test]
     fn session_file_prefers_wav_over_webm() {
         let dir =
             std::env::temp_dir().join(format!("song-maker-cap-sess-{}", uuid::Uuid::new_v4()));
