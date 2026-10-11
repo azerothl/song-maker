@@ -113,7 +113,7 @@ describe("ajout de piste dans Studio", () => {
     }
   });
 
-  it("affiche une octave complète dans le piano-roll aux deux formats desktop", async () => {
+  it("affiche près de deux octaves dans le piano-roll aux deux formats desktop", async () => {
     for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 768 }]) {
       const page = await browser.newPage({ viewport });
       try {
@@ -137,10 +137,10 @@ describe("ajout de piste dans Studio", () => {
         });
 
         assert.ok(geometry, `Piano-roll absent à ${viewport.width}×${viewport.height}`);
-        assert.equal(geometry.keyHeight, 12, `Rangées MIDI trop hautes à ${viewport.width}×${viewport.height}`);
+        assert.equal(geometry.keyHeight, 8, `Rangées MIDI trop hautes à ${viewport.width}×${viewport.height}`);
         assert.ok(
-          geometry.visibleKeys >= 12,
-          `Moins d'une octave visible à ${viewport.width}×${viewport.height}: ${geometry.visibleKeys} touches`,
+          geometry.visibleKeys >= 22,
+          `Moins de 22 touches visibles à ${viewport.width}×${viewport.height}: ${geometry.visibleKeys} touches`,
         );
       } finally {
         await page.close();
