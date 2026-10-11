@@ -965,6 +965,7 @@ export function ProductionWorkspace({
                               value={trackColor}
                               aria-label={t("mix.trackColorNamed", { track: tr.name })}
                               title={t("mix.trackColorNamed", { track: tr.name })}
+                              style={{ backgroundColor: trackColor }}
                               onChange={(event) => {
                                 const color = event.currentTarget.value;
                                 setTrackColors((current) => ({ ...current, [tr.id]: color }));

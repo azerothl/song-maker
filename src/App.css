@@ -9564,7 +9564,7 @@ details[open] > summary {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  gap: 0.35rem;
+  gap: 0.1rem;
   margin: 0;
   padding: 0;
   border: 0;
@@ -11559,6 +11559,52 @@ details[open] > summary {
 .production-workspace-studio .mix-master-meter {
   width: 5px;
   height: 19px;
+}
+
+/* Keep the master gain control to the width of its contents in Studio. */
+.production-workspace-studio .production-mix-sticky-master {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.55rem;
+  background: transparent;
+}
+
+.production-workspace-studio .production-context-bar {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 30px;
+  padding: 0;
+}
+
+.production-workspace-studio .production-mix-master.mix-master-banner {
+  align-self: flex-start;
+  width: fit-content;
+  max-width: 100%;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.production-workspace-studio .mix-master-density {
+  display: none;
+}
+
+.production-workspace-studio .studio-track-color-input {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 2px;
+  background: var(--track-wave);
+}
+
+.production-workspace-studio .studio-track-color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.production-workspace-studio .studio-track-color-input::-webkit-color-swatch,
+.production-workspace-studio .studio-track-color-input::-moz-color-swatch {
+  border: 0;
+  border-radius: 2px;
 }
 
 /* Align two-line track titles with their waveform; tags stay small and color coded. */
