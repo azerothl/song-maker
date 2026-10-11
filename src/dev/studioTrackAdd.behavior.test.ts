@@ -53,10 +53,10 @@ describe("ajout de piste MIDI dans Studio", () => {
           captureEnabled: document.querySelector("[data-capture-mock='studio-track-add']") !== null,
         }));
         throw new Error(
-          `La piste MIDI n'a pas été persistée dans le délai imparti.\n` +
+          `${String(error)}\n` +
+            `La piste MIDI n'a pas été persistée dans le délai imparti.\n` +
             `État navigateur : ${JSON.stringify(browserState)}\n` +
             `Erreurs navigateur : ${browserErrors.join(" | ") || "aucune"}`,
-          { cause: error },
         );
       }
 
