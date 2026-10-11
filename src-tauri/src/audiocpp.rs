@@ -461,21 +461,15 @@ impl AudioCppServer {
                 Self::write_config(&settings_try)?
             };
 
+            let (stdout, stderr, stdout_log, stderr_log) = self.output_log_streams(&cache)?;
+
             let mut cmd = Command::new(&bin);
             cmd.arg("--config")
                 .arg(&config)
                 .arg("--backend")
                 .arg(crate::pins::backend_name())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null());
-            if let Some(dir) = &self.worker_dir {
-                cmd.stdout(Stdio::from(
-                    std::fs::File::create(dir.join("stdout.log")).map_err(|e| e.to_string())?,
-                ));
-                cmd.stderr(Stdio::from(
-                    std::fs::File::create(dir.join("stderr.log")).map_err(|e| e.to_string())?,
-                ));
-            }
+                .stdout(stdout)
+                .stderr(stderr);
 
             // The packaged console binary must not open a terminal window.
             crate::process_utils::configure_no_window(&mut cmd);
@@ -505,18 +499,23 @@ impl AudioCppServer {
                         }
                         Err(WaitHealthError::Exited(status)) => {
                             last_err = format!(
-                                "audiocpp_server s’est arrêté avant /health sur {}:{} ({status}).",
-                                settings.server_host, port
+                                "audiocpp_server s’est arrêté avant /health sur {}:{} ({status}). Journaux : {} / {}.",
+                                settings.server_host,
+                                port,
+                                stdout_log.display(),
+                                stderr_log.display()
                             );
                         }
                         Err(WaitHealthError::TimedOut) => {
                             let _ = child.kill();
                             return Err(format!(
-                                "Impossible de démarrer audiocpp_server (backend {} requis). /health ne répond pas après {} s sur {}:{}. Vérifiez le pilote NVIDIA.",
+                                "Impossible de démarrer audiocpp_server (backend {} requis). /health ne répond pas après {} s sur {}:{}. Vérifiez le pilote NVIDIA. Journaux : {} / {}.",
                                 crate::pins::backend_name(),
                                 SERVER_HEALTH_WAIT.as_secs(),
                                 settings.server_host,
-                                port
+                                port,
+                                stdout_log.display(),
+                                stderr_log.display()
                             ));
                         }
                         Err(WaitHealthError::Wait(e)) => {
@@ -533,7 +532,30 @@ impl AudioCppServer {
         }
         Err(format!(
             "Impossible de démarrer audiocpp_server (backend {} requis). {last_err}",
-            crate::pins::backend_name()
+            crate::pins::backend_name(),
+        ))
+    }
+
+    fn output_log_streams(&self, cache: &Path) -> Result<(Stdio, Stdio, PathBuf, PathBuf), String> {
+        let (log_dir, stdout_name, stderr_name) = if let Some(dir) = &self.worker_dir {
+            (dir.clone(), "stdout.log", "stderr.log")
+        } else {
+            (
+                binaries_dir(cache).join("logs"),
+                "audiocpp-server.stdout.log",
+                "audiocpp-server.stderr.log",
+            )
+        };
+        crate::paths::ensure_dir(&log_dir).map_err(|e| e.to_string())?;
+        let stdout_log = log_dir.join(stdout_name);
+        let stderr_log = log_dir.join(stderr_name);
+        let stdout = std::fs::File::create(&stdout_log).map_err(|e| e.to_string())?;
+        let stderr = std::fs::File::create(&stderr_log).map_err(|e| e.to_string())?;
+        Ok((
+            Stdio::from(stdout),
+            Stdio::from(stderr),
+            stdout_log,
+            stderr_log,
         ))
     }
 
@@ -958,6 +980,36 @@ mod semantic_metadata_tests {
 
         assert!(server.process_id().is_none());
         assert_child_process_exited(child_pid);
+    }
+
+    #[test]
+    fn server_child_output_is_written_to_profile_logs() {
+        let server = AudioCppServer::default();
+        let cache =
+            std::env::temp_dir().join(format!("song-maker-server-logs-{}", uuid::Uuid::new_v4()));
+        let (stdout, stderr, stdout_log, stderr_log) = server.output_log_streams(&cache).unwrap();
+        let mut command = if cfg!(windows) {
+            let mut command = Command::new("cmd.exe");
+            command.args(["/C", "echo stdout-capture & echo stderr-capture 1>&2"]);
+            command
+        } else {
+            let mut command = Command::new("sh");
+            command.args(["-c", "printf stdout-capture; printf stderr-capture >&2"]);
+            command
+        };
+        assert!(command
+            .stdout(stdout)
+            .stderr(stderr)
+            .status()
+            .unwrap()
+            .success());
+        assert!(std::fs::read_to_string(stdout_log)
+            .unwrap()
+            .contains("stdout-capture"));
+        assert!(std::fs::read_to_string(stderr_log)
+            .unwrap()
+            .contains("stderr-capture"));
+        let _ = std::fs::remove_dir_all(cache);
     }
 
     fn spawn_sleeper() -> Child {
