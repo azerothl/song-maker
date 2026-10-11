@@ -322,7 +322,7 @@
   "production.studio.transport.projectSettings": "Project settings",
   "production.studio.transport.bpm": "BPM",
   "production.studio.empty.label": "Empty arrangement",
-  "production.studio.empty.track": "Track 1",
+  "production.studio.empty.track": "No tracks yet",
   "production.studio.empty.title": "Your arrangement starts here",
   "production.studio.empty.hint": "Add a track to start building your song.",
   "production.addTrack.audio": "Audio track",

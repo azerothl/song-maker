@@ -292,7 +292,7 @@
   "production.studio.transport.projectSettings": "Réglages du projet",
   "production.studio.transport.bpm": "BPM",
   "production.studio.empty.label": "Arrangement vide",
-  "production.studio.empty.track": "Piste 1",
+  "production.studio.empty.track": "Aucune piste",
   "production.studio.empty.title": "Votre arrangement commence ici",
   "production.studio.empty.hint": "Ajoutez une piste pour commencer à construire votre morceau.",
   "production.addTrack.audio": "Piste audio",
