@@ -1,0 +1,55 @@
+import assert from "node:assert/strict";
+import { after, before, describe, it } from "node:test";
+import { chromium, type Browser } from "playwright";
+import type { ViteDevServer } from "vite";
+import { startCaptureViteServer, stopCaptureViteServer } from "./captureViteServer";
+
+let server: ViteDevServer;
+let browser: Browser;
+let baseUrl: string;
+
+before(async () => {
+  server = await startCaptureViteServer(0);
+  const address = server.httpServer?.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Vite n’a pas exposé son port de capture.");
+  }
+  baseUrl = `http://127.0.0.1:${address.port}/studio-track-add-capture.html`;
+  browser = await chromium.launch();
+});
+
+after(async () => {
+  await browser?.close();
+  if (server) await stopCaptureViteServer(server);
+});
+
+describe("ajout de piste MIDI dans Studio", () => {
+  it("crée la piste dans le mix et ouvre son éditeur", async () => {
+    const page = await browser.newPage();
+    try {
+      await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: "Ajouter une piste" }).waitFor({ state: "visible" });
+      await page.getByRole("button", { name: "Ajouter une piste" }).click();
+      await page.getByRole("dialog", { name: /Quel type de piste/ }).waitFor({ state: "visible" });
+      await page.getByRole("button", { name: "Ouvrir le piano roll" }).click();
+
+      await page.waitForFunction(() => {
+        const state = window.__captureGetMidiTrackState?.();
+        return Boolean(
+          state?.mix?.tracks.some((track) => track.role === "midi") &&
+            state.voices.some((voice) => voice.role === "other"),
+        );
+      });
+
+      const persisted = await page.evaluate(() => window.__captureGetMidiTrackState?.());
+      assert.equal(persisted?.mix?.tracks.length, 1);
+      assert.equal(persisted?.mix?.tracks[0].name, "Instrument MIDI 1");
+      assert.equal(persisted?.voices.length, 1);
+      assert.equal(persisted?.voices[0].name, "Instrument MIDI 1");
+      assert.equal(await page.getByRole("heading", { name: "Instrument MIDI 1" }).count(), 1);
+      assert.equal(await page.locator(".studio-midi-dock").isVisible(), true);
+    } finally {
+      await page.close();
+    }
+  });
+});
