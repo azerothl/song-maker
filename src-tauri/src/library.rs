@@ -8,7 +8,7 @@ use crate::pins::*;
 use rusqlite::{params, Connection};
 use serde_json::Value;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 /// Derive library duration and status from on-disk project artifacts.
 /// Status: `empty` | `score_only` | `generated` | `versions_available` | `stems_ready`.
@@ -128,24 +128,49 @@ pub fn library_row_from_project(folder: &Path, doc: &ProjectDoc) -> LibraryRow {
 /// Refresh duration/status for every known project from disk (repairs stale rows).
 pub fn reconcile_library_from_disk() -> Result<(), String> {
     let root = projects_root();
-    if !root.exists() {
-        return Ok(());
+    if root.exists() {
+        for entry in std::fs::read_dir(&root).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let project_json = entry.path().join("project.json");
+            if !project_json.exists() {
+                continue;
+            }
+            let text = std::fs::read_to_string(&project_json).map_err(|e| e.to_string())?;
+            let doc: ProjectDoc = match serde_json::from_str(&text) {
+                Ok(d) => d,
+                Err(_) => continue,
+            };
+            if doc.schema_version != SCHEMA_VERSION {
+                continue;
+            }
+            upsert_library_row(&library_row_from_project(&entry.path(), &doc))?;
+        }
     }
-    for entry in std::fs::read_dir(&root).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let project_json = entry.path().join("project.json");
-        if !project_json.exists() {
-            continue;
+    let conn = open_library()?;
+    delete_missing_library_rows(&root, &conn)
+}
+
+fn delete_missing_library_rows(root: &Path, conn: &Connection) -> Result<(), String> {
+    let ids = {
+        let mut statement = conn
+            .prepare("SELECT id FROM project")
+            .map_err(|error| error.to_string())?;
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|error| error.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| error.to_string())?;
+        rows
+    };
+
+    for id in ids {
+        let mut components = Path::new(&id).components();
+        let is_direct_child =
+            matches!(components.next(), Some(Component::Normal(_))) && components.next().is_none();
+        if !is_direct_child || !root.join(&id).join("project.json").is_file() {
+            conn.execute("DELETE FROM project WHERE id=?1", params![id])
+                .map_err(|error| error.to_string())?;
         }
-        let text = std::fs::read_to_string(&project_json).map_err(|e| e.to_string())?;
-        let doc: ProjectDoc = match serde_json::from_str(&text) {
-            Ok(d) => d,
-            Err(_) => continue,
-        };
-        if doc.schema_version != SCHEMA_VERSION {
-            continue;
-        }
-        upsert_library_row(&library_row_from_project(&entry.path(), &doc))?;
     }
     Ok(())
 }
@@ -439,8 +464,9 @@ pub fn save_project(folder: &Path, doc: &ProjectDoc) -> Result<(), String> {
 
 #[cfg(test)]
 mod library_snapshot_tests {
-    use super::library_snapshot;
+    use super::{delete_missing_library_rows, library_snapshot};
     use crate::models::ProjectDoc;
+    use rusqlite::Connection;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -584,6 +610,33 @@ mod library_snapshot_tests {
             library_snapshot(&temp.0, &doc),
             (Some(500), "generated".into())
         );
+    }
+
+    #[test]
+    fn reconciliation_removes_deleted_project_rows_from_library_index() {
+        let temp = TempProject::new();
+        let kept = temp.0.join("kept-project");
+        std::fs::create_dir_all(&kept).unwrap();
+        std::fs::write(kept.join("project.json"), "{}").unwrap();
+
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE project (id TEXT PRIMARY KEY);")
+            .unwrap();
+        conn.execute("INSERT INTO project (id) VALUES (?1)", ["kept-project"])
+            .unwrap();
+        conn.execute("INSERT INTO project (id) VALUES (?1)", ["deleted-project"])
+            .unwrap();
+
+        delete_missing_library_rows(&temp.0, &conn).unwrap();
+
+        let remaining = conn
+            .query_row("SELECT id FROM project", [], |row| row.get::<_, String>(0))
+            .unwrap();
+        assert_eq!(remaining, "kept-project");
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM project", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
     }
 }
 
