@@ -10861,12 +10861,21 @@ details[open] > summary {
 
 /* Compact Studio piano: more visible pitches on desktop; touch keeps full-size keys. */
 .piano-roll-compact-rows {
-  --piano-note-hit-height: 20px;
+  --piano-note-hit-height: 8px;
 }
 
 .piano-roll-compact-rows .piano-note {
   min-height: var(--piano-note-hit-height);
-  background-size: 100% 10px;
+  background-size: 100% 8px;
+}
+
+.piano-roll-compact-rows .piano-key {
+  padding-inline: 2px;
+}
+
+.piano-roll-compact-rows .piano-key span {
+  font-size: 0.42rem;
+  line-height: 1;
 }
 
 /* Library actions use compact, labeled icon buttons. */
