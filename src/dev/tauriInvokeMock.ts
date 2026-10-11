@@ -23,6 +23,7 @@ let captureMix: MixDoc | null = null;
 let captureScore: unknown = null;
 let captureProfilesState: ProfilesState | null = null;
 let captureLibraryProjects: Array<Record<string, unknown>> | null = null;
+let captureGenerations: Array<Record<string, unknown>> | null = null;
 
 export function registerCaptureProfilesState(state: ProfilesState | null): void {
   captureProfilesState = state;
@@ -42,6 +43,12 @@ export function registerCaptureLibraryProjects(
   rows: Array<Record<string, unknown>> | null,
 ): void {
   captureLibraryProjects = rows;
+}
+
+export function registerCaptureGenerations(
+  rows: Array<Record<string, unknown>> | null,
+): void {
+  captureGenerations = rows;
 }
 
 function ensureProject(): ProjectDoc {
@@ -271,6 +278,7 @@ export async function invoke<T>(
       return captureMix as T;
     }
     case "list_generations":
+      if (captureGenerations) return captureGenerations as T;
       return [] as T;
     case "load_score":
       return captureScore as T;
@@ -299,6 +307,12 @@ export async function invoke<T>(
         files: [],
       } as T;
     case "generation_waveform":
+      {
+        const hook = (globalThis as typeof globalThis & {
+          __captureGenerationWaveform?: () => Promise<unknown>;
+        }).__captureGenerationWaveform;
+        if (hook) return await hook() as T;
+      }
       return {
         peaks: Array.from({ length: 320 }, (_, index) => (index % 20 < 3 ? 0.55 : 0.08)),
         duration: 180,
