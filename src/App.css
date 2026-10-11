@@ -11669,3 +11669,154 @@ details[open] > summary {
     grid-row: 3;
   }
 }
+
+/* Dense desktop arrangement: put more of the Studio width back into the clips. */
+.production-workspace-studio .production-common-timeline {
+  --production-controls-width: calc(140px + 52px + 52px + 48px + 24px + 0.4rem);
+}
+
+.production-workspace-studio .production-mix-colheaders.production-mix-grid,
+.production-workspace-studio .production-mix-row {
+  grid-template-columns: minmax(122px, 140px) 52px 52px 48px 24px minmax(300px, 1fr);
+  min-width: 620px;
+  column-gap: 0.1rem;
+}
+
+.production-workspace-studio .production-mix-row {
+  height: 40px;
+  min-height: 40px;
+}
+
+.production-workspace-studio .production-mix-row > .production-mix-name {
+  gap: 0.08rem;
+}
+
+.production-workspace-studio .production-mix-track-label {
+  font-size: 0.64rem;
+}
+
+.production-workspace-studio .studio-track-color-input {
+  width: 14px;
+  min-width: 14px;
+  height: 14px;
+  min-height: 14px;
+}
+
+.production-workspace-studio .studio-track-control {
+  height: 36px;
+}
+
+.production-workspace-studio .studio-track-control-label {
+  display: none;
+}
+
+.production-workspace-studio .studio-track-control .mix-knob-dial {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+}
+
+.production-workspace-studio .studio-track-control .mix-knob-value,
+.production-workspace-studio .studio-track-control .mix-knob-input {
+  font-size: 0.56rem;
+}
+
+.production-workspace-studio .production-mix-row > .track-ms .track-ms-btn,
+.production-workspace-studio .production-mix-row > .production-mix-track-tools .btn {
+  width: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  height: 22px;
+}
+
+.production-workspace-studio .production-mix-row > .track-wave {
+  padding-inline-start: 0;
+}
+
+.production-workspace-studio .production-mix-row > .track-wave .clip-lane-rail {
+  height: 38px;
+}
+
+/* The two arrangement rows share one frame: tempo above, marker names below. */
+.production-workspace-studio .clip-tempo-lane,
+.production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane),
+.production-workspace-studio .clip-tempo-lane > .clip-lane-rail,
+.production-workspace-studio .clip-marker-lane > .clip-lane-rail {
+  height: 28px;
+  min-height: 28px;
+}
+
+.production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane) {
+  margin-top: -28px;
+}
+
+.production-workspace-studio .clip-marker-flag {
+  top: 12px;
+  min-height: 14px;
+  height: 14px;
+}
+
+.production-workspace-studio .clip-marker-add {
+  top: 13px;
+  min-height: 20px;
+  height: 20px;
+}
+
+.production-workspace-studio .clip-ruler[role="slider"] {
+  height: 26px;
+  min-height: 26px;
+}
+
+/* Keep compact controls comfortable on touch screens. */
+@media (pointer: coarse) {
+  .production-workspace-studio .production-mix-row,
+  .production-workspace-studio .production-mix-row > .track-wave .clip-lane-rail {
+    height: 52px;
+    min-height: 52px;
+  }
+
+  .production-workspace-studio .studio-track-control {
+    height: 48px;
+  }
+
+  .production-workspace-studio .production-mix-row > .track-ms .track-ms-btn,
+  .production-workspace-studio .production-mix-row > .production-mix-track-tools .btn {
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    height: 40px;
+  }
+
+  .production-workspace-studio .clip-tempo-lane,
+  .production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane),
+  .production-workspace-studio .clip-tempo-lane > .clip-lane-rail,
+  .production-workspace-studio .clip-marker-lane > .clip-lane-rail {
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane) {
+    top: 44px;
+    margin-top: -44px;
+  }
+}
+
+/* Compact library actions leave the waveform as the dominant element. */
+.user-library-icon-button,
+.project-library-toggle {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+
+@media (pointer: coarse) {
+  .user-library-icon-button,
+  .project-library-toggle {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+}
