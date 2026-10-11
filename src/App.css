@@ -11413,3 +11413,213 @@ details[open] > summary {
     flex-wrap: wrap;
   }
 }
+
+/* Studio follow-up: compact, single-row track controls leave more room to the timeline. */
+.production-workspace-studio .production-common-timeline {
+  --production-controls-width: calc(154px + 52px + 52px + 54px + 26px + 2rem);
+}
+
+.production-workspace-studio .production-mix-colheaders.production-mix-grid,
+.production-workspace-studio .production-mix-row {
+  grid-template-columns: minmax(136px, 154px) 52px 52px 54px 26px minmax(300px, 1fr);
+  min-width: 640px;
+  column-gap: 0.15rem;
+}
+
+.production-workspace-studio .production-mix-row {
+  grid-template-rows: minmax(0, 1fr);
+  height: 48px;
+  min-height: 48px;
+  padding-inline: 0.15rem;
+}
+
+.production-workspace-studio .production-mix-row > .production-mix-name {
+  grid-column: 1;
+  grid-row: 1;
+  gap: 0.12rem;
+}
+
+.production-workspace-studio .production-mix-row-grouped .production-mix-name {
+  padding-inline-start: 0.2rem;
+}
+
+.production-workspace-studio .production-mix-track-label {
+  font-size: 0.68rem;
+}
+
+.production-workspace-studio .studio-track-color-input {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
+}
+
+.production-workspace-studio .production-mix-row > .track-gain-knob {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.production-workspace-studio .production-mix-row > .track-pan-knob {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.production-workspace-studio .studio-track-control {
+  grid-template-rows: 8px 1fr;
+  height: 34px;
+}
+
+.production-workspace-studio .studio-track-control .mix-knob {
+  gap: 0.1rem;
+}
+
+.production-workspace-studio .studio-track-control .mix-knob-dial {
+  width: 19px;
+  height: 19px;
+  min-width: 19px;
+  min-height: 19px;
+}
+
+.production-workspace-studio .studio-track-control .mix-knob-value,
+.production-workspace-studio .studio-track-control .mix-knob-input {
+  min-width: 1.9rem;
+  font-size: 0.54rem;
+}
+
+.production-workspace-studio .production-mix-row > .track-ms {
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: center;
+  gap: 0.08rem;
+  margin: 0;
+}
+
+.production-workspace-studio .production-mix-row > .track-ms .track-ms-btn {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+}
+
+.production-workspace-studio .production-mix-row > .production-mix-track-tools {
+  grid-column: 5;
+  grid-row: 1;
+  justify-self: center;
+  margin: 0;
+}
+
+.production-workspace-studio .production-mix-row > .production-mix-track-tools .btn {
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.production-workspace-studio .production-mix-row > .track-wave {
+  grid-column: 6;
+  grid-row: 1;
+  padding-inline-start: 0.35rem;
+}
+
+.production-workspace-studio .production-mix-row > .track-wave .clip-lane-rail {
+  height: 42px;
+}
+
+/* A short master fader keeps the persistent Studio transport as the main control bar. */
+.production-workspace-studio .production-mix-master.mix-master-banner {
+  min-height: 29px;
+  height: 30px;
+  gap: 0.25rem;
+  padding: 0 0.3rem;
+}
+
+.production-workspace-studio .studio-master-label {
+  margin-inline-start: 0.15rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+}
+
+.production-workspace-studio .mix-master-level {
+  max-width: none;
+  margin: 0 0 0 0.2rem;
+  gap: 0.22rem;
+}
+
+.production-workspace-studio .mix-master-fader {
+  width: 5.8rem;
+  max-width: 5.8rem;
+  grid-template-columns: minmax(3rem, 1fr) 2rem;
+  gap: 0.2rem;
+}
+
+.production-workspace-studio .mix-master-fader .mix-slider-value,
+.production-workspace-studio .mix-master-fader .mix-slider-input {
+  font-size: 0.6rem;
+}
+
+.production-workspace-studio .mix-master-meter {
+  width: 5px;
+  height: 19px;
+}
+
+/* Align two-line track titles with their waveform; tags stay small and color coded. */
+.user-library-track-main {
+  grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);
+  gap: 0.35rem 0.65rem;
+}
+
+.user-library-track-main > .user-library-track-title {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.user-library-track-main > .library-track-player,
+.user-library-track-main > .hint {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.user-library-track-playlists {
+  grid-row: 2;
+  gap: 0.25rem;
+}
+
+.playlist-chip {
+  padding: 0.08rem 0.34rem;
+  font-size: 0.64rem;
+}
+
+.piano-roll-compact-rows {
+  --piano-note-hit-height: 7px;
+}
+
+.piano-roll-compact-rows .piano-note {
+  min-height: var(--piano-note-hit-height);
+  background-size: 100% var(--piano-note-hit-height);
+}
+
+.piano-roll-compact-rows .piano-key {
+  padding-inline: 2px;
+}
+
+.piano-roll-compact-rows .piano-key span {
+  font-size: 0.42rem;
+  line-height: 1;
+}
+
+@media (max-width: 760px) {
+  .user-library-track-main > .user-library-track-title {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .user-library-track-main > .library-track-player,
+  .user-library-track-main > .hint {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .user-library-track-main > .user-library-track-playlists {
+    grid-column: 1;
+    grid-row: 3;
+  }
+}

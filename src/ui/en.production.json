@@ -321,6 +321,7 @@
   "production.studio.transport.position": "Song position",
   "production.studio.transport.projectSettings": "Project settings",
   "production.studio.transport.bpm": "BPM",
+  "production.studio.masterGain": "Master",
   "production.studio.empty.label": "Empty arrangement",
   "production.studio.empty.track": "No tracks yet",
   "production.studio.empty.title": "Your arrangement starts here",

@@ -786,7 +786,9 @@ export function ProductionWorkspace({
                   />
                 </div>
                 {studioMode && (
-                  <span className="studio-master-label">{t("mix.master")}</span>
+                  <span className="studio-master-label">
+                    {t("production.studio.masterGain")}
+                  </span>
                 )}
                 <div className="mix-master-level">
                   <MixSlider
