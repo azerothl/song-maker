@@ -946,6 +946,20 @@ mod semantic_metadata_tests {
         );
     }
 
+    #[test]
+    fn shutdown_stops_and_reaps_server_child() {
+        let server = AudioCppServer::default();
+        *AudioCppServer::lock(&server.base_url) = "http://127.0.0.1:1".into();
+        let child = spawn_sleeper();
+        let child_pid = child.id();
+        *AudioCppServer::lock(&server.child) = Some(child);
+
+        server.shutdown();
+
+        assert!(server.process_id().is_none());
+        assert_child_process_exited(child_pid);
+    }
+
     fn spawn_sleeper() -> Child {
         let mut cmd = if cfg!(windows) {
             let mut cmd = Command::new("ping");
@@ -960,6 +974,39 @@ mod semantic_metadata_tests {
             .stderr(Stdio::null())
             .spawn()
             .expect("sleeper")
+    }
+
+    #[cfg(windows)]
+    fn assert_child_process_exited(pid: u32) {
+        let output = Command::new("tasklist.exe")
+            .arg("/FI")
+            .arg(format!("PID eq {pid}"))
+            .args(["/FO", "CSV", "/NH"])
+            .output()
+            .expect("query child process state");
+        assert!(output.status.success(), "tasklist failed");
+        let process_is_running = String::from_utf8_lossy(&output.stdout).lines().any(|line| {
+            line.split(',')
+                .nth(1)
+                .is_some_and(|field| field.trim().trim_matches('"') == pid.to_string())
+        });
+        assert!(
+            !process_is_running,
+            "server child process {pid} is still running after shutdown"
+        );
+    }
+
+    #[cfg(unix)]
+    fn assert_child_process_exited(pid: u32) {
+        let process_is_running = Command::new("kill")
+            .arg("-0")
+            .arg(pid.to_string())
+            .status()
+            .is_ok_and(|status| status.success());
+        assert!(
+            !process_is_running,
+            "server child process {pid} is still running after shutdown"
+        );
     }
 
     #[test]
