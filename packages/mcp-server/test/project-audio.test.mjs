@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { inspectWav } from '../src/audio-quality.mjs';
 import { exportProjectAudio, exportProjectStems, renderProjectMix } from '../src/project-audio.mjs';
-import { createProject, createProjectMidiTrack, getProject, getProjectMix, importProjectAudioTrack } from '../src/projects.mjs';
+import { createProject, createProjectMidiTrack, getProject, getProjectMix, importProjectAudioTrack, updateProjectMix } from '../src/projects.mjs';
 
 function smallPcmWav() {
   const data = Buffer.alloc(4800 * 2);
@@ -106,16 +106,23 @@ test('project mix render applies saved clip placement and exports a non-overwrit
       projectId: project.id, outputDirectory: 'exports', fileName: 'offline-render.wav', workspace, env,
     }), /Export déjà présent/);
 
-    await writeFile(path.join(projectFolder, 'mixes', `${mix.id}.production.json`), JSON.stringify({
-      mixId: mix.id,
-      volumePointsByTrack: {}, panPointsByTrack: {}, automationLanes: {},
+    const beforeEffects = await getProjectMix({ projectId: project.id, env });
+    const effectUpdate = await updateProjectMix({
+      projectId: project.id,
+      expectedMixRevision: beforeEffects.mixRevision,
+      expectedProductionRevision: beforeEffects.productionRevision,
       effectsByTrack: { 'audio-track': [{ id: 'eq-1', kind: 'eq', enabled: true, params: { gainDb: 3 } }] },
-      sidechainRoutes: [], buses: [], sends: [], trackGroupIds: {},
-    }));
+      env,
+    });
+    assert.deepEqual(effectUpdate.effectsByTrack['audio-track'], [
+      { id: 'eq-1', kind: 'eq', enabled: true, params: { gainDb: 3 } },
+    ]);
     const renderedWithEffects = await renderProjectMix({
       projectId: project.id, outputDirectory: 'exports', fileName: 'offline-render-fx.wav', workspace, env,
     });
     assert.equal(renderedWithEffects.render.path, 'production');
+    assert.notDeepEqual(await readFile(renderedWithEffects.path), output,
+      'the DSP chain written through MCP changes the rendered audio');
 
     const extensibleWav = smallExtensiblePcmWav();
     await writeFile(path.join(normalizedDirectory, 'clip.wav'), extensibleWav);

@@ -172,6 +172,18 @@ test('MCP exposes the headless tools over stdio', async () => {
     const mixState = JSON.parse(openedMix.content[0].text);
     assert.equal(mixState.mix.tracks[0].name, 'Piano');
     assert.match(mixState.mixRevision, /^[a-f0-9]{64}$/);
+    assert.match(mixState.productionRevision, /^[a-f0-9]{64}$/);
+    const effectUpdate = await client.callTool({ name: 'update_project_mix', arguments: {
+      projectId: 'project-001', expectedMixRevision: mixState.mixRevision,
+      expectedProductionRevision: mixState.productionRevision,
+      effectsByTrack: { piano: [{ id: 'piano-limiter', kind: 'limiter', enabled: true, params: { ceilingDb: -1.5 } }] },
+    } });
+    assert.equal(effectUpdate.isError, undefined, effectUpdate.content?.[0]?.text);
+    const effectState = JSON.parse(effectUpdate.content[0].text);
+    assert.deepEqual(effectState.effectsByTrack.piano, [
+      { id: 'piano-limiter', kind: 'limiter', enabled: true, params: { ceilingDb: -1.5 } },
+    ]);
+    assert.notEqual(effectState.productionRevision, mixState.productionRevision);
     const changedMix = await client.callTool({ name: 'update_project_mix', arguments: {
       projectId: 'project-001', expectedMixRevision: mixState.mixRevision,
       masterGainDb: -2, tracks: [{ id: 'piano', gainDb: -3, pan: 0.25, mute: true }],

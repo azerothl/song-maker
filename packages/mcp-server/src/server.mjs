@@ -108,17 +108,28 @@ server.registerTool('use_project_score', {
 }, call(async args => useProjectScore(args)));
 
 server.registerTool('get_project_mix', {
-  description: 'Lit le mix actif ou une version de mix sauvegardée du profil actif, avec pistes, clips et réglages. Retourne mixRevision pour sécuriser une modification. Les chemins locaux de fichiers VST et les états propriétaires des plugins sont masqués ; les chemins de sources audio hors du projet sont masqués. Ne modifie ni ne rend le mix.',
+  description: 'Lit le mix actif ou une version de mix sauvegardée du profil actif, avec pistes, clips et réglages. Retourne mixRevision et productionRevision pour sécuriser les modifications ; effectsByTrack expose les inserts DSP internes pris en charge. Les chemins locaux VST et les états propriétaires des plugins sont masqués. Ne modifie ni ne rend le mix.',
   inputSchema: { projectId: z.string().min(1).max(128), mixId: z.string().regex(/^mix-v[0-9]+$/).optional() },
   annotations: { readOnlyHint: true },
 }, call(async args => getProjectMix(args)));
 
+const mcpDspEffectSchema = z.object({
+  id: z.string().trim().min(1).max(128),
+  kind: z.enum(['limiter', 'compressor', 'gate', 'eq', 'parametricEq', 'filter', 'delay', 'reverb']),
+  enabled: z.boolean(),
+  params: z.record(z.string().min(1).max(128), z.union([
+    z.number().finite(), z.string().max(2048), z.boolean(),
+  ])).optional(),
+}).strict();
+
 server.registerTool('update_project_mix', {
-  description: 'Modifie les niveaux master et de piste, le panoramique, mute, solo, l’arrangement et les clips du mix actif. clipEdits peut déplacer, découper, scinder ou dupliquer un clip, régler ses fondus/gain/traitements et activer une prise. Passe mixRevision obtenu par get_project_mix ; l’outil refuse les changements périmés, vérifie les sources internes lors des trims/scissions, et ne rend pas l’audio.',
+  description: 'Modifie les niveaux master et de piste, l’arrangement, les clips et les chaînes d’effets DSP internes du mix actif. Pour les effets, passe effectsByTrack et productionRevision obtenus par get_project_mix ; chaque chaîne remplace celle de la piste ciblée et les effets sont écrits dans le fichier de production partagé avec l’application. Modifie les effets dans un appel distinct. Les plugins VST3 et les effets vocaux à consentement restent indisponibles via MCP. Les autres changements utilisent mixRevision ; les sources sont vérifiées lors des trims/scissions. Ne rend pas l’audio.',
   inputSchema: {
     projectId: z.string().min(1).max(128),
     mixId: z.string().regex(/^mix-v[0-9]+$/).optional(),
     expectedMixRevision: z.string().regex(/^[a-f0-9]{64}$/),
+    expectedProductionRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+    effectsByTrack: z.record(z.string().min(1).max(128), z.array(mcpDspEffectSchema).max(128)).optional(),
     masterGainDb: z.number().finite().min(-24).max(12).optional(),
     tracks: z.array(z.object({
       id: z.string().min(1).max(128),

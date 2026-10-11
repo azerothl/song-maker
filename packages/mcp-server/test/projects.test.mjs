@@ -275,8 +275,33 @@ test('MCP updates active mix levels and track controls with a current mix revisi
 
     const initial = await getProjectMix({ projectId: 'project-mix', env });
     assert.match(initial.mixRevision, /^[a-f0-9]{64}$/);
+    assert.match(initial.productionRevision, /^[a-f0-9]{64}$/);
+    assert.deepEqual(initial.effectsByTrack, {});
     assert.equal(initial.mix.vst3MasterInsert.pluginName, 'Private plugin');
     assert.equal('pluginPath' in initial.mix.vst3MasterInsert, false);
+
+    const withEffects = await updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: initial.mixRevision,
+      expectedProductionRevision: initial.productionRevision,
+      effectsByTrack: { voice: [{ id: 'limiter-1', kind: 'limiter', enabled: true, params: { ceilingDb: -2 } }] }, env,
+    });
+    assert.equal(withEffects.mixRevision, initial.mixRevision);
+    assert.notEqual(withEffects.productionRevision, initial.productionRevision);
+    assert.deepEqual(withEffects.effectsByTrack.voice, [
+      { id: 'limiter-1', kind: 'limiter', enabled: true, params: { ceilingDb: -2 } },
+    ]);
+    const storedProduction = JSON.parse(await readFile(path.join(mixesFolder, 'mix-v001.production.json'), 'utf8'));
+    assert.deepEqual(storedProduction.effectsByTrack.voice, withEffects.effectsByTrack.voice);
+    await assert.rejects(updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: initial.mixRevision,
+      expectedProductionRevision: initial.productionRevision,
+      effectsByTrack: { voice: [] }, env,
+    }), /effets du mix ont changé/);
+    await assert.rejects(updateProjectMix({
+      projectId: 'project-mix', expectedMixRevision: initial.mixRevision,
+      expectedProductionRevision: withEffects.productionRevision,
+      effectsByTrack: { voice: [{ id: 'voice-convert', kind: 'voice_convert', enabled: true }] }, env,
+    }), /Effet invalide ou non pris en charge/);
 
     const updated = await updateProjectMix({
       projectId: 'project-mix', expectedMixRevision: initial.mixRevision, masterGainDb: -3.5,

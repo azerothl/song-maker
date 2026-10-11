@@ -14,6 +14,9 @@ const MIX_ID_PATTERN = /^mix-v[0-9]+$/;
 const SCORE_ID_PATTERN = /^score-v[0-9]+$/;
 const MAX_PROJECT_DOCUMENT_BYTES = 8 * 1024 * 1024;
 const MAX_IMPORTED_GENERATION_BYTES = 256 * 1024 * 1024;
+const MCP_DSP_EFFECT_KINDS = new Set([
+  'limiter', 'compressor', 'gate', 'eq', 'parametricEq', 'filter', 'delay', 'reverb',
+]);
 
 function documentsCandidates(env) {
   if (env.SONG_MAKER_DOCUMENTS_DIR?.trim()) {
@@ -648,6 +651,99 @@ export async function listProjectVersions({ projectId, env = process.env } = {})
   };
 }
 
+function emptyProductionOverlay(mixId) {
+  return {
+    mixId,
+    volumePointsByTrack: {},
+    panPointsByTrack: {},
+    automationLanes: {},
+    effectsByTrack: {},
+    sidechainRoutes: [],
+    buses: [],
+    sends: [],
+    trackGroupIds: {},
+  };
+}
+
+function isRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+async function readProjectProductionOverlay(mixesDirectory, mixId) {
+  const fileName = `${mixId}.production.json`;
+  let info;
+  try {
+    info = await lstat(path.join(mixesDirectory, fileName));
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw new Error(`Lecture ${fileName} impossible : ${error?.message || error}`);
+  }
+  if (info.isSymbolicLink() || !info.isFile()) {
+    throw new Error(`${fileName} est invalide ou se trouve hors du projet Song Maker.`);
+  }
+  const overlay = await readBoundedJsonInside(mixesDirectory, fileName, fileName);
+  if (!isRecord(overlay) || overlay.mixId !== mixId) {
+    throw new Error('Les réglages de production ne correspondent pas à la version de mix.');
+  }
+  return overlay;
+}
+
+function productionRevision(overlay, mixId) {
+  return createHash('sha256')
+    .update(JSON.stringify(overlay ?? emptyProductionOverlay(mixId)))
+    .digest('hex');
+}
+
+function safeEffectsByTrack(overlay) {
+  const effectsByTrack = {};
+  if (!isRecord(overlay?.effectsByTrack)) return effectsByTrack;
+  for (const [trackId, effects] of Object.entries(overlay.effectsByTrack)) {
+    if (!Array.isArray(effects)) continue;
+    effectsByTrack[trackId] = effects.filter(effect => isRecord(effect) &&
+      typeof effect.id === 'string' && typeof effect.kind === 'string' &&
+      typeof effect.enabled === 'boolean' && MCP_DSP_EFFECT_KINDS.has(effect.kind) &&
+      (effect.params === undefined || (isRecord(effect.params) && Object.values(effect.params).every(value =>
+        ['number', 'string', 'boolean'].includes(typeof value) && (typeof value !== 'number' || Number.isFinite(value))))))
+      .map(effect => ({
+        id: effect.id,
+        kind: effect.kind,
+        enabled: effect.enabled,
+        params: isRecord(effect.params) ? effect.params : {},
+      }));
+  }
+  return effectsByTrack;
+}
+
+function validateEffectUpdates(effectsByTrack) {
+  if (!isRecord(effectsByTrack) || Object.keys(effectsByTrack).length === 0 || Object.keys(effectsByTrack).length > 256) {
+    throw new Error('effectsByTrack doit contenir de 1 à 256 pistes.');
+  }
+  const updates = {};
+  for (const [trackId, effects] of Object.entries(effectsByTrack)) {
+    if (!trackId.trim() || trackId.length > 128 || !Array.isArray(effects) || effects.length > 128) {
+      throw new Error(`La chaîne d’effets de la piste ${trackId || 'inconnue'} est invalide.`);
+    }
+    const ids = new Set();
+    updates[trackId] = effects.map(effect => {
+      if (!isRecord(effect) || typeof effect.id !== 'string' || !effect.id.trim() || effect.id.length > 128 ||
+          ids.has(effect.id) || typeof effect.kind !== 'string' || !MCP_DSP_EFFECT_KINDS.has(effect.kind) ||
+          typeof effect.enabled !== 'boolean') {
+        throw new Error(`Effet invalide ou non pris en charge sur la piste ${trackId}.`);
+      }
+      ids.add(effect.id);
+      const params = effect.params === undefined ? {} : effect.params;
+      if (!isRecord(params) || Object.keys(params).length > 128 || Object.entries(params).some(([key, value]) =>
+        !key.trim() || key.length > 128 || !['number', 'string', 'boolean'].includes(typeof value) ||
+        (typeof value === 'number' && !Number.isFinite(value)) ||
+        (typeof value === 'string' && value.length > 2048))) {
+        throw new Error(`Les paramètres de l’effet ${effect.id} sur ${trackId} sont invalides.`);
+      }
+      return { id: effect.id, kind: effect.kind, enabled: effect.enabled, params: { ...params } };
+    });
+  }
+  return updates;
+}
+
 /** Read one saved mix without exposing local plugin paths or opaque plugin state. */
 export async function getProjectMix({ projectId, mixId, env = process.env } = {}) {
   if (typeof projectId !== 'string') throw new Error('Identifiant de projet requis.');
@@ -677,6 +773,7 @@ export async function getProjectMix({ projectId, mixId, env = process.env } = {}
       (track.clips !== undefined && !Array.isArray(track.clips)))) {
     throw new Error('Document de mix invalide : pistes ou clips mal formés.');
   }
+  const overlay = await readProjectProductionOverlay(mixesDirectory, selectedMixId);
 
   const safeMix = {
     ...mix,
@@ -715,6 +812,8 @@ export async function getProjectMix({ projectId, mixId, env = process.env } = {}
     projectTitle: project.title,
     mixId: selectedMixId,
     mixRevision: createHash('sha256').update(JSON.stringify(mix)).digest('hex'),
+    productionRevision: productionRevision(overlay, selectedMixId),
+    effectsByTrack: safeEffectsByTrack(overlay),
     active: project.activeMixId === selectedMixId,
     mix: safeMix,
   };
@@ -1147,7 +1246,7 @@ export async function importProjectGeneration({
 /** Update active mix controls and arrangement metadata using an optimistic mix revision. */
 export async function updateProjectMix({
   projectId, mixId, expectedMixRevision, masterGainDb, tracks, addMidiTracks, clipEdits, tempoMap, timeSignatures, markers,
-  env = process.env,
+  effectsByTrack, expectedProductionRevision, env = process.env,
 } = {}) {
   if (typeof projectId !== 'string' || !PROJECT_ID_PATTERN.test(projectId)) {
     throw new Error('Identifiant de projet invalide.');
@@ -1158,8 +1257,17 @@ export async function updateProjectMix({
   if (masterGainDb === undefined && (!Array.isArray(tracks) || tracks.length === 0) &&
       (!Array.isArray(addMidiTracks) || addMidiTracks.length === 0) &&
       (!Array.isArray(clipEdits) || clipEdits.length === 0) && tempoMap === undefined &&
-      timeSignatures === undefined && markers === undefined) {
+      timeSignatures === undefined && markers === undefined && effectsByTrack === undefined) {
     throw new Error('Indique au moins un réglage de mix à modifier.');
+  }
+  const effectUpdates = effectsByTrack === undefined ? null : validateEffectUpdates(effectsByTrack);
+  if (effectUpdates && (typeof expectedProductionRevision !== 'string' || !/^[a-f0-9]{64}$/.test(expectedProductionRevision))) {
+    throw new Error('expectedProductionRevision doit venir de get_project_mix pour modifier les effets.');
+  }
+  if (effectUpdates && (masterGainDb !== undefined || (tracks ?? []).length > 0 ||
+      (addMidiTracks ?? []).length > 0 || (clipEdits ?? []).length > 0 || tempoMap !== undefined ||
+      timeSignatures !== undefined || markers !== undefined)) {
+    throw new Error('Modifie la chaîne d’effets séparément des autres réglages du mix.');
   }
   if (masterGainDb !== undefined && (!Number.isFinite(masterGainDb) || masterGainDb < -24 || masterGainDb > 12)) {
     throw new Error('Le gain master doit être compris entre -24 et +12 dB.');
@@ -1358,6 +1466,24 @@ export async function updateProjectMix({
       throw new Error('Le mix a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
     }
 
+    let nextOverlay = null;
+    if (effectUpdates) {
+      const currentOverlay = await readProjectProductionOverlay(mixesDirectory, selectedMixId);
+      if (productionRevision(currentOverlay, selectedMixId) !== expectedProductionRevision) {
+        throw new Error('Les effets du mix ont changé depuis leur dernière lecture. Relis le mix avant de réessayer.');
+      }
+      for (const trackId of Object.keys(effectUpdates)) {
+        if (!current.tracks.some(track => track.id === trackId)) {
+          throw new Error(`Piste introuvable dans le mix actif : ${trackId}`);
+        }
+      }
+      const baseOverlay = currentOverlay ?? emptyProductionOverlay(selectedMixId);
+      nextOverlay = {
+        ...baseOverlay,
+        effectsByTrack: { ...(isRecord(baseOverlay.effectsByTrack) ? baseOverlay.effectsByTrack : {}), ...effectUpdates },
+      };
+    }
+
     const next = structuredClone(current);
     if (masterGainDb !== undefined) next.masterGainDb = masterGainDb;
     if (tempoMap !== undefined) next.tempoMap = tempoEvents;
@@ -1524,6 +1650,10 @@ export async function updateProjectMix({
     if (masterGainDb !== undefined || tempoMap !== undefined || timeSignatures !== undefined || markers !== undefined ||
         (tracks ?? []).length > 0 || addedTrackIds.length > 0 || clipEditSpecs.length > 0) {
       await writeJsonAtomically(mixPath, next, `.mix-${randomUUID()}.tmp`);
+    }
+    if (nextOverlay) {
+      const overlayPath = path.join(mixesDirectory, `${selectedMixId}.production.json`);
+      await writeJsonAtomically(overlayPath, nextOverlay, `.production-${randomUUID()}.tmp`);
     }
     clipEditSummary = clipEditSpecs.length
       ? { modifiedClipIds: [...editedClipIds], createdClipIds }
