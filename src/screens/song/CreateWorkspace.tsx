@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useRef, type Dispatch, type SetStateAction } from "react";
 import { t } from "../../ui/i18n";
 import type { FormInput } from "../../lib/types";
 import type { ScoreDocument, ScoreGate } from "../../lib/score";
@@ -72,6 +72,10 @@ export function CreateWorkspace({
   showInstrumentalPackGuidance,
   showFormErrors,
 }: CreateWorkspaceProps) {
+  const titleFieldRef = useRef<HTMLInputElement>(null);
+  const styleFieldRef = useRef<HTMLTextAreaElement>(null);
+  const lyricsFieldRef = useRef<HTMLTextAreaElement>(null);
+  const durationFieldRef = useRef<HTMLInputElement>(null);
   const generationBlockedReason = primaryFormError(formFieldErrors);
   const visibleAdvancedSettingsPage =
     advancedSettingsPage === "plan" && !showScoreSettings
@@ -80,6 +84,23 @@ export function CreateWorkspace({
   const instrumentalVocalCue = form.instrumentalMode
     ? findInstrumentalVocalCue(form.style)
     : null;
+
+  function focusFirstInvalidField() {
+    const firstInvalid = [
+      formFieldErrors.title ? titleFieldRef.current : null,
+      formFieldErrors.style ? styleFieldRef.current : null,
+      formFieldErrors.lyrics ? lyricsFieldRef.current : null,
+      formFieldErrors.duration ? durationFieldRef.current : null,
+    ].find((field) => field && !field.disabled);
+    firstInvalid?.focus();
+  }
+
+  function requestGeneration() {
+    const hasFieldErrors = Boolean(generationBlockedReason);
+    void onGenerate();
+    if (hasFieldErrors) window.requestAnimationFrame(focusFirstInvalidField);
+  }
+
   return (
     <section
       className="song-workspace-panel song-create-panel"
@@ -122,15 +143,16 @@ export function CreateWorkspace({
               <label className="form-field">
                 {t("form.title")}
                 <input
+                  id="create-title"
+                  ref={titleFieldRef}
                   value={form.title}
                   onChange={(e) => setForm({ title: e.target.value })}
                   maxLength={120}
-                  aria-invalid={
-                    showFormErrors && Boolean(formFieldErrors.title)
-                  }
+                  aria-invalid={showFormErrors && Boolean(formFieldErrors.title) ? true : undefined}
+                  aria-describedby={showFormErrors && formFieldErrors.title ? "create-title-error" : undefined}
                 />
                 {showFormErrors && formFieldErrors.title && (
-                  <span className="hint error" role="alert">
+                  <span id="create-title-error" className="hint error">
                     {formFieldErrors.title}
                   </span>
                 )}
@@ -138,12 +160,13 @@ export function CreateWorkspace({
               <label className="form-field form-field-style">
                 {t("form.style")}
                 <textarea
+                  id="create-style"
+                  ref={styleFieldRef}
                   value={form.style}
                   onChange={(e) => setForm({ style: e.target.value })}
                   rows={3}
-                  aria-invalid={
-                    showFormErrors && Boolean(formFieldErrors.style)
-                  }
+                  aria-invalid={showFormErrors && Boolean(formFieldErrors.style) ? true : undefined}
+                  aria-describedby={showFormErrors && formFieldErrors.style ? "create-style-error" : undefined}
                 />
                 <span className="counter">{form.style.length}/1000</span>
                 <span className="hint">
@@ -159,7 +182,7 @@ export function CreateWorkspace({
                   </span>
                 )}
                 {showFormErrors && formFieldErrors.style && (
-                  <span className="hint error" role="alert">
+                  <span id="create-style-error" className="hint error">
                     {formFieldErrors.style}
                   </span>
                 )}
@@ -171,6 +194,8 @@ export function CreateWorkspace({
                     : "form.lyrics",
                 )}
                 <textarea
+                  id="create-lyrics"
+                  ref={lyricsFieldRef}
                   value={form.lyrics}
                   disabled={form.instrumentalMode}
                   onChange={(e) => setForm({ lyrics: e.target.value })}
@@ -180,9 +205,8 @@ export function CreateWorkspace({
                       ? t("form.lyrics.instrumentalPlaceholder")
                       : undefined
                   }
-                  aria-invalid={
-                    showFormErrors && Boolean(formFieldErrors.lyrics)
-                  }
+                  aria-invalid={showFormErrors && Boolean(formFieldErrors.lyrics) ? true : undefined}
+                  aria-describedby={showFormErrors && formFieldErrors.lyrics ? "create-lyrics-error" : undefined}
                 />
                 <span className="counter">{form.lyrics.length}/4000</span>
                 <span className="hint">
@@ -193,7 +217,7 @@ export function CreateWorkspace({
                   )}
                 </span>
                 {showFormErrors && formFieldErrors.lyrics && (
-                  <span className="hint error" role="alert">
+                  <span id="create-lyrics-error" className="hint error">
                     {formFieldErrors.lyrics}
                   </span>
                 )}
@@ -284,9 +308,9 @@ export function CreateWorkspace({
                   <button
                     type="button"
                     className="btn primary song-create-generate-btn"
-                    disabled={busy || Boolean(scoreGate.error) || Boolean(generationBlockedReason)}
+                    disabled={busy || Boolean(scoreGate.error)}
                     aria-describedby={generationBlockedReason ? "create-generation-reason" : undefined}
-                    onClick={() => void onGenerate()}
+                    onClick={requestGeneration}
                     aria-keyshortcuts="Control+Enter"
                   >
                     {t("generate.button")}
@@ -407,6 +431,7 @@ export function CreateWorkspace({
                 </div>
                 <input
                   id="target-duration"
+                  ref={durationFieldRef}
                   type="range"
                   className="duration-slider"
                   min={DURATION_SEC_MIN}
@@ -420,16 +445,15 @@ export function CreateWorkspace({
                       ),
                     })
                   }
-                  aria-invalid={
-                    showFormErrors && Boolean(formFieldErrors.duration)
-                  }
+                  aria-invalid={showFormErrors && Boolean(formFieldErrors.duration) ? true : undefined}
+                  aria-describedby={showFormErrors && formFieldErrors.duration ? "create-duration-error" : undefined}
                 />
                 <div className="duration-range" aria-hidden="true">
                   <span>{formatDurationLabel(DURATION_SEC_MIN)}</span>
                   <span>{formatDurationLabel(DURATION_SEC_MAX)}</span>
                 </div>
                 {showFormErrors && formFieldErrors.duration && (
-                  <p className="hint error" role="alert">
+                  <p id="create-duration-error" className="hint error">
                     {formFieldErrors.duration}
                   </p>
                 )}
@@ -616,7 +640,7 @@ export function CreateWorkspace({
                 type="button"
                 className="btn primary"
                 disabled={busy || Boolean(scoreGate.error)}
-                onClick={() => void onGenerate()}
+                onClick={requestGeneration}
               >
                 {t("generate.button")}
               </button>

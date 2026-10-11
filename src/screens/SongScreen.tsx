@@ -45,6 +45,16 @@ import {
   type SongWorkspace,
 } from "./song/shared";
 
+function focusFirstInvalidCreateField() {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(".song-create-panel [aria-invalid='true']")
+        ?.focus();
+    });
+  });
+}
+
 export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?: SongWorkspace }) {
   const screen = useAppStore((s) => s.screen);
   const setScreen = useAppStore((s) => s.setScreen);
@@ -650,6 +660,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
           setShowFormErrors(true);
           setWorkspace("create");
           setAdvancedSettingsPage(null);
+          if (formError) focusFirstInvalidCreateField();
           return;
         }
         void onGenerate();
@@ -732,6 +743,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       setShowFormErrors(true);
       setWorkspace("create");
       setAdvancedSettingsPage(null);
+      if (formError) focusFirstInvalidCreateField();
       return;
     }
     const isRegen =
@@ -876,6 +888,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       setShowFormErrors(true);
       setWorkspace("create");
       setAdvancedSettingsPage(null);
+      if (formError) focusFirstInvalidCreateField();
       return;
     }
     setBusy(true);
@@ -894,6 +907,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       setShowFormErrors(true);
       setWorkspace("create");
       setAdvancedSettingsPage(null);
+      if (formError) focusFirstInvalidCreateField();
       return;
     }
     setBusy(true);
@@ -925,6 +939,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       setShowFormErrors(true);
       setWorkspace("create");
       setAdvancedSettingsPage(null);
+      if (formError) focusFirstInvalidCreateField();
       return;
     }
     setBusy(true);
@@ -942,6 +957,11 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
   async function onGenerateScoreOnly() {
     if (!project || !canGenerateScoreOnly) {
       setShowFormErrors(true);
+      if (formError) {
+        setWorkspace("create");
+        setAdvancedSettingsPage(null);
+        focusFirstInvalidCreateField();
+      }
       return;
     }
     setBusy(true);
@@ -1002,6 +1022,9 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
   async function onRenderFromScore(sourceGenId: string, count: number) {
     if (!project || formError) {
       setShowFormErrors(true);
+      setWorkspace("create");
+      setAdvancedSettingsPage(null);
+      focusFirstInvalidCreateField();
       return;
     }
     setBusy(true);
