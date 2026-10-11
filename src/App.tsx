@@ -626,11 +626,18 @@ export default function App() {
         {screen === "licenses" && <LicensesScreen />}
       </main>
       {showPlayerDock && (
-        <div className="persistent-player-dock" aria-label={t("player.globalDock")}>
+        <div
+          className="persistent-player-dock"
+          aria-label={t("player.globalDock")}
+          data-studio-player={screen === "studio" ? "true" : undefined}
+        >
           <AudioPlayer
             projectId={activePlayerProjectId ?? undefined}
             sources={activePlayerSources}
             mix={activePlayerMix}
+            studioMode={screen === "studio"}
+            tempoBpm={project?.tempoBpm ?? 120}
+            meter={project?.meter ?? null}
             playbackKey={playerSelection?.trackKey}
             hideMixBakeStatus={screen === "studio" || screen === "song"}
             onError={setError}

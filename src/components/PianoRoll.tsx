@@ -85,12 +85,12 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
     compactRows &&
     !(typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
   const ROW_H = useCompactRows ? 7 : NOTE_HIT_PX;
-  // Keep note editing forgiving while the Studio keyboard shows more pitches.
-  const noteHitHeightPx = useCompactRows ? 10 : NOTE_HIT_PX;
+  const noteHitHeightPx = ROW_H;
   const defaultVoice = primaryVoiceId(document);
   const [voiceId, setVoiceId] = useState<string | null>(initialVoiceId ?? defaultVoice);
   const voice = document.voices.find((v) => v.id === voiceId) ?? null;
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [transposeOffset, setTransposeOffset] = useState(0);
   const [focusedNoteId, setFocusedNoteId] = useState<string | null>(null);
   const focusedNoteIdRef = useRef<string | null>(null);
   const [sectionKind, setSectionKind] = useState<SectionKind>("verse");
@@ -340,14 +340,17 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
         }),
       );
       setSelectedId(id);
+      setTransposeOffset(0);
       audition(pitch);
       return;
     }
     setSelectedId(null);
+    setTransposeOffset(0);
   }
 
   function selectNote(noteId: string, pitch: number) {
     setSelectedId(noteId);
+    setTransposeOffset(0);
     audition(pitch);
   }
 
@@ -448,6 +451,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
         ? { voiceIds: [voiceId] }
         : undefined;
     onChange(transposeScoreNotes(document, semitones, selection));
+    setTransposeOffset((current) => current + semitones);
   }
 
   function confirmQuantize(apply: boolean) {
@@ -510,6 +514,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
               onChange={(e) => {
                 setVoiceId(e.target.value || null);
                 setSelectedId(null);
+                setTransposeOffset(0);
               }}
             >
               {document.voices.map((v) => (
@@ -536,22 +541,33 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
               )}
               {(voice?.notes.length ?? 0) > 0 && (
                 <>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => applyTranspose(1)}
-                    title={t("score.transposeHint")}
-                  >
-                    {t("score.transposeUp")}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => applyTranspose(-1)}
-                    title={t("score.transposeHint")}
-                  >
-                    {t("score.transposeDown")}
-                  </button>
+                  <div className="piano-transpose-tool" role="group" aria-label={t("score.transposeHint")}>
+                    <div className="piano-transpose-stepper">
+                      <button
+                        type="button"
+                        className="btn piano-transpose-step"
+                        onClick={() => applyTranspose(1)}
+                        aria-label={t("score.transposeUp")}
+                        title={t("score.transposeUp")}
+                      >
+                        <span aria-hidden="true">+</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn piano-transpose-step"
+                        onClick={() => applyTranspose(-1)}
+                        aria-label={t("score.transposeDown")}
+                        title={t("score.transposeDown")}
+                      >
+                        <span aria-hidden="true">−</span>
+                      </button>
+                    </div>
+                    <output className="piano-transpose-readout" aria-live="polite">
+                      {t("score.transposeAmount", {
+                        amount: `${transposeOffset > 0 ? "+" : ""}${transposeOffset}`,
+                      })}
+                    </output>
+                  </div>
                   <button type="button" className="btn" onClick={() => applyTranspose(12)}>
                     {t("score.transposeOctUp")}
                   </button>

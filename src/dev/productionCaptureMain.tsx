@@ -262,7 +262,7 @@ function ProductionCaptureApp() {
         </div>
       </main>
       {studioMode && (
-        <div className="persistent-player-dock" aria-label={t("player.globalDock")}>
+        <div className="persistent-player-dock" aria-label={t("player.globalDock")} data-studio-player="true">
           <div className="player-block">
             <Waveform
               peaks={syntheticPeaks(71, 180)}
@@ -273,8 +273,16 @@ function ProductionCaptureApp() {
               ariaLabel={project.title}
             />
             <div className="player">
+              <button type="button" className="btn ghost studio-player-rewind" aria-label={t("production.studio.transport.toStart")}>
+                <span aria-hidden="true">⏮</span>
+              </button>
               <button type="button" className="btn" aria-label={t("player.play")}>▶</button>
               <span className="player-time">1:22 / 7:24</span>
+              <span className="studio-player-meta" aria-label={t("production.studio.transport.projectSettings")}>
+                <strong>002.02</strong>
+                <span>120 {t("production.studio.transport.bpm")}</span>
+                <span>4/4</span>
+              </span>
               <strong className="path">{project.title}</strong>
             </div>
           </div>

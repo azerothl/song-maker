@@ -39,6 +39,10 @@ type Props = {
   delegateTransport?: boolean;
   /** Onglet Production : indicateur porté par ProductionWorkspace. */
   hideMixBakeStatus?: boolean;
+  /** Studio adds a compact DAW transport to the persistent dock. */
+  studioMode?: boolean;
+  tempoBpm?: number;
+  meter?: { numerator: number; denominator: number } | null;
   playbackKey?: string;
   onError?: (message: string) => void;
   onPlaybackChange?: (view: PlaybackView | null) => void;
@@ -72,6 +76,9 @@ export function AudioPlayer({
   mix,
   delegateTransport = false,
   hideMixBakeStatus = false,
+  studioMode = false,
+  tempoBpm = 120,
+  meter = null,
   playbackKey,
   onError,
   onPlaybackChange,
@@ -258,6 +265,18 @@ export function AudioPlayer({
 
       {!delegateTransport && (
         <div className="player">
+          {studioMode && (
+            <button
+              type="button"
+              className="btn ghost studio-player-rewind"
+              aria-label={t("production.studio.transport.toStart")}
+              title={t("production.studio.transport.toStart")}
+              onClick={() => engine.seek(0)}
+              disabled={!snap.ready || snap.loading}
+            >
+              <span aria-hidden="true">⏮</span>
+            </button>
+          )}
           <button
             type="button"
             className="btn"
@@ -277,6 +296,13 @@ export function AudioPlayer({
             <span className="player-time-sep">/</span>
             <span className="player-time">{formatTime(Math.round(snap.duration))}</span>
           </div>
+          {studioMode && (
+            <span className="studio-player-meta" aria-label={t("production.studio.transport.projectSettings")}>
+              <strong>{formatBarBeatPosition(snap.current, tempoBpm, meter)}</strong>
+              <span>{tempoBpm} {t("production.studio.transport.bpm")}</span>
+              <span>{meter?.numerator ?? 4}/{meter?.denominator ?? 4}</span>
+            </span>
+          )}
           <span className="path" title={snap.label}>
             {snap.label || t("player.emptyTitle")}
           </span>
@@ -284,4 +310,19 @@ export function AudioPlayer({
       )}
     </div>
   );
+}
+
+function formatBarBeatPosition(
+  seconds: number,
+  tempoBpm: number,
+  meter: { numerator: number; denominator: number } | null,
+): string {
+  const bpm = tempoBpm > 0 && Number.isFinite(tempoBpm) ? tempoBpm : 120;
+  const numerator = meter?.numerator && meter.numerator > 0 ? meter.numerator : 4;
+  const denominator = meter?.denominator && meter.denominator > 0 ? meter.denominator : 4;
+  const quarterNotesPerBar = numerator * (4 / denominator);
+  const totalQuarterNotes = Math.max(0, Number.isFinite(seconds) ? seconds : 0) * bpm / 60;
+  const beat = Math.floor((totalQuarterNotes % quarterNotesPerBar) / (4 / denominator)) + 1;
+  const bar = Math.floor(totalQuarterNotes / quarterNotesPerBar) + 1;
+  return `${String(bar).padStart(3, "0")}.${String(beat).padStart(2, "0")}`;
 }

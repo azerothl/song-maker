@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { LibraryTrackPlayer } from "../components/LibraryTrackPlayer";
 import { api } from "../lib/api";
 import {
@@ -12,6 +12,7 @@ import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 import { ProfileKindBadge } from "../components/ProfileKindBadge";
 import type { GenerationSummary, ProjectDoc } from "../lib/types";
+import { libraryWaveColors, playlistHue } from "../lib/studioTrackColors";
 
 type LibraryTrackDetails = {
   project: ProjectDoc;
@@ -30,6 +31,8 @@ export function UserLibraryScreen() {
   const [audioPaths, setAudioPaths] = useState<Record<string, string | null>>({});
   const [trackDetails, setTrackDetails] = useState<Record<string, LibraryTrackDetails>>({});
   const [infoTrackKey, setInfoTrackKey] = useState<string | null>(null);
+  const [playlistMenuFor, setPlaylistMenuFor] = useState<string | null>(null);
+  const [newPlaylistTitle, setNewPlaylistTitle] = useState("");
 
   useEffect(() => {
     setLibrary(readUserLibrary(activeProfileId));
@@ -127,6 +130,23 @@ export function UserLibraryScreen() {
     });
   }
 
+  function createPlaylistAndAdd(trackKey: string) {
+    const title = newPlaylistTitle.trim();
+    if (!title) return;
+    const playlist = { id: createLibraryId(), title, createdAt: new Date().toISOString() };
+    commit({
+      ...library,
+      playlists: [...library.playlists, playlist],
+      tracks: library.tracks.map((track) =>
+        libraryTrackKey(track) !== trackKey
+          ? track
+          : { ...track, playlistIds: [...track.playlistIds, playlist.id] },
+      ),
+    });
+    setNewPlaylistTitle("");
+    setPlaylistMenuFor(null);
+  }
+
   function removeFromPlaylist(trackKey: string, playlistId: string) {
     commit({
       ...library,
@@ -211,6 +231,7 @@ export function UserLibraryScreen() {
               <button
                 type="button"
                 className={playlistFilter === playlist.id ? "active" : ""}
+                style={{ "--playlist-hue": playlistHue(playlist.id) } as CSSProperties}
                 aria-pressed={playlistFilter === playlist.id}
                 onClick={() => setPlaylistFilter(playlist.id)}
               >
@@ -257,6 +278,7 @@ export function UserLibraryScreen() {
                       projectId={track.projectId}
                       generationId={track.generationId}
                       trackKey={key}
+                      {...libraryWaveColors(key)}
                       onPlay={() => incrementPlayCount(key)}
                     />
                   ) : (
@@ -270,6 +292,7 @@ export function UserLibraryScreen() {
                         <button
                           type="button"
                           className="playlist-chip"
+                          style={{ "--playlist-hue": playlistHue(id) } as CSSProperties}
                           key={id}
                           onClick={() => removeFromPlaylist(key, id)}
                           aria-label={t("library.removeFromPlaylist", { title: playlist.title })}
@@ -303,21 +326,72 @@ export function UserLibraryScreen() {
                   >
                     <span aria-hidden="true">ⓘ</span>
                   </button>
-                  <label>
-                    <span className="sr-only">{t("library.addToPlaylist")}</span>
-                    <select
-                      value=""
-                      disabled={library.playlists.length === 0}
-                      onChange={(event) => addToPlaylist(key, event.target.value)}
+                  <button
+                    type="button"
+                    className="user-library-icon-button"
+                    aria-label={t("library.addToPlaylist")}
+                    aria-expanded={playlistMenuFor === key}
+                    aria-haspopup="dialog"
+                    title={t("library.addToPlaylist")}
+                    onClick={() => {
+                      setNewPlaylistTitle("");
+                      setPlaylistMenuFor((current) => current === key ? null : key);
+                    }}
+                  >
+                    <span aria-hidden="true">▤+</span>
+                  </button>
+                  {playlistMenuFor === key && (
+                    <div
+                      className="playlist-picker-popover"
+                      role="dialog"
+                      aria-label={t("library.addToPlaylist")}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") setPlaylistMenuFor(null);
+                      }}
                     >
-                      <option value="">{t("library.addToPlaylist")}</option>
-                      {library.playlists.map((playlist) => (
-                        <option key={playlist.id} value={playlist.id} disabled={track.playlistIds.includes(playlist.id)}>
-                          {playlist.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      <strong>{t("library.playlists")}</strong>
+                      <div className="playlist-picker-options">
+                        {library.playlists.map((playlist) => {
+                          const alreadyAdded = track.playlistIds.includes(playlist.id);
+                          return (
+                            <button
+                              key={playlist.id}
+                              type="button"
+                              className="playlist-picker-option"
+                              style={{ "--playlist-hue": playlistHue(playlist.id) } as CSSProperties}
+                              disabled={alreadyAdded}
+                              onClick={() => {
+                                addToPlaylist(key, playlist.id);
+                                setPlaylistMenuFor(null);
+                              }}
+                            >
+                              <span>{playlist.title}</span>
+                              {alreadyAdded && <span aria-label={t("library.playlistAlreadyAdded")}>✓</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <form
+                        className="playlist-picker-create"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          createPlaylistAndAdd(key);
+                        }}
+                      >
+                        <label>
+                          <span>{t("library.playlistNamePrompt")}</span>
+                          <input
+                            value={newPlaylistTitle}
+                            onChange={(event) => setNewPlaylistTitle(event.target.value)}
+                            maxLength={64}
+                          />
+                        </label>
+                        <button type="submit" className="btn primary" disabled={!newPlaylistTitle.trim()}>
+                          {t("library.playlistCreateAndAdd")}
+                        </button>
+                      </form>
+                    </div>
+                  )}
                   <button
                     type="button"
                     className="user-library-icon-button"

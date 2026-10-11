@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type Dispatch,
   SetStateAction,
 } from "react";
@@ -34,6 +35,11 @@ import { PlaybackTime } from "../../components/PlaybackTime";
 import { Waveform } from "../../components/Waveform";
 import { t } from "../../ui/i18n";
 import { useAppStore } from "../../store/appStore";
+import {
+  defaultStudioTrackColor,
+  readStudioTrackColors,
+  saveStudioTrackColor,
+} from "../../lib/studioTrackColors";
 import {
   focusProfileElement,
   handleProfileOverlayKeydown,
@@ -155,22 +161,6 @@ function formatPlaybackTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function formatBarBeatPosition(
-  seconds: number,
-  tempoBpm: number | null | undefined,
-  meter: ProjectDoc["meter"],
-): string {
-  const bpm = tempoBpm && Number.isFinite(tempoBpm) && tempoBpm > 0 ? tempoBpm : 120;
-  const numerator = meter?.numerator && meter.numerator > 0 ? meter.numerator : 4;
-  const denominator = meter?.denominator && meter.denominator > 0 ? meter.denominator : 4;
-  const quarterNotesPerBar = numerator * (4 / denominator);
-  const totalQuarterNotes = Math.max(0, Number.isFinite(seconds) ? seconds : 0) * bpm / 60;
-  const quarterNotesInBar = totalQuarterNotes % quarterNotesPerBar;
-  const beat = Math.floor(quarterNotesInBar / (4 / denominator)) + 1;
-  const bar = Math.floor(totalQuarterNotes / quarterNotesPerBar) + 1;
-  return `${String(bar).padStart(3, "0")}.${String(beat).padStart(2, "0")}`;
-}
-
 function patchTrack(
   mix: MixDoc,
   trackId: string,
@@ -279,6 +269,12 @@ export function ProductionWorkspace({
   const [densityPreference, setDensityPreference] = useState<ProductionDensityPreference>(
     () => loadProductionDensityPreference(),
   );
+  const [trackColors, setTrackColors] = useState<Record<string, string>>(
+    () => readStudioTrackColors(project.id),
+  );
+  useEffect(() => {
+    setTrackColors(readStudioTrackColors(project.id));
+  }, [project.id]);
   const [autoResolvedDensity, setAutoResolvedDensity] =
     useState<ProductionTrackDensity>("confortable");
   const effectiveDensity = effectiveDensityFromPreference(
@@ -478,65 +474,6 @@ export function ProductionWorkspace({
           failed={playback?.mixBakeFailed ?? false}
           className="production-mix-bake-chrome"
         />
-        {studioMode && (
-          <div className="studio-transport" role="group" aria-label={t("production.studio.transport.label")}>
-            <div className="studio-transport-controls">
-              <button
-                type="button"
-                className="btn ghost studio-transport-button"
-                aria-label={t("production.studio.transport.toStart")}
-                title={t("production.studio.transport.toStart")}
-                disabled={!playback?.ready || playback.loading}
-                onClick={() => playback?.seek(0)}
-              >
-                <span aria-hidden>⏮</span>
-              </button>
-              <button
-                type="button"
-                className="btn studio-transport-button studio-transport-play"
-                aria-label={playback?.playing ? t("player.pause") : t("player.play")}
-                title={playback?.playing ? t("player.pause") : t("player.play")}
-                disabled={!playback?.ready || playback.loading}
-                onClick={() => void playback?.toggle().catch((e) => setError(String(e)))}
-              >
-                <span aria-hidden>{playback?.playing ? "Ⅱ" : "▶"}</span>
-              </button>
-              <button
-                type="button"
-                className="btn ghost studio-transport-button"
-                aria-label={t("production.studio.transport.stop")}
-                title={t("production.studio.transport.stop")}
-                disabled={!playback?.ready || playback.loading}
-                onClick={() => {
-                  if (!playback) return;
-                  const reset = () => playback.seek(0);
-                  if (playback.playing) {
-                    void playback.toggle().then(reset).catch((e) => setError(String(e)));
-                  } else {
-                    reset();
-                  }
-                }}
-              >
-                <span aria-hidden>■</span>
-              </button>
-            </div>
-            <div className="studio-transport-position" aria-label={t("production.studio.transport.position")}>
-              <strong>{formatBarBeatPosition(playback?.current ?? 0, project.tempoBpm ?? form.tempoBpm, project.meter ?? form.meter)}</strong>
-              <span>
-                <PlaybackTime seconds={playback?.current ?? 0} className="player-time" />
-                <span className="studio-transport-time-separator"> / </span>
-                {formatPlaybackTime(playback?.duration ?? 0)}
-              </span>
-            </div>
-            <div className="studio-transport-metadata" aria-label={t("production.studio.transport.projectSettings")}>
-              <span><strong>{project.tempoBpm ?? form.tempoBpm ?? 120}</strong> {t("production.studio.transport.bpm")}</span>
-              <span>{(project.meter ?? form.meter)?.numerator ?? 4}/{(project.meter ?? form.meter)?.denominator ?? 4}</span>
-              {(project.key ?? form.key) && (
-                <span>{(project.key ?? form.key)?.tonic} · {t((project.key ?? form.key)?.mode === "minor" ? "form.key.minor" : "form.key.major")}</span>
-              )}
-            </div>
-          </div>
-        )}
         <div
           className="production-main-toolbar"
           role="toolbar"
@@ -974,6 +911,12 @@ export function ProductionWorkspace({
                 <ClipTimeline
                   mix={mix} onChange={scheduleMixUpdate}
                   peaksByTrack={playback?.peaksByTrack} roleByTrack={roleByTrack}
+                  trackColorById={studioMode
+                    ? Object.fromEntries(mix.tracks.map((track, index) => [
+                        track.id,
+                        trackColors[track.id] ?? defaultStudioTrackColor(index),
+                      ]))
+                    : undefined}
                   sourceDurationMsByTrack={sourceDurationMsByTrack}
                   projectTempoBpm={project.tempoBpm} projectMeter={project.meter ?? null}
                   currentTimeMs={(playback?.current ?? 0)*1000} onSeek={playback?.seek}
@@ -988,6 +931,8 @@ export function ProductionWorkspace({
                     const muted = tr.mute || (anySolo && !tr.solo);
                     const implicit = anySolo && !tr.solo && !tr.mute;
                     const experimental = isExperimentalStemTrack(tr);
+                    const trackIndex = mix.tracks.findIndex((track) => track.id === tr.id);
+                    const trackColor = trackColors[tr.id] ?? defaultStudioTrackColor(trackIndex);
                     const rowClass = [
                       "production-mix-grid",
                       "production-mix-row",
@@ -1004,10 +949,29 @@ export function ProductionWorkspace({
                         className={rowClass}
                         data-role={tr.role.toLowerCase()}
                         data-track-id={tr.id}
+                        style={{
+                          "--track-wave": trackColor,
+                          "--track-wave-played": `color-mix(in srgb, ${trackColor} 55%, white)`,
+                        } as CSSProperties}
                         role="listitem"
                       >
                         <div className="production-mix-name">
-                          <span className="production-mix-strip" aria-hidden />
+                          {studioMode ? (
+                            <input
+                              type="color"
+                              className="studio-track-color-input"
+                              value={trackColor}
+                              aria-label={t("mix.trackColorNamed", { track: tr.name })}
+                              title={t("mix.trackColorNamed", { track: tr.name })}
+                              onChange={(event) => {
+                                const color = event.currentTarget.value;
+                                setTrackColors((current) => ({ ...current, [tr.id]: color }));
+                                saveStudioTrackColor(project.id, tr.id, color);
+                              }}
+                            />
+                          ) : (
+                            <span className="production-mix-strip" aria-hidden />
+                          )}
                           <TruncatedTrackLabel
                             className="production-mix-track-label"
                             fullTitle={tr.name}

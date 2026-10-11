@@ -59,6 +59,8 @@ export function LibraryTrackPlayer({
   projectId,
   generationId,
   trackKey,
+  color,
+  playedColor,
   onPlay,
 }: {
   audioPath: string;
@@ -66,6 +68,8 @@ export function LibraryTrackPlayer({
   projectId: string;
   generationId: string;
   trackKey: string;
+  color?: string;
+  playedColor?: string;
   onPlay?: () => void;
 }) {
   const [peaks, setPeaks] = useState<Float32Array | null>(null);
@@ -163,6 +167,8 @@ export function LibraryTrackPlayer({
           height={44}
           ariaLabel={`${t("player.stereoWave")} — ${label}`}
           status={peaks ? "ready" : waveformFailed ? "empty" : "loading"}
+          color={color}
+          playedColor={playedColor}
           onSeek={(seconds) => {
             if (selected && playback?.ready && playback.sourceKey === trackKey) {
               playback.seek(seconds);
