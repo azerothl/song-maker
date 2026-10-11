@@ -55,4 +55,59 @@ describe("fallback de démarrage", () => {
       await page.close();
     }
   });
+
+  it("retire le masque de démarrage quand l’interface est prête", async () => {
+    const page = await browser.newPage();
+    try {
+      await page.route(
+        (url) => new URL(url).pathname === "/src/main.tsx",
+        (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: "text/javascript",
+            body: 'document.getElementById("root").innerHTML = \'<div class="app-shell">Song Maker</div>\';',
+          }),
+      );
+
+      await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+      await page.waitForFunction(() => document.querySelector("#root .app-shell"));
+
+      assert.equal(await page.locator("#startup-fallback").isVisible(), false);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("réaffiche une aide si l’interface devient vide après son démarrage", async () => {
+    const page = await browser.newPage();
+    try {
+      await page.route(
+        (url) => new URL(url).pathname === "/src/main.tsx",
+        (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: "text/javascript",
+            body: [
+              'const root = document.getElementById("root");',
+              'root.innerHTML = \'<div class="app-shell">Song Maker</div>\';',
+              'setTimeout(() => { root.textContent = ""; }, 0);',
+            ].join("\n"),
+          }),
+      );
+
+      await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+      await page.waitForFunction(
+        () => document.querySelector("#startup-fallback")?.getAttribute("role") === "alert",
+      );
+
+      assert.equal(await page.locator("#startup-fallback").isVisible(), true);
+      assert.match(
+        await page.locator("[data-startup-details]").innerText(),
+        /L’interface est devenue vide après son démarrage\./,
+      );
+      assert.equal(await page.locator("#startup-reload").isVisible(), true);
+    } finally {
+      await page.close();
+    }
+  });
 });

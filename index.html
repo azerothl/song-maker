@@ -13,16 +13,15 @@
     <title>Song Maker</title>
   </head>
   <body>
-    <div id="root">
-      <main id="startup-fallback" role="status" aria-live="polite">
-        <section>
-          <h1>Song Maker</h1>
-          <p data-startup-message>L’application démarre…</p>
-          <pre data-startup-details hidden></pre>
-          <button id="startup-reload" type="button" hidden>Recharger l’application</button>
-        </section>
-      </main>
-    </div>
+    <div id="root"></div>
+    <main id="startup-fallback" role="status" aria-live="polite">
+      <section>
+        <h1>Song Maker</h1>
+        <p data-startup-message>L’application démarre…</p>
+        <pre data-startup-details hidden></pre>
+        <button id="startup-reload" type="button" hidden>Recharger l’application</button>
+      </section>
+    </main>
     <style>
       #startup-fallback {
         position: fixed;
@@ -61,11 +60,19 @@
     <script>
       (() => {
         const fallback = document.getElementById("startup-fallback");
+        const root = document.getElementById("root");
         const message = fallback?.querySelector("[data-startup-message]");
         const details = fallback?.querySelector("[data-startup-details]");
         const reload = document.getElementById("startup-reload");
+        let appHasRendered = false;
+        let blankTimer = 0;
+        const appIsVisible = () => {
+          const app = root?.querySelector(".app-shell, .app-error-fallback");
+          return Boolean(app?.textContent?.trim());
+        };
         const showFailure = (reason) => {
-          if (!fallback?.isConnected) return;
+          if (!fallback) return;
+          fallback.hidden = false;
           fallback.setAttribute("role", "alert");
           if (message) message.textContent = "L’interface n’a pas pu démarrer.";
           if (details) {
@@ -74,17 +81,46 @@
           }
           if (reload) reload.hidden = false;
         };
+        const syncAppVisibility = () => {
+          if (appIsVisible()) {
+            appHasRendered = true;
+            window.clearTimeout(blankTimer);
+            fallback.hidden = true;
+            return;
+          }
+          if (appHasRendered && !blankTimer) {
+            blankTimer = window.setTimeout(() => {
+              blankTimer = 0;
+              if (!appIsVisible()) {
+                showFailure("L’interface est devenue vide après son démarrage.");
+              }
+            }, 750);
+          }
+        };
+        if (root && typeof MutationObserver !== "undefined") {
+          new MutationObserver(syncAppVisibility).observe(root, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+          });
+        }
         window.addEventListener("error", (event) => {
           if (event.target === window || event.target instanceof HTMLScriptElement) {
-            showFailure(event.error?.stack || event.message || "Le script de l’interface n’a pas pu être chargé.");
+            window.setTimeout(() => {
+              if (!appIsVisible()) {
+                showFailure(event.error?.stack || event.message || "Le script de l’interface n’a pas pu être chargé.");
+              }
+            }, 0);
           }
         }, true);
         window.addEventListener("unhandledrejection", (event) => {
-          showFailure(event.reason?.stack || event.reason);
+          window.setTimeout(() => {
+            if (!appIsVisible()) showFailure(event.reason?.stack || event.reason);
+          }, 0);
         });
         reload?.addEventListener("click", () => window.location.reload());
         window.setTimeout(() => {
-          if (fallback?.isConnected) showFailure("Aucun écran Song Maker ne s’est affiché après 15 secondes.");
+          if (!appIsVisible()) showFailure("Aucun écran Song Maker ne s’est affiché après 15 secondes.");
         }, 15000);
       })();
     </script>
