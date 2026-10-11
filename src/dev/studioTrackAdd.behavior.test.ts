@@ -48,6 +48,27 @@ describe("ajout de piste MIDI dans Studio", () => {
       assert.equal(persisted?.voices[0].name, "Instrument MIDI 1");
       assert.equal(await page.getByRole("heading", { name: "Instrument MIDI 1" }).count(), 1);
       assert.equal(await page.locator(".studio-midi-dock").isVisible(), true);
+
+      await page.locator(".studio-midi-instrument-settings > summary").click();
+      const soundTab = page.getByRole("tab", { name: "Son" });
+      const pluginTab = page.getByRole("tab", { name: "Plug-in" });
+      const midiTab = page.getByRole("tab", { name: "MIDI" });
+      const panels = page.locator(".midi-settings-tabpanel");
+      assert.equal(await soundTab.getAttribute("aria-selected"), "true");
+      assert.equal(await panels.nth(0).isVisible(), true);
+      assert.equal(await panels.nth(1).isVisible(), false);
+      assert.equal(await panels.nth(2).isVisible(), false);
+
+      await pluginTab.click();
+      assert.equal(await pluginTab.getAttribute("aria-selected"), "true");
+      assert.equal(await panels.nth(0).isVisible(), false);
+      assert.equal(await panels.nth(1).isVisible(), true);
+
+      await midiTab.click();
+      await midiTab.press("ArrowRight");
+      assert.equal(await soundTab.getAttribute("aria-selected"), "true");
+      assert.equal(await panels.nth(0).isVisible(), true);
+      assert.equal(await panels.nth(2).isVisible(), false);
     } finally {
       await page.close();
     }
