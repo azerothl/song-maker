@@ -9,6 +9,19 @@ const PORT = 5194;
 const BASE = `http://127.0.0.1:${PORT}/production-capture.html#confortable-12`;
 let server: ViteDevServer;
 let browser: Browser;
+function contrastRatio(foreground: string, background: string): number {
+  const luminance = (color: string) => {
+    const channels = color.match(/[0-9.]+/g)?.slice(0, 3).map(Number) ?? [];
+    const [r, g, b] = channels.map((channel) => {
+      const normalized = channel / 255;
+      return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const a = luminance(foreground);
+  const b = luminance(background);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
 before(async () => {
   server = await startCaptureViteServer(PORT);
   browser = await chromium.launch();
@@ -19,6 +32,50 @@ after(async () => {
 });
 
 describe("Production commune (#223, #230)", () => {
+  it("expose les groupes de pistes correctement et garde les commandes de mix accessibles", async () => {
+    for (const width of [1280, 640]) {
+      const page = await browser.newPage({ viewport: { width, height: 720 } });
+      try {
+        await page.goto(BASE, { waitUntil: "networkidle" });
+        await page.locator(".production-mix-family[role='group']").first().waitFor();
+        const audit = await page.evaluate(() => {
+          const families = Array.from(document.querySelectorAll<HTMLElement>(".production-mix-family"));
+          const rangeControls = Array.from(document.querySelectorAll<HTMLElement>(".production-mix-list .mix-slider-range"));
+          const valueControls = Array.from(document.querySelectorAll<HTMLElement>(".production-mix-list .mix-slider-value"));
+          const count = document.querySelector(".production-mix-group-count");
+          const groupHeader = count?.closest(".production-mix-family")?.querySelector(".production-mix-group-header");
+          return {
+            groups: families.map((family) => ({
+              role: family.getAttribute("role"),
+              label: family.getAttribute("aria-label"),
+              trackListRole: family.querySelector(".production-mix-group-tracks")?.getAttribute("role"),
+              trackRows: family.querySelectorAll(".production-mix-row").length,
+              listItems: family.querySelectorAll(".production-mix-row[role='listitem']").length,
+            })),
+            invalidListItemCount: document.querySelectorAll(".production-mix-family > [role='listitem']").length,
+            rangeHeights: rangeControls.map((control) => control.getBoundingClientRect().height),
+            valueHeights: valueControls.map((control) => control.getBoundingClientRect().height),
+            groupCountColor: count ? getComputedStyle(count).color : "",
+            groupHeaderColor: groupHeader ? getComputedStyle(groupHeader).backgroundColor : "",
+          };
+        });
+        assert.ok(audit.groups.length > 0, JSON.stringify(audit));
+        for (const group of audit.groups) {
+          assert.equal(group.role, "group", JSON.stringify(group));
+          assert.ok(group.label, JSON.stringify(group));
+          assert.equal(group.trackListRole, "list", JSON.stringify(group));
+          assert.equal(group.listItems, group.trackRows, JSON.stringify(group));
+        }
+        assert.equal(audit.invalidListItemCount, 0, JSON.stringify(audit));
+        assert.ok(audit.rangeHeights.every((height) => height >= 24), JSON.stringify(audit.rangeHeights));
+        assert.ok(audit.valueHeights.every((height) => height >= 24), JSON.stringify(audit.valueHeights));
+        assert.ok(contrastRatio(audit.groupCountColor, audit.groupHeaderColor) >= 4.5, JSON.stringify(audit));
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
   it("DOM Production sans sous-nav ni production-panel-* / production-view-*", async () => {
     for (const width of [1280, 640]) {
       const page = await browser.newPage({ viewport: { width, height: 720 } });
