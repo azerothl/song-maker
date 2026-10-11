@@ -26,6 +26,11 @@ after(async () => {
 describe("ajout de piste MIDI dans Studio", () => {
   it("crée la piste dans le mix et ouvre son éditeur", async () => {
     const page = await browser.newPage();
+    const browserErrors: string[] = [];
+    page.on("pageerror", (error) => browserErrors.push(error.message));
+    page.on("console", (message) => {
+      if (message.type() === "error") browserErrors.push(message.text());
+    });
     try {
       await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
       await page.getByRole("button", { name: "Ajouter une piste" }).waitFor({ state: "visible" });
@@ -33,13 +38,27 @@ describe("ajout de piste MIDI dans Studio", () => {
       await page.getByRole("dialog", { name: /Quel type de piste/ }).waitFor({ state: "visible" });
       await page.getByRole("button", { name: "Ouvrir le piano roll" }).click();
 
-      await page.waitForFunction(() => {
-        const state = window.__captureGetMidiTrackState?.();
-        return Boolean(
-          state?.mix?.tracks.some((track) => track.role === "midi") &&
-            state.voices.some((voice) => voice.role === "other"),
+      try {
+        await page.waitForFunction(() => {
+          const state = window.__captureGetMidiTrackState?.();
+          return Boolean(
+            state?.mix?.tracks.some((track) => track.role === "midi") &&
+              state.voices.some((voice) => voice.role === "other"),
+          );
+        });
+      } catch (error) {
+        const browserState = await page.evaluate(() => ({
+          midi: window.__captureGetMidiTrackState?.() ?? null,
+          visibleText: document.body.innerText.slice(-3000),
+          captureEnabled: document.querySelector("[data-capture-mock='studio-track-add']") !== null,
+        }));
+        throw new Error(
+          `La piste MIDI n'a pas été persistée dans le délai imparti.\n` +
+            `État navigateur : ${JSON.stringify(browserState)}\n` +
+            `Erreurs navigateur : ${browserErrors.join(" | ") || "aucune"}`,
+          { cause: error },
         );
-      });
+      }
 
       const persisted = await page.evaluate(() => window.__captureGetMidiTrackState?.());
       assert.equal(persisted?.mix?.tracks.length, 1);
