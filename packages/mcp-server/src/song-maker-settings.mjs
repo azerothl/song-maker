@@ -4,6 +4,8 @@ import path from 'node:path';
 import { YUE2_MODELS } from './yue2-assets.mjs';
 
 const PROFILE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
+const AUDIOCPP_TAG_PATTERN = /^v\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$/;
+const DEFAULT_AUDIOCPP_TAG = 'v0.8.2';
 const MODEL_FILES = new Map([
   ...YUE2_MODELS.flatMap(model => [[model.id, model.file], [model.file, model.file]]),
 ]);
@@ -103,6 +105,9 @@ export function readSongMakerRuntimeSettings(env = process.env) {
   const configuredCache = typeof globalSettings.cacheDir === 'string'
     ? globalSettings.cacheDir.trim()
     : '';
+  const configuredBinaryTag = typeof globalSettings.binaryTag === 'string'
+    ? globalSettings.binaryTag.trim()
+    : '';
 
   return {
     documentsDirectory,
@@ -111,6 +116,7 @@ export function readSongMakerRuntimeSettings(env = process.env) {
     globalSettings,
     profileSettings,
     cacheDirectory: path.resolve(cacheOverride || configuredCache || defaultCacheDirectory(env)),
+    binaryTag: AUDIOCPP_TAG_PATTERN.test(configuredBinaryTag) ? configuredBinaryTag : DEFAULT_AUDIOCPP_TAG,
     appModelId,
     modelId: requestedModelId,
     modelFile: requestedModelId ? MODEL_FILES.get(requestedModelId) : null,

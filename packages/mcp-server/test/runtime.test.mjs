@@ -128,7 +128,7 @@ test('YuE2 runtime follows the active Song Maker cache and model, with an explic
       activeProfileId: 'profile-001', profiles: [{ id: 'profile-001', kind: 'hobby' }],
     }));
     await writeFile(path.join(documents, 'settings.json'), JSON.stringify({
-      cacheDir: cache, modelPack: 'q4', modelGguf: 'yue2-3b-q8_0.gguf',
+      cacheDir: cache, binaryTag: 'v0.8.2', modelPack: 'q4', modelGguf: 'yue2-3b-q8_0.gguf',
     }));
     await writeFile(path.join(profileDirectory, 'profile-settings.json'), JSON.stringify({
       generationEngine: 'yue2', localYue2Enabled: true, yue2LicenseAccepted: true,
@@ -152,6 +152,41 @@ test('YuE2 runtime follows the active Song Maker cache and model, with an explic
     assert.equal(explicitQ4.modelName, 'yue2-3b-q4_0.gguf');
     assert.equal(explicitQ4.modelId, 'q4');
     assert.throws(() => runtimeStatus({ engineId: 'ace_step', env }), /Moteur MCP indisponible/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('YuE2 runtime resolves the binary release selected by the Song Maker profile settings', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'song-maker-runtime-binary-tag-'));
+  const documents = path.join(dir, 'documents');
+  const profileDirectory = path.join(documents, 'profiles', 'profile-001');
+  const cache = path.join(dir, 'cache');
+  const binaryDirectory = path.join(cache, 'binaries', 'v0.9.1',
+    process.platform === 'win32' ? 'windows-cuda12.4' : 'linux-cuda12.8-colab');
+  const binaryName = process.platform === 'win32' ? 'audiocpp_cli.exe' : 'audiocpp_cli';
+  const serverName = process.platform === 'win32' ? 'audiocpp_server.exe' : 'audiocpp_server';
+  const binary = path.join(binaryDirectory, binaryName);
+  const serverBinary = path.join(binaryDirectory, serverName);
+  try {
+    await mkdir(profileDirectory, { recursive: true });
+    await mkdir(binaryDirectory, { recursive: true });
+    await Promise.all([writeFile(binary, ''), writeFile(serverBinary, '')]);
+    await writeFile(path.join(documents, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-001', profiles: [{ id: 'profile-001', kind: 'hobby' }],
+    }));
+    await writeFile(path.join(documents, 'settings.json'), JSON.stringify({
+      cacheDir: cache, binaryTag: 'v0.9.1', modelPack: 'q4',
+    }));
+    await writeFile(path.join(profileDirectory, 'profile-settings.json'), JSON.stringify({
+      generationEngine: 'yue2', localYue2Enabled: true, yue2LicenseAccepted: true,
+    }));
+
+    const runtime = runtimeStatus({ env: { ...process.env, SONG_MAKER_DOCUMENTS_DIR: documents } });
+    assert.equal(runtime.binary, binary);
+    assert.equal(runtime.serverBinary, serverBinary);
+    assert.equal(runtime.binaryTag, 'v0.9.1');
+    assert.equal(runtime.missing.includes('audiocpp_cli'), false);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

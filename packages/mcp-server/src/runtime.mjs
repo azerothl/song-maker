@@ -67,7 +67,7 @@ export function runtimeStatus({ modelId, engineId, env = process.env } = {}) {
   }
   const selectedModelId = modelId ?? appSettings.modelId;
   const cache = appSettings.cacheDirectory;
-  const folder = path.join(cache, 'binaries', 'v0.8.2');
+  const folder = path.join(cache, 'binaries', appSettings.binaryTag);
   const binaryName = process.platform === 'win32' ? 'audiocpp_cli.exe' : 'audiocpp_cli';
   const binary = [
     path.join(folder, 'windows-cuda12.4', binaryName),
@@ -101,6 +101,7 @@ export function runtimeStatus({ modelId, engineId, env = process.env } = {}) {
     modelDir,
     modelName,
     modelId: selectedModelId,
+    binaryTag: appSettings.binaryTag,
     appModelId: appSettings.appModelId,
     modelSource: modelId ? 'request' : appSettings.modelSource,
     engineId: engineId ?? 'yue2',
