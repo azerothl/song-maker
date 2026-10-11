@@ -9,8 +9,6 @@ import {
 } from "./captureViteServer.ts";
 import type { ViteDevServer } from "vite";
 
-const PORT = 5188;
-const BASE = captureBaseUrl(PORT);
 const IT_TIMEOUT_MS = 60_000;
 
 type B1Metrics = {
@@ -25,6 +23,15 @@ type B1Metrics = {
 };
 
 let activeServer: ViteDevServer | null = null;
+
+async function startCapturePage(): Promise<string> {
+  activeServer = await startCaptureViteServer(0);
+  const address = activeServer.httpServer?.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Vite n’a pas exposé son port de capture.");
+  }
+  return captureBaseUrl(address.port);
+}
 
 async function waitServer(url: string): Promise<void> {
   for (let i = 0; i < 120; i++) {
@@ -90,7 +97,7 @@ async function waitExportAnchorStable(page: Page): Promise<void> {
 async function measureSepRecommendOverlap(
   page: Page,
   viewport: { width: number; height: number },
-  baseUrl: string = BASE,
+  baseUrl: string,
 ): Promise<{
   overlapPx: number;
   footerReachable: boolean;
@@ -151,7 +158,7 @@ async function measureExportDrawer(
   page: Page,
   hash: string,
   viewport: { width: number; height: number },
-  baseUrl: string = BASE,
+  baseUrl: string,
   waitMs = 1100,
 ): Promise<B1Metrics> {
   await page.setViewportSize(viewport);
@@ -291,8 +298,8 @@ describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
     "scénario Alphonse : tiroir y≈219, bascule Pistes séparées après ouverture",
     { timeout: IT_TIMEOUT_MS },
     async () => {
-      activeServer = await startCaptureViteServer(PORT);
-      await waitServer(BASE);
+      const base = await startCapturePage();
+      await waitServer(base);
       await withBrowser(async (page) => {
         const cases: Array<{ hash: string; vp: { width: number; height: number } }> =
           [
@@ -301,7 +308,7 @@ describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
           ];
 
         for (const { hash, vp } of cases) {
-          const m = await measureExportDrawer(page, hash, vp, BASE, 1400);
+          const m = await measureExportDrawer(page, hash, vp, base, 1400);
           if (hash === "export-drawer-b1-12" && vp.height === 768) {
             await assertB1ExportMinHeightMatchesProdRule(page);
             assertB1AnchorStrict(m, `${hash}@${vp.width}x${vp.height}`);
@@ -316,9 +323,7 @@ describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
     "ancre en haut : 4/12/16 pistes + après export (720 et 600)",
     { timeout: IT_TIMEOUT_MS },
     async () => {
-      const port = PORT + 2;
-      activeServer = await startCaptureViteServer(port);
-      const topBase = captureBaseUrl(port);
+      const topBase = await startCapturePage();
       await waitServer(topBase);
       await withBrowser(async (page) => {
         const cases: Array<{ hash: string; vp: { width: number; height: number } }> =
@@ -358,9 +363,7 @@ describe("AnchoredPopin — pied export (B1, #191 / #196)", () => {
     "export mix tight : boutons du popin ≥ 44 px",
     { timeout: IT_TIMEOUT_MS },
     async () => {
-      const port = PORT + 1;
-      activeServer = await startCaptureViteServer(port);
-      const url = captureBaseUrl(port);
+      const url = await startCapturePage();
       await waitServer(url);
       await withBrowser(async (page) => {
         await page.setViewportSize({ width: 1280, height: 720 });
@@ -387,8 +390,7 @@ describe("AnchoredPopin — séparation reco (overlap déclencheur, #196)", () =
     "recouvrement 0 avec le bouton Séparer (720, 768, 640)",
     { timeout: IT_TIMEOUT_MS },
     async () => {
-      activeServer = await startCaptureViteServer(PORT + 3);
-      const sepUrl = captureBaseUrl(PORT + 3);
+      const sepUrl = await startCapturePage();
       await waitServer(sepUrl);
       await withBrowser(async (page) => {
         for (const height of [720, 768, 640]) {
