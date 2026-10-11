@@ -366,7 +366,7 @@ server.registerTool('import_job_audio_track', {
 }));
 
 server.registerTool('import_job_generation', {
-  description: 'Importe une sortie WAV terminée de start_song ou start_batch dans l’historique des versions du projet actif. Attends completed/completed_with_errors dans job_status et passe expectedUpdatedAt obtenu avec get_project. La génération importée est visible dans list_project_versions, conserve la sortie d’origine dans le projet et ne devient pas active automatiquement ; appelle use_project_generation après vérification si tu veux la sélectionner. Le job doit encore être dans SONG_MAKER_WORKSPACE_ROOT. Cette opération ne change pas le mix actif.',
+  description: 'Importe une sortie WAV terminée de start_song ou start_batch dans l’historique des versions du projet actif. Attends completed/completed_with_errors dans job_status et passe expectedUpdatedAt obtenu avec get_project. La première génération importée devient active si le projet ne possède encore aucune génération, séparation ou mix actif ; les sélections d’un projet déjà utilisé restent inchangées. Le WAV et sa provenance sont conservés dans le projet. Le job doit encore être dans SONG_MAKER_WORKSPACE_ROOT. Cette opération ne change pas un mix actif.',
   inputSchema: {
     jobId: z.string().uuid(),
     completedIndex: z.number().int().safe().min(0).max(9999).default(0),

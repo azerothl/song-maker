@@ -1210,9 +1210,15 @@ export async function importProjectGeneration({
         const generationNames = currentProject.generationNames && typeof currentProject.generationNames === 'object' &&
           !Array.isArray(currentProject.generationNames) ? { ...currentProject.generationNames } : {};
         if (importedName) generationNames[generationId] = importedName;
+        // Make the first imported take discoverable in a newly created project.
+        // Keep existing project selections untouched when there is already an
+        // active generation, separation, or mix.
+        const becomesActive = !currentProject.activeGenerationId &&
+          !currentProject.activeSeparationId && !currentProject.activeMixId;
         const updatedProject = {
           ...currentProject,
           generationNames,
+          ...(becomesActive ? { activeGenerationId: generationId } : {}),
           updatedAt: new Date(Number.isFinite(previousUpdatedAt) && now <= previousUpdatedAt
             ? previousUpdatedAt + 1 : now).toISOString(),
         };

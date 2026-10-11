@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, listProjectVersions, listProjects, renameProject, updateProject, updateProjectMix, useProjectGeneration, useProjectScore, useProjectSeparation } from '../src/projects.mjs';
+import { createProject, deleteProject, getProject, getProjectMix, getProjectScore, importProjectGeneration, listProjectVersions, listProjects, renameProject, updateProject, updateProjectMix, useProjectGeneration, useProjectScore, useProjectSeparation } from '../src/projects.mjs';
 
 function smallPcmWav() {
   const frames = 800;
@@ -23,6 +23,42 @@ function smallPcmWav() {
   wav.writeUInt32LE(frames * 2, 40);
   return wav;
 }
+
+test('the first imported MCP generation becomes active in a new empty project', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-first-mcp-generation-'));
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-generation-workspace-'));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  const jobId = '123e4567-e89b-42d3-a456-426614174000';
+  const sourceDirectory = path.join(workspace, jobId);
+  try {
+    await mkdir(sourceDirectory, { recursive: true });
+    const { project } = await createProject({ title: 'MCP empty project', env });
+    const sourcePath = path.join(sourceDirectory, 'audio.wav');
+    await writeFile(sourcePath, smallPcmWav());
+
+    const imported = await importProjectGeneration({
+      projectId: project.id,
+      sourcePath,
+      sourceDirectory,
+      jobId,
+      name: 'First MCP take',
+      expectedUpdatedAt: project.updatedAt,
+      env,
+      workspace,
+    });
+
+    assert.equal(imported.active, true);
+    const opened = await getProject({ projectId: project.id, env });
+    assert.equal(opened.project.activeGenerationId, imported.generationId);
+    const versions = await listProjectVersions({ projectId: project.id, env });
+    assert.equal(versions.generations.find(generation => generation.id === imported.generationId).active, true);
+  } finally {
+    await Promise.all([
+      rm(documentsRoot, { recursive: true, force: true }),
+      rm(workspace, { recursive: true, force: true }),
+    ]);
+  }
+});
 
 test('project tools read the active profile and hide lyrics from list results', async () => {
   const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-projects-'));
