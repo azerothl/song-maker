@@ -51,6 +51,24 @@ it("explains how to recover when the project database cannot be opened", () => {
   assert.equal(result.details, "unable to open database file");
 });
 
+it("explains how to recover when the local audio runtime endpoint is unavailable", () => {
+  setAppLocale("fr");
+  const result = presentGlobalError(
+    "error sending request for url (http://127.0.0.1:8765/v1/tasks/run)",
+  );
+
+  assert.equal(
+    result.message,
+    "Le moteur audio local ne répond pas. Vérifiez son état dans la barre latérale. Redémarrez-le si besoin, puis réessayez.",
+  );
+  assert.match(result.details ?? "", /127\.0\.0\.1:8765/);
+
+  assert.equal(
+    englishCatalog()["error.audioRuntimeUnavailable"],
+    "The local audio engine did not respond. Check its status in the sidebar. Restart it if needed, then try again.",
+  );
+});
+
 it("keeps an existing actionable product message unchanged", () => {
   setAppLocale("fr");
   assert.deepEqual(

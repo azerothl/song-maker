@@ -20,6 +20,8 @@ const YUE2_MODEL_UNAVAILABLE = /(?:yue2\.)?model_gguf\s+(?:file does not exist|m
 const YUE2_MEMORY_ALLOCATION_FAILED = /failed to allocate yue2 ar prefix-state graph/i;
 const DISK_FULL = /(?:\bos error 112\b|\bERROR_DISK_FULL\b|\bno space left on device\b|\bdisk is full\b|\bnot enough space\b|espace insuffisant sur le disque)/i;
 const PROJECT_DATABASE_UNAVAILABLE = /unable to open database file/i;
+const LOCAL_AUDIO_RUNTIME_UNAVAILABLE =
+  /error sending request for url\s*\(\s*https?:\/\/(?:127\.0\.0\.1|localhost):\d+\//i;
 
 function boundedDetails(message: string): string {
   return message.length > MAX_ERROR_DETAILS_LENGTH
@@ -70,6 +72,13 @@ export function presentGlobalError(rawMessage: string): ErrorPresentation {
   if (PROJECT_DATABASE_UNAVAILABLE.test(message)) {
     return {
       message: t("error.projectStorageUnavailable"),
+      details: boundedDetails(message),
+    };
+  }
+
+  if (LOCAL_AUDIO_RUNTIME_UNAVAILABLE.test(message)) {
+    return {
+      message: t("error.audioRuntimeUnavailable"),
       details: boundedDetails(message),
     };
   }

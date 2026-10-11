@@ -1282,6 +1282,7 @@
   "error.yue2MemoryAllocation": "YuE2 could not reserve enough memory. Close other audio tasks, shorten the requested duration, then try again.",
   "error.diskFull": "There isn't enough disk space to save this change. Free some space on the project drive, then try again.",
   "error.projectStorageUnavailable": "Song Maker couldn't open the project library. Check free disk space and access to the projects folder, then try again.",
+  "error.audioRuntimeUnavailable": "The local audio engine did not respond. Check its status in the sidebar. Restart it if needed, then try again.",
   "error.technicalDetails": "Technical details",
   "error.dismiss": "Dismiss error message",
   "error.gpu": "This build requires NVIDIA CUDA. Windows driver ≥ 551.61, or Linux ≥ 570.26 for the pinned archive.",
