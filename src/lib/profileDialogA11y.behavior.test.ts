@@ -8,8 +8,7 @@ import {
 } from "../dev/captureViteServer.ts";
 import type { ViteDevServer } from "vite";
 
-const PORT = 5192;
-const BASE = captureBaseUrl(PORT, "profiles-app-capture.html");
+let BASE = "";
 const IT_TIMEOUT_MS = 60_000;
 
 let activeServer: ViteDevServer | null = null;
@@ -60,7 +59,12 @@ describe("profile rename dialog keyboard (#212 B1)", () => {
     "ArrowLeft and Home keep focus in the text field; Tab and Escape still work",
     { timeout: IT_TIMEOUT_MS },
     async () => {
-      activeServer = await startCaptureViteServer(PORT);
+      activeServer = await startCaptureViteServer(0);
+      const address = activeServer.httpServer?.address();
+      if (!address || typeof address === "string") {
+        throw new Error("Vite n’a pas exposé son port de capture.");
+      }
+      BASE = captureBaseUrl(address.port, "profiles-app-capture.html");
       await waitServer(BASE);
 
       await withPage(async (page) => {
