@@ -7,6 +7,7 @@ import { t } from "../ui/i18n";
 import { workspaceLabel, WORKSPACES } from "../screens/song/shared";
 import {
   buildCaptureDemoMix,
+  buildCaptureStudioMix,
   buildCapturePlaybackSources,
   buildCaptureProject,
   buildCaptureSeparationInfo,
@@ -107,10 +108,17 @@ function ProductionCaptureApp() {
   }, [capturePrefs.actionsDrawerOpen]);
 
   const mix = useMemo(
-    () => buildCaptureDemoMix(capturePrefs.trackCount),
-    [capturePrefs.trackCount],
+    () => studioMode
+      ? buildCaptureStudioMix(capturePrefs.trackCount)
+      : buildCaptureDemoMix(capturePrefs.trackCount),
+    [capturePrefs.trackCount, studioMode],
   );
-  const project = useMemo(() => buildCaptureProject(), []);
+  const project = useMemo(() => {
+    const captureProject = buildCaptureProject();
+    return studioMode
+      ? { ...captureProject, title: "You thought you'd bury me" }
+      : captureProject;
+  }, [studioMode]);
   const playbackSources = useMemo(() => buildCapturePlaybackSources(mix), [mix]);
   const separationInfo = useMemo(() => buildCaptureSeparationInfo(), []);
   const [mixState, setMixState] = useState<MixDoc>(mix);

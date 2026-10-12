@@ -73,6 +73,39 @@ export function buildCaptureDemoMix(trackCount = 12): MixDoc {
   };
 }
 
+/** Studio fixture with visible regions on every track and named sections. */
+export function buildCaptureStudioMix(trackCount = 12): MixDoc {
+  const mix = buildCaptureDemoMix(trackCount);
+  return {
+    ...mix,
+    tempoMap: [{ startMs: 0, quarterBpm: 120 }],
+    markers: [
+      { id: "marker-intro", name: "Intro", kind: "intro", startMs: 0 },
+      { id: "marker-refrain", name: "Refrain", kind: "chorus", startMs: 16_000 },
+      { id: "marker-bridge", name: "Pont", kind: "bridge", startMs: 24_000 },
+    ],
+    tracks: mix.tracks.map((tr, index) => {
+      const variation = index % 3;
+      const staggerMs = (index % 2) * 500;
+      const regions = [
+        { startMs: 0, durationMs: 9_000 + variation * 1_000 },
+        { startMs: 12_000 + variation * 1_000, durationMs: 9_000 - variation * 1_000 },
+        { startMs: 24_000, durationMs: 7_000 },
+      ];
+      return {
+        ...tr,
+        clips: regions.map((region, regionIndex) => ({
+          ...CAPTURE_DEMO_CLIP,
+          id: `clip-${tr.id}-${regionIndex + 1}`,
+          trackId: tr.id,
+          startMs: region.startMs + staggerMs,
+          durationMs: region.durationMs,
+        })),
+      };
+    }),
+  };
+}
+
 export function buildCaptureProject(): ProjectDoc {
   const now = new Date().toISOString();
   return {
