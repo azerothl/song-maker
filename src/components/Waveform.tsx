@@ -36,6 +36,8 @@ type Props = {
   playedColor?: string;
   /** Stem role — maps to track accent when color props are omitted. */
   role?: string;
+  /** Subscribe to the app-wide playback bus. Turn off for non-active library rows. */
+  followPlaybackPosition?: boolean;
 };
 
 function formatTime(seconds: number): string {
@@ -79,6 +81,7 @@ export function Waveform({
   color,
   playedColor,
   role,
+  followPlaybackPosition = true,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const layersRef = useRef<WaveformLayerBitmap | null>(null);
@@ -152,6 +155,7 @@ export function Waveform({
   }, [progress, duration]);
 
   useEffect(() => {
+    if (!followPlaybackPosition) return;
     return subscribePlaybackPosition((seconds) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -162,7 +166,7 @@ export function Waveform({
         progressRef.current = seconds;
       }
     });
-  }, [duration]);
+  }, [duration, followPlaybackPosition]);
 
   function seekToRatio(ratio: number) {
     if (!onSeek || duration <= 0) return;
