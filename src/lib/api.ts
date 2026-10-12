@@ -289,12 +289,14 @@ export const api = {
       masterGainDb: number;
       tracks: {
         id: string;
+        name?: string;
         gainDb: number;
         pan: number;
         mute: boolean;
         solo: boolean;
         clips?: MixDoc["tracks"][number]["clips"];
       }[];
+      trackOrder?: string[];
       tempoMap?: MixDoc["tempoMap"];
       timeSignatures?: MixDoc["timeSignatures"];
       markers?: MixDoc["markers"];

@@ -194,7 +194,10 @@ pub fn update_mix(
     let path = folder.join("mixes").join(format!("{mix_id}.json"));
     let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
     let mut mix: MixDoc = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    let mut updated_tracks = mix.clone();
+    apply_track_updates(&mut updated_tracks, update.tracks, update.track_order)?;
     push_undo(&state, &id, serde_json::to_value(&mix).unwrap());
+    mix = updated_tracks;
     mix.master_gain_db = update.master_gain_db;
     if let Some(tempo_map) = update.tempo_map {
         for ev in &tempo_map {
@@ -245,13 +248,40 @@ pub fn update_mix(
         }
         mix.vst3_master_insert = Some(config);
     }
-    for t in update.tracks {
-        if let Some(track) = mix.tracks.iter_mut().find(|x| x.id == t.id) {
-            track.gain_db = t.gain_db;
-            track.pan = t.pan.clamp(-1.0, 1.0);
-            track.mute = t.mute;
-            track.solo = t.solo;
-            if let Some(clips) = t.clips {
+    atomic_write_json(&path, &mix)?;
+    // La lecture live est Web Audio (stems / prise). Le rendu 24 bits reste pour l’export.
+    Ok(mix)
+}
+
+fn apply_track_updates(
+    mix: &mut MixDoc,
+    updates: Vec<MixTrackUpdate>,
+    track_order: Option<Vec<String>>,
+) -> Result<(), String> {
+    let ordered_ids = validate_track_order(&mix.tracks, track_order.as_deref())?;
+
+    for update in &updates {
+        if let Some(name) = update.name.as_deref() {
+            let trimmed = name.trim();
+            if trimmed.is_empty() || trimmed.chars().count() > 80 {
+                return Err("Le nom d’une piste doit contenir entre 1 et 80 caractères.".into());
+            }
+            if !mix.tracks.iter().any(|track| track.id == update.id) {
+                return Err(format!("Piste inconnue : {}.", update.id));
+            }
+        }
+    }
+
+    for update in updates {
+        if let Some(track) = mix.tracks.iter_mut().find(|track| track.id == update.id) {
+            if let Some(name) = update.name {
+                track.name = name.trim().to_string();
+            }
+            track.gain_db = update.gain_db;
+            track.pan = update.pan.clamp(-1.0, 1.0);
+            track.mute = update.mute;
+            track.solo = update.solo;
+            if let Some(clips) = update.clips {
                 for clip in &clips {
                     if clip.duration_ms < 0
                         || clip.start_ms < 0
@@ -283,9 +313,39 @@ pub fn update_mix(
             }
         }
     }
-    atomic_write_json(&path, &mix)?;
-    // La lecture live est Web Audio (stems / prise). Le rendu 24 bits reste pour l’export.
-    Ok(mix)
+
+    if let Some(ordered_ids) = ordered_ids {
+        let order_index: std::collections::HashMap<_, _> = ordered_ids
+            .into_iter()
+            .enumerate()
+            .map(|(index, id)| (id, index))
+            .collect();
+        mix.tracks
+            .sort_by_key(|track| order_index.get(&track.id).copied().unwrap_or(usize::MAX));
+    }
+    Ok(())
+}
+
+fn validate_track_order(
+    tracks: &[MixTrack],
+    track_order: Option<&[String]>,
+) -> Result<Option<Vec<String>>, String> {
+    let Some(track_order) = track_order else {
+        return Ok(None);
+    };
+    let existing_ids: std::collections::HashSet<_> =
+        tracks.iter().map(|track| track.id.as_str()).collect();
+    let requested_ids: std::collections::HashSet<_> =
+        track_order.iter().map(String::as_str).collect();
+    if existing_ids.len() != tracks.len()
+        || requested_ids.len() != track_order.len()
+        || requested_ids != existing_ids
+    {
+        return Err(
+            "L’ordre des pistes doit contenir une seule fois chaque piste du projet.".into(),
+        );
+    }
+    Ok(Some(track_order.to_vec()))
 }
 
 #[tauri::command]
@@ -791,6 +851,91 @@ pub fn redo_mix(state: tauri::State<'_, AppState>, id: String) -> Result<Option<
     atomic_write_json(&path, &next)?;
     let mix: MixDoc = serde_json::from_value(next).map_err(|e| e.to_string())?;
     Ok(Some(mix))
+}
+
+#[cfg(test)]
+mod track_update_tests {
+    use super::apply_track_updates;
+    use crate::mix::empty_mix;
+    use crate::models::{MixTrack, MixTrackUpdate};
+    use crate::paths::atomic_write_json;
+
+    fn track(id: &str, name: &str) -> MixTrack {
+        MixTrack {
+            id: id.into(),
+            role: "user".into(),
+            name: name.into(),
+            gain_db: 0.0,
+            pan: 0.0,
+            mute: false,
+            solo: false,
+            locked: false,
+            ai_separated: false,
+            clips: Vec::new(),
+            experimental_vst3_insert: None,
+        }
+    }
+
+    fn update(id: &str, name: &str, gain_db: f32) -> MixTrackUpdate {
+        MixTrackUpdate {
+            id: id.into(),
+            name: Some(name.into()),
+            gain_db,
+            pan: 0.0,
+            mute: false,
+            solo: false,
+            clips: None,
+        }
+    }
+
+    #[test]
+    fn names_and_display_order_survive_a_mix_save_reload_roundtrip() {
+        let mut mix = empty_mix("mix-1");
+        mix.tracks = vec![track("a", "Audio 1"), track("b", "Audio 2")];
+
+        apply_track_updates(
+            &mut mix,
+            vec![
+                update("a", "Voix principale", -3.0),
+                update("b", "Basse", -6.0),
+            ],
+            Some(vec!["b".into(), "a".into()]),
+        )
+        .unwrap();
+
+        let folder = std::env::temp_dir().join(format!("mix-track-order-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&folder).unwrap();
+        let path = folder.join("mix.json");
+        atomic_write_json(&path, &mix).unwrap();
+        let reloaded: crate::models::MixDoc =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(
+            reloaded
+                .tracks
+                .iter()
+                .map(|track| (track.id.as_str(), track.name.as_str(), track.gain_db))
+                .collect::<Vec<_>>(),
+            vec![("b", "Basse", -6.0), ("a", "Voix principale", -3.0)]
+        );
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn invalid_order_is_rejected_without_changing_tracks() {
+        let mut mix = empty_mix("mix-1");
+        mix.tracks = vec![track("a", "Audio 1"), track("b", "Audio 2")];
+        let before = serde_json::to_value(&mix).unwrap();
+
+        let error = apply_track_updates(
+            &mut mix,
+            vec![update("a", "Renommée", 0.0)],
+            Some(vec!["a".into(), "a".into()]),
+        )
+        .unwrap_err();
+
+        assert!(error.contains("chaque piste"));
+        assert_eq!(serde_json::to_value(&mix).unwrap(), before);
+    }
 }
 
 #[cfg(test)]
