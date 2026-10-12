@@ -1,12 +1,15 @@
 ---
-title: Nouveautés v0.3.1
-description: Correctifs de sélection du modèle YuE2 et de lancement du moteur audio Windows.
+title: Nouveautés v0.3.2
+description: Refonte du Studio et de la Bibliothèque, édition MIDI et correction des anciens profils YuE2.
 order: 2
 ---
 
-# Nouveautés — v0.3.1
+# Nouveautés — v0.3.2
 
-Cette mise à jour apporte deux correctifs :
+Cette version apporte les améliorations suivantes :
 
-- **YuE2 :** le moteur audio reçoit le chemin du modèle GGUF sélectionné lors de l’installation (Q4 ou Q8), y compris pour les tâches isolées et batch.
-- **Windows :** le moteur audio démarre sans ouvrir une fenêtre de terminal supplémentaire.
+- **Studio :** navigation dédiée, ajout direct de pistes audio, MIDI ou instrumentales générées par IA, réglages de pistes plus denses et lecteur toujours accessible.
+- **Bibliothèque :** formes d’onde, playlists, favoris et informations des titres conservés.
+- **MIDI et instruments :** édition dans le Studio et aperçu/rendu avec les instruments VST3 compatibles.
+- **YuE2 :** les anciens profils dont le chemin du modèle est absolu sont convertis en chemin relatif lorsqu’ils pointent dans le dossier des modèles ; un chemin extérieur est refusé avec une explication.
+- **Mode batch :** import de plusieurs titres, suivi des prises et reprise des tâches décrits dans la documentation.

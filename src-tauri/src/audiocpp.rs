@@ -182,19 +182,22 @@ impl AudioCppServer {
         }
         let cache = PathBuf::from(&settings.cache_dir);
         let htd = htdemucs_path(&cache);
+        let yue2_root = yue2_dir(&cache);
+        let model_gguf = Self::normalize_yue2_model_path(&yue2_root, &settings.model_gguf)?;
         let mut yue2 = json!({
             "id": "yue2",
             "family": "yue2",
-            "path": yue2_dir(&cache).display().to_string(),
+            "path": yue2_root.display().to_string(),
             "task": "gen",
             "mode": "offline",
             "busy_timeout_ms": YUE2_BUSY_TIMEOUT_MS
         });
         let mut session_options = serde_json::Map::new();
         // The downloaded model config may name Q8 even when only Q4 was installed.
-        // audio.cpp resolves this name relative to `models[].path`; an absolute
-        // path is rejected by the server's path validation.
-        session_options.insert("yue2.model_gguf".into(), json!(settings.model_gguf));
+        // audio.cpp resolves this name relative to `models[].path`. Older profiles
+        // may have persisted an absolute path, so normalize paths inside the model
+        // root and reject paths that escape it before writing the server config.
+        session_options.insert("yue2.model_gguf".into(), json!(model_gguf));
         // Keep host-side metadata arenas bounded. audio.cpp v0.8.2's multi-GiB
         // defaults could abort the Windows server during long-form YuE2 NAR
         // graph setup when system commit was low. Upstream v0.9.1 reduces these
@@ -309,6 +312,36 @@ impl AudioCppServer {
         });
         crate::paths::atomic_write_json(config_path, &cfg)?;
         Ok(())
+    }
+
+    fn normalize_yue2_model_path(model_root: &Path, configured: &str) -> Result<String, String> {
+        let configured_path = Path::new(configured);
+        let relative = if configured_path.is_absolute() {
+            configured_path.strip_prefix(model_root).map_err(|_| {
+                "Le fichier YuE2 sélectionné se trouve hors du dossier de modèles. Re-sélectionnez le modèle dans Paramètres.".to_string()
+            })?
+        } else {
+            configured_path
+        };
+
+        let mut components = Vec::new();
+        for component in relative.components() {
+            match component {
+                std::path::Component::Normal(value) => {
+                    components.push(value.to_string_lossy().into_owned())
+                }
+                std::path::Component::CurDir => {}
+                _ => {
+                    return Err(
+                        "Le chemin du modèle YuE2 doit rester dans le dossier de modèles.".into(),
+                    )
+                }
+            }
+        }
+        if components.is_empty() {
+            return Err("Aucun fichier de modèle YuE2 n’est sélectionné.".into());
+        }
+        Ok(components.join("/"))
     }
 
     pub(crate) fn find_server_binary(cache: &Path) -> Result<PathBuf, String> {
@@ -855,7 +888,7 @@ mod semantic_metadata_tests {
         settings.cache_dir = cache.display().to_string();
 
         for selected in [crate::pins::YUE2_Q4, crate::pins::YUE2_Q8] {
-            settings.model_gguf = selected.into();
+            settings.model_gguf = super::yue2_dir(&cache).join(selected).display().to_string();
             let path = dir.join(format!("{selected}.json"));
             AudioCppServer::write_config_at(&settings, &path, true).unwrap();
             let config: serde_json::Value =
@@ -881,6 +914,29 @@ mod semantic_metadata_tests {
         }
 
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn selected_yue2_gguf_cannot_escape_the_model_root() {
+        let root = std::env::temp_dir().join(format!(
+            "song-maker-yue2-model-root-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let outside = std::env::temp_dir().join("outside-yue2.gguf");
+
+        assert!(AudioCppServer::normalize_yue2_model_path(&root, "../outside-yue2.gguf").is_err());
+        assert!(
+            AudioCppServer::normalize_yue2_model_path(&root, &outside.display().to_string(),)
+                .is_err()
+        );
+        assert_eq!(
+            AudioCppServer::normalize_yue2_model_path(
+                &root,
+                &root.join("nested/yue2-q4.gguf").display().to_string(),
+            )
+            .unwrap(),
+            "nested/yue2-q4.gguf"
+        );
     }
 
     #[test]

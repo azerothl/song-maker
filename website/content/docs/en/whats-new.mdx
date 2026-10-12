@@ -1,12 +1,15 @@
 ---
-title: What’s new in v0.3.1
-description: Fixes for YuE2 model selection and Windows audio engine launch.
+title: What’s new in v0.3.2
+description: Studio and Library redesign, MIDI editing, and a fix for older YuE2 profiles.
 order: 2
 ---
 
-# What’s new — v0.3.1
+# What’s new — v0.3.2
 
-This update includes two fixes:
+This release includes these improvements:
 
-- **YuE2:** the audio engine receives the GGUF model selected during setup (Q4 or Q8), including isolated and batch tasks.
-- **Windows:** the audio engine starts without opening an extra terminal window.
+- **Studio:** dedicated navigation, direct creation of audio, MIDI, or AI-generated instrument tracks, denser track controls, and an always available player.
+- **Library:** waveforms, playlists, favorites, and details for saved songs.
+- **MIDI and instruments:** edit MIDI in the Studio and preview/render with compatible VST3 instruments.
+- **YuE2:** older profiles with an absolute model path are converted to a relative path when the file is inside the model folder; paths outside that folder are rejected with a clear message.
+- **Batch mode:** documentation now covers importing multiple songs, tracking takes, and resuming queued work.
