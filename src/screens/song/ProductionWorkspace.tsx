@@ -34,6 +34,7 @@ import { MixBakeStatusIndicator } from "../../components/MixBakeStatusIndicator"
 import { PlaybackTime } from "../../components/PlaybackTime";
 import { Waveform } from "../../components/Waveform";
 import { t } from "../../ui/i18n";
+import { musicalSubdivisionDurationMs } from "../../lib/musicalTime";
 import { useAppStore } from "../../store/appStore";
 import {
   defaultStudioTrackColor,
@@ -52,6 +53,8 @@ import {
 } from "../../lib/projectInstrumental";
 import {
   buildTrackFamilyGroups,
+  moveTrackBy,
+  moveTrackRelative,
   groupMutePressed,
   groupSoloPressed,
   isExperimentalStemTrack,
@@ -272,6 +275,12 @@ export function ProductionWorkspace({
   const [trackColors, setTrackColors] = useState<Record<string, string>>(
     () => readStudioTrackColors(project.id),
   );
+  const [renamingTrackId, setRenamingTrackId] = useState<string | null>(null);
+  const [trackNameDraft, setTrackNameDraft] = useState("");
+  const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
+  const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
+  const trackNameInputRef = useRef<HTMLInputElement | null>(null);
+  const cancelTrackRenameBlur = useRef(false);
   useEffect(() => {
     setTrackColors(readStudioTrackColors(project.id));
   }, [project.id]);
@@ -366,6 +375,26 @@ export function ProductionWorkspace({
   const setDensityPreferencePersist = (next: ProductionDensityPreference) => {
     setDensityPreference(next);
     saveProductionDensityPreference(next);
+  };
+
+  useEffect(() => {
+    if (!renamingTrackId) return;
+    trackNameInputRef.current?.focus();
+    trackNameInputRef.current?.select();
+  }, [renamingTrackId]);
+
+  const commitTrackRename = (track: MixTrack) => {
+    const name = trackNameDraft.trim();
+    if (name && name !== track.name && mix) {
+      scheduleMixUpdate(patchTrack(mix, track.id, { name }));
+    }
+    setRenamingTrackId(null);
+  };
+
+  const moveStudioTrack = (trackId: string, offset: -1 | 1) => {
+    if (!mix) return;
+    const tracks = moveTrackBy(mix.tracks, trackId, offset);
+    if (tracks !== mix.tracks) scheduleMixUpdate({ ...mix, tracks });
   };
 
   const layoutMeasureKey = useMemo(
@@ -943,6 +972,8 @@ export function ProductionWorkspace({
                       inGroup ? "production-mix-row-grouped" : "",
                       muted ? "track-muted" : "",
                       implicit ? "track-implicit-muted" : "",
+                      studioMode && draggedTrackId === tr.id ? "studio-track-row-dragging" : "",
+                      studioMode && dropTargetTrackId === tr.id ? "studio-track-row-drop-target" : "",
                     ]
                       .filter(Boolean)
                       .join(" ");
@@ -957,8 +988,55 @@ export function ProductionWorkspace({
                           "--track-wave-played": `color-mix(in srgb, ${trackColor} 55%, white)`,
                         } as CSSProperties}
                         role="listitem"
+                        onDragOver={(event) => {
+                          if (studioMode && draggedTrackId && draggedTrackId !== tr.id) {
+                            event.preventDefault();
+                            event.dataTransfer.dropEffect = "move";
+                            setDropTargetTrackId(tr.id);
+                          }
+                        }}
+                        onDrop={(event) => {
+                          if (!studioMode) return;
+                          event.preventDefault();
+                          const sourceId = event.dataTransfer.getData("text/plain") || draggedTrackId;
+                          if (sourceId && sourceId !== tr.id) {
+                            const rect = event.currentTarget.getBoundingClientRect();
+                            const after = event.clientY >= rect.top + rect.height / 2;
+                            const tracks = moveTrackRelative(mix.tracks, sourceId, tr.id, after);
+                            if (tracks !== mix.tracks) scheduleMixUpdate({ ...mix, tracks });
+                          }
+                          setDraggedTrackId(null);
+                          setDropTargetTrackId(null);
+                        }}
                       >
                         <div className="production-mix-name">
+                          {studioMode && (
+                            <button
+                              type="button"
+                              className="studio-track-reorder"
+                              data-testid={`studio-track-reorder-${tr.id}`}
+                              draggable
+                              aria-label={t("mix.moveTrackNamed", { track: tr.name })}
+                              title={t("mix.moveTrackNamed", { track: tr.name })}
+                              onDragStart={(event) => {
+                                event.dataTransfer.effectAllowed = "move";
+                                event.dataTransfer.setData("text/plain", tr.id);
+                                setDraggedTrackId(tr.id);
+                              }}
+                              onDragEnd={() => {
+                                setDraggedTrackId(null);
+                                setDropTargetTrackId(null);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+                                  event.preventDefault();
+                                  moveStudioTrack(tr.id, event.key === "ArrowUp" ? -1 : 1);
+                                }
+                              }}
+                            >
+                              <span aria-hidden="true">⠿</span>
+                            </button>
+                          )}
                           {studioMode ? (
                             <input
                               type="color"
@@ -976,21 +1054,65 @@ export function ProductionWorkspace({
                           ) : (
                             <span className="production-mix-strip" aria-hidden />
                           )}
-                          <TruncatedTrackLabel
-                            className="production-mix-track-label"
-                            fullTitle={tr.name}
-                          >
-                            {tr.name}
-                            {experimental && (
-                              <>
-                                <span aria-hidden> *</span>
-                                <span className="sr-only">
-                                  {" "}
-                                  ({t("mix.experimentalStem")})
-                                </span>
-                              </>
-                            )}
-                          </TruncatedTrackLabel>
+                          {renamingTrackId === tr.id ? (
+                            <input
+                              ref={trackNameInputRef}
+                              className="studio-track-rename-input"
+                              aria-label={t("mix.trackNameNamed", { track: tr.name })}
+                              value={trackNameDraft}
+                              maxLength={80}
+                              onChange={(event) => setTrackNameDraft(event.currentTarget.value)}
+                              onBlur={() => {
+                                if (cancelTrackRenameBlur.current) {
+                                  cancelTrackRenameBlur.current = false;
+                                  return;
+                                }
+                                commitTrackRename(tr);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  event.currentTarget.blur();
+                                } else if (event.key === "Escape") {
+                                  event.preventDefault();
+                                  cancelTrackRenameBlur.current = true;
+                                  event.currentTarget.blur();
+                                  setTrackNameDraft(tr.name);
+                                  setRenamingTrackId(null);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <TruncatedTrackLabel
+                              className="production-mix-track-label"
+                              fullTitle={tr.name}
+                            >
+                              {tr.name}
+                              {experimental && (
+                                <>
+                                  <span aria-hidden> *</span>
+                                  <span className="sr-only">
+                                    {" "}
+                                    ({t("mix.experimentalStem")})
+                                  </span>
+                                </>
+                              )}
+                            </TruncatedTrackLabel>
+                          )}
+                          {studioMode && renamingTrackId !== tr.id && (
+                            <button
+                              type="button"
+                              className="studio-track-rename"
+                              aria-label={t("mix.renameTrackNamed", { track: tr.name })}
+                              title={t("mix.renameTrackNamed", { track: tr.name })}
+                              onClick={() => {
+                                setTrackNameDraft(tr.name);
+                                setRenamingTrackId(tr.id);
+                              }}
+                            >
+                              <span aria-hidden="true">✎</span>
+                            </button>
+                          )}
                           {tr.role === "midi" && onEditMidiTrack && (
                             <button
                               type="button"
@@ -1165,7 +1287,7 @@ export function ProductionWorkspace({
                         durationMs={timelineMs}
                         currentMs={(playback?.current ?? 0) * 1000}
                         locked={tr.locked}
-                        nudgeMs={!clipViewPrefs.snapEnabled || clipViewPrefs.gridMode==="time"?50:Math.max(1,Math.round(60000/(mix.tempoMap?.[0]?.quarterBpm??form.tempoBpm??120)/clipViewPrefs.subdivision))}
+                        nudgeMs={!clipViewPrefs.snapEnabled || clipViewPrefs.gridMode==="time"?50:Math.max(1,Math.round(musicalSubdivisionDurationMs((playback?.current??0)*1000,mix.tempoMap??[],clipViewPrefs.subdivision)))}
                         onCollapse={()=>requestAnimationFrame(()=>{
                           const row=Array.from(document.querySelectorAll<HTMLElement>(".production-mix-row")).find(el=>el.dataset.trackId===tr.id);
                           row?.querySelector<HTMLButtonElement>(".production-track-tools-btn")?.focus();
@@ -1174,6 +1296,10 @@ export function ProductionWorkspace({
                       </Fragment>
                     );
                   };
+
+                  if (studioMode) {
+                    return mix.tracks.map((track) => renderTrack(track, false));
+                  }
 
                   return trackGroups.map((group) => {
                     const groupId = `production-group-${group.family}`;

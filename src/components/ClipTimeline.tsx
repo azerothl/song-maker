@@ -20,6 +20,7 @@ import {
   buildRulerMarks,
   ensureMixArrangement,
   formatMusical,
+  musicalSubdivisionDurationMs,
   msToMusical,
   newMarkerId,
   removeMixMarker,
@@ -488,10 +489,9 @@ export function ClipTimeline({
   const nudgeStep = useMemo(() => {
     if (!snapEnabled) return NUDGE_MS;
     if (gridMode === "time") return TIME_SNAP_MS;
-    // One subdivision at current tempo (bar 1).
-    const beatMs = 60_000 / (tempoMap[0]?.quarterBpm ?? 120);
-    return Math.max(1, Math.round(beatMs / subdivision));
-  }, [snapEnabled, gridMode, tempoMap, subdivision]);
+    const anchorMs = selectedClip?.startMs ?? currentTimeMs;
+    return Math.max(1, Math.round(musicalSubdivisionDurationMs(anchorMs, tempoMap, subdivision)));
+  }, [snapEnabled, gridMode, tempoMap, subdivision, selectedClip?.startMs, currentTimeMs]);
 
   const rulerMarks = useMemo(
     () => buildRulerMarks(timelineMs, gridMode, tempoMap, meterMap, subdivision),

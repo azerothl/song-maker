@@ -6,6 +6,7 @@ import {
   formatMusical,
   msToMusical,
   musicalToMs,
+  musicalSubdivisionDurationMs,
   removeMixMarker,
   shiftClipsFromMs,
   snapMs,
@@ -95,6 +96,30 @@ describe("musicalTime", () => {
       subdivision: 1,
     });
     assert.equal(snapped, 500);
+  });
+
+  it("applies each selected note subdivision and the tempo active at the edit position", () => {
+    const tempo = [
+      { startMs: 0, quarterBpm: 120 },
+      { startMs: 1000, quarterBpm: 60 },
+    ];
+    const meter = [{ startMs: 0, numerator: 4, denominator: 4 }];
+    for (const subdivision of [1, 2, 4, 8] as const) {
+      const step = musicalSubdivisionDurationMs(0, tempo, subdivision);
+      const snapped = snapMs(step * 0.6, {
+        enabled: true,
+        mode: "musical",
+        tempoMap: tempo,
+        meterMap: meter,
+        subdivision,
+      });
+      assert.equal(
+        snapped,
+        Math.round(step),
+        `${subdivision} subdivision should snap to ${step} ms`,
+      );
+    }
+    assert.equal(musicalSubdivisionDurationMs(1000, tempo, 4), 250);
   });
 
   it("snaps to time grid when mode is time", () => {

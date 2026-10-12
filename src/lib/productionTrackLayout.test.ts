@@ -6,6 +6,8 @@ import {
   effectiveDensityFromPreference,
   isExperimentalStemTrack,
   MIN_KNOB_VERTICAL_MARGIN_PX,
+  moveTrackBy,
+  moveTrackRelative,
   productionListFitsInScroll,
   shouldUseCompactForAutoDensity,
   shouldUseProductionTightLayout,
@@ -52,6 +54,29 @@ describe("buildTrackFamilyGroups", () => {
     assert.deepEqual(groups[0]!.tracks.map((t) => t.id), ["b"]);
     assert.deepEqual(groups[1]!.tracks.map((t) => t.id), ["a", "c"]);
     assert.deepEqual(groups[2]!.tracks.map((t) => t.id), ["d"]);
+  });
+});
+
+describe("mix track ordering", () => {
+  it("moves a track by keyboard without changing the track objects", () => {
+    const tracks = [tr("a", "drums"), tr("b", "vocals"), tr("c", "bass")];
+    const next = moveTrackBy(tracks, "b", 1);
+    assert.deepEqual(next.map((track) => track.id), ["a", "c", "b"]);
+    assert.equal(next[2], tracks[1]);
+    assert.equal(moveTrackBy(tracks, "a", -1), tracks);
+  });
+
+  it("drops a track before or after the target across track families", () => {
+    const tracks = [tr("a", "drums"), tr("b", "vocals"), tr("c", "piano")];
+    assert.deepEqual(
+      moveTrackRelative(tracks, "a", "c").map((track) => track.id),
+      ["b", "a", "c"],
+    );
+    assert.deepEqual(
+      moveTrackRelative(tracks, "c", "a", true).map((track) => track.id),
+      ["a", "c", "b"],
+    );
+    assert.equal(moveTrackRelative(tracks, "unknown", "a"), tracks);
   });
 });
 

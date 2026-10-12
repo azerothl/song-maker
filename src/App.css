@@ -1311,7 +1311,8 @@ option {
   gap: 0.55rem 0.9rem;
 }
 
-.song-create-batch-trigger {
+.song-create-batch-trigger,
+.song-studio-versions-trigger {
   min-height: 2rem;
   padding: 0.3rem 0.65rem;
   font-size: 0.88rem;
@@ -11885,5 +11886,156 @@ details[open] > summary {
     min-width: 44px;
     height: 44px;
     min-height: 44px;
+  }
+}
+
+/* Studio density controls now size the arrangement rows and their clip lanes together. */
+.production-workspace-studio .mixer-density[data-density="compact"] .production-mix-row {
+  height: 42px;
+  min-height: 42px;
+}
+
+.production-workspace-studio .mixer-density[data-density="compact"] .production-mix-row > .track-wave .clip-lane-rail {
+  height: 38px;
+  min-height: 38px;
+}
+
+.production-workspace-studio .mixer-density[data-density="confortable"] .production-mix-row {
+  height: 58px;
+  min-height: 58px;
+}
+
+.production-workspace-studio .mixer-density[data-density="confortable"] .production-mix-row > .track-wave .clip-lane-rail {
+  height: 52px;
+  min-height: 52px;
+}
+
+.production-workspace-studio .studio-track-reorder,
+.production-workspace-studio .studio-track-rename {
+  display: inline-grid;
+  flex: 0 0 24px;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.production-workspace-studio .studio-track-reorder {
+  cursor: grab;
+  touch-action: none;
+}
+
+.production-workspace-studio .studio-track-reorder:active {
+  cursor: grabbing;
+}
+
+.production-workspace-studio .studio-track-reorder:hover,
+.production-workspace-studio .studio-track-rename:hover {
+  color: var(--text);
+  border-color: var(--line);
+  background: var(--bg2);
+}
+
+.production-workspace-studio .studio-track-reorder:focus-visible,
+.production-workspace-studio .studio-track-rename:focus-visible,
+.production-workspace-studio .studio-track-rename-input:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 1px;
+}
+
+.production-workspace-studio .studio-track-rename-input {
+  flex: 1 1 0;
+  width: 1px;
+  min-width: 0;
+  height: 24px;
+  padding: 0 0.2rem;
+  color: var(--text);
+  border: 1px solid var(--accent-cyan);
+  border-radius: 4px;
+  background: var(--bg2);
+  font: inherit;
+  font-size: 0.68rem;
+}
+
+.production-workspace-studio .production-mix-row.studio-track-row-dragging {
+  opacity: 0.58;
+}
+
+.production-workspace-studio .production-mix-row.studio-track-row-drop-target {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: -2px;
+}
+
+.production-workspace-studio .production-mix-row:has(.studio-track-reorder:active) {
+  cursor: grabbing;
+}
+
+@media (pointer: coarse) {
+  .production-workspace-studio .mixer-density[data-density="compact"] .production-mix-row {
+    height: 52px;
+    min-height: 52px;
+  }
+
+  .production-workspace-studio .mixer-density[data-density="compact"] .production-mix-row > .track-wave .clip-lane-rail {
+    height: 48px;
+    min-height: 48px;
+  }
+
+  .production-workspace-studio .mixer-density[data-density="confortable"] .production-mix-row {
+    height: 62px;
+    min-height: 62px;
+  }
+
+  .production-workspace-studio .mixer-density[data-density="confortable"] .production-mix-row > .track-wave .clip-lane-rail {
+    height: 58px;
+    min-height: 58px;
+  }
+}
+
+.qwen-mix-adjustments {
+  display: grid;
+  gap: 0.55rem;
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.qwen-mix-adjustment {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg2);
+}
+
+.qwen-mix-adjustment > label {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(80px, 1fr) 4.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.qwen-mix-adjustment output {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .qwen-mix-adjustment > label {
+    grid-template-columns: 1fr 4rem;
+  }
+
+  .qwen-mix-adjustment > label input {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
   }
 }

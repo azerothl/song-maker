@@ -81,6 +81,39 @@ export function buildTrackFamilyGroups(tracks: MixTrack[]): TrackFamilyGroup[] {
     .map((family) => ({ family, tracks: buckets[family] }));
 }
 
+/** Move one track in the saved mix order; object identity and track settings stay intact. */
+export function moveTrackBy(
+  tracks: MixTrack[],
+  trackId: string,
+  offset: -1 | 1,
+): MixTrack[] {
+  const from = tracks.findIndex((track) => track.id === trackId);
+  if (from < 0) return tracks;
+  const to = Math.max(0, Math.min(tracks.length - 1, from + offset));
+  if (to === from) return tracks;
+  const next = [...tracks];
+  const [track] = next.splice(from, 1);
+  if (!track) return tracks;
+  next.splice(to, 0, track);
+  return next;
+}
+
+/** Place a dragged track immediately before or after the row it was dropped on. */
+export function moveTrackRelative(
+  tracks: MixTrack[],
+  sourceId: string,
+  targetId: string,
+  after = false,
+): MixTrack[] {
+  if (sourceId === targetId) return tracks;
+  const source = tracks.find((track) => track.id === sourceId);
+  if (!source || !tracks.some((track) => track.id === targetId)) return tracks;
+  const next = tracks.filter((track) => track.id !== sourceId);
+  const targetIndex = next.findIndex((track) => track.id === targetId);
+  next.splice(targetIndex + Number(after), 0, source);
+  return next;
+}
+
 export function loadProductionDensityPreference(): ProductionDensityPreference {
   if (typeof localStorage === "undefined") return "auto";
   try {

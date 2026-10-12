@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { applyQwenAdjustments } from "./qwenMixAssistant";
+import { applyQwenAdjustments, filterApplicableQwenAdjustments } from "./qwenMixAssistant";
 import { buildCaptureDemoMix } from "../dev/captureDemoMix";
 import fr from "../ui/fr.json";
 import en from "../ui/en.production.json";
@@ -12,6 +12,13 @@ it("Qwen rejects unknown IDs, duplicate IDs, non-finite and oversized gains",()=
   for(const changes of [[{...valid,trackId:"unknown"}],[valid,valid],[{...valid,gainDb:NaN}],[{...valid,gainDb:track.gainDb+7}],[{...valid,pan:2}]]) {
     assert.throws(()=>applyQwenAdjustments(mix,changes),/INVALID_RESPONSE/);
   }
+});
+it("Qwen keeps applicable changes and reports rejected model changes",()=>{
+  const mix=buildCaptureDemoMix(6),track=mix.tracks[0];
+  const valid={trackId:track.id,gainDb:track.gainDb-2,pan:0.2};
+  const result=filterApplicableQwenAdjustments(mix,[valid,{...valid,trackId:"missing"}]);
+  assert.deepEqual(result.adjustments,[valid]);
+  assert.equal(result.rejectedCount,1);
 });
 it("Qwen FR/EN keys and variables match",()=>{
   for(const key of Object.keys(fr).filter(key=>key.startsWith("qwen.mix."))) {

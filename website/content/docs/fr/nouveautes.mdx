@@ -1,15 +1,16 @@
 ---
-title: Nouveautés v0.3.2
-description: Refonte du Studio et de la Bibliothèque, édition MIDI et correction des anciens profils YuE2.
+title: Nouveautés v0.4.0
+description: Studio amélioré et nouvelles commandes MCP pour les projets, la production et la composition.
 order: 2
 ---
 
-# Nouveautés — v0.3.2
+# Nouveautés — v0.4.0
 
 Cette version apporte les améliorations suivantes :
 
-- **Studio :** navigation dédiée, ajout direct de pistes audio, MIDI ou instrumentales générées par IA, réglages de pistes plus denses et lecteur toujours accessible.
-- **Bibliothèque :** formes d’onde, playlists, favoris et informations des titres conservés.
-- **MIDI et instruments :** édition dans le Studio et aperçu/rendu avec les instruments VST3 compatibles.
-- **YuE2 :** les anciens profils dont le chemin du modèle est absolu sont convertis en chemin relatif lorsqu’ils pointent dans le dossier des modèles ; un chemin extérieur est refusé avec une explication.
-- **Mode batch :** import de plusieurs titres, suivi des prises et reprise des tâches décrits dans la documentation.
+- **Studio :** pistes plus compactes, réglages de gain et panoramique alignés, et accès aux versions importées par MCP.
+- **MCP — projets et bibliothèque :** création, consultation et modification des projets, suppression protégée, et gestion des titres conservés et des playlists du profil actif.
+- **MCP — production :** import d’audio et de générations terminées, consultation et sélection des versions, édition du mix, rendu et export audio.
+- **MCP — composition :** édition des notes MIDI et transcription audio vers MIDI avec BasicPitch.
+- **MCP — génération :** outils YuE2 et ACE-Step si les moteurs et consentements requis sont disponibles ; lots de plusieurs prises exécutés séquentiellement.
+- La [matrice de parité MCP](https://github.com/azerothl/song-maker/blob/main/docs/mcp-capability-matrix.md) détaille les limites et les actions qui nécessitent encore Song Maker ou l’utilisateur.

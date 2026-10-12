@@ -1081,12 +1081,14 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
           masterGainDb: next.masterGainDb,
           tracks: next.tracks.map((tr: MixTrack) => ({
             id: tr.id,
+            name: tr.name,
             gainDb: tr.gainDb,
             pan: tr.pan,
             mute: tr.mute,
             solo: tr.solo,
             clips: tr.clips,
           })),
+          trackOrder: next.tracks.map((tr: MixTrack) => tr.id),
           tempoMap: next.tempoMap ?? [],
           timeSignatures: next.timeSignatures ?? [],
           markers: next.markers ?? [],
@@ -1133,6 +1135,17 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
                 {project.title || t("form.createTitle")}
                 <ProfileKindBadge />
               </h1>
+              {screen === "studio" &&
+                workspace === "production" &&
+                generations.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn ghost song-studio-versions-trigger"
+                    onClick={() => selectWorkspace("versions")}
+                  >
+                    {t("workspace.versions")} ({generations.length})
+                  </button>
+                )}
               {screen === "create" && (
                 <button
                   type="button"
