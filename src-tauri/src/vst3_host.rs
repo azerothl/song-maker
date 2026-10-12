@@ -957,6 +957,7 @@ fn run_worker_request(request: WorkerRequest) -> Result<WorkerResponse, String> 
         {
             return Err("Durée ou partition invalide pour le rendu VST3.".into());
         }
+        let (_, output_bus) = configure_audio_buses(&mut plugin, false)?;
         for (id, value) in &request.parameters {
             if !value.is_finite() || !(0.0..=1.0).contains(value) {
                 return Err(format!("Valeur de paramètre invalide pour {id}."));
@@ -965,7 +966,6 @@ fn run_worker_request(request: WorkerRequest) -> Result<WorkerResponse, String> 
                 .set_parameter(*id, *value)
                 .map_err(|e| format!("Réglage VST3 impossible : {e}"))?;
         }
-        let (_, output_bus) = configure_audio_buses(&mut plugin, false)?;
         let output_path = request
             .output_path
             .as_deref()
@@ -1016,6 +1016,7 @@ fn run_worker_request(request: WorkerRequest) -> Result<WorkerResponse, String> 
     if frame_count.saturating_mul(8) > MAX_PCM_BYTES {
         return Err("Audio trop long pour le rendu VST3.".into());
     }
+    let (input_bus, output_bus) = configure_audio_buses(&mut plugin, true)?;
     for (id, value) in &request.parameters {
         if !value.is_finite() || !(0.0..=1.0).contains(value) {
             return Err(format!("Valeur de paramètre invalide pour {id}."));
@@ -1024,7 +1025,6 @@ fn run_worker_request(request: WorkerRequest) -> Result<WorkerResponse, String> 
             .set_parameter(*id, *value)
             .map_err(|e| format!("Réglage VST3 impossible : {e}"))?;
     }
-    let (input_bus, output_bus) = configure_audio_buses(&mut plugin, true)?;
     plugin
         .start_processing()
         .map_err(|e| format!("Démarrage du traitement VST3 impossible : {e}"))?;
