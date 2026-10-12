@@ -33,6 +33,8 @@ const EDITOR_MAX_DURATION: Duration = Duration::from_secs(60 * 60 * 8);
 const MAX_PLUGIN_STATE_BYTES: usize = 24 * 1024 * 1024;
 #[cfg(windows)]
 const MAX_PLUGIN_PARAMETER_COUNT: usize = 16_384;
+#[cfg(windows)]
+type AudioBusSelection = (usize, usize);
 
 #[cfg(windows)]
 fn validate_plugin_parameters(parameters: &BTreeMap<u32, f64>) -> Result<(), String> {
@@ -1062,7 +1064,7 @@ fn render_midi_blocks(
     plugin: &mut vst3_host::Plugin,
     notes: &[Vst3MidiNote],
     frame_count: usize,
-    output_bus: (usize, usize),
+    output_bus: AudioBusSelection,
 ) -> Result<Vec<u8>, String> {
     use vst3_host::midi::{MidiChannel, MidiEvent};
     let mut audio = plugin
@@ -1113,18 +1115,30 @@ fn render_midi_blocks(
             .process_bus_audio(&mut audio)
             .map_err(|e| format!("Instrument VST3 en erreur : {e}"))?;
         let channels = &audio.outputs[output_bus.0].channels;
-        for i in 0..frames {
-            let base = (frame_offset + i) * 8;
-            let (left, right) = if output_bus.1 == 1 {
-                mono_to_stereo(channels[0][i])
-            } else {
-                (channels[0][i], channels[1][i])
-            };
-            if !left.is_finite() || !right.is_finite() {
-                return Err("L’instrument VST3 a produit un échantillon invalide.".into());
+        if output_bus.1 == 1 {
+            for (i, sample) in channels[0].iter().copied().take(frames).enumerate() {
+                write_stereo_frame(
+                    &mut output,
+                    frame_offset + i,
+                    mono_to_stereo(sample),
+                    "L’instrument VST3 a produit un échantillon invalide.",
+                )?;
             }
-            output[base..base + 4].copy_from_slice(&left.to_le_bytes());
-            output[base + 4..base + 8].copy_from_slice(&right.to_le_bytes());
+        } else {
+            for (i, (left, right)) in channels[0]
+                .iter()
+                .copied()
+                .zip(channels[1].iter().copied())
+                .take(frames)
+                .enumerate()
+            {
+                write_stereo_frame(
+                    &mut output,
+                    frame_offset + i,
+                    (left, right),
+                    "L’instrument VST3 a produit un échantillon invalide.",
+                )?;
+            }
         }
         frame_offset = block_end;
     }
@@ -1136,8 +1150,8 @@ fn process_blocks(
     plugin: &mut vst3_host::Plugin,
     input: &[u8],
     frame_count: usize,
-    input_bus: (usize, usize),
-    output_bus: (usize, usize),
+    input_bus: AudioBusSelection,
+    output_bus: AudioBusSelection,
 ) -> Result<Vec<u8>, String> {
     let mut audio = plugin
         .create_bus_audio_buffers(SAMPLE_BLOCK)
@@ -1163,18 +1177,30 @@ fn process_blocks(
             .process_bus_audio(&mut audio)
             .map_err(|e| format!("Plugin VST3 en erreur : {e}"))?;
         let channels = &audio.outputs[output_bus.0].channels;
-        for i in 0..frames {
-            let base = (frame_offset + i) * 8;
-            let (left, right) = if output_bus.1 == 1 {
-                mono_to_stereo(channels[0][i])
-            } else {
-                (channels[0][i], channels[1][i])
-            };
-            if !left.is_finite() || !right.is_finite() {
-                return Err("Le plugin VST3 a produit un échantillon invalide.".into());
+        if output_bus.1 == 1 {
+            for (i, sample) in channels[0].iter().copied().take(frames).enumerate() {
+                write_stereo_frame(
+                    &mut output,
+                    frame_offset + i,
+                    mono_to_stereo(sample),
+                    "Le plugin VST3 a produit un échantillon invalide.",
+                )?;
             }
-            output[base..base + 4].copy_from_slice(&left.to_le_bytes());
-            output[base + 4..base + 8].copy_from_slice(&right.to_le_bytes());
+        } else {
+            for (i, (left, right)) in channels[0]
+                .iter()
+                .copied()
+                .zip(channels[1].iter().copied())
+                .take(frames)
+                .enumerate()
+            {
+                write_stereo_frame(
+                    &mut output,
+                    frame_offset + i,
+                    (left, right),
+                    "Le plugin VST3 a produit un échantillon invalide.",
+                )?;
+            }
         }
         frame_offset += frames;
     }
@@ -1185,7 +1211,7 @@ fn process_blocks(
 fn configure_audio_buses(
     plugin: &mut vst3_host::Plugin,
     requires_input: bool,
-) -> Result<((usize, usize), (usize, usize)), String> {
+) -> Result<(AudioBusSelection, AudioBusSelection), String> {
     use vst3_host::audio::SpeakerArrangement;
 
     let arrangements = plugin
@@ -1218,7 +1244,7 @@ fn configure_audio_buses(
 fn main_audio_bus(
     buses: &[vst3_host::audio::AudioBusConfig],
     direction: &str,
-) -> Result<(usize, usize), String> {
+) -> Result<AudioBusSelection, String> {
     let (index, bus) = buses
         .iter()
         .enumerate()
@@ -1239,6 +1265,22 @@ fn stereo_to_mono(left: f32, right: f32) -> f32 {
 
 fn mono_to_stereo(sample: f32) -> (f32, f32) {
     (sample, sample)
+}
+
+#[cfg(windows)]
+fn write_stereo_frame(
+    output: &mut [u8],
+    frame_index: usize,
+    (left, right): (f32, f32),
+    invalid_sample_error: &str,
+) -> Result<(), String> {
+    if !left.is_finite() || !right.is_finite() {
+        return Err(invalid_sample_error.into());
+    }
+    let base = frame_index * 8;
+    output[base..base + 4].copy_from_slice(&left.to_le_bytes());
+    output[base + 4..base + 8].copy_from_slice(&right.to_le_bytes());
+    Ok(())
 }
 
 #[cfg(test)]
