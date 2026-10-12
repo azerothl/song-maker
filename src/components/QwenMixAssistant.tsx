@@ -6,7 +6,7 @@ import { api } from "../lib/api";
 import { decodeMixStems } from "../lib/mixBridge";
 import { fingerprintProductionState } from "../lib/productionAssistant";
 import { getProductionOverlay, subscribeProduction } from "../lib/productionState";
-import { applyQwenAdjustments, proposeQwenMix, type QwenMixResponse } from "../lib/qwenMixAssistant";
+import { applyQwenAdjustments, filterApplicableQwenAdjustments, proposeQwenMix, type QwenAdjustment, type QwenMixResponse } from "../lib/qwenMixAssistant";
 import { useAppStore } from "../store/appStore";
 import type { MixDoc, PlaybackSources } from "../lib/types";
 import { profileLocale, t } from "../ui/i18n";
@@ -34,7 +34,7 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState<string|null>(null);
   const [diagnostic,setDiagnostic]=useState<string|null>(null);
-  const [proposal,setProposal]=useState<{result:QwenMixResponse;fingerprint:string;totalElapsedMs:number}|null>(null);
+  const [proposal,setProposal]=useState<{result:QwenMixResponse;fingerprint:string;totalElapsedMs:number;rejectedCount:number}|null>(null);
   const [confirm,setConfirm]=useState(false);
   const [undo,setUndo]=useState<MixDoc|null>(null);
   const [provider,setProvider]=useState(settings?.mixLlmProvider??"ollama");
@@ -138,6 +138,21 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
     } finally {setSidecarBusy(false);}
   };
 
+  const updateAdjustment=(trackId:string, patch:Partial<QwenAdjustment>)=>{
+    setProposal(previous=>{
+      if(!previous)return previous;
+      const candidate=previous.result.adjustments.map(adjustment=>
+        adjustment.trackId===trackId?{...adjustment,...patch}:adjustment,
+      );
+      const filtered=filterApplicableQwenAdjustments(current.current,candidate);
+      return {
+        ...previous,
+        result:{...previous.result,adjustments:filtered.adjustments},
+        rejectedCount:previous.rejectedCount+filtered.rejectedCount,
+      };
+    });
+  };
+
   const run=async () => {
     if (!sources || !hasStems || busy) return;
     setBusy(true);setError(null);setDiagnostic(null);setProposal(null);setConfirm(false);
@@ -152,8 +167,13 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
         return {id:track.id,name:track.name,role:track.role,gainDb:track.gainDb,pan:track.pan,rmsDb:level.rmsDb,peakDb:level.peakDb};
       });
       const result=await proposeQwenMix(tracks,objective,profileLocale());
-      applyQwenAdjustments(startedMix,result.adjustments);
-      if(current.current.id===startedMix.id) setProposal({result,fingerprint:startedFingerprint,totalElapsedMs:performance.now()-startedAt});
+      const filtered=filterApplicableQwenAdjustments(startedMix,result.adjustments);
+      if(current.current.id===startedMix.id) setProposal({
+        result:{...result,adjustments:filtered.adjustments},
+        fingerprint:startedFingerprint,
+        totalElapsedMs:performance.now()-startedAt,
+        rejectedCount:filtered.rejectedCount,
+      });
     } catch (e) {
       const code=String(e instanceof Error?e.message:e);
       const key=code.includes("MODEL_MISSING") ? "qwen.mix.modelMissing"
@@ -247,9 +267,23 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
       <p className="hint">{t("qwen.mix.measured",{model:proposal.result.model,time:nf.format(proposal.result.elapsedMs/1000)})}</p>
       {Number.isFinite(proposal.totalElapsedMs) && <p className="hint">{t("qwen.mix.totalMeasured",{time:nf.format(proposal.totalElapsedMs/1000)})}</p>}
       <p>{COMMERCIAL_COPY_FORBIDDEN.test(proposal.result.explanation)?t("qwen.mix.rationale"):proposal.result.explanation}</p>
-      <ul>{proposal.result.adjustments.map(adjustment=>{
+      {proposal.rejectedCount>0 && <p className="hint" role="status">{t("qwen.mix.filtered",{count:proposal.rejectedCount})}</p>}
+      <ul className="qwen-mix-adjustments">{proposal.result.adjustments.map(adjustment=>{
         const track=mix.tracks.find(track=>track.id===adjustment.trackId);
-        return <li key={adjustment.trackId}>{track?.name}: {nf.format(track?.gainDb??0)} → {nf.format(adjustment.gainDb)} dB · {t("phase3.mix.targetPan")} {nf.format(adjustment.pan)}</li>;
+        if(!track)return null;
+        const minGain=Math.max(-60,track.gainDb-6);
+        const maxGain=Math.min(12,track.gainDb+6);
+        return <li key={adjustment.trackId} className="qwen-mix-adjustment">
+          <strong>{track.name}</strong>
+          <label>{t("qwen.mix.manualGain")}
+            <input type="range" min={minGain} max={maxGain} step={0.5} value={adjustment.gainDb} aria-label={t("qwen.mix.manualGainNamed",{track:track.name})} onChange={event=>updateAdjustment(adjustment.trackId,{gainDb:Number(event.currentTarget.value)})} />
+            <output>{nf.format(adjustment.gainDb)} dB</output>
+          </label>
+          <label>{t("qwen.mix.manualPan")}
+            <input type="range" min={-1} max={1} step={0.01} value={adjustment.pan} aria-label={t("qwen.mix.manualPanNamed",{track:track.name})} onChange={event=>updateAdjustment(adjustment.trackId,{pan:Number(event.currentTarget.value)})} />
+            <output>{nf.format(adjustment.pan)}</output>
+          </label>
+        </li>;
       })}</ul>
       {stale && <p className="hint error">{t("qwen.mix.stale")}</p>}
       {!proposal.result.adjustments.length && <p>{t("qwen.mix.empty")}</p>}

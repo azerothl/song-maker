@@ -92,6 +92,18 @@ function tempoAt(ms: number, map: MixTempoEvent[]): MixTempoEvent {
   return current;
 }
 
+/** Duration of the selected note subdivision at the tempo active at `ms`. */
+export function musicalSubdivisionDurationMs(
+  ms: number,
+  tempoMap: MixTempoEvent[],
+  subdivision: MusicalSubdivision,
+): number {
+  return Math.max(
+    1,
+    beatDurationMs(tempoAt(Math.max(0, ms), tempoMap).quarterBpm) / subdivision,
+  );
+}
+
 function meterAt(ms: number, map: MixMeterEvent[]): MixMeterEvent {
   const list = sortedMeter(map);
   let current = list[0]!;
@@ -202,9 +214,7 @@ export function snapMs(
     options.meterMap,
     options.subdivision,
   );
-  const tempo = tempoAt(ms, options.tempoMap);
-  const beatMs = beatDurationMs(tempo.quarterBpm);
-  const subMs = beatMs / options.subdivision;
+  const subMs = musicalSubdivisionDurationMs(ms, options.tempoMap, options.subdivision);
   // Snap to nearest subdivision grid point around ms.
   const candidates: number[] = [];
   for (let dBar = -1; dBar <= 1; dBar++) {

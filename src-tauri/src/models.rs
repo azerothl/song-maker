@@ -758,6 +758,9 @@ pub struct CreateProjectInput {
 pub struct MixUpdate {
     pub master_gain_db: f32,
     pub tracks: Vec<MixTrackUpdate>,
+    /// Full ordered list of track IDs when the arrangement order changes.
+    #[serde(default)]
+    pub track_order: Option<Vec<String>>,
     /// When present, replaces the mix arrangement tempo map (#94).
     #[serde(default)]
     pub tempo_map: Option<Vec<MixTempoEvent>>,
@@ -790,6 +793,9 @@ pub struct Vst3MasterInsert {
 #[serde(rename_all = "camelCase")]
 pub struct MixTrackUpdate {
     pub id: String,
+    /// Optional display name update (max 80 characters).
+    #[serde(default)]
+    pub name: Option<String>,
     pub gain_db: f32,
     pub pan: f32,
     pub mute: bool,

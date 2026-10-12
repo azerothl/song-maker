@@ -169,6 +169,7 @@ export function LibraryTrackPlayer({
           status={peaks ? "ready" : waveformFailed ? "empty" : "loading"}
           color={color}
           playedColor={playedColor}
+          followPlaybackPosition={selected}
           onSeek={(seconds) => {
             if (selected && playback?.ready && playback.sourceKey === trackKey) {
               playback.seek(seconds);

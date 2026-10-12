@@ -35,10 +35,30 @@ pub fn library_snapshot(folder: &Path, doc: &ProjectDoc) -> (Option<i64>, String
             return (None, "score_only".into());
         }
     }
+    if let Some(duration) = active_mix_duration(folder, doc) {
+        return (Some(duration), "arranged".into());
+    }
     if let Some(duration) = latest_completed_generation_duration(folder) {
         return (Some(duration), "versions_available".into());
     }
     (None, "empty".into())
+}
+
+fn active_mix_duration(folder: &Path, doc: &ProjectDoc) -> Option<i64> {
+    let mix_id = doc.active_mix_id.as_deref()?;
+    let text = fs::read_to_string(folder.join("mixes").join(format!("{mix_id}.json"))).ok()?;
+    let mix = serde_json::from_str::<crate::models::MixDoc>(&text).ok()?;
+    let mut max_ms = 0i64;
+    let mut has_audio_clips = false;
+    for track in &mix.tracks {
+        for clip in &track.clips {
+            if clip.duration_ms > 0 && !clip.source_path.trim().is_empty() {
+                has_audio_clips = true;
+                max_ms = max_ms.max(clip.start_ms.saturating_add(clip.duration_ms));
+            }
+        }
+    }
+    (has_audio_clips && max_ms > 0).then_some(max_ms)
 }
 
 fn latest_completed_generation_duration(folder: &Path) -> Option<i64> {
@@ -584,6 +604,92 @@ mod library_snapshot_tests {
             library_snapshot(&temp.0, &project()),
             (None, "empty".into())
         );
+    }
+
+    fn write_mix(folder: &Path, tracks: serde_json::Value) {
+        let mixes = folder.join("mixes");
+        std::fs::create_dir_all(&mixes).unwrap();
+        std::fs::write(
+            mixes.join("mix-v001.json"),
+            serde_json::json!({
+                "schema": "songmaker.mix",
+                "schemaVersion": 1,
+                "id": "mix-v001",
+                "separationId": "",
+                "sampleRate": 48000,
+                "masterGainDb": 0.0,
+                "peakCeilingDb": -1.0,
+                "tracks": tracks
+            })
+            .to_string(),
+        )
+        .unwrap();
+    }
+
+    fn audio_clip() -> serde_json::Value {
+        serde_json::json!({
+            "id": "clip-001",
+            "trackId": "track-001",
+            "sourcePath": "imports/audio.wav",
+            "sourceSha256": "",
+            "startMs": 500,
+            "offsetMs": 0,
+            "durationMs": 1500,
+            "gainDb": 0.0,
+            "fadeInMs": 0,
+            "fadeOutMs": 0
+        })
+    }
+
+    #[test]
+    fn active_imported_audio_mix_is_not_reported_as_empty() {
+        let temp = TempProject::new();
+        write_mix(
+            &temp.0,
+            serde_json::json!([{
+                "id": "track-001",
+                "role": "audio",
+                "name": "Imported audio",
+                "gainDb": 0.0,
+                "pan": 0.0,
+                "mute": false,
+                "solo": false,
+                "locked": false,
+                "aiSeparated": false,
+                "clips": [audio_clip()]
+            }]),
+        );
+        let mut doc = project();
+        doc.active_mix_id = Some("mix-v001".into());
+
+        assert_eq!(
+            library_snapshot(&temp.0, &doc),
+            (Some(2_000), "arranged".into())
+        );
+    }
+
+    #[test]
+    fn active_mix_without_clips_remains_empty() {
+        let temp = TempProject::new();
+        write_mix(
+            &temp.0,
+            serde_json::json!([{
+                "id": "track-001",
+                "role": "audio",
+                "name": "Empty audio",
+                "gainDb": 0.0,
+                "pan": 0.0,
+                "mute": false,
+                "solo": false,
+                "locked": false,
+                "aiSeparated": false,
+                "clips": []
+            }]),
+        );
+        let mut doc = project();
+        doc.active_mix_id = Some("mix-v001".into());
+
+        assert_eq!(library_snapshot(&temp.0, &doc), (None, "empty".into()));
     }
 
     #[test]
