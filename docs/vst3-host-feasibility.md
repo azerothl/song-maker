@@ -31,7 +31,7 @@ Incrément derrière `SONG_MAKER_VST3_SPIKE=1` : scan de bundles `.vst3`, `dlope
 
 **Ce n’était pas** : callback audio, effet audible, AU ni isolation des traitements DSP. L’ancien panneau de diagnostic est masqué sans le flag et ne constitue pas l’interface produit.
 
-L’hôte hors ligne a été intégré par #402 et #406. Le scan, les réglages, l’éditeur natif, le rendu master et les instruments de partition sont présents dans le produit. Il reste à le vérifier dans l’application Windows avec un véritable effet et un instrument VST3, puis à confirmer la persistance, l’aperçu, l’export et le comportement en cas de plantage.
+L’hôte hors ligne a été intégré par #402 et #406. Les essais dans l’application Windows de développement ont couvert un effet Rustortion reconstruit avec un correctif amont, un instrument Odin2, la restauration des réglages, l’aperçu et un export WAV. Le Rustortion 0.3.0 publié échoue avant l’ouverture de son éditeur, sans fermer Song Maker. Il reste à refaire le parcours dans un build Windows publié avec des plugins stables, puis à écouter et comparer le rendu exporté.
 
 ## Stack audio actuelle (constat)
 
@@ -92,15 +92,15 @@ cpal est présent pour la capture. Pas de graphe hôte VST3, de JUCE, de PortAud
 
 | Critère #100 | Statut ici |
 |---|---|
-| Scan et choix dans Production | **Intégrés par #402/#406** — validation visuelle avec plugins réels encore à faire. |
-| Traitement d’un effet master hors ligne | **Intégré** — sous-processus isolé ; le rendu avec un effet réel reste à écouter. |
-| Préécoute et export | **Branchés sur le même rendu** — réimport et comparaison audio réelle à vérifier. |
-| Sauvegarde des réglages | **Paramètres et activation persistés par mix** ; l’état interne arbitraire du plugin n’est pas restauré. |
-| Windows load / play / restore | **En attente de preuve produit** — charger un effet et un instrument réels, modifier leurs réglages, rouvrir le projet, préécouter puis exporter. Vérifier aussi un plugin qui plante ou se bloque. |
+| Scan et choix dans Production | **Intégrés par #402/#406** — parcours visuel vérifié dans l’application de développement ; build publié à vérifier. |
+| Traitement d’un effet master hors ligne | **Intégré** — sous-processus isolé ; rendu et export réussis avec Rustortion reconstruit temporairement, sans écoute subjective revendiquée. |
+| Préécoute et export | **Branchés sur le même rendu** — un export WAV a réussi ; écoute subjective et comparaison après réimport à vérifier. |
+| Sauvegarde des réglages | **Paramètres et état d’éditeur persistés par mix** — restauration vérifiée après réouverture avec Rustortion reconstruit temporairement. |
+| Windows load / play / restore | **Partiellement vérifié dans l’application de développement** — effet réel, instrument MIDI, réglages restaurés et échec d’ouverture isolé. Refaire les parcours dans un build publié avec des plugins stables et confirmer le comportement d’un plugin qui plante ou se bloque. |
 | Voie Linux testée | **Limites documentées** : libs ALSA/JACK peuvent être présentes sur une machine de build, mais **sans** session PipeWire/GUI plugin, **sans** inventaire commercial de `.vst3` Linux, et **sans** moteur RT produit, un proto Linux ne vaudrait pas validation produit. Wine n’est **pas** une stratégie produit. |
 | AU/macOS et effet pendant l’enregistrement | **Hors de cette tranche**. |
 
-Le prochain prototype doit traiter et restaurer l’état d’un effet master réel, s’intégrer à l’aperçu et à l’export du mix, et conserver une preuve Windows. Le scan et le chargement de factory ne suffisent pas.
+Les prochains essais doivent refaire le parcours dans un build Windows publié, écouter le mix et comparer l’aperçu au WAV exporté après réimport. Ils doivent aussi vérifier l’isolation d’un plugin qui plante ou se bloque. Le scan seul ne constitue pas une validation produit.
 
 ## Licence et distribution (points de vigilance)
 
@@ -114,10 +114,10 @@ Song Maker vise génération, séparation et mix assisté. Les effets natifs res
 
 ## Prochaines étapes
 
-1. Vérifier les commandes et l’interface dans l’application Windows, avec au moins un effet VST3 sans accepter de licence de plugin à la place de l’utilisateur.
-2. Confirmer que le paramètre choisi survit à la fermeture et à la réouverture du projet.
-3. Comparer l’aperçu et l’export réimporté sur le même rendu et vérifier le comportement lors d’un plantage ou blocage du plugin.
-4. Faire un audit final des dépendances, licences et packaging de la première version.
+1. Refaire le parcours avec un effet et un instrument VST3 stables dans un build Windows publié.
+2. Comparer l’aperçu et l’export réimporté sur le même rendu, et consigner l’écoute réelle.
+3. Vérifier dans ce build le comportement d’un plugin qui plante ou se bloque, puis confirmer la restauration de ses réglages.
+4. Faire un audit final des dépendances, licences et packaging ; Song Maker ne redistribue pas les plugins.
 5. Garder AU/macOS, monitoring pendant l’enregistrement et l’interface audio en étapes ultérieures (#330/#342).
 
 ## Synthèse

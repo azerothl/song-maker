@@ -20,6 +20,8 @@ import { ScoreAssistantPanel } from "./ScoreAssistantPanel";
 import { ScoreBranchPanel } from "./ScoreBranchPanel";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
+import { ErrorNotice } from "./ErrorNotice";
+import { handleRovingTabListKeyDown } from "../lib/rovingTabList";
 
 type ScoreViewMode = "staff" | "piano" | "abc";
 
@@ -477,6 +479,7 @@ export function ScorePanel({
             className="score-view-tabs"
             role="tablist"
             aria-label={t("score.view.tabs")}
+            onKeyDown={handleRovingTabListKeyDown}
           >
             {(["staff", "piano", "abc"] as const).map((mode) => (
               <button
@@ -517,9 +520,10 @@ export function ScorePanel({
                 />
               ) : (
                 <div className="score-staff-fallback">
-                  <p className="hint" role="alert">
-                    {staffAbc.error ?? t("score.staff.unavailable")}
-                  </p>
+                  <ErrorNotice
+                    message={staffAbc.error ?? t("score.staff.unavailable")}
+                    className="hint"
+                  />
                   <p className="hint">{t("score.staff.switchPiano")}</p>
                   <button
                     type="button"

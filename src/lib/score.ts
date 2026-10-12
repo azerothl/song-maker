@@ -63,6 +63,21 @@ export function setScoreVoiceVst3Instrument(
   };
 }
 
+/** Merge native editor state into an existing voice without replacing newer score edits. */
+export function mergeScoreVoiceVst3InstrumentState(
+  document: ScoreDocument,
+  voiceId: string,
+  pluginPath: string,
+  patch: Partial<Pick<ScoreVst3Instrument, "parameters" | "stateB64">>,
+): ScoreDocument {
+  const instrument = document.voices.find((voice) => voice.id === voiceId)?.vst3Instrument;
+  if (!instrument || instrument.pluginPath !== pluginPath) return document;
+  return setScoreVoiceVst3Instrument(document, voiceId, {
+    ...instrument,
+    ...patch,
+  });
+}
+
 export function importMidiBytes(
   bytes: Uint8Array,
   options?: {
@@ -383,6 +398,18 @@ export function primaryVoiceId(doc: ScoreDocument): string | null {
   return vocal?.id ?? doc.voices[0]?.id ?? null;
 }
 
+function hasAbcScoreContent(document: ScoreDocument): boolean {
+  const hasNotes = document.voices.some(
+    (voice) =>
+      voice.notes.length > 0 &&
+      (voice.abcVoice === "Vocal" ||
+        voice.abcVoice === "Ins" ||
+        (!voice.abcVoice &&
+          (voice.role === "vocal" || voice.role === "melody"))),
+  );
+  return hasNotes || document.chordEvents.length > 0;
+}
+
 /** Verdict de `prepareAbcForGeneration` : ABC prêt, ou motif de refus. */
 export type ScoreGate = {
   abc: string | null;
@@ -397,6 +424,9 @@ export function prepareAbcForGeneration(
   title: string,
 ): ScoreGate {
   if (!document) {
+    return { abc: null, error: null, issues: [] };
+  }
+  if (!hasAbcScoreContent(document)) {
     return { abc: null, error: null, issues: [] };
   }
   if (cot === "off") {

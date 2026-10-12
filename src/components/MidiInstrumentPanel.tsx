@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { api } from "../lib/api";
 import {
@@ -20,6 +20,7 @@ import {
 } from "../lib/midiScorePlayer";
 import {
   addNote,
+  mergeScoreVoiceVst3InstrumentState,
   setScoreVoiceVst3Instrument,
   type ScoreDocument,
   type ScoreVst3Instrument,
@@ -33,6 +34,8 @@ const DEFAULT_NOTE_TICKS = 240;
 const QUANTIZE_TICKS = 120;
 const VST3_SAMPLE_RATE = 48_000;
 const VST3_RELEASE_TAIL_SEC = 2;
+const MIDI_SETTINGS_TABS = ["instrument", "plugin", "midi"] as const;
+type MidiSettingsTab = (typeof MIDI_SETTINGS_TABS)[number];
 
 function buildVst3RenderRequest(
   document: ScoreDocument,
@@ -118,6 +121,8 @@ export function MidiInstrumentPanel({
   onLatencyChange,
   onError,
 }: Props) {
+  const settingsTabId = useId();
+  const [settingsTab, setSettingsTab] = useState<MidiSettingsTab>("instrument");
   const synthRef = useRef<SoftSynth | null>(null);
   const playbackRef = useRef<ScorePlaybackHandle | null>(null);
   const vst3AudioRef = useRef<HTMLAudioElement | null>(null);
@@ -451,9 +456,17 @@ export function MidiInstrumentPanel({
         parameters,
         ...(previous?.stateB64 ? { stateB64: previous.stateB64 } : {}),
       };
-      onDocumentChange(
-        setScoreVoiceVst3Instrument(document, resolvedVoiceId, instrument),
+      const latestDocument = docRef.current;
+      if (!latestDocument.voices.some((voice) => voice.id === resolvedVoiceId)) {
+        return;
+      }
+      const nextDocument = setScoreVoiceVst3Instrument(
+        latestDocument,
+        resolvedVoiceId,
+        instrument,
       );
+      docRef.current = nextDocument;
+      onChangeRef.current(nextDocument);
       setStatus(t("midi.vst3.selected", { name: plugin.name }));
     } catch (e) {
       if (!classified) {
@@ -467,23 +480,34 @@ export function MidiInstrumentPanel({
 
   async function openVst3Editor() {
     if (!vst3Instrument || !resolvedVoiceId || vst3Busy) return;
+    const editorVoiceId = resolvedVoiceId;
+    const editorPluginPath = vst3Instrument.pluginPath;
     setVst3Busy(true);
     onError?.(null);
     setStatus(t("midi.vst3.editorOpening"));
     try {
       const result = await api.vst3OpenPluginEditor(
-        vst3Instrument.pluginPath,
+        editorPluginPath,
         vst3Instrument.parameters,
         vst3Instrument.stateB64,
       );
-      const instrument = {
-        ...vst3Instrument,
-        parameters: result.parameters,
-        ...(result.pluginStateB64 ? { stateB64: result.pluginStateB64 } : {}),
-      };
-      onDocumentChange(
-        setScoreVoiceVst3Instrument(document, resolvedVoiceId, instrument),
+      const latestDocument = docRef.current;
+      const nextDocument = mergeScoreVoiceVst3InstrumentState(
+        latestDocument,
+        editorVoiceId,
+        editorPluginPath,
+        {
+          parameters: result.parameters,
+          ...(result.pluginStateB64 ? { stateB64: result.pluginStateB64 } : {}),
+        },
       );
+      if (nextDocument === latestDocument) {
+        setStatus(null);
+        onError?.(t("midi.vst3.assignmentChanged"));
+        return;
+      }
+      docRef.current = nextDocument;
+      onChangeRef.current(nextDocument);
       setStatus(t("midi.vst3.editorSaved"));
     } catch (e) {
       setStatus(null);
@@ -578,6 +602,26 @@ export function MidiInstrumentPanel({
     window.setTimeout(() => synth.noteOff(pitch), 220);
   }
 
+  function handleSettingsTabKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const currentIndex = MIDI_SETTINGS_TABS.indexOf(settingsTab);
+    const nextIndex = event.key === "ArrowRight"
+      ? (currentIndex + 1) % MIDI_SETTINGS_TABS.length
+      : event.key === "ArrowLeft"
+        ? (currentIndex + MIDI_SETTINGS_TABS.length - 1) % MIDI_SETTINGS_TABS.length
+        : event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? MIDI_SETTINGS_TABS.length - 1
+            : -1;
+    if (nextIndex < 0) return;
+    event.preventDefault();
+    const nextTab = MIDI_SETTINGS_TABS[nextIndex];
+    setSettingsTab(nextTab);
+    window.requestAnimationFrame(() => {
+      window.document.getElementById(`${settingsTabId}-tab-${nextTab}`)?.focus();
+    });
+  }
+
   return (
     <div className="midi-instrument-panel">
       <div className="midi-instrument-header">
@@ -585,6 +629,37 @@ export function MidiInstrumentPanel({
         <span className="hint">{t("midi.hint")}</span>
       </div>
 
+      <div
+        className="midi-settings-tabs"
+        role="tablist"
+        aria-label={t("midi.settingsTabs")}
+        onKeyDown={handleSettingsTabKeyDown}
+      >
+        {MIDI_SETTINGS_TABS.map((tab) => (
+          <button
+            key={tab}
+            id={`${settingsTabId}-tab-${tab}`}
+            type="button"
+            className="midi-settings-tab"
+            role="tab"
+            aria-selected={settingsTab === tab}
+            aria-controls={`${settingsTabId}-panel-${tab}`}
+            tabIndex={settingsTab === tab ? 0 : -1}
+            onClick={() => setSettingsTab(tab)}
+          >
+            {t(`midi.settingsTab.${tab}`)}
+          </button>
+        ))}
+      </div>
+
+      <section
+        id={`${settingsTabId}-panel-instrument`}
+        className="midi-settings-tabpanel"
+        role="tabpanel"
+        aria-labelledby={`${settingsTabId}-tab-instrument`}
+        hidden={settingsTab !== "instrument"}
+        tabIndex={0}
+      >
       <div className="midi-instrument-controls">
         <label>
           <span>{t("midi.program")}</span>
@@ -703,6 +778,16 @@ export function MidiInstrumentPanel({
         </label>
       </div>
 
+      </section>
+
+      <section
+        id={`${settingsTabId}-panel-plugin`}
+        className="midi-settings-tabpanel"
+        role="tabpanel"
+        aria-labelledby={`${settingsTabId}-tab-plugin`}
+        hidden={settingsTab !== "plugin"}
+        tabIndex={0}
+      >
       <section className="midi-record-block midi-vst3-block">
         <h5>{t("midi.vst3.title")}</h5>
         <p className="hint">{t("midi.vst3.hint")}</p>
@@ -800,6 +885,7 @@ export function MidiInstrumentPanel({
           <p className="hint">{t("midi.vst3.noPlugins")}</p>
         )}
       </section>
+      </section>
 
       <div className="btn-row">
         <button
@@ -827,6 +913,14 @@ export function MidiInstrumentPanel({
         </button>
       </div>
 
+      <section
+        id={`${settingsTabId}-panel-midi`}
+        className="midi-settings-tabpanel"
+        role="tabpanel"
+        aria-labelledby={`${settingsTabId}-tab-midi`}
+        hidden={settingsTab !== "midi"}
+        tabIndex={0}
+      >
       <div className="midi-record-block">
         <label>
           <span>{t("midi.device")}</span>
@@ -882,6 +976,7 @@ export function MidiInstrumentPanel({
       </div>
 
       <MidiOutputPanel document={document} voiceId={resolvedVoiceId} />
+      </section>
       {status && <p className="hint">{status}</p>}
     </div>
   );

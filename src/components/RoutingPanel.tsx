@@ -13,6 +13,7 @@ import {
   subscribeProduction,
 } from "../lib/productionState";
 import { t } from "../ui/i18n";
+import { ErrorNotice } from "./ErrorNotice";
 
 type Props = {
   mix: MixDoc | null;
@@ -100,11 +101,7 @@ export function RoutingPanel({ mix }: Props) {
         <p className="hint">{t("phase3.routing.intro")}</p>
       </header>
 
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <ErrorNotice message={error} className="error" />}
 
       <div className="btn-row">
         <button

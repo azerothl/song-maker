@@ -1,4 +1,5 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { t } from "../ui/i18n";
 import { api } from "./api";
 import {
   float32ToLeBytes,
@@ -113,12 +114,27 @@ async function fetchDecode(
   absolutePath: string,
 ): Promise<AudioBuffer> {
   const url = convertFileSrc(absolutePath);
-  const resp = await fetch(url);
-  if (!resp.ok) {
-    throw new Error(`Lecture audio impossible (${resp.status}).`);
+  let resp: Response;
+  try {
+    resp = await fetch(url);
+  } catch {
+    throw new Error(t("player.audioReadFailed"));
   }
-  const bytes = await resp.arrayBuffer();
-  return ctx.decodeAudioData(bytes.slice(0));
+  if (resp.status === 403) {
+    throw new Error(t("player.audioAccessDenied"));
+  }
+  if (resp.status === 404) {
+    throw new Error(t("player.audioMissing"));
+  }
+  if (!resp.ok) {
+    throw new Error(t("player.audioReadFailed"));
+  }
+  try {
+    const bytes = await resp.arrayBuffer();
+    return await ctx.decodeAudioData(bytes.slice(0));
+  } catch {
+    throw new Error(t("player.audioDecodeFailed"));
+  }
 }
 
 export class MixPlaybackEngine {

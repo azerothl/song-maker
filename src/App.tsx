@@ -3,6 +3,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { api } from "./lib/api";
 import { generationErrorMessage } from "./lib/generationError";
+import { presentGlobalError } from "./lib/errorPresentation";
 import { shouldHandleSidebarToggleShortcut } from "./lib/sidebarKeyboard";
 import { bindSidebarTipDismiss } from "./lib/sidebarTooltips";
 import {
@@ -23,6 +24,7 @@ import { ProfileMigrationBanner } from "./components/ProfileMigrationBanner";
 import { ProfileSelector } from "./components/ProfileSelector";
 import { ProfileOnboardingScreen } from "./screens/ProfileOnboardingScreen";
 import { SplashScreen } from "./screens/SplashScreen";
+import { ErrorBanner } from "./components/ErrorBanner";
 import { useAppStore } from "./store/appStore";
 import { t, useAppLocale } from "./ui/i18n";
 import "./App.css";
@@ -278,6 +280,11 @@ export function Sidebar() {
     : health.serverHealthy
       ? t("nav.runtimeOnline")
       : t("nav.runtimeOffline");
+  const audioStatus = !health
+    ? t("nav.statusChecking")
+    : !health.generationModelAvailable
+      ? t("nav.modelUnavailable")
+      : runtimeStatus;
   const runtimeAction = health?.serverHealthy
     ? t("nav.runtimeRestart")
     : t("nav.runtimeStart");
@@ -292,6 +299,13 @@ export function Sidebar() {
       (job.state === "failed" && job.projectId === project?.id))
       ? job
       : null;
+  const sidebarJobMessage = sidebarJob
+    ? sidebarJob.state === "failed"
+      ? presentGlobalError(
+          generationErrorMessage(sidebarJob.error || sidebarJob.label),
+        ).message
+      : generationErrorMessage(sidebarJob.label)
+    : "";
   const toggleLabel = collapsed ? t("nav.expandMenu") : t("nav.collapseMenu");
   const toggleTitle = collapsed
     ? toggleLabel
@@ -409,78 +423,69 @@ export function Sidebar() {
         </SidebarRow>
       </nav>
       <div className="sidebar-meta">
-        <SidebarRow tip={gpuLabel}>
-          <div
-            className="sidebar-meta-row"
-            role="group"
-            aria-label={gpuLabel}
-            tabIndex={collapsed ? 0 : undefined}
+        <SidebarRow tip={`${t("nav.runtime")}: ${audioStatus}`}>
+          <details
+            className={`sidebar-audio-status${health?.serverHealthy === true ? " is-online" : health ? " is-offline" : ""}`}
           >
-            <IconGpu />
-            <span className="sidebar-label">{gpuLabel}</span>
-          </div>
-        </SidebarRow>
-        <SidebarRow tip={`${modelName} · ${modelStatus}`}>
-          <div
-            className={`sidebar-meta-row sidebar-model-row${health?.generationModelAvailable === true ? " is-ready" : health ? " is-unavailable" : ""}`}
-            role="group"
-            aria-label={`${t("nav.model")}: ${modelName}, ${modelStatus}`}
-            tabIndex={collapsed ? 0 : undefined}
-          >
-            <IconModel />
-            <span className="sidebar-model-copy sidebar-label">
-              <strong>{modelName}</strong>
-              <small>{modelStatus}</small>
-            </span>
-          </div>
-        </SidebarRow>
-        <SidebarRow tip={runtimeStatus}>
-          <div
-            className={`sidebar-meta-row sidebar-runtime-row${health?.serverHealthy === true ? " is-online" : health ? " is-offline" : ""}`}
-            role="group"
-            aria-label={`${t("nav.runtime")}: ${runtimeStatus}`}
-            tabIndex={collapsed ? 0 : undefined}
-          >
-            <IconRuntime />
-            <span className="sidebar-label">{runtimeStatus}</span>
-          </div>
-        </SidebarRow>
-        {health && isTauri() && (
-          <SidebarRow tip={runtimeBusy ? t("nav.runtimeBusy") : t("nav.runtimeActionHint")}>
-            <button
-              type="button"
-              className="sidebar-runtime-restart"
-              onClick={() => {
-                if (runtimeBusy || restartingRuntime) return;
-                setRestartingRuntime(true);
-                void api
-                  .restartAudioRuntime()
-                  .then(() => refreshHealth())
-                  .catch((reason: unknown) => {
-                    setError(reason instanceof Error ? reason.message : String(reason));
-                    return refreshHealth();
-                  })
-                  .finally(() => setRestartingRuntime(false));
-              }}
-              disabled={restartingRuntime}
-              aria-disabled={runtimeBusy || undefined}
-              title={runtimeBusy ? t("nav.runtimeBusy") : t("nav.runtimeActionHint")}
-              aria-label={restartingRuntime ? t("nav.runtimeRestarting") : runtimeAction}
-              aria-describedby={runtimeBusy ? "sidebar-runtime-busy" : undefined}
-              aria-busy={restartingRuntime}
-            >
-              <IconRestart />
-              <span className="sidebar-label">
-                {restartingRuntime ? t("nav.runtimeRestarting") : runtimeAction}
+            <summary aria-label={`${t("nav.runtime")}: ${audioStatus}`}>
+              <IconRuntime />
+              <span className="sidebar-audio-summary-copy sidebar-label">
+                <strong>{t("nav.runtime")}</strong>
+                <small>{audioStatus}</small>
               </span>
-            </button>
-            {runtimeBusy && (
-              <span id="sidebar-runtime-busy" className="sr-only">
-                {t("nav.runtimeBusy")}
-              </span>
-            )}
-          </SidebarRow>
-        )}
+              <span className="sidebar-audio-disclosure-mark sidebar-label" aria-hidden="true">›</span>
+            </summary>
+            <div className="sidebar-audio-details">
+              <div className="sidebar-audio-detail-row">
+                <IconGpu />
+                <span className="sidebar-label">{gpuLabel}</span>
+              </div>
+              <div className={`sidebar-audio-detail-row sidebar-model-row${health?.generationModelAvailable === true ? " is-ready" : health ? " is-unavailable" : ""}`}>
+                <IconModel />
+                <span className="sidebar-model-copy sidebar-label">
+                  <strong>{modelName}</strong>
+                  <small>{modelStatus}</small>
+                </span>
+              </div>
+              {health && isTauri() && (
+                <>
+                  <button
+                    type="button"
+                    className="sidebar-runtime-restart"
+                    onClick={() => {
+                      if (runtimeBusy || restartingRuntime) return;
+                      setRestartingRuntime(true);
+                      void api
+                        .restartAudioRuntime()
+                        .then(() => refreshHealth())
+                        .catch((reason: unknown) => {
+                          setError(reason instanceof Error ? reason.message : String(reason));
+                          return refreshHealth();
+                        })
+                        .finally(() => setRestartingRuntime(false));
+                    }}
+                    disabled={restartingRuntime}
+                    aria-disabled={runtimeBusy || undefined}
+                    title={runtimeBusy ? t("nav.runtimeBusy") : t("nav.runtimeActionHint")}
+                    aria-label={restartingRuntime ? t("nav.runtimeRestarting") : runtimeAction}
+                    aria-describedby={runtimeBusy ? "sidebar-runtime-busy" : undefined}
+                    aria-busy={restartingRuntime}
+                  >
+                    <IconRestart />
+                    <span className="sidebar-label">
+                      {restartingRuntime ? t("nav.runtimeRestarting") : runtimeAction}
+                    </span>
+                  </button>
+                  {runtimeBusy && (
+                    <span id="sidebar-runtime-busy" className="sr-only">
+                      {t("nav.runtimeBusy")}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          </details>
+        </SidebarRow>
         {sidebarJob && (
           <SidebarRow
             tip={
@@ -488,7 +493,7 @@ export function Sidebar() {
                 ? t("job.completed")
                 : sidebarJob.state === "cancelled"
                   ? t("job.cancelled")
-                  : generationErrorMessage(sidebarJob.label)
+                  : sidebarJobMessage
             }
           >
             <div
@@ -499,7 +504,7 @@ export function Sidebar() {
                   ? t("job.completed")
                   : sidebarJob.state === "cancelled"
                     ? t("job.cancelled")
-                    : generationErrorMessage(sidebarJob.label)
+                    : sidebarJobMessage
               }
               tabIndex={collapsed ? 0 : undefined}
             >
@@ -509,7 +514,7 @@ export function Sidebar() {
                   ? t("job.completed")
                   : sidebarJob.state === "cancelled"
                     ? t("job.cancelled")
-                    : generationErrorMessage(sidebarJob.label)}
+                    : sidebarJobMessage}
               </span>
             </div>
           </SidebarRow>
@@ -556,6 +561,7 @@ export default function App() {
   const showPlayerDock = Boolean(
     screen !== "profiles" && screen !== "splash",
   );
+  const presentedError = error ? presentGlobalError(error) : null;
   const [availableUpdate, setAvailableUpdate] = useState<Update | null>(null);
   const [profileBoot, setProfileBoot] = useState(false);
 
@@ -610,13 +616,8 @@ export default function App() {
             }}
           />
         )}
-        {error && (
-          <div className="banner error" role="alert">
-            <span>{error}</span>
-            <button type="button" onClick={() => setError(null)}>
-              ×
-            </button>
-          </div>
+        {presentedError && (
+          <ErrorBanner presentation={presentedError} onDismiss={() => setError(null)} />
         )}
         <ProfileMigrationBanner />
         {screen === "profiles" && <ProfileOnboardingScreen />}
@@ -630,11 +631,18 @@ export default function App() {
         {screen === "licenses" && <LicensesScreen />}
       </main>
       {showPlayerDock && (
-        <div className="persistent-player-dock" aria-label={t("player.globalDock")}>
+        <div
+          className="persistent-player-dock"
+          aria-label={t("player.globalDock")}
+          data-studio-player={screen === "studio" ? "true" : undefined}
+        >
           <AudioPlayer
             projectId={activePlayerProjectId ?? undefined}
             sources={activePlayerSources}
             mix={activePlayerMix}
+            studioMode={screen === "studio"}
+            tempoBpm={project?.tempoBpm ?? 120}
+            meter={project?.meter ?? null}
             playbackKey={playerSelection?.trackKey}
             hideMixBakeStatus={screen === "studio" || screen === "song"}
             onError={setError}

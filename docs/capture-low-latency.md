@@ -7,7 +7,7 @@ Issues [#93](https://github.com/azerothl/song-maker/issues/93) (v1 WebView), [#3
 | Aspect | Choix |
 |---|---|
 | Moteur par défaut | **cpal** : WASAPI **partagé** (Windows), Core Audio (macOS), ALSA (Linux). Pas de getUserMedia. |
-| Windows, accès direct | Choix WASAPI exclusif par périphérique. PCM 16 bits à 48, 44,1, 96, 32 ou 16 kHz selon l’entrée ; si aucun format n’est accepté ou que l’entrée est occupée, repasser en mode partagé. |
+| Windows, accès direct | Choix WASAPI exclusif par périphérique, avec la période minimale annoncée par l’endpoint. PCM 16 bits à 48, 44,1, 96, 32 ou 16 kHz selon l’entrée ; si aucun format n’est accepté ou que l’entrée est occupée, repasser en mode partagé. |
 | Repli | WebView `MediaRecorder` + `AudioContext` si aucun périphérique natif, ou choix explicite. |
 | Latence native | Estimation `2 × (buffer / sampleRate)` — **pas** une mesure boucle haut-parleur → micro. |
 | WASAPI exclusif | Disponible pour les périphériques reconnus par WASAPI et acceptant un format PCM compatible. Aucun repli silencieux : les erreurs invitent à repasser en mode partagé. |
@@ -17,7 +17,7 @@ Issues [#93](https://github.com/azerothl/song-maker/issues/93) (v1 WebView), [#3
 
 ## Limites
 
-- Windows : le mode partagé passe par cpal ; le mode exclusif ouvre l’endpoint WASAPI sélectionné. ASIO n’est pas livré. La correspondance des endpoints dépend de leur nom exposé par Windows ; les appareils homonymes restent à vérifier sur du matériel réel.
+- Windows : le mode partagé passe par cpal ; le mode exclusif ouvre l’endpoint WASAPI sélectionné à sa période minimale déclarée, avec un tampon demandé de deux périodes. ASIO n’est pas livré. La correspondance des endpoints dépend de leur nom exposé par Windows ; les appareils homonymes restent à vérifier sur du matériel réel.
 - Le délai présenté reste une estimation liée au tampon actif, pas une mesure matérielle aller-retour. Pas de validation de latence revendiquée sans boucle entrée-sortie mesurée.
 - Linux : ALSA (souvent via PipeWire). JACK dédié non branché. Preuve cloud Linux = énumération + WAV de test, pas une interface audio studio.
 - macOS : Core Audio ; **non mesuré** ici (comme le MIDI matériel).

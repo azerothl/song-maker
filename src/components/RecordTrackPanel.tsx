@@ -15,10 +15,13 @@ import {
   type NativeInputDevice,
 } from "../lib/nativeCapture";
 import type { MixDoc } from "../lib/types";
+import type { PlaybackView } from "./AudioPlayer";
 import {
   punchBarDurationMs,
   snapPunchMs,
   snapPunchWindow,
+  punchStartAction,
+  punchTransportAction,
 } from "../lib/punchGrid";
 import {
   DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
@@ -56,6 +59,7 @@ type Props = {
   onError: (message: string) => void;
   mix?: MixDoc | null;
   clipViewPrefs?: ProductionClipViewPrefs;
+  playback?: PlaybackView | null;
 };
 
 function pickMimeType(): string | undefined {
@@ -115,6 +119,7 @@ export function RecordTrackPanel({
   onError,
   mix,
   clipViewPrefs,
+  playback,
 }: Props) {
   const [phase, setPhase] = useState<CapturePhase>("idle");
   const [engine, setEngine] = useState<CaptureEngine>("webview");
@@ -147,6 +152,8 @@ export function RecordTrackPanel({
   const [pendingTakes, setPendingTakes] = useState<PendingTake[]>([]);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [nativeControlBusy, setNativeControlBusy] = useState(false);
+  const playbackRef = useRef(playback);
+  playbackRef.current = playback;
 
   useEffect(() => {
     if (!import.meta.env.VITE_CAPTURE) return;
@@ -189,6 +196,9 @@ export function RecordTrackPanel({
   const loopBarsMsRef = useRef(8000);
   const punchEnabledRef = useRef(false);
   const punchWindowMsRef = useRef(0);
+  const punchOutMsRef = useRef(8000);
+  const punchTransportRequestedRef = useRef(false);
+  const punchTransportStartedRef = useRef(false);
   const engineRef = useRef<CaptureEngine>("webview");
   const nativeStopInFlightRef = useRef(false);
   const nativeControlBusyRef = useRef(false);
@@ -246,6 +256,8 @@ export function RecordTrackPanel({
     takeIndexRef.current = 0;
     rollingTakesRef.current = false;
     setElapsedMs(0);
+    punchTransportRequestedRef.current = false;
+    punchTransportStartedRef.current = false;
     setCountdownLeft(0);
     setPhase("idle");
     setStatusMsg(null);
@@ -339,6 +351,7 @@ export function RecordTrackPanel({
     punchEnabledRef.current = punchEnabled;
     punchWindowMsRef.current =
       punchEnabled && punchOutMs > punchInMs ? punchOutMs - punchInMs : 0;
+    punchOutMsRef.current = punchOutMs;
   }, [punchEnabled, punchInMs, punchOutMs]);
 
   const stopNativeNow = useEffectEvent(async (rollLoop: boolean) => {
@@ -436,16 +449,27 @@ export function RecordTrackPanel({
 
   useEffect(() => {
     if (phase !== "recording" && phase !== "paused") return;
+    let lastUiUpdateAt = 0;
+    let lastNativePollAt = 0;
     const tick = window.setInterval(() => {
+      const now = Date.now();
       const pauseExtra =
         pauseStartedRef.current != null
-          ? Date.now() - pauseStartedRef.current
+          ? now - pauseStartedRef.current
           : 0;
       const elapsed =
-        Date.now() - startedAtRef.current - pausedAccumRef.current - pauseExtra;
+        now - startedAtRef.current - pausedAccumRef.current - pauseExtra;
       elapsedMsRef.current = elapsed;
-      setElapsedMs(elapsed);
-      if (engineRef.current === "native" && phase === "recording") {
+      if (now - lastUiUpdateAt >= 100) {
+        lastUiUpdateAt = now;
+        setElapsedMs(elapsed);
+      }
+      if (
+        engineRef.current === "native" &&
+        phase === "recording" &&
+        now - lastNativePollAt >= 100
+      ) {
+        lastNativePollAt = now;
         void api.pollNativeCapture().then((poll) => {
           if (poll) {
             setLevel(Math.min(1, poll.peak * 3));
@@ -458,6 +482,43 @@ export function RecordTrackPanel({
         stopRecorderNow(true);
         return;
       }
+      if (punchEnabledRef.current && !loopEnabledRef.current) {
+        const transport = playbackRef.current;
+        if (punchTransportRequestedRef.current && !transport) {
+          punchTransportRequestedRef.current = false;
+          punchTransportStartedRef.current = false;
+          setStatusMsg(t("record.punch.transportStopped"));
+          stopRecorderNow(false);
+          return;
+        }
+        if (transport && punchTransportRequestedRef.current) {
+          if (!punchTransportStartedRef.current) return;
+          const liveTransport = transport.readTransport?.();
+          const action = punchTransportAction({
+            enabled: punchEnabledRef.current,
+            looping: loopEnabledRef.current,
+            started: punchTransportStartedRef.current,
+            playing: liveTransport?.playing ?? transport.playing,
+            currentMs: (liveTransport?.current ?? transport.current) * 1000,
+            punchOutMs: punchOutMsRef.current,
+          });
+          if (action === "stop-after-pause") {
+            punchTransportRequestedRef.current = false;
+            punchTransportStartedRef.current = false;
+            setStatusMsg(t("record.punch.transportStopped"));
+            stopRecorderNow(false);
+            return;
+          }
+          if (action === "stop-at-punch-out") {
+            punchTransportRequestedRef.current = false;
+            punchTransportStartedRef.current = false;
+            stopRecorderNow(false);
+            void transport.toggle().catch((error) => onError(String(error)));
+            return;
+          }
+          if (action === "waiting" || action === "inactive") return;
+        }
+      }
       if (
         punchEnabledRef.current &&
         punchWindowMsRef.current > 0 &&
@@ -466,7 +527,7 @@ export function RecordTrackPanel({
       ) {
         stopRecorderNow(false);
       }
-    }, 100);
+    }, 20);
     return () => window.clearInterval(tick);
   }, [phase]);
 
@@ -593,7 +654,7 @@ export function RecordTrackPanel({
     }
     const secs = Math.max(0, Math.min(10, Math.round(countdownSec)));
     if (secs <= 0) {
-      void startRecording();
+      void startPunchOrRecording();
       return;
     }
     setPhase("countdown");
@@ -610,9 +671,81 @@ export function RecordTrackPanel({
           window.clearInterval(countdownTimerRef.current);
           countdownTimerRef.current = null;
         }
-        void startRecording();
+        void startPunchOrRecording();
       }
     }, 1000);
+  }
+
+  async function startPunchOrRecording() {
+    const startAction = punchStartAction({
+      enabled: punchEnabled,
+      looping: loopEnabled,
+      hasTransport: playback !== undefined,
+    });
+    if (startAction === "record") {
+      await startRecording();
+      return;
+    }
+    if (startAction === "missing-transport") {
+      const message = t("record.punch.noPlayback");
+      setStatusMsg(message);
+      onError(message);
+      setPhase("armed");
+      return;
+    }
+    const transport = playbackRef.current;
+    const initialTransportState = transport?.readTransport?.();
+    if (!transport || !(initialTransportState?.ready ?? transport.ready)) {
+      const message = t("record.punch.noPlayback");
+      setStatusMsg(message);
+      onError(message);
+      setPhase("armed");
+      return;
+    }
+    if (punchOutMs <= punchInMs) {
+      const message = t("record.punch.invalid");
+      setStatusMsg(message);
+      onError(message);
+      setPhase("armed");
+      return;
+    }
+
+    punchTransportRequestedRef.current = true;
+    punchTransportStartedRef.current = false;
+    try {
+      if (initialTransportState?.playing ?? transport.playing) {
+        await transport.toggle();
+      }
+      transport.seek(Math.max(0, punchInMs) / 1000);
+      await startRecording();
+      if (!sessionIdRef.current) {
+        punchTransportRequestedRef.current = false;
+        return;
+      }
+      const currentTransport = playbackRef.current;
+      const currentTransportState = currentTransport?.readTransport?.();
+      if (
+        !currentTransport ||
+        !(currentTransportState?.ready ?? currentTransport.ready)
+      ) {
+        punchTransportRequestedRef.current = false;
+        stopRecorderNow(false);
+        return;
+      }
+      if (!(currentTransportState?.playing ?? currentTransport.playing)) {
+        await currentTransport.toggle();
+      }
+      punchTransportStartedRef.current = true;
+    } catch (error) {
+      punchTransportRequestedRef.current = false;
+      punchTransportStartedRef.current = false;
+      const message = t("record.punch.startFailed", {
+        detail: error instanceof Error ? error.message : String(error),
+      });
+      setStatusMsg(message);
+      onError(message);
+      stopRecorderNow(false);
+    }
   }
 
   function emergencyStopRecording() {
@@ -1166,7 +1299,11 @@ export function RecordTrackPanel({
             type="checkbox"
             checked={loopEnabled}
             disabled={phase === "recording" || phase === "countdown"}
-            onChange={(e) => setLoopEnabled(e.target.checked)}
+            onChange={(e) => {
+              const enabled = e.target.checked;
+              setLoopEnabled(enabled);
+              if (enabled) setPunchEnabled(false);
+            }}
           />
           <span>{t("record.loop")}</span>
         </label>
@@ -1197,6 +1334,7 @@ export function RecordTrackPanel({
               const on = e.target.checked;
               setPunchEnabled(on);
               if (on) {
+                setLoopEnabled(false);
                 const win = snapPunchWindow(punchInMs, punchOutMs, punchGrid);
                 setPunchInMs(win.punchInMs);
                 setPunchOutMs(win.punchOutMs);

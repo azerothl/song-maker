@@ -9,6 +9,19 @@ const PORT = 5194;
 const BASE = `http://127.0.0.1:${PORT}/production-capture.html#confortable-12`;
 let server: ViteDevServer;
 let browser: Browser;
+function contrastRatio(foreground: string, background: string): number {
+  const luminance = (color: string) => {
+    const channels = color.match(/[0-9.]+/g)?.slice(0, 3).map(Number) ?? [];
+    const [r, g, b] = channels.map((channel) => {
+      const normalized = channel / 255;
+      return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const a = luminance(foreground);
+  const b = luminance(background);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
 before(async () => {
   server = await startCaptureViteServer(PORT);
   browser = await chromium.launch();
@@ -19,6 +32,50 @@ after(async () => {
 });
 
 describe("Production commune (#223, #230)", () => {
+  it("expose les groupes de pistes correctement et garde les commandes de mix accessibles", async () => {
+    for (const width of [1280, 640]) {
+      const page = await browser.newPage({ viewport: { width, height: 720 } });
+      try {
+        await page.goto(BASE, { waitUntil: "networkidle" });
+        await page.locator(".production-mix-family[role='group']").first().waitFor();
+        const audit = await page.evaluate(() => {
+          const families = Array.from(document.querySelectorAll<HTMLElement>(".production-mix-family"));
+          const rangeControls = Array.from(document.querySelectorAll<HTMLElement>(".production-mix-list .mix-slider-range"));
+          const valueControls = Array.from(document.querySelectorAll<HTMLElement>(".production-mix-list .mix-slider-value"));
+          const count = document.querySelector(".production-mix-group-count");
+          const groupHeader = count?.closest(".production-mix-family")?.querySelector(".production-mix-group-header");
+          return {
+            groups: families.map((family) => ({
+              role: family.getAttribute("role"),
+              label: family.getAttribute("aria-label"),
+              trackListRole: family.querySelector(".production-mix-group-tracks")?.getAttribute("role"),
+              trackRows: family.querySelectorAll(".production-mix-row").length,
+              listItems: family.querySelectorAll(".production-mix-row[role='listitem']").length,
+            })),
+            invalidListItemCount: document.querySelectorAll(".production-mix-family > [role='listitem']").length,
+            rangeHeights: rangeControls.map((control) => control.getBoundingClientRect().height),
+            valueHeights: valueControls.map((control) => control.getBoundingClientRect().height),
+            groupCountColor: count ? getComputedStyle(count).color : "",
+            groupHeaderColor: groupHeader ? getComputedStyle(groupHeader).backgroundColor : "",
+          };
+        });
+        assert.ok(audit.groups.length > 0, JSON.stringify(audit));
+        for (const group of audit.groups) {
+          assert.equal(group.role, "group", JSON.stringify(group));
+          assert.ok(group.label, JSON.stringify(group));
+          assert.equal(group.trackListRole, "list", JSON.stringify(group));
+          assert.equal(group.listItems, group.trackRows, JSON.stringify(group));
+        }
+        assert.equal(audit.invalidListItemCount, 0, JSON.stringify(audit));
+        assert.ok(audit.rangeHeights.every((height) => height >= 24), JSON.stringify(audit.rangeHeights));
+        assert.ok(audit.valueHeights.every((height) => height >= 24), JSON.stringify(audit.valueHeights));
+        assert.ok(contrastRatio(audit.groupCountColor, audit.groupHeaderColor) >= 4.5, JSON.stringify(audit));
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
   it("DOM Production sans sous-nav ni production-panel-* / production-view-*", async () => {
     for (const width of [1280, 640]) {
       const page = await browser.newPage({ viewport: { width, height: 720 } });
@@ -162,7 +219,8 @@ describe("Production commune (#223, #230)", () => {
       await buttons.first().focus();
       await page.keyboard.press("ArrowRight");
       assert.equal(await buttons.nth(1).getAttribute("aria-pressed"), "true");
-      assert.equal(await buttons.nth(1).locator("span").last().innerText(),"Split [C]");
+      assert.equal(await buttons.nth(1).locator("span").nth(1).innerText(),"Split");
+      assert.equal(await buttons.nth(1).locator("kbd").innerText(),"C");
       assert.equal(await buttons.nth(1).locator(".clip-edit-tool-check").innerText(),"✓");
       assert.equal(await buttons.nth(1).getAttribute("tabindex"),"0");
       assert.equal(await buttons.first().getAttribute("tabindex"),"-1");
@@ -321,4 +379,65 @@ describe("Production commune (#223, #230)", () => {
       assert.notEqual(await start.inputValue(), oldValue);
     } finally { await page.close(); }
   });
+  it("keeps the add-track dialog and its actions inside wide and medium viewports", async () => {
+    for (const width of [1440, 1024]) {
+      const page = await browser.newPage({ viewport: { width, height: 900 } });
+      try {
+        await page.goto(BASE, { waitUntil: "networkidle" });
+        await page.locator(".production-add-track-btn").click();
+        const dialog = page.locator(".production-add-track-dialog");
+        await dialog.waitFor({ state: "visible" });
+        const bounds = await dialog.boundingBox();
+        assert.ok(bounds, `missing dialog bounds at ${width}px`);
+        assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width, JSON.stringify(bounds));
+        const actions = await dialog.locator("button").evaluateAll((buttons) =>
+          buttons.map((button) => {
+            const rect = button.getBoundingClientRect();
+            return { left: rect.left, right: rect.right };
+          }),
+        );
+        assert.ok(actions.every((action) => action.left >= 0 && action.right <= width), JSON.stringify(actions));
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
+  it("keeps Studio lanes scrollable above the persistent player in a short window", async () => {
+    const page = await browser.newPage({ viewport: { width: 802, height: 632 } });
+    try {
+      await page.goto("http://127.0.0.1:5194/production-capture.html#studio-compact", {
+        waitUntil: "networkidle",
+      });
+      const scroller = page.getByTestId("clip-timeline-lanes");
+      await scroller.waitFor();
+      const before = await scroller.evaluate((element) => ({
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+        overflowY: getComputedStyle(element).overflowY,
+        scrollTop: element.scrollTop,
+      }));
+      assert.equal(before.overflowY, "auto");
+      assert.ok(before.scrollHeight > before.clientHeight, JSON.stringify(before));
+
+      const bounds = await scroller.boundingBox();
+      assert.ok(bounds, "missing Studio track scroll region");
+      await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+      await page.mouse.wheel(0, 1200);
+      await page.waitForFunction(() => {
+        const element = document.querySelector('[data-testid="clip-timeline-lanes"]');
+        return element instanceof HTMLElement && element.scrollTop > 0;
+      });
+
+      const [lastLane, player] = await Promise.all([
+        page.locator(".production-mix-row").last().boundingBox(),
+        page.locator(".persistent-player-dock").boundingBox(),
+      ]);
+      assert.ok(lastLane && player, "missing lane or persistent player");
+      assert.ok(lastLane.y >= 0 && lastLane.y + lastLane.height <= player.y, JSON.stringify({ lastLane, player }));
+    } finally {
+      await page.close();
+    }
+  });
+
 });
