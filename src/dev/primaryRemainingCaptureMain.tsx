@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ClipTimeline } from "../components/ClipTimeline";
 import { MidiInstrumentPanel } from "../components/MidiInstrumentPanel";
+import { StudioMidiTrackEditor } from "../components/StudioMidiTrackEditor";
 import { MixAssistPanel } from "../components/MixAssistPanel";
 import { PianoRoll } from "../components/PianoRoll";
 import { ProductionAssistPanel } from "../components/ProductionAssistPanel";
@@ -34,6 +35,7 @@ export type RemainingCaptureScenario =
   | "mix-confirm"
   | "copilot-confirm"
   | "midi-play"
+  | "midi-vst"
   | "midi-stop"
   | "score-import"
   | "score-quantize"
@@ -53,6 +55,7 @@ function parseScenario(hashRaw: string): RemainingCaptureScenario {
   if (hash.includes("copilot") || hash.includes("production-assist")) {
     return "copilot-confirm";
   }
+  if (hash.includes("midi-vst")) return "midi-vst";
   if (hash.includes("midi-stop")) return "midi-stop";
   if (hash.includes("midi-play") || hash.includes("midi-armer")) {
     return "midi-play";
@@ -81,6 +84,27 @@ function buildScoreFixture(): ScoreDocument {
         velocity: 90,
       },
     ];
+  }
+  return doc;
+}
+
+function buildVstScoreFixture(): ScoreDocument {
+  const doc = buildScoreFixture();
+  const voice = doc.voices[0];
+  if (voice) {
+    voice.name = "Piano électrique";
+    voice.role = "other";
+    voice.notes = [
+      { id: "vst-n1", pitch: 60, startTick: 0, durationTick: 360, velocity: 92 },
+      { id: "vst-n2", pitch: 64, startTick: 480, durationTick: 360, velocity: 82 },
+      { id: "vst-n3", pitch: 67, startTick: 960, durationTick: 360, velocity: 88 },
+      { id: "vst-n4", pitch: 72, startTick: 1440, durationTick: 720, velocity: 96 },
+    ];
+    voice.vst3Instrument = {
+      pluginPath: "C:\\Program Files\\Common Files\\VST3\\Odin2.vst3",
+      pluginName: "Odin 2",
+      parameters: {},
+    };
   }
   return doc;
 }
@@ -143,7 +167,9 @@ function RemainingCaptureApp() {
   const [scoreDoc, setScoreDoc] = useState<ScoreDocument | null>(() =>
     buildScoreFixture(),
   );
-  const [midiDoc, setMidiDoc] = useState(() => buildScoreFixture());
+  const [midiDoc, setMidiDoc] = useState(() =>
+    scenario === "midi-vst" ? buildVstScoreFixture() : buildScoreFixture(),
+  );
   const [pianoDoc, setPianoDoc] = useState(() => buildScoreFixture());
   const sources = useMemo(() => buildCapturePlaybackSources(mix), [mix]);
 
@@ -232,13 +258,25 @@ function RemainingCaptureApp() {
           />
         )}
 
-        {(scenario === "midi-play" || scenario === "midi-stop") && (
+        {(scenario === "midi-play" || scenario === "midi-stop" || scenario === "midi-vst") && (
           <div className="panel">
-            <MidiInstrumentPanel
-              document={midiDoc}
-              onDocumentChange={setMidiDoc}
-              latencyMs={20}
-            />
+            {scenario === "midi-vst" ? (
+              <StudioMidiTrackEditor
+                projectId=""
+                document={midiDoc}
+                voiceId="voice-0"
+                onDocumentChange={setMidiDoc}
+                onProjectRefresh={async () => {}}
+                onError={() => {}}
+                instrumentInspectorPosition="side"
+              />
+            ) : (
+              <MidiInstrumentPanel
+                document={midiDoc}
+                onDocumentChange={setMidiDoc}
+                latencyMs={20}
+              />
+            )}
           </div>
         )}
 

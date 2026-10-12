@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type Dispatch,
   SetStateAction,
 } from "react";
@@ -17,6 +18,7 @@ import { EstimatedSeparationMarker } from "../../components/EstimatedSeparationM
 import { AnchoredPopin } from "../../components/AnchoredPopin";
 import { ProductionMixSettingsPopin } from "../../components/ProductionMixSettingsPopin";
 import { MixSlider } from "../../components/MixSlider";
+import { MixKnob } from "../../components/MixKnob";
 import {
   ClipEditToolbar,
   clipEditToolFromKey,
@@ -33,6 +35,16 @@ import { PlaybackTime } from "../../components/PlaybackTime";
 import { Waveform } from "../../components/Waveform";
 import { t } from "../../ui/i18n";
 import { useAppStore } from "../../store/appStore";
+import {
+  defaultStudioTrackColor,
+  readStudioTrackColors,
+  saveStudioTrackColor,
+} from "../../lib/studioTrackColors";
+import {
+  focusProfileElement,
+  handleProfileOverlayKeydown,
+  listProfileFocusables,
+} from "../../lib/profileDialogA11y";
 import {
   planProjectInstrumentalPart,
   type InstrumentalConditioning,
@@ -92,6 +104,7 @@ type MixUpdateOpts = { persist?: boolean };
 
 /** Onglet Production : mixage, clips, séparation et outils. */
 type ProductionWorkspaceProps = {
+  studioMode?: boolean;
   busy: boolean;
   form: FormInput;
   importingAudio: boolean;
@@ -109,6 +122,7 @@ type ProductionWorkspaceProps = {
     role: "bass" | "drums" | "other";
     conditioning: "project_metadata" | "mix_stems";
   }) => Promise<void>;
+  onOpenInstrumentalPart?: () => void;
   legoSidecarReady?: boolean;
   legoLicenseAccepted?: boolean;
   playback: PlaybackView | null;
@@ -171,6 +185,7 @@ function familyLabel(family: TrackFamilyId): string {
 }
 
 export function ProductionWorkspace({
+  studioMode = false,
   busy,
   form,
   importingAudio,
@@ -185,6 +200,7 @@ export function ProductionWorkspace({
   onRevertSeparation,
   onUserTrackAdded,
   onRequestInstrumentalPart,
+  onOpenInstrumentalPart,
   legoSidecarReady = false,
   legoLicenseAccepted = false,
   playback,
@@ -234,6 +250,7 @@ export function ProductionWorkspace({
   const [instrumentalNotice, setInstrumentalNotice] = useState<string | null>(
     null,
   );
+  const instrumentalDialogRef = useRef<HTMLDivElement>(null);
   const mixLayoutNarrow = useProductionMixLayoutNarrow();
   const [localClipViewPrefs, setLocalClipViewPrefs] = useState<ProductionClipViewPrefs>(
     () => DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
@@ -252,6 +269,12 @@ export function ProductionWorkspace({
   const [densityPreference, setDensityPreference] = useState<ProductionDensityPreference>(
     () => loadProductionDensityPreference(),
   );
+  const [trackColors, setTrackColors] = useState<Record<string, string>>(
+    () => readStudioTrackColors(project.id),
+  );
+  useEffect(() => {
+    setTrackColors(readStudioTrackColors(project.id));
+  }, [project.id]);
   const [autoResolvedDensity, setAutoResolvedDensity] =
     useState<ProductionTrackDensity>("confortable");
   const effectiveDensity = effectiveDensityFromPreference(
@@ -278,6 +301,14 @@ export function ProductionWorkspace({
     setMixAssistOpen((open) => !open);
   };
 
+  const closeInstrumentalDialog = () => {
+    setInstrumentalOpen(false);
+    window.setTimeout(() => {
+      focusProfileElement(
+        document.querySelector<HTMLElement>(".production-add-track-btn"),
+      );
+    }, 0);
+  };
 
   const toggleMixSettingsFrom = (button: HTMLButtonElement | null) => {
     if (!button) return;
@@ -310,7 +341,20 @@ export function ProductionWorkspace({
       : undefined;
 
   const mixSettingsDeferEscape =
-    mixAssistOpen || separateOpen;
+    mixAssistOpen || separateOpen || instrumentalOpen;
+
+  useEffect(() => {
+    if (!instrumentalOpen) return;
+    const dialog = instrumentalDialogRef.current;
+    if (!dialog) return;
+    const focusables = listProfileFocusables(dialog);
+    focusProfileElement(focusables[0] ?? dialog);
+    const onKeyDown = (event: KeyboardEvent) => {
+      handleProfileOverlayKeydown(event, dialog, closeInstrumentalDialog);
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [instrumentalOpen]);
 
   const trackGroups = useMemo(
     () => (mix ? buildTrackFamilyGroups(mix.tracks) : []),
@@ -411,14 +455,15 @@ export function ProductionWorkspace({
 
   return (
     <section
-      className={
-        tightMixLayout
-          ? "song-workspace-panel wide production-workspace production-workspace-common production-workspace-tight production-workspace-maquette"
-          : "song-workspace-panel wide production-workspace production-workspace-common production-workspace-maquette"
-      }
+      className={[
+        "song-workspace-panel wide production-workspace production-workspace-common production-workspace-maquette",
+        tightMixLayout ? "production-workspace-tight" : "",
+        studioMode ? "production-workspace-studio" : "",
+      ].filter(Boolean).join(" ")}
       role="tabpanel"
       id="song-panel-production"
-      aria-labelledby="song-tab-production"
+      aria-labelledby={studioMode ? undefined : "song-tab-production"}
+      aria-label={studioMode ? t("nav.studio") : undefined}
     >
       <div className="production-chrome-stack">
         <header className="song-workspace-heading production-heading-compact">
@@ -457,6 +502,7 @@ export function ProductionWorkspace({
                 onRequestInstrumentalPart
                   ? () => {
                       setInstrumentalNotice(null);
+                      onOpenInstrumentalPart?.();
                       setInstrumentalOpen(true);
                     }
                   : undefined
@@ -482,7 +528,11 @@ export function ProductionWorkspace({
             {mixSettingsTrigger}
           </div>
         </div>
-        {separateDisabledReason && <p id="production-separate-reason" className="hint">{separateDisabledReason}</p>}
+        {separateDisabledReason && (
+          <p id="production-separate-reason" className="hint">
+            {separateDisabledReason}
+          </p>
+        )}
         <RecordTrackPanel
           projectId={project.id}
           open={recordOpen}
@@ -494,101 +544,135 @@ export function ProductionWorkspace({
           onError={setError}
         />
         {instrumentalOpen && onRequestInstrumentalPart ? (
-          <div className="production-instrumental-panel" role="dialog" aria-labelledby="instrumental-part-title">
-            <h3 id="instrumental-part-title">{t("production.instrumental.title")}</h3>
-            <p className="hint">{t("production.instrumental.intro")}</p>
-            {instrumentalCond === "mix_stems" ? (
-              <p className="hint warn" role="note">
-                {t("production.instrumental.legoHonesty")}
-              </p>
-            ) : null}
-            <label className="invariant-level">
-              {t("production.instrumental.role")}
-              <select
-                value={instrumentalRole}
-                onChange={(e) =>
-                  setInstrumentalRole(e.target.value as InstrumentalRole)
-                }
-              >
-                <option value="bass">{t("production.instrumental.role.bass")}</option>
-                <option value="drums">{t("production.instrumental.role.drums")}</option>
-                <option value="other">{t("production.instrumental.role.other")}</option>
-              </select>
-            </label>
-            <fieldset className="settings-engine-options">
-              <legend>{t("production.instrumental.conditioning")}</legend>
-              <label className="settings-engine-option">
-                <input
-                  type="radio"
-                  name="instrumental-cond"
-                  checked={instrumentalCond === "project_metadata"}
-                  onChange={() => setInstrumentalCond("project_metadata")}
-                />
-                <span>{t("production.instrumental.conditioning.meta")}</span>
+          <div
+            className="production-instrumental-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) closeInstrumentalDialog();
+            }}
+          >
+            <div
+              ref={instrumentalDialogRef}
+              className="production-instrumental-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="instrumental-part-title"
+              tabIndex={-1}
+            >
+              <header className="production-instrumental-header">
+                <div>
+                  <p className="studio-midi-editor-eyebrow">{t("production.addTrack.ai")}</p>
+                  <h2 id="instrumental-part-title">{t("production.instrumental.title")}</h2>
+                  <p className="hint">{t("production.instrumental.intro")}</p>
+                </div>
+                <button
+                  type="button"
+                  className="btn ghost production-instrumental-close"
+                  aria-label={t("production.addTrack.close")}
+                  onClick={closeInstrumentalDialog}
+                >
+                  ×
+                </button>
+              </header>
+              {instrumentalCond === "mix_stems" ? (
+                <p className="hint warn" role="note">
+                  {t("production.instrumental.legoHonesty")}
+                </p>
+              ) : null}
+              <label className="invariant-level">
+                {t("production.instrumental.role")}
+                <select
+                  value={instrumentalRole}
+                  onChange={(e) =>
+                    setInstrumentalRole(e.target.value as InstrumentalRole)
+                  }
+                >
+                  <option value="bass">{t("production.instrumental.role.bass")}</option>
+                  <option value="drums">{t("production.instrumental.role.drums")}</option>
+                  <option value="other">{t("production.instrumental.role.other")}</option>
+                </select>
               </label>
-              <label className="settings-engine-option">
-                <input
-                  type="radio"
-                  name="instrumental-cond"
-                  checked={instrumentalCond === "mix_stems"}
-                  onChange={() => setInstrumentalCond("mix_stems")}
-                />
-                <span>{t("production.instrumental.conditioning.mix")}</span>
-              </label>
-            </fieldset>
-            {instrumentalCond === "mix_stems" && !mix?.tracks.length && <p className="hint" role="status">{t("production.instrumental.needAudio")}</p>}
-            {instrumentalCond === "mix_stems" && (!legoSidecarReady || !legoLicenseAccepted) && (
-              <div className="hint" role="status">
-                <p>{t("production.instrumental.installRequired")}</p>
-                <button type="button" className="btn" onClick={() => useAppStore.getState().openModelSettings("lego")}>
-                  {t("production.instrumental.openSettings")}
+              <fieldset className="settings-engine-options">
+                <legend>{t("production.instrumental.conditioning")}</legend>
+                <label className="settings-engine-option">
+                  <input
+                    type="radio"
+                    name="instrumental-cond"
+                    checked={instrumentalCond === "project_metadata"}
+                    onChange={() => setInstrumentalCond("project_metadata")}
+                  />
+                  <span>{t("production.instrumental.conditioning.meta")}</span>
+                </label>
+                <label className="settings-engine-option">
+                  <input
+                    type="radio"
+                    name="instrumental-cond"
+                    checked={instrumentalCond === "mix_stems"}
+                    onChange={() => setInstrumentalCond("mix_stems")}
+                  />
+                  <span>{t("production.instrumental.conditioning.mix")}</span>
+                </label>
+              </fieldset>
+              {instrumentalCond === "mix_stems" && !mix?.tracks.length && (
+                <p className="hint" role="status">
+                  {t("production.instrumental.needAudio")}
+                </p>
+              )}
+              {instrumentalCond === "mix_stems" && (!legoSidecarReady || !legoLicenseAccepted) && (
+                <div className="hint" role="status">
+                  <p>{t("production.instrumental.installRequired")}</p>
+                  <button type="button" className="btn" onClick={() => useAppStore.getState().openModelSettings("lego")}>
+                    {t("production.instrumental.openSettings")}
+                  </button>
+                </div>
+              )}
+              {instrumentalNotice ? (
+                <p className="hint warn" role="status">
+                  {instrumentalNotice}
+                </p>
+              ) : null}
+              <div className="btn-row">
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy || (instrumentalCond === "mix_stems" && (!mix?.tracks.length || !legoSidecarReady || !legoLicenseAccepted))}
+                  onClick={() => {
+                    const plan = planProjectInstrumentalPart({
+                      role: instrumentalRole,
+                      conditioning: instrumentalCond,
+                      style: form.style,
+                      tempoBpm: form.tempoBpm,
+                      key: form.key ?? null,
+                      hasMixOrStems: Boolean(mix?.tracks.length),
+                      legoSidecarReady,
+                      legoLicenseAccepted,
+                    });
+                    if (!plan.ok) {
+                      setInstrumentalNotice(plan.messageFr);
+                      return;
+                    }
+                    void onRequestInstrumentalPart({
+                      role: instrumentalRole,
+                      conditioning: instrumentalCond,
+                    }).then(
+                      closeInstrumentalDialog,
+                      (e) =>
+                        setInstrumentalNotice(
+                          e instanceof Error ? e.message : String(e),
+                        ),
+                    );
+                  }}
+                >
+                  {t("production.instrumental.generate")}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={closeInstrumentalDialog}
+                >
+                  {t("production.instrumental.cancel")}
                 </button>
               </div>
-            )}
-            {instrumentalNotice ? (
-              <p className="hint warn" role="status">
-                {instrumentalNotice}
-              </p>
-            ) : null}
-            <div className="btn-row">
-              <button
-                type="button"
-                className="btn"
-                disabled={busy || (instrumentalCond === "mix_stems" && (!mix?.tracks.length || !legoSidecarReady || !legoLicenseAccepted))}
-                onClick={() => {
-                  const plan = planProjectInstrumentalPart({
-                    role: instrumentalRole,
-                    conditioning: instrumentalCond,
-                    style: form.style,
-                    tempoBpm: form.tempoBpm,
-                    key: form.key ?? null,
-                    hasMixOrStems: Boolean(mix?.tracks.length),
-                    legoSidecarReady,
-                    legoLicenseAccepted,
-                  });
-                  if (!plan.ok) {
-                    setInstrumentalNotice(plan.messageFr);
-                    return;
-                  }
-                  void onRequestInstrumentalPart({
-                    role: instrumentalRole,
-                    conditioning: instrumentalCond,
-                  }).catch((e) =>
-                    setInstrumentalNotice(
-                      e instanceof Error ? e.message : String(e),
-                    ),
-                  );
-                }}
-              >
-                {t("production.instrumental.generate")}
-              </button>
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={() => setInstrumentalOpen(false)}
-              >
-                {t("production.instrumental.cancel")}
-              </button>
             </div>
           </div>
         ) : null}
@@ -599,7 +683,7 @@ export function ProductionWorkspace({
         role="region"
         aria-label={t("production.common.mix")}
       >
-        {mix ? (
+        {mix && (!studioMode || mix.tracks.length > 0) ? (
           <div
             className="mixer mixer-density production-mix-panel"
             data-density={effectiveDensity}
@@ -702,6 +786,11 @@ export function ProductionWorkspace({
                     onSeek={playback?.seek}
                   />
                 </div>
+                {studioMode && (
+                  <span className="studio-master-label">
+                    {t("production.studio.masterGain")}
+                  </span>
+                )}
                 <div className="mix-master-level">
                   <MixSlider
                     className="mix-master-fader"
@@ -793,25 +882,44 @@ export function ProductionWorkspace({
             </div>
 
             <div className="production-mix-scroll" ref={mixScrollRef}>
-              {!tightMixLayout && (
+              {(studioMode || !tightMixLayout) && (
                 <div
                   className="production-mix-colheaders production-mix-grid"
                   aria-hidden="true"
                 >
-                  <span>{t("mix.columns.track")}</span>
-                  <span>{t("mix.columns.gain")}</span>
-                  <span>{t("mix.columns.pan")}</span>
-                  <span>{t("mix.columns.ms")}</span>
-                  <span>{t("mix.columns.tools")}</span>
-                  <span>{t("mix.columns.waveform")}</span>
+                  {studioMode ? (
+                    <>
+                      <span>{t("mix.columns.track")}</span>
+                      <span>{t("mix.columns.gain")}</span>
+                      <span>{t("mix.columns.pan")}</span>
+                      <span>M / S</span>
+                      <span aria-hidden="true" />
+                      <span>{t("production.common.clips")}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{t("mix.columns.track")}</span>
+                      <span>{t("mix.columns.gain")}</span>
+                      <span>{t("mix.columns.pan")}</span>
+                      <span>{t("mix.columns.ms")}</span>
+                      <span>{t("mix.columns.tools")}</span>
+                      <span>{t("mix.columns.waveform")}</span>
+                    </>
+                  )}
                 </div>
               )}
 
-              <div className="production-mix-list" role="list" aria-label={t("mix.tracksTitle")}>
+              <div className="production-mix-list" role="group" aria-label={t("mix.tracksTitle")}>
                 <div role="region" aria-label={t("production.common.clips")} className="production-common-timeline">
                 <ClipTimeline
                   mix={mix} onChange={scheduleMixUpdate}
                   peaksByTrack={playback?.peaksByTrack} roleByTrack={roleByTrack}
+                  trackColorById={studioMode
+                    ? Object.fromEntries(mix.tracks.map((track, index) => [
+                        track.id,
+                        trackColors[track.id] ?? defaultStudioTrackColor(index),
+                      ]))
+                    : undefined}
                   sourceDurationMsByTrack={sourceDurationMsByTrack}
                   projectTempoBpm={project.tempoBpm} projectMeter={project.meter ?? null}
                   currentTimeMs={(playback?.current ?? 0)*1000} onSeek={playback?.seek}
@@ -826,6 +934,8 @@ export function ProductionWorkspace({
                     const muted = tr.mute || (anySolo && !tr.solo);
                     const implicit = anySolo && !tr.solo && !tr.mute;
                     const experimental = isExperimentalStemTrack(tr);
+                    const trackIndex = mix.tracks.findIndex((track) => track.id === tr.id);
+                    const trackColor = trackColors[tr.id] ?? defaultStudioTrackColor(trackIndex);
                     const rowClass = [
                       "production-mix-grid",
                       "production-mix-row",
@@ -842,10 +952,30 @@ export function ProductionWorkspace({
                         className={rowClass}
                         data-role={tr.role.toLowerCase()}
                         data-track-id={tr.id}
+                        style={{
+                          "--track-wave": trackColor,
+                          "--track-wave-played": `color-mix(in srgb, ${trackColor} 55%, white)`,
+                        } as CSSProperties}
                         role="listitem"
                       >
                         <div className="production-mix-name">
-                          <span className="production-mix-strip" aria-hidden />
+                          {studioMode ? (
+                            <input
+                              type="color"
+                              className="studio-track-color-input"
+                              value={trackColor}
+                              aria-label={t("mix.trackColorNamed", { track: tr.name })}
+                              title={t("mix.trackColorNamed", { track: tr.name })}
+                              style={{ backgroundColor: trackColor }}
+                              onChange={(event) => {
+                                const color = event.currentTarget.value;
+                                setTrackColors((current) => ({ ...current, [tr.id]: color }));
+                                saveStudioTrackColor(project.id, tr.id, color);
+                              }}
+                            />
+                          ) : (
+                            <span className="production-mix-strip" aria-hidden />
+                          )}
                           <TruncatedTrackLabel
                             className="production-mix-track-label"
                             fullTitle={tr.name}
@@ -873,47 +1003,100 @@ export function ProductionWorkspace({
                             </button>
                           )}
                         </div>
-                        <MixSlider
-                          className="track-gain-knob track-gain-slider"
-                          value={tr.gainDb}
-                          min={-24}
-                          max={12}
-                          step={0.5}
-                          defaultValue={0}
-                          ariaLabel={t("mix.gainNamed", { track: tr.name })}
-                          valueText={formatGainDb(tr.gainDb)}
-                          displayValue={formatGainDb(tr.gainDb)}
-                          parseDisplay={parseGainDb}
-                          onChange={(gainDb) =>
-                            scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }), {
-                              persist: false,
-                            })
-                          }
-                          onCommit={(gainDb) =>
-                            scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }))
-                          }
-                        />
-                        <MixSlider
-                          className="track-pan-knob track-pan-slider"
-                          value={tr.pan}
-                          min={-1}
-                          max={1}
-                          step={0.01}
-                          fineStep={0.01}
-                          defaultValue={0}
-                          ariaLabel={t("mix.panNamed", { track: tr.name })}
-                          valueText={formatPan(tr.pan)}
-                          displayValue={formatPan(tr.pan)}
-                          parseDisplay={parsePan}
-                          onChange={(pan) =>
-                            scheduleMixUpdate(patchTrack(mix, tr.id, { pan }), {
-                              persist: false,
-                            })
-                          }
-                          onCommit={(pan) =>
-                            scheduleMixUpdate(patchTrack(mix, tr.id, { pan }))
-                          }
-                        />
+                        {studioMode ? (
+                          <div className="studio-track-control track-gain-knob">
+                            <span className="studio-track-control-label">{t("mix.columns.gain")}</span>
+                            <MixKnob
+                              className="track-gain-slider"
+                              value={tr.gainDb}
+                              min={-24}
+                              max={12}
+                              step={0.5}
+                              defaultValue={0}
+                              ariaLabel={t("mix.gainNamed", { track: tr.name })}
+                              valueText={formatGainDb(tr.gainDb)}
+                              displayValue={formatGainDb(tr.gainDb)}
+                              parseDisplay={parseGainDb}
+                              onChange={(gainDb) =>
+                                scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }), {
+                                  persist: false,
+                                })
+                              }
+                              onCommit={(gainDb) =>
+                                scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }))
+                              }
+                            />
+                          </div>
+                        ) : (
+                          <MixSlider
+                            className="track-gain-knob track-gain-slider"
+                            value={tr.gainDb}
+                            min={-24}
+                            max={12}
+                            step={0.5}
+                            defaultValue={0}
+                            ariaLabel={t("mix.gainNamed", { track: tr.name })}
+                            valueText={formatGainDb(tr.gainDb)}
+                            displayValue={formatGainDb(tr.gainDb)}
+                            parseDisplay={parseGainDb}
+                            onChange={(gainDb) =>
+                              scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }), {
+                                persist: false,
+                              })
+                            }
+                            onCommit={(gainDb) =>
+                              scheduleMixUpdate(patchTrack(mix, tr.id, { gainDb }))
+                            }
+                          />
+                        )}
+                        {studioMode ? (
+                          <div className="studio-track-control track-pan-knob">
+                            <span className="studio-track-control-label">{t("mix.columns.pan")}</span>
+                            <MixKnob
+                              className="track-pan-slider"
+                              value={tr.pan}
+                              min={-1}
+                              max={1}
+                              step={0.01}
+                              fineStep={0.01}
+                              defaultValue={0}
+                              ariaLabel={t("mix.panNamed", { track: tr.name })}
+                              valueText={formatPan(tr.pan)}
+                              displayValue={formatPan(tr.pan)}
+                              parseDisplay={parsePan}
+                              onChange={(pan) =>
+                                scheduleMixUpdate(patchTrack(mix, tr.id, { pan }), {
+                                  persist: false,
+                                })
+                              }
+                              onCommit={(pan) =>
+                                scheduleMixUpdate(patchTrack(mix, tr.id, { pan }))
+                              }
+                            />
+                          </div>
+                        ) : (
+                          <MixSlider
+                            className="track-pan-knob track-pan-slider"
+                            value={tr.pan}
+                            min={-1}
+                            max={1}
+                            step={0.01}
+                            fineStep={0.01}
+                            defaultValue={0}
+                            ariaLabel={t("mix.panNamed", { track: tr.name })}
+                            valueText={formatPan(tr.pan)}
+                            displayValue={formatPan(tr.pan)}
+                            parseDisplay={parsePan}
+                            onChange={(pan) =>
+                              scheduleMixUpdate(patchTrack(mix, tr.id, { pan }), {
+                                persist: false,
+                              })
+                            }
+                            onCommit={(pan) =>
+                              scheduleMixUpdate(patchTrack(mix, tr.id, { pan }))
+                            }
+                          />
+                        )}
                         <div className="track-ms" role="group" aria-label={tr.name}>
                           <button
                             type="button"
@@ -1003,10 +1186,14 @@ export function ProductionWorkspace({
                     const measureOffscreen =
                       capturePaintCollapsedTracks && collapsed && group.family === "rythmique";
                     return (
-                      <div key={group.family} className="production-mix-family">
+                      <div
+                        key={group.family}
+                        className="production-mix-family"
+                        role="group"
+                        aria-label={groupName}
+                      >
                         <div
                           className="production-mix-grid production-mix-group-header"
-                          role="listitem"
                         >
                           <div className="production-mix-group-name">
                             <button
@@ -1108,7 +1295,25 @@ export function ProductionWorkspace({
             </div>
           </div>
         ) : (
-          <p className="hint">{t("mix.needSeparation")}</p>
+          studioMode ? (
+            <div className="studio-empty-arrangement" role="region" aria-label={t("production.studio.empty.label")}>
+              <div className="studio-arrangement-ruler">
+                <span className="studio-arrangement-track-heading">{t("mix.columns.track")}</span>
+                <div className="studio-arrangement-bars" aria-hidden="true">
+                  {Array.from({ length: 8 }, (_, index) => <span key={index}>{index + 1}</span>)}
+                </div>
+              </div>
+              <div className="studio-empty-lane">
+                <div className="studio-empty-track-label">{t("production.studio.empty.track")}</div>
+                <div className="studio-empty-lane-content">
+                  <strong>{t("production.studio.empty.title")}</strong>
+                  <span>{t("production.studio.empty.hint")}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="hint">{t("mix.needSeparation")}</p>
+          )
         )}
       </div>
 

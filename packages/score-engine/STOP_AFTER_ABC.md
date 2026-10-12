@@ -2,7 +2,7 @@
 
 **Statut :** activé  
 **Drapeau :** `STOP_AFTER_ABC_ENABLED = true` dans `src/generation/stop-after.ts`  
-**Épingle :** audio.cpp `v0.8.2` (`pins.rs`)
+**Épingle actuelle :** audio.cpp `v0.9.1` (`pins.rs`)
 
 ## Contrat
 
@@ -27,5 +27,5 @@ Après une génération score-only, plusieurs rendus audio réutilisent le même
 
 ## Sources
 
-- [yue2.md v0.8.2](https://github.com/0xShug0/audio.cpp/blob/v0.8.2/docs/models/yue2.md)
+- [yue2.md v0.9.1](https://github.com/0xShug0/audio.cpp/blob/v0.9.1/docs/models/yue2.md)
 - Spec §23 piste 2 ; `docs/yue2-ameliorations.md` item 2

@@ -42,8 +42,10 @@ describe("ProfileCommercialTypeOption (#201)", () => {
     );
     assert.doesNotMatch(html, /profile-commercial-unavailable-reason/);
     assert.match(html, /data-testid="profile-type-commercial"/);
+    assert.match(html, /type="radio"/);
+    assert.match(html, /name="profile-kind"/);
     assert.doesNotMatch(html, /aria-disabled/);
-    assert.match(html, /tabindex="0"/i);
+    assert.doesNotMatch(html, /tabindex=/i);
     assert.doesNotMatch(html, /(?<!aria-)disabled=/);
   });
 
