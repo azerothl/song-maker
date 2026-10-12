@@ -6,6 +6,7 @@ const TECHNICAL_ERROR_PATTERNS = [
   /\b(?:ENOENT|EACCES|EIO|os error \d+|0x[\da-f]{8})\b/i,
   /\b(?:NotFound|PermissionDenied|ConnectionRefused|TimedOut|InvalidData|AlreadyExists)\b/i,
   /\b(?:raw_os_error|kind|code)\s*[:=]/i,
+  /\b(?:TypeError|ReferenceError|SyntaxError|RangeError|DOMException)\s*:/i,
   /\b(?:failed|failure)\b/i,
   /^\s*(?:error|exception|échec|erreur)\s*[:—-]/i,
   /\b[a-z][a-z\d_]*\.[a-z][a-z\d_]*\s+(?:must|was|is|should|failed|cannot|not)\b/i,

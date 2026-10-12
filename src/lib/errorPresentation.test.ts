@@ -77,6 +77,22 @@ it("keeps an existing actionable product message unchanged", () => {
   );
 });
 
+it("keeps JavaScript runtime errors out of the primary user message", () => {
+  setAppLocale("fr");
+  const result = presentGlobalError(
+    "TypeError: Cannot read properties of undefined (reading 'invoke')",
+  );
+
+  assert.equal(
+    result.message,
+    "Cette action n’a pas abouti. Réessayez. Si le problème persiste, ouvrez les détails techniques.",
+  );
+  assert.equal(
+    result.details,
+    "TypeError: Cannot read properties of undefined (reading 'invoke')",
+  );
+});
+
 it("keeps separation recovery guidance and exposes the original error on demand", () => {
   setAppLocale("fr");
   const result = presentGlobalError(
