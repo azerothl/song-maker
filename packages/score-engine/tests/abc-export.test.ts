@@ -58,6 +58,31 @@ describe("export ABC vs YuE fixtures", () => {
     assert.equal(normalizeAbc(jazz.abc), loadFixture("score-jazz.abc"));
   });
 
+  it("exporte la piste Ins non vide si une piste vide la précède", () => {
+    const fixture = buildTonightAwakeFixture({ withChords: false });
+    const insVoice = {
+      ...fixture.voices[0]!,
+      id: "ins-with-notes",
+      name: "Instrument MIDI 2",
+      role: "other" as const,
+      abcVoice: "Ins" as const,
+    };
+    const withEmptyInsFirst = {
+      ...fixture,
+      voices: [
+        { ...insVoice, id: "ins-empty", name: "Instrument MIDI 1", notes: [] },
+        insVoice,
+      ],
+    };
+    const actual = exportToYuE2Abc(withEmptyInsFirst, { cot: "full" });
+    const expected = exportToYuE2Abc(
+      { ...fixture, voices: [insVoice] },
+      { cot: "full" },
+    );
+
+    assert.equal(normalizeAbc(actual.abc), normalizeAbc(expected.abc));
+  });
+
   it("refuse cot=off avec ABC", () => {
     const doc = buildTonightAwakeFixture({ withChords: false });
     const v = validateForAbcExport(doc, { cot: "off" });

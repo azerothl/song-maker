@@ -11,7 +11,10 @@ import {
   exportScoreAbc,
   exportScoreMidi,
   importMidiBytes,
+  addNote,
+  mergeScoreVoiceVst3InstrumentState,
   prepareAbcForGeneration,
+  setScoreVoiceVst3Instrument,
   transposeWholeScore,
   updateScoreTempo,
 } from "./score.ts";
@@ -35,6 +38,16 @@ describe("phase 2 score wiring", () => {
     const r = prepareAbcForGeneration(null, "full", "Titre");
     assert.equal(r.abc, null);
     assert.equal(r.error, null);
+  });
+
+  it("laisse la génération par prompt continuer avec une partition vide", () => {
+    const document = createEmptyScoreDocument({ branchName: "main" });
+
+    for (const cot of ["full", "melody", "off"] as const) {
+      const result = prepareAbcForGeneration(document, cot, "Titre");
+      assert.equal(result.abc, null);
+      assert.equal(result.error, null);
+    }
   });
 
   it("refuse ABC + cot=off", () => {
@@ -84,6 +97,56 @@ describe("phase 2 score wiring", () => {
     assert.equal(doc.voices[0]?.abcVoice, "Vocal");
     assert.equal(doc.branchName, "main");
     assert.equal(doc.timeSignatures[0]?.numerator, 4);
+  });
+
+  it("fusionne l’état VST3 sans effacer les notes ajoutées pendant l’ouverture", () => {
+    const doc = createEmptyScoreDocument({ branchName: "main" });
+    const voiceId = doc.voices[0]!.id;
+    const pluginPath = "C:\\VST3\\Odin2.vst3";
+    const assigned = setScoreVoiceVst3Instrument(doc, voiceId, {
+      pluginPath,
+      pluginName: "Odin2",
+      parameters: { "1": 0.25 },
+      stateB64: "before",
+    });
+    const note = {
+      id: "note-added-while-editor-open",
+      startTick: 360,
+      durationTick: 480,
+      pitch: 84,
+      velocity: 90,
+    };
+    const latestDocument = addNote(assigned, voiceId, note);
+
+    const updated = mergeScoreVoiceVst3InstrumentState(
+      latestDocument,
+      voiceId,
+      pluginPath,
+      { parameters: { "1": 0.75 }, stateB64: "after" },
+    );
+
+    assert.deepEqual(updated.voices[0]?.notes, [note]);
+    assert.deepEqual(updated.voices[0]?.vst3Instrument?.parameters, { "1": 0.75 });
+    assert.equal(updated.voices[0]?.vst3Instrument?.stateB64, "after");
+  });
+
+  it("n’applique pas l’état d’un éditeur à une voix dont l’instrument a changé", () => {
+    const doc = createEmptyScoreDocument({ branchName: "main" });
+    const voiceId = doc.voices[0]!.id;
+    const assigned = setScoreVoiceVst3Instrument(doc, voiceId, {
+      pluginPath: "C:\\VST3\\Other.vst3",
+      pluginName: "Other",
+      parameters: {},
+    });
+
+    const updated = mergeScoreVoiceVst3InstrumentState(
+      assigned,
+      voiceId,
+      "C:\\VST3\\Odin2.vst3",
+      { parameters: { "1": 0.75 } },
+    );
+
+    assert.strictEqual(updated, assigned);
   });
 
   it("exporte MIDI via le wrapper app (round-trip)", () => {

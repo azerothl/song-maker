@@ -16,6 +16,7 @@ import {
   subscribeProduction,
 } from "../../lib/productionState";
 import { t } from "../../ui/i18n";
+import { ErrorNotice } from "../ErrorNotice";
 
 type Props = {
   track: MixTrack;
@@ -154,11 +155,7 @@ export function ProductionTrackRoutingPopin({ track, mix }: Props) {
       className="production-track-routing"
       data-testid="production-track-routing"
     >
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <ErrorNotice message={error} className="error" />}
 
       <label className="production-track-routing-field">
         <span>{t("phase3.routing.kindGroup")}</span>

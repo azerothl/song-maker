@@ -22,6 +22,7 @@ import {
 } from "../lib/productionState";
 import type { MixDoc, PlaybackSources } from "../lib/types";
 import { t } from "../ui/i18n";
+import { ErrorNotice } from "./ErrorNotice";
 
 type Props = {
   mix: MixDoc;
@@ -380,7 +381,7 @@ export function MixAssistPanel({
           </button>
         </div>
         {!hasStems && <p className="hint">{t("mix.balance.needStems")}</p>}
-        {balanceError && <p className="hint error">{balanceError}</p>}
+        {balanceError && <ErrorNotice message={balanceError} />}
 
         {balanceResult && proposedMix && (
           <>

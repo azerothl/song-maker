@@ -605,12 +605,7 @@ fn spawn_server(
         .env("RBITNET_STRUCTURED_OUTPUT", "json")
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
+    crate::process_utils::configure_no_window(&mut cmd);
     cmd.spawn()
         .map_err(|e| format!("Impossible de démarrer rbitnet-server : {e}"))
 }

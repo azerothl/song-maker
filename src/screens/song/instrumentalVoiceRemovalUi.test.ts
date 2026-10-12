@@ -10,8 +10,10 @@ import type { AdvancedSettingsPage } from "./shared";
 function renderCreateWorkspace(
   instrumentalMode: boolean,
   options: {
+    advancedSettingsPage?: AdvancedSettingsPage;
     showVocalRemovalGuidance?: boolean;
     showInstrumentalPackGuidance?: boolean;
+    showScoreSettings?: boolean;
     instrumentalPackState?: "active" | "installed" | "missing";
   } = {},
 ) {
@@ -33,7 +35,7 @@ function renderCreateWorkspace(
 
   return renderToStaticMarkup(
     React.createElement(CreateWorkspace, {
-      advancedSettingsPage: null,
+      advancedSettingsPage: options.advancedSettingsPage ?? null,
       advancedSummary: "",
       busy: false,
       form,
@@ -41,12 +43,12 @@ function renderCreateWorkspace(
       onGenerate: async () => undefined,
       onOpenInstrumentalSettings: () => undefined,
       onOpenVocalRemovalSettings: () => undefined,
-      scoreDocument: null,
       scoreGate: { abc: null, error: null, issues: [] },
       setAdvancedSettingsPage: (() => undefined) as React.Dispatch<
         React.SetStateAction<AdvancedSettingsPage>
       >,
       setForm: () => undefined,
+      showScoreSettings: options.showScoreSettings ?? true,
       instrumentalPackState: options.instrumentalPackState ?? "missing",
       showVocalRemovalGuidance: options.showVocalRemovalGuidance ?? true,
       showInstrumentalPackGuidance: options.showInstrumentalPackGuidance ?? true,
@@ -86,6 +88,12 @@ describe("instrumental voice removal entry", () => {
     assert.doesNotMatch(html, /voix résiduelles|Some vocals may still remain/i);
   });
 
+  it("does not claim an empty score will be sent", () => {
+    const html = renderCreateWorkspace(true);
+
+    assert.doesNotMatch(html, /La partition guidera cette génération|The score will guide this generation/);
+  });
+
   it("opens the separation settings page from the new action", () => {
     useAppStore.getState().openSeparationSettings();
     const state = useAppStore.getState();
@@ -93,5 +101,24 @@ describe("instrumental voice removal entry", () => {
     assert.equal(state.screen, "settings");
     assert.equal(state.settingsInitialPage, "separation");
     state.setScreen("splash");
+  });
+
+  it("hides score planning for engines that do not support score generation", () => {
+    const html = renderCreateWorkspace(false, {
+      advancedSettingsPage: "index",
+      showScoreSettings: false,
+    });
+
+    assert.doesNotMatch(html, /Partition à générer|Score to create/);
+  });
+
+  it("does not keep a stale score-planning page open after switching engines", () => {
+    const html = renderCreateWorkspace(false, {
+      advancedSettingsPage: "plan",
+      showScoreSettings: false,
+    });
+
+    assert.doesNotMatch(html, /Partition à générer|Score to create/);
+    assert.match(html, /form-parameter-grid/);
   });
 });

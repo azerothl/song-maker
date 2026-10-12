@@ -193,11 +193,9 @@ fn load_isolated(binary: &Path) -> Vst3LoadResult {
     let mut factory = false;
     let mut notes = String::new();
     if let Some(exe) = exe {
-        if let Ok(out) = Command::new(&exe)
-            .arg("--vst3-spike-probe")
-            .arg(binary)
-            .output()
-        {
+        let mut command = Command::new(&exe);
+        crate::process_utils::configure_no_window(&mut command);
+        if let Ok(out) = command.arg("--vst3-spike-probe").arg(binary).output() {
             isolated = true;
             match out.status.code() {
                 Some(0) => factory = true,

@@ -1,4 +1,4 @@
-/** audio.cpp v0.8.2 exposes the real ABC in base64 artifacts, not only score. */
+/** audio.cpp >= v0.8.2 exposes the real ABC in base64 artifacts, not only score. */
 export function extractRemoteScore(response: { score?: unknown; abc?: unknown; artifacts?: unknown }, fallback?: string): string | null {
   const valid = (value: unknown): value is string => typeof value === "string" && /^K\s*:/m.test(value);
   if (valid(response.score)) return response.score;

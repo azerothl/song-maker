@@ -322,19 +322,21 @@ export function BatchGenerationPanel({ open, onClose }: { open: boolean; onClose
       </div>
       {notice && <p className="hint">{notice}</p>}
       {errors.length > 0 && (
-        <div className="batch-errors" role="alert">
-          <p>{t("batch.errors")}</p>
-          <ul>
-            {errors.map((err) => {
-              const presented = presentBatchError(err);
-              return (
-                <li key={`${err.path}:${err.messageFr}`}>
-                  <strong>{presented.location} :</strong> {presented.message}
-                </li>
-              );
-            })}
-          </ul>
-          <p>{t("batch.error.importHelp")}</p>
+        <div className="batch-errors">
+          <div role="alert">
+            <p>{t("batch.errors")}</p>
+            <ul>
+              {errors.map((err) => {
+                const presented = presentBatchError(err);
+                return (
+                  <li key={`${err.path}:${err.messageFr}`}>
+                    <strong>{presented.location} :</strong> {presented.message}
+                  </li>
+                );
+              })}
+            </ul>
+            <p>{t("batch.error.importHelp")}</p>
+          </div>
           <details>
             <summary>{t("batch.error.supportDetails")}</summary>
             <ul>

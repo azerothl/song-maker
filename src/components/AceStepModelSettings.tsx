@@ -13,6 +13,7 @@ import {
   aceStepContractFingerprint,
 } from "@song-maker/stem-providers";
 import { api } from "../lib/api";
+import { ErrorNotice } from "./ErrorNotice";
 import type { AppSettings, InstallProgress } from "../lib/types";
 import {
   isTauriRuntime,
@@ -407,11 +408,13 @@ export function AceStepModelSettings() {
               ? "settings.model.lego.incomplete" : "settings.model.lego.absent")}</p>
         ) : null}
         {legoNotice ? (
-          <p className="settings-engine-error" role="alert">{legoNotice}</p>
+          <ErrorNotice message={legoNotice} className="settings-engine-error" />
         ) : null}
       </div>
 
-      {notice ? <p className="settings-engine-error" role="alert">{notice}</p> : null}
+      {notice ? (
+        <ErrorNotice message={notice} className="settings-engine-error" />
+      ) : null}
     </section>
   );
 }
