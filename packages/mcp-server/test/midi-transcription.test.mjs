@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { buildMinimalMidi } from '@song-maker/score-engine';
+import { createProject, getProject, getProjectScore, updateProject } from '../src/projects.mjs';
 import { transcribeAudioToMidi } from '../src/midi-transcription.mjs';
 
 const midi = Buffer.from(buildMinimalMidi({
@@ -101,6 +102,80 @@ test('does not publish invalid MIDI or report a successful transcription without
       pythonResolver: async () => 'python-test', transcriber: fakeTranscriber({ stdout: { model: 'basicpitch.tflite' } }),
     }), /modèle ONNX/);
     assert.deepEqual(await readdir(path.join(workspace, 'exports')), []);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test('can import a transcribed MIDI as the active project score using the current project revision', async () => {
+  const workspace = await makeWorkspace();
+  const documentsRoot = path.join(workspace, 'documents');
+  const profileDirectory = path.join(documentsRoot, 'profiles', 'profile-midi');
+  await mkdir(profileDirectory, { recursive: true });
+  await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+    activeProfileId: 'profile-midi', profiles: [{ id: 'profile-midi', name: 'Test', kind: 'hobby' }],
+  }));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    const created = await createProject({ title: 'Transcription MIDI', env });
+    const result = await transcribeAudioToMidi({
+      sourcePath: 'audio/take.wav', outputDirectory: 'exports',
+      projectId: created.project.id, expectedUpdatedAt: created.project.updatedAt,
+      workspace, env, pythonResolver: async () => 'python-test', transcriber: fakeTranscriber(),
+    });
+    assert.equal(result.projectImport.imported, true);
+    const latest = await getProject({ projectId: created.project.id, env });
+    assert.equal(latest.project.activeScoreId, result.projectImport.scoreId);
+    assert.notEqual(latest.project.updatedAt, created.project.updatedAt);
+    const saved = await getProjectScore({ projectId: created.project.id, env });
+    assert.equal(saved.scoreId, result.projectImport.scoreId);
+    assert.equal(saved.score.source, 'midi');
+    assert.equal(saved.score.voices.reduce((count, voice) => count + voice.notes.length, 0), 2);
+    assert.equal(result.projectImport.projectUpdatedAt, latest.project.updatedAt);
+
+    const updatedResult = await transcribeAudioToMidi({
+      sourcePath: 'audio/take.wav', outputDirectory: 'exports', fileName: 'take-again.mid',
+      projectId: created.project.id, expectedUpdatedAt: latest.project.updatedAt,
+      workspace, env, pythonResolver: async () => 'python-test', transcriber: fakeTranscriber(),
+    });
+    assert.equal(updatedResult.projectImport.imported, true);
+    assert.notEqual(updatedResult.projectImport.scoreId, result.projectImport.scoreId);
+    const previous = await getProjectScore({ projectId: created.project.id, scoreId: result.projectImport.scoreId, env });
+    assert.equal(previous.score.voices.reduce((count, voice) => count + voice.notes.length, 0), 2);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test('keeps the exported MIDI when the project revision changes during transcription', async () => {
+  const workspace = await makeWorkspace();
+  const documentsRoot = path.join(workspace, 'documents');
+  const profileDirectory = path.join(documentsRoot, 'profiles', 'profile-midi-race');
+  await mkdir(profileDirectory, { recursive: true });
+  await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+    activeProfileId: 'profile-midi-race', profiles: [{ id: 'profile-midi-race', name: 'Test', kind: 'hobby' }],
+  }));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    const created = await createProject({ title: 'Transcription MIDI', env });
+    const result = await transcribeAudioToMidi({
+      sourcePath: 'audio/take.wav', outputDirectory: 'exports',
+      projectId: created.project.id, expectedUpdatedAt: created.project.updatedAt,
+      workspace, env, pythonResolver: async () => 'python-test',
+      transcriber: async (_executable, _script, _source, destination) => {
+        await updateProject({
+          projectId: created.project.id, expectedUpdatedAt: created.project.updatedAt,
+          title: 'Projet modifié pendant la transcription', env,
+        });
+        await writeFile(destination, midi);
+        return JSON.stringify({ model: 'basicpitch.onnx', backend: 'onnx' });
+      },
+    });
+    assert.equal(result.projectImport.imported, false);
+    assert.match(result.projectImport.error, /projet a changé/);
+    assert.equal(await readFile(path.join(workspace, result.midiPath)).then(bytes => bytes.equals(midi)), true);
+    const latest = await getProject({ projectId: created.project.id, env });
+    assert.equal(latest.project.activeScoreId, null);
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }

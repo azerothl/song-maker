@@ -2199,6 +2199,118 @@ export async function editProjectScore({ projectId, expectedScoreRevision, edits
   return getProjectScore({ projectId, scoreId: savedScoreId, env });
 }
 
+/** Save an imported score as the next active project score, matching the app's save_score path. */
+export async function saveProjectScoreDocument({ projectId, expectedUpdatedAt, document, env = process.env } = {}) {
+  if (typeof projectId !== 'string' || !PROJECT_ID_PATTERN.test(projectId)) {
+    throw new Error('Identifiant de projet invalide.');
+  }
+  if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt.trim()) {
+    throw new Error('expectedUpdatedAt est requis : relis le projet avant d’importer la partition.');
+  }
+  if (!isRecord(document) || !Array.isArray(document.voices) || document.voices.length < 1 || document.voices.length > 256) {
+    throw new Error('Document de partition importé invalide.');
+  }
+  let noteCount = 0;
+  const voiceIds = new Set();
+  const noteIds = new Set();
+  for (const voice of document.voices) {
+    if (!isRecord(voice) || typeof voice.id !== 'string' || !voice.id.trim() || voice.id.length > 128 ||
+        voiceIds.has(voice.id) || typeof voice.name !== 'string' || !voice.name.trim() || voice.name.length > 120 ||
+        !Array.isArray(voice.notes)) {
+      throw new Error('La partition importée contient une voix MIDI invalide.');
+    }
+    voiceIds.add(voice.id);
+    for (const note of voice.notes) {
+      if (!isValidMidiNote(note) || noteIds.has(note.id)) {
+        throw new Error('La partition importée contient une note invalide ou un identifiant MIDI en doublon.');
+      }
+      noteIds.add(note.id);
+      noteCount += 1;
+      if (noteCount > 100_000) throw new Error('La partition importée dépasse 100 000 notes.');
+    }
+  }
+  if (!Number.isSafeInteger(document.ppq) || document.ppq < 1 || document.ppq > 32_767 ||
+      !Array.isArray(document.tempoMap) || !Array.isArray(document.timeSignatures)) {
+    throw new Error('Les métadonnées musicales de la partition importée sont invalides.');
+  }
+  const projectBytes = Buffer.byteLength(JSON.stringify(document), 'utf8');
+  if (projectBytes > MAX_PROJECT_DOCUMENT_BYTES) {
+    throw new Error(`La partition importée dépasse ${MAX_PROJECT_DOCUMENT_BYTES} octets.`);
+  }
+
+  const store = await projectStore(env);
+  const project = await readProjectAt(store.root, projectId);
+  if (project.schema !== 'songmaker.project' || project.schemaVersion !== 1) {
+    throw new Error('Version de projet non prise en charge ; aucune modification effectuée.');
+  }
+  if (project.updatedAt !== expectedUpdatedAt) {
+    throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de réessayer.');
+  }
+  const canonicalRoot = await realpath(store.root);
+  const folder = path.join(store.root, projectId);
+  const folderInfo = await lstat(folder);
+  const canonicalFolder = await realpath(folder);
+  if (folderInfo.isSymbolicLink() || !folderInfo.isDirectory() || !isWithin(canonicalRoot, canonicalFolder)) {
+    throw new Error('Le dossier du projet est invalide ou se trouve hors du profil Song Maker actif.');
+  }
+
+  let savedScoreId = null;
+  await withProjectLock(canonicalFolder, async () => {
+    const persist = async () => {
+      const latest = await readProjectAt(store.root, projectId);
+      if (latest.updatedAt !== expectedUpdatedAt) {
+        throw new Error('Le projet a changé pendant la transcription. Le MIDI est conservé dans le workspace ; relis le projet avant de l’importer.');
+      }
+      let scoresDirectory = await projectSubdirectory(canonicalFolder, 'scores');
+      if (!scoresDirectory) {
+        await mkdir(path.join(canonicalFolder, 'scores'));
+        scoresDirectory = await projectSubdirectory(canonicalFolder, 'scores');
+      }
+      savedScoreId = await nextVersionId(scoresDirectory, 'score');
+      const score = structuredClone(document);
+      score.schema = 'songmaker.score';
+      score.schemaVersion = 1;
+      score.id = savedScoreId;
+      const scorePath = path.join(scoresDirectory, `${savedScoreId}.json`);
+      await writeJsonExclusive(
+        scorePath, score, `.score-${randomUUID()}.tmp`,
+      );
+      try {
+        const beforeCommit = await readProjectAt(store.root, projectId);
+        if (beforeCommit.updatedAt !== expectedUpdatedAt) {
+          throw new Error('Le projet a changé pendant la transcription. Le MIDI est conservé dans le workspace ; relis le projet avant de l’importer.');
+        }
+        const previous = Date.parse(beforeCommit.updatedAt);
+        const now = Date.now();
+        const updatedProject = {
+          ...beforeCommit,
+          activeScoreId: savedScoreId,
+          updatedAt: new Date(Number.isFinite(previous) && now <= previous ? previous + 1 : now).toISOString(),
+        };
+        await writeProjectAtomically(canonicalFolder, updatedProject);
+      } catch (error) {
+        await rm(scorePath, { force: true }).catch(() => {});
+        throw error;
+      }
+    };
+
+    if (typeof project.activeScoreId === 'string' && SCORE_ID_PATTERN.test(project.activeScoreId)) {
+      const scoresDirectory = await projectSubdirectory(canonicalFolder, 'scores');
+      if (scoresDirectory) {
+        await withScoreLock(path.join(scoresDirectory, `${project.activeScoreId}.json`), persist);
+        return;
+      }
+    }
+    await persist();
+  });
+
+  const [score, currentProject] = await Promise.all([
+    getProjectScore({ projectId, scoreId: savedScoreId, env }),
+    getProject({ projectId, env }),
+  ]);
+  return { ...score, projectUpdatedAt: currentProject.project.updatedAt };
+}
+
 function isValidMidiNote(note) {
   return note && typeof note === 'object' && !Array.isArray(note) &&
     typeof note.id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(note.id) &&

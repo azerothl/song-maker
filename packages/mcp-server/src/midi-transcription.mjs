@@ -7,6 +7,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { importMidiToScoreDocument } from '@song-maker/score-engine';
+import { getProject, saveProjectScoreDocument } from './projects.mjs';
 import { insideWorkspace, publishExclusive, workspaceRoot as defaultWorkspaceRoot } from './runtime.mjs';
 
 const execFile = promisify(execFileCallback);
@@ -79,6 +80,12 @@ function runBasicPitch(executable, script, source, destination, env) {
     const stderr = [];
     let stdoutBytes = 0;
     let stderrBytes = 0;
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, 30 * 60 * 1000);
+    timeout.unref?.();
     child.stdout.on('data', chunk => {
       stdoutBytes += chunk.length;
       if (stdoutBytes <= 1024 * 1024) stdout.push(chunk);
@@ -91,11 +98,17 @@ function runBasicPitch(executable, script, source, destination, env) {
         stderrBytes += accepted.length;
       }
     });
-    child.once('error', error => reject(new Error(`Lancement de BasicPitch impossible : ${error.message}`)));
+    child.once('error', error => {
+      clearTimeout(timeout);
+      reject(new Error(`Lancement de BasicPitch impossible : ${error.message}`));
+    });
     child.once('close', code => {
+      clearTimeout(timeout);
       const out = Buffer.concat(stdout).toString('utf8').trim();
       const err = Buffer.concat(stderr).toString('utf8').trim();
-      if (stdoutBytes > 1024 * 1024) {
+      if (timedOut) {
+        reject(new Error('La transcription BasicPitch a dépassé la limite de 30 minutes.'));
+      } else if (stdoutBytes > 1024 * 1024) {
         reject(new Error('BasicPitch a produit une sortie de diagnostic trop volumineuse.'));
       } else if (code !== 0) {
         reject(new Error(`BasicPitch ONNX a échoué${err ? ` : ${err}` : ` (code ${code})`}`));
@@ -117,6 +130,8 @@ export async function transcribeAudioToMidi({
   sourcePath,
   outputDirectory,
   fileName,
+  projectId,
+  expectedUpdatedAt,
   workspace = defaultWorkspaceRoot,
   env = process.env,
   transcriber = runBasicPitch,
@@ -124,6 +139,17 @@ export async function transcribeAudioToMidi({
 } = {}) {
   if (typeof sourcePath !== 'string' || !sourcePath.trim()) throw new Error('sourcePath est requis.');
   if (typeof outputDirectory !== 'string' || !outputDirectory.trim()) throw new Error('outputDirectory est requis.');
+  if (projectId !== undefined) {
+    if (typeof projectId !== 'string' || !projectId.trim() || typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt.trim()) {
+      throw new Error('Quand projectId est fourni, expectedUpdatedAt de get_project est requis.');
+    }
+    const currentProject = await getProject({ projectId, env });
+    if (currentProject.project.updatedAt !== expectedUpdatedAt) {
+      throw new Error('Le projet a changé depuis sa dernière lecture. Relis-le avant de transcrire.');
+    }
+  } else if (expectedUpdatedAt !== undefined) {
+    throw new Error('expectedUpdatedAt nécessite également projectId.');
+  }
 
   const source = await resolveWorkspaceFile(sourcePath, workspace, 'Le fichier audio source');
   if (source.info.size < 1 || source.info.size > MAX_SOURCE_BYTES) {
@@ -185,7 +211,7 @@ export async function transcribeAudioToMidi({
 
     const sha256 = await hashFile(temporaryMidi);
     await publishExclusive(temporaryMidi, destination);
-    return {
+    const result = {
       sourcePath: path.relative(workspace, source.canonicalPath).split(path.sep).join('/'),
       midiPath: path.relative(workspace, destination).split(path.sep).join('/'),
       bytes: midiStat.size,
@@ -197,6 +223,26 @@ export async function transcribeAudioToMidi({
       tensorflowInstalled: metadata.tensorflowInstalled === true,
       model,
     };
+    if (projectId) {
+      try {
+        const saved = await saveProjectScoreDocument({ projectId, expectedUpdatedAt, document: parsed.document, env });
+        result.projectImport = {
+          imported: true,
+          projectId,
+          scoreId: saved.scoreId,
+          scoreRevision: saved.scoreRevision,
+          projectUpdatedAt: saved.projectUpdatedAt,
+        };
+      } catch (error) {
+        result.projectImport = {
+          imported: false,
+          projectId,
+          error: String(error?.message || error),
+          midiPath: result.midiPath,
+        };
+      }
+    }
+    return result;
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true });
   }

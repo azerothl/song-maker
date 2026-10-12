@@ -132,7 +132,7 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.ok(tools.tools.find(tool => tool.name === 'start_song').inputSchema.properties.meter);
     assert.equal(tools.tools.find(tool => tool.name === 'start_song').inputSchema.properties.targetDurationSec.multipleOf, 30);
     assert.deepEqual(Object.keys(tools.tools.find(tool => tool.name === 'transcribe_audio_to_midi').inputSchema.properties).sort(),
-      ['fileName', 'outputDirectory', 'sourcePath']);
+      ['expectedUpdatedAt', 'fileName', 'outputDirectory', 'projectId', 'sourcePath']);
     const multiTakeAudit = await client.callTool({ name: 'start_batch', arguments: {
       batchFile: path.join(importDirectory, 'multi-take.batch.json'), dryRun: true,
     } });

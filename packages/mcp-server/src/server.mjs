@@ -270,11 +270,13 @@ server.registerTool('edit_project_score', {
 }, call(async args => editProjectScore(args)));
 
 server.registerTool('transcribe_audio_to_midi', {
-  description: 'Transcrit un fichier audio du workspace avec le même BasicPitch ONNX que Song Maker, valide le MIDI avec le moteur de partition partagé et publie le .mid dans le workspace sans écraser un fichier existant. Ne modifie pas le projet : importe le MIDI retourné dans Song Maker pour l’ajouter à une partition.',
+  description: 'Transcrit un fichier audio du workspace avec le même BasicPitch ONNX que Song Maker, valide le MIDI avec le moteur de partition partagé et publie le .mid dans le workspace sans écraser un fichier existant. Si projectId et expectedUpdatedAt de get_project sont fournis, enregistre aussi la partition comme version active du projet ; en cas de modification concurrente, le fichier MIDI reste disponible et projectImport indique l’échec.',
   inputSchema: {
     sourcePath: z.string().min(1).max(4096),
     outputDirectory: z.string().min(1).max(4096),
     fileName: z.string().min(1).max(180).optional(),
+    projectId: z.string().min(1).max(128).optional(),
+    expectedUpdatedAt: z.string().min(1).max(80).optional(),
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => transcribeAudioToMidi(args)));
