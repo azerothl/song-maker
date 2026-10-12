@@ -1,5 +1,5 @@
-import { convertFileSrc } from "@tauri-apps/api/core";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { api } from "../lib/api";
 import { t } from "../ui/i18n";
 import { useAppStore } from "../store/appStore";
 import { Waveform } from "./Waveform";
@@ -7,6 +7,7 @@ import { Waveform } from "./Waveform";
 type WaveformData = { peaks: Float32Array; duration: number };
 const waveformCache = new Map<string, WaveformData>();
 const waveformJobs = new Map<string, Promise<WaveformData>>();
+let waveformQueue: Promise<void> = Promise.resolve();
 
 function waitForIdle(): Promise<void> {
   return new Promise((resolve) => {
@@ -21,50 +22,26 @@ function waitForIdle(): Promise<void> {
   });
 }
 
-async function readPeaks(url: string): Promise<WaveformData> {
-  const cached = waveformCache.get(url);
+async function readPeaks(projectId: string, generationId: string): Promise<WaveformData> {
+  const key = `${projectId}:${generationId}`;
+  const cached = waveformCache.get(key);
   if (cached) return cached;
-  const existing = waveformJobs.get(url);
+  const existing = waveformJobs.get(key);
   if (existing) return existing;
 
-  const job = (async () => {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Waveform source returned ${response.status}`);
-    const bytes = await response.arrayBuffer();
-    const context = new AudioContext();
-    try {
-      const decoded = await context.decodeAudioData(bytes);
-      const channels = Array.from({ length: decoded.numberOfChannels }, (_, index) =>
-        decoded.getChannelData(index),
-      );
-      const peaks = new Float32Array(320);
-      for (let start = 0; start < peaks.length; start += 8) {
-        const end = Math.min(peaks.length, start + 8);
-        for (let bin = start; bin < end; bin += 1) {
-          const from = Math.floor((bin / peaks.length) * decoded.length);
-          const to = Math.max(from + 1, Math.floor(((bin + 1) / peaks.length) * decoded.length));
-          let peak = 0;
-          for (const samples of channels) {
-            for (let sample = from; sample < Math.min(to, samples.length); sample += 1) {
-              peak = Math.max(peak, Math.abs(samples[sample] ?? 0));
-            }
-          }
-          peaks[bin] = peak;
-        }
-        if (end < peaks.length) await waitForIdle();
-      }
-      const result = { peaks, duration: decoded.duration };
-      waveformCache.set(url, result);
-      return result;
-    } finally {
-      await context.close().catch(() => undefined);
-    }
-  })();
-  waveformJobs.set(url, job);
+  const job = waveformQueue.then(async () => {
+    await waitForIdle();
+    const result = await api.generationWaveform(projectId, generationId);
+    const waveform = { peaks: Float32Array.from(result.peaks), duration: result.duration };
+    waveformCache.set(key, waveform);
+    return waveform;
+  });
+  waveformQueue = job.then(() => undefined, () => undefined);
+  waveformJobs.set(key, job);
   try {
     return await job;
   } finally {
-    waveformJobs.delete(url);
+    waveformJobs.delete(key);
   }
 }
 
@@ -80,38 +57,60 @@ export function LibraryTrackPlayer({
   audioPath,
   label,
   projectId,
+  generationId,
   trackKey,
+  color,
+  playedColor,
+  onPlay,
 }: {
   audioPath: string;
   label: string;
   projectId: string;
+  generationId: string;
   trackKey: string;
+  color?: string;
+  playedColor?: string;
+  onPlay?: () => void;
 }) {
   const [peaks, setPeaks] = useState<Float32Array | null>(null);
   const [waveformFailed, setWaveformFailed] = useState(false);
   const [waveformDuration, setWaveformDuration] = useState(0);
+  const [waveformVisible, setWaveformVisible] = useState(false);
   const playerSelection = useAppStore((s) => s.playerSelection);
   const setPlayerSelection = useAppStore((s) => s.setPlayerSelection);
   const playback = useAppStore((s) => s.playback);
   const pendingPlayRef = useRef(false);
+  const waveformRef = useRef<HTMLDivElement>(null);
   const selected = playerSelection?.trackKey === trackKey;
   const current = selected ? playback?.current ?? 0 : 0;
   const duration = selected && playback?.duration ? playback.duration : waveformDuration;
   const playing = selected && Boolean(playback?.playing);
-  const url = useMemo(
-    () => (/^(data:|blob:|https?:)/.test(audioPath) ? audioPath : convertFileSrc(audioPath)),
-    [audioPath],
-  );
+
+  useEffect(() => {
+    const element = waveformRef.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      setWaveformVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setWaveformVisible(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: "160px" });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     setPeaks(null);
     setWaveformFailed(false);
     setWaveformDuration(0);
+    if (!waveformVisible) return;
     void (async () => {
       try {
-        await waitForIdle();
-        const next = await readPeaks(url);
+        const next = await readPeaks(projectId, generationId);
         if (!cancelled) {
           setPeaks(next.peaks);
           setWaveformDuration(next.duration);
@@ -123,16 +122,18 @@ export function LibraryTrackPlayer({
     return () => {
       cancelled = true;
     };
-  }, [url]);
+  }, [generationId, projectId, waveformVisible]);
 
   useEffect(() => {
     if (!pendingPlayRef.current || !selected || !playback?.ready || playback.sourceKey !== trackKey) return;
     pendingPlayRef.current = false;
+    onPlay?.();
     void playback.toggle();
-  }, [playback, selected, trackKey]);
+  }, [onPlay, playback, selected, trackKey]);
 
   const toggle = () => {
     if (selected && playback?.ready && playback.sourceKey === trackKey) {
+      if (!playback.playing) onPlay?.();
       void playback.toggle();
       return;
     }
@@ -158,7 +159,7 @@ export function LibraryTrackPlayer({
       <span className="library-track-time" aria-label={t("player.seek")}>
         {formatTime(current)} / {formatTime(duration)}
       </span>
-      <div className="library-track-waveform">
+      <div className="library-track-waveform" ref={waveformRef}>
         <Waveform
           peaks={peaks}
           progress={current}
@@ -166,6 +167,8 @@ export function LibraryTrackPlayer({
           height={44}
           ariaLabel={`${t("player.stereoWave")} — ${label}`}
           status={peaks ? "ready" : waveformFailed ? "empty" : "loading"}
+          color={color}
+          playedColor={playedColor}
           onSeek={(seconds) => {
             if (selected && playback?.ready && playback.sourceKey === trackKey) {
               playback.seek(seconds);

@@ -5,9 +5,214 @@ use crate::library::{
     library_row_from_project, load_project, project_folder, save_project, upsert_library_row,
 };
 use crate::models::*;
-use crate::paths::{atomic_write_json, ensure_dir, next_folder_id, now_iso};
+use crate::paths::{atomic_write_json, ensure_dir, next_folder_id, now_iso, projects_root};
 use crate::pins::*;
 use serde_json::json;
+use std::path::Path;
+
+const GENERATION_WAVEFORM_BUCKETS: usize = 320;
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerationWaveform {
+    peaks: Vec<f32>,
+    duration: f64,
+}
+
+fn validate_generation_id(gen_id: &str) -> Result<(), String> {
+    let suffix = gen_id.strip_prefix("gen-").unwrap_or("");
+    if suffix.is_empty() || !suffix.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err("Identifiant de prise invalide.".into());
+    }
+    Ok(())
+}
+
+fn generation_waveform_from_wav(path: &Path) -> Result<GenerationWaveform, String> {
+    let mut reader = hound::WavReader::open(path)
+        .map_err(|_| "Le fichier audio de cette prise est illisible.".to_string())?;
+    let spec = reader.spec();
+    let channels = usize::from(spec.channels);
+    let frames = reader.duration() as usize;
+    if channels == 0 || spec.sample_rate == 0 || frames == 0 {
+        return Err("Le fichier audio de cette prise est vide.".into());
+    }
+    let expected_samples = frames
+        .checked_mul(channels)
+        .ok_or_else(|| "Le fichier audio de cette prise est trop volumineux.".to_string())?;
+    let int_scale = 2.0_f32.powi(i32::from(spec.bits_per_sample).saturating_sub(1));
+    let samples: Box<dyn Iterator<Item = Result<f32, hound::Error>> + '_> = match spec.sample_format
+    {
+        hound::SampleFormat::Float => Box::new(reader.samples::<f32>()),
+        hound::SampleFormat::Int => Box::new(
+            reader
+                .samples::<i32>()
+                .map(move |sample| sample.map(|value| value as f32 / int_scale)),
+        ),
+    };
+
+    let mut peaks = vec![0.0_f32; GENERATION_WAVEFORM_BUCKETS];
+    let mut sample_count = 0_usize;
+    for (sample_index, sample) in samples.enumerate() {
+        let value =
+            sample.map_err(|_| "Le fichier audio de cette prise est incomplet.".to_string())?;
+        if !value.is_finite() {
+            return Err("Le fichier audio de cette prise contient un échantillon invalide.".into());
+        }
+        let frame = sample_index / channels;
+        let bucket = frame
+            .saturating_mul(GENERATION_WAVEFORM_BUCKETS)
+            .checked_div(frames)
+            .unwrap_or(0)
+            .min(GENERATION_WAVEFORM_BUCKETS - 1);
+        peaks[bucket] = peaks[bucket].max(value.abs().min(1.0));
+        sample_count += 1;
+    }
+    if sample_count != expected_samples {
+        return Err("Le fichier audio de cette prise est incomplet.".into());
+    }
+
+    Ok(GenerationWaveform {
+        peaks,
+        duration: frames as f64 / f64::from(spec.sample_rate),
+    })
+}
+
+fn generation_waveform_for_project(
+    project_id: String,
+    gen_id: String,
+) -> Result<GenerationWaveform, String> {
+    validate_generation_id(&gen_id)?;
+    let root = projects_root()
+        .canonicalize()
+        .map_err(|_| "Dossier des projets introuvable.".to_string())?;
+    let folder = project_folder(&project_id)
+        .canonicalize()
+        .map_err(|_| "Projet introuvable.".to_string())?;
+    if !folder.starts_with(&root) {
+        return Err("Projet introuvable.".into());
+    }
+    let project = load_project(&folder)?;
+    if project.id != project_id {
+        return Err("Projet introuvable.".into());
+    }
+
+    let generation_dir = folder.join("generations").join(&gen_id);
+    let canonical_generation_dir = generation_dir
+        .canonicalize()
+        .map_err(|_| "Cette prise n’est pas terminée.".to_string())?;
+    if !canonical_generation_dir.starts_with(&folder) {
+        return Err("Le chemin de cette prise est invalide.".into());
+    }
+    let result: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(canonical_generation_dir.join("result.json"))
+            .map_err(|_| "Cette prise n’est pas terminée.".to_string())?,
+    )
+    .map_err(|_| "Le résultat de cette prise est illisible.".to_string())?;
+    if result["state"] != "generated" || result["audio"]["path"] != "audio.wav" {
+        return Err("Cette prise n’a pas de résultat audio utilisable.".into());
+    }
+
+    let wav = canonical_generation_dir.join("audio.wav");
+    let canonical_wav = wav
+        .canonicalize()
+        .map_err(|_| "Le fichier audio de cette prise est introuvable.".to_string())?;
+    if !canonical_wav.starts_with(&folder) {
+        return Err("Le chemin audio de cette prise est invalide.".into());
+    }
+    generation_waveform_from_wav(&canonical_wav)
+}
+
+#[cfg(test)]
+mod generation_waveform_tests {
+    use super::{generation_waveform_from_wav, validate_generation_id};
+    use std::path::PathBuf;
+
+    fn temp_wav_path() -> PathBuf {
+        std::env::temp_dir().join(format!("generation-waveform-{}.wav", uuid::Uuid::new_v4()))
+    }
+
+    #[test]
+    fn streams_stereo_wav_into_bounded_peak_buckets() {
+        let path = temp_wav_path();
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: 320,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut writer = hound::WavWriter::create(&path, spec).unwrap();
+        for frame in 0..320 {
+            writer
+                .write_sample(if frame == 0 { 16_384_i16 } else { 0_i16 })
+                .unwrap();
+            writer.write_sample(0_i16).unwrap();
+        }
+        writer.finalize().unwrap();
+
+        let waveform = generation_waveform_from_wav(&path).unwrap();
+        assert_eq!(waveform.peaks.len(), 320);
+        assert_eq!(waveform.duration, 1.0);
+        assert!((waveform.peaks[0] - 0.5).abs() < 0.001);
+        assert!(waveform.peaks[1..].iter().all(|peak| *peak == 0.0));
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn streams_float_wav_samples_for_generated_ace_audio() {
+        let path = temp_wav_path();
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: 320,
+            bits_per_sample: 32,
+            sample_format: hound::SampleFormat::Float,
+        };
+        let mut writer = hound::WavWriter::create(&path, spec).unwrap();
+        for frame in 0..320 {
+            writer
+                .write_sample(if frame == 0 { 0.25_f32 } else { 0.0_f32 })
+                .unwrap();
+            writer.write_sample(0.0_f32).unwrap();
+        }
+        writer.finalize().unwrap();
+
+        let waveform = generation_waveform_from_wav(&path).unwrap();
+        assert_eq!(waveform.peaks.len(), 320);
+        assert_eq!(waveform.duration, 1.0);
+        assert!((waveform.peaks[0] - 0.25).abs() < 0.001);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn rejects_incomplete_wav_and_unsafe_generation_ids() {
+        let path = temp_wav_path();
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: 48_000,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut writer = hound::WavWriter::create(&path, spec).unwrap();
+        writer.write_sample(0_i16).unwrap();
+        writer.write_sample(0_i16).unwrap();
+        writer.finalize().unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        std::fs::write(&path, &bytes[..bytes.len() - 1]).unwrap();
+
+        assert!(generation_waveform_from_wav(&path).is_err());
+        assert!(validate_generation_id("../gen-001").is_err());
+        assert!(validate_generation_id("gen-abc").is_err());
+        assert!(validate_generation_id("gen-001").is_ok());
+        std::fs::remove_file(path).unwrap();
+    }
+}
+
+/// Calcule une waveform courte depuis le WAV publié, en streaming et hors du thread UI.
+#[tauri::command]
+pub async fn generation_waveform(id: String, gen_id: String) -> Result<GenerationWaveform, String> {
+    tokio::task::spawn_blocking(move || generation_waveform_for_project(id, gen_id))
+        .await
+        .map_err(|error| format!("Calcul de la waveform interrompu : {error}"))?
+}
 
 fn remote_wav_metadata(bytes: &[u8]) -> Result<(i64, hound::WavSpec), String> {
     let mut reader = hound::WavReader::new(std::io::Cursor::new(bytes)).map_err(|_| {

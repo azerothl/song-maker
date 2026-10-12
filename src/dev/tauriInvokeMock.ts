@@ -23,15 +23,32 @@ let captureMix: MixDoc | null = null;
 let captureScore: unknown = null;
 let captureProfilesState: ProfilesState | null = null;
 let captureLibraryProjects: Array<Record<string, unknown>> | null = null;
+let captureGenerations: Array<Record<string, unknown>> | null = null;
 
 export function registerCaptureProfilesState(state: ProfilesState | null): void {
   captureProfilesState = state;
+}
+
+export function getCaptureMidiTrackState() {
+  const score = captureScore as {
+    voices?: Array<{ id: string; name: string; role: string }>;
+  } | null;
+  return {
+    mix: captureMix,
+    voices: score?.voices ?? [],
+  };
 }
 
 export function registerCaptureLibraryProjects(
   rows: Array<Record<string, unknown>> | null,
 ): void {
   captureLibraryProjects = rows;
+}
+
+export function registerCaptureGenerations(
+  rows: Array<Record<string, unknown>> | null,
+): void {
+  captureGenerations = rows;
 }
 
 function ensureProject(): ProjectDoc {
@@ -188,6 +205,24 @@ export async function invoke<T>(
       ] as T;
     case "open_project": {
       const id = String(args?.id ?? CAPTURE_PROJECT_ID);
+      const libraryProject = captureLibraryProjects?.find((item) => item.id === id);
+      if (libraryProject) {
+        return {
+          schema: "songmaker.project",
+          schemaVersion: 1,
+          id,
+          title: String(libraryProject.title ?? "Capture"),
+          createdAt: String(libraryProject.createdAt ?? "2026-10-01T00:00:00.000Z"),
+          updatedAt: String(libraryProject.updatedAt ?? "2026-10-01T00:00:00.000Z"),
+          sampleRate: 48_000,
+          channels: 2,
+          bitDepth: 16,
+          style: "",
+          lyrics: "",
+          cot: "full",
+          activeGenerationId: String(libraryProject.activeGenerationId ?? ""),
+        } as T;
+      }
       if (!project || id !== project.id) {
         throw new Error(`Projet inconnu : ${id}`);
       }
@@ -261,6 +296,7 @@ export async function invoke<T>(
       return captureMix as T;
     }
     case "list_generations":
+      if (captureGenerations) return captureGenerations as T;
       return [] as T;
     case "load_score":
       return captureScore as T;
@@ -287,6 +323,17 @@ export async function invoke<T>(
         bytesKnown: true,
         hasPartialDownloads: false,
         files: [],
+      } as T;
+    case "generation_waveform":
+      {
+        const hook = (globalThis as typeof globalThis & {
+          __captureGenerationWaveform?: () => Promise<unknown>;
+        }).__captureGenerationWaveform;
+        if (hook) return await hook() as T;
+      }
+      return {
+        peaks: Array.from({ length: 320 }, (_, index) => (index % 20 < 3 ? 0.55 : 0.08)),
+        duration: 180,
       } as T;
     case "install_required_assets": {
       const pack = String(args?.pack ?? "q4");

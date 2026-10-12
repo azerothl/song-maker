@@ -99,7 +99,8 @@ Package Next.js bilingue **FR / EN** (`website/`) : landing, docs MDX, exemples.
 ## Stack
 
 - Tauri 2 + React + TypeScript + Vite ; UI FR/EN (`src/ui/fr.json`, `src/ui/en.*.json`)
-- Serveur local `audiocpp_server` (audio.cpp **v0.8.2** épinglé)
+- Serveur local `audiocpp_server` (audio.cpp **v0.9.1** épinglé)
+- audio.cpp v0.9.1 réduit les réservations mémoire hôte de YuE2 qui faisaient tomber le serveur Windows sur les générations longues.
 - Monorepo `packages/*` + app `src/` / `src-tauri/`
 - Code applicatif sous [Apache-2.0](LICENSE) ; notices tierces dans [`NOTICE`](NOTICE)
 

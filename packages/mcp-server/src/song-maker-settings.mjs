@@ -6,7 +6,7 @@ import { YUE2_MODELS } from './yue2-assets.mjs';
 
 const PROFILE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
 const AUDIOCPP_TAG_PATTERN = /^v\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$/;
-const DEFAULT_AUDIOCPP_TAG = 'v0.8.2';
+const DEFAULT_AUDIOCPP_TAG = 'v0.9.1';
 const MODEL_FILES = new Map([
   ...YUE2_MODELS.flatMap(model => [[model.id, model.file], [model.file, model.file]]),
 ]);

@@ -182,7 +182,7 @@ test('YuE2 runtime follows the active Song Maker cache and model, with an explic
   const cache = path.join(dir, 'cache');
   const binaryFolder = process.platform === 'win32' ? 'windows-cuda12.4' : 'linux-cuda12.8-colab';
   const binaryName = process.platform === 'win32' ? 'audiocpp_cli.exe' : 'audiocpp_cli';
-  const binaries = path.join(cache, 'binaries', 'v0.8.2', binaryFolder);
+  const binaries = path.join(cache, 'binaries', 'v0.9.1', binaryFolder);
   const modelDir = path.join(cache, 'models', 'Yue2-3B-GGUF');
   const files = [
     path.join(binaries, binaryName),
@@ -202,7 +202,7 @@ test('YuE2 runtime follows the active Song Maker cache and model, with an explic
       activeProfileId: 'profile-001', profiles: [{ id: 'profile-001', kind: 'hobby' }],
     }));
     await writeFile(path.join(documents, 'settings.json'), JSON.stringify({
-      cacheDir: cache, binaryTag: 'v0.8.2', modelPack: 'q4', modelGguf: 'yue2-3b-q8_0.gguf',
+      cacheDir: cache, binaryTag: 'v0.9.1', modelPack: 'q4', modelGguf: 'yue2-3b-q8_0.gguf',
     }));
     await writeFile(path.join(profileDirectory, 'profile-settings.json'), JSON.stringify({
       generationEngine: 'yue2', localYue2Enabled: true, yue2LicenseAccepted: true,

@@ -4,6 +4,10 @@ export type SavedLibraryTrack = {
   title: string;
   addedAt: string;
   playlistIds: string[];
+  /** User rating persisted with the saved library entry. */
+  liked?: boolean;
+  /** Number of play starts recorded from the library player. */
+  playCount?: number;
 };
 
 export type UserPlaylist = {
