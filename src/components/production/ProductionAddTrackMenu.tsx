@@ -1,9 +1,10 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import {
   handleProfileOverlayKeydown,
   listProfileFocusables,
   focusProfileElement,
 } from "../../lib/profileDialogA11y";
+import { getProductionAddTrackPosition } from "../../lib/productionAddTrackPosition";
 import { t } from "../../ui/i18n";
 
 type Props = {
@@ -35,6 +36,40 @@ export function ProductionAddTrackMenu({
     window.setTimeout(() => focusProfileElement(triggerRef.current), 0);
   };
 
+  useLayoutEffect(() => {
+    if (!open) return;
+    const dialog = dialogRef.current;
+    const trigger = triggerRef.current;
+    if (!dialog || !trigger) return;
+
+    const placeDialog = () => {
+      const triggerBounds = trigger.getBoundingClientRect();
+      const dialogBounds = dialog.getBoundingClientRect();
+      const position = getProductionAddTrackPosition(
+        triggerBounds,
+        dialogBounds.width,
+        dialogBounds.height,
+        window.innerWidth,
+        window.innerHeight,
+      );
+      dialog.style.left = `${position.left}px`;
+      dialog.style.top = `${position.top}px`;
+    };
+    let frame = 0;
+    const schedulePlacement = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(placeDialog);
+    };
+
+    placeDialog();
+    window.addEventListener("resize", schedulePlacement);
+    window.addEventListener("scroll", schedulePlacement, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", schedulePlacement);
+      window.removeEventListener("scroll", schedulePlacement, true);
+    };
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const onDoc = (event: MouseEvent) => {

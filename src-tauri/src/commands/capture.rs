@@ -210,35 +210,18 @@ fn mute_existing_tracks(mix: &mut MixDoc) {
     }
 }
 
-/// Copy (optional) + normalize + append user MixTrack. Existing audio is retained.
-fn ingest_user_audio_file(
+/// Persist an already prepared project audio asset as a MixTrack.
+fn persist_prepared_user_audio_asset(
     folder: &Path,
     doc: &mut ProjectDoc,
-    source: &Path,
+    asset: &IngestedUserAudio,
     display_name: &str,
-    copy_original: bool,
-    original_ext: Option<&str>,
     placement: AudioPlacement,
 ) -> Result<MixDoc, String> {
-    let asset =
-        prepare_user_audio_asset(folder, source, display_name, copy_original, original_ext)?;
-
     let project_lock = crate::project_transaction::lock_for(folder);
     let _project_guard = project_lock.lock();
-    *doc = match load_project(folder) {
-        Ok(doc) => doc,
-        Err(error) => {
-            rollback_ingested_asset(folder, &asset);
-            return Err(error);
-        }
-    };
-    let (mut mix, mix_path) = match load_or_create_active_mix(folder, doc) {
-        Ok(mix) => mix,
-        Err(error) => {
-            rollback_ingested_asset(folder, &asset);
-            return Err(error);
-        }
-    };
+    *doc = load_project(folder)?;
+    let (mut mix, mix_path) = load_or_create_active_mix(folder, doc)?;
     let track_count_before = mix.tracks.len();
     if placement.mute_existing {
         mute_existing_tracks(&mut mix);
@@ -253,13 +236,33 @@ fn ingest_user_audio_file(
     );
     if let Err(e) = atomic_write_json(&mix_path, &mix) {
         mix.tracks.truncate(track_count_before);
-        rollback_ingested_asset(folder, &asset);
         return Err(e);
     }
     doc.updated_at = now_iso();
     let _ = save_project(folder, doc);
     let _ = upsert_library_row(&library_row_from_project(folder, doc));
     Ok(mix)
+}
+
+/// Copy (optional) + normalize + append user MixTrack. Existing audio is retained.
+fn ingest_user_audio_file(
+    folder: &Path,
+    doc: &mut ProjectDoc,
+    source: &Path,
+    display_name: &str,
+    copy_original: bool,
+    original_ext: Option<&str>,
+    placement: AudioPlacement,
+) -> Result<MixDoc, String> {
+    let asset =
+        prepare_user_audio_asset(folder, source, display_name, copy_original, original_ext)?;
+    match persist_prepared_user_audio_asset(folder, doc, &asset, display_name, placement) {
+        Ok(mix) => Ok(mix),
+        Err(error) => {
+            rollback_ingested_asset(folder, &asset);
+            Err(error)
+        }
+    }
 }
 
 #[tauri::command]
@@ -742,6 +745,7 @@ pub fn finalize_user_audio_capture_takes(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_docs_env::guard::TempDocs;
 
     #[test]
     fn complete_song_keeps_existing_audio_and_enables_only_new_track() {
@@ -766,6 +770,144 @@ mod tests {
             serde_json::to_value(&mix.tracks[0].clips).unwrap(),
             clips_before
         );
+    }
+
+    #[test]
+    fn complete_song_import_persists_mutes_and_preserves_existing_clips() {
+        let _docs = TempDocs::new("complete-song-import");
+        let project = crate::commands::projects::create_project(CreateProjectInput {
+            title: "Complete song import".into(),
+        })
+        .unwrap();
+        let folder = project_folder(&project.id);
+        let mut doc = load_project(&folder).unwrap();
+        let (mut mix, mix_path) = load_or_create_active_mix(&folder, &mut doc).unwrap();
+        append_user_audio_track(
+            &mut mix,
+            "user-audio/normalized/original.wav",
+            "original-sha",
+            30_000,
+            "Original",
+            500,
+        );
+        mix.tracks[0].solo = true;
+        let original_clips = serde_json::to_value(&mix.tracks[0].clips).unwrap();
+        atomic_write_json(&mix_path, &mix).unwrap();
+
+        persist_prepared_user_audio_asset(
+            &folder,
+            &mut doc,
+            &IngestedUserAudio {
+                asset_id: "fused-mix".into(),
+                normalized_rel: "user-audio/normalized/fused-mix.wav".into(),
+                sha: "fused-mix-sha".into(),
+                duration_ms: 30_000,
+                original_rel: None,
+            },
+            "ACE-Step Lego",
+            AudioPlacement {
+                start_ms: 0,
+                mute_existing: true,
+            },
+        )
+        .unwrap();
+
+        let reloaded = load_project(&folder).unwrap();
+        let active_mix_id = reloaded.active_mix_id.as_deref().unwrap();
+        let saved_mix_path = folder.join("mixes").join(format!("{active_mix_id}.json"));
+        let saved_mix: MixDoc =
+            serde_json::from_slice(&std::fs::read(saved_mix_path).unwrap()).unwrap();
+        assert_eq!(saved_mix.tracks.len(), 2);
+        assert!(saved_mix.tracks[0].mute);
+        assert!(!saved_mix.tracks[0].solo);
+        assert_eq!(
+            serde_json::to_value(&saved_mix.tracks[0].clips).unwrap(),
+            original_clips
+        );
+        assert!(!saved_mix.tracks[1].mute);
+        assert_eq!(
+            saved_mix.tracks[1].clips[0].source_path,
+            "user-audio/normalized/fused-mix.wav"
+        );
+    }
+
+    #[test]
+    #[ignore = "requires FFmpeg with libsoxr"]
+    fn complete_song_import_normalizes_source_and_persists_the_arrangement() {
+        let docs = TempDocs::new("complete-song-import-ffmpeg");
+        let project = crate::commands::projects::create_project(CreateProjectInput {
+            title: "Complete song import with FFmpeg".into(),
+        })
+        .unwrap();
+        let folder = project_folder(&project.id);
+        let mut doc = load_project(&folder).unwrap();
+        let (mut mix, mix_path) = load_or_create_active_mix(&folder, &mut doc).unwrap();
+        append_user_audio_track(
+            &mut mix,
+            "user-audio/normalized/original.wav",
+            "original-sha",
+            100,
+            "Original",
+            250,
+        );
+        mix.tracks[0].solo = true;
+        let original_clips = serde_json::to_value(&mix.tracks[0].clips).unwrap();
+        atomic_write_json(&mix_path, &mix).unwrap();
+
+        let source = docs.root.join("fused-source.wav");
+        let mut writer = hound::WavWriter::create(
+            &source,
+            hound::WavSpec {
+                channels: 2,
+                sample_rate: 44_100,
+                bits_per_sample: 16,
+                sample_format: hound::SampleFormat::Int,
+            },
+        )
+        .unwrap();
+        for frame in 0..4_410 {
+            let sample = ((frame as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44_100.0).sin()
+                * 8_000.0) as i16;
+            writer.write_sample(sample).unwrap();
+            writer.write_sample(sample).unwrap();
+        }
+        writer.finalize().unwrap();
+
+        ingest_user_audio_file(
+            &folder,
+            &mut doc,
+            &source,
+            "ACE-Step Lego",
+            true,
+            Some("wav"),
+            AudioPlacement {
+                start_ms: 0,
+                mute_existing: true,
+            },
+        )
+        .unwrap();
+
+        let reloaded = load_project(&folder).unwrap();
+        let active_mix_id = reloaded.active_mix_id.as_deref().unwrap();
+        let saved_mix_path = folder.join("mixes").join(format!("{active_mix_id}.json"));
+        let saved_mix: MixDoc =
+            serde_json::from_slice(&std::fs::read(saved_mix_path).unwrap()).unwrap();
+        assert_eq!(saved_mix.tracks.len(), 2);
+        assert!(saved_mix.tracks[0].mute);
+        assert!(!saved_mix.tracks[0].solo);
+        assert_eq!(
+            serde_json::to_value(&saved_mix.tracks[0].clips).unwrap(),
+            original_clips
+        );
+        let generated_clip = &saved_mix.tracks[1].clips[0];
+        assert!(!saved_mix.tracks[1].mute);
+        assert_eq!(generated_clip.start_ms, 0);
+        let normalized = folder.join(&generated_clip.source_path);
+        assert!(normalized.is_file());
+        let reader = hound::WavReader::open(normalized).unwrap();
+        assert_eq!(reader.spec().channels, 2);
+        assert_eq!(reader.spec().sample_rate, crate::pins::SAMPLE_RATE);
+        assert_eq!(reader.spec().sample_format, hound::SampleFormat::Float);
     }
 
     #[test]

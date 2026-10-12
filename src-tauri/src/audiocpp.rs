@@ -192,14 +192,23 @@ impl AudioCppServer {
         });
         let mut session_options = serde_json::Map::new();
         // The downloaded model config may name Q8 even when only Q4 was installed.
-        // Always pass the selected weights explicitly, including batch workers.
-        session_options.insert(
-            "yue2.model_gguf".into(),
-            json!(yue2_dir(&cache)
-                .join(&settings.model_gguf)
-                .display()
-                .to_string()),
-        );
+        // audio.cpp resolves this name relative to `models[].path`; an absolute
+        // path is rejected by the server's path validation.
+        session_options.insert("yue2.model_gguf".into(), json!(settings.model_gguf));
+        // Keep host-side metadata arenas bounded. audio.cpp v0.8.2's multi-GiB
+        // defaults could abort the Windows server during long-form YuE2 NAR
+        // graph setup when system commit was low. Upstream v0.9.1 reduces these
+        // defaults to 32 MiB; pin the same safe values in our generated config.
+        for option in [
+            "yue2.model_weight_context_mb",
+            "yue2.ar_prefill_graph_arena_mb",
+            "yue2.ar_decode_graph_arena_mb",
+            "yue2.nar_graph_arena_mb",
+            "yue2.vae_graph_arena_mb",
+            "yue2.vae_weight_context_mb",
+        ] {
+            session_options.insert(option.into(), json!(32));
+        }
         if let Some(path) = settings.yue2_ar_lora.as_deref() {
             session_options.insert("yue2.ar_lora".into(), json!(path));
             session_options.insert(
@@ -452,29 +461,18 @@ impl AudioCppServer {
                 Self::write_config(&settings_try)?
             };
 
+            let (stdout, stderr, stdout_log, stderr_log) = self.output_log_streams(&cache)?;
+
             let mut cmd = Command::new(&bin);
             cmd.arg("--config")
                 .arg(&config)
                 .arg("--backend")
                 .arg(crate::pins::backend_name())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null());
-            if let Some(dir) = &self.worker_dir {
-                cmd.stdout(Stdio::from(
-                    std::fs::File::create(dir.join("stdout.log")).map_err(|e| e.to_string())?,
-                ));
-                cmd.stderr(Stdio::from(
-                    std::fs::File::create(dir.join("stderr.log")).map_err(|e| e.to_string())?,
-                ));
-            }
+                .stdout(stdout)
+                .stderr(stderr);
 
             // The packaged console binary must not open a terminal window.
-            #[cfg(windows)]
-            {
-                use std::os::windows::process::CommandExt;
-                const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-                cmd.creation_flags(CREATE_NO_WINDOW);
-            }
+            crate::process_utils::configure_no_window(&mut cmd);
 
             match cmd.spawn() {
                 Ok(mut child) => {
@@ -501,18 +499,23 @@ impl AudioCppServer {
                         }
                         Err(WaitHealthError::Exited(status)) => {
                             last_err = format!(
-                                "audiocpp_server s’est arrêté avant /health sur {}:{} ({status}).",
-                                settings.server_host, port
+                                "audiocpp_server s’est arrêté avant /health sur {}:{} ({status}). Journaux : {} / {}.",
+                                settings.server_host,
+                                port,
+                                stdout_log.display(),
+                                stderr_log.display()
                             );
                         }
                         Err(WaitHealthError::TimedOut) => {
                             let _ = child.kill();
                             return Err(format!(
-                                "Impossible de démarrer audiocpp_server (backend {} requis). /health ne répond pas après {} s sur {}:{}. Vérifiez le pilote NVIDIA.",
+                                "Impossible de démarrer audiocpp_server (backend {} requis). /health ne répond pas après {} s sur {}:{}. Vérifiez le pilote NVIDIA. Journaux : {} / {}.",
                                 crate::pins::backend_name(),
                                 SERVER_HEALTH_WAIT.as_secs(),
                                 settings.server_host,
-                                port
+                                port,
+                                stdout_log.display(),
+                                stderr_log.display()
                             ));
                         }
                         Err(WaitHealthError::Wait(e)) => {
@@ -529,7 +532,30 @@ impl AudioCppServer {
         }
         Err(format!(
             "Impossible de démarrer audiocpp_server (backend {} requis). {last_err}",
-            crate::pins::backend_name()
+            crate::pins::backend_name(),
+        ))
+    }
+
+    fn output_log_streams(&self, cache: &Path) -> Result<(Stdio, Stdio, PathBuf, PathBuf), String> {
+        let (log_dir, stdout_name, stderr_name) = if let Some(dir) = &self.worker_dir {
+            (dir.clone(), "stdout.log", "stderr.log")
+        } else {
+            (
+                binaries_dir(cache).join("logs"),
+                "audiocpp-server.stdout.log",
+                "audiocpp-server.stderr.log",
+            )
+        };
+        crate::paths::ensure_dir(&log_dir).map_err(|e| e.to_string())?;
+        let stdout_log = log_dir.join(stdout_name);
+        let stderr_log = log_dir.join(stderr_name);
+        let stdout = std::fs::File::create(&stdout_log).map_err(|e| e.to_string())?;
+        let stderr = std::fs::File::create(&stderr_log).map_err(|e| e.to_string())?;
+        Ok((
+            Stdio::from(stdout),
+            Stdio::from(stderr),
+            stdout_log,
+            stderr_log,
         ))
     }
 
@@ -819,6 +845,45 @@ mod semantic_metadata_tests {
     use std::time::{Duration, Instant};
 
     #[test]
+    fn selected_yue2_gguf_is_relative_to_the_model_root() {
+        let dir = std::env::temp_dir().join(format!(
+            "song-maker-yue2-model-path-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let cache = dir.join("cache");
+        let mut settings = crate::library::default_settings();
+        settings.cache_dir = cache.display().to_string();
+
+        for selected in [crate::pins::YUE2_Q4, crate::pins::YUE2_Q8] {
+            settings.model_gguf = selected.into();
+            let path = dir.join(format!("{selected}.json"));
+            AudioCppServer::write_config_at(&settings, &path, true).unwrap();
+            let config: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+            let model = config["models"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|model| model["id"] == "yue2")
+                .unwrap();
+            assert_eq!(model["session_options"]["yue2.model_gguf"], selected);
+            assert!(!std::path::Path::new(selected).is_absolute());
+            for option in [
+                "yue2.model_weight_context_mb",
+                "yue2.ar_prefill_graph_arena_mb",
+                "yue2.ar_decode_graph_arena_mb",
+                "yue2.nar_graph_arena_mb",
+                "yue2.vae_graph_arena_mb",
+                "yue2.vae_weight_context_mb",
+            ] {
+                assert_eq!(model["session_options"][option], 32);
+            }
+        }
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn isolated_worker_registers_vocal_removal_with_one_loaded_model() {
         let settings = crate::library::default_settings();
         let dir =
@@ -903,6 +968,50 @@ mod semantic_metadata_tests {
         );
     }
 
+    #[test]
+    fn shutdown_stops_and_reaps_server_child() {
+        let server = AudioCppServer::default();
+        *AudioCppServer::lock(&server.base_url) = "http://127.0.0.1:1".into();
+        let child = spawn_sleeper();
+        let child_pid = child.id();
+        *AudioCppServer::lock(&server.child) = Some(child);
+
+        server.shutdown();
+
+        assert!(server.process_id().is_none());
+        assert_child_process_exited(child_pid);
+    }
+
+    #[test]
+    fn server_child_output_is_written_to_profile_logs() {
+        let server = AudioCppServer::default();
+        let cache =
+            std::env::temp_dir().join(format!("song-maker-server-logs-{}", uuid::Uuid::new_v4()));
+        let (stdout, stderr, stdout_log, stderr_log) = server.output_log_streams(&cache).unwrap();
+        let mut command = if cfg!(windows) {
+            let mut command = Command::new("cmd.exe");
+            command.args(["/C", "echo stdout-capture & echo stderr-capture 1>&2"]);
+            command
+        } else {
+            let mut command = Command::new("sh");
+            command.args(["-c", "printf stdout-capture; printf stderr-capture >&2"]);
+            command
+        };
+        assert!(command
+            .stdout(stdout)
+            .stderr(stderr)
+            .status()
+            .unwrap()
+            .success());
+        assert!(std::fs::read_to_string(stdout_log)
+            .unwrap()
+            .contains("stdout-capture"));
+        assert!(std::fs::read_to_string(stderr_log)
+            .unwrap()
+            .contains("stderr-capture"));
+        let _ = std::fs::remove_dir_all(cache);
+    }
+
     fn spawn_sleeper() -> Child {
         let mut cmd = if cfg!(windows) {
             let mut cmd = Command::new("ping");
@@ -917,6 +1026,39 @@ mod semantic_metadata_tests {
             .stderr(Stdio::null())
             .spawn()
             .expect("sleeper")
+    }
+
+    #[cfg(windows)]
+    fn assert_child_process_exited(pid: u32) {
+        let output = Command::new("tasklist.exe")
+            .arg("/FI")
+            .arg(format!("PID eq {pid}"))
+            .args(["/FO", "CSV", "/NH"])
+            .output()
+            .expect("query child process state");
+        assert!(output.status.success(), "tasklist failed");
+        let process_is_running = String::from_utf8_lossy(&output.stdout).lines().any(|line| {
+            line.split(',')
+                .nth(1)
+                .is_some_and(|field| field.trim().trim_matches('"') == pid.to_string())
+        });
+        assert!(
+            !process_is_running,
+            "server child process {pid} is still running after shutdown"
+        );
+    }
+
+    #[cfg(unix)]
+    fn assert_child_process_exited(pid: u32) {
+        let process_is_running = Command::new("kill")
+            .arg("-0")
+            .arg(pid.to_string())
+            .status()
+            .is_ok_and(|status| status.success());
+        assert!(
+            !process_is_running,
+            "server child process {pid} is still running after shutdown"
+        );
     }
 
     #[test]

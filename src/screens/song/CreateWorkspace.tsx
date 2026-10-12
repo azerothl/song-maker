@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { t } from "../../ui/i18n";
 import type { FormInput } from "../../lib/types";
-import type { ScoreDocument, ScoreGate } from "../../lib/score";
+import type { ScoreGate } from "../../lib/score";
 import {
   advancedSettingsIntro,
   advancedSettingsTitle,
@@ -42,7 +42,6 @@ type CreateWorkspaceProps = {
   onGenerate: () => Promise<void>;
   onOpenInstrumentalSettings: () => void;
   onOpenVocalRemovalSettings: () => void;
-  scoreDocument: ScoreDocument | null;
   scoreGate: ScoreGate;
   setAdvancedSettingsPage: Dispatch<SetStateAction<AdvancedSettingsPage>>;
   setForm: (patch: Partial<FormInput>) => void;
@@ -61,7 +60,6 @@ export function CreateWorkspace({
   onGenerate,
   onOpenInstrumentalSettings,
   onOpenVocalRemovalSettings,
-  scoreDocument,
   scoreGate,
   setAdvancedSettingsPage,
   setForm,
@@ -271,7 +269,7 @@ export function CreateWorkspace({
                 {scoreGate.error && (
                   <p className="hint error">{scoreGate.error}</p>
                 )}
-                {scoreDocument && !scoreGate.error && (
+                {scoreGate.abc && !scoreGate.error && (
                   <p className="hint ok">{t("score.willSendAbc")}</p>
                 )}
                 <div className="btn-row song-actions-primary">

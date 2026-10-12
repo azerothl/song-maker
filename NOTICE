@@ -18,15 +18,15 @@ audio.cpp (external runtime, separate process)
 ================================================================================
 
 Component: audio.cpp server and CLI binaries (audiocpp_server, audiocpp_cli).
-Pinned release: tag v0.8.2 (commit 4d88768fbcae4e6eb3352c6ab1422dabb7d90b58).
+Pinned release: tag v0.9.1 (commit cf124a67cc55d8f65a9a15eec69edbff0fb212c8).
 Source: https://github.com/0xShug0/audio.cpp
 
 Song Maker downloads these binaries at install time (or via first-run scripts)
 and runs them as a separate process; they are not linked into the Tauri shell.
-No NOTICE file is present in the upstream repository at tag v0.8.2.
+No NOTICE file is present in the upstream repository at tag v0.9.1.
 
 Upstream LICENSE (Apache-2.0), copyright line read from
-https://github.com/0xShug0/audio.cpp/blob/v0.8.2/LICENSE :
+https://github.com/0xShug0/audio.cpp/blob/v0.9.1/LICENSE :
 
     Copyright 2026 ShugoAI LLC
 

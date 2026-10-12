@@ -37,11 +37,13 @@ export function ProfileOnboardingScreen() {
   const setError = useAppStore((s) => s.setError);
 
   const [name, setName] = useState("");
+  const [nameError, setNameError] = useState(false);
   const [type, setType] = useState<ProfileKind>("hobby");
   const [busy, setBusy] = useState(false);
   const [commercialConfirmOpen, setCommercialConfirmOpen] = useState(false);
   const [renaming, setRenaming] = useState<ProfileSummary | null>(null);
   const renameTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const profileNameInputRef = useRef<HTMLInputElement | null>(null);
 
   const commercialState = resolveCommercialCreationState();
   const commercialCreateConfirm = useMemo(
@@ -115,9 +117,11 @@ export function ProfileOnboardingScreen() {
   const createProfile = () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      setError(t("profiles.onboarding.nameRequired"));
+      setNameError(true);
+      profileNameInputRef.current?.focus();
       return;
     }
+    setNameError(false);
     if (type === "commercial" && !commercialState.activatable) {
       return;
     }
@@ -132,7 +136,6 @@ export function ProfileOnboardingScreen() {
     busy ||
     switchBlock.blocked ||
     !canCreateMore ||
-    !name.trim() ||
     (type === "commercial" && !commercialState.activatable);
 
   return (
@@ -226,39 +229,51 @@ export function ProfileOnboardingScreen() {
           <label className="profile-field">
             <span>{t("profiles.onboarding.name")}</span>
             <input
+                ref={profileNameInputRef}
               className="profile-focusable"
               type="text"
               value={name}
               maxLength={PROFILE_NAME_MAX_LENGTH}
+                aria-invalid={nameError || undefined}
+                aria-describedby={nameError ? "profile-create-name-error" : undefined}
               disabled={!canCreateMore}
-              onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (e.target.value.trim()) setNameError(false);
+                }}
               placeholder={t("profiles.onboarding.name.placeholder")}
               data-testid="profile-create-name"
             />
           </label>
-          <div
-            className="profile-type-radios"
-            role="radiogroup"
-            aria-label={t("profiles.onboarding.typeLabel")}
-          >
-            <div
-              role="radio"
-              aria-checked={type === "hobby"}
-              tabIndex={0}
-              className={`profile-type-card hobby profile-focusable${type === "hobby" ? " is-selected" : ""}`}
+            {nameError ? (
+              <p
+                id="profile-create-name-error"
+                className="profile-field-error"
+                role="alert"
+                data-testid="profile-create-name-error"
+              >
+                {t("profiles.onboarding.nameRequired")}
+              </p>
+            ) : null}
+          <fieldset className="profile-type-radios">
+            <legend className="profile-section-kicker">
+              {t("profiles.onboarding.typeLabel")}
+            </legend>
+            <label
+              className={`profile-type-card hobby${type === "hobby" ? " is-selected" : ""}`}
               data-testid="profile-type-hobby"
-              onClick={() => setType("hobby")}
-              onKeyDown={(e) => {
-                if (e.key === " " || e.key === "Enter") {
-                  e.preventDefault();
-                  setType("hobby");
-                }
-              }}
             >
-              <span className="profile-type-icon hobby" aria-hidden="true">🏠</span>
+              <input
+                className="profile-type-radio"
+                type="radio"
+                name="profile-kind"
+                value="hobby"
+                checked={type === "hobby"}
+                onChange={() => setType("hobby")}
+              />
               <span className="profile-type-label">{t("profiles.onboarding.type.hobby")}</span>
               <span className="profile-type-hint">{t("profiles.onboarding.type.hobby.hint")}</span>
-            </div>
+            </label>
             <ProfileCommercialTypeOption
               state={commercialState}
               selected={type === "commercial"}
@@ -267,18 +282,18 @@ export function ProfileOnboardingScreen() {
                 if (commercialState.activatable) setType("commercial");
               }}
             />
-          </div>
+          </fieldset>
           <div className="profile-create-actions">
             <button
               type="button"
               className="btn primary profile-focusable"
               disabled={createDisabled}
               data-testid="profile-create-submit"
-            onClick={() => createProfile()}
-          >
-            {t("profiles.onboarding.create")}
-          </button>
-          {!canCreateMore ? (
+              onClick={() => createProfile()}
+            >
+              {t("profiles.onboarding.create")}
+            </button>
+            {!canCreateMore ? (
               <p className="profile-limit-hint" data-testid="profile-limit-hint">
                 {t("profiles.onboarding.limitHint")}
               </p>

@@ -440,11 +440,7 @@ fn run_worker_in_dir(
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-    }
+    crate::process_utils::configure_no_window(&mut command);
     let mut child = command
         .spawn()
         .map_err(|e| format!("Impossible de démarrer l’hôte VST3 isolé : {e}"))?;
@@ -645,10 +641,7 @@ fn run_editor_worker_in_dir(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-    }
+    crate::process_utils::configure_no_window(&mut command);
     let mut child = command
         .spawn()
         .map_err(|e| format!("Impossible de démarrer l’éditeur VST3 isolé : {e}"))?;
