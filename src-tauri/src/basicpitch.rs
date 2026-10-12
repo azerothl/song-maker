@@ -31,7 +31,9 @@ fn python_cmd() -> Result<(PathBuf, Vec<String>), String> {
         (PathBuf::from("python3"), Vec::<String>::new()),
         (PathBuf::from("python"), Vec::new()),
     ] {
-        if Command::new(&program)
+        let mut command = Command::new(&program);
+        crate::process_utils::configure_no_window(&mut command);
+        if command
             .args(&prefix)
             .arg("-c")
             .arg("import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)")
@@ -86,7 +88,9 @@ pub fn transcribe_track(project_id: &str, track_id: &str) -> Result<BasicPitchRe
         project_id,
         track_id.replace('/', "_")
     ));
-    let output = Command::new(&python)
+    let mut command = Command::new(&python);
+    crate::process_utils::configure_no_window(&mut command);
+    let output = command
         .args(&prefix)
         .arg(&script)
         .arg(&audio)

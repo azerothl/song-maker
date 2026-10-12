@@ -26,6 +26,7 @@ mod models;
 mod native_capture;
 mod paths;
 mod pins;
+mod process_utils;
 mod profile_switch;
 mod profiles;
 mod project_sync;
@@ -72,6 +73,18 @@ pub fn run() {
         .manage(commands::midi_output::MidiOutputState::default())
         .manage(native_capture::NativeCaptureState::default())
         .manage(declui_host::EmbeddedDeclUiState::default())
+        .setup(|app| {
+            // The configured asset scope covers the standard Documents folder. Profiles can also
+            // use a custom documents root (for example, an isolated test profile), so grant the
+            // app-owned project stores to the asset protocol explicitly for audio preview/playback.
+            for project_store in [profiles::profiles_root(), paths::legacy_projects_root()] {
+                if project_store.is_dir() {
+                    app.asset_protocol_scope()
+                        .allow_directory(project_store, true)?;
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::midi_output::list_midi_outputs,
             commands::midi_output::midi_output_support,
@@ -216,6 +229,7 @@ pub fn run() {
             // Versions
             commands::versions::use_generation,
             commands::versions::rename_generation,
+            commands::versions::generation_waveform,
             commands::versions::import_remote_generation,
             // SheetSage2
             commands::sheetsage_cmds::install_sheetsage2,

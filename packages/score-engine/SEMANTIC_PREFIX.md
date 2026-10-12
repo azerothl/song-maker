@@ -2,7 +2,7 @@
 
 **Statut :** activé (continuation mid-song)  
 **Drapeau :** `SEMANTIC_PREFIX_ENABLED = true` dans `src/generation/semantic-prefix.ts`  
-**Épingle :** audio.cpp `v0.8.2` (`pins.rs`)
+**Épingle actuelle :** audio.cpp `v0.9.1` (`pins.rs`)
 
 ## Frontière score-engine / Tauri
 
@@ -24,6 +24,6 @@
 
 ## Sources
 
-- [yue2.md v0.8.2](https://github.com/0xShug0/audio.cpp/blob/v0.8.2/docs/models/yue2.md)
+- [yue2.md v0.9.1](https://github.com/0xShug0/audio.cpp/blob/v0.9.1/docs/models/yue2.md)
 - Spec §23 ; `docs/yue2-ameliorations.md` item 3
 - `packages/score-engine/STOP_AFTER_ABC.md` (chemin voisin, score-only)
