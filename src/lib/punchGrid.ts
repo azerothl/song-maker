@@ -14,6 +14,37 @@ export type PunchGridOpts = {
   subdivision?: MusicalSubdivision;
 };
 
+export type PunchTransportAction =
+  | "inactive"
+  | "waiting"
+  | "stop-after-pause"
+  | "stop-at-punch-out";
+
+export type PunchStartAction = "record" | "punch" | "missing-transport";
+
+export function punchStartAction(input: {
+  enabled: boolean;
+  looping: boolean;
+  hasTransport: boolean;
+}): PunchStartAction {
+  if (!input.enabled || input.looping) return "record";
+  return input.hasTransport ? "punch" : "missing-transport";
+}
+
+export function punchTransportAction(input: {
+  enabled: boolean;
+  looping: boolean;
+  started: boolean;
+  playing: boolean;
+  currentMs: number;
+  punchOutMs: number;
+}): PunchTransportAction {
+  if (!input.enabled || input.looping || !input.started) return "inactive";
+  if (!input.playing) return "stop-after-pause";
+  if (input.currentMs >= input.punchOutMs) return "stop-at-punch-out";
+  return "waiting";
+}
+
 function tempoAtZero(mix?: MixDoc | null): number {
   const bpm = mix?.tempoMap?.[0]?.quarterBpm;
   return bpm && bpm > 0 ? bpm : 120;

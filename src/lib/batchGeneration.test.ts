@@ -60,4 +60,21 @@ describe("batch generation (#368)", () => {
     assert.doesNotMatch(fr["candidates.foldSummary"], /parallèle/i);
     assert.doesNotMatch(enApp["candidates.foldSummary"], /parallel/i);
   });
+
+  it("keeps the support disclosure outside the live batch error announcement", () => {
+    const panel = readFileSync(
+      join(root, "src/components/BatchGenerationPanel.tsx"),
+      "utf8",
+    );
+    const errorsStart = panel.indexOf('<div className="batch-errors">');
+    const alertStart = panel.indexOf('<div role="alert">', errorsStart);
+    const alertEnd = panel.indexOf("</div>", alertStart);
+    const detailsStart = panel.indexOf("<details>", alertEnd);
+
+    assert.ok(errorsStart >= 0);
+    assert.ok(alertStart > errorsStart);
+    assert.ok(alertEnd > alertStart);
+    assert.doesNotMatch(panel.slice(alertStart, alertEnd), /<(details|summary|button|a)\b/);
+    assert.ok(detailsStart > alertEnd);
+  });
 });

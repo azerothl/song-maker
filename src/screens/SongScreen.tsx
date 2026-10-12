@@ -1,5 +1,7 @@
 import { api } from "../lib/api";
 import { generationErrorMessage } from "../lib/generationError";
+import { presentGlobalError } from "../lib/errorPresentation";
+import { handleRovingTabListKeyDown } from "../lib/rovingTabList";
 import { TakePreviewPlayer } from "../components/TakePreviewPlayer";
 import { BatchGenerationPanel } from "../components/BatchGenerationPanel";
 import { buildGenerationPayload, loadRemotePrefs, runRemoteGenerationToProject } from "../lib/remoteGenerate";
@@ -42,6 +44,16 @@ import {
   type ScoreMode,
   type SongWorkspace,
 } from "./song/shared";
+
+function focusFirstInvalidCreateField() {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(".song-create-panel [aria-invalid='true']")
+        ?.focus();
+    });
+  });
+}
 
 export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?: SongWorkspace }) {
   const screen = useAppStore((s) => s.screen);
@@ -225,6 +237,12 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       ["preparing", "generating", "separating", "importing_tracks"].includes(job.state),
   );
   const projectJob = job?.projectId === project?.id ? job : null;
+  const projectJobError =
+    projectJob?.state === "failed"
+      ? presentGlobalError(
+          generationErrorMessage(projectJob.error || projectJob.label),
+        )
+      : null;
 
   useEffect(() => {
     if (!canCancelCurrentJob) {
@@ -666,6 +684,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
           setShowFormErrors(true);
           setWorkspace("create");
           setAdvancedSettingsPage(null);
+          if (formError) focusFirstInvalidCreateField();
           return;
         }
         void onGenerate();
@@ -748,6 +767,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       setShowFormErrors(true);
       setWorkspace("create");
       setAdvancedSettingsPage(null);
+      if (formError) focusFirstInvalidCreateField();
       return;
     }
     const isRegen =
@@ -838,8 +858,14 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       } else {
         setSeparationUndo(null);
       }
-    } catch (e) {
-      setError(String(e));
+    } catch (error) {
+      const details = error instanceof Error ? error.message : String(error ?? "");
+      const recoveryMessage = t("separate.run.failed");
+      setError(
+        details.trim()
+          ? `${recoveryMessage}\n\n${details.trim()}`
+          : recoveryMessage,
+      );
     } finally {
       setBusy(false);
     }
@@ -886,6 +912,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       setShowFormErrors(true);
       setWorkspace("create");
       setAdvancedSettingsPage(null);
+      if (formError) focusFirstInvalidCreateField();
       return;
     }
     setBusy(true);
@@ -904,6 +931,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       setShowFormErrors(true);
       setWorkspace("create");
       setAdvancedSettingsPage(null);
+      if (formError) focusFirstInvalidCreateField();
       return;
     }
     setBusy(true);
@@ -935,6 +963,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       setShowFormErrors(true);
       setWorkspace("create");
       setAdvancedSettingsPage(null);
+      if (formError) focusFirstInvalidCreateField();
       return;
     }
     setBusy(true);
@@ -952,6 +981,11 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
   async function onGenerateScoreOnly() {
     if (!project || !canGenerateScoreOnly) {
       setShowFormErrors(true);
+      if (formError) {
+        setWorkspace("create");
+        setAdvancedSettingsPage(null);
+        focusFirstInvalidCreateField();
+      }
       return;
     }
     setBusy(true);
@@ -1012,6 +1046,9 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
   async function onRenderFromScore(sourceGenId: string, count: number) {
     if (!project || formError) {
       setShowFormErrors(true);
+      setWorkspace("create");
+      setAdvancedSettingsPage(null);
+      focusFirstInvalidCreateField();
       return;
     }
     setBusy(true);
@@ -1108,14 +1145,24 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
               )}
             </div>
             {projectJob && projectJob.state !== "idle" && (
-              <div className="song-job-banner" role="status" aria-live="polite">
+              <div
+                className="song-job-banner"
+                role={projectJob.state === "failed" ? "alert" : "status"}
+                aria-live={projectJob.state === "failed" ? "assertive" : "polite"}
+              >
                 <span>
                   {projectJob.state === "completed"
                     ? t("job.completed")
                     : projectJob.state === "cancelled"
                       ? t("job.cancelled")
-                      : generationErrorMessage(projectJob.label || t("job.generating"))}
+                      : projectJobError?.message ?? (projectJob.label || t("job.generating"))}
                 </span>
+                {projectJobError?.details && (
+                  <details className="error-details">
+                    <summary>{t("error.technicalDetails")}</summary>
+                    <pre>{projectJobError.details}</pre>
+                  </details>
+                )}
                 {canCancelCurrentJob && (
                   <button
                     type="button"
@@ -1142,6 +1189,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
               className="song-workspace-tabs"
               role="tablist"
               aria-label={t("workspace.nav")}
+              onKeyDown={handleRovingTabListKeyDown}
             >
               {WORKSPACES.filter((space) => screen !== "studio" || space !== "create").map((space) => (
               <button
@@ -1197,6 +1245,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
             scoreGate={scoreGate}
             setAdvancedSettingsPage={setAdvancedSettingsPage}
             setForm={setForm}
+            showScoreSettings={settings?.generationEngine === "yue2"}
             instrumentalPackState={instrumentalPackState}
             showVocalRemovalGuidance={
               settings?.generationEngine === "yue2" ||

@@ -39,6 +39,7 @@ import type { MixDoc, PlaybackSources } from "../lib/types";
 import { RoutingPanel } from "./RoutingPanel";
 import { ParametricEqBandFields } from "./production/ParametricEqBandFields";
 import { Phase3FxParamFields } from "./production/Phase3FxParamFields";
+import { ErrorNotice } from "./ErrorNotice";
 import { t } from "../ui/i18n";
 
 function isUiEffectKind(kind: string): kind is UiEffectKind {
@@ -865,7 +866,7 @@ export function Phase3MixPanel({
                 ))}
               </ul>
             )}
-            {scError && <p className="hint error">{scError}</p>}
+            {scError && <ErrorNotice message={scError} />}
           </fieldset>
 
           <div className="btn-row phase3-actions">
@@ -880,7 +881,7 @@ export function Phase3MixPanel({
                 : t("phase3.mix.runLimiterMeter")}
             </button>
           </div>
-          {measureError && <p className="hint error">{measureError}</p>}
+          {measureError && <ErrorNotice message={measureError} />}
           {loudness && (
             <p className="phase3-result">
               {t("phase3.mix.loudness")}:{" "}

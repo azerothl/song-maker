@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { t } from "../../ui/i18n";
 import type { FormInput } from "../../lib/types";
 import type { ScoreGate } from "../../lib/score";
@@ -45,6 +45,7 @@ type CreateWorkspaceProps = {
   scoreGate: ScoreGate;
   setAdvancedSettingsPage: Dispatch<SetStateAction<AdvancedSettingsPage>>;
   setForm: (patch: Partial<FormInput>) => void;
+  showScoreSettings: boolean;
   instrumentalPackState: "active" | "installed" | "missing" | "unknown";
   showVocalRemovalGuidance: boolean;
   showInstrumentalPackGuidance: boolean;
@@ -63,15 +64,49 @@ export function CreateWorkspace({
   scoreGate,
   setAdvancedSettingsPage,
   setForm,
+  showScoreSettings,
   instrumentalPackState,
   showVocalRemovalGuidance,
   showInstrumentalPackGuidance,
   showFormErrors,
 }: CreateWorkspaceProps) {
+  const titleFieldRef = useRef<HTMLInputElement>(null);
+  const styleFieldRef = useRef<HTMLTextAreaElement>(null);
+  const lyricsFieldRef = useRef<HTMLTextAreaElement>(null);
+  const durationFieldRef = useRef<HTMLInputElement>(null);
   const generationBlockedReason = primaryFormError(formFieldErrors);
+  const visibleAdvancedSettingsPage =
+    advancedSettingsPage === "plan" && !showScoreSettings
+      ? "index"
+      : advancedSettingsPage;
+  const settingsHeadingRef = useRef<HTMLHeadingElement>(null);
+  const previousSettingsPageRef = useRef(visibleAdvancedSettingsPage);
   const instrumentalVocalCue = form.instrumentalMode
     ? findInstrumentalVocalCue(form.style)
     : null;
+
+  useEffect(() => {
+    if (previousSettingsPageRef.current === visibleAdvancedSettingsPage) return;
+    previousSettingsPageRef.current = visibleAdvancedSettingsPage;
+    settingsHeadingRef.current?.focus();
+  }, [visibleAdvancedSettingsPage]);
+
+  function focusFirstInvalidField() {
+    const firstInvalid = [
+      formFieldErrors.title ? titleFieldRef.current : null,
+      formFieldErrors.style ? styleFieldRef.current : null,
+      formFieldErrors.lyrics ? lyricsFieldRef.current : null,
+      formFieldErrors.duration ? durationFieldRef.current : null,
+    ].find((field) => field && !field.disabled);
+    firstInvalid?.focus();
+  }
+
+  function requestGeneration() {
+    const hasFieldErrors = Boolean(generationBlockedReason);
+    void onGenerate();
+    if (hasFieldErrors) window.requestAnimationFrame(focusFirstInvalidField);
+  }
+
   return (
     <section
       className="song-workspace-panel song-create-panel"
@@ -81,48 +116,52 @@ export function CreateWorkspace({
     >
       <div className="song-form song-create-form">
         <header className="song-form-heading song-workspace-heading">
-          {advancedSettingsPage !== null && (
+          {visibleAdvancedSettingsPage !== null && (
             <button
               type="button"
               className="btn ghost form-page-back"
               onClick={() =>
                 setAdvancedSettingsPage(
-                  advancedSettingsPage === "index" ? null : "index",
+                  visibleAdvancedSettingsPage === "index" ? null : "index",
                 )
               }
             >
-              {advancedSettingsPage === "index"
+              {visibleAdvancedSettingsPage === "index"
                 ? t("form.backToSong")
                 : t("form.backToAdvanced")}
             </button>
           )}
-          <h2>
-            {advancedSettingsPage === null
+          <h2
+            ref={settingsHeadingRef}
+            tabIndex={-1}
+          >
+            {visibleAdvancedSettingsPage === null
               ? workspaceTitle("create")
-              : advancedSettingsTitle(advancedSettingsPage)}
+              : advancedSettingsTitle(visibleAdvancedSettingsPage)}
           </h2>
           <p className="hint">
-            {advancedSettingsPage === null
+            {visibleAdvancedSettingsPage === null
               ? workspaceIntro("create")
-              : advancedSettingsIntro(advancedSettingsPage)}
+              : advancedSettingsIntro(visibleAdvancedSettingsPage)}
           </p>
         </header>
 
-        {advancedSettingsPage === null && (
+        {visibleAdvancedSettingsPage === null && (
           <div className="song-primary-settings song-create-layout">
             <div className="song-create-main">
               <label className="form-field">
                 {t("form.title")}
                 <input
+                  id="create-title"
+                  ref={titleFieldRef}
                   value={form.title}
                   onChange={(e) => setForm({ title: e.target.value })}
                   maxLength={120}
-                  aria-invalid={
-                    showFormErrors && Boolean(formFieldErrors.title)
-                  }
+                  aria-invalid={showFormErrors && Boolean(formFieldErrors.title) ? true : undefined}
+                  aria-describedby={showFormErrors && formFieldErrors.title ? "create-title-error" : undefined}
                 />
                 {showFormErrors && formFieldErrors.title && (
-                  <span className="hint error" role="alert">
+                  <span id="create-title-error" className="hint error">
                     {formFieldErrors.title}
                   </span>
                 )}
@@ -130,12 +169,13 @@ export function CreateWorkspace({
               <label className="form-field form-field-style">
                 {t("form.style")}
                 <textarea
+                  id="create-style"
+                  ref={styleFieldRef}
                   value={form.style}
                   onChange={(e) => setForm({ style: e.target.value })}
                   rows={3}
-                  aria-invalid={
-                    showFormErrors && Boolean(formFieldErrors.style)
-                  }
+                  aria-invalid={showFormErrors && Boolean(formFieldErrors.style) ? true : undefined}
+                  aria-describedby={showFormErrors && formFieldErrors.style ? "create-style-error" : undefined}
                 />
                 <span className="counter">{form.style.length}/1000</span>
                 <span className="hint">
@@ -151,7 +191,7 @@ export function CreateWorkspace({
                   </span>
                 )}
                 {showFormErrors && formFieldErrors.style && (
-                  <span className="hint error" role="alert">
+                  <span id="create-style-error" className="hint error">
                     {formFieldErrors.style}
                   </span>
                 )}
@@ -163,6 +203,8 @@ export function CreateWorkspace({
                     : "form.lyrics",
                 )}
                 <textarea
+                  id="create-lyrics"
+                  ref={lyricsFieldRef}
                   value={form.lyrics}
                   disabled={form.instrumentalMode}
                   onChange={(e) => setForm({ lyrics: e.target.value })}
@@ -172,9 +214,8 @@ export function CreateWorkspace({
                       ? t("form.lyrics.instrumentalPlaceholder")
                       : undefined
                   }
-                  aria-invalid={
-                    showFormErrors && Boolean(formFieldErrors.lyrics)
-                  }
+                  aria-invalid={showFormErrors && Boolean(formFieldErrors.lyrics) ? true : undefined}
+                  aria-describedby={showFormErrors && formFieldErrors.lyrics ? "create-lyrics-error" : undefined}
                 />
                 <span className="counter">{form.lyrics.length}/4000</span>
                 <span className="hint">
@@ -185,7 +226,7 @@ export function CreateWorkspace({
                   )}
                 </span>
                 {showFormErrors && formFieldErrors.lyrics && (
-                  <span className="hint error" role="alert">
+                  <span id="create-lyrics-error" className="hint error">
                     {formFieldErrors.lyrics}
                   </span>
                 )}
@@ -276,9 +317,9 @@ export function CreateWorkspace({
                   <button
                     type="button"
                     className="btn primary song-create-generate-btn"
-                    disabled={busy || Boolean(scoreGate.error) || Boolean(generationBlockedReason)}
+                    disabled={busy || Boolean(scoreGate.error)}
                     aria-describedby={generationBlockedReason ? "create-generation-reason" : undefined}
-                    onClick={() => void onGenerate()}
+                    onClick={requestGeneration}
                     aria-keyshortcuts="Control+Enter"
                   >
                     {t("generate.button")}
@@ -292,7 +333,7 @@ export function CreateWorkspace({
           </div>
         )}
 
-        {advancedSettingsPage === "index" && (
+        {visibleAdvancedSettingsPage === "index" && (
           <nav
             className="form-parameter-grid"
             aria-label={t("form.advanced")}
@@ -303,18 +344,20 @@ export function CreateWorkspace({
               value={soundSummaryValue(form)}
               onClick={() => setAdvancedSettingsPage("sound")}
             />
-            <FormParameterCard
-              title={t("form.plan")}
-              description={t("form.parameter.plan.cardHint")}
-              value={t(
-                form.cot === "off"
-                  ? "form.plan.off"
-                  : form.cot === "melody"
-                    ? "form.plan.melody"
-                    : "form.plan.full",
-              )}
-              onClick={() => setAdvancedSettingsPage("plan")}
-            />
+            {showScoreSettings && (
+              <FormParameterCard
+                title={t("form.plan")}
+                description={t("form.parameter.plan.cardHint")}
+                value={t(
+                  form.cot === "off"
+                    ? "form.plan.off"
+                    : form.cot === "melody"
+                      ? "form.plan.melody"
+                      : "form.plan.full",
+                )}
+                onClick={() => setAdvancedSettingsPage("plan")}
+              />
+            )}
             <FormParameterCard
               title={t("form.key")}
               description={t("form.parameter.key.cardHint")}
@@ -348,7 +391,7 @@ export function CreateWorkspace({
           </nav>
         )}
 
-        {advancedSettingsPage === "sound" && (
+        {visibleAdvancedSettingsPage === "sound" && (
           <section className="form-parameter-page">
             <fieldset className="form-section">
               <legend>{t("form.section.sound")}</legend>
@@ -397,6 +440,7 @@ export function CreateWorkspace({
                 </div>
                 <input
                   id="target-duration"
+                  ref={durationFieldRef}
                   type="range"
                   className="duration-slider"
                   min={DURATION_SEC_MIN}
@@ -410,16 +454,15 @@ export function CreateWorkspace({
                       ),
                     })
                   }
-                  aria-invalid={
-                    showFormErrors && Boolean(formFieldErrors.duration)
-                  }
+                  aria-invalid={showFormErrors && Boolean(formFieldErrors.duration) ? true : undefined}
+                  aria-describedby={showFormErrors && formFieldErrors.duration ? "create-duration-error" : undefined}
                 />
                 <div className="duration-range" aria-hidden="true">
                   <span>{formatDurationLabel(DURATION_SEC_MIN)}</span>
                   <span>{formatDurationLabel(DURATION_SEC_MAX)}</span>
                 </div>
                 {showFormErrors && formFieldErrors.duration && (
-                  <p className="hint error" role="alert">
+                  <p id="create-duration-error" className="hint error">
                     {formFieldErrors.duration}
                   </p>
                 )}
@@ -468,7 +511,7 @@ export function CreateWorkspace({
           </section>
         )}
 
-        {advancedSettingsPage === "plan" && (
+        {visibleAdvancedSettingsPage === "plan" && showScoreSettings && (
           <section className="form-parameter-page">
             <p className="hint">
               {t(
@@ -493,7 +536,7 @@ export function CreateWorkspace({
           </section>
         )}
 
-        {advancedSettingsPage === "key" && (
+        {visibleAdvancedSettingsPage === "key" && (
           <section className="form-parameter-page">
             <label className="form-field">
               {t("form.key")}
@@ -538,7 +581,7 @@ export function CreateWorkspace({
           </section>
         )}
 
-        {advancedSettingsPage === "meter" && (
+        {visibleAdvancedSettingsPage === "meter" && (
           <section className="form-parameter-page">
             <label className="form-field">
               {t("form.meter")}
@@ -569,7 +612,7 @@ export function CreateWorkspace({
           </section>
         )}
 
-        {advancedSettingsPage === "seed" && (
+        {visibleAdvancedSettingsPage === "seed" && (
           <section className="form-parameter-page">
             <label className="form-field">
               {t("form.seed")}
@@ -599,14 +642,14 @@ export function CreateWorkspace({
           </section>
         )}
 
-        {advancedSettingsPage !== null && (
+        {visibleAdvancedSettingsPage !== null && (
           <div className="song-actions">
             <div className="btn-row song-actions-primary">
               <button
                 type="button"
                 className="btn primary"
                 disabled={busy || Boolean(scoreGate.error)}
-                onClick={() => void onGenerate()}
+                onClick={requestGeneration}
               >
                 {t("generate.button")}
               </button>

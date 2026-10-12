@@ -5,6 +5,7 @@ import { ScoreOnlyGenerate } from "../../components/ScoreOnlyGenerate";
 import { ScorePanel } from "../../components/ScorePanel";
 import { SheetSage2Panel } from "../../components/SheetSage2Panel";
 import { api } from "../../lib/api";
+import { handleRovingTabListKeyDown } from "../../lib/rovingTabList";
 import { generationErrorMessage } from "../../lib/generationError";
 import { t } from "../../ui/i18n";
 import type { FormInput, GenerationSummary, MixDoc, ProjectDoc } from "../../lib/types";
@@ -88,6 +89,7 @@ export function ScoreWorkspace({
         className="song-subnav"
         role="tablist"
         aria-label={t("workspace.score.mode.nav")}
+        onKeyDown={handleRovingTabListKeyDown}
       >
         {SCORE_MODES.map((mode) => (
           <button

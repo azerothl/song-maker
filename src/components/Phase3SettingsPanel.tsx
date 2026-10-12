@@ -16,6 +16,7 @@ import {
   type StemProviderId,
 } from "@song-maker/stem-providers";
 import { api } from "../lib/api";
+import { ErrorNotice } from "./ErrorNotice";
 import type { AppSettings, InstallProgress, Phase3Status } from "../lib/types";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
@@ -33,7 +34,7 @@ export function Phase3SettingsPanel({
   const settings = useAppStore((s) => s.settings);
   const refreshSettings = useAppStore((s) => s.refreshSettings);
   const [panelError, setError] = useState<string | null>(null);
-  const errorRef = useRef<HTMLParagraphElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (panelError) errorRef.current?.scrollIntoView({ block: "nearest" });
   }, [panelError]);
@@ -604,7 +605,11 @@ export function Phase3SettingsPanel({
           ? t("phase3.available")
           : t("phase3.unavailable")}
       </p>
-      {panelError && <p ref={errorRef} className="error" role="alert">{panelError}</p>}
+      {panelError && (
+        <div ref={errorRef}>
+          <ErrorNotice message={panelError} className="hint error" />
+        </div>
+      )}
       {downloadNotice && (
         <div className="phase3-download-notice" role="status">
           <span>{downloadNotice}</span>
@@ -683,7 +688,11 @@ export function Phase3SettingsPanel({
           );
         })}
       </ul>
-      {panelError && <p ref={errorRef} className="error" role="alert">{panelError}</p>}
+      {panelError && (
+        <div ref={errorRef}>
+          <ErrorNotice message={panelError} className="hint error" />
+        </div>
+      )}
       {downloadNotice && (
         <div className="phase3-download-notice" role="status">
           <span>{downloadNotice}</span>

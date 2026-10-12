@@ -3,6 +3,7 @@ import {
   qualityHintForProcess,
   resolveClipStretchRatio,
 } from "@song-maker/mix-production";
+import { ErrorNotice } from "./ErrorNotice";
 import {
   useCallback,
   useEffect,
@@ -1961,7 +1962,7 @@ export function ClipTimeline({
         </div>
       )}
 
-      {error && <p className="hint error">{error}</p>}
+      {error && <ErrorNotice message={error} />}
       </div>
 
       <div
