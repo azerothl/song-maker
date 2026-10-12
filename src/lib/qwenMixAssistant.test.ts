@@ -27,9 +27,15 @@ it("Qwen FR/EN keys and variables match",()=>{
     assert.deepEqual(variables(fr[key as keyof typeof fr]),variables(en[key as keyof typeof en]),key);
   }
 });
-it("leftovers #336 stay honest about unmeasured BitNet JSON and missing Foundry",()=>{
-  assert.match(fr["qwen.mix.leftovers.foundry"],/Foundry Local/);
-  assert.match(fr["qwen.mix.leftovers.e2e"],/pas faite/);
-  assert.match(fr["qwen.mix.rbitnet.weightsNotInInstaller"],/pas dans l’installeur/);
-  assert.match(fr["qwen.mix.rbitnet.jsonQuality"],/non mesurée/);
+it("Qwen mix copy omits the closed development roadmap and explains user actions",()=>{
+  const copy=(locale:Record<string,string>)=>Object.entries(locale)
+    .filter(([key])=>key.startsWith("qwen.mix."))
+    .map(([,value])=>value)
+    .join(" ");
+  assert.doesNotMatch(copy(fr),/#336|Phase 2[b-c]|Phase 3|sidecar|backend HTTP|Foundry Local/i);
+  assert.doesNotMatch(copy(en),/#336|Phase 2[b-c]|Phase 3|sidecar|HTTP backend|Foundry Local/i);
+  assert.match(fr["qwen.mix.rbitnet.weightsNotInInstaller"],/Téléchargez-le ici/);
+  assert.match(fr["qwen.mix.rbitnet.jsonQuality"],/Vérifiez-les avant de les appliquer/);
+  assert.match(en["qwen.mix.rbitnet.weightsNotInInstaller"],/Download it here/);
+  assert.match(en["qwen.mix.rbitnet.jsonQuality"],/Review them before applying/);
 });

@@ -240,17 +240,6 @@ export function QwenMixAssistant({mix,sources,onCommitMix}: {
           {sidecarBusy && <button type="button" className="btn" onClick={()=>void api.cancelRbitnetInstall()}>{t("qwen.mix.rbitnet.cancel")}</button>}
         </div>
       )}
-      <details className="qwen-mix-leftovers">
-        <summary>{t("qwen.mix.leftovers.title")}</summary>
-        <ul>
-          <li>{t("qwen.mix.leftovers.weights")}</li>
-          <li>{t("qwen.mix.leftovers.e2e")}</li>
-          <li>{t("qwen.mix.leftovers.json")}</li>
-          <li>{t("qwen.mix.leftovers.llama")}</li>
-          <li>{t("qwen.mix.leftovers.external")}</li>
-          <li>{t("qwen.mix.leftovers.foundry")}</li>
-        </ul>
-      </details>
       {serverMsg && <p className="hint" role="status">{serverMsg}</p>}
     </details>
     <details className="qwen-mix-license">
