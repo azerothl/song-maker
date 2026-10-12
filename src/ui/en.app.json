@@ -628,6 +628,7 @@
   "midi.vst3.openEditor": "Open instrument interface",
   "midi.vst3.editorOpening": "Opening instrument…",
   "midi.vst3.editorSaved": "Instrument settings are in the score. Save the score to keep them.",
+  "midi.vst3.assignmentChanged": "The voice or instrument changed while the editor was open. The editor settings were not applied.",
   "midi.vst3.clear": "Remove instrument",
   "midi.vst3.renderingPreview": "Rendering preview…",
   "midi.vst3.playingPreview": "Playing VST3 preview",

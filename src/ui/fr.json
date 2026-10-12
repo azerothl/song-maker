@@ -844,6 +844,7 @@
   "midi.vst3.openEditor": "Ouvrir l’interface de l’instrument",
   "midi.vst3.editorOpening": "Ouverture de l’instrument…",
   "midi.vst3.editorSaved": "Réglages repris dans la partition. Enregistrez-la pour les conserver.",
+  "midi.vst3.assignmentChanged": "La voix ou l’instrument a changé pendant l’ouverture. Les réglages de l’éditeur n’ont pas été appliqués.",
   "midi.vst3.clear": "Retirer l’instrument",
   "midi.vst3.renderingPreview": "Création de l’aperçu…",
   "midi.vst3.playingPreview": "Lecture de l’aperçu VST3",
