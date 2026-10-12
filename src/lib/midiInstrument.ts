@@ -13,7 +13,8 @@ export type InstrumentProgram =
   | "strings"
   | "lead"
   | "pad"
-  | "pluck";
+  | "pluck"
+  | "drums";
 
 export const INSTRUMENT_PROGRAMS: InstrumentProgram[] = [
   "piano",
@@ -24,11 +25,16 @@ export const INSTRUMENT_PROGRAMS: InstrumentProgram[] = [
   "lead",
   "pad",
   "pluck",
+  "drums",
 ];
 
 export type SoftSynthOptions = {
   /** Lookahead / scheduling latency in seconds. */
   latencySec?: number;
+  /** Share the Studio transport context so MIDI notes stay synchronized with audio. */
+  context?: AudioContext;
+  /** Route an instrument into the track's mix node instead of the device directly. */
+  destination?: AudioNode;
 };
 
 type Voice = {
@@ -54,6 +60,8 @@ function programWave(program: InstrumentProgram): OscillatorType {
       return "triangle";
     case "organ":
     case "pad":
+      return "sine";
+    case "drums":
       return "sine";
     case "bass":
     case "lead":
@@ -93,19 +101,26 @@ export class SoftSynth {
   /** When any track is soloed elsewhere, callers set this. */
   private soloGate = true;
   private latencySec: number;
+  private ownsContext: boolean;
+  private destination: AudioNode | null;
   private sf2: Sf2Bank | null = null;
   private sf2Preset = 0;
 
   constructor(options?: SoftSynthOptions) {
     this.latencySec = Math.max(0, options?.latencySec ?? 0.02);
+    this.ctx = options?.context ?? null;
+    this.ownsContext = !options?.context;
+    this.destination = options?.destination ?? null;
   }
 
   async ensureContext(): Promise<AudioContext> {
     if (!this.ctx) {
       this.ctx = new AudioContext();
+    }
+    if (!this.master) {
       this.master = this.ctx.createGain();
       this.master.gain.value = this.effectiveGain();
-      this.master.connect(this.ctx.destination);
+      this.master.connect(this.destination ?? this.ctx.destination);
     }
     if (this.ctx.state === "suspended") {
       await this.ctx.resume();
@@ -214,6 +229,42 @@ export class SoftSynth {
     this.noteOff(p, when);
     const t = when ?? ctx.currentTime + this.latencySec;
     const vel = Math.max(1, Math.min(127, velocity)) / 127;
+    if (this.program === "drums") {
+      const gain = ctx.createGain();
+      const hitDuration = p === 36 || p === 35 ? 0.34 : p === 42 ? 0.09 : 0.22;
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.35 * vel, t + 0.002);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + hitDuration);
+      if (p === 36 || p === 35) {
+        const osc = ctx.createOscillator();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(145, t);
+        osc.frequency.exponentialRampToValueAtTime(42, t + 0.12);
+        osc.connect(gain);
+        gain.connect(this.master);
+        osc.start(t);
+        osc.stop(t + hitDuration + 0.02);
+        this.voices.set(p, { osc: [osc], source: null, gain, filter: null });
+      } else {
+        const frames = Math.ceil(ctx.sampleRate * hitDuration);
+        const noise = ctx.createBuffer(1, frames, ctx.sampleRate);
+        const data = noise.getChannelData(0);
+        for (let index = 0; index < frames; index += 1) data[index] = Math.random() * 2 - 1;
+        const source = ctx.createBufferSource();
+        source.buffer = noise;
+        const filter = ctx.createBiquadFilter();
+        filter.type = p === 42 || p === 46 ? "highpass" : "bandpass";
+        filter.frequency.value = p === 42 || p === 46 ? 7600 : 1800;
+        filter.Q.value = p === 42 || p === 46 ? 0.7 : 0.85;
+        source.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.master);
+        source.start(t);
+        source.stop(t + hitDuration + 0.02);
+        this.voices.set(p, { osc: [], source, gain, filter });
+      }
+      return;
+    }
     const zone = this.sf2 ? pickSf2Zone(this.sf2, this.sf2Preset, p) : null;
     if (zone && zone.sample.length > 0) {
       const gain = ctx.createGain();
@@ -297,10 +348,10 @@ export class SoftSynth {
 
   async dispose() {
     this.allNotesOff();
-    if (this.ctx) {
+    if (this.ctx && this.ownsContext) {
       await this.ctx.close().catch(() => undefined);
     }
-    this.ctx = null;
+    if (this.ownsContext) this.ctx = null;
     this.master = null;
   }
 }

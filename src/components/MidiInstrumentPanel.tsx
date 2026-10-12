@@ -100,6 +100,8 @@ function programLabel(program: InstrumentProgram): string {
       return t("midi.program.pad");
     case "pluck":
       return t("midi.program.pluck");
+    case "drums":
+      return t("midi.program.drums");
     default: {
       const _exhaustive: never = program;
       return _exhaustive;

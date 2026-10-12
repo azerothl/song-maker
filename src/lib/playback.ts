@@ -14,6 +14,9 @@ import {
 } from "./productionState";
 import { emitPlaybackPosition } from "./playbackPosition";
 import type { MixDoc, PlaybackSources } from "./types";
+import type { ScoreDocument } from "@song-maker/score-engine";
+import { SoftSynth, type InstrumentProgram } from "./midiInstrument";
+import { scoreTicksToSeconds } from "./scoreTiming";
 
 export type TrackPeaks = {
   trackId: string;
@@ -38,6 +41,7 @@ export type PlaybackSnapshot = {
   productionMixBakePending: boolean;
   /** Dernier rebake production échoué (sans détail technique Worker). */
   productionMixBakeFailed: boolean;
+  productionMixBakeError: string | null;
 };
 
 type TrackNodes = {
@@ -53,6 +57,13 @@ type TrackNodes = {
     fadeOutMs: number;
     gainDb: number;
   }[];
+};
+
+type MidiTrackNodes = {
+  synth: SoftSynth;
+  gain: GainNode;
+  pan: StereoPannerNode;
+  program: InstrumentProgram;
 };
 
 function splitInterleavedFloatPcm(bytes: number[]): {
@@ -142,6 +153,8 @@ export class MixPlaybackEngine {
   private master: GainNode | null = null;
   private ceiling: GainNode | null = null;
   private tracks: TrackNodes[] = [];
+  private midiTracks = new Map<string, MidiTrackNodes>();
+  private scoreDocument: ScoreDocument | null = null;
   private sources: AudioBufferSourceNode[] = [];
   private generationBuffer: AudioBuffer | null = null;
   /** Baked stereo from mix-production — used when production overlay is active. */
@@ -151,6 +164,7 @@ export class MixPlaybackEngine {
   private productionBake = false;
   private productionMixBakePending = false;
   private productionMixBakeFailed = false;
+  private productionMixBakeError: string | null = null;
   private startedAt = 0;
   private offset = 0;
   private playing = false;
@@ -191,6 +205,7 @@ export class MixPlaybackEngine {
       productionBake: this.productionBake,
       productionMixBakePending: this.productionMixBakePending,
       productionMixBakeFailed: this.productionMixBakeFailed,
+      productionMixBakeError: this.productionMixBakeError,
     };
   }
 
@@ -224,7 +239,11 @@ export class MixPlaybackEngine {
     return this.ctx;
   }
 
-  async load(sources: PlaybackSources | null, mix: MixDoc | null) {
+  async load(
+    sources: PlaybackSources | null,
+    mix: MixDoc | null,
+    scoreDocument: ScoreDocument | null = null,
+  ) {
     this.stopSources(false);
     this.tracks = [];
     this.generationBuffer = null;
@@ -233,7 +252,9 @@ export class MixPlaybackEngine {
     this.productionBake = false;
     this.productionMixBakePending = false;
     this.productionMixBakeFailed = false;
+    this.productionMixBakeError = null;
     this.lastMix = mix;
+    this.scoreDocument = scoreDocument;
     this.peaks = [];
     this.mixPeaks = null;
     this.ready = false;
@@ -243,9 +264,22 @@ export class MixPlaybackEngine {
     this.stopRaf();
 
     if (!sources) {
-      this.mode = "empty";
-      this.label = "";
-      this.loading = false;
+      if (scoreDocument?.voices.some((voice) => voice.notes.length > 0)) {
+        this.mode = "stems";
+        this.label = "MIDI";
+        this.loading = true;
+        this.notify();
+        this.ensureCtx();
+        this.duration = this.scoreDuration(scoreDocument);
+        await this.applyMix(mix);
+        this.configureMidiTracks(scoreDocument, mix);
+        this.ready = true;
+        this.loading = false;
+      } else {
+        this.mode = "empty";
+        this.label = "";
+        this.loading = false;
+      }
       this.notify();
       return;
     }
@@ -342,6 +376,7 @@ export class MixPlaybackEngine {
         throw new Error("Aucune source audio.");
       }
       await this.applyMix(mix);
+      this.configureMidiTracks(scoreDocument, mix);
       this.ready = true;
     } catch (e) {
       this.ready = false;
@@ -375,22 +410,61 @@ export class MixPlaybackEngine {
     if (this.ceiling) this.ceiling.gain.value = 1;
   }
 
+  private async processTrackEffects(
+    mix: MixDoc,
+    generation: number,
+  ): Promise<DecodedStem[]> {
+    const processed: DecodedStem[] = [];
+    for (const stem of this.decodedStems) {
+      const track = mix.tracks.find((candidate) => candidate.id === stem.trackId);
+      const effects = (track?.vst3Effects ?? []).filter((effect) => effect.enabled);
+      let current = stem;
+      for (const effect of effects) {
+        if (generation !== this.bakeGeneration) return [];
+        const frames = Math.min(current.left.length, current.right.length);
+        const interleaved = new Float32Array(frames * 2);
+        for (let frame = 0; frame < frames; frame += 1) {
+          interleaved[frame * 2] = current.left[frame] ?? 0;
+          interleaved[frame * 2 + 1] = current.right[frame] ?? 0;
+        }
+        const result = await api.vst3ProcessPcm({
+          path: effect.pluginPath,
+          parameters: effect.parameters,
+          pluginStateB64: effect.stateB64,
+          sampleRate: current.sampleRate || mix.sampleRate || 48_000,
+          peakCeilingDb: 0,
+          pcmLe: float32ToLeBytes(interleaved),
+        });
+        if (generation !== this.bakeGeneration) return [];
+        const stereo = splitInterleavedFloatPcm(result.pcmLe);
+        current = { ...current, left: stereo.left, right: stereo.right };
+      }
+      processed.push(current);
+    }
+    return processed;
+  }
+
   private requestProductionBakeAsync(mix: MixDoc): Promise<void> {
     if (!this.ctx || this.decodedStems.length === 0) return Promise.resolve();
     this.activeBakeJob?.cancel();
     const gen = ++this.bakeGeneration;
     this.productionMixBakePending = true;
     this.productionMixBakeFailed = false;
+    this.productionMixBakeError = null;
     this.notify();
-    const job = bakeMixPcmAsync(
-      mix,
-      this.decodedStems,
-      getProductionOverlay(),
-      getProductionTempoBpm(),
-    );
-    this.activeBakeJob = job;
-    return job.result
-      .then(async (result) => {
+    this.activeBakeJob = { cancel: () => undefined };
+    return (async () => {
+      try {
+        const stems = await this.processTrackEffects(mix, gen);
+        if (gen !== this.bakeGeneration) return;
+        const job = bakeMixPcmAsync(
+          mix,
+          stems,
+          getProductionOverlay(),
+          getProductionTempoBpm(),
+        );
+        this.activeBakeJob = job;
+        const result = await job.result;
         if (gen !== this.bakeGeneration) return;
         this.activeBakeJob = null;
         let { left, right } = result;
@@ -427,16 +501,18 @@ export class MixPlaybackEngine {
           this.startRaf();
         }
         this.productionMixBakeFailed = false;
+            this.productionMixBakeError = null;
         this.productionMixBakePending = false;
         this.notify();
-      })
-      .catch(() => {
+      } catch (error) {
         if (gen !== this.bakeGeneration) return;
         this.activeBakeJob = null;
         this.productionMixBakePending = false;
         this.productionMixBakeFailed = true;
+        this.productionMixBakeError = (error instanceof Error ? error.message : String(error)).slice(0, 1200);
         this.notify();
-      });
+      }
+    })();
   }
 
   private applyCeilingFromBuffers() {
@@ -462,7 +538,116 @@ export class MixPlaybackEngine {
     this.ceiling.gain.value = peak > ceiling && peak > 0 ? ceiling / peak : 1;
   }
 
+  private scoreDuration(document: ScoreDocument): number {
+    let end = 0;
+    for (const voice of document.voices) {
+      for (const note of voice.notes) {
+        end = Math.max(
+          end,
+          scoreTicksToSeconds(document, note.startTick + note.durationTick),
+        );
+      }
+    }
+    return end;
+  }
+
+  private configureMidiTracks(
+    document: ScoreDocument | null,
+    mix: MixDoc | null,
+  ) {
+    if (!this.ctx || !this.ceiling) return;
+    this.scoreDocument = document;
+    const voices = (document?.voices ?? []).filter(
+      (voice) => voice.notes.length > 0 && voice.id.startsWith("midi"),
+    );
+    const ids = new Set(voices.map((voice) => voice.id));
+    for (const [id, track] of this.midiTracks) {
+      if (ids.has(id)) continue;
+      void track.synth.dispose();
+      track.gain.disconnect();
+      track.pan.disconnect();
+      this.midiTracks.delete(id);
+    }
+    for (const voice of voices) {
+      const program = (voice.instrumentProgram ?? "piano") as InstrumentProgram;
+      let nodes = this.midiTracks.get(voice.id);
+      if (!nodes) {
+        const gain = this.ctx.createGain();
+        const pan = this.ctx.createStereoPanner();
+        gain.connect(pan);
+        pan.connect(this.ceiling);
+        const synth = new SoftSynth({
+          context: this.ctx,
+          destination: gain,
+          latencySec: 0,
+        });
+        synth.setGainDb(0);
+        synth.setProgram(program);
+        nodes = { synth, gain, pan, program };
+        this.midiTracks.set(voice.id, nodes);
+      } else if (nodes.program !== program) {
+        nodes.program = program;
+        nodes.synth.setProgram(program);
+      }
+      const track = mix?.tracks.find((candidate) => candidate.id === voice.id);
+      const anySolo = mix?.tracks.some((candidate) => candidate.solo) ?? false;
+      const silent = Boolean(track?.mute || (anySolo && !track?.solo));
+      nodes.gain.gain.value = silent ? 0 : dbToLinear(track?.gainDb ?? 0);
+      nodes.pan.pan.value = Math.max(-1, Math.min(1, track?.pan ?? 0));
+    }
+    if (document) this.duration = Math.max(this.duration, this.scoreDuration(document));
+  }
+
+  async setScoreDocument(
+    document: ScoreDocument | null,
+    mix: MixDoc | null,
+  ): Promise<void> {
+    this.scoreDocument = document;
+    if (
+      !this.ctx &&
+      document?.voices.some((voice) => voice.notes.length > 0)
+    ) {
+      this.ensureCtx();
+      if (this.mode === "empty") {
+        this.mode = "stems";
+        this.label = "MIDI";
+        this.duration = this.scoreDuration(document);
+        this.ready = true;
+      }
+    }
+    this.configureMidiTracks(document, mix);
+    if (this.playing) {
+      const current = this.getCurrentTime();
+      for (const track of this.midiTracks.values()) track.synth.allNotesOff();
+      this.startMidiSources(current);
+    }
+    this.notify();
+  }
+
+  private startMidiSources(offset: number) {
+    if (!this.ctx || !this.scoreDocument) return;
+    const whenNow = this.ctx.currentTime;
+    for (const voice of this.scoreDocument.voices) {
+      const nodes = this.midiTracks.get(voice.id);
+      if (!nodes) continue;
+      for (const note of voice.notes) {
+        const start = scoreTicksToSeconds(this.scoreDocument, note.startTick);
+        const end = scoreTicksToSeconds(
+          this.scoreDocument,
+          note.startTick + note.durationTick,
+        );
+        if (end <= offset) continue;
+        const startAt = whenNow + Math.max(0, start - offset);
+        const endAt = whenNow + Math.max(0.04, end - offset);
+        void nodes.synth
+          .noteOn(note.pitch, note.velocity, startAt)
+          .then(() => nodes.synth.noteOff(note.pitch, endAt));
+      }
+    }
+  }
+
   async applyMix(mix: MixDoc | null): Promise<void> {
+    this.configureMidiTracks(this.scoreDocument, mix);
     if (!this.master) return;
     this.lastMix = mix;
     if (this.mode === "generation" || !mix) {
@@ -471,6 +656,7 @@ export class MixPlaybackEngine {
       this.productionMixBakePending = false;
       this.productionMixBakeFailed =
         this.mode === "generation" && mix?.vst3MasterInsert?.enabled === true;
+      this.productionMixBakeError = this.productionMixBakeFailed ? t("production.vst3.needsStems") : null;
       this.master.gain.value = 1;
       this.productionBake = false;
       this.bakedBuffer = null;
@@ -480,15 +666,19 @@ export class MixPlaybackEngine {
 
     // Production overlay or clip stretch/takes → same bake as export (hors thread UI).
     const vst3Enabled = mix.vst3MasterInsert?.enabled === true;
-    if (vst3Enabled && this.decodedStems.length === 0) {
+    const vst3TrackEnabled = mix.tracks.some((track) =>
+      track.vst3Effects?.some((effect) => effect.enabled),
+    );
+    if ((vst3Enabled || vst3TrackEnabled) && this.decodedStems.length === 0) {
       this.productionMixBakeFailed = true;
+      this.productionMixBakeError = t("production.vst3.needsStems");
       this.productionMixBakePending = false;
       this.notify();
       return;
     }
 
     if (
-      (productionIsActive() || mixNeedsClipProcessingBake(mix) || vst3Enabled) &&
+      (productionIsActive() || mixNeedsClipProcessingBake(mix) || vst3Enabled || vst3TrackEnabled) &&
       this.decodedStems.length > 0
     ) {
       await this.requestProductionBakeAsync(mix);
@@ -499,6 +689,7 @@ export class MixPlaybackEngine {
     this.bakeGeneration++;
     this.productionMixBakePending = false;
     this.productionMixBakeFailed = false;
+    this.productionMixBakeError = null;
 
     this.productionBake = false;
     this.bakedBuffer = null;
@@ -587,6 +778,7 @@ export class MixPlaybackEngine {
     this.sources = [];
     this.startedAt = this.ctx.currentTime;
     this.offset = offset;
+    this.startMidiSources(offset);
 
     if (this.productionBake && this.bakedBuffer) {
       const src = this.ctx.createBufferSource();
@@ -677,16 +869,17 @@ export class MixPlaybackEngine {
   }
 
   private stopSources(_resetOffset: boolean) {
+    for (const track of this.midiTracks.values()) track.synth.allNotesOff();
     for (const src of this.sources) {
       try {
         src.onended = null;
         src.stop();
-      } catch {
+      } catch (error) {
         /* already stopped */
       }
       try {
         src.disconnect();
-      } catch {
+      } catch (error) {
         /* */
       }
     }
@@ -720,6 +913,13 @@ export class MixPlaybackEngine {
     this.master = null;
     this.ceiling = null;
     this.tracks = [];
+    for (const track of this.midiTracks.values()) {
+      void track.synth.dispose();
+      track.gain.disconnect();
+      track.pan.disconnect();
+    }
+    this.midiTracks.clear();
+    this.scoreDocument = null;
     this.decodedStems = [];
     this.bakedBuffer = null;
     this.listeners.clear();

@@ -10,6 +10,84 @@ const DEFAULT_RBITNET_BASE: &str = "http://127.0.0.1:8080";
 const DEFAULT_OPENAI_COMPAT_BASE: &str = "http://127.0.0.1:8080";
 const DEFAULT_MODEL: &str = "qwen3.5:2b";
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StudioAssistantMessage {
+    pub id: String,
+    pub role: String,
+    pub content: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StudioAssistantHistory {
+    pub messages: Vec<StudioAssistantMessage>,
+}
+
+#[tauri::command]
+pub fn load_studio_assistant_history(id: String) -> Result<StudioAssistantHistory, String> {
+    let folder = assistant_project_folder(&id)?;
+    let path = folder.join("assistant").join("history.json");
+    if !path.exists() {
+        return Ok(StudioAssistantHistory::default());
+    }
+    let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let history: StudioAssistantHistory = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    validate_history(&history)?;
+    Ok(history)
+}
+
+#[tauri::command]
+pub fn save_studio_assistant_history(
+    id: String,
+    history: StudioAssistantHistory,
+) -> Result<(), String> {
+    validate_history(&history)?;
+    let folder = assistant_project_folder(&id)?;
+    let lock = crate::project_transaction::lock_for(&folder);
+    let _guard = lock.lock();
+    let assistant_dir = folder.join("assistant");
+    crate::paths::ensure_dir(&assistant_dir).map_err(|e| e.to_string())?;
+    crate::paths::atomic_write_json(&assistant_dir.join("history.json"), &history)
+}
+
+fn assistant_project_folder(id: &str) -> Result<std::path::PathBuf, String> {
+    if id.is_empty()
+        || id.len() > 128
+        || !id
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '-')
+    {
+        return Err("Identifiant de projet invalide.".into());
+    }
+    let folder = crate::library::project_folder(id);
+    crate::library::load_project(&folder)?;
+    Ok(folder)
+}
+
+fn validate_history(history: &StudioAssistantHistory) -> Result<(), String> {
+    if history.messages.len() > 200 {
+        return Err("L’historique de l’assistant dépasse 200 messages.".into());
+    }
+    let mut total_chars = 0usize;
+    for message in &history.messages {
+        if message.id.is_empty()
+            || message.id.len() > 128
+            || !matches!(message.role.as_str(), "user" | "assistant")
+            || message.content.chars().count() > 4000
+            || message.created_at.len() > 64
+        {
+            return Err("Message d’historique de l’assistant invalide.".into());
+        }
+        total_chars += message.content.chars().count();
+    }
+    if total_chars > 400_000 {
+        return Err("L’historique de l’assistant est trop volumineux.".into());
+    }
+    Ok(())
+}
+
 /// Provider ids persisted in settings (`mixLlmProvider`).
 pub const PROVIDER_OLLAMA: &str = "ollama";
 pub const PROVIDER_OPENAI_COMPAT: &str = "openai_compat";

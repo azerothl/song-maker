@@ -172,6 +172,7 @@ function ProductionCaptureApp() {
       ready: true,
       mixBakePending: capturePrefs.mixBakeIndicator || mixBakeCyclePending,
       mixBakeFailed: false,
+      mixBakeError: null,
     };
   }, [
     mix,

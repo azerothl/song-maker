@@ -31,9 +31,11 @@ type AppStore = {
   project: ProjectDoc | null;
   form: FormInput;
   mix: MixDoc | null;
+  playerMixPreview: MixDoc | null;
   generations: GenerationSummary[];
   scoreAbc: string | null;
   scoreDocument: ScoreDocument | null;
+  scorePreviewDocument: ScoreDocument | null;
   scoreOpen: boolean;
   error: string | null;
   audioPath: string | null;
@@ -56,9 +58,11 @@ type AppStore = {
   openProject: (id: string, options?: { preserveForm?: boolean }) => Promise<void>;
   setForm: (patch: Partial<FormInput>) => void;
   setMix: (mix: MixDoc | null) => void;
+  setPlayerMixPreview: (mix: MixDoc | null) => void;
   setPlayback: (playback: PlaybackView | null) => void;
   setPlayerSelection: (selection: AppStore["playerSelection"]) => void;
   setScoreDocument: (doc: ScoreDocument | null) => void;
+  setScorePreviewDocument: (doc: ScoreDocument | null) => void;
   setError: (e: string | null) => void;
   setScoreOpen: (v: boolean) => void;
 };
@@ -107,9 +111,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
   project: null,
   form: emptyForm(),
   mix: null,
+  playerMixPreview: null,
   generations: [],
   scoreAbc: null,
   scoreDocument: null,
+  scorePreviewDocument: null,
   scoreOpen: false,
   error: null,
   audioPath: null,
@@ -199,9 +205,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({
       project,
       mix,
+      playerMixPreview: null,
       generations,
       scoreAbc,
       scoreDocument,
+      scorePreviewDocument: null,
       audioPath,
       playbackSources,
       playerSelection: currentProjectId === id ? get().playerSelection : null,
@@ -213,9 +221,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   setForm: (patch) => set({ form: { ...get().form, ...patch } }),
   setMix: (mix) => set({ mix }),
+  setPlayerMixPreview: (playerMixPreview) => set({ playerMixPreview }),
   setPlayback: (playback) => set({ playback }),
   setPlayerSelection: (playerSelection) => set({ playerSelection }),
   setScoreDocument: (scoreDocument) => set({ scoreDocument }),
+  setScorePreviewDocument: (scorePreviewDocument) => set({ scorePreviewDocument }),
   setError: (error) => set({ error }),
   setScoreOpen: (scoreOpen) => set({ scoreOpen }),
 }));

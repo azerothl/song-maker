@@ -38,7 +38,7 @@ export type AdvancedSettingsPage =
   | "key"
   | "meter"
   | "seed";
-export type SongWorkspace = "create" | "score" | "production" | "versions";
+export type SongWorkspace = "create" | "score" | "production" | "versions" | "assistant";
 export type ScoreMode = "edit" | "reprise";
 
 export const WORKSPACES: SongWorkspace[] = [
@@ -68,6 +68,8 @@ export function workspaceLabel(space: SongWorkspace): string {
       return t("workspace.production");
     case "versions":
       return t("workspace.versions");
+    case "assistant":
+      return t("studio.assistant.title");
     default: {
       const _exhaustive: never = space;
       return _exhaustive;
@@ -85,6 +87,8 @@ export function workspaceTitle(space: SongWorkspace): string {
       return t("workspace.production.title");
     case "versions":
       return t("workspace.versions.title");
+    case "assistant":
+      return t("studio.assistant.title");
     default: {
       const _exhaustive: never = space;
       return _exhaustive;
@@ -102,6 +106,8 @@ export function workspaceIntro(space: SongWorkspace): string {
       return t("production.common.intro");
     case "versions":
       return t("workspace.versions.intro");
+    case "assistant":
+      return t("studio.assistant.subtitle");
     default: {
       const _exhaustive: never = space;
       return _exhaustive;

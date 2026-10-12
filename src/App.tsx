@@ -552,12 +552,16 @@ export default function App() {
   const profilesState = useAppStore((s) => s.profilesState);
   const project = useAppStore((s) => s.project);
   const mix = useAppStore((s) => s.mix);
+  const playerMixPreview = useAppStore((s) => s.playerMixPreview);
+  const scoreDocument = useAppStore((s) => s.scoreDocument);
+  const scorePreviewDocument = useAppStore((s) => s.scorePreviewDocument);
   const playbackSources = useAppStore((s) => s.playbackSources);
   const playerSelection = useAppStore((s) => s.playerSelection);
   const setPlayback = useAppStore((s) => s.setPlayback);
-  const activePlayerProjectId = playerSelection?.projectId ?? project?.id;
-  const activePlayerSources = playerSelection?.sources ?? playbackSources;
-  const activePlayerMix = playerSelection ? null : mix;
+  const useProjectMixPreview = playerMixPreview !== null;
+  const activePlayerProjectId = playerSelection && !useProjectMixPreview ? playerSelection.projectId : project?.id;
+  const activePlayerSources = playerSelection && !useProjectMixPreview ? playerSelection.sources : playbackSources;
+  const activePlayerMix = playerSelection && !useProjectMixPreview ? null : playerMixPreview ?? mix;
   const showPlayerDock = Boolean(
     screen !== "profiles" && screen !== "splash",
   );
@@ -640,10 +644,11 @@ export default function App() {
             projectId={activePlayerProjectId ?? undefined}
             sources={activePlayerSources}
             mix={activePlayerMix}
+            scoreDocument={playerSelection && !useProjectMixPreview ? null : scorePreviewDocument ?? scoreDocument}
             studioMode={screen === "studio"}
             tempoBpm={project?.tempoBpm ?? 120}
             meter={project?.meter ?? null}
-            playbackKey={playerSelection?.trackKey}
+            playbackKey={useProjectMixPreview ? undefined : playerSelection?.trackKey}
             hideMixBakeStatus={screen === "studio" || screen === "song"}
             onError={setError}
             onPlaybackChange={setPlayback}

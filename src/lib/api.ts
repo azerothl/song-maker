@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { PortablePackagePlan } from "./projectPackage";
 import type { ProfilesState, ProfileSummary } from "./profilesTypes";
 import type { UserLibrary } from "./userLibrary";
+import type { StudioAssistantHistory } from "./studioAssistant";
 import type {
   NativeCaptureBackend,
   NativeCapturePoll,
@@ -83,6 +84,8 @@ export const api = {
   vst3SpikeAttach: (projectId: string, trackId: string, path: string) =>
     invoke<MixDoc>("vst3_spike_attach", { projectId, trackId, path }),
   vst3ListPlugins: () => invoke<Vst3CatalogEntry[]>("vst3_list_plugins"),
+  vst3ListEffectPlugins: () =>
+    invoke<Vst3CatalogEntry[]>("vst3_list_effect_plugins"),
   vst3PluginParameters: (
     path: string,
     parameters: Record<string, number> = {},
@@ -295,6 +298,7 @@ export const api = {
         mute: boolean;
         solo: boolean;
         clips?: MixDoc["tracks"][number]["clips"];
+        vst3Effects?: MixDoc["tracks"][number]["vst3Effects"];
       }[];
       trackOrder?: string[];
       tempoMap?: MixDoc["tempoMap"];
@@ -306,6 +310,8 @@ export const api = {
   ) => invoke<MixDoc>("update_mix", { id, update }),
   addEmptyMidiTrack: (id: string, voiceId: string, name: string) =>
     invoke<MixDoc>("add_empty_midi_track", { id, voiceId, name }),
+  removeEmptyMidiTrack: (id: string, voiceId: string) =>
+    invoke<MixDoc>("remove_empty_midi_track", { id, voiceId }),
   /** Native dialog → copy + normalize → append user MixTrack (#40). Null if cancelled. */
   importUserAudioTrack: (id: string) =>
     invoke<MixDoc | null>("import_user_audio_track", { id }),
@@ -434,6 +440,10 @@ export const api = {
     }),
   saveProductionOverlay: (id: string, mixId: string, overlay: unknown) =>
     invoke<void>("save_production_overlay", { id, mixId, overlay }),
+  loadStudioAssistantHistory: (id: string) =>
+    invoke<StudioAssistantHistory>("load_studio_assistant_history", { id }),
+  saveStudioAssistantHistory: (id: string, history: StudioAssistantHistory) =>
+    invoke<void>("save_studio_assistant_history", { id, history }),
   loadProductionOverlayDisk: (id: string, mixId: string) =>
     invoke<unknown | null>("load_production_overlay", { id, mixId }),
   listProjectPackageInventory: (id: string) =>

@@ -39,8 +39,11 @@ export async function exportProjectAudio(
   },
 ): Promise<string> {
   const vst3Enabled = mix?.vst3MasterInsert?.enabled === true;
+  const vst3TrackEnabled = Boolean(
+    mix?.tracks.some((track) => track.vst3Effects?.some((effect) => effect.enabled)),
+  );
   if (
-    vst3Enabled &&
+    (vst3Enabled || vst3TrackEnabled) &&
     (!mix || !sources || sources.mode !== "stems" || sources.stems.length === 0)
   ) {
     throw new Error(
@@ -48,14 +51,15 @@ export async function exportProjectAudio(
     );
   }
   if (
-    (shouldUseProductionExport() || vst3Enabled) &&
+    (shouldUseProductionExport() || vst3Enabled || vst3TrackEnabled) &&
     mix &&
     sources &&
     sources.mode === "stems" &&
     sources.stems.length > 0
   ) {
     const { stems, sampleRate } = await decodeMixStems(sources, mix);
-    const baked = bakeMixPcm(mix, stems);
+    const processedStems = await processTrackVst3Effects(mix, stems);
+    const baked = bakeMixPcm(mix, processedStems);
     const renderSampleRate = mix.sampleRate || sampleRate;
     const vst3Processed = vst3Enabled
       ? await api.vst3ProcessPcm({
@@ -73,7 +77,7 @@ export async function exportProjectAudio(
       sampleRate: renderSampleRate,
       channels: 2,
       peakTrimDb: baked.peakTrimDb + (vst3Processed?.peakTrimDb ?? 0),
-      renderPath: vst3Enabled
+      renderPath: vst3Enabled || vst3TrackEnabled
         ? `mix-production-ts/vst3/${baked.path}`
         : `mix-production-ts/${baked.path}`,
       matchMode: "approximate",
@@ -87,6 +91,48 @@ export async function exportProjectAudio(
     bitrateKbps: options?.bitrateKbps,
     pack: options?.pack,
   });
+}
+
+async function processTrackVst3Effects(
+  mix: MixDoc,
+  stems: DecodedStem[],
+): Promise<DecodedStem[]> {
+  const result: DecodedStem[] = [];
+  for (const stem of stems) {
+    let current = stem;
+    const effects = (mix.tracks.find((track) => track.id === stem.trackId)?.vst3Effects ?? [])
+      .filter((effect) => effect.enabled);
+    for (const effect of effects) {
+      const frames = Math.min(current.left.length, current.right.length);
+      const interleaved = new Float32Array(frames * 2);
+      for (let frame = 0; frame < frames; frame += 1) {
+        interleaved[frame * 2] = current.left[frame] ?? 0;
+        interleaved[frame * 2 + 1] = current.right[frame] ?? 0;
+      }
+      const processed = await api.vst3ProcessPcm({
+        path: effect.pluginPath,
+        parameters: effect.parameters,
+        pluginStateB64: effect.stateB64,
+        sampleRate: current.sampleRate || mix.sampleRate || 48_000,
+        peakCeilingDb: 0,
+        pcmLe: float32ToLeBytes(interleaved),
+      });
+      const bytes = Uint8Array.from(processed.pcmLe);
+      if (bytes.byteLength === 0 || bytes.byteLength % 8 !== 0) {
+        throw new Error("Le rendu de l’effet VST3 a produit un audio stéréo invalide.");
+      }
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      const outLeft = new Float32Array(bytes.byteLength / 8);
+      const outRight = new Float32Array(bytes.byteLength / 8);
+      for (let frame = 0; frame < outLeft.length; frame += 1) {
+        outLeft[frame] = view.getFloat32(frame * 8, true);
+        outRight[frame] = view.getFloat32(frame * 8 + 4, true);
+      }
+      current = { ...current, left: outLeft, right: outRight };
+    }
+    result.push(current);
+  }
+  return result;
 }
 
 function tracksToRenderInput(

@@ -111,6 +111,8 @@ export type MixTrack = {
   locked: boolean;
   aiSeparated: boolean;
   clips: MixClip[];
+  /** VST3 audio effects in signal order. Empty on legacy projects. */
+  vst3Effects?: Vst3TrackEffect[];
   /** Spike VST3 (#326) — metadata only, not processed. */
   experimentalVst3Insert?: {
     pluginPath: string;
@@ -118,6 +120,16 @@ export type MixTrack = {
     stateB64?: string | null;
     notesFr: string;
   } | null;
+};
+
+/** VST3 effect inserted on an individual arrangement track. */
+export type Vst3TrackEffect = {
+  id: string;
+  pluginPath: string;
+  pluginName: string;
+  enabled: boolean;
+  parameters: Record<string, number>;
+  stateB64?: string;
 };
 
 /** Arrangement tempo change (ms timeline). Clip storage stays in ms (#94). */

@@ -220,6 +220,38 @@ pub fn vst3_list_plugins() -> Result<Vec<Vst3CatalogEntry>, String> {
     }
 }
 
+/// Return only inspectable VST3 audio effects. Instruments and generators are deliberately
+/// excluded so they cannot be mistaken for inserts in the track mixer.
+#[tauri::command]
+pub fn vst3_list_effect_plugins() -> Result<Vec<Vst3CatalogEntry>, String> {
+    #[cfg(not(windows))]
+    {
+        Err("L’hôte VST3 est actuellement disponible dans la version Windows.".into())
+    }
+
+    #[cfg(windows)]
+    {
+        let mut plugins = vst3_list_plugins()?;
+        let mut effects = Vec::new();
+        for plugin in plugins.drain(..) {
+            let Ok(description) =
+                vst3_plugin_parameters(plugin.path.clone(), BTreeMap::new(), None)
+            else {
+                continue;
+            };
+            let category = description.category.to_lowercase();
+            if description.audio_inputs > 0
+                && description.audio_outputs > 0
+                && !category.contains("instrument")
+                && !category.contains("generator")
+            {
+                effects.push(plugin);
+            }
+        }
+        Ok(effects)
+    }
+}
+
 #[tauri::command]
 pub fn vst3_plugin_parameters(
     path: String,

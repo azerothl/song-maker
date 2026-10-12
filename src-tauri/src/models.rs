@@ -178,9 +178,25 @@ pub struct MixTrack {
     pub locked: bool,
     pub ai_separated: bool,
     pub clips: Vec<Clip>,
+    /// Ordered, per-track VST3 audio effects. Legacy projects default to an empty chain.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub vst3_effects: Vec<Vst3TrackEffect>,
     /// Spike VST3 (#326) — métadonnée uniquement, ignorée par le bake.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub experimental_vst3_insert: Option<ExperimentalVst3Insert>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Vst3TrackEffect {
+    pub id: String,
+    pub plugin_path: String,
+    pub plugin_name: String,
+    pub enabled: bool,
+    #[serde(default)]
+    pub parameters: std::collections::BTreeMap<u32, f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state_b64: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -803,6 +819,9 @@ pub struct MixTrackUpdate {
     /// Si présent, remplace la liste de clips de la piste (édition phase 2).
     #[serde(default)]
     pub clips: Option<Vec<Clip>>,
+    /// Replaces this track's VST3 effects chain when present.
+    #[serde(default)]
+    pub vst3_effects: Option<Vec<Vst3TrackEffect>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -145,8 +145,10 @@ export function ProductionTrackTools({
               onClose={closeAll}
               anchorRef={popinAnchor}
               mixId={mix.id}
+              mix={mix}
               trackId={track.id}
               trackName={track.name}
+              onMixChange={(next) => scheduleMixUpdate(next)}
               tempoBpm={tempoBpm}
               canAddVocalFx={isVocalEffectEligibleTrack(track.role)}
               embedded
