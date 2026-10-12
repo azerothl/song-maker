@@ -33,6 +33,8 @@ const EDITOR_MAX_DURATION: Duration = Duration::from_secs(60 * 60 * 8);
 const MAX_PLUGIN_STATE_BYTES: usize = 24 * 1024 * 1024;
 #[cfg(windows)]
 const MAX_PLUGIN_PARAMETER_COUNT: usize = 16_384;
+#[cfg(windows)]
+type AudioBusSelection = (usize, usize);
 
 #[cfg(windows)]
 fn validate_plugin_parameters(parameters: &BTreeMap<u32, f64>) -> Result<(), String> {
@@ -997,6 +999,7 @@ fn run_worker_request(request: WorkerRequest) -> Result<WorkerResponse, String> 
         {
             return Err("Durée ou partition invalide pour le rendu VST3.".into());
         }
+        let (_, output_bus) = configure_audio_buses(&mut plugin, false)?;
         for (id, value) in &request.parameters {
             if !value.is_finite() || !(0.0..=1.0).contains(value) {
                 return Err(format!("Valeur de paramètre invalide pour {id}."));
@@ -1016,7 +1019,7 @@ fn run_worker_request(request: WorkerRequest) -> Result<WorkerResponse, String> 
             &mut plugin,
             &request.midi_notes,
             request.render_frames,
-            request.sample_rate.max(8_000),
+            output_bus,
         );
         let _ = plugin.stop_processing();
         let output = process_result?;
@@ -1055,6 +1058,7 @@ fn run_worker_request(request: WorkerRequest) -> Result<WorkerResponse, String> 
     if frame_count.saturating_mul(8) > MAX_PCM_BYTES {
         return Err("Audio trop long pour le rendu VST3.".into());
     }
+    let (input_bus, output_bus) = configure_audio_buses(&mut plugin, true)?;
     for (id, value) in &request.parameters {
         if !value.is_finite() || !(0.0..=1.0).contains(value) {
             return Err(format!("Valeur de paramètre invalide pour {id}."));
@@ -1066,12 +1070,7 @@ fn run_worker_request(request: WorkerRequest) -> Result<WorkerResponse, String> 
     plugin
         .start_processing()
         .map_err(|e| format!("Démarrage du traitement VST3 impossible : {e}"))?;
-    let process_result = process_blocks(
-        &mut plugin,
-        &input,
-        frame_count,
-        request.sample_rate.max(8_000),
-    );
+    let process_result = process_blocks(&mut plugin, &input, frame_count, input_bus, output_bus);
     let _ = plugin.stop_processing();
     let mut output = process_result?;
 
@@ -1107,9 +1106,12 @@ fn render_midi_blocks(
     plugin: &mut vst3_host::Plugin,
     notes: &[Vst3MidiNote],
     frame_count: usize,
-    sample_rate: u32,
+    output_bus: AudioBusSelection,
 ) -> Result<Vec<u8>, String> {
     use vst3_host::midi::{MidiChannel, MidiEvent};
+    let mut audio = plugin
+        .create_bus_audio_buffers(SAMPLE_BLOCK)
+        .map_err(|e| format!("Préparation des bus audio de l’instrument impossible : {e}"))?;
 
     let mut events = Vec::with_capacity(notes.len() * 2);
     for note in notes {
@@ -1118,7 +1120,6 @@ fn render_midi_blocks(
     }
     events.sort_by_key(|(frame, order, pitch, _)| (*frame, *order, *pitch));
 
-    let mut audio = vst3_host::audio::AudioBuffers::new(0, 2, SAMPLE_BLOCK, f64::from(sample_rate));
     let mut output = vec![0u8; frame_count * 8];
     let mut event_index = 0usize;
     let mut frame_offset = 0usize;
@@ -1153,17 +1154,33 @@ fn render_midi_blocks(
             event_index += 1;
         }
         plugin
-            .process_audio(&mut audio)
+            .process_bus_audio(&mut audio)
             .map_err(|e| format!("Instrument VST3 en erreur : {e}"))?;
-        for i in 0..frames {
-            let base = (frame_offset + i) * 8;
-            let left = audio.outputs[0][i];
-            let right = audio.outputs[1][i];
-            if !left.is_finite() || !right.is_finite() {
-                return Err("L’instrument VST3 a produit un échantillon invalide.".into());
+        let channels = &audio.outputs[output_bus.0].channels;
+        if output_bus.1 == 1 {
+            for (i, sample) in channels[0].iter().copied().take(frames).enumerate() {
+                write_stereo_frame(
+                    &mut output,
+                    frame_offset + i,
+                    mono_to_stereo(sample),
+                    "L’instrument VST3 a produit un échantillon invalide.",
+                )?;
             }
-            output[base..base + 4].copy_from_slice(&left.to_le_bytes());
-            output[base + 4..base + 8].copy_from_slice(&right.to_le_bytes());
+        } else {
+            for (i, (left, right)) in channels[0]
+                .iter()
+                .copied()
+                .zip(channels[1].iter().copied())
+                .take(frames)
+                .enumerate()
+            {
+                write_stereo_frame(
+                    &mut output,
+                    frame_offset + i,
+                    (left, right),
+                    "L’instrument VST3 a produit un échantillon invalide.",
+                )?;
+            }
         }
         frame_offset = block_end;
     }
@@ -1175,9 +1192,12 @@ fn process_blocks(
     plugin: &mut vst3_host::Plugin,
     input: &[u8],
     frame_count: usize,
-    sample_rate: u32,
+    input_bus: AudioBusSelection,
+    output_bus: AudioBusSelection,
 ) -> Result<Vec<u8>, String> {
-    let mut audio = vst3_host::audio::AudioBuffers::new(2, 2, SAMPLE_BLOCK, f64::from(sample_rate));
+    let mut audio = plugin
+        .create_bus_audio_buffers(SAMPLE_BLOCK)
+        .map_err(|e| format!("Préparation des bus audio du plugin impossible : {e}"))?;
     let mut output = vec![0u8; input.len()];
     let mut frame_offset = 0usize;
     while frame_offset < frame_count {
@@ -1185,23 +1205,179 @@ fn process_blocks(
         audio.clear();
         for i in 0..frames {
             let base = (frame_offset + i) * 8;
-            audio.inputs[0][i] = f32::from_le_bytes(input[base..base + 4].try_into().unwrap());
-            audio.inputs[1][i] = f32::from_le_bytes(input[base + 4..base + 8].try_into().unwrap());
+            let left = f32::from_le_bytes(input[base..base + 4].try_into().unwrap());
+            let right = f32::from_le_bytes(input[base + 4..base + 8].try_into().unwrap());
+            let channels = &mut audio.inputs[input_bus.0].channels;
+            if input_bus.1 == 1 {
+                channels[0][i] = stereo_to_mono(left, right);
+            } else {
+                channels[0][i] = left;
+                channels[1][i] = right;
+            }
         }
         plugin
-            .process_audio(&mut audio)
+            .process_bus_audio(&mut audio)
             .map_err(|e| format!("Plugin VST3 en erreur : {e}"))?;
-        for i in 0..frames {
-            let base = (frame_offset + i) * 8;
-            let left = audio.outputs[0][i];
-            let right = audio.outputs[1][i];
-            if !left.is_finite() || !right.is_finite() {
-                return Err("Le plugin VST3 a produit un échantillon invalide.".into());
+        let channels = &audio.outputs[output_bus.0].channels;
+        if output_bus.1 == 1 {
+            for (i, sample) in channels[0].iter().copied().take(frames).enumerate() {
+                write_stereo_frame(
+                    &mut output,
+                    frame_offset + i,
+                    mono_to_stereo(sample),
+                    "Le plugin VST3 a produit un échantillon invalide.",
+                )?;
             }
-            output[base..base + 4].copy_from_slice(&left.to_le_bytes());
-            output[base + 4..base + 8].copy_from_slice(&right.to_le_bytes());
+        } else {
+            for (i, (left, right)) in channels[0]
+                .iter()
+                .copied()
+                .zip(channels[1].iter().copied())
+                .take(frames)
+                .enumerate()
+            {
+                write_stereo_frame(
+                    &mut output,
+                    frame_offset + i,
+                    (left, right),
+                    "Le plugin VST3 a produit un échantillon invalide.",
+                )?;
+            }
         }
         frame_offset += frames;
     }
     Ok(output)
+}
+
+#[cfg(windows)]
+fn configure_audio_buses(
+    plugin: &mut vst3_host::Plugin,
+    requires_input: bool,
+) -> Result<(AudioBusSelection, AudioBusSelection), String> {
+    use vst3_host::audio::SpeakerArrangement;
+
+    let arrangements = plugin
+        .bus_arrangements()
+        .map_err(|e| format!("Lecture des configurations de bus VST3 impossible : {e}"))?;
+    let mut inputs = arrangements.inputs;
+    let mut outputs = arrangements.outputs;
+    if let Some(main_input) = inputs.first_mut() {
+        *main_input = SpeakerArrangement::STEREO;
+    }
+    if let Some(main_output) = outputs.first_mut() {
+        *main_output = SpeakerArrangement::STEREO;
+    }
+    // Some plugins reject the preferred stereo layout. Keep their actual layout and
+    // validate it below rather than failing to load a plugin that can still run mono.
+    let _ = plugin.set_bus_arrangements(&inputs, &outputs);
+    let layout = plugin
+        .audio_bus_layout()
+        .map_err(|e| format!("Lecture de la disposition audio VST3 impossible : {e}"))?;
+    let input = if requires_input {
+        Some(main_audio_bus(&layout.inputs, "entrée")?)
+    } else {
+        None
+    };
+    let output = main_audio_bus(&layout.outputs, "sortie")?;
+    Ok((input.unwrap_or((0, 0)), output))
+}
+
+#[cfg(windows)]
+fn main_audio_bus(
+    buses: &[vst3_host::audio::AudioBusConfig],
+    direction: &str,
+) -> Result<AudioBusSelection, String> {
+    let (index, bus) = buses
+        .iter()
+        .enumerate()
+        .find(|(_, bus)| bus.active && bus.channel_count > 0)
+        .ok_or_else(|| format!("Le plugin VST3 n’expose aucun bus audio actif en {direction}."))?;
+    if !(1..=2).contains(&bus.channel_count) {
+        return Err(format!(
+            "Le bus audio VST3 principal en {direction} expose {} canaux ; Song Maker prend en charge le mono et la stéréo.",
+            bus.channel_count
+        ));
+    }
+    Ok((index, bus.channel_count))
+}
+
+#[cfg(any(windows, test))]
+fn stereo_to_mono(left: f32, right: f32) -> f32 {
+    (left + right) * 0.5
+}
+
+#[cfg(any(windows, test))]
+fn mono_to_stereo(sample: f32) -> (f32, f32) {
+    (sample, sample)
+}
+
+#[cfg(windows)]
+fn write_stereo_frame(
+    output: &mut [u8],
+    frame_index: usize,
+    (left, right): (f32, f32),
+    invalid_sample_error: &str,
+) -> Result<(), String> {
+    if !left.is_finite() || !right.is_finite() {
+        return Err(invalid_sample_error.into());
+    }
+    let base = frame_index * 8;
+    output[base..base + 4].copy_from_slice(&left.to_le_bytes());
+    output[base + 4..base + 8].copy_from_slice(&right.to_le_bytes());
+    Ok(())
+}
+
+#[cfg(test)]
+mod channel_mapping_tests {
+    #[cfg(windows)]
+    use super::main_audio_bus;
+    use super::{mono_to_stereo, stereo_to_mono};
+
+    #[test]
+    fn mono_effect_input_receives_stereo_average() {
+        assert_eq!(stereo_to_mono(0.25, -0.5), -0.125);
+    }
+
+    #[test]
+    fn mono_effect_or_instrument_output_is_centered_in_stereo() {
+        assert_eq!(mono_to_stereo(0.375), (0.375, 0.375));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn main_bus_uses_channel_layout_not_the_number_of_buses() {
+        use vst3_host::audio::AudioBusConfig;
+
+        let buses = [
+            AudioBusConfig {
+                channel_count: 2,
+                active: true,
+            },
+            AudioBusConfig {
+                channel_count: 1,
+                active: false,
+            },
+        ];
+
+        assert_eq!(main_audio_bus(&buses, "sortie"), Ok((0, 2)));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn inactive_sidechain_bus_is_not_selected_as_main_audio() {
+        use vst3_host::audio::AudioBusConfig;
+
+        let buses = [
+            AudioBusConfig {
+                channel_count: 2,
+                active: false,
+            },
+            AudioBusConfig {
+                channel_count: 1,
+                active: true,
+            },
+        ];
+
+        assert_eq!(main_audio_bus(&buses, "entrée"), Ok((1, 1)));
+    }
 }
