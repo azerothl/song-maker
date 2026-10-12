@@ -1,4 +1,4 @@
-import { useRef, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { t } from "../../ui/i18n";
 import type { FormInput } from "../../lib/types";
 import type { ScoreDocument, ScoreGate } from "../../lib/score";
@@ -81,9 +81,17 @@ export function CreateWorkspace({
     advancedSettingsPage === "plan" && !showScoreSettings
       ? "index"
       : advancedSettingsPage;
+  const settingsHeadingRef = useRef<HTMLHeadingElement>(null);
+  const previousSettingsPageRef = useRef(visibleAdvancedSettingsPage);
   const instrumentalVocalCue = form.instrumentalMode
     ? findInstrumentalVocalCue(form.style)
     : null;
+
+  useEffect(() => {
+    if (previousSettingsPageRef.current === visibleAdvancedSettingsPage) return;
+    previousSettingsPageRef.current = visibleAdvancedSettingsPage;
+    settingsHeadingRef.current?.focus();
+  }, [visibleAdvancedSettingsPage]);
 
   function focusFirstInvalidField() {
     const firstInvalid = [
@@ -125,7 +133,10 @@ export function CreateWorkspace({
                 : t("form.backToAdvanced")}
             </button>
           )}
-          <h2>
+          <h2
+            ref={settingsHeadingRef}
+            tabIndex={-1}
+          >
             {visibleAdvancedSettingsPage === null
               ? workspaceTitle("create")
               : advancedSettingsTitle(visibleAdvancedSettingsPage)}
