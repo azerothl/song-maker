@@ -6,10 +6,12 @@ use crate::paths::{
 };
 use crate::pins::*;
 use rusqlite::{params, Connection};
-use std::path::{Path, PathBuf};
+use serde_json::Value;
+use std::fs;
+use std::path::{Component, Path, PathBuf};
 
 /// Derive library duration and status from on-disk project artifacts.
-/// Status: `empty` | `score_only` | `generated` | `stems_ready`.
+/// Status: `empty` | `score_only` | `generated` | `versions_available` | `stems_ready`.
 pub fn library_snapshot(folder: &Path, doc: &ProjectDoc) -> (Option<i64>, String) {
     if let Some(sep_id) = doc.active_separation_id.as_deref() {
         let sep_json = folder
@@ -33,7 +35,49 @@ pub fn library_snapshot(folder: &Path, doc: &ProjectDoc) -> (Option<i64>, String
             return (None, "score_only".into());
         }
     }
+    if let Some(duration) = latest_completed_generation_duration(folder) {
+        return (Some(duration), "versions_available".into());
+    }
     (None, "empty".into())
+}
+
+fn latest_completed_generation_duration(folder: &Path) -> Option<i64> {
+    let generations = fs::read_dir(folder.join("generations")).ok()?;
+    let mut completed = Vec::new();
+    for entry in generations.filter_map(Result::ok) {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if !file_type.is_dir() {
+            continue;
+        }
+        let generation_folder = entry.path();
+        let result_path = generation_folder.join("result.json");
+        let Ok(result_bytes) = fs::read(result_path) else {
+            continue;
+        };
+        let Ok(result) = serde_json::from_slice::<Value>(&result_bytes) else {
+            continue;
+        };
+        if result.get("state").and_then(Value::as_str) != Some("generated") {
+            continue;
+        }
+        let audio = generation_folder.join("audio.wav");
+        let Some(duration) = wav_duration_ms(&audio)
+            .ok()
+            .filter(|duration| *duration > 0)
+        else {
+            continue;
+        };
+        let order = result
+            .get("finishedAt")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .unwrap_or_else(|| entry.file_name().to_string_lossy().into_owned());
+        completed.push((order, duration));
+    }
+    completed.sort_by(|left, right| left.0.cmp(&right.0));
+    completed.last().map(|(_, duration)| *duration)
 }
 
 fn duration_from_active_audio(folder: &Path, doc: &ProjectDoc) -> Option<i64> {
@@ -84,24 +128,49 @@ pub fn library_row_from_project(folder: &Path, doc: &ProjectDoc) -> LibraryRow {
 /// Refresh duration/status for every known project from disk (repairs stale rows).
 pub fn reconcile_library_from_disk() -> Result<(), String> {
     let root = projects_root();
-    if !root.exists() {
-        return Ok(());
+    if root.exists() {
+        for entry in std::fs::read_dir(&root).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let project_json = entry.path().join("project.json");
+            if !project_json.exists() {
+                continue;
+            }
+            let text = std::fs::read_to_string(&project_json).map_err(|e| e.to_string())?;
+            let doc: ProjectDoc = match serde_json::from_str(&text) {
+                Ok(d) => d,
+                Err(_) => continue,
+            };
+            if doc.schema_version != SCHEMA_VERSION {
+                continue;
+            }
+            upsert_library_row(&library_row_from_project(&entry.path(), &doc))?;
+        }
     }
-    for entry in std::fs::read_dir(&root).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let project_json = entry.path().join("project.json");
-        if !project_json.exists() {
-            continue;
+    let conn = open_library()?;
+    delete_missing_library_rows(&root, &conn)
+}
+
+fn delete_missing_library_rows(root: &Path, conn: &Connection) -> Result<(), String> {
+    let ids = {
+        let mut statement = conn
+            .prepare("SELECT id FROM project")
+            .map_err(|error| error.to_string())?;
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|error| error.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| error.to_string())?;
+        rows
+    };
+
+    for id in ids {
+        let mut components = Path::new(&id).components();
+        let is_direct_child =
+            matches!(components.next(), Some(Component::Normal(_))) && components.next().is_none();
+        if !is_direct_child || !root.join(&id).join("project.json").is_file() {
+            conn.execute("DELETE FROM project WHERE id=?1", params![id])
+                .map_err(|error| error.to_string())?;
         }
-        let text = std::fs::read_to_string(&project_json).map_err(|e| e.to_string())?;
-        let doc: ProjectDoc = match serde_json::from_str(&text) {
-            Ok(d) => d,
-            Err(_) => continue,
-        };
-        if doc.schema_version != SCHEMA_VERSION {
-            continue;
-        }
-        upsert_library_row(&library_row_from_project(&entry.path(), &doc))?;
     }
     Ok(())
 }
@@ -391,6 +460,184 @@ pub fn save_project(folder: &Path, doc: &ProjectDoc) -> Result<(), String> {
     crate::project_transaction::with_lock(folder, || {
         atomic_write_json(&folder.join("project.json"), doc)
     })
+}
+
+#[cfg(test)]
+mod library_snapshot_tests {
+    use super::{delete_missing_library_rows, library_snapshot};
+    use crate::models::ProjectDoc;
+    use rusqlite::Connection;
+    use std::path::{Path, PathBuf};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TempProject(PathBuf);
+
+    impl TempProject {
+        fn new() -> Self {
+            let unique = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let root = std::env::temp_dir().join(format!(
+                "song-maker-library-snapshot-{}-{unique}",
+                std::process::id()
+            ));
+            std::fs::create_dir_all(&root).unwrap();
+            Self(root)
+        }
+    }
+
+    impl Drop for TempProject {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn project() -> ProjectDoc {
+        ProjectDoc {
+            schema: "songmaker.project".into(),
+            schema_version: 1,
+            id: "mcp-project".into(),
+            title: "MCP import".into(),
+            created_at: "2026-10-11T00:00:00Z".into(),
+            updated_at: "2026-10-11T00:00:00Z".into(),
+            sample_rate: 48_000,
+            channels: 2,
+            bit_depth: 24,
+            style: String::new(),
+            lyrics: String::new(),
+            cot: "full".into(),
+            singing_language: None,
+            tempo_bpm: None,
+            key: None,
+            meter: None,
+            target_duration_sec: 180,
+            prefer_full_lyrics: true,
+            instrumental_mode: false,
+            active_generation_id: None,
+            active_separation_id: None,
+            active_mix_id: None,
+            active_score_id: None,
+            generation_names: Default::default(),
+        }
+    }
+
+    fn write_generation(folder: &Path, id: &str, finished_at: &str, state: &str, frames: u32) {
+        let generation = folder.join("generations").join(id);
+        std::fs::create_dir_all(&generation).unwrap();
+        let audio = generation.join("audio.wav");
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: 48_000,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut writer = hound::WavWriter::create(audio, spec).unwrap();
+        for _ in 0..frames {
+            writer.write_sample(0i16).unwrap();
+            writer.write_sample(0i16).unwrap();
+        }
+        writer.finalize().unwrap();
+        std::fs::write(
+            generation.join("result.json"),
+            serde_json::json!({"state": state, "finishedAt": finished_at}).to_string(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn unselected_completed_generation_is_listed_with_duration() {
+        let temp = TempProject::new();
+        write_generation(
+            &temp.0,
+            "gen-001",
+            "2026-10-10T00:00:00Z",
+            "generated",
+            24_000,
+        );
+        write_generation(
+            &temp.0,
+            "gen-002",
+            "2026-10-11T00:00:00Z",
+            "generated",
+            48_000,
+        );
+
+        assert_eq!(
+            library_snapshot(&temp.0, &project()),
+            (Some(1_000), "versions_available".into())
+        );
+    }
+
+    #[test]
+    fn incomplete_generation_is_not_listed_as_available() {
+        let temp = TempProject::new();
+        write_generation(
+            &temp.0,
+            "gen-001",
+            "2026-10-11T00:00:00Z",
+            "running",
+            48_000,
+        );
+
+        assert_eq!(
+            library_snapshot(&temp.0, &project()),
+            (None, "empty".into())
+        );
+    }
+
+    #[test]
+    fn active_generation_keeps_its_existing_status_and_duration() {
+        let temp = TempProject::new();
+        write_generation(
+            &temp.0,
+            "gen-001",
+            "2026-10-10T00:00:00Z",
+            "generated",
+            24_000,
+        );
+        write_generation(
+            &temp.0,
+            "gen-002",
+            "2026-10-11T00:00:00Z",
+            "generated",
+            48_000,
+        );
+        let mut doc = project();
+        doc.active_generation_id = Some("gen-001".into());
+
+        assert_eq!(
+            library_snapshot(&temp.0, &doc),
+            (Some(500), "generated".into())
+        );
+    }
+
+    #[test]
+    fn reconciliation_removes_deleted_project_rows_from_library_index() {
+        let temp = TempProject::new();
+        let kept = temp.0.join("kept-project");
+        std::fs::create_dir_all(&kept).unwrap();
+        std::fs::write(kept.join("project.json"), "{}").unwrap();
+
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE project (id TEXT PRIMARY KEY);")
+            .unwrap();
+        conn.execute("INSERT INTO project (id) VALUES (?1)", ["kept-project"])
+            .unwrap();
+        conn.execute("INSERT INTO project (id) VALUES (?1)", ["deleted-project"])
+            .unwrap();
+
+        delete_missing_library_rows(&temp.0, &conn).unwrap();
+
+        let remaining = conn
+            .query_row("SELECT id FROM project", [], |row| row.get::<_, String>(0))
+            .unwrap();
+        assert_eq!(remaining, "kept-project");
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM project", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
+    }
 }
 
 #[cfg(test)]

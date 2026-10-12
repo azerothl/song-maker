@@ -40,6 +40,14 @@ pub fn library_db_path() -> PathBuf {
     }
 }
 
+pub fn user_library_path() -> PathBuf {
+    if let Some(id) = crate::profiles::active_profile_id() {
+        crate::profiles::profile_dir(&id).join("user-library.json")
+    } else {
+        song_maker_documents().join("user-library.json")
+    }
+}
+
 pub fn settings_path() -> PathBuf {
     song_maker_documents().join("settings.json")
 }

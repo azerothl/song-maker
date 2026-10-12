@@ -1,0 +1,440 @@
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import test from 'node:test';
+import { inspectWav } from '../src/audio-quality.mjs';
+import { exportProjectAudio, exportProjectStems, renderProjectMix } from '../src/project-audio.mjs';
+import { createProject, createProjectMidiTrack, getProject, getProjectMix, importProjectAudioTrack, updateProjectMix } from '../src/projects.mjs';
+
+function smallPcmWav() {
+  const data = Buffer.alloc(4800 * 2);
+  data.writeInt16LE(1200, 0);
+  data.writeInt16LE(-900, 2);
+  data.writeInt16LE(700, 4);
+  data.writeInt16LE(-500, 6);
+  const wav = Buffer.alloc(44 + data.length);
+  wav.write('RIFF', 0, 'ascii');
+  wav.writeUInt32LE(wav.length - 8, 4);
+  wav.write('WAVEfmt ', 8, 'ascii');
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(2, 22);
+  wav.writeUInt32LE(48_000, 24);
+  wav.writeUInt32LE(192_000, 28);
+  wav.writeUInt16LE(4, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write('data', 36, 'ascii');
+  wav.writeUInt32LE(data.length, 40);
+  data.copy(wav, 44);
+  return wav;
+}
+
+function smallExtensiblePcmWav() {
+  const pcm = smallPcmWav();
+  const data = pcm.subarray(44);
+  const wav = Buffer.alloc(68 + data.length);
+  wav.write('RIFF', 0, 'ascii');
+  wav.writeUInt32LE(wav.length - 8, 4);
+  wav.write('WAVEfmt ', 8, 'ascii');
+  wav.writeUInt32LE(40, 16);
+  wav.writeUInt16LE(0xfffe, 20);
+  wav.writeUInt16LE(2, 22);
+  wav.writeUInt32LE(48_000, 24);
+  wav.writeUInt32LE(192_000, 28);
+  wav.writeUInt16LE(4, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.writeUInt16LE(22, 36);
+  wav.writeUInt16LE(16, 38);
+  wav.writeUInt32LE(3, 40);
+  Buffer.from('0100000000001000800000aa00389b71', 'hex').copy(wav, 44);
+  wav.write('data', 60, 'ascii');
+  wav.writeUInt32LE(data.length, 64);
+  data.copy(wav, 68);
+  return wav;
+}
+
+test('project mix render applies saved clip placement and exports a non-overwriting stereo WAV', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-mix-render-'));
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-mix-workspace-'));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(path.join(documentsRoot, 'profiles', 'profile-render'), { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-render', profiles: [{ id: 'profile-render', name: 'Render test', kind: 'hobby' }],
+    }));
+    const { project } = await createProject({ title: 'Offline render', env });
+    const initialized = await createProjectMidiTrack({ projectId: project.id, idempotencyKey: 'render-init', env });
+    const projectFolder = path.join(documentsRoot, 'profiles', 'profile-render', 'projects', project.id);
+    const normalizedDirectory = path.join(projectFolder, 'user-audio', 'normalized');
+    await mkdir(normalizedDirectory, { recursive: true });
+    const wav = smallPcmWav();
+    const sourceSha256 = createHash('sha256').update(wav).digest('hex');
+    await writeFile(path.join(normalizedDirectory, 'clip.wav'), wav);
+    const mix = initialized.mix.mix;
+    mix.tracks = [{
+      id: 'audio-track', role: 'user', name: 'Audio', gainDb: 0, pan: 0, mute: false, solo: false,
+      clips: [{
+        id: 'clip-1', sourcePath: 'user-audio/normalized/clip.wav', sourceSha256,
+        startMs: 0, offsetMs: 0, durationMs: 50, fadeInMs: 0, fadeOutMs: 0, gainDb: 0,
+        takeActive: true, processingEnabled: false,
+      }, {
+        id: 'inactive-take', sourcePath: '../../outside.wav', startMs: 5000, offsetMs: 0,
+        durationMs: 500, fadeInMs: 0, fadeOutMs: 0, gainDb: 0, takeActive: false,
+      }],
+    }];
+    await writeFile(path.join(projectFolder, 'mixes', `${mix.id}.json`), JSON.stringify(mix));
+
+    const rendered = await renderProjectMix({
+      projectId: project.id, outputDirectory: 'exports', fileName: 'offline-render.wav',
+      workspace, env,
+    });
+    assert.equal(rendered.mixId, mix.id);
+    assert.equal(rendered.format, 'wav');
+    assert.equal(rendered.render.path, 'phase1');
+    assert.equal(rendered.render.clipCount, 1);
+    assert.equal(rendered.audio.sampleRateHz, 48_000);
+    assert.equal(rendered.audio.channels, 2);
+    assert.equal(rendered.audio.durationSec, 0.05);
+    const info = await inspectWav(rendered.path);
+    assert.equal(info.bitDepth, 24);
+    assert.equal(info.channels, 2);
+    const output = await readFile(rendered.path);
+    assert.notEqual(output.readIntLE(44, 3), 0);
+    await assert.rejects(renderProjectMix({
+      projectId: project.id, outputDirectory: 'exports', fileName: 'offline-render.wav', workspace, env,
+    }), /Export déjà présent/);
+
+    const beforeEffects = await getProjectMix({ projectId: project.id, env });
+    const effectUpdate = await updateProjectMix({
+      projectId: project.id,
+      expectedMixRevision: beforeEffects.mixRevision,
+      expectedProductionRevision: beforeEffects.productionRevision,
+      effectsByTrack: { 'audio-track': [{ id: 'eq-1', kind: 'eq', enabled: true, params: { gainDb: 3 } }] },
+      env,
+    });
+    assert.deepEqual(effectUpdate.effectsByTrack['audio-track'], [
+      { id: 'eq-1', kind: 'eq', enabled: true, params: { gainDb: 3 } },
+    ]);
+    const renderedWithEffects = await renderProjectMix({
+      projectId: project.id, outputDirectory: 'exports', fileName: 'offline-render-fx.wav', workspace, env,
+    });
+    assert.equal(renderedWithEffects.render.path, 'production');
+    assert.notDeepEqual(await readFile(renderedWithEffects.path), output,
+      'the DSP chain written through MCP changes the rendered audio');
+
+    const extensibleWav = smallExtensiblePcmWav();
+    await writeFile(path.join(normalizedDirectory, 'clip.wav'), extensibleWav);
+    mix.tracks[0].clips[0].sourceSha256 = createHash('sha256').update(extensibleWav).digest('hex');
+    await writeFile(path.join(projectFolder, 'mixes', `${mix.id}.json`), JSON.stringify(mix));
+    const renderedExtensible = await renderProjectMix({
+      projectId: project.id, outputDirectory: 'exports', fileName: 'offline-render-extensible.wav', workspace, env,
+    });
+    assert.equal(renderedExtensible.render.clipCount, 1);
+    assert.equal(renderedExtensible.audio.channels, 2);
+
+    mix.vst3MasterInsert = { enabled: true, pluginPath: 'C:/private/plugin.vst3', parameters: {} };
+    await writeFile(path.join(projectFolder, 'mixes', `${mix.id}.json`), JSON.stringify(mix));
+    await assert.rejects(renderProjectMix({
+      projectId: project.id, outputDirectory: 'exports', fileName: 'vst-unsupported.wav', workspace, env,
+    }), /insert VST3/);
+  } finally {
+    await Promise.all([
+      rm(documentsRoot, { recursive: true, force: true }),
+      rm(workspace, { recursive: true, force: true }),
+    ]);
+  }
+});
+
+test('project audio export copies a finished profile WAV into the workspace without overwriting', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-audio-'));
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-audio-workspace-'));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(path.join(documentsRoot, 'profiles', 'profile-audio'), { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-audio', profiles: [{ id: 'profile-audio', name: 'Test', kind: 'hobby' }],
+    }));
+    const { project } = await createProject({ title: 'Blue Hour', env });
+    const generationFolder = path.join(documentsRoot, 'profiles', 'profile-audio', 'projects', project.id,
+      'generations', 'gen-7');
+    await mkdir(generationFolder, { recursive: true });
+    await writeFile(path.join(generationFolder, 'request.json'), JSON.stringify({ id: 'gen-7' }));
+    const wav = smallPcmWav();
+    await writeFile(path.join(generationFolder, 'result.json'), JSON.stringify({
+      state: 'generated', audio: { path: 'audio.wav', sha256: createHash('sha256').update(wav).digest('hex') },
+    }));
+    await writeFile(path.join(generationFolder, 'audio.wav'), wav);
+
+    const exported = await exportProjectAudio({
+      projectId: project.id,
+      generationId: 'gen-7',
+      outputDirectory: 'exports',
+      workspace,
+      env,
+    });
+    assert.equal(exported.profileId, 'profile-audio');
+    assert.equal(exported.projectId, project.id);
+    assert.equal(exported.generationId, 'gen-7');
+    assert.equal(exported.format, 'wav');
+    assert.equal(exported.bytes, wav.length);
+    assert.equal(exported.audio.sampleRateHz, 48_000);
+    assert.equal(exported.audio.channels, 2);
+    assert.deepEqual(await readFile(exported.path), wav);
+
+    const wav24 = await exportProjectAudio({
+      projectId: project.id, generationId: 'gen-7', outputDirectory: 'exports',
+      format: 'wav', bitDepth: 24, fileName: 'master-24.wav', workspace, env,
+    });
+    assert.equal(wav24.delivery.bitDepth, 24);
+    assert.equal((await inspectWav(wav24.path)).bitDepth, 24);
+
+    const flac = await exportProjectAudio({
+      projectId: project.id, generationId: 'gen-7', outputDirectory: 'exports',
+      format: 'flac', bitDepth: 16, fileName: 'master.flac', workspace, env,
+    });
+    assert.equal(flac.format, 'flac');
+    assert.equal(flac.delivery.bitDepth, 16);
+    assert.equal((await readFile(flac.path)).subarray(0, 4).toString('ascii'), 'fLaC');
+
+    const mp3 = await exportProjectAudio({
+      projectId: project.id, generationId: 'gen-7', outputDirectory: 'exports',
+      format: 'mp3', bitrateKbps: 192, fileName: 'master.mp3', workspace, env,
+    });
+    assert.equal(mp3.format, 'mp3');
+    assert.equal(mp3.delivery.bitrateKbps, 192);
+    assert.ok(mp3.bytes > 0);
+    await assert.rejects(exportProjectAudio({
+      projectId: project.id, generationId: 'gen-7', outputDirectory: 'exports',
+      format: 'flac', fileName: 'wrong.wav', workspace, env,
+    }), /nom de fichier FLAC simple/);
+    await assert.rejects(exportProjectAudio({
+      projectId: project.id, generationId: 'gen-7', outputDirectory: 'exports',
+      format: 'wav', bitrateKbps: 192, workspace, env,
+    }), /bitrateKbps ne s’applique qu’au format MP3/);
+
+    await assert.rejects(exportProjectAudio({
+      projectId: project.id,
+      generationId: 'gen-7',
+      outputDirectory: 'exports',
+      fileName: path.basename(exported.path),
+      workspace,
+      env,
+    }), /Export déjà présent/);
+    assert.deepEqual(await readFile(exported.path), wav);
+  } finally {
+    await Promise.all([
+      rm(documentsRoot, { recursive: true, force: true }),
+      rm(workspace, { recursive: true, force: true }),
+    ]);
+  }
+});
+
+test('project audio export refuses unfinished generations, unsafe names, and paths outside the workspace', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-audio-guards-'));
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-audio-workspace-'));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(path.join(documentsRoot, 'profiles', 'profile-audio'), { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-audio', profiles: [{ id: 'profile-audio', name: 'Test', kind: 'hobby' }],
+    }));
+    const { project } = await createProject({ title: 'Unfinished', env });
+    const generationFolder = path.join(documentsRoot, 'profiles', 'profile-audio', 'projects', project.id,
+      'generations', 'gen-8');
+    await mkdir(generationFolder, { recursive: true });
+    await writeFile(path.join(generationFolder, 'request.json'), JSON.stringify({ id: 'gen-8' }));
+    await writeFile(path.join(generationFolder, 'result.json'), JSON.stringify({ state: 'running' }));
+    const wav = smallPcmWav();
+    await writeFile(path.join(generationFolder, 'audio.wav'), wav);
+
+    const base = { projectId: project.id, generationId: 'gen-8', env, workspace };
+    await assert.rejects(exportProjectAudio({ ...base, outputDirectory: 'exports' }), /pas publiée/);
+    await writeFile(path.join(generationFolder, 'result.json'), JSON.stringify({
+      state: 'generated', audio: { path: 'audio.wav', sha256: createHash('sha256').update(wav).digest('hex') },
+    }));
+    await assert.rejects(exportProjectAudio({
+      ...base, generationId: 'gen-8', outputDirectory: 'exports', fileName: '../escape.wav',
+    }), /nom de fichier WAV simple/);
+    await assert.rejects(exportProjectAudio({
+      ...base, generationId: 'gen-8', outputDirectory: path.dirname(workspace),
+    }), /SONG_MAKER_WORKSPACE_ROOT/);
+  } finally {
+    await Promise.all([
+      rm(documentsRoot, { recursive: true, force: true }),
+      rm(workspace, { recursive: true, force: true }),
+    ]);
+  }
+});
+
+test('project stems export copies validated files from a completed separation without overwriting', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-stems-'));
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-stems-workspace-'));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(path.join(documentsRoot, 'profiles', 'profile-stems'), { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-stems', profiles: [{ id: 'profile-stems', name: 'Test', kind: 'hobby' }],
+    }));
+    const { project } = await createProject({ title: 'Blue Hour', env });
+    const separationFolder = path.join(documentsRoot, 'profiles', 'profile-stems', 'projects', project.id,
+      'separations', 'sep-001');
+    await mkdir(separationFolder, { recursive: true });
+    const wav = smallPcmWav();
+    const sha256 = createHash('sha256').update(wav).digest('hex');
+    await Promise.all([
+      writeFile(path.join(separationFolder, 'drums-48000.wav'), wav),
+      writeFile(path.join(separationFolder, 'vocals-48000.wav'), wav),
+      writeFile(path.join(separationFolder, 'separation.json'), JSON.stringify({
+        id: 'sep-001', family: 'htdemucs', warnings: ['guitar-piano-unavailable'],
+        stems: [
+          { role: 'drums', path: 'drums-48000.wav', sha256 },
+          { role: 'vocals', path: 'vocals-48000.wav', sha256 },
+        ],
+      })),
+      writeFile(path.join(separationFolder, 'job.json'), JSON.stringify({
+        id: 'sep-001', generationId: 'gen-001', state: 'completed',
+      })),
+    ]);
+
+    const exported = await exportProjectStems({
+      projectId: project.id, separationId: 'sep-001', outputDirectory: 'exports/stems', workspace, env,
+    });
+    assert.equal(exported.profileId, 'profile-stems');
+    assert.equal(exported.separationId, 'sep-001');
+    assert.equal(exported.family, 'htdemucs');
+    assert.deepEqual(exported.warnings, ['guitar-piano-unavailable']);
+    assert.deepEqual(exported.files.map(file => file.role), ['drums', 'vocals']);
+    assert.equal(exported.files[0].audio.sampleRateHz, 48_000);
+    assert.deepEqual(await readFile(exported.files[0].path), wav);
+
+    const selected = await exportProjectStems({
+      projectId: project.id, separationId: 'sep-001', outputDirectory: 'exports/selected',
+      roles: ['vocals'], workspace, env,
+    });
+    assert.deepEqual(selected.files.map(file => file.role), ['vocals']);
+    await assert.rejects(exportProjectStems({
+      projectId: project.id, separationId: 'sep-001', outputDirectory: 'exports/selected',
+      roles: ['bass'], workspace, env,
+    }), /n’existe pas dans la séparation/);
+    await assert.rejects(exportProjectStems({
+      projectId: project.id, separationId: 'sep-001', outputDirectory: 'exports/stems', workspace, env,
+    }), /Export déjà présent/);
+    await assert.rejects(exportProjectStems({
+      projectId: project.id, separationId: 'sep-001', outputDirectory: path.dirname(workspace), workspace, env,
+    }), /SONG_MAKER_WORKSPACE_ROOT/);
+    assert.deepEqual(await readFile(exported.files[0].path), wav);
+  } finally {
+    await Promise.all([
+      rm(documentsRoot, { recursive: true, force: true }),
+      rm(workspace, { recursive: true, force: true }),
+    ]);
+  }
+});
+
+test('project stems export rejects an incomplete separation and a stem whose hash changed', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-project-stems-guards-'));
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'song-maker-mcp-stems-guards-'));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(path.join(documentsRoot, 'profiles', 'profile-stems'), { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-stems', profiles: [{ id: 'profile-stems', name: 'Test', kind: 'hobby' }],
+    }));
+    const { project } = await createProject({ title: 'Incomplete stems', env });
+    const separationFolder = path.join(documentsRoot, 'profiles', 'profile-stems', 'projects', project.id,
+      'separations', 'sep-002');
+    await mkdir(separationFolder, { recursive: true });
+    const wav = smallPcmWav();
+    const sha256 = createHash('sha256').update(wav).digest('hex');
+    await writeFile(path.join(separationFolder, 'bass-48000.wav'), wav);
+    await writeFile(path.join(separationFolder, 'separation.json'), JSON.stringify({
+      id: 'sep-002', stems: [{ role: 'bass', path: 'bass-48000.wav', sha256 }],
+    }));
+    await writeFile(path.join(separationFolder, 'job.json'), JSON.stringify({ id: 'sep-002', state: 'running' }));
+    const base = { projectId: project.id, separationId: 'sep-002', outputDirectory: 'exports', workspace, env };
+    await assert.rejects(exportProjectStems(base), /pas publiée/);
+    await writeFile(path.join(separationFolder, 'job.json'), JSON.stringify({ id: 'sep-002', state: 'completed' }));
+    await writeFile(path.join(separationFolder, 'bass-48000.wav'), Buffer.from('not the recorded wav'));
+    await assert.rejects(exportProjectStems(base), /a changé ou est incomplet/);
+  } finally {
+    await Promise.all([
+      rm(documentsRoot, { recursive: true, force: true }),
+      rm(workspace, { recursive: true, force: true }),
+    ]);
+  }
+});
+
+test('project audio import preserves the original and adds normalized clips with revision checks', async () => {
+  const documentsRoot = await mkdtemp(path.join(os.tmpdir(), 'song-maker-audio-import-profile-'));
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'song-maker-audio-import-workspace-'));
+  const env = { SONG_MAKER_DOCUMENTS_DIR: documentsRoot };
+  try {
+    await mkdir(path.join(documentsRoot, 'profiles', 'profile-import'), { recursive: true });
+    await writeFile(path.join(documentsRoot, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-import', profiles: [{ id: 'profile-import', name: 'Test', kind: 'hobby' }],
+    }));
+    const { project } = await createProject({ title: 'Audio import', env });
+    const source = smallPcmWav();
+    await writeFile(path.join(workspace, 'source.wav'), source);
+
+    const imported = await importProjectAudioTrack({
+      projectId: project.id, sourcePath: 'source.wav', name: 'Voix témoin', startMs: 1200,
+      expectedUpdatedAt: project.updatedAt, workspace, env,
+    });
+    assert.equal(imported.profileId, 'profile-import');
+    assert.equal(imported.track.role, 'user');
+    assert.equal(imported.track.name, 'Voix témoin');
+    assert.equal(imported.track.clips[0].startMs, 1200);
+    assert.equal(imported.track.clips[0].durationMs, 50);
+    assert.match(imported.mixRevision, /^[a-f0-9]{64}$/);
+
+    const projectFolder = path.join(documentsRoot, 'profiles', 'profile-import', 'projects', project.id);
+    const originalPath = path.join(projectFolder, imported.importedAudio.originalPath);
+    const normalizedPath = path.join(projectFolder, imported.importedAudio.normalizedPath);
+    assert.deepEqual(await readFile(originalPath), source);
+    const normalizedInfo = await inspectWav(normalizedPath);
+    assert.equal(normalizedInfo.sampleRateHz, 48_000);
+    assert.equal(normalizedInfo.channels, 2);
+    assert.equal(normalizedInfo.bitDepth, 32);
+    assert.equal(imported.importedAudio.sha256, createHash('sha256').update(await readFile(normalizedPath)).digest('hex'));
+    const provenance = JSON.parse(await readFile(path.join(projectFolder, 'user-audio', 'provenance', `${path.basename(normalizedPath, '.wav')}.json`), 'utf8'));
+    assert.equal(provenance.displayName, 'Voix témoin');
+    assert.equal(provenance.durationMs, 50);
+
+    const projectAfter = await getProject({ projectId: project.id, env });
+    assert.equal(projectAfter.project.activeMixId, imported.mixId);
+    const mixAfter = await getProjectMix({ projectId: project.id, env });
+    assert.equal(mixAfter.mixRevision, imported.mixRevision);
+    assert.equal(mixAfter.mix.tracks[0].clips[0].sourcePath, imported.importedAudio.normalizedPath);
+
+    await assert.rejects(importProjectAudioTrack({
+      projectId: project.id, sourcePath: 'source.wav', expectedUpdatedAt: project.updatedAt,
+      workspace, env,
+    }), /projet a changé/);
+
+    const second = await importProjectAudioTrack({
+      projectId: project.id, sourcePath: 'source.wav', name: 'Voix témoin', startMs: 0, muteExisting: true,
+      expectedUpdatedAt: projectAfter.project.updatedAt, expectedMixRevision: mixAfter.mixRevision, workspace, env,
+    });
+    assert.equal(second.track.name, 'Voix témoin (2)');
+    const secondMix = await getProjectMix({ projectId: project.id, env });
+    assert.equal(secondMix.mix.tracks.length, 2);
+    assert.equal(secondMix.mix.tracks[0].mute, true);
+    assert.equal(secondMix.mix.tracks[1].mute, false);
+    await assert.rejects(importProjectAudioTrack({
+      projectId: project.id, sourcePath: 'source.wav', expectedUpdatedAt: second.projectUpdatedAt,
+      expectedMixRevision: mixAfter.mixRevision, workspace, env,
+    }), /mix a changé/);
+    await assert.rejects(importProjectAudioTrack({
+      projectId: project.id, sourcePath: path.join(path.dirname(workspace), 'outside.wav'),
+      expectedUpdatedAt: second.projectUpdatedAt, expectedMixRevision: second.mixRevision, workspace, env,
+    }), /SONG_MAKER_WORKSPACE_ROOT/);
+  } finally {
+    await Promise.all([
+      rm(documentsRoot, { recursive: true, force: true }),
+      rm(workspace, { recursive: true, force: true }),
+    ]);
+  }
+});

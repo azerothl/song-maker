@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import test from 'node:test';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
-import { acquireGpuLock, assertGpuSafe, assertRequestedDuration, auditPromptDiversity, cancelJob, cliArgs, cliPlanArgs,
-  fitSongPlan, getJob, gpuLimits, inferenceThreads, insideWorkspace, normalizeSong, outputName, parseBatch,
-  parseGpuTelemetry, plansDuration, publishExclusive, releaseGpuLock, runtimeStatus, scoreFromTaskResult,
-  semanticBudget, serverPlanRequest, serverSongRequest, wavDurationMs, workspaceRoot } from '../src/runtime.mjs';
+import { acquireGpuLock, assertGenerationAllowed, assertGpuSafe, assertRequestedDuration, assertYue2GenerationAllowed,
+  auditPromptDiversity, cancelJob, cliArgs, cliPlanArgs, getJob, gpuLimits, createJobRecord, inferenceThreads,
+  insideWorkspace, normalizeSong, outputName, parseBatch, parseGpuTelemetry, publishExclusive, releaseGpuLock,
+  requestedJobEngine, runtimeStatus, semanticBudget, serverPlanRequest, serverSongRequest, uniqueBatchSongs,
+  fitSongPlan, plansDuration, scoreFromTaskResult, wavDurationMs, workspaceRoot } from '../src/runtime.mjs';
 
 const basic = { id: '01', title: 'Soft Morning', style: 'chill soul', lyrics: '[Verse]\nA quiet room', seed: 42 };
 
@@ -47,6 +48,80 @@ test('persistent-server instrumental requests leave lyrics empty and keep a fixe
   assert.equal(request.lyrics, '');
   assert.equal(request.options.semantic_min_tokens, 1500);
   assert.equal(request.options.semantic_max_tokens, 1500);
+});
+
+test('ACE-Step requests preserve the app request contract and exact duration checks', () => {
+  const song = normalizeSong({ ...basic, lyrics: '', instrumentalMode: true, targetDurationSec: 90,
+    tempoBpm: 96, key: { tonic: 'Eb', mode: 'minor' }, meter: { numerator: 6, denominator: 8 } });
+  const request = serverSongRequest({ ...song, engineId: 'ace_step' });
+  assert.equal(request.model, 'ace_step');
+  assert.equal(request.request.task_route, 'text2music');
+  assert.equal(request.request.lyrics, '[Instrumental]');
+  assert.equal(request.request.seed, song.seed);
+  assert.equal(request.request.duration_seconds, 90);
+  assert.equal(request.request.num_inference_steps, 8);
+  assert.equal(request.request.guidance_scale, 1.0);
+  assert.equal(request.request.bpm, 96);
+  assert.equal(request.request.keyscale, 'Eb minor');
+  assert.equal(request.request.timesignature, '6/8');
+  assert.equal('language' in request.request, false);
+  assert.doesNotThrow(() => assertRequestedDuration({ ...song, engineId: 'ace_step' }, 90_250));
+  assert.throws(() => assertRequestedDuration({ ...song, engineId: 'ace_step' }, 89_749),
+    { code: 'GENERATION_DURATION_MISMATCH' });
+  assert.throws(() => normalizeSong({ ...basic, lyrics: '', instrumentalMode: true, targetDurationSec: 75 }), /par pas de 30/);
+});
+
+test('generation jobs retain their selected engine across backend status changes and resumes', () => {
+  const song = normalizeSong({ ...basic, lyrics: '', instrumentalMode: true, targetDurationSec: 60 });
+  const job = createJobRecord([song], 'output', { engineId: 'ace_step', modelId: null });
+  assert.equal(job.generationEngine, 'ace_step');
+  assert.equal(job.engine, null);
+  assert.equal(job.songs[0].engineId, 'ace_step');
+  assert.equal(requestedJobEngine(job), 'ace_step');
+  job.engine = 'audiocpp_server';
+  assert.equal(requestedJobEngine(job), 'ace_step');
+  assert.equal(requestedJobEngine({ engine: 'audiocpp_cli' }), 'yue2');
+});
+
+test('commercial ACE-Step generation requires the current profile notice acceptance', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'song-maker-ace-contract-'));
+  const documents = path.join(dir, 'documents');
+  const profileDirectory = path.join(documents, 'profiles', 'profile-commercial');
+  const payload = [
+    '2026-10-01-v1',
+    "Avant d'utiliser ACE-Step dans ce profil",
+    'Before using ACE-Step in this profile',
+    'Licence des poids : MIT selon la carte du modèle d\'origine ; la conversion distribuée par audio.cpp déclare "other" et renvoie à l\'original ; sortie non vérifiée. Song Maker n\'a pas vérifié les droits d\'usage commercial des poids ACE-Step ni des morceaux générés. Les auteurs formulent cet avertissement :',
+    'Weight license: MIT according to the original model card; the conversion distributed by audio.cpp declares "other" and points back to the original; output rights are unverified. Song Maker has not verified commercial rights for ACE-Step weights or generated tracks. The authors publish this notice:',
+    'The authors are not responsible for any misuse of the model',
+    'J’ai lu l’avertissement des auteurs et je l’accepte pour ce profil.',
+    'I have read the authors’ notice and accept it for this profile.',
+  ].join('\n');
+  try {
+    await mkdir(profileDirectory, { recursive: true });
+    await writeFile(path.join(documents, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-commercial',
+      profiles: [{ id: 'profile-commercial', kind: 'commercial' }],
+    }));
+    await writeFile(path.join(documents, 'settings.json'), JSON.stringify({ cacheDir: path.join(dir, 'cache') }));
+    const profileSettingsPath = path.join(profileDirectory, 'profile-settings.json');
+    const env = { ...process.env, SONG_MAKER_DOCUMENTS_DIR: documents };
+    await writeFile(profileSettingsPath, JSON.stringify({ aceStepLicenseAccepted: true,
+      engineContractAcceptances: { ace_step_1_5: { textVersion: '2026-10-01-v1', textFingerprint: 'stale' } } }));
+    const staleRuntime = runtimeStatus({ engineId: 'ace_step', env });
+    assert.equal(staleRuntime.aceStepContractAccepted, false);
+    assert.throws(() => assertGenerationAllowed(staleRuntime), /profil Commercial/);
+
+    await writeFile(profileSettingsPath, JSON.stringify({ aceStepLicenseAccepted: true,
+      engineContractAcceptances: { ace_step_1_5: {
+        textVersion: '2026-10-01-v1', textFingerprint: createHash('sha256').update(payload).digest('hex'),
+      } } }));
+    const acceptedRuntime = runtimeStatus({ engineId: 'ace_step', env });
+    assert.equal(acceptedRuntime.aceStepContractAccepted, true);
+    assert.doesNotThrow(() => assertGenerationAllowed(acceptedRuntime));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test('instrumental plans are generated alone, then rendered from the fitted ABC', () => {
@@ -143,15 +218,17 @@ test('GPU telemetry parsing distinguishes unreadable sensors from overheating', 
     gpuLimits('q4')), { code: 'GPU_SAFETY_STOP' });
 });
 
-test('Q4 is selected by default; Q8 requires an explicit choice', async () => {
+test('YuE2 runtime follows the active Song Maker cache and model, with an explicit per-job override', async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'song-maker-runtime-'));
-  const previousCache = process.env.SONG_MAKER_CACHE;
-  const previousModel = process.env.SONG_MAKER_MODEL;
+  const documents = path.join(dir, 'documents');
+  const profileDirectory = path.join(documents, 'profiles', 'profile-001');
   const cache = path.join(dir, 'cache');
-  const binaries = path.join(cache, 'binaries', 'v0.9.1', 'windows-cuda12.4');
+  const binaryFolder = process.platform === 'win32' ? 'windows-cuda12.4' : 'linux-cuda12.8-colab';
+  const binaryName = process.platform === 'win32' ? 'audiocpp_cli.exe' : 'audiocpp_cli';
+  const binaries = path.join(cache, 'binaries', 'v0.9.1', binaryFolder);
   const modelDir = path.join(cache, 'models', 'Yue2-3B-GGUF');
   const files = [
-    path.join(binaries, 'audiocpp_cli.exe'),
+    path.join(binaries, binaryName),
     path.join(modelDir, 'yue2-3b-q4_0.gguf'),
     path.join(modelDir, 'yue2-3b-q8_0.gguf'),
     path.join(modelDir, 'yue2-vae-f16.gguf'),
@@ -163,16 +240,76 @@ test('Q4 is selected by default; Q8 requires an explicit choice', async () => {
       await mkdir(path.dirname(file), { recursive: true });
       await writeFile(file, '');
     }));
-    process.env.SONG_MAKER_CACHE = cache;
-    delete process.env.SONG_MAKER_MODEL;
-    assert.equal(runtimeStatus().modelName, 'yue2-3b-q4_0.gguf');
-    process.env.SONG_MAKER_MODEL = 'q8';
-    assert.equal(runtimeStatus().modelName, 'yue2-3b-q8_0.gguf');
+    await mkdir(profileDirectory, { recursive: true });
+    await writeFile(path.join(documents, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-001', profiles: [{ id: 'profile-001', kind: 'hobby' }],
+    }));
+    await writeFile(path.join(documents, 'settings.json'), JSON.stringify({
+      cacheDir: cache, binaryTag: 'v0.9.1', modelPack: 'q4', modelGguf: 'yue2-3b-q8_0.gguf',
+    }));
+    await writeFile(path.join(profileDirectory, 'profile-settings.json'), JSON.stringify({
+      generationEngine: 'yue2', localYue2Enabled: true, yue2LicenseAccepted: true,
+    }));
+
+    const env = { ...process.env, SONG_MAKER_DOCUMENTS_DIR: documents };
+    delete env.SONG_MAKER_CACHE;
+    delete env.SONG_MAKER_MODEL;
+    const appRuntime = runtimeStatus({ env });
+    assert.equal(appRuntime.modelName, 'yue2-3b-q8_0.gguf');
+    assert.equal(appRuntime.modelId, 'q8');
+    assert.equal(appRuntime.profileId, 'profile-001');
+    assert.equal(appRuntime.yue2LicenseAccepted, true);
+    assert.equal(appRuntime.ready, false);
+    assert.ok(appRuntime.missing.includes('YuE2 Q4 ou Q8'));
+    assert.doesNotThrow(() => assertYue2GenerationAllowed(appRuntime));
+    assert.throws(() => assertYue2GenerationAllowed({ ...appRuntime, localYue2Enabled: false }, {}), /désactivé/);
+    assert.throws(() => assertYue2GenerationAllowed({ ...appRuntime, yue2LicenseAccepted: false }, {}), /licence non commerciale/);
+
+    const explicitQ4 = runtimeStatus({ modelId: 'q4', env });
+    assert.equal(explicitQ4.modelName, 'yue2-3b-q4_0.gguf');
+    assert.equal(explicitQ4.modelId, 'q4');
+    const aceRuntime = runtimeStatus({ engineId: 'ace_step', env });
+    assert.equal(aceRuntime.engineId, 'ace_step');
+    assert.equal(aceRuntime.ready, false);
+    assert.ok(aceRuntime.missing.includes('ACE-Step 1.5 Turbo BF16'));
+    assert.throws(() => assertGenerationAllowed({ ...aceRuntime, aceStepLicenseAccepted: false }), /avertissement de licence ACE-Step/);
+    assert.throws(() => runtimeStatus({ engineId: 'ace_step', modelId: 'q4', env }), /modelId ne s’applique qu’au moteur YuE2/);
   } finally {
-    if (previousCache === undefined) delete process.env.SONG_MAKER_CACHE;
-    else process.env.SONG_MAKER_CACHE = previousCache;
-    if (previousModel === undefined) delete process.env.SONG_MAKER_MODEL;
-    else process.env.SONG_MAKER_MODEL = previousModel;
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('YuE2 runtime resolves the binary release selected by the Song Maker profile settings', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'song-maker-runtime-binary-tag-'));
+  const documents = path.join(dir, 'documents');
+  const profileDirectory = path.join(documents, 'profiles', 'profile-001');
+  const cache = path.join(dir, 'cache');
+  const binaryDirectory = path.join(cache, 'binaries', 'v0.9.1',
+    process.platform === 'win32' ? 'windows-cuda12.4' : 'linux-cuda12.8-colab');
+  const binaryName = process.platform === 'win32' ? 'audiocpp_cli.exe' : 'audiocpp_cli';
+  const serverName = process.platform === 'win32' ? 'audiocpp_server.exe' : 'audiocpp_server';
+  const binary = path.join(binaryDirectory, binaryName);
+  const serverBinary = path.join(binaryDirectory, serverName);
+  try {
+    await mkdir(profileDirectory, { recursive: true });
+    await mkdir(binaryDirectory, { recursive: true });
+    await Promise.all([writeFile(binary, ''), writeFile(serverBinary, '')]);
+    await writeFile(path.join(documents, 'profiles.json'), JSON.stringify({
+      activeProfileId: 'profile-001', profiles: [{ id: 'profile-001', kind: 'hobby' }],
+    }));
+    await writeFile(path.join(documents, 'settings.json'), JSON.stringify({
+      cacheDir: cache, binaryTag: 'v0.9.1', modelPack: 'q4',
+    }));
+    await writeFile(path.join(profileDirectory, 'profile-settings.json'), JSON.stringify({
+      generationEngine: 'yue2', localYue2Enabled: true, yue2LicenseAccepted: true,
+    }));
+
+    const runtime = runtimeStatus({ env: { ...process.env, SONG_MAKER_DOCUMENTS_DIR: documents } });
+    assert.equal(runtime.binary, binary);
+    assert.equal(runtime.serverBinary, serverBinary);
+    assert.equal(runtime.binaryTag, 'v0.9.1');
+    assert.equal(runtime.missing.includes('audiocpp_cli'), false);
+  } finally {
     await rm(dir, { recursive: true, force: true });
   }
 });
@@ -200,14 +337,44 @@ test('musical metadata is included in the style prompt', () => {
   assert.ok(args.includes('style=English, chill soul, 76 BPM, key Eb minor, 6/8'));
 });
 
-test('batch rejects modes this headless runner cannot honor', () => {
+test('batch rejects modes this headless runner cannot honor and expands requested takes', () => {
   for (const extra of [{ maxParallelGenerations: 2 }, { onError: 'pause' }, { retry: { maxAttempts: 2 } }]) {
     assert.throws(() => parseBatch(JSON.stringify({ schemaVersion: 1, songs: [basic], ...extra })));
   }
   assert.equal(parseBatch(JSON.stringify({ schemaVersion: 1, songs: [basic] })).length, 1);
   assert.equal(parseBatch(JSON.stringify({ schemaVersion: 1, onError: 'continue', songs: [basic] })).length, 1);
-  assert.throws(() => parseBatch(JSON.stringify({ schemaVersion: 1,
-    defaults: { generations: 2 }, songs: [basic] })));
+  const takes = parseBatch(JSON.stringify({ schemaVersion: 1,
+    defaults: { generations: 2 }, songs: [{ ...basic, seed: 0xffff_ffff }] }));
+  assert.deepEqual(takes.map(song => song.generationIndex), [1, 2]);
+  assert.deepEqual(takes.map(song => song.generationCount), [2, 2]);
+  assert.deepEqual(takes.map(song => song.seed), [0xffff_ffff, 0]);
+  assert.deepEqual(takes.map((song, index) => outputName(song, index)), [
+    '01 - Soft Morning - Prise 01.wav', '01 - Soft Morning - Prise 02.wav',
+  ]);
+  for (const generations of [0, 1001, 1.5]) {
+    assert.throws(() => parseBatch(JSON.stringify({ schemaVersion: 1,
+      songs: [{ ...basic, generations }] })), /Nombre de générations invalide/);
+  }
+  const tooManyTasks = Array.from({ length: 11 }, (_, index) => ({
+    ...basic, id: String(index + 1), generations: 1000,
+  }));
+  assert.throws(() => parseBatch(JSON.stringify({ schemaVersion: 1, songs: tooManyTasks })), /10 000 prises/);
+  const atTaskLimit = parseBatch(JSON.stringify({ schemaVersion: 1,
+    songs: tooManyTasks.slice(0, 10) }));
+  assert.equal(atTaskLimit.length, 10_000);
+});
+
+test('batch prompt audit counts each title once regardless of take count', () => {
+  const direction = {
+    scene: 'rainy station platform', groove: 'broken shuffle rhythm', foreground: 'muted trumpet',
+    harmony: 'open minor ninth chords', arrangement: 'solo piano then bass enters',
+    motif: 'descending three note phrase',
+  };
+  const takes = parseBatch(JSON.stringify({ schemaVersion: 1,
+    songs: [{ ...basic, generations: 3, creativeDirection: direction }] }));
+  assert.equal(takes.length, 3);
+  assert.equal(uniqueBatchSongs(takes).length, 1);
+  assert.deepEqual(auditPromptDiversity(uniqueBatchSongs(takes)).exactDuplicates, []);
 });
 
 test('inference CPU threads use a bounded default and validate overrides', () => {

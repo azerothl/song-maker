@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { LibraryTrackPlayer } from "../components/LibraryTrackPlayer";
 import { api } from "../lib/api";
+import { useUserLibrary } from "../lib/useUserLibrary";
 import {
   createLibraryId,
   libraryTrackKey,
-  readUserLibrary,
-  writeUserLibrary,
-  type UserLibrary,
 } from "../lib/userLibrary";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
@@ -25,7 +23,7 @@ export function UserLibraryScreen() {
   const activeProfileId = useAppStore((s) => s.profilesState?.activeProfileId ?? null);
   const setScreen = useAppStore((s) => s.setScreen);
   const setError = useAppStore((s) => s.setError);
-  const [library, setLibrary] = useState<UserLibrary>(() => readUserLibrary(activeProfileId));
+  const { library, commit, loaded: libraryLoaded, saving: librarySaving } = useUserLibrary(activeProfileId, setError);
   const [query, setQuery] = useState("");
   const [playlistFilter, setPlaylistFilter] = useState<string | null>(null);
   const [audioPaths, setAudioPaths] = useState<Record<string, string | null>>({});
@@ -33,10 +31,6 @@ export function UserLibraryScreen() {
   const [infoTrackKey, setInfoTrackKey] = useState<string | null>(null);
   const [playlistMenuFor, setPlaylistMenuFor] = useState<string | null>(null);
   const [newPlaylistTitle, setNewPlaylistTitle] = useState("");
-
-  useEffect(() => {
-    setLibrary(readUserLibrary(activeProfileId));
-  }, [activeProfileId]);
 
   useEffect(() => {
     void refreshLibrary();
@@ -88,18 +82,14 @@ export function UserLibraryScreen() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [infoTrackKey]);
 
-  function commit(next: UserLibrary) {
-    if (!writeUserLibrary(activeProfileId, next)) {
-      setError(t("library.storageError"));
-      return;
-    }
-    setLibrary(next);
-  }
-
   function createPlaylist() {
     const title = window.prompt(t("library.playlistNamePrompt"))?.trim();
     if (!title) return;
-    commit({
+    if ([...title].length > 120) {
+      setError(t("library.playlistNameInvalid"));
+      return;
+    }
+    void commit({
       ...library,
       playlists: [...library.playlists, { id: createLibraryId(), title, createdAt: new Date().toISOString() }],
     });
@@ -107,7 +97,7 @@ export function UserLibraryScreen() {
 
   function deletePlaylist(id: string, title: string) {
     if (!window.confirm(t("library.playlistDeleteConfirm", { title }))) return;
-    commit({
+    void commit({
       ...library,
       playlists: library.playlists.filter((playlist) => playlist.id !== id),
       tracks: library.tracks.map((track) => ({
@@ -120,7 +110,7 @@ export function UserLibraryScreen() {
 
   function addToPlaylist(trackKey: string, playlistId: string) {
     if (!playlistId) return;
-    commit({
+    void commit({
       ...library,
       tracks: library.tracks.map((track) =>
         libraryTrackKey(track) !== trackKey || track.playlistIds.includes(playlistId)
@@ -134,7 +124,7 @@ export function UserLibraryScreen() {
     const title = newPlaylistTitle.trim();
     if (!title) return;
     const playlist = { id: createLibraryId(), title, createdAt: new Date().toISOString() };
-    commit({
+    void commit({
       ...library,
       playlists: [...library.playlists, playlist],
       tracks: library.tracks.map((track) =>
@@ -148,7 +138,7 @@ export function UserLibraryScreen() {
   }
 
   function removeFromPlaylist(trackKey: string, playlistId: string) {
-    commit({
+    void commit({
       ...library,
       tracks: library.tracks.map((track) =>
         libraryTrackKey(track) !== trackKey
@@ -159,12 +149,12 @@ export function UserLibraryScreen() {
   }
 
   function removeTrack(trackKey: string) {
-    commit({ ...library, tracks: library.tracks.filter((track) => libraryTrackKey(track) !== trackKey) });
+    void commit({ ...library, tracks: library.tracks.filter((track) => libraryTrackKey(track) !== trackKey) });
     if (infoTrackKey === trackKey) setInfoTrackKey(null);
   }
 
   function toggleLike(trackKey: string) {
-    commit({
+    void commit({
       ...library,
       tracks: library.tracks.map((track) =>
         libraryTrackKey(track) === trackKey ? { ...track, liked: !track.liked } : track,
@@ -173,7 +163,7 @@ export function UserLibraryScreen() {
   }
 
   function incrementPlayCount(trackKey: string) {
-    commit({
+    void commit({
       ...library,
       tracks: library.tracks.map((track) =>
         libraryTrackKey(track) === trackKey
@@ -204,7 +194,7 @@ export function UserLibraryScreen() {
           </h1>
           <p className="hint">{t("library.savedOnlyHint")}</p>
         </div>
-        <button type="button" className="btn primary" onClick={createPlaylist}>
+        <button type="button" className="btn primary" disabled={!libraryLoaded || librarySaving} onClick={createPlaylist}>
           {t("library.playlistCreate")}
         </button>
       </header>
@@ -240,6 +230,7 @@ export function UserLibraryScreen() {
               <button
                 type="button"
                 className="playlist-delete"
+                disabled={!libraryLoaded || librarySaving}
                 aria-label={t("library.playlistDelete", { title: playlist.title })}
                 onClick={() => deletePlaylist(playlist.id, playlist.title)}
               >
@@ -294,6 +285,7 @@ export function UserLibraryScreen() {
                           className="playlist-chip"
                           style={{ "--playlist-hue": playlistHue(id) } as CSSProperties}
                           key={id}
+                          disabled={!libraryLoaded || librarySaving}
                           onClick={() => removeFromPlaylist(key, id)}
                           aria-label={t("library.removeFromPlaylist", { title: playlist.title })}
                         >
@@ -310,6 +302,7 @@ export function UserLibraryScreen() {
                   <button
                     type="button"
                     className="user-library-icon-button"
+                    disabled={!libraryLoaded || librarySaving}
                     aria-label={track.liked ? t("library.unlike") : t("library.like")}
                     title={track.liked ? t("library.unlike") : t("library.like")}
                     aria-pressed={Boolean(track.liked)}
@@ -329,6 +322,7 @@ export function UserLibraryScreen() {
                   <button
                     type="button"
                     className="user-library-icon-button"
+                    disabled={!libraryLoaded || librarySaving}
                     aria-label={t("library.addToPlaylist")}
                     aria-expanded={playlistMenuFor === key}
                     aria-haspopup="dialog"
@@ -359,9 +353,9 @@ export function UserLibraryScreen() {
                               type="button"
                               className="playlist-picker-option"
                               style={{ "--playlist-hue": playlistHue(playlist.id) } as CSSProperties}
-                              disabled={alreadyAdded}
+                              disabled={alreadyAdded || !libraryLoaded || librarySaving}
                               onClick={() => {
-                                addToPlaylist(key, playlist.id);
+                                void addToPlaylist(key, playlist.id);
                                 setPlaylistMenuFor(null);
                               }}
                             >
@@ -375,7 +369,7 @@ export function UserLibraryScreen() {
                         className="playlist-picker-create"
                         onSubmit={(event) => {
                           event.preventDefault();
-                          createPlaylistAndAdd(key);
+                          void createPlaylistAndAdd(key);
                         }}
                       >
                         <label>
@@ -386,7 +380,7 @@ export function UserLibraryScreen() {
                             maxLength={64}
                           />
                         </label>
-                        <button type="submit" className="btn primary" disabled={!newPlaylistTitle.trim()}>
+                        <button type="submit" className="btn primary" disabled={!newPlaylistTitle.trim() || !libraryLoaded || librarySaving}>
                           {t("library.playlistCreateAndAdd")}
                         </button>
                       </form>
@@ -395,6 +389,7 @@ export function UserLibraryScreen() {
                   <button
                     type="button"
                     className="user-library-icon-button"
+                    disabled={!libraryLoaded || librarySaving}
                     aria-label={t("library.removeSavedTrack")}
                     title={t("library.removeSavedTrack")}
                     onClick={() => removeTrack(key)}
