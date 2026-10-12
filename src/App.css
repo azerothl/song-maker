@@ -11733,6 +11733,7 @@ details[open] > summary {
 }
 
 .production-workspace-studio .studio-track-control {
+  grid-template-rows: minmax(0, 1fr);
   height: 36px;
 }
 
