@@ -1311,7 +1311,8 @@ option {
   gap: 0.55rem 0.9rem;
 }
 
-.song-create-batch-trigger {
+.song-create-batch-trigger,
+.song-studio-versions-trigger {
   min-height: 2rem;
   padding: 0.3rem 0.65rem;
   font-size: 0.88rem;
