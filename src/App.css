@@ -11702,12 +11702,12 @@ details[open] > summary {
 
 /* Dense desktop arrangement: put more of the Studio width back into the clips. */
 .production-workspace-studio .production-common-timeline {
-  --production-controls-width: calc(140px + 52px + 52px + 48px + 24px + 0.4rem);
+  --production-controls-width: calc(136px + 56px + 56px + 48px + 24px + 0.4rem);
 }
 
 .production-workspace-studio .production-mix-colheaders.production-mix-grid,
 .production-workspace-studio .production-mix-row {
-  grid-template-columns: minmax(122px, 140px) 52px 52px 48px 24px minmax(300px, 1fr);
+  grid-template-columns: minmax(118px, 136px) 56px 56px 48px 24px minmax(300px, 1fr);
   min-width: 620px;
   column-gap: 0.1rem;
 }
@@ -11722,7 +11722,7 @@ details[open] > summary {
 }
 
 .production-workspace-studio .production-mix-track-label {
-  font-size: 0.64rem;
+  font-size: 0.68rem;
 }
 
 .production-workspace-studio .studio-track-color-input {
@@ -11733,6 +11733,7 @@ details[open] > summary {
 }
 
 .production-workspace-studio .studio-track-control {
+  grid-template-rows: minmax(0, 1fr);
   height: 36px;
 }
 
@@ -11741,15 +11742,15 @@ details[open] > summary {
 }
 
 .production-workspace-studio .studio-track-control .mix-knob-dial {
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
-  min-height: 18px;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
 }
 
 .production-workspace-studio .studio-track-control .mix-knob-value,
 .production-workspace-studio .studio-track-control .mix-knob-input {
-  font-size: 0.56rem;
+  font-size: 0.62rem;
 }
 
 .production-workspace-studio .production-mix-row > .track-ms .track-ms-btn,
@@ -11768,29 +11769,48 @@ details[open] > summary {
   height: 38px;
 }
 
-/* The two arrangement rows share one frame: tempo above, marker names below. */
+/* Tempo and markers share a compact, readable frame above the track waveforms. */
 .production-workspace-studio .clip-tempo-lane,
 .production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane),
 .production-workspace-studio .clip-tempo-lane > .clip-lane-rail,
 .production-workspace-studio .clip-marker-lane > .clip-lane-rail {
-  height: 28px;
-  min-height: 28px;
+  height: 36px;
+  min-height: 36px;
 }
 
 .production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane) {
-  margin-top: -28px;
+  margin-top: -36px;
+}
+
+.production-workspace-studio .clip-tempo-flag {
+  top: 1px;
+  height: 16px;
+  min-height: 16px;
 }
 
 .production-workspace-studio .clip-marker-flag {
-  top: 12px;
-  min-height: 14px;
-  height: 14px;
+  top: 19px;
+  min-height: 15px;
+  height: 15px;
+}
+
+.production-workspace-studio .clip-tempo-add,
+.production-workspace-studio .clip-marker-add {
+  right: -42px;
+  width: 20px;
+  min-width: 20px;
+  height: 17px;
+  min-height: 17px;
+  padding: 0;
+  line-height: 1;
+}
+
+.production-workspace-studio .clip-tempo-add {
+  top: 1px;
 }
 
 .production-workspace-studio .clip-marker-add {
-  top: 13px;
-  min-height: 20px;
-  height: 20px;
+  top: 18px;
 }
 
 .production-workspace-studio .clip-ruler[role="slider"] {
@@ -11829,6 +11849,23 @@ details[open] > summary {
   .production-workspace-studio .clip-marker-lane:not(.clip-tempo-lane) {
     top: 44px;
     margin-top: -44px;
+  }
+
+  .production-workspace-studio .clip-tempo-add,
+  .production-workspace-studio .clip-marker-add {
+    right: -46px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .production-workspace-studio .clip-tempo-add {
+    top: 2px;
+  }
+
+  .production-workspace-studio .clip-marker-add {
+    top: 46px;
   }
 }
 
