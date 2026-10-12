@@ -1145,13 +1145,17 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
               )}
             </div>
             {projectJob && projectJob.state !== "idle" && (
-              <div className="song-job-banner">
-                <span role={projectJob.state === "failed" ? "alert" : "status"}>
+              <div
+                className="song-job-banner"
+                role={projectJob.state === "failed" ? "alert" : "status"}
+                aria-live={projectJob.state === "failed" ? "assertive" : "polite"}
+              >
+                <span>
                   {projectJob.state === "completed"
                     ? t("job.completed")
                     : projectJob.state === "cancelled"
                       ? t("job.cancelled")
-                      : projectJobError?.message ?? t("job.generating")}
+                      : projectJobError?.message ?? (projectJob.label || t("job.generating"))}
                 </span>
                 {projectJobError?.details && (
                   <details className="error-details">
