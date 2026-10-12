@@ -1,7 +1,7 @@
 import { execFile as execFileCallback, spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, realpathSync, statSync } from 'node:fs';
-import { link, mkdir, open, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { link, mkdir, mkdtemp, open, readFile, rename, rm, stat, unlink, writeFile } from 'node:fs/promises';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -10,6 +10,7 @@ import { promisify } from 'node:util';
 import { inspectWav } from './audio-quality.mjs';
 import { readSongMakerRuntimeSettings } from './song-maker-settings.mjs';
 import { expectedYue2ModelBytes, YUE2_COMMON, YUE2_MODELS } from './yue2-assets.mjs';
+import { fitAbcPlan } from './plan-duration.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const execFile = promisify(execFileCallback);
@@ -346,7 +347,7 @@ export function stylePrompt(song) {
   return style;
 }
 
-export function cliArgs(song, runtime, destination) {
+export function cliArgs(song, runtime, destination, { abcFile = null } = {}) {
   const [min, max] = semanticBudget(song);
   const style = stylePrompt(song);
   return ['--task', 'gen', '--family', 'yue2', '--model', runtime.modelDir, '--backend', 'cuda',
@@ -354,8 +355,34 @@ export function cliArgs(song, runtime, destination) {
     '--session-option', `yue2.model_gguf=${runtime.modelName}`,
     '--request-option', `style=${style}`, '--request-option', `cot=${song.cot}`,
     '--request-option', `semantic_min_tokens=${min}`, '--request-option', `semantic_max_tokens=${max}`,
+    ...(abcFile ? ['--request-option', `abc_file=${abcFile}`] : []),
     '--lyrics', song.instrumental ? '' : song.lyrics, '--seed', String(song.seed),
     '--out', destination];
+}
+
+// Instrumental songs have a fixed token budget: audio.cpp suppresses the stop
+// token until the requested duration, and when YuE2 plans a shorter song the
+// rest of the take is sampled as near-silence. Their ABC plan is generated
+// first and fitted to the duration before the audio is rendered from it.
+export function plansDuration(song) {
+  return song.instrumental && song.cot !== 'off';
+}
+
+export function cliPlanArgs(song, runtime, outDir) {
+  const args = cliArgs(song, runtime, '');
+  args.splice(args.indexOf('--out'), 2, '--request-option', 'stop_after=abc', '--out-dir', outDir);
+  return args;
+}
+
+// Without a measurable plan the take is rendered as before, and flagged.
+export function fitSongPlan(song, abc) {
+  const { abc: fitted, ...report } = typeof abc === 'string' && abc.trim()
+    ? fitAbcPlan(abc, semanticBudget(song)[0] / 25)
+    : { abc: null, action: 'missing', planSec: null, fittedSec: null };
+  const warning = ['missing', 'unmeasured'].includes(report.action)
+    ? `Plan YuE2 de « ${song.title} » ${report.action === 'missing' ? 'absent' : 'non mesurable'} : sa durée n’a pas été ajustée, écoute la fin du morceau.`
+    : null;
+  return { abc: fitted, report, warning };
 }
 
 function promptTokens(song) {
@@ -503,6 +530,50 @@ function cancellationError() {
   return error;
 }
 
+function runCliProcess(runtime, args, limits, signal) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(runtime.binary, args, { windowsHide: true, shell: false });
+    let tail = '';
+    let telemetryWarning = null;
+    const abort = () => child.kill();
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) abort();
+    let monitorBusy = false;
+    let safetyError = null;
+    const monitor = setInterval(() => {
+      if (monitorBusy || safetyError) return;
+      monitorBusy = true;
+      readGpuTelemetry()
+        .then(telemetry => assertGpuSafe(telemetry, limits, false))
+        .catch(error => {
+          if (error.code === 'GPU_SAFETY_STOP') {
+            safetyError = error;
+            child.kill();
+          } else {
+            telemetryWarning = 'Une lecture ponctuelle des capteurs NVIDIA a échoué pendant le rendu; le contrôle thermique reprendra au prochain relevé.';
+          }
+        })
+        .finally(() => { monitorBusy = false; });
+    }, 3000);
+    monitor.unref();
+    child.on('error', error => {
+      clearInterval(monitor);
+      signal?.removeEventListener('abort', abort);
+      reject(error);
+    });
+    for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => {
+      tail = (tail + chunk.toString()).slice(-6000);
+    });
+    child.on('close', code => {
+      clearInterval(monitor);
+      signal?.removeEventListener('abort', abort);
+      if (safetyError) reject(safetyError);
+      else if (signal?.aborted) reject(cancellationError());
+      else resolve({ code, tail, telemetryWarning });
+    });
+  });
+}
+
 export async function runCli(song, destination, runtime = runtimeStatus(), signal) {
   if (signal?.aborted) throw cancellationError();
   if (runtime.engineId !== 'yue2') throw new Error('ACE-Step MCP requiert audiocpp_server ; aucun repli CLI n’est autorisé.');
@@ -514,48 +585,27 @@ export async function runCli(song, destination, runtime = runtimeStatus(), signa
   if (existsSync(temporary)) throw new Error(`Export partiel déjà présent : ${temporary}`);
   const limits = gpuLimitsForRuntime(runtime);
   assertGpuSafe(await readGpuTelemetry(), limits);
-  let tail = '';
-  let telemetryWarning = null;
+  const warnings = [];
+  let planDir = null;
   try {
-    const code = await new Promise((resolve, reject) => {
-      const child = spawn(runtime.binary, cliArgs(song, runtime, temporary), { windowsHide: true, shell: false });
-      const abort = () => child.kill();
-      signal?.addEventListener('abort', abort, { once: true });
-      if (signal?.aborted) abort();
-      let monitorBusy = false;
-      let safetyError = null;
-      const monitor = setInterval(() => {
-        if (monitorBusy || safetyError) return;
-        monitorBusy = true;
-        readGpuTelemetry()
-          .then(telemetry => assertGpuSafe(telemetry, limits, false))
-          .catch(error => {
-            if (error.code === 'GPU_SAFETY_STOP') {
-              safetyError = error;
-              child.kill();
-            } else {
-              telemetryWarning = 'Une lecture ponctuelle des capteurs NVIDIA a échoué pendant le rendu; le contrôle thermique reprendra au prochain relevé.';
-            }
-          })
-          .finally(() => { monitorBusy = false; });
-      }, 3000);
-      monitor.unref();
-      child.on('error', error => {
-        clearInterval(monitor);
-        signal?.removeEventListener('abort', abort);
-        reject(error);
-      });
-      for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => {
-        tail = (tail + chunk.toString()).slice(-6000);
-      });
-      child.on('close', code => {
-        clearInterval(monitor);
-        signal?.removeEventListener('abort', abort);
-        if (safetyError) reject(safetyError);
-        else if (signal?.aborted) reject(cancellationError());
-        else resolve(code);
-      });
-    });
+    let plan = null;
+    let abcFile = null;
+    if (runtime.engineId === "yue2" && plansDuration(song)) {
+      planDir = await mkdtemp(path.join(os.tmpdir(), 'song-maker-plan-'));
+      const planned = await runCliProcess(runtime, cliPlanArgs(song, runtime, planDir), limits, signal);
+      if (planned.telemetryWarning) warnings.push(planned.telemetryWarning);
+      if (planned.code !== 0) throw new Error(`Le plan YuE2 a échoué (code ${planned.code}) : ${planned.tail.slice(-1000)}`);
+      const fitted = fitSongPlan(song, await readFile(path.join(planDir, 'score.abc'), 'utf8').catch(() => ''));
+      plan = fitted.report;
+      if (fitted.warning) warnings.push(fitted.warning);
+      if (fitted.abc) {
+        abcFile = path.join(planDir, 'fitted.abc');
+        await writeFile(abcFile, fitted.abc, 'utf8');
+      }
+    }
+    const { code, tail, telemetryWarning } = await runCliProcess(runtime,
+      cliArgs(song, runtime, temporary, { abcFile }), limits, signal);
+    if (telemetryWarning && !warnings.includes(telemetryWarning)) warnings.push(telemetryWarning);
     if (code !== 0) throw new Error(`YuE2 a échoué (code ${code}) : ${tail.slice(-1000)}`);
     const size = (await stat(temporary)).size;
     if (size < 1024) throw new Error('YuE2 n’a pas produit un WAV valide.');
@@ -564,10 +614,12 @@ export async function runCli(song, destination, runtime = runtimeStatus(), signa
     assertRequestedDuration(song, durationMs);
     if (signal?.aborted) throw cancellationError();
     await publishExclusive(temporary, destination);
-    return { destination, bytes: size, durationMs, quality, warnings: telemetryWarning ? [telemetryWarning] : [] };
+    return { destination, bytes: size, durationMs, quality, ...(plan ? { plan } : {}), warnings };
   } catch (error) {
     await unlink(temporary).catch(() => {});
     throw error;
+  } finally {
+    if (planDir) await rm(planDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
@@ -651,12 +703,12 @@ export async function startYue2Server(runtime, jobId) {
   return startAudioServer(runtime, jobId);
 }
 
-export function serverSongRequest(song, engineId = song.engineId || 'yue2') {
+export function serverSongRequest(song, { abc = null, engineId = song.engineId || 'yue2' } = {}) {
   if (engineId === 'ace_step') {
     const request = {
       task_route: 'text2music',
       text: song.instrumental
-        ? `${stylePrompt(song)}; instrumental only, no vocals, no singing, no spoken voice`
+        ? stylePrompt(song) + '; instrumental only, no vocals, no singing, no spoken voice'
         : stylePrompt(song),
       lyrics: song.instrumental ? '[Instrumental]' : song.lyrics,
       seed: song.seed,
@@ -665,8 +717,8 @@ export function serverSongRequest(song, engineId = song.engineId || 'yue2') {
       guidance_scale: 1.0,
     };
     if (song.tempo !== null && song.tempo !== undefined) request.bpm = song.tempo;
-    if (song.key) request.keyscale = `${song.key.tonic} ${song.key.mode}`;
-    if (song.meter) request.timesignature = `${song.meter.numerator}/${song.meter.denominator}`;
+    if (song.key) request.keyscale = song.key.tonic + ' ' + song.key.mode;
+    if (song.meter) request.timesignature = song.meter.numerator + '/' + song.meter.denominator;
     if (!song.instrumental && song.language) request.language = song.language === 'en' ? 'English' : song.language;
     return { model: 'ace_step', request };
   }
@@ -680,9 +732,26 @@ export function serverSongRequest(song, engineId = song.engineId || 'yue2') {
         style: stylePrompt(song), cot: song.cot, num_inference_steps: 8,
         guidance_scale: song.cot === 'off' ? 1.01 : 1.0,
         semantic_min_tokens: min, semantic_max_tokens: max, export_semantic: true,
+        ...(abc ? { abc } : {}),
       },
     },
   };
+}
+
+export function serverPlanRequest(song) {
+  return {
+    model: 'yue2',
+    request: {
+      lyrics: song.instrumental ? '' : song.lyrics,
+      seed: song.seed,
+      options: { style: stylePrompt(song), cot: song.cot, stop_after: 'abc' },
+    },
+  };
+}
+
+export function scoreFromTaskResult(result) {
+  const artifact = result?.artifacts?.find(item => item?.id === 'score' || item?.meta?.format === 'abc');
+  return typeof artifact?.payload === 'string' ? Buffer.from(artifact.payload, 'base64').toString('utf8') : '';
 }
 
 export async function runServerSong(song, destination, runtime, server, signal) {
@@ -695,7 +764,6 @@ export async function runServerSong(song, destination, runtime, server, signal) 
   if (existsSync(temporary)) throw new Error(`Export partiel déjà présent : ${temporary}`);
   const limits = gpuLimitsForRuntime(runtime);
   assertGpuSafe(await readGpuTelemetry(), limits, !server.modelLoaded);
-  const request = serverSongRequest(song, runtime.engineId);
   const controller = new AbortController();
   let safetyError = null;
   let telemetryWarning = null;
@@ -726,7 +794,7 @@ export async function runServerSong(song, destination, runtime, server, signal) 
       .finally(() => { monitorBusy = false; });
   }, 3000);
   monitor.unref();
-  try {
+  const runTask = async request => {
     const response = await fetch(`${server.baseUrl}/v1/tasks/run`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify(request), signal: controller.signal,
@@ -738,7 +806,18 @@ export async function runServerSong(song, destination, runtime, server, signal) 
       const body = await response.text();
       throw new Error(`${runtime.engineId === 'ace_step' ? 'ACE-Step' : 'YuE2'} a échoué (HTTP ${response.status}) : ${body.slice(-1000)}`);
     }
-    const result = await response.json();
+    return response.json();
+  };
+  const warnings = [];
+  try {
+    let plan = null;
+    let abc = null;
+    if (runtime.engineId === "yue2" && plansDuration(song)) {
+      const fitted = fitSongPlan(song, scoreFromTaskResult(await runTask(serverPlanRequest(song))));
+      ({ abc, report: plan } = fitted);
+      if (fitted.warning) warnings.push(fitted.warning);
+    }
+    const result = await runTask(serverSongRequest(song, { engineId: runtime.engineId, abc }));
     const encoded = result?.audio || result?.named_audio_outputs?.[0]?.audio;
     if (typeof encoded !== 'string' || !encoded.length) throw new Error('Réponse audio.cpp sans WAV base64.');
     const wav = Buffer.from(encoded, 'base64');
@@ -751,7 +830,8 @@ export async function runServerSong(song, destination, runtime, server, signal) 
     if (signal?.aborted) throw cancellationError();
     if (safetyError) throw safetyError;
     await publishExclusive(temporary, destination);
-    return { destination, bytes: wav.length, durationMs, quality, warnings: telemetryWarning ? [telemetryWarning] : [] };
+    if (telemetryWarning) warnings.push(telemetryWarning);
+    return { destination, bytes: wav.length, durationMs, quality, ...(plan ? { plan } : {}), warnings };
   } catch (error) {
     await unlink(temporary).catch(() => {});
     if (safetyError) throw safetyError;
