@@ -24,7 +24,7 @@ for (const locale of ["fr", "en"] as const) it(`missing Qwen model has a readabl
   await page.getByRole("button",{name:locale==="fr"?"Assistant de mix":"Mix assistant",exact:true}).click();
   const panel=page.locator(".qwen-mix-assistant");
   await panel.getByRole("button",{name:locale==="fr"?"Proposer des réglages avec l’assistant":"Propose settings with the assistant",exact:true}).click();
-  await panel.getByText(locale==="fr"?"Le modèle configuré est absent. Installez-le sur le serveur LLM local puis relancez.":"The configured model is missing. Install it on the local LLM server and try again.",{exact:true}).waitFor();
+  await panel.getByText(locale==="fr"?"Le modèle choisi n’est pas installé. Installez-le sur le service local, puis réessayez.":"The selected model is not installed. Install it on the local service, then try again.",{exact:true}).waitFor();
   assert.equal(await gain.innerText(),initial);
   assert.doesNotMatch(await panel.innerText(),/MODEL_MISSING|private diagnostic|qwen\.mix\./);
  } finally {await page.close();}
@@ -68,7 +68,7 @@ it("Qwen settings require confirmation and can be undone; manual functions remai
   assert.ok(initialVisibility.titleTop>=initialVisibility.panelTop && initialVisibility.actionBottom<=initialVisibility.panelBottom && initialVisibility.panelBottom<=initialVisibility.vh,JSON.stringify(initialVisibility));
   await panel.getByRole("button",{name:"Propose settings with the assistant",exact:true}).click();
   await panel.getByRole("button",{name:"Review and apply",exact:true}).waitFor();
-  assert.match(await panel.innerText(),/Complete analysis, including track decoding: [\d.,]+ s\./);
+  assert.match(await panel.innerText(),/Complete analysis, including track preparation: [\d.,]+ s\./);
   assert.equal(await gain.innerText(),before);
   await panel.getByRole("button",{name:"Review and apply",exact:true}).click();
   assert.equal(await gain.innerText(),before);
@@ -97,7 +97,7 @@ it("invalid local answers leave gains unchanged and disclose only a closed diagn
   await page.getByRole("button",{name:"Mix assistant",exact:true}).click();
   const panel=page.locator(".qwen-mix-assistant");
   await panel.getByRole("button",{name:"Propose settings with the assistant",exact:true}).click();
-  await panel.getByText("The model returned invalid settings. No settings were applied.",{exact:true}).waitFor();
+  await panel.getByText("The assistant suggested settings that cannot be applied. Nothing was changed.",{exact:true}).waitFor();
   assert.equal(await gain.innerText(),before);
   assert.equal(await panel.getByRole("button",{name:"Review and apply",exact:true}).count(),0);
   const detail=panel.locator("details").filter({has:page.locator("code")});
