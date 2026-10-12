@@ -453,6 +453,8 @@ export const api = {
     }),
   listGenerations: (id: string) =>
     invoke<GenerationSummary[]>("list_generations", { id }),
+  generationWaveform: (id: string, genId: string) =>
+    invoke<{ peaks: number[]; duration: number }>("generation_waveform", { id, genId }),
   readScoreAbc: (id: string, genId: string) =>
     invoke<string | null>("read_score_abc", { id, genId }),
   saveScore: (id: string, document: unknown) =>

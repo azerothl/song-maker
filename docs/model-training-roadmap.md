@@ -86,11 +86,11 @@ Oui, faisable. Commencer par 4 stems standard MoisesDB : `vocals/drums/bass/othe
 | Prompt bars multi-pistes | REMI multi-track : prompt bars (genre, section, tempo, chords, tracks) + song bars par piste, FSM en inférence | SymPAC |
 | Reconstruction par stems | Conditions denses par piste (vocal MIDI, drum pattern, bass MIDI, chords, speaker emb. par piste), swap une piste | SongCraft étendu |
 
-Data : `mix -> Demucs/UVR -> stems -> MIR par stem -> tokens multi-pistes alignés`. Entraîner d'abord mix+vocal (comme YuE), puis fine-tune multi-stems sur Slakh2100 synth + séparations maison.
+Data : `mix -> Demucs/UVR -> stems -> MIR par stem -> tokens multi-pistes alignés`. Cette chaîne reste une cible, pas une source autorisée. Slakh2100 est un candidat technique multi-stems, mais sa licence de jeu ne suffit pas à établir les droits de chaque MIDI et œuvre sous-jacents. Ne pas l’entraîner ni redistribuer de poids avant la revue de provenance et de droits décrite dans [`model-training-data-audit.md`](model-training-data-audit.md).
 
 ## 6. Plan d'entraînement par étapes
 
-1. **Data (Stage 0)** : 1M audios -> annotation auto MIR : Whisper timestamps mots, phonemizer, chords, beats, sections, vocal MIDI, speaker embedding. Stocker triplets `(audio, latents VAE, score ABC)`. Split **par morceau** (pas de leak, cf. `lora-training`).
+1. **Data (Stage 0, bloqué)** : l’objectif d’annotation à grande échelle n’est pas une autorisation de collecter 1M audios. Avant toute collecte, approuver les droits, le manifeste, les groupes d’œuvres et le protocole d’évaluation décrits dans [`model-training-data-audit.md`](model-training-data-audit.md). Ensuite seulement, préparer triplets `(audio, latents VAE, score ABC)` et split **par œuvre** sans fuite.
 2. **Stage A — VAE + tokenizer** : VAE 1D + MERT2 25Hz BEST-RQ.
 3. **Stage B — Partitionneur** : fine-tune SheetSage2-like pour audio->ABC. Sert à auto-annoter la suite.
 4. **Stage C — LM planificateur** : lyrics+style+audio-ref -> ABC -> codec (global + local).

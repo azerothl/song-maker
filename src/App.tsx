@@ -278,6 +278,11 @@ export function Sidebar() {
     : health.serverHealthy
       ? t("nav.runtimeOnline")
       : t("nav.runtimeOffline");
+  const audioStatus = !health
+    ? t("nav.statusChecking")
+    : !health.generationModelAvailable
+      ? t("nav.modelUnavailable")
+      : runtimeStatus;
   const runtimeAction = health?.serverHealthy
     ? t("nav.runtimeRestart")
     : t("nav.runtimeStart");
@@ -409,78 +414,69 @@ export function Sidebar() {
         </SidebarRow>
       </nav>
       <div className="sidebar-meta">
-        <SidebarRow tip={gpuLabel}>
-          <div
-            className="sidebar-meta-row"
-            role="group"
-            aria-label={gpuLabel}
-            tabIndex={collapsed ? 0 : undefined}
+        <SidebarRow tip={`${t("nav.runtime")}: ${audioStatus}`}>
+          <details
+            className={`sidebar-audio-status${health?.serverHealthy === true ? " is-online" : health ? " is-offline" : ""}`}
           >
-            <IconGpu />
-            <span className="sidebar-label">{gpuLabel}</span>
-          </div>
-        </SidebarRow>
-        <SidebarRow tip={`${modelName} · ${modelStatus}`}>
-          <div
-            className={`sidebar-meta-row sidebar-model-row${health?.generationModelAvailable === true ? " is-ready" : health ? " is-unavailable" : ""}`}
-            role="group"
-            aria-label={`${t("nav.model")}: ${modelName}, ${modelStatus}`}
-            tabIndex={collapsed ? 0 : undefined}
-          >
-            <IconModel />
-            <span className="sidebar-model-copy sidebar-label">
-              <strong>{modelName}</strong>
-              <small>{modelStatus}</small>
-            </span>
-          </div>
-        </SidebarRow>
-        <SidebarRow tip={runtimeStatus}>
-          <div
-            className={`sidebar-meta-row sidebar-runtime-row${health?.serverHealthy === true ? " is-online" : health ? " is-offline" : ""}`}
-            role="group"
-            aria-label={`${t("nav.runtime")}: ${runtimeStatus}`}
-            tabIndex={collapsed ? 0 : undefined}
-          >
-            <IconRuntime />
-            <span className="sidebar-label">{runtimeStatus}</span>
-          </div>
-        </SidebarRow>
-        {health && isTauri() && (
-          <SidebarRow tip={runtimeBusy ? t("nav.runtimeBusy") : t("nav.runtimeActionHint")}>
-            <button
-              type="button"
-              className="sidebar-runtime-restart"
-              onClick={() => {
-                if (runtimeBusy || restartingRuntime) return;
-                setRestartingRuntime(true);
-                void api
-                  .restartAudioRuntime()
-                  .then(() => refreshHealth())
-                  .catch((reason: unknown) => {
-                    setError(reason instanceof Error ? reason.message : String(reason));
-                    return refreshHealth();
-                  })
-                  .finally(() => setRestartingRuntime(false));
-              }}
-              disabled={restartingRuntime}
-              aria-disabled={runtimeBusy || undefined}
-              title={runtimeBusy ? t("nav.runtimeBusy") : t("nav.runtimeActionHint")}
-              aria-label={restartingRuntime ? t("nav.runtimeRestarting") : runtimeAction}
-              aria-describedby={runtimeBusy ? "sidebar-runtime-busy" : undefined}
-              aria-busy={restartingRuntime}
-            >
-              <IconRestart />
-              <span className="sidebar-label">
-                {restartingRuntime ? t("nav.runtimeRestarting") : runtimeAction}
+            <summary aria-label={`${t("nav.runtime")}: ${audioStatus}`}>
+              <IconRuntime />
+              <span className="sidebar-audio-summary-copy sidebar-label">
+                <strong>{t("nav.runtime")}</strong>
+                <small>{audioStatus}</small>
               </span>
-            </button>
-            {runtimeBusy && (
-              <span id="sidebar-runtime-busy" className="sr-only">
-                {t("nav.runtimeBusy")}
-              </span>
-            )}
-          </SidebarRow>
-        )}
+              <span className="sidebar-audio-disclosure-mark sidebar-label" aria-hidden="true">›</span>
+            </summary>
+            <div className="sidebar-audio-details">
+              <div className="sidebar-audio-detail-row">
+                <IconGpu />
+                <span className="sidebar-label">{gpuLabel}</span>
+              </div>
+              <div className={`sidebar-audio-detail-row sidebar-model-row${health?.generationModelAvailable === true ? " is-ready" : health ? " is-unavailable" : ""}`}>
+                <IconModel />
+                <span className="sidebar-model-copy sidebar-label">
+                  <strong>{modelName}</strong>
+                  <small>{modelStatus}</small>
+                </span>
+              </div>
+              {health && isTauri() && (
+                <>
+                  <button
+                    type="button"
+                    className="sidebar-runtime-restart"
+                    onClick={() => {
+                      if (runtimeBusy || restartingRuntime) return;
+                      setRestartingRuntime(true);
+                      void api
+                        .restartAudioRuntime()
+                        .then(() => refreshHealth())
+                        .catch((reason: unknown) => {
+                          setError(reason instanceof Error ? reason.message : String(reason));
+                          return refreshHealth();
+                        })
+                        .finally(() => setRestartingRuntime(false));
+                    }}
+                    disabled={restartingRuntime}
+                    aria-disabled={runtimeBusy || undefined}
+                    title={runtimeBusy ? t("nav.runtimeBusy") : t("nav.runtimeActionHint")}
+                    aria-label={restartingRuntime ? t("nav.runtimeRestarting") : runtimeAction}
+                    aria-describedby={runtimeBusy ? "sidebar-runtime-busy" : undefined}
+                    aria-busy={restartingRuntime}
+                  >
+                    <IconRestart />
+                    <span className="sidebar-label">
+                      {restartingRuntime ? t("nav.runtimeRestarting") : runtimeAction}
+                    </span>
+                  </button>
+                  {runtimeBusy && (
+                    <span id="sidebar-runtime-busy" className="sr-only">
+                      {t("nav.runtimeBusy")}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          </details>
+        </SidebarRow>
         {sidebarJob && (
           <SidebarRow
             tip={
@@ -630,11 +626,18 @@ export default function App() {
         {screen === "licenses" && <LicensesScreen />}
       </main>
       {showPlayerDock && (
-        <div className="persistent-player-dock" aria-label={t("player.globalDock")}>
+        <div
+          className="persistent-player-dock"
+          aria-label={t("player.globalDock")}
+          data-studio-player={screen === "studio" ? "true" : undefined}
+        >
           <AudioPlayer
             projectId={activePlayerProjectId ?? undefined}
             sources={activePlayerSources}
             mix={activePlayerMix}
+            studioMode={screen === "studio"}
+            tempoBpm={project?.tempoBpm ?? 120}
+            meter={project?.meter ?? null}
             playbackKey={playerSelection?.trackKey}
             hideMixBakeStatus={screen === "studio" || screen === "song"}
             onError={setError}

@@ -106,7 +106,7 @@ test('Q4 is selected by default; Q8 requires an explicit choice', async () => {
   const previousCache = process.env.SONG_MAKER_CACHE;
   const previousModel = process.env.SONG_MAKER_MODEL;
   const cache = path.join(dir, 'cache');
-  const binaries = path.join(cache, 'binaries', 'v0.8.2', 'windows-cuda12.4');
+  const binaries = path.join(cache, 'binaries', 'v0.9.1', 'windows-cuda12.4');
   const modelDir = path.join(cache, 'models', 'Yue2-3B-GGUF');
   const files = [
     path.join(binaries, 'audiocpp_cli.exe'),

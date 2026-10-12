@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { LibraryTrackPlayer } from "../components/LibraryTrackPlayer";
 import { api } from "../lib/api";
 import {
@@ -11,6 +11,13 @@ import {
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 import { ProfileKindBadge } from "../components/ProfileKindBadge";
+import type { GenerationSummary, ProjectDoc } from "../lib/types";
+import { libraryWaveColors, playlistHue } from "../lib/studioTrackColors";
+
+type LibraryTrackDetails = {
+  project: ProjectDoc;
+  generation: GenerationSummary | undefined;
+};
 
 export function UserLibraryScreen() {
   const projects = useAppStore((s) => s.projects);
@@ -22,6 +29,10 @@ export function UserLibraryScreen() {
   const [query, setQuery] = useState("");
   const [playlistFilter, setPlaylistFilter] = useState<string | null>(null);
   const [audioPaths, setAudioPaths] = useState<Record<string, string | null>>({});
+  const [trackDetails, setTrackDetails] = useState<Record<string, LibraryTrackDetails>>({});
+  const [infoTrackKey, setInfoTrackKey] = useState<string | null>(null);
+  const [playlistMenuFor, setPlaylistMenuFor] = useState<string | null>(null);
+  const [newPlaylistTitle, setNewPlaylistTitle] = useState("");
 
   useEffect(() => {
     setLibrary(readUserLibrary(activeProfileId));
@@ -33,23 +44,49 @@ export function UserLibraryScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all(
-      library.tracks.map(async (track) => {
+    void (async () => {
+      const nextAudioPaths: Record<string, string | null> = {};
+      const nextTrackDetails: Record<string, LibraryTrackDetails> = {};
+      const tracksByProject = new Map<string, typeof library.tracks>();
+      for (const track of library.tracks) {
+        const tracks = tracksByProject.get(track.projectId) ?? [];
+        tracks.push(track);
+        tracksByProject.set(track.projectId, tracks);
+      }
+      await Promise.all([...tracksByProject.entries()].map(async ([projectId, tracks]) => {
         try {
-          const generations = await api.listGenerations(track.projectId);
-          const generation = generations.find((item) => item.id === track.generationId);
-          return [libraryTrackKey(track), generation?.audioPath ?? null] as const;
+          const [project, generations] = await Promise.all([
+            api.openProject(projectId),
+            api.listGenerations(projectId),
+          ]);
+          for (const track of tracks) {
+            const key = libraryTrackKey(track);
+            const generation = generations.find((item) => item.id === track.generationId);
+            nextAudioPaths[key] = generation?.audioPath ?? null;
+            nextTrackDetails[key] = { project, generation };
+          }
         } catch {
-          return [libraryTrackKey(track), null] as const;
+          for (const track of tracks) nextAudioPaths[libraryTrackKey(track)] = null;
         }
-      }),
-    ).then((entries) => {
-      if (!cancelled) setAudioPaths(Object.fromEntries(entries));
-    });
+      }));
+      if (!cancelled) {
+        setAudioPaths(nextAudioPaths);
+        setTrackDetails(nextTrackDetails);
+      }
+    })();
     return () => {
       cancelled = true;
     };
   }, [library.tracks]);
+
+  useEffect(() => {
+    if (!infoTrackKey) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setInfoTrackKey(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [infoTrackKey]);
 
   function commit(next: UserLibrary) {
     if (!writeUserLibrary(activeProfileId, next)) {
@@ -93,6 +130,23 @@ export function UserLibraryScreen() {
     });
   }
 
+  function createPlaylistAndAdd(trackKey: string) {
+    const title = newPlaylistTitle.trim();
+    if (!title) return;
+    const playlist = { id: createLibraryId(), title, createdAt: new Date().toISOString() };
+    commit({
+      ...library,
+      playlists: [...library.playlists, playlist],
+      tracks: library.tracks.map((track) =>
+        libraryTrackKey(track) !== trackKey
+          ? track
+          : { ...track, playlistIds: [...track.playlistIds, playlist.id] },
+      ),
+    });
+    setNewPlaylistTitle("");
+    setPlaylistMenuFor(null);
+  }
+
   function removeFromPlaylist(trackKey: string, playlistId: string) {
     commit({
       ...library,
@@ -106,6 +160,27 @@ export function UserLibraryScreen() {
 
   function removeTrack(trackKey: string) {
     commit({ ...library, tracks: library.tracks.filter((track) => libraryTrackKey(track) !== trackKey) });
+    if (infoTrackKey === trackKey) setInfoTrackKey(null);
+  }
+
+  function toggleLike(trackKey: string) {
+    commit({
+      ...library,
+      tracks: library.tracks.map((track) =>
+        libraryTrackKey(track) === trackKey ? { ...track, liked: !track.liked } : track,
+      ),
+    });
+  }
+
+  function incrementPlayCount(trackKey: string) {
+    commit({
+      ...library,
+      tracks: library.tracks.map((track) =>
+        libraryTrackKey(track) === trackKey
+          ? { ...track, playCount: (track.playCount ?? 0) + 1 }
+          : track,
+      ),
+    });
   }
 
   const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
@@ -156,6 +231,7 @@ export function UserLibraryScreen() {
               <button
                 type="button"
                 className={playlistFilter === playlist.id ? "active" : ""}
+                style={{ "--playlist-hue": playlistHue(playlist.id) } as CSSProperties}
                 aria-pressed={playlistFilter === playlist.id}
                 onClick={() => setPlaylistFilter(playlist.id)}
               >
@@ -200,7 +276,10 @@ export function UserLibraryScreen() {
                       audioPath={audioPath}
                       label={title}
                       projectId={track.projectId}
+                      generationId={track.generationId}
                       trackKey={key}
+                      {...libraryWaveColors(key)}
+                      onPlay={() => incrementPlayCount(key)}
                     />
                   ) : (
                     <p className="hint" role="status">{t("library.audioUnavailable")}</p>
@@ -213,6 +292,7 @@ export function UserLibraryScreen() {
                         <button
                           type="button"
                           className="playlist-chip"
+                          style={{ "--playlist-hue": playlistHue(id) } as CSSProperties}
                           key={id}
                           onClick={() => removeFromPlaylist(key, id)}
                           aria-label={t("library.removeFromPlaylist", { title: playlist.title })}
@@ -224,23 +304,102 @@ export function UserLibraryScreen() {
                   </div>
                 </div>
                 <div className="user-library-track-actions">
-                  <label>
-                    <span className="sr-only">{t("library.addToPlaylist")}</span>
-                    <select
-                      value=""
-                      disabled={library.playlists.length === 0}
-                      onChange={(event) => addToPlaylist(key, event.target.value)}
+                  <span className="user-library-play-count" aria-label={t("library.playCount", { count: track.playCount ?? 0 })}>
+                    ▶ {track.playCount ?? 0}
+                  </span>
+                  <button
+                    type="button"
+                    className="user-library-icon-button"
+                    aria-label={track.liked ? t("library.unlike") : t("library.like")}
+                    title={track.liked ? t("library.unlike") : t("library.like")}
+                    aria-pressed={Boolean(track.liked)}
+                    onClick={() => toggleLike(key)}
+                  >
+                    <span aria-hidden="true">{track.liked ? "♥" : "♡"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="user-library-icon-button"
+                    aria-label={t("library.information")}
+                    title={t("library.information")}
+                    onClick={() => setInfoTrackKey(key)}
+                  >
+                    <span aria-hidden="true">ⓘ</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="user-library-icon-button"
+                    aria-label={t("library.addToPlaylist")}
+                    aria-expanded={playlistMenuFor === key}
+                    aria-haspopup="dialog"
+                    title={t("library.addToPlaylist")}
+                    onClick={() => {
+                      setNewPlaylistTitle("");
+                      setPlaylistMenuFor((current) => current === key ? null : key);
+                    }}
+                  >
+                    <span aria-hidden="true">▤+</span>
+                  </button>
+                  {playlistMenuFor === key && (
+                    <div
+                      className="playlist-picker-popover"
+                      role="dialog"
+                      aria-label={t("library.addToPlaylist")}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") setPlaylistMenuFor(null);
+                      }}
                     >
-                      <option value="">{t("library.addToPlaylist")}</option>
-                      {library.playlists.map((playlist) => (
-                        <option key={playlist.id} value={playlist.id} disabled={track.playlistIds.includes(playlist.id)}>
-                          {playlist.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button type="button" className="btn ghost" onClick={() => removeTrack(key)}>
-                    {t("library.removeSavedTrack")}
+                      <strong>{t("library.playlists")}</strong>
+                      <div className="playlist-picker-options">
+                        {library.playlists.map((playlist) => {
+                          const alreadyAdded = track.playlistIds.includes(playlist.id);
+                          return (
+                            <button
+                              key={playlist.id}
+                              type="button"
+                              className="playlist-picker-option"
+                              style={{ "--playlist-hue": playlistHue(playlist.id) } as CSSProperties}
+                              disabled={alreadyAdded}
+                              onClick={() => {
+                                addToPlaylist(key, playlist.id);
+                                setPlaylistMenuFor(null);
+                              }}
+                            >
+                              <span>{playlist.title}</span>
+                              {alreadyAdded && <span aria-label={t("library.playlistAlreadyAdded")}>✓</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <form
+                        className="playlist-picker-create"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          createPlaylistAndAdd(key);
+                        }}
+                      >
+                        <label>
+                          <span>{t("library.playlistNamePrompt")}</span>
+                          <input
+                            value={newPlaylistTitle}
+                            onChange={(event) => setNewPlaylistTitle(event.target.value)}
+                            maxLength={64}
+                          />
+                        </label>
+                        <button type="submit" className="btn primary" disabled={!newPlaylistTitle.trim()}>
+                          {t("library.playlistCreateAndAdd")}
+                        </button>
+                      </form>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className="user-library-icon-button"
+                    aria-label={t("library.removeSavedTrack")}
+                    title={t("library.removeSavedTrack")}
+                    onClick={() => removeTrack(key)}
+                  >
+                    <span aria-hidden="true">×</span>
                   </button>
                 </div>
               </li>
@@ -248,6 +407,51 @@ export function UserLibraryScreen() {
           })}
         </ul>
       )}
+      {infoTrackKey && (() => {
+        const infoTrack = library.tracks.find((track) => libraryTrackKey(track) === infoTrackKey);
+        if (!infoTrack) return null;
+        const details = trackDetails[infoTrackKey];
+        const createdAt = details?.generation?.createdAt ?? details?.project.createdAt ?? infoTrack.addedAt;
+        const style = details?.project.style.trim();
+        const lyrics = details?.project.lyrics.trim();
+        return (
+          <div
+            className="user-library-info-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setInfoTrackKey(null);
+            }}
+          >
+            <section
+              className="user-library-info-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="user-library-info-title"
+            >
+              <header>
+                <div>
+                  <p className="studio-midi-editor-eyebrow">{t("library.information")}</p>
+                  <h2 id="user-library-info-title">{projectById.get(infoTrack.projectId)?.title ?? infoTrack.title}</h2>
+                </div>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  autoFocus
+                  onClick={() => setInfoTrackKey(null)}
+                  aria-label={t("production.arrangement.close")}
+                >
+                  ×
+                </button>
+              </header>
+              <p><strong>{t("library.createdAt")}</strong> {createdAt ? new Date(createdAt).toLocaleString() : t("library.informationUnavailable")}</p>
+              <h3>{t("library.stylePrompt")}</h3>
+              {style ? <p>{style}</p> : <p className="library-info-empty">{t("library.informationUnavailable")}</p>}
+              <h3>{t("library.lyrics")}</h3>
+              {lyrics ? <p className="library-info-lyrics">{lyrics}</p> : <p className="library-info-empty">{t("library.informationUnavailable")}</p>}
+            </section>
+          </div>
+        );
+      })()}
     </section>
   );
 }

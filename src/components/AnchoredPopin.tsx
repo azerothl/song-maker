@@ -89,8 +89,25 @@ export function AnchoredPopin({
 
     const margin = 8;
     const rect = anchor.getBoundingClientRect();
-    const maxW = Math.min(panelMaxWidth(className), window.innerWidth - margin * 2);
+    const maxW = Math.min(
+      panelMaxWidth(className),
+      window.innerWidth - margin * 2,
+    );
     panel.style.width = `${maxW}px`;
+
+    const dock = document.querySelector<HTMLElement>(
+      ".persistent-player-dock",
+    );
+    const dockRect = dock?.getBoundingClientRect();
+    const dockVisible = Boolean(
+      dockRect &&
+        dockRect.height > 0 &&
+        dockRect.top < window.innerHeight &&
+        getComputedStyle(dock!).visibility !== "hidden",
+    );
+    const bottomLimit = dockVisible
+      ? Math.min(window.innerHeight - margin, dockRect!.top - margin)
+      : window.innerHeight - margin;
 
     const dialogPopin = isDialogPopin(className);
     const capH = dialogPopin
@@ -105,7 +122,7 @@ export function AnchoredPopin({
     if (left < margin) left = margin;
 
     const belowTop = rect.bottom + margin;
-    const maxBelow = window.innerHeight - belowTop - margin;
+    const maxBelow = bottomLimit - belowTop;
     const maxAbove = rect.top - margin * 2;
 
     let top = belowTop;
@@ -153,6 +170,10 @@ export function AnchoredPopin({
       positionPanel();
     });
     ro.observe(panel);
+    const dock = document.querySelector<HTMLElement>(
+      ".persistent-player-dock",
+    );
+    if (dock) ro.observe(dock);
     const onResize = () => positionPanel();
     window.addEventListener("resize", onResize);
     return () => {

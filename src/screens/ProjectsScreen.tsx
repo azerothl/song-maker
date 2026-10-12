@@ -23,6 +23,14 @@ function formatUpdated(iso: string): string {
   }
 }
 
+function LibraryBookmarkIcon({ saved }: { saved: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} aria-hidden="true">
+      <path d="M7 3.75h10A1.75 1.75 0 0 1 18.75 5.5v15L12 16.4l-6.75 4.1v-15A1.75 1.75 0 0 1 7 3.75Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function ProjectsScreen() {
   const projects = useAppStore((s) => s.projects);
   const activeProfileId = useAppStore((s) => s.profilesState?.activeProfileId ?? null);
@@ -152,12 +160,17 @@ export function ProjectsScreen() {
                   {p.activeGenerationId ? (
                     <button
                       type="button"
-                      className="btn ghost"
-                      onClick={() => toggleLibraryTrack(p.id, p.activeGenerationId!, p.title)}
-                    >
-                      {savedTracks.some((track) => libraryTrackKey(track) === libraryTrackKey({ projectId: p.id, generationId: p.activeGenerationId! }))
+                      className="project-library-toggle"
+                      aria-pressed={savedTracks.some((track) => libraryTrackKey(track) === libraryTrackKey({ projectId: p.id, generationId: p.activeGenerationId! }))}
+                      aria-label={savedTracks.some((track) => libraryTrackKey(track) === libraryTrackKey({ projectId: p.id, generationId: p.activeGenerationId! }))
                         ? t("projects.removeFromLibrary")
                         : t("projects.addToLibrary")}
+                      title={savedTracks.some((track) => libraryTrackKey(track) === libraryTrackKey({ projectId: p.id, generationId: p.activeGenerationId! }))
+                        ? t("projects.removeFromLibrary")
+                        : t("projects.addToLibrary")}
+                      onClick={() => toggleLibraryTrack(p.id, p.activeGenerationId!, p.title)}
+                    >
+                      <LibraryBookmarkIcon saved={savedTracks.some((track) => libraryTrackKey(track) === libraryTrackKey({ projectId: p.id, generationId: p.activeGenerationId! }))} />
                     </button>
                   ) : (
                     <span className="hint">{t("projects.noMixYet")}</span>
