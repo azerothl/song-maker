@@ -35,22 +35,23 @@ describe("lecteur persistant et forme d’onde de la bibliothèque", () => {
     });
     try {
       await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
-      const libraryWaveform = page.locator(".library-track-waveform .waveform-canvas");
+      const libraryWaveform = page.locator(".library-track-waveform .waveform-canvas").first();
+      const firstWaveformLoading = page.locator(".library-track-waveform .waveform-loading").first();
       const dockWaveform = page.locator(".persistent-player-dock .waveform-canvas[data-peak-count]");
       await libraryWaveform.waitFor({ state: "visible" });
       await dockWaveform.waitFor({ state: "visible" });
-      assert.equal(await page.locator(".library-track-waveform .waveform-loading").isVisible(), true);
+      assert.equal(await firstWaveformLoading.isVisible(), true);
       await page.getByRole("button", { name: "Lecture — Nuit claire" }).click();
       await page.getByRole("button", { name: "Pause — Nuit claire" }).waitFor({ state: "visible" });
       assert.equal(await page.getByText("▶ 1", { exact: true }).count(), 1);
-      assert.equal(await page.locator(".library-track-waveform .waveform-loading").isVisible(), true);
+      assert.equal(await firstWaveformLoading.isVisible(), true);
 
       const dockTransport = page.locator(".persistent-player-dock .player button");
       await dockTransport.click();
       await page.getByRole("button", { name: "Lecture", exact: true }).waitFor({ state: "visible" });
-      assert.equal(await page.locator(".library-track-waveform .waveform-loading").isVisible(), true);
+      assert.equal(await firstWaveformLoading.isVisible(), true);
       await page.evaluate(() => window.__captureReleaseGenerationWaveform?.());
-      await page.locator(".library-track-waveform .waveform-canvas[data-peak-count]").waitFor({ state: "visible" });
+      await page.locator(".library-track-waveform .waveform-canvas[data-peak-count]").first().waitFor({ state: "visible" });
       await dockTransport.click();
       await page.getByRole("button", { name: "Pause", exact: true }).waitFor({ state: "visible" });
       assert.equal(await page.getByText("Nuit claire").count() >= 1, true);

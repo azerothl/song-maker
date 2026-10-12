@@ -14,6 +14,41 @@ import "../App.css";
 const projectId = "capture-profile";
 const generationId = "gen-001";
 const audioPath = "capture://nuit-claire.wav";
+const libraryFixture = [
+  {
+    projectId,
+    generationId,
+    audioPath,
+    title: "Nuit claire",
+    createdAt: "2026-09-30T00:00:00.000Z",
+    updatedAt: "2026-10-10T18:20:00.000Z",
+    playlistIds: ["playlist-favorites"],
+    playCount: 0,
+    liked: false,
+  },
+  {
+    projectId: "capture-profile-9",
+    generationId: "gen-009",
+    audioPath: "capture://lumieres-du-port.wav",
+    title: "Les lumières du port au petit matin",
+    createdAt: "2026-09-28T00:00:00.000Z",
+    updatedAt: "2026-10-09T16:40:00.000Z",
+    playlistIds: ["playlist-favorites", "playlist-ambient"],
+    playCount: 12,
+    liked: true,
+  },
+  {
+    projectId: "capture-profile-12",
+    generationId: "gen-012",
+    audioPath: "capture://orage-electrique.wav",
+    title: "Orage électrique",
+    createdAt: "2026-09-26T00:00:00.000Z",
+    updatedAt: "2026-10-08T12:15:00.000Z",
+    playlistIds: ["playlist-studio"],
+    playCount: 4,
+    liked: false,
+  },
+];
 
 let releaseWaveform: (() => void) | null = null;
 const waveformGate = new Promise<{ peaks: number[]; duration: number }>((resolve) => {
@@ -79,7 +114,7 @@ function captureWav(): ArrayBuffer {
 const nativeFetch = window.fetch.bind(window);
 window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const requestUrl = input instanceof Request ? input.url : String(input);
-  if (requestUrl === audioPath) {
+  if (libraryFixture.some((track) => track.audioPath === requestUrl)) {
     return Promise.resolve(new Response(captureWav(), {
       headers: { "content-type": "audio/wav" },
     }));
@@ -89,45 +124,51 @@ window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
 
 writeSidebarCollapsedPref(false);
 seedProfilesCaptureStore();
-registerCaptureLibraryProjects([
-  {
-    id: projectId,
-    title: "Nuit claire",
-    folderPath: "/capture/Nuit-claire",
-    createdAt: "2026-09-30T00:00:00.000Z",
-    updatedAt: "2026-10-10T18:20:00.000Z",
-    durationMs: 180_000,
-    status: "generated",
-    cot: "full",
-    activeGenerationId: generationId,
-  },
-]);
-registerCaptureGenerations([
-  {
-    id: generationId,
-    createdAt: "2026-10-10T18:20:00.000Z",
-    seed: 42,
-    cot: "full",
-    state: "generated",
-    hasScore: false,
-    canContinue: true,
-    engineId: "yue2_3b",
-    audioPath,
-  },
-]);
+registerCaptureLibraryProjects(libraryFixture.map((track) => ({
+  id: track.projectId,
+  title: track.title,
+  folderPath: `/capture/${track.projectId}`,
+  createdAt: track.createdAt,
+  updatedAt: track.updatedAt,
+  durationMs: 180_000,
+  status: "generated",
+  cot: "full",
+  activeGenerationId: track.generationId,
+})));
+registerCaptureGenerations(libraryFixture.map((track, index) => ({
+  id: track.generationId,
+  createdAt: track.updatedAt,
+  seed: 42 + index,
+  cot: "full",
+  state: "generated",
+  hasScore: false,
+  canContinue: true,
+  engineId: "yue2_3b",
+  audioPath: track.audioPath,
+})));
 writeUserLibrary("profile-001", {
   version: 1,
-  tracks: [{
-    projectId,
-    generationId,
-    title: "Nuit claire",
-    addedAt: "2026-10-10T18:20:00.000Z",
-    playlistIds: ["playlist-favorites"],
-  }],
+  tracks: libraryFixture.map((track) => ({
+    projectId: track.projectId,
+    generationId: track.generationId,
+    title: track.title,
+    addedAt: track.updatedAt,
+    playlistIds: track.playlistIds,
+    playCount: track.playCount,
+    liked: track.liked,
+  })),
   playlists: [{
     id: "playlist-favorites",
     title: "Favoris",
     createdAt: "2026-10-10T18:20:00.000Z",
+  }, {
+    id: "playlist-ambient",
+    title: "Ambient",
+    createdAt: "2026-10-09T16:40:00.000Z",
+  }, {
+    id: "playlist-studio",
+    title: "À mixer",
+    createdAt: "2026-10-08T12:15:00.000Z",
   }],
 });
 useAppStore.setState({
