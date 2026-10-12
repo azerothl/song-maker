@@ -687,6 +687,7 @@
   "versions.hint": "Takes and important moments, newest first. Technical IDs stay in Details.",
   "versions.activeBadge": "Active version",
   "versions.restoreTake": "Restore this version: {title}",
+  "versions.useTake": "Use this take: {title}",
   "versions.restoreUndo": "Nothing was deleted.",
   "versions.restoreUndoAction": "Undo",
   "versions.interrupted.title": "Generation interrupted, unusable",

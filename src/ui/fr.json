@@ -908,6 +908,7 @@
   "versions.hint": "Liste des prises et des moments importants, du plus récent au plus ancien. Les identifiants techniques restent dans Détails.",
   "versions.activeBadge": "Version active",
   "versions.restoreTake": "Revenir à cette version : {title}",
+  "versions.useTake": "Utiliser cette version : {title}",
   "versions.restoreUndo": "Rien n’a été supprimé.",
   "versions.restoreUndoAction": "Annuler",
   "versions.interrupted.title": "Génération interrompue, non utilisable",

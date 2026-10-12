@@ -114,9 +114,9 @@ export function VersionHistory({
 
   async function handleRestore(genId: string) {
     const previousId = project.activeGenerationId;
-    if (!previousId || previousId === genId) return;
+    if (previousId === genId) return;
     await onActivateTake(genId);
-    setRestoreUndo({ previousId });
+    if (previousId) setRestoreUndo({ previousId });
   }
 
   async function undoRestore() {
@@ -273,9 +273,9 @@ export function VersionHistory({
                 defaultNameLabel: t("versions.details.defaultName"),
               });
               const listenLabel = t("generations.listen");
-              const restoreLabel = t("versions.restoreTake", {
-                title: take.title,
-              });
+              const restoreLabel = project.activeGenerationId
+                ? t("versions.restoreTake", { title: take.title })
+                : t("versions.useTake", { title: take.title });
 
               return (
                 <li

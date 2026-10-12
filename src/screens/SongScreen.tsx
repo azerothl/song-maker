@@ -1133,6 +1133,17 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
                 {project.title || t("form.createTitle")}
                 <ProfileKindBadge />
               </h1>
+              {screen === "studio" &&
+                workspace === "production" &&
+                generations.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn ghost song-studio-versions-trigger"
+                    onClick={() => selectWorkspace("versions")}
+                  >
+                    {t("workspace.versions")} ({generations.length})
+                  </button>
+                )}
               {screen === "create" && (
                 <button
                   type="button"
