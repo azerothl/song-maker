@@ -1259,10 +1259,12 @@ fn main_audio_bus(
     Ok((index, bus.channel_count))
 }
 
+#[cfg(any(windows, test))]
 fn stereo_to_mono(left: f32, right: f32) -> f32 {
     (left + right) * 0.5
 }
 
+#[cfg(any(windows, test))]
 fn mono_to_stereo(sample: f32) -> (f32, f32) {
     (sample, sample)
 }
