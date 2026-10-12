@@ -1,16 +1,16 @@
 ---
-title: Nouveautés v0.4.0
-description: Studio amélioré et nouvelles commandes MCP pour les projets, la production et la composition.
+title: Nouveautés v0.4.1
+description: Corrections du Studio, des pistes audio importées et de la lecture dans la bibliothèque.
 order: 2
 ---
 
-# Nouveautés — v0.4.0
+# Nouveautés — v0.4.1
 
-Cette version apporte les améliorations suivantes :
+Cette version apporte des corrections au Studio et à la Bibliothèque :
 
-- **Studio :** pistes plus compactes, réglages de gain et panoramique alignés, et accès aux versions importées par MCP.
-- **MCP — projets et bibliothèque :** création, consultation et modification des projets, suppression protégée, et gestion des titres conservés et des playlists du profil actif.
-- **MCP — production :** import d’audio et de générations terminées, consultation et sélection des versions, édition du mix, rendu et export audio.
-- **MCP — composition :** édition des notes MIDI et transcription audio vers MIDI avec BasicPitch.
-- **MCP — génération :** outils YuE2 et ACE-Step si les moteurs et consentements requis sont disponibles ; lots de plusieurs prises exécutés séquentiellement.
-- La [matrice de parité MCP](https://github.com/azerothl/song-maker/blob/main/docs/mcp-capability-matrix.md) détaille les limites et les actions qui nécessitent encore Song Maker ou l’utilisateur.
+- Les projets contenant uniquement des pistes audio importées restent reconnus comme non vides.
+- Vous pouvez renommer les pistes et changer leur ordre ; ces changements sont conservés à la réouverture du projet.
+- Les subdivisions rythmiques choisies et la hauteur des lignes s’appliquent correctement dans le Studio.
+- L’assistant de mix écarte les réglages impossibles à appliquer et permet d’ajuster le gain et le panoramique avant confirmation.
+- Dans la Bibliothèque, seule la waveform du morceau en cours de lecture affiche la progression.
+- Les messages de l’assistant de mix et de l’état vide de Partition présentent plus clairement les actions disponibles.
