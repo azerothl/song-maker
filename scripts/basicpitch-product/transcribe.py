@@ -9,6 +9,14 @@ from pathlib import Path
 
 
 def main() -> int:
+    # BasicPitch prints Unicode status markers. Windows can otherwise choose
+    # the legacy CP1252 code page for redirected stdout/stderr and fail after
+    # inference has completed but before the MIDI is published.
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8", errors="backslashreplace")
+
     if len(sys.argv) != 3:
         print("usage: transcribe.py <input-audio> <output.mid>", file=sys.stderr)
         return 2
