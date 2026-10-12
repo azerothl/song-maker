@@ -1,16 +1,16 @@
 ---
-title: What’s new in v0.4.0
-description: Studio improvements and new MCP controls for projects, production, and composition.
+title: What’s new in v0.4.1
+description: Fixes for the Studio, imported audio tracks, and Library playback.
 order: 2
 ---
 
-# What’s new — v0.4.0
+# What’s new — v0.4.1
 
-This release includes these improvements:
+This release fixes several Studio and Library issues:
 
-- **Studio:** denser tracks, aligned gain and pan controls, and direct access to versions imported through MCP.
-- **MCP — projects and library:** create, inspect, and update projects, protected deletion, and manage saved tracks and playlists in the active profile.
-- **MCP — production:** import audio and completed generations, inspect and select versions, edit mixes, and render or export audio.
-- **MCP — composition:** edit MIDI notes and transcribe audio to MIDI with BasicPitch.
-- **MCP — generation:** YuE2 and ACE-Step tools when the required engines and consent are available; batches with multiple takes run sequentially.
-- The [MCP capability matrix](https://github.com/azerothl/song-maker/blob/main/docs/mcp-capability-matrix.md) describes remaining limits and actions that still require Song Maker or the user.
+- Projects containing only imported audio tracks are recognized as non-empty.
+- Track names and order can be changed and persist when the project is reopened.
+- Selected rhythmic subdivisions and track row height apply correctly in the Studio.
+- The mix assistant filters settings it cannot apply and lets you adjust gain and pan before confirming.
+- In the Library, only the track currently playing shows playback progress on its waveform.
+- Mix assistant and empty Partition messages explain available actions more clearly.
