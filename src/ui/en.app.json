@@ -784,7 +784,6 @@
   "score.previewAbc": "Preview score",
   "score.abcPreview": "Details of code sent for generation",
   "score.clear": "Remove score",
-  "score.none": "No user score. Phase 1 generation (style + lyrics) remains available.",
   "score.tempo": "Score tempo (BPM)",
   "score.key": "Key",
   "score.mode": "Mode",

@@ -1008,7 +1008,6 @@
   "score.previewAbc": "Prévisualiser la partition",
   "score.abcPreview": "Détails du code envoyé à la génération",
   "score.clear": "Retirer la partition",
-  "score.none": "Pas de partition utilisateur. La génération phase 1 (style + paroles) reste disponible.",
   "score.tempo": "Tempo partition (BPM)",
   "score.key": "Tonalité",
   "score.mode": "Mode",

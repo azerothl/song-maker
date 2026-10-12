@@ -415,7 +415,6 @@ export function ScorePanel({
               {t("score.createBlank")}
             </button>
           </div>
-          <p className="hint">{t("score.none")}</p>
         </div>
       )}
 
