@@ -79,6 +79,8 @@ type Props = {
   onChange: (next: MixDoc) => void;
   peaksByTrack?: Record<string, Float32Array>;
   roleByTrack?: Record<string, string>;
+  /** Studio override for per-track colors; the role palette remains the default elsewhere. */
+  trackColorById?: Record<string, string>;
   sourceDurationMsByTrack?: Record<string, number>;
   /** Project form tempo — fallback when mix has no tempo map; also #95 follow-tempo. */
   projectTempoBpm?: number | null;
@@ -257,6 +259,7 @@ export function ClipTimeline({
   onChange,
   peaksByTrack,
   roleByTrack,
+  trackColorById,
   sourceDurationMsByTrack,
   projectTempoBpm,
   projectMeter,
@@ -1099,14 +1102,17 @@ export function ClipTimeline({
 
             const role =
               roleByTrack?.[tr.id] ?? tr.role?.toLowerCase() ?? "other";
-            const color = roleWaveColor(role);
+            const color = trackColorById?.[tr.id] ?? roleWaveColor(role);
             const sourceMs = estimateSourceMs(tr, sourceDurationMsByTrack);
             return (
               <div
                 key={tr.id}
                 className={renderTracks ? "clip-lane common-track-lane" : "clip-lane"}
                 data-role={role}
-                style={{ "--track-wave": color } as CSSProperties}
+                style={{
+                  "--track-wave": color,
+                  "--track-wave-played": `color-mix(in srgb, ${color} 55%, white)`,
+                } as CSSProperties}
               >
                 {!renderTracks && <span className="clip-lane-label">{tr.name}</span>}
                 <div className="clip-lane-rail">

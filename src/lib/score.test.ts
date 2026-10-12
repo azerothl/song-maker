@@ -37,6 +37,16 @@ describe("phase 2 score wiring", () => {
     assert.equal(r.error, null);
   });
 
+  it("laisse la génération par prompt continuer avec une partition vide", () => {
+    const document = createEmptyScoreDocument({ branchName: "main" });
+
+    for (const cot of ["full", "melody", "off"] as const) {
+      const result = prepareAbcForGeneration(document, cot, "Titre");
+      assert.equal(result.abc, null);
+      assert.equal(result.error, null);
+    }
+  });
+
   it("refuse ABC + cot=off", () => {
     const midi = buildMinimalMidi({
       ppq: 960,

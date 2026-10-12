@@ -155,7 +155,9 @@ fn python_cmd() -> Option<(PathBuf, Vec<String>)> {
         (PathBuf::from("python"), Vec::new()),
         (PathBuf::from("py"), vec!["-3".into()]),
     ] {
-        let Ok(output) = Command::new(&program)
+        let mut command = Command::new(&program);
+        crate::process_utils::configure_no_window(&mut command);
+        let Ok(output) = command
             .args(&prefix)
             .arg("-c")
             .arg("import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)")
@@ -288,6 +290,7 @@ pub fn launch_trainer(
         .map_err(|e| e.to_string())?;
     let err_file = log_file.try_clone().map_err(|e| e.to_string())?;
     let mut cmd = Command::new(&python);
+    crate::process_utils::configure_no_window(&mut cmd);
     cmd.args(&prefix)
         .arg(&script)
         .arg("--job-dir")

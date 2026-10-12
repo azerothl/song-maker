@@ -82,14 +82,14 @@ fn free_disk_bytes(dir: &Path) -> Option<u64> {
     }
     #[cfg(windows)]
     {
-        let output = std::process::Command::new("powershell")
-            .args([
-                "-NoProfile",
-                "-Command",
-                &format!("(Get-Item -LiteralPath '{}').PSDrive.Free", probe.display()),
-            ])
-            .output()
-            .ok()?;
+        let mut command = std::process::Command::new("powershell");
+        command.args([
+            "-NoProfile",
+            "-Command",
+            &format!("(Get-Item -LiteralPath '{}').PSDrive.Free", probe.display()),
+        ]);
+        crate::process_utils::configure_no_window(&mut command);
+        let output = command.output().ok()?;
         if !output.status.success() {
             return None;
         }
