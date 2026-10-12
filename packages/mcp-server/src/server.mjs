@@ -9,6 +9,7 @@ import { addProjectMidiTrack, createProject, createProjectMidiTrack, deleteProje
 import { exportProjectAudio, exportProjectStems, renderProjectMix } from './project-audio.mjs';
 import { listLocalResources } from './resources.mjs';
 import { activateGenerationSettings } from './generation-settings.mjs';
+import { transcribeAudioToMidi } from './midi-transcription.mjs';
 import {
   addLibraryTrack, addTrackToPlaylist, createUserPlaylist, deleteUserPlaylist,
   listUserLibrary, removeLibraryTrack, removeProjectLibraryTracks, removeTrackFromPlaylist,
@@ -267,6 +268,16 @@ server.registerTool('edit_project_score', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, call(async args => editProjectScore(args)));
+
+server.registerTool('transcribe_audio_to_midi', {
+  description: 'Transcrit un fichier audio du workspace avec le même BasicPitch ONNX que Song Maker, valide le MIDI avec le moteur de partition partagé et publie le .mid dans le workspace sans écraser un fichier existant. Ne modifie pas le projet : importe le MIDI retourné dans Song Maker pour l’ajouter à une partition.',
+  inputSchema: {
+    sourcePath: z.string().min(1).max(4096),
+    outputDirectory: z.string().min(1).max(4096),
+    fileName: z.string().min(1).max(180).optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+}, call(async args => transcribeAudioToMidi(args)));
 
 server.registerTool('export_project_audio', {
   description: 'Exporte le WAV d’une génération terminée depuis le projet du profil Song Maker actif vers le workspace MCP. WAV conserve la source par défaut ; WAV et FLAC acceptent une profondeur de 16 ou 24 bits, MP3 un débit de 128, 192 ou 320 kbit/s. Les conversions nécessitent FFmpeg. Vérifie le résultat et ne remplace jamais un fichier existant. N’exporte pas le mix actif.',

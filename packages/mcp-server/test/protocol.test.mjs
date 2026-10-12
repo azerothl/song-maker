@@ -121,7 +121,7 @@ test('MCP exposes the headless tools over stdio', async () => {
         'delete_playlist', 'delete_project', 'edit_project_score', 'export_project_audio', 'export_project_stems', 'get_project', 'get_project_mix',
         'get_project_score', 'gpu_status', 'import_job_audio_track', 'import_job_generation', 'import_project_audio_track', 'job_status', 'list_library', 'list_local_resources', 'list_project_versions', 'list_projects',
         'remove_library_track', 'remove_track_from_playlist', 'rename_project', 'rename_project_generation', 'render_project_mix', 'resume_job',
-        'runtime_status', 'start_batch', 'start_song', 'update_project', 'update_project_mix', 'use_project_generation',
+        'runtime_status', 'start_batch', 'start_song', 'transcribe_audio_to_midi', 'update_project', 'update_project_mix', 'use_project_generation',
         'use_project_mix', 'use_project_score', 'use_project_separation']);
     for (const name of ['start_song', 'start_batch']) {
       assert.deepEqual(tools.tools.find(tool => tool.name === name).inputSchema.properties.engineId.enum, ['yue2', 'ace_step']);
@@ -131,6 +131,8 @@ test('MCP exposes the headless tools over stdio', async () => {
     assert.ok(tools.tools.find(tool => tool.name === 'start_song').inputSchema.properties.key);
     assert.ok(tools.tools.find(tool => tool.name === 'start_song').inputSchema.properties.meter);
     assert.equal(tools.tools.find(tool => tool.name === 'start_song').inputSchema.properties.targetDurationSec.multipleOf, 30);
+    assert.deepEqual(Object.keys(tools.tools.find(tool => tool.name === 'transcribe_audio_to_midi').inputSchema.properties).sort(),
+      ['fileName', 'outputDirectory', 'sourcePath']);
     const multiTakeAudit = await client.callTool({ name: 'start_batch', arguments: {
       batchFile: path.join(importDirectory, 'multi-take.batch.json'), dryRun: true,
     } });
