@@ -8,27 +8,24 @@ import {
 } from "../../lib/qwenMixAssistant";
 import {
   audioSourceTracks,
+  assistantStateFingerprint,
   detectStudioAssistantIntent,
+  describeAssistantMixChanges,
   makePianoFollowVoice,
   makeRegularBeatVoice,
+  placeTranscribedMelody,
   usableMelodyVoices,
   validateStudioAssistantMidiAction,
   withAssistantVoice,
   type StudioAssistantHistory,
   type StudioAssistantMessage,
   type StudioAssistantMidiAction,
+  type StudioAssistantUndoRecord,
 } from "../../lib/studioAssistant";
-import { decodeMixStems } from "../../lib/mixBridge";
-import { scoreSecondsToTicks, scoreTicksToSeconds } from "../../lib/scoreTiming";
+import { prepareMixRenderSources } from "../../lib/exportMix";
 import { createEmptyScoreDocument, importMidiBytes, type ScoreDocument, type ScoreVoice } from "../../lib/score";
 import type { MixDoc, MixTrack, PlaybackSources, ProjectDoc } from "../../lib/types";
 import { profileLocale, t } from "../../ui/i18n";
-
-type UndoRecord = {
-  beforeMix: MixDoc;
-  beforeScore: ScoreDocument | null;
-  addedMidiTrackId?: string;
-};
 
 type Props = {
   project: ProjectDoc;
@@ -39,18 +36,18 @@ type Props = {
   onBack: () => void;
   onPreviewMix: (mix: MixDoc | null) => void;
   onPreviewScore: (score: ScoreDocument | null) => void;
-  onApplyMix: (mix: MixDoc) => Promise<void>;
-  onApplyMidi: (mix: MixDoc, score: ScoreDocument, voice: ScoreVoice) => Promise<void>;
-  onUndo: (record: UndoRecord) => Promise<void>;
+  onApplyMix: (mix: MixDoc) => Promise<MixDoc>;
+  onApplyMidi: (mix: MixDoc, score: ScoreDocument, voice: ScoreVoice) => Promise<{ mix: MixDoc; score: ScoreDocument }>;
+  onUndo: (record: StudioAssistantUndoRecord) => Promise<void>;
   onError: (message: string | null) => void;
 };
 
-type Proposal =
+type Proposal = { baseFingerprint: string } & (
   | { kind: "mix"; mix: MixDoc; explanation: string }
-  | { kind: "midi"; mix: MixDoc; score: ScoreDocument; action: StudioAssistantMidiAction; explanation: string };
+  | { kind: "midi"; mix: MixDoc; score: ScoreDocument; action: StudioAssistantMidiAction; explanation: string });
 
 type SourceChoice =
-  | { kind: "voice"; question: string; prompt: string; voices: ScoreVoice[] }
+  | { kind: "voice"; question: string; prompt: string; voices: ScoreVoice[]; tracks: MixTrack[] }
   | { kind: "audio"; question: string; prompt: string; tracks: MixTrack[] };
 
 function newMessage(role: StudioAssistantMessage["role"], content: string): StudioAssistantMessage {
@@ -108,7 +105,9 @@ export function StudioAssistantWorkspace({
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [sourceChoice, setSourceChoice] = useState<SourceChoice | null>(null);
   const [selectedSourceId, setSelectedSourceId] = useState("");
-  const [undoRecord, setUndoRecord] = useState<UndoRecord | null>(null);
+  const [undoRecords, setUndoRecords] = useState<StudioAssistantUndoRecord[]>([]);
+  const undoRecord = undoRecords.at(-1);
+  const historyWriteRef = useRef<Promise<void>>(Promise.resolve());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const projectId = project.id;
 
@@ -120,32 +119,35 @@ export function StudioAssistantWorkspace({
     setInput("");
     setProposal(null);
     setSourceChoice(null);
-    setUndoRecord(null);
+    setUndoRecords([]);
     onPreviewMix(null);
     onPreviewScore(null);
     void api.loadStudioAssistantHistory(projectId)
       .then((history) => {
         if (!current) return;
         setMessages(history.messages.slice(-200));
+        setUndoRecords((history.undoRecords ?? []).slice(-20).map(record => record.afterMix
+          ? { beforeMix: record.beforeMix, beforeScore: record.beforeScore, addedMidiTrackId: record.addedMidiTrackId,
+            afterFingerprint: assistantStateFingerprint(record.afterMix, record.afterScore ?? null) }
+          : record));
         setHistoryLoaded(true);
       })
       .catch(() => {
         if (!current) return;
         setHistoryError(true);
         setMessages([]);
-        setHistoryLoaded(true);
+        // Do not overwrite an unreadable history with an empty conversation.
       });
     return () => { current = false; onPreviewMix(null); onPreviewScore(null); };
   }, [onPreviewMix, onPreviewScore, projectId]);
 
   useEffect(() => {
     if (!historyLoaded) return;
-    const history: StudioAssistantHistory = { messages: messages.slice(-200) };
-    const timer = window.setTimeout(() => {
-      void api.saveStudioAssistantHistory(projectId, history).catch(() => setHistoryError(true));
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [historyLoaded, messages, projectId]);
+    const history: StudioAssistantHistory = { messages: messages.slice(-200), undoRecords };
+    historyWriteRef.current = historyWriteRef.current.catch(() => undefined)
+      .then(() => api.saveStudioAssistantHistory(projectId, history));
+    void historyWriteRef.current.catch(() => setHistoryError(true));
+  }, [historyLoaded, messages, undoRecords, projectId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
@@ -166,7 +168,7 @@ export function StudioAssistantWorkspace({
       appendMessage("assistant", t("studio.assistant.noChanges"));
       return;
     }
-    const name = uniqueMidiTrackName(mix, "Piano mélodique");
+    const name = uniqueMidiTrackName(mix, t("studio.assistant.pianoName"));
     const voice = makePianoFollowVoice(sourceVoice, name);
     const action: StudioAssistantMidiAction = {
       type: "addMidiTrack",
@@ -179,6 +181,7 @@ export function StudioAssistantWorkspace({
       const nextScore = withAssistantVoice(sourceScore, voice);
       const nextMix = { ...mix, tracks: [...mix.tracks, midiMixTrack(voice)] };
       const next: Proposal = {
+        baseFingerprint: assistantStateFingerprint(mix, scoreDocument),
         kind: "midi",
         mix: nextMix,
         score: nextScore,
@@ -217,25 +220,14 @@ export function StudioAssistantWorkspace({
       }
       const base = scoreDocument ?? createEmptyScoreDocument({ tempoBpm, branchName: "assistant" });
       const sourceVoice: ScoreVoice = {
-        ...source,
+        ...placeTranscribedMelody(source, imported.document, base, track),
         id: `assistant-source-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
         name: `Mélodie transcrite — ${track.name}`,
         role: "melody",
         instrumentProgram: undefined,
-        notes: source.notes.map((note) => {
-          const startSeconds = scoreTicksToSeconds(imported.document, note.startTick);
-          const endSeconds = scoreTicksToSeconds(imported.document, note.startTick + note.durationTick);
-          const startTick = scoreSecondsToTicks(base, startSeconds);
-          const endTick = scoreSecondsToTicks(base, endSeconds);
-          return { ...note, startTick, durationTick: Math.max(1, endTick - startTick) };
-        }),
       };
-      const sourceScore: ScoreDocument = {
-        ...base,
-        version: base.version + 1,
-        voices: [...base.voices, sourceVoice],
-      };
-      proposeMidi(text, sourceVoice, sourceScore, undefined, track.id);
+      // Transcription is a reference, not a second audible arrangement lane.
+      proposeMidi(text, sourceVoice, base, undefined, track.id);
     } catch (error) {
       appendMessage("assistant", error instanceof Error ? error.message : String(error));
     } finally {
@@ -244,11 +236,11 @@ export function StudioAssistantWorkspace({
   };
 
   const proposeMix = async (text: string) => {
-    if (!mix || !sources || sources.mode !== "stems" || !sources.stems.length) {
+    if (!mix) {
       appendMessage("assistant", t("studio.assistant.noChanges"));
       return;
     }
-    const { stems } = await decodeMixStems(sources, mix);
+    const { stems } = await prepareMixRenderSources(mix, sources, scoreDocument);
     const summaries = mix.tracks.map((track) => {
       const stem = stems.find((candidate) => candidate.trackId === track.id);
       const level = measurePlanarStemLevel(
@@ -274,10 +266,12 @@ export function StudioAssistantWorkspace({
       return;
     }
     const nextMix = applyQwenAdjustments(mix, filtered.adjustments);
-    setProposal({ kind: "mix", mix: nextMix, explanation: response.explanation });
+    const explanation = `${t("studio.assistant.mixPreview")}\n${describeAssistantMixChanges(mix, nextMix, profileLocale())}`;
+    setProposal({ kind: "mix", mix: nextMix, explanation,
+      baseFingerprint: assistantStateFingerprint(mix, scoreDocument) });
     onPreviewMix(nextMix);
     onPreviewScore(scoreDocument);
-    appendMessage("assistant", response.explanation || t("studio.assistant.mixPreview"));
+    appendMessage("assistant", explanation);
   };
 
   const submit = async (event: FormEvent) => {
@@ -295,27 +289,28 @@ export function StudioAssistantWorkspace({
     try {
       if (intent === "beat") {
         if (!mix) throw new Error(t("studio.assistant.noChanges"));
-        const name = uniqueMidiTrackName(mix, "Beat MIDI");
+        const name = uniqueMidiTrackName(mix, t("studio.assistant.beatName"));
         const voice = makeRegularBeatVoice(name, scoreDocument?.timeSignatures[0] ?? { numerator: 4, denominator: 4 });
         const action: StudioAssistantMidiAction = { type: "addMidiTrack", voice };
         validateStudioAssistantMidiAction(action, mix);
         const base = scoreDocument ?? createEmptyScoreDocument({ tempoBpm, branchName: "assistant" });
         const nextScore = withAssistantVoice(base, voice);
         const nextMix = { ...mix, tracks: [...mix.tracks, midiMixTrack(voice)] };
-        setProposal({ kind: "midi", mix: nextMix, score: nextScore, action, explanation: text });
+        setProposal({ kind: "midi", mix: nextMix, score: nextScore, action, explanation: text,
+          baseFingerprint: assistantStateFingerprint(mix, scoreDocument) });
         onPreviewMix(nextMix);
         onPreviewScore(nextScore);
         appendMessage("assistant", t("studio.assistant.beatPreview"));
       } else if (intent === "piano") {
         const voices = usableMelodyVoices(scoreDocument);
-        if (voices.length === 1 && scoreDocument) {
+        const tracks = mix ? audioSourceTracks(mix) : [];
+        if (voices.length === 1 && scoreDocument && !tracks.length) {
           preparePiano(text, voices[0], undefined);
-        } else if (voices.length > 1) {
-          setSourceChoice({ kind: "voice", question: t("studio.assistant.chooseMelody"), prompt: text, voices });
-          setSelectedSourceId(voices[0].id);
+        } else if (voices.length > 0) {
+          setSourceChoice({ kind: "voice", question: t("studio.assistant.chooseMelody"), prompt: text, voices, tracks });
+          setSelectedSourceId("");
           appendMessage("assistant", t("studio.assistant.chooseMelody"));
         } else {
-          const tracks = mix ? audioSourceTracks(mix) : [];
           if (!tracks.length) {
             appendMessage("assistant", t("studio.assistant.noAudioSource"));
           } else {
@@ -342,13 +337,18 @@ export function StudioAssistantWorkspace({
     setBusy(true);
     onError(null);
     try {
-      if (proposal.kind === "mix") {
-        await onApplyMix(proposal.mix);
-        setUndoRecord({ beforeMix: mix, beforeScore: scoreDocument });
-      } else {
-        await onApplyMidi(proposal.mix, proposal.score, proposal.action.voice);
-        setUndoRecord({ beforeMix: mix, beforeScore: scoreDocument, addedMidiTrackId: proposal.action.voice.id });
+      if (proposal.baseFingerprint !== assistantStateFingerprint(mix, scoreDocument)) {
+        throw new Error(t("studio.assistant.staleProposal"));
       }
+      await historyWriteRef.current;
+      const applied = proposal.kind === "mix"
+        ? { mix: await onApplyMix(proposal.mix), score: scoreDocument }
+        : await onApplyMidi(proposal.mix, proposal.score, proposal.action.voice);
+      setUndoRecords(records => [...records, {
+        beforeMix: mix, beforeScore: scoreDocument,
+        ...(proposal.kind === "midi" ? { addedMidiTrackId: proposal.action.voice.id } : {}),
+        afterFingerprint: assistantStateFingerprint(applied.mix, applied.score),
+      }].slice(-20));
       setProposal(null);
       onPreviewMix(null);
       onPreviewScore(null);
@@ -365,8 +365,11 @@ export function StudioAssistantWorkspace({
     setBusy(true);
     onError(null);
     try {
+      if (undoRecord.afterFingerprint !== assistantStateFingerprint(mix, scoreDocument)) {
+        throw new Error(t("studio.assistant.staleUndo"));
+      }
       await onUndo(undoRecord);
-      setUndoRecord(null);
+      setUndoRecords(records => records.slice(0, -1));
       appendMessage("assistant", t("studio.assistant.undo"));
     } catch (error) {
       onError(error instanceof Error ? error.message : String(error));
@@ -392,7 +395,9 @@ export function StudioAssistantWorkspace({
         </div>
         <div className="studio-assistant-header-actions">
           {undoRecord && <button className="btn" type="button" disabled={busy} onClick={() => void undo()}>{t("studio.assistant.undo")}</button>}
-          <button className="btn ghost" type="button" onClick={onBack}>{t("studio.assistant.back")}</button>
+          <button className="btn ghost" type="button" disabled={busy} onClick={() => {
+            void historyWriteRef.current.then(onBack).catch(() => setHistoryError(true));
+          }}>{t("studio.assistant.back")}</button>
         </div>
       </header>
 
@@ -413,12 +418,14 @@ export function StudioAssistantWorkspace({
         <section className="studio-assistant-source" aria-label={sourceChoice.question}>
           <p>{sourceChoice.question}</p>
           <label>
-            {sourceChoice.kind === "voice" ? t("studio.assistant.chooseMelody") : t("studio.assistant.chooseAudio")}
+            {t("studio.assistant.source")}
             <select value={selectedSourceId} onChange={(event) => setSelectedSourceId(event.target.value)}>
               <option value="">—</option>
               {sourceChoice.kind === "voice"
                 ? sourceChoice.voices.map((voice) => <option key={voice.id} value={voice.id}>{voice.name}</option>)
                 : sourceChoice.tracks.map((track) => <option key={track.id} value={track.id}>{track.name}</option>)}
+              {sourceChoice.kind === "voice" && sourceChoice.tracks.map(track =>
+                <option key={`audio-${track.id}`} value={`audio:${track.id}`}>Audio — {track.name}</option>)}
             </select>
           </label>
           <button
@@ -427,6 +434,11 @@ export function StudioAssistantWorkspace({
             disabled={!selectedSourceId || busy}
             onClick={() => {
               if (sourceChoice.kind === "voice") {
+                if (selectedSourceId.startsWith("audio:")) {
+                  const track = sourceChoice.tracks.find(track => track.id === selectedSourceId.slice(6));
+                  if (track) void transcribeSourceAndPreparePiano(sourceChoice.prompt, track);
+                  return;
+                }
                 const voice = sourceChoice.voices.find((item) => item.id === selectedSourceId);
                 if (voice) preparePiano(sourceChoice.prompt, voice, voice.id);
               } else {
@@ -435,7 +447,7 @@ export function StudioAssistantWorkspace({
               }
             }}
           >
-            {sourceChoice.kind === "voice" ? t("studio.assistant.send") : t(busy ? "studio.assistant.transcribing" : "studio.assistant.transcribe")}
+            {sourceChoice.kind === "voice" && !selectedSourceId.startsWith("audio:") ? t("studio.assistant.send") : t(busy ? "studio.assistant.transcribing" : "studio.assistant.transcribe")}
           </button>
         </section>
       )}
@@ -450,7 +462,15 @@ export function StudioAssistantWorkspace({
                 ? t("studio.assistant.beatPreview")
                 : t("studio.assistant.pianoPreview")
               : proposal.explanation || t("studio.assistant.mixPreview")}</p>
-            {proposal.kind === "midi" && <p className="hint">{proposal.action.voice.notes.length} notes MIDI · {proposal.action.voice.instrumentProgram}</p>}
+            {proposal.kind === "midi" && <p className="hint">{t(proposal.action.voice.notes.length === 1 ? "studio.assistant.midiContextOne" : "studio.assistant.midiContext", {
+              count: proposal.action.voice.notes.length,
+              bpm: proposal.score.tempoMap[0]?.quarterBpm ?? tempoBpm,
+              meter: `${proposal.score.timeSignatures[0]?.numerator ?? 4}/${proposal.score.timeSignatures[0]?.denominator ?? 4}`,
+              source: proposal.action.sourceVoiceId
+                ? scoreDocument?.voices.find(voice => voice.id === proposal.action.sourceVoiceId)?.name ?? "—"
+                : proposal.action.sourceTrackId ? mix?.tracks.find(track => track.id === proposal.action.sourceTrackId)?.name ?? "—"
+                : t("studio.assistant.beatName"),
+            })}</p>}
           </div>
           <div className="studio-assistant-proposal-actions">
             <button className="btn primary" type="button" disabled={busy} onClick={() => void applyProposal()}>{t("studio.assistant.apply")}</button>

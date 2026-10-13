@@ -133,7 +133,7 @@ export function AnchoredPopin({
       panel.style.maxHeight = `${maxPanelH}px`;
       const height = Math.min(panel.getBoundingClientRect().height, maxPanelH);
       top = Math.max(margin, rect.top - margin - height);
-    } else if (maxPanelH < 96 && maxAbove > maxBelow) {
+    } else if ((maxPanelH < 96 || panel.scrollHeight > maxBelow) && maxAbove > maxBelow) {
       maxPanelH = Math.min(capH, maxAbove, window.innerHeight * 0.8);
       panel.style.maxHeight = `${maxPanelH}px`;
       const height = Math.min(panel.getBoundingClientRect().height, maxPanelH);
@@ -170,6 +170,8 @@ export function AnchoredPopin({
       positionPanel();
     });
     ro.observe(panel);
+    const contentObserver = new MutationObserver(positionPanel);
+    contentObserver.observe(panel, { childList: true, subtree: true });
     const dock = document.querySelector<HTMLElement>(
       ".persistent-player-dock",
     );
@@ -178,6 +180,7 @@ export function AnchoredPopin({
     window.addEventListener("resize", onResize);
     return () => {
       ro.disconnect();
+      contentObserver.disconnect();
       window.removeEventListener("resize", onResize);
     };
   }, [open, positionPanel]);

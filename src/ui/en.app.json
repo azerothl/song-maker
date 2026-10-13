@@ -504,7 +504,7 @@
   "mix.balance.honesty": "Listen to the suggestion, adjust it if needed, or undo it with Ctrl+Z after applying.",
   "record.title": "Record a track",
   "record.close": "Close",
-  "record.intro": "Choose your microphone or audio input. In app mode, use direct monitoring on your audio equipment to hear yourself.",
+  "record.intro": "Choose your microphone or audio input. To hear yourself through track effects, use Standard mode, choose a VST3 chain and enable microphone monitoring.",
   "record.engine": "Recording mode",
   "record.engine.native": "In the app",
   "record.engine.webview": "Song Maker browser mode",

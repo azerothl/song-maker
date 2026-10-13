@@ -1,5 +1,7 @@
 import { INTERNAL_PPQ, type ScoreDocument, type ScoreVoice } from "@song-maker/score-engine";
 import type { MixDoc, MixTrack } from "./types";
+import { scoreSecondsToTicks, scoreTicksToSeconds } from "./scoreTiming";
+import { resolveClipStretchRatio } from "@song-maker/mix-production";
 
 export type StudioAssistantMessage = {
   id: string;
@@ -8,7 +10,36 @@ export type StudioAssistantMessage = {
   createdAt: string;
 };
 
-export type StudioAssistantHistory = { messages: StudioAssistantMessage[] };
+export type StudioAssistantUndoRecord = {
+  beforeMix: MixDoc;
+  beforeScore: ScoreDocument | null;
+  addedMidiTrackId?: string;
+  afterFingerprint: string;
+  /** Recovery snapshot written atomically with the arrangement before the UI saves its fingerprint. */
+  afterMix?: MixDoc;
+  afterScore?: ScoreDocument | null;
+};
+export type StudioAssistantHistory = {
+  messages: StudioAssistantMessage[];
+  undoRecords?: StudioAssistantUndoRecord[];
+};
+
+// Ignore storage/version metadata, but retain every musical and mixer setting.
+// A stale undo must never overwrite edits made in another Studio screen.
+export function assistantStateFingerprint(mix: MixDoc | null, score: ScoreDocument | null): string {
+  const canonical = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(canonical);
+    if (value && typeof value === "object") {
+      return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))
+        .filter(([, entry]) => entry !== undefined).map(([key, entry]) => [key, canonical(entry)]));
+    }
+    return value;
+  };
+  const music = score ? { ...score, id: undefined, version: undefined, createdAt: undefined,
+    updatedAt: undefined, parentScoreId: undefined, branchName: undefined, schema: undefined, schemaVersion: undefined } : null;
+  const arrangement = mix ? { ...mix, id: undefined, schema: undefined, schemaVersion: undefined } : null;
+  return JSON.stringify(canonical({ mix: arrangement, score: music }));
+}
 
 export type StudioAssistantMidiAction = {
   type: "addMidiTrack";
@@ -19,8 +50,23 @@ export type StudioAssistantMidiAction = {
 
 export type StudioAssistantIntent = "beat" | "piano" | "mix" | "unknown";
 
+export function describeAssistantMixChanges(before: MixDoc, after: MixDoc, locale: "fr" | "en"): string {
+  const number = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return after.tracks.flatMap(track => {
+    const old = before.tracks.find(candidate => candidate.id === track.id);
+    if (!old) return [];
+    const changes: string[] = [];
+    if (Math.abs(old.gainDb - track.gainDb) > 0.01) changes.push(`Gain ${number.format(old.gainDb)} → ${number.format(track.gainDb)} dB`);
+    if (Math.abs(old.pan - track.pan) > 0.01) changes.push(`${locale === "fr" ? "Panoramique" : "Pan"} ${number.format(old.pan)} → ${number.format(track.pan)}`);
+    return changes.length ? [`${track.name} : ${changes.join(" · ")}`] : [];
+  }).join("\n");
+}
+
 export function detectStudioAssistantIntent(text: string): StudioAssistantIntent {
   const normalized = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  // Mentioning a beat/piano while adjusting its level is not a request to add a track.
+  if (/\b(volume|gain|pan|panoramique)\b/.test(normalized)
+    && /\b(baisse|augmente|diminue|monte|regle|ajuste|reduce|lower|raise|increase|adjust)\b/.test(normalized)) return "mix";
   if (/\b(beat|batterie|drum|percussion|percu)\b/.test(normalized)) return "beat";
   if (/\b(piano|pian[o]?|melodie|melody|ligne melodique)\b/.test(normalized)) return "piano";
   if (/\b(mix|volume|gain|pan|panoramique|basse|voix|instrument|son)\b/.test(normalized)) return "mix";
@@ -33,8 +79,35 @@ export function audioSourceTracks(mix: MixDoc): MixTrack[] {
 
 export function usableMelodyVoices(document: ScoreDocument | null): ScoreVoice[] {
   return (document?.voices ?? []).filter(
-    (voice) => voice.notes.length > 0 && (voice.role === "melody" || voice.role === "vocal"),
+    (voice) => voice.notes.length > 0 && voice.instrumentProgram !== "drums",
   );
+}
+
+/** Map a transcription of the source file to its edited placement in the arrangement. */
+export function placeTranscribedMelody(
+  source: ScoreVoice, sourceScore: ScoreDocument, targetScore: ScoreDocument, track: MixTrack,
+): ScoreVoice {
+  const clips = track.clips.filter(clip => clip.takeActive !== false);
+  const sourcePath = clips.find(clip => clip.sourcePath)?.sourcePath;
+  if (clips.some(clip => clip.sourcePath && clip.sourcePath !== sourcePath)) {
+    throw new Error("Cette piste contient plusieurs fichiers audio. Choisissez une piste avec une seule source pour la transcription.");
+  }
+  const notes: ScoreVoice["notes"] = [];
+  for (const [clipIndex, clip] of clips.entries()) {
+    const ratio = resolveClipStretchRatio({ ...clip, projectTempoBpm: targetScore.tempoMap[0]?.quarterBpm ?? 120 });
+    const sourceStart = clip.offsetMs / 1000;
+    const sourceEnd = sourceStart + clip.durationMs / 1000 / ratio;
+    for (const note of source.notes) {
+      const start = Math.max(sourceStart, scoreTicksToSeconds(sourceScore, note.startTick));
+      const end = Math.min(sourceEnd, scoreTicksToSeconds(sourceScore, note.startTick + note.durationTick));
+      if (end <= start) continue;
+      const startTick = scoreSecondsToTicks(targetScore, clip.startMs / 1000 + (start - sourceStart) * ratio);
+      const endTick = scoreSecondsToTicks(targetScore, clip.startMs / 1000 + (end - sourceStart) * ratio);
+      notes.push({ ...note, id: `${note.id}-clip-${clipIndex}`, startTick, durationTick: Math.max(1, endTick - startTick),
+        pitch: Math.max(0, Math.min(127, note.pitch + (clip.processingEnabled === false ? 0 : clip.pitchSemitones ?? 0))) });
+    }
+  }
+  return { ...source, notes: notes.sort((a, b) => a.startTick - b.startTick) };
 }
 
 export function makeRegularBeatVoice(

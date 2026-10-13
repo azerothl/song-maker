@@ -134,6 +134,7 @@ export type Vst3TrackEffect = {
 
 /** Per-track VST3 graph sent to the persistent Windows audio engine for live playback. */
 export type Vst3RealtimePlaybackTrack = {
+  program?: string;
   id: string;
   name: string;
   role: string;
@@ -155,6 +156,7 @@ export type Vst3RealtimePlaybackTrack = {
 
 export type Vst3RealtimePlaybackConfig = {
   masterGainDb: number;
+  durationSeconds: number;
   anySolo: boolean;
   tracks: Vst3RealtimePlaybackTrack[];
 };

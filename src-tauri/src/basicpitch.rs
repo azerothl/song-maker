@@ -47,9 +47,7 @@ fn python_cmd() -> Result<(PathBuf, Vec<String>), String> {
     Err("Python 3.10+ requis pour BasicPitch ONNX. Installez Python ou définissez SONG_MAKER_PYTHON.".into())
 }
 
-fn script_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../scripts/basicpitch-product/transcribe.py")
-}
+const TRANSCRIBE_SCRIPT: &str = include_str!("../../scripts/basicpitch-product/transcribe.py");
 
 pub fn transcribe_track(project_id: &str, track_id: &str) -> Result<BasicPitchResult, String> {
     let folder = project_folder(project_id);
@@ -79,10 +77,6 @@ pub fn transcribe_track(project_id: &str, track_id: &str) -> Result<BasicPitchRe
         return Err(format!("Fichier audio absent : {}", audio.display()));
     }
     let (python, prefix) = python_cmd()?;
-    let script = script_path();
-    if !script.is_file() {
-        return Err(format!("Script BasicPitch absent : {}", script.display()));
-    }
     let dest = std::env::temp_dir().join(format!(
         "song-maker-bp-{}-{}.mid",
         project_id,
@@ -92,7 +86,8 @@ pub fn transcribe_track(project_id: &str, track_id: &str) -> Result<BasicPitchRe
     crate::process_utils::configure_no_window(&mut command);
     let output = command
         .args(&prefix)
-        .arg(&script)
+        .arg("-c")
+        .arg(TRANSCRIBE_SCRIPT)
         .arg(&audio)
         .arg(&dest)
         .output()

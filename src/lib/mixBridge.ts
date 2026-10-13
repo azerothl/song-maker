@@ -50,7 +50,7 @@ export async function decodeMixStems(
   if (sources.mode !== "stems" || sources.stems.length === 0) {
     throw new Error("Pas de stems à mixer.");
   }
-  const ctx = new AudioContext();
+  const ctx = new AudioContext({ sampleRate: mix.sampleRate || 48_000 });
   try {
     const stems: DecodedStem[] = [];
     let sampleRate = mix.sampleRate || 48000;

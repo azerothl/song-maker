@@ -32,7 +32,7 @@ export type SoftSynthOptions = {
   /** Lookahead / scheduling latency in seconds. */
   latencySec?: number;
   /** Share the Studio transport context so MIDI notes stay synchronized with audio. */
-  context?: AudioContext;
+  context?: AudioContext | OfflineAudioContext;
   /** Route an instrument into the track's mix node instead of the device directly. */
   destination?: AudioNode;
 };
@@ -91,9 +91,22 @@ function programFilterHz(program: InstrumentProgram, pitch: number): number {
 }
 
 export class SoftSynth {
-  private ctx: AudioContext | null = null;
+  private ctx: AudioContext | OfflineAudioContext | null = null;
   private master: GainNode | null = null;
   private voices = new Map<number, Voice>();
+  private scheduledVoices = new Set<Voice>();
+
+  private registerVoice(pitch: number, voice: Voice) {
+    this.voices.set(pitch, voice);
+    this.scheduledVoices.add(voice);
+    const source = voice.source ?? voice.osc[0];
+    if (source) source.onended = () => {
+      this.scheduledVoices.delete(voice);
+      if (this.voices.get(pitch) === voice) this.voices.delete(pitch);
+      voice.gain.disconnect();
+      voice.filter?.disconnect();
+    };
+  }
   private program: InstrumentProgram = "piano";
   private gainDb = 0;
   private muted = false;
@@ -113,7 +126,7 @@ export class SoftSynth {
     this.destination = options?.destination ?? null;
   }
 
-  async ensureContext(): Promise<AudioContext> {
+  async ensureContext(): Promise<AudioContext | OfflineAudioContext> {
     if (!this.ctx) {
       this.ctx = new AudioContext();
     }
@@ -122,13 +135,13 @@ export class SoftSynth {
       this.master.gain.value = this.effectiveGain();
       this.master.connect(this.destination ?? this.ctx.destination);
     }
-    if (this.ctx.state === "suspended") {
+    if (this.ctx.state === "suspended" && !("startRendering" in this.ctx)) {
       await this.ctx.resume();
     }
     return this.ctx;
   }
 
-  getContext(): AudioContext | null {
+  getContext(): AudioContext | OfflineAudioContext | null {
     return this.ctx;
   }
 
@@ -244,7 +257,7 @@ export class SoftSynth {
         gain.connect(this.master);
         osc.start(t);
         osc.stop(t + hitDuration + 0.02);
-        this.voices.set(p, { osc: [osc], source: null, gain, filter: null });
+        this.registerVoice(p, { osc: [osc], source: null, gain, filter: null });
       } else {
         const frames = Math.ceil(ctx.sampleRate * hitDuration);
         const noise = ctx.createBuffer(1, frames, ctx.sampleRate);
@@ -261,7 +274,7 @@ export class SoftSynth {
         gain.connect(this.master);
         source.start(t);
         source.stop(t + hitDuration + 0.02);
-        this.voices.set(p, { osc: [], source, gain, filter });
+        this.registerVoice(p, { osc: [], source, gain, filter });
       }
       return;
     }
@@ -283,7 +296,7 @@ export class SoftSynth {
       source.connect(gain);
       gain.connect(this.master);
       source.start(t);
-      this.voices.set(p, { osc: [], source, gain, filter: null });
+      this.registerVoice(p, { osc: [], source, gain, filter: null });
       return;
     }
     const wave = programWave(this.program);
@@ -314,7 +327,7 @@ export class SoftSynth {
     }
     filter.connect(gain);
     gain.connect(this.master);
-    this.voices.set(p, { osc: oscs, source: null, gain, filter });
+    this.registerVoice(p, { osc: oscs, source: null, gain, filter });
   }
 
   noteOff(pitch: number, when?: number) {
@@ -341,14 +354,22 @@ export class SoftSynth {
   }
 
   allNotesOff() {
-    for (const pitch of [...this.voices.keys()]) {
-      this.noteOff(pitch);
+    const time = this.ctx?.currentTime ?? 0;
+    for (const voice of this.scheduledVoices) {
+      voice.gain.gain.cancelScheduledValues(time);
+      voice.gain.gain.setValueAtTime(0, time);
+      for (const oscillator of voice.osc) {
+        try { oscillator.stop(time); } catch { /* already ended */ }
+      }
+      try { voice.source?.stop(time); } catch { /* already ended */ }
     }
+    this.scheduledVoices.clear();
+    this.voices.clear();
   }
 
   async dispose() {
     this.allNotesOff();
-    if (this.ctx && this.ownsContext) {
+    if (this.ctx && this.ownsContext && "close" in this.ctx) {
       await this.ctx.close().catch(() => undefined);
     }
     if (this.ownsContext) this.ctx = null;

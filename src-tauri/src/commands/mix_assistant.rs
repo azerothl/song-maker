@@ -23,12 +23,43 @@ pub struct StudioAssistantMessage {
 #[serde(rename_all = "camelCase")]
 pub struct StudioAssistantHistory {
     pub messages: Vec<StudioAssistantMessage>,
+    #[serde(default)]
+    pub undo_records: Vec<StudioAssistantUndoRecord>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StudioAssistantUndoRecord {
+    pub before_mix: crate::models::MixDoc,
+    pub before_score: Option<serde_json::Value>,
+    pub added_midi_track_id: Option<String>,
+    pub after_fingerprint: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub after_mix: Option<crate::models::MixDoc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub after_score: Option<serde_json::Value>,
 }
 
 #[tauri::command]
 pub fn load_studio_assistant_history(id: String) -> Result<StudioAssistantHistory, String> {
     let folder = assistant_project_folder(&id)?;
-    let path = folder.join("assistant").join("history.json");
+    read_assistant_history(&folder)
+}
+
+fn history_version_path(folder: &std::path::Path, mix_id: &str) -> std::path::PathBuf {
+    folder
+        .join("assistant")
+        .join(format!("history-{mix_id}.json"))
+}
+
+fn read_assistant_history(folder: &std::path::Path) -> Result<StudioAssistantHistory, String> {
+    let project = crate::library::load_project(folder)?;
+    let path = project
+        .active_mix_id
+        .as_deref()
+        .map(|mix_id| history_version_path(folder, mix_id))
+        .filter(|path| path.exists())
+        .unwrap_or_else(|| folder.join("assistant").join("history.json"));
     if !path.exists() {
         return Ok(StudioAssistantHistory::default());
     }
@@ -49,6 +80,10 @@ pub fn save_studio_assistant_history(
     let _guard = lock.lock();
     let assistant_dir = folder.join("assistant");
     crate::paths::ensure_dir(&assistant_dir).map_err(|e| e.to_string())?;
+    let project = crate::library::load_project(&folder)?;
+    if let Some(mix_id) = project.active_mix_id.as_deref() {
+        crate::paths::atomic_write_json(&history_version_path(&folder, mix_id), &history)?;
+    }
     crate::paths::atomic_write_json(&assistant_dir.join("history.json"), &history)
 }
 
@@ -67,6 +102,30 @@ fn assistant_project_folder(id: &str) -> Result<std::path::PathBuf, String> {
 }
 
 fn validate_history(history: &StudioAssistantHistory) -> Result<(), String> {
+    if history.undo_records.len() > 20
+        || serde_json::to_vec(history)
+            .map_err(|error| error.to_string())?
+            .len()
+            > 16 * 1024 * 1024
+    {
+        return Err("L’historique des annulations est trop volumineux.".into());
+    }
+    for record in &history.undo_records {
+        if (record.after_fingerprint.is_empty() && record.after_mix.is_none())
+            || record.after_fingerprint.len() > 1024 * 1024
+            || record.before_mix.tracks.len() > 256
+            || record
+                .added_midi_track_id
+                .as_ref()
+                .is_some_and(|id| !id.starts_with("midi-assistant-") || id.len() > 128)
+            || record
+                .before_score
+                .as_ref()
+                .is_some_and(|score| !score.is_object())
+        {
+            return Err("Annulation de l’assistant invalide.".into());
+        }
+    }
     if history.messages.len() > 200 {
         return Err("L’historique de l’assistant dépasse 200 messages.".into());
     }
@@ -84,6 +143,321 @@ fn validate_history(history: &StudioAssistantHistory) -> Result<(), String> {
     }
     if total_chars > 400_000 {
         return Err("L’historique de l’assistant est trop volumineux.".into());
+    }
+    Ok(())
+}
+
+fn musical_state(mut value: serde_json::Value) -> serde_json::Value {
+    if let Some(object) = value.as_object_mut() {
+        for key in [
+            "id",
+            "version",
+            "createdAt",
+            "updatedAt",
+            "parentScoreId",
+            "branchName",
+            "schema",
+            "schemaVersion",
+        ] {
+            object.remove(key);
+        }
+    }
+    value
+}
+
+#[derive(Serialize)]
+pub struct AssistantStateResult {
+    project: crate::models::ProjectDoc,
+    mix: crate::models::MixDoc,
+    score: Option<serde_json::Value>,
+}
+
+/// Stage immutable mix/score versions, then publish both with one project-pointer write.
+/// A failed write leaves the previously active arrangement intact.
+#[tauri::command]
+pub fn apply_studio_assistant_state(
+    id: String,
+    expected_mix: crate::models::MixDoc,
+    expected_score: Option<serde_json::Value>,
+    mix: crate::models::MixDoc,
+    score: Option<serde_json::Value>,
+    undo: bool,
+) -> Result<AssistantStateResult, String> {
+    let folder = assistant_project_folder(&id)?;
+    let lock = crate::project_transaction::lock_for(&folder);
+    let _guard = lock.lock();
+    apply_assistant_state_in_folder(&folder, expected_mix, expected_score, mix, score, undo)
+}
+
+fn apply_assistant_state_in_folder(
+    folder: &std::path::Path,
+    expected_mix: crate::models::MixDoc,
+    expected_score: Option<serde_json::Value>,
+    mut mix: crate::models::MixDoc,
+    mut score: Option<serde_json::Value>,
+    undo: bool,
+) -> Result<AssistantStateResult, String> {
+    use crate::paths::{atomic_write_json, ensure_dir, next_folder_id, now_iso};
+    let mut project = crate::library::load_project(folder)?;
+    let current_mix: crate::models::MixDoc = serde_json::from_str(
+        &std::fs::read_to_string(folder.join("mixes").join(format!(
+            "{}.json",
+            project.active_mix_id.as_ref().ok_or("Aucun mix actif.")?
+        )))
+        .map_err(|error| error.to_string())?,
+    )
+    .map_err(|error| error.to_string())?;
+    let current_score = project
+        .active_score_id
+        .as_ref()
+        .map(|score_id| {
+            let text =
+                std::fs::read_to_string(folder.join("scores").join(format!("{score_id}.json")))
+                    .map_err(|error| error.to_string())?;
+            serde_json::from_str::<serde_json::Value>(&text).map_err(|error| error.to_string())
+        })
+        .transpose()?;
+    if musical_state(serde_json::to_value(&current_mix).map_err(|error| error.to_string())?)
+        != musical_state(serde_json::to_value(&expected_mix).map_err(|error| error.to_string())?)
+        || current_score.clone().map(musical_state) != expected_score.map(musical_state)
+    {
+        return Err("Le projet a changé depuis l’aperçu de l’assistant.".into());
+    }
+    validate_assistant_change(&current_mix, current_score.as_ref(), &mix, score.as_ref())?;
+    let mut history = read_assistant_history(folder)?;
+    if undo {
+        let record = history
+            .undo_records
+            .last()
+            .ok_or("Aucune application à annuler.")?;
+        if musical_state(
+            serde_json::to_value(&record.before_mix).map_err(|error| error.to_string())?,
+        ) != musical_state(serde_json::to_value(&mix).map_err(|error| error.to_string())?)
+            || record.before_score.clone().map(musical_state) != score.clone().map(musical_state)
+        {
+            return Err(
+                "La demande ne correspond pas à la dernière application de l’assistant.".into(),
+            );
+        }
+        history.undo_records.pop();
+    }
+    let before_score = current_score.clone();
+    let mixes = folder.join("mixes");
+    ensure_dir(&mixes).map_err(|error| error.to_string())?;
+    mix.id = next_folder_id(&mixes, "mix-v")?;
+    atomic_write_json(&mixes.join(format!("{}.json", mix.id)), &mix)?;
+    let overlay_path = mixes.join(format!("{}.production.json", current_mix.id));
+    if overlay_path.exists() {
+        let overlay: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(overlay_path).map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| error.to_string())?;
+        atomic_write_json(&mixes.join(format!("{}.production.json", mix.id)), &overlay)?;
+    }
+    if current_score.clone().map(musical_state) != score.clone().map(musical_state) {
+        project.active_score_id = if let Some(value) = score.as_mut() {
+            let scores = folder.join("scores");
+            ensure_dir(&scores).map_err(|error| error.to_string())?;
+            let score_id = next_folder_id(&scores, "score-v")?;
+            let object = value.as_object_mut().ok_or("Partition invalide.")?;
+            object.insert("id".into(), json!(score_id));
+            object.insert("schema".into(), json!(crate::pins::SCHEMA_SCORE));
+            object.insert("schemaVersion".into(), json!(crate::pins::SCHEMA_VERSION));
+            atomic_write_json(&scores.join(format!("{score_id}.json")), value)?;
+            Some(score_id)
+        } else {
+            None
+        };
+    } else {
+        score = current_score;
+    }
+    project.active_mix_id = Some(mix.id.clone());
+    if !undo {
+        history.undo_records.push(StudioAssistantUndoRecord {
+            added_midi_track_id: mix
+                .tracks
+                .iter()
+                .find(|track| !current_mix.tracks.iter().any(|old| old.id == track.id))
+                .map(|track| track.id.clone()),
+            before_mix: current_mix,
+            before_score,
+            after_fingerprint: String::new(),
+            after_mix: Some(mix.clone()),
+            after_score: score.clone(),
+        });
+        if history.undo_records.len() > 20 {
+            history.undo_records.remove(0);
+        }
+    }
+    validate_history(&history)?;
+    ensure_dir(&folder.join("assistant")).map_err(|error| error.to_string())?;
+    atomic_write_json(&history_version_path(folder, &mix.id), &history)?;
+    project.updated_at = now_iso();
+    crate::library::save_project(folder, &project)?;
+    Ok(AssistantStateResult {
+        project,
+        mix,
+        score,
+    })
+}
+
+fn validate_assistant_change(
+    before_mix: &crate::models::MixDoc,
+    before_score: Option<&serde_json::Value>,
+    after_mix: &crate::models::MixDoc,
+    after_score: Option<&serde_json::Value>,
+) -> Result<(), String> {
+    let invalid = || {
+        "Action de l’assistant invalide : seuls les niveaux, panoramiques et pistes MIDI proposées sont autorisés.".to_string()
+    };
+    if !after_mix.master_gain_db.is_finite()
+        || !(-60.0..=12.0).contains(&after_mix.master_gain_db)
+        || after_mix.tracks.len() > 256
+    {
+        return Err(invalid());
+    }
+    let mut baseline = before_mix.clone();
+    baseline.id = after_mix.id.clone();
+    baseline.master_gain_db = after_mix.master_gain_db;
+    baseline.tracks = after_mix.tracks.clone();
+    if serde_json::to_value(baseline).map_err(|error| error.to_string())?
+        != serde_json::to_value(after_mix).map_err(|error| error.to_string())?
+    {
+        return Err(invalid());
+    }
+    let old_ids: Vec<_> = before_mix
+        .tracks
+        .iter()
+        .filter(|track| !track.id.starts_with("midi-assistant-"))
+        .map(|track| &track.id)
+        .collect();
+    let new_ids: Vec<_> = after_mix
+        .tracks
+        .iter()
+        .filter(|track| !track.id.starts_with("midi-assistant-"))
+        .map(|track| &track.id)
+        .collect();
+    if old_ids != new_ids {
+        return Err(invalid());
+    }
+    let mut ids = std::collections::HashSet::new();
+    for track in &after_mix.tracks {
+        if !ids.insert(&track.id)
+            || !track.gain_db.is_finite()
+            || !(-60.0..=12.0).contains(&track.gain_db)
+            || !track.pan.is_finite()
+            || !(-1.0..=1.0).contains(&track.pan)
+        {
+            return Err(invalid());
+        }
+        if let Some(old) = before_mix.tracks.iter().find(|old| old.id == track.id) {
+            let mut allowed = old.clone();
+            allowed.gain_db = track.gain_db;
+            allowed.pan = track.pan;
+            if serde_json::to_value(allowed).map_err(|error| error.to_string())?
+                != serde_json::to_value(track).map_err(|error| error.to_string())?
+            {
+                return Err(invalid());
+            }
+        } else if !track.id.starts_with("midi-assistant-")
+            || track.role != "midi"
+            || !track.clips.is_empty()
+            || !track.vst3_effects.is_empty()
+            || track.experimental_vst3_insert.is_some()
+        {
+            return Err(invalid());
+        }
+    }
+    let voices = |score: Option<&serde_json::Value>| -> Vec<serde_json::Value> {
+        score
+            .and_then(|score| score.get("voices"))
+            .and_then(|voices| voices.as_array())
+            .cloned()
+            .unwrap_or_default()
+    };
+    let before = voices(before_score);
+    let after = voices(after_score);
+    let populated = |voice: &&serde_json::Value| {
+        voice
+            .get("notes")
+            .and_then(|notes| notes.as_array())
+            .is_some_and(|notes| !notes.is_empty())
+    };
+    if let (Some(before), Some(after)) = (before_score, after_score) {
+        let header = |value: &serde_json::Value| {
+            let mut value = musical_state(value.clone());
+            if let Some(object) = value.as_object_mut() {
+                object.remove("voices");
+                object.remove("source");
+            }
+            value
+        };
+        if header(before) != header(after) {
+            return Err(invalid());
+        }
+    }
+    let is_assistant = |voice: &serde_json::Value| {
+        voice
+            .get("id")
+            .and_then(|id| id.as_str())
+            .is_some_and(|id| id.starts_with("midi-assistant-"))
+    };
+    if before
+        .iter()
+        .filter(populated)
+        .filter(|voice| !is_assistant(voice))
+        .collect::<Vec<_>>()
+        != after
+            .iter()
+            .filter(populated)
+            .filter(|voice| !is_assistant(voice))
+            .collect::<Vec<_>>()
+    {
+        return Err(invalid());
+    }
+    for voice in after.iter().filter(|voice| is_assistant(voice)) {
+        if before.iter().any(|old| old == voice) {
+            continue;
+        }
+        let id = voice
+            .get("id")
+            .and_then(|value| value.as_str())
+            .ok_or_else(invalid)?;
+        let notes = voice
+            .get("notes")
+            .and_then(|value| value.as_array())
+            .ok_or_else(invalid)?;
+        if !after_mix
+            .tracks
+            .iter()
+            .any(|track| track.id == id && track.role == "midi")
+            || !matches!(
+                voice
+                    .get("instrumentProgram")
+                    .and_then(|value| value.as_str()),
+                Some("piano" | "drums")
+            )
+            || notes.is_empty()
+            || notes.len() > 4096
+        {
+            return Err(invalid());
+        }
+        for note in notes {
+            for (key, low, high) in [
+                ("startTick", 0, 100_000_000),
+                ("durationTick", 1, 100_000_000),
+                ("pitch", 0, 127),
+                ("velocity", 1, 127),
+            ] {
+                if !note
+                    .get(key)
+                    .and_then(|value| value.as_i64())
+                    .is_some_and(|value| (low..=high).contains(&value))
+                {
+                    return Err(invalid());
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -551,6 +925,144 @@ pub fn validate_mix_llm_settings(settings: &AppSettings) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn assistant_mix() -> crate::models::MixDoc {
+        let mut mix = crate::mix::empty_mix("mix-v001");
+        mix.tracks.push(
+            serde_json::from_value(json!({
+                "id":"midi-assistant-test", "name":"Beat", "role":"midi", "gainDb":0,
+                "pan":0, "mute":false, "solo":false, "locked":false, "aiSeparated":false, "clips":[]
+            }))
+            .unwrap(),
+        );
+        mix
+    }
+
+    fn assistant_score() -> serde_json::Value {
+        json!({"id":"score-v001", "version":1, "ppq":960, "voices":[
+            {"id":"voice-0", "notes":[]},
+            {"id":"midi-assistant-test", "instrumentProgram":"drums", "notes":[
+                {"startTick":0, "durationTick":240, "pitch":36, "velocity":100}
+            ]}
+        ]})
+    }
+
+    #[test]
+    fn assistant_commit_keeps_mix_score_and_undo_together_and_preserves_them_on_failure() {
+        let folder =
+            std::env::temp_dir().join(format!("song-maker-assistant-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(folder.join("mixes")).unwrap();
+        let project: crate::models::ProjectDoc = serde_json::from_value(json!({
+            "schema":"songmaker.project", "schemaVersion":1, "id":"test", "title":"Test",
+            "createdAt":"2026-10-13", "updatedAt":"2026-10-13", "sampleRate":48000,
+            "channels":2,"bitDepth":24,"style":"","lyrics":"","cot":"full","activeMixId":"mix-v001"
+        }))
+        .unwrap();
+        crate::library::save_project(&folder, &project).unwrap();
+        let empty = crate::mix::empty_mix("mix-v001");
+        crate::paths::atomic_write_json(&folder.join("mixes/mix-v001.json"), &empty).unwrap();
+        let applied = apply_assistant_state_in_folder(
+            &folder,
+            empty.clone(),
+            None,
+            assistant_mix(),
+            Some(assistant_score()),
+            false,
+        )
+        .unwrap();
+        assert_eq!(applied.mix.tracks.len(), 1);
+        let history = read_assistant_history(&folder).unwrap();
+        assert_eq!(history.undo_records.len(), 1);
+        assert!(history.undo_records[0].after_mix.is_some());
+        let restored = apply_assistant_state_in_folder(
+            &folder,
+            applied.mix,
+            applied.score,
+            empty.clone(),
+            None,
+            true,
+        )
+        .unwrap();
+        assert!(restored.mix.tracks.is_empty());
+        assert!(restored.score.is_none());
+        assert!(read_assistant_history(&folder)
+            .unwrap()
+            .undo_records
+            .is_empty());
+        let snapshot = std::fs::read(folder.join("project.json")).unwrap();
+        // Make the next history publication fail after mix/score staging.
+        let next_id = crate::paths::next_folder_id(&folder.join("mixes"), "mix-v").unwrap();
+        std::fs::create_dir_all(history_version_path(&folder, &next_id)).unwrap();
+        let error = apply_assistant_state_in_folder(
+            &folder,
+            restored.mix,
+            None,
+            assistant_mix(),
+            Some(assistant_score()),
+            false,
+        );
+        assert!(error.is_err());
+        assert_eq!(
+            std::fs::read(folder.join("project.json")).unwrap(),
+            snapshot
+        );
+        assert!(read_assistant_history(&folder)
+            .unwrap()
+            .undo_records
+            .is_empty());
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn assistant_add_and_undo_allow_an_initial_score_placeholder() {
+        let empty = crate::mix::empty_mix("mix-v001");
+        let mix = assistant_mix();
+        let score = assistant_score();
+        assert!(validate_assistant_change(&empty, None, &mix, Some(&score)).is_ok());
+        assert!(validate_assistant_change(&mix, Some(&score), &empty, None).is_ok());
+        let history: StudioAssistantHistory =
+            serde_json::from_value(json!({"messages":[]})).unwrap();
+        assert!(history.undo_records.is_empty());
+    }
+
+    #[test]
+    fn assistant_rejects_unstructured_plugin_clip_and_note_changes() {
+        let empty = crate::mix::empty_mix("mix-v001");
+        let mix = assistant_mix();
+        let mut bad_score = assistant_score();
+        bad_score["voices"][1]["notes"][0]["pitch"] = json!(140);
+        assert!(validate_assistant_change(&empty, None, &mix, Some(&bad_score)).is_err());
+        let mut renamed = mix.clone();
+        renamed.tracks[0].name = "Unauthorized rename".into();
+        assert!(validate_assistant_change(
+            &mix,
+            Some(&assistant_score()),
+            &renamed,
+            Some(&assistant_score())
+        )
+        .is_err());
+        let mut changed = mix.clone();
+        changed.sample_rate = 8000;
+        assert!(validate_assistant_change(&mix, None, &changed, None).is_err());
+        changed = mix.clone();
+        changed.tracks[0].gain_db = -3.0;
+        changed.tracks[0].pan = 0.25;
+        assert!(validate_assistant_change(&mix, None, &changed, None).is_ok());
+    }
+
+    #[test]
+    fn assistant_version_guard_ignores_only_storage_metadata() {
+        let original = assistant_score();
+        let mut changed = original.clone();
+        changed["id"] = json!("score-v999");
+        changed["version"] = json!(8);
+        assert_eq!(
+            musical_state(original.clone()),
+            musical_state(changed.clone())
+        );
+        changed["voices"][1]["notes"][0]["pitch"] = json!(37);
+        assert_ne!(musical_state(original), musical_state(changed));
+    }
 
     #[tokio::test]
     #[ignore = "requires an installed local model and running LLM server"]

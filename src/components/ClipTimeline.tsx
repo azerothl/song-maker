@@ -51,6 +51,8 @@ import { formatMs } from "../lib/productionTimeFormat";
 import { AnchoredPopin } from "./AnchoredPopin";
 import { PlaybackLine } from "./PlaybackLine";
 import { PopinCloseButton } from "./PopinCloseButton";
+import type { ScoreDocument } from "../lib/score";
+import { scoreTicksToSeconds } from "../lib/scoreTiming";
 import {
   CLIP_EDIT_TOOLS,
   clipEditToolFromKey,
@@ -76,6 +78,8 @@ const MARKER_KINDS: MixMarkerKind[] = [
 ];
 
 type Props = {
+  scoreDocument?: ScoreDocument | null;
+  onEditMidiTrack?: (trackId: string, trackName: string) => void;
   mix: MixDoc;
   onChange: (next: MixDoc) => void;
   peaksByTrack?: Record<string, Float32Array>;
@@ -256,6 +260,8 @@ function markerKindLabel(kind: MixMarkerKind): string {
 }
 
 export function ClipTimeline({
+  scoreDocument,
+  onEditMidiTrack,
   mix: rawMix,
   onChange,
   peaksByTrack,
@@ -470,8 +476,11 @@ export function ClipTimeline({
     for (const e of tempoMap) {
       max = Math.max(max, e.startMs);
     }
+    for (const voice of scoreDocument?.voices ?? []) {
+      for (const note of voice.notes) max = Math.max(max, scoreTicksToSeconds(scoreDocument!, note.startTick + note.durationTick) * 1000);
+    }
     return Math.max(max, 30_000);
-  }, [mix, markers, tempoMap]);
+  }, [mix, markers, tempoMap, scoreDocument]);
 
   const snap = useCallback(
     (ms: number) =>
@@ -1104,6 +1113,9 @@ export function ClipTimeline({
               roleByTrack?.[tr.id] ?? tr.role?.toLowerCase() ?? "other";
             const color = trackColorById?.[tr.id] ?? roleWaveColor(role);
             const sourceMs = estimateSourceMs(tr, sourceDurationMsByTrack);
+            const voice = tr.role === "midi" ? scoreDocument?.voices.find(voice => voice.id === tr.id) : undefined;
+            const noteEndMs = voice?.notes.reduce((end, note) => Math.max(end,
+              scoreTicksToSeconds(scoreDocument!, note.startTick + note.durationTick) * 1000), 0) ?? 0;
             return (
               <div
                 key={tr.id}
@@ -1117,6 +1129,18 @@ export function ClipTimeline({
                 {!renderTracks && <span className="clip-lane-label">{tr.name}</span>}
                 <div className="clip-lane-rail">
                   <PlaybackLine currentMs={currentTimeMs} timelineMs={timelineMs} />
+                  {voice && noteEndMs > 0 && <button type="button" className="clip-block midi-arrangement-block"
+                    aria-label={`${t("production.midi.openPianoRoll")} — ${tr.name} (${voice.notes.length} MIDI)`}
+                    onClick={() => onEditMidiTrack?.(tr.id, tr.name)}
+                    style={{ left: 0, width: `${Math.min(100, noteEndMs / timelineMs * 100)}%`, background: withAlpha(color, 0.22), color }}>
+                    <svg viewBox="0 0 1000 128" preserveAspectRatio="none" width="100%" height="100%" aria-hidden="true">
+                      {voice.notes.map(note => <rect key={note.id}
+                        x={scoreTicksToSeconds(scoreDocument!, note.startTick) * 1000 / noteEndMs * 1000}
+                        y={124 - note.pitch * 0.9} height="3.5" fill="currentColor"
+                        width={Math.max(2, (scoreTicksToSeconds(scoreDocument!, note.startTick + note.durationTick)
+                          - scoreTicksToSeconds(scoreDocument!, note.startTick)) * 1000 / noteEndMs * 1000)} />)}
+                    </svg>
+                  </button>}
                   {tr.clips.map((clip) => {
                     const left = (clip.startMs / timelineMs) * 100;
                     const width = Math.max(

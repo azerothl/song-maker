@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { parseMidiMessage } from "./midiInput.ts";
-import { INSTRUMENT_PROGRAMS } from "./midiInstrument.ts";
+import { INSTRUMENT_PROGRAMS, SoftSynth } from "./midiInstrument.ts";
 import { createEmptyScoreDocument } from "./score.ts";
 import { quantizeSecondsToTick } from "./midiScorePlayer.ts";
 
@@ -26,6 +26,12 @@ describe("midiInput", () => {
 });
 
 describe("midiInstrument programs", () => {
+  it("does not resume an offline context before rendering", async () => {
+    const context = { state: "suspended", startRendering() {}, resume() { throw new Error("offline resume"); },
+      createGain: () => ({ gain: { value: 0 }, connect() {} }), destination: {} } as unknown as OfflineAudioContext;
+    const synth = new SoftSynth({ context });
+    assert.equal(await synth.ensureContext(), context);
+  });
   it("lists the built-in melodic and drum programs while keeping SF2 optional", () => {
     assert.deepEqual(INSTRUMENT_PROGRAMS, [
       "piano",

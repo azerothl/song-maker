@@ -161,6 +161,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     useState<AdvancedSettingsPage>(null);
   const [workspace, setWorkspace] = useState<SongWorkspace>(initialWorkspace);
   const [midiEditorVoiceId, setMidiEditorVoiceId] = useState<string | null>(null);
+  const [midiEditorVst3Request, setMidiEditorVst3Request] = useState(0);
   const [midiEditorExpanded, setMidiEditorExpanded] = useState(false);
   const [midiEditorTrackName, setMidiEditorTrackName] = useState<string | null>(null);
   const midiEditorCloseRef = useRef<HTMLButtonElement>(null);
@@ -343,6 +344,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       setWorkspace("production");
       setMidiEditorExpanded(false);
       setMidiEditorVoiceId(voiceId);
+      setMidiEditorVst3Request(0);
       setMidiEditorTrackName(name);
       setMidiTrackMix(activeMix);
     } catch (error) {
@@ -363,11 +365,13 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     if (project) await refreshStudioProject();
   }
 
-  function onEditMidiTrack(trackId: string, trackName: string) {
+  function onEditMidiTrack(trackId: string, trackName: string, openVst3Settings = false) {
     midiEditorReturnFocusRef.current = document.activeElement as HTMLElement | null;
     setMidiEditorExpanded(false);
     setMidiEditorVoiceId(trackId);
     setMidiEditorTrackName(trackName);
+    if (openVst3Settings) setMidiEditorVst3Request((request) => request + 1);
+    else setMidiEditorVst3Request(0);
   }
 
   async function onTranscribeBasicPitch(track: MixTrack) {
@@ -480,6 +484,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
         format,
         mix,
         playbackSources,
+        { score: scoreDocument },
       );
       window.alert(path);
     } catch (e) {
@@ -530,6 +535,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
 
   const closeMidiEditor = () => {
     setMidiEditorVoiceId(null);
+    setMidiEditorVst3Request(0);
     setMidiEditorExpanded(false);
   };
 
@@ -1113,51 +1119,30 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
 
   async function persistAssistantMix(next: MixDoc) {
     if (!project) throw new Error("Aucun projet actif.");
-    const saved = await api.updateMix(project.id, {
-      masterGainDb: next.masterGainDb,
-      tracks: next.tracks.map((track) => ({
-        id: track.id,
-        name: track.name,
-        gainDb: track.gainDb,
-        pan: track.pan,
-        mute: track.mute,
-        solo: track.solo,
-        clips: track.clips,
-        vst3Effects: track.vst3Effects ?? [],
-      })),
-      trackOrder: next.tracks.map((track) => track.id),
-      tempoMap: next.tempoMap ?? [],
-      timeSignatures: next.timeSignatures ?? [],
-      markers: next.markers ?? [],
-      vst3MasterInsert: next.vst3MasterInsert ?? undefined,
-      clearVst3MasterInsert: !next.vst3MasterInsert,
-    });
-    setMix(saved);
+    const saved = await commitAssistantState(next, scoreDocument);
+    return saved.mix;
+  }
+
+  async function commitAssistantState(nextMix: MixDoc, nextScore: ScoreDocument | null, undo = false) {
+    if (!project || !displayedMix) throw new Error("Aucun projet actif.");
+    const saved = await api.applyStudioAssistantState(project.id, displayedMix, scoreDocument, nextMix, nextScore, undo);
+    useAppStore.setState({ project: saved.project, mix: saved.mix, scoreDocument: saved.score });
+    setMidiTrackMix(null);
     setMixPreview(null);
     setPlayerMixPreview(null);
+    setScorePreviewDocument(null);
     setMixSavedAt(new Date());
+    return saved;
   }
 
   async function applyAssistantMidi(
-    _nextMix: MixDoc,
+    nextMix: MixDoc,
     nextScore: ScoreDocument,
-    voice: ScoreDocument["voices"][number],
+    _voice: ScoreDocument["voices"][number],
   ) {
-    if (!project) throw new Error("Aucun projet actif.");
-    const addedMix = await api.addEmptyMidiTrack(project.id, voice.id, voice.name);
-    try {
-      const saved = await api.saveScore(project.id, nextScore);
-      const savedScore = { ...nextScore, id: saved.project.activeScoreId ?? saved.scoreId };
-      setMix(addedMix);
-      setScoreDocument(savedScore);
-      setMixPreview(null);
-      setPlayerMixPreview(null);
-      setScorePreviewDocument(null);
-      setMixSavedAt(new Date());
-    } catch (error) {
-      await api.removeEmptyMidiTrack(project.id, voice.id).catch(() => undefined);
-      throw error;
-    }
+    const saved = await commitAssistantState(nextMix, nextScore);
+    if (!saved.score) throw new Error("Partition MIDI manquante.");
+    return { mix: saved.mix, score: saved.score };
   }
 
   async function undoAssistantApplication(record: {
@@ -1165,25 +1150,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     beforeScore: ScoreDocument | null;
     addedMidiTrackId?: string;
   }) {
-    if (!project) throw new Error("Aucun projet actif.");
-    if (record.addedMidiTrackId) {
-      const restoredMix = await api.removeEmptyMidiTrack(project.id, record.addedMidiTrackId);
-      if (record.beforeScore) {
-        const saved = await api.saveScore(project.id, record.beforeScore);
-        setScoreDocument({ ...record.beforeScore, id: saved.project.activeScoreId ?? saved.scoreId });
-      } else {
-        await api.clearScore(project.id);
-        setScoreDocument(null);
-      }
-      setMix(restoredMix);
-    } else {
-      await persistAssistantMix(record.beforeMix);
-      setScoreDocument(record.beforeScore);
-    }
-    setMixPreview(null);
-    setPlayerMixPreview(null);
-    setScorePreviewDocument(null);
-    setMixSavedAt(new Date());
+    await commitAssistantState(record.beforeMix, record.beforeScore, true);
   }
 
   const listeningMix = mixPreview ?? displayedMix;
@@ -1410,6 +1377,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
             scheduleMixUpdate={scheduleMixUpdate}
             mixSavedAt={mixSavedAt}
             scoreGate={scoreGate}
+            scoreDocument={scoreDocument}
             separationInfo={separationInfo}
             setBusy={setBusy}
             setError={setError}
@@ -1517,6 +1485,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
               onProjectRefresh={refreshStudioProject}
               onError={setError}
               instrumentInspectorPosition="side"
+              vst3SettingsRequest={midiEditorVst3Request}
             />
           </div>
         </section>
@@ -1567,6 +1536,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
                 onProjectRefresh={refreshStudioProject}
                 onError={setError}
                 instrumentInspectorPosition="side"
+                vst3SettingsRequest={midiEditorVst3Request}
               />
             </div>
           </section>

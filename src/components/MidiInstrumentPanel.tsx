@@ -80,6 +80,7 @@ type Props = {
   latencyMs: number;
   onLatencyChange?: (ms: number) => void;
   onError?: (msg: string | null) => void;
+  vst3SettingsRequest?: number;
 };
 
 function programLabel(program: InstrumentProgram): string {
@@ -122,12 +123,16 @@ export function MidiInstrumentPanel({
   latencyMs,
   onLatencyChange,
   onError,
+  vst3SettingsRequest = 0,
 }: Props) {
   const settingsTabId = useId();
-  const [settingsTab, setSettingsTab] = useState<MidiSettingsTab>("instrument");
+  const [settingsTab, setSettingsTab] = useState<MidiSettingsTab>(
+    vst3SettingsRequest > 0 ? "plugin" : "instrument",
+  );
   const synthRef = useRef<SoftSynth | null>(null);
   const playbackRef = useRef<ScorePlaybackHandle | null>(null);
   const vst3AudioRef = useRef<HTMLAudioElement | null>(null);
+  const vst3SelectRef = useRef<HTMLSelectElement>(null);
   const vst3PreviewTokenRef = useRef(0);
   const recordStartRef = useRef<number | null>(null);
   const activeNotesRef = useRef(
@@ -135,8 +140,10 @@ export function MidiInstrumentPanel({
   );
   const docRef = useRef(document);
   const onChangeRef = useRef(onDocumentChange);
+  const onErrorRef = useRef(onError);
   docRef.current = document;
   onChangeRef.current = onDocumentChange;
+  onErrorRef.current = onError;
 
   const [program, setProgram] = useState<InstrumentProgram>("piano");
   const [gainDb, setGainDb] = useState(0);
@@ -162,6 +169,36 @@ export function MidiInstrumentPanel({
   const [panelVoiceId, setPanelVoiceId] = useState(
     voiceId ?? document.voices[0]?.id ?? "",
   );
+
+  useEffect(() => {
+    if (vst3SettingsRequest > 0) setSettingsTab("plugin");
+  }, [vst3SettingsRequest]);
+
+  useEffect(() => {
+    if (settingsTab !== "plugin" || vst3SettingsRequest === 0) return;
+    const frame = requestAnimationFrame(() => {
+      vst3SelectRef.current?.scrollIntoView({ block: "nearest" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [settingsTab, vst3SettingsRequest]);
+
+  // Discovery only enumerates installed modules; instantiate the selected plugin later.
+  useEffect(() => {
+    if (settingsTab !== "plugin" || vst3Plugins !== null) return;
+    let cancelled = false;
+    setVst3Scanning(true);
+    void (async () => {
+      try {
+        const plugins = await api.vst3ListPlugins();
+        if (!cancelled) setVst3Plugins(plugins);
+      } catch (error) {
+        if (!cancelled) onErrorRef.current?.(error instanceof Error ? error.message : String(error));
+      } finally {
+        if (!cancelled) setVst3Scanning(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [settingsTab, vst3Plugins]);
 
   useEffect(() => {
     if (!import.meta.env.VITE_CAPTURE) return;
@@ -813,6 +850,8 @@ export function MidiInstrumentPanel({
             <span>{t("midi.vst3.plugin")}</span>
             <select
               value={vst3Instrument?.pluginPath ?? ""}
+              ref={vst3SelectRef}
+              aria-label={t("midi.vst3.plugin")}
               disabled={vst3Busy || vst3Scanning}
               onChange={(event) => void selectVst3Instrument(event.target.value)}
             >

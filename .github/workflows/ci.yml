@@ -58,6 +58,17 @@ jobs:
       - name: Build app bundle
         run: pnpm build
 
+      - name: Verify MIDI audio rendering and inserts in Chromium
+        run: |
+          pnpm dev --host 127.0.0.1 --port 1420 > /tmp/studio-vite.log 2>&1 &
+          studio_server=$!
+          trap 'kill "$studio_server"' EXIT
+          for attempt in $(seq 1 60); do
+            curl --silent --fail http://127.0.0.1:1420/ > /dev/null && break
+            sleep 0.5
+          done
+          pnpm exec tsx scripts/verify-studio-midi-render.mts
+
   rust:
     name: Backend (Rust)
     runs-on: ubuntu-latest

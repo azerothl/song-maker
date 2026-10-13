@@ -21,8 +21,8 @@ import type {
 import type { ScoreDocument } from "@song-maker/score-engine";
 import { SoftSynth, type InstrumentProgram } from "./midiInstrument";
 import { scoreTicksToSeconds } from "./scoreTiming";
+import { arrangementMidiVoices, renderMidiMixStems, hasArrangementMidi } from "./midiMixRender";
 import {
-  hasNativeMidiVst3Request,
   needsOfflineTrackVst3Bake,
 } from "./vst3RealtimePolicy";
 
@@ -198,6 +198,7 @@ export class MixPlaybackEngine {
   private bakeGeneration = 0;
   private activeBakeJob: { cancel: () => void } | null = null;
   private realtimeStatusTimer: ReturnType<typeof setInterval> | null = null;
+  private midiScheduleGeneration = 0;
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
@@ -252,7 +253,7 @@ export class MixPlaybackEngine {
 
   private ensureCtx(): AudioContext {
     if (!this.ctx) {
-      this.ctx = new AudioContext();
+      this.ctx = new AudioContext({ sampleRate: this.lastMix?.sampleRate || 48_000 });
       this.ceiling = this.ctx.createGain();
       this.ceiling.gain.value = 1;
       this.master = this.ctx.createGain();
@@ -271,6 +272,18 @@ export class MixPlaybackEngine {
   ) {
     if (this.nativeConfigKey) void api.vst3RealtimeStop().catch(() => undefined);
     this.stopSources(false);
+    if (this.ctx && this.ctx.sampleRate !== (mix?.sampleRate || 48_000)) {
+      for (const track of this.midiTracks.values()) {
+        await track.synth.dispose();
+        track.gain.disconnect();
+        track.pan.disconnect();
+      }
+      this.midiTracks.clear();
+      await this.ctx.close();
+      this.ctx = null;
+      this.master = null;
+      this.ceiling = null;
+    }
     this.tracks = [];
     this.generationBuffer = null;
     this.bakedBuffer = null;
@@ -447,9 +460,10 @@ export class MixPlaybackEngine {
   private async processTrackEffects(
     mix: MixDoc,
     generation: number,
+    inputStems: DecodedStem[] = this.decodedStems,
   ): Promise<DecodedStem[]> {
     const processed: DecodedStem[] = [];
-    for (const stem of this.decodedStems) {
+    for (const stem of inputStems) {
       const track = mix.tracks.find((candidate) => candidate.id === stem.trackId);
       const effects = (track?.vst3Effects ?? []).filter((effect) => effect.enabled);
       let current = stem;
@@ -479,7 +493,7 @@ export class MixPlaybackEngine {
   }
 
   private requestProductionBakeAsync(mix: MixDoc): Promise<void> {
-    if (!this.ctx || this.decodedStems.length === 0) return Promise.resolve();
+    if (!this.ctx) return Promise.resolve();
     this.activeBakeJob?.cancel();
     const gen = ++this.bakeGeneration;
     this.productionMixBakePending = true;
@@ -489,10 +503,21 @@ export class MixPlaybackEngine {
     this.activeBakeJob = { cancel: () => undefined };
     return (async () => {
       try {
-        const stems = await this.processTrackEffects(mix, gen);
+        const midi = await renderMidiMixStems(mix, this.scoreDocument);
+        let renderMix = mix;
+        const inputStems = [...this.decodedStems, ...midi];
+        if (this.mode === "generation" && this.generationBuffer) {
+          const buffer = this.generationBuffer;
+          const id = "generation-mix-source";
+          renderMix = { ...mix, tracks: [...mix.tracks, { id, name: this.label, role: "mix", gainDb: 0,
+            pan: 0, mute: false, solo: false, locked: false, aiSeparated: false, clips: [] }] };
+          inputStems.push({ trackId: id, left: new Float32Array(buffer.getChannelData(0)),
+            right: new Float32Array(buffer.getChannelData(buffer.numberOfChannels > 1 ? 1 : 0)), sampleRate: buffer.sampleRate });
+        }
+        const stems = await this.processTrackEffects(renderMix, gen, inputStems);
         if (gen !== this.bakeGeneration) return;
         const job = bakeMixPcmAsync(
-          mix,
+          renderMix,
           stems,
           getProductionOverlay(),
           getProductionTempoBpm(),
@@ -582,7 +607,7 @@ export class MixPlaybackEngine {
         );
       }
     }
-    return end;
+    return end > 0 ? end + 0.2 : 0;
   }
 
   private configureMidiTracks(
@@ -591,9 +616,7 @@ export class MixPlaybackEngine {
   ) {
     if (!this.ctx || !this.ceiling) return;
     this.scoreDocument = document;
-    const voices = (document?.voices ?? []).filter(
-      (voice) => voice.notes.length > 0 && voice.id.startsWith("midi"),
-    );
+    const voices = arrangementMidiVoices(mix, document);
     const ids = new Set(voices.map((voice) => voice.id));
     for (const [id, track] of this.midiTracks) {
       if (ids.has(id)) continue;
@@ -629,7 +652,9 @@ export class MixPlaybackEngine {
       nodes.gain.gain.value = silent ? 0 : dbToLinear(track?.gainDb ?? 0);
       nodes.pan.pan.value = Math.max(-1, Math.min(1, track?.pan ?? 0));
     }
-    if (document) this.duration = Math.max(this.duration, this.scoreDuration(document));
+    const audioEnd = this.tracks.reduce((end, track) => Math.max(end,
+      ...track.clips.map(clip => (clip.startMs + clip.durationMs) / 1000)), this.generationBuffer?.duration ?? 0);
+    this.duration = Math.max(audioEnd, document ? this.scoreDuration(document) : 0);
   }
 
   async setScoreDocument(
@@ -660,25 +685,28 @@ export class MixPlaybackEngine {
   }
 
   private startMidiSources(offset: number) {
-    if (!this.ctx || !this.scoreDocument) return;
+    if (!this.ctx || !this.scoreDocument || this.productionBake) return;
+    const score = this.scoreDocument;
+    const generation = ++this.midiScheduleGeneration;
     const whenNow = this.ctx.currentTime;
-    for (const voice of this.scoreDocument.voices) {
+    for (const voice of score.voices) {
       if (this.nativeMidiTrackIds.has(voice.id)) continue;
       const nodes = this.midiTracks.get(voice.id);
       if (!nodes) continue;
-      for (const note of voice.notes) {
-        const start = scoreTicksToSeconds(this.scoreDocument, note.startTick);
+      void (async () => { for (const note of [...voice.notes].sort((a, b) => a.startTick - b.startTick)) {
+        if (generation !== this.midiScheduleGeneration) break;
+        const start = scoreTicksToSeconds(score, note.startTick);
         const end = scoreTicksToSeconds(
-          this.scoreDocument,
+          score,
           note.startTick + note.durationTick,
         );
         if (end <= offset) continue;
         const startAt = whenNow + Math.max(0, start - offset);
         const endAt = whenNow + Math.max(0.04, end - offset);
-        void nodes.synth
-          .noteOn(note.pitch, note.velocity, startAt)
-          .then(() => nodes.synth.noteOff(note.pitch, endAt));
-      }
+        await nodes.synth.noteOn(note.pitch, note.velocity, startAt);
+        if (generation !== this.midiScheduleGeneration) { nodes.synth.allNotesOff(); break; }
+        nodes.synth.noteOff(note.pitch, endAt);
+      } })();
     }
   }
 
@@ -687,7 +715,7 @@ export class MixPlaybackEngine {
     if (!this.master) return;
     this.lastMix = mix;
     const nativeRealtimeReady = await this.configureNativeRealtime(mix);
-    if (this.mode === "generation") {
+    if (this.mode === "generation" && !hasArrangementMidi(mix, this.scoreDocument)) {
       this.activeBakeJob?.cancel();
       this.bakeGeneration++;
       this.productionMixBakePending = false;
@@ -716,14 +744,10 @@ export class MixPlaybackEngine {
     // Production overlay or clip stretch/takes → same bake as export (hors thread UI).
     const vst3Enabled = mix.vst3MasterInsert?.enabled === true;
     const vst3TrackEnabled = needsOfflineTrackVst3Bake(mix, nativeRealtimeReady);
-    if (hasNativeMidiVst3Request(mix, this.scoreDocument) && !nativeRealtimeReady) {
-      // configureNativeRealtime already exposed the native host failure. Do not
-      // replace it with the unrelated "separate into stems" guidance.
-      this.productionMixBakePending = false;
-      this.notify();
-      return;
-    }
-    if ((vst3Enabled || vst3TrackEnabled) && this.decodedStems.length === 0) {
+    const midiAvailable = hasArrangementMidi(mix, this.scoreDocument);
+    const midiVst3Offline = !nativeRealtimeReady && arrangementMidiVoices(mix, this.scoreDocument)
+      .some(voice => voice.vst3Instrument || mix.tracks.find(track => track.id === voice.id)?.vst3Effects?.some(effect => effect.enabled));
+    if ((vst3Enabled || vst3TrackEnabled) && this.decodedStems.length === 0 && !midiAvailable) {
       this.productionMixBakeFailed = true;
       this.productionMixBakeError = t("production.vst3.needsStems");
       this.productionMixBakePending = false;
@@ -732,8 +756,8 @@ export class MixPlaybackEngine {
     }
 
     if (
-      (productionIsActive() || mixNeedsClipProcessingBake(mix) || vst3Enabled || vst3TrackEnabled) &&
-      this.decodedStems.length > 0
+      (productionIsActive() || mixNeedsClipProcessingBake(mix) || vst3Enabled || vst3TrackEnabled || midiVst3Offline) &&
+      (this.decodedStems.length > 0 || midiAvailable)
     ) {
       await this.requestProductionBakeAsync(mix);
       return;
@@ -948,6 +972,7 @@ export class MixPlaybackEngine {
   }
 
   private stopSources(_resetOffset: boolean) {
+    this.midiScheduleGeneration++;
     for (const track of this.midiTracks.values()) track.synth.allNotesOff();
     for (const src of this.sources) {
       try {
@@ -1084,6 +1109,7 @@ export class MixPlaybackEngine {
               stateB64: instrument.stateB64,
             }
           : null,
+        program: voice.instrumentProgram ?? "piano",
         notes: voice.notes.map((note) => ({
           startSeconds: scoreTicksToSeconds(score!, note.startTick),
           endSeconds: scoreTicksToSeconds(
@@ -1109,6 +1135,7 @@ export class MixPlaybackEngine {
 
     const config: Vst3RealtimePlaybackConfig = {
       masterGainDb: mix?.masterGainDb ?? 0,
+      durationSeconds: Math.max(this.duration, score ? this.scoreDuration(score) : 0),
       anySolo,
       tracks,
     };

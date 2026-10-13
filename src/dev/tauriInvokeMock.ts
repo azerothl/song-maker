@@ -165,6 +165,25 @@ export async function invoke<T>(
       return { enabled: false, isHost: false, notesFr: "" } as T;
     case "vst3_spike_scan":
       return [] as T;
+    case "vst3_list_plugins":
+      return ["MODO BASS 2", "MODO DRUM", "SampleTank 4", "Odin2"].map((name) => ({
+        name,
+        path: `C:\\capture-vst3\\${name}.vst3`,
+        binaryPath: `C:\\capture-vst3\\${name}.vst3`,
+      })) as T;
+    case "vst3_list_effect_plugins":
+      return [] as T;
+    case "vst3_plugin_parameters":
+      return {
+        path: args?.path,
+        name: "Capture instrument",
+        vendor: "Capture mock",
+        version: "1",
+        category: "Instrument|Synth",
+        audioInputs: 0,
+        audioOutputs: 1,
+        parameters: [],
+      } as T;
     case "list_midi_outputs":
     case "midi_output_support":
     case "connect_midi_output":

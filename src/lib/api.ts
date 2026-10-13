@@ -125,6 +125,16 @@ export const api = {
       renderFrames: request.renderFrames,
       midiNotes: request.midiNotes,
     }),
+  vst3RenderMidiPcm: (request: {
+    pluginPath: string;
+    parameters: Record<string, number>;
+    pluginStateB64?: string;
+    sampleRate: number;
+    renderFrames: number;
+    midiNotes: Vst3MidiNote[];
+  }) => invoke<number[]>("vst3_render_midi_pcm", {
+    ...request, pluginStateB64: request.pluginStateB64 ?? null,
+  }),
   vst3RenderMidiToMixTrack: (request: {
     projectId: string;
     displayName: string;
@@ -463,6 +473,9 @@ export const api = {
     invoke<StudioAssistantHistory>("load_studio_assistant_history", { id }),
   saveStudioAssistantHistory: (id: string, history: StudioAssistantHistory) =>
     invoke<void>("save_studio_assistant_history", { id, history }),
+  applyStudioAssistantState: (id: string, expectedMix: MixDoc, expectedScore: unknown, mix: MixDoc, score: unknown, undo = false) =>
+    invoke<{ project: ProjectDoc; mix: MixDoc; score: import("./score").ScoreDocument | null }>(
+      "apply_studio_assistant_state", { id, expectedMix, expectedScore, mix, score, undo }),
   loadProductionOverlayDisk: (id: string, mixId: string) =>
     invoke<unknown | null>("load_production_overlay", { id, mixId }),
   listProjectPackageInventory: (id: string) =>

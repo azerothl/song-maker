@@ -120,6 +120,15 @@ describe("ajout de piste dans Studio", () => {
       assert.equal(await pluginTab.getAttribute("aria-selected"), "true");
       assert.equal(await panels.nth(0).isVisible(), false);
       assert.equal(await panels.nth(1).isVisible(), true);
+      const instrumentSelect = page.getByLabel("Instrument VST3", { exact: true });
+      try {
+        await instrumentSelect.locator('option', { hasText: "MODO DRUM" }).waitFor({ state: "attached", timeout: 5000 });
+      } catch (error) {
+        const selects = await page.locator('select').evaluateAll((elements) => elements.map((element) => element.outerHTML));
+        throw new Error(`${error}\nSelects: ${JSON.stringify(selects)}\nErrors: ${browserErrors.join(" | ")}`);
+      }
+      assert.equal(await instrumentSelect.locator('option', { hasText: "MODO BASS 2" }).count(), 1);
+      assert.equal(await instrumentSelect.locator('option', { hasText: "SampleTank 4" }).count(), 1);
 
       await midiTab.click();
       await midiTab.press("ArrowRight");
@@ -130,6 +139,44 @@ describe("ajout de piste dans Studio", () => {
       await page.close();
     }
   });
+
+  for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 768 }]) {
+  it(`ouvre le choix VST3 depuis les réglages de piste à ${viewport.width}px et charge le catalogue automatiquement`, async () => {
+    const page = await browser.newPage({ viewport });
+    try {
+      await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: "Ajouter une piste" }).click();
+      await page.getByRole("button", { name: "Ouvrir le piano roll" }).click();
+      const dock = page.locator(".studio-midi-dock");
+      await dock.waitFor({ state: "visible" });
+      await dock.locator(".studio-midi-dock-close").click();
+      await page.getByRole("button", { name: "Réglages de la piste : Instrument MIDI 1", exact: true }).click();
+      const popin = page.locator(".production-track-detail-popin");
+      await popin.getByRole("button", { name: "Choisir un instrument VST3", exact: true }).click();
+      await dock.waitFor({ state: "visible" });
+      assert.equal(await dock.getByRole("tab", { name: "Plug-in" }).getAttribute("aria-selected"), "true");
+      const select = dock.getByLabel("Instrument VST3", { exact: true });
+      await select.locator('option', { hasText: "MODO DRUM" }).waitFor({ state: "attached" });
+      assert.equal(await select.isEnabled(), true);
+      await page.waitForFunction(() => {
+        const element = document.querySelector('.studio-midi-dock .midi-vst3-block select[aria-label]');
+        const inspector = element?.closest('details');
+        if (!element || !inspector) return false;
+        const bounds = element.getBoundingClientRect();
+        const panel = inspector.getBoundingClientRect();
+        return bounds.top >= panel.top && bounds.bottom <= Math.min(panel.bottom, window.innerHeight) + 1;
+      }, undefined, { timeout: 5000 });
+      const bounds = await select.boundingBox();
+      assert.ok(bounds && bounds.y >= 0 && bounds.y + bounds.height <= viewport.height + 1,
+        `the instrument chooser must be visible: ${JSON.stringify(bounds)}`);
+      await select.selectOption({ label: "MODO DRUM" });
+      await dock.getByText("MODO DRUM est assigné à cette voix.", { exact: true }).waitFor({ state: "visible" });
+      assert.equal(await select.inputValue(), "C:\\capture-vst3\\MODO DRUM.vst3");
+    } finally {
+      await page.close();
+    }
+  });
+  }
 
   it("affiche au moins deux octaves dans le piano-roll aux deux formats desktop", async () => {
     for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 768 }]) {
