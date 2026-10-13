@@ -74,7 +74,8 @@ Sans cette option, Production peut quand même générer une partie selon le **t
 
 - **Hôte DeclUI embarqué** : loopback `127.0.0.1`, désactivé par défaut. La génération YuE2 reste sur le bureau.
 - **Worker GPU distant** : désactivé par défaut.
-- **VST3 sous Windows** : effets master calculés hors ligne pour aperçu et export, éditeurs de plugins ouvrables et instruments MIDI jouables. AU/macOS reste différé.
+- **VST3 sous Windows** : inserts de piste audio/MIDI en temps réel dans le Studio, monitoring du micro avec une chaîne de piste en mode Standard, instruments MIDI et éditeurs de plugins. L’effet master reste calculé hors ligne pour l’aperçu et l’export. AU/macOS reste différé.
+- **Assistant de mix** : conversation depuis le Studio, propositions de niveaux/panoramiques et de pistes MIDI, aperçu avant application, historique et annulation par projet. La transcription d’une piste audio en mélodie nécessite Python avec `basic-pitch==0.4.0` et `onnxruntime`.
 
 ## ffmpeg
 

@@ -1,16 +1,33 @@
 ---
-title: Nouveautés v0.4.1
-description: Corrections du Studio, des pistes audio importées et de la lecture dans la bibliothèque.
+title: Nouveautés v0.4.2
+description: Effets VST3 de piste sous Windows, export MIDI et assistant conversationnel du Studio.
 order: 2
 ---
 
-# Nouveautés — v0.4.1
+# Nouveautés — v0.4.2
 
-Cette version apporte des corrections au Studio et à la Bibliothèque :
+Cette version réunit les corrections du Studio et le nouvel assistant de mix.
 
-- Les projets contenant uniquement des pistes audio importées restent reconnus comme non vides.
-- Vous pouvez renommer les pistes et changer leur ordre ; ces changements sont conservés à la réouverture du projet.
-- Les subdivisions rythmiques choisies et la hauteur des lignes s’appliquent correctement dans le Studio.
-- L’assistant de mix écarte les réglages impossibles à appliquer et permet d’ajuster le gain et le panoramique avant confirmation.
-- Dans la Bibliothèque, seule la waveform du morceau en cours de lecture affiche la progression.
-- Les messages de l’assistant de mix et de l’état vide de Partition présentent plus clairement les actions disponibles.
+## Effets et instruments VST3
+
+- Sous Windows, chaque piste audio ou MIDI peut avoir une chaîne d’effets VST3 : ajout, réglages, activation, ordre et retrait. Les inserts sont traités en temps réel dans la lecture du Studio et repris dans le rendu des exports.
+- **Réglages de la piste MIDI → Choisir un instrument VST3** ouvre directement le sélecteur du piano roll. La liste des plugins installés se charge automatiquement ; la recherche manuelle permet de l’actualiser.
+- Pendant l’enregistrement natif en mode **Standard**, le retour du micro peut traverser les inserts d’une piste choisie. La prise enregistrée reste brute. Ce monitoring n’est pas disponible en accès exclusif.
+- L’effet master existant conserve son rendu hors ligne pour l’aperçu et l’export. Les plugins et leurs banques de sons s’installent séparément ; l’hôte VST3 reste réservé à Windows.
+
+## Assistant du Studio
+
+Depuis **Studio → Assistant de mix**, décrivez un changement de niveau ou de panoramique, demandez un beat MIDI régulier ou une ligne de piano suivant une mélodie disponible.
+
+L’assistant présente un aperçu avant **Appliquer au projet**. Les pistes ajoutées restent éditables dans le piano roll et apparaissent immédiatement dans l’arrangement. L’historique et les annulations sont conservés par projet, y compris après redémarrage. Une proposition périmée est refusée pour préserver vos modifications manuelles.
+
+Pour suivre une mélodie, choisissez une voix MIDI ou une piste audio à transcrire. Sans source exploitable, l’assistant explique ce qui manque. La transcription audio utilise un environnement Python avec `basic-pitch==0.4.0` et `onnxruntime` ; le script est embarqué dans l’application.
+
+## Lecture, export et réglages
+
+- Les instruments MIDI intégrés ou VST3 et leurs inserts sont inclus dans l’export du mix et des pistes alignées. Un projet MIDI seul peut être exporté.
+- Le lecteur couvre tout l’arrangement même lorsqu’une piste VST3 est plus courte ; Pause arrête aussi les notes MIDI déjà programmées.
+- Les notes MIDI sont visibles dans les lignes du Studio. Les projets MIDI sont reconnus comme des arrangements.
+- Les onglets des réglages de piste restent lisibles et le déplacement des pistes dispose d’une poignée ainsi que des flèches du clavier.
+
+[Télécharger la version 0.4.2](/fr/downloads) · [Guide d’installation](/fr/docs/install)
