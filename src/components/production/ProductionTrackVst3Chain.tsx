@@ -55,6 +55,7 @@ export function ProductionTrackVst3Chain({
     () => mix.tracks.find((track) => track.id === trackId)?.vst3Effects ?? [],
     [mix.tracks, trackId],
   );
+  const trackName = mix.tracks.find((track) => track.id === trackId)?.name ?? trackId;
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
   const selectedPlugin = effects.find((effect) => effect.id === selectedEffectId) ?? effects[effects.length - 1];
   useEffect(() => {
@@ -207,6 +208,12 @@ export function ProductionTrackVst3Chain({
         </button>
       </header>
 
+      <div className="production-track-vst3-scope">
+        <strong>{t("production.track.vst3.scope", { track: trackName })}</strong>
+        <p>{t("production.track.vst3.offline")}</p>
+        <p>{t("production.track.vst3.catalogHint")}</p>
+      </div>
+
       {catalog === null ? (
         <p className="hint" role="status">{t("production.vst3.scanning")}</p>
       ) : catalog.length === 0 ? (
@@ -235,12 +242,14 @@ export function ProductionTrackVst3Chain({
           {effects.map((effect, index) => (
             <li key={effect.id} className="production-track-vst3-item">
               <div className="production-track-vst3-toggle">
-                <input
-                  type="checkbox"
-                  checked={effect.enabled}
-                  aria-label={t("production.vst3.enabled")}
-                  onChange={(event) => patchEffect(effect.id, { enabled: event.target.checked })}
-                />
+                <label className="production-track-vst3-enabled">
+                  <input
+                    type="checkbox"
+                    checked={effect.enabled}
+                    onChange={(event) => patchEffect(effect.id, { enabled: event.target.checked })}
+                  />
+                  <span>{t("production.track.vst3.active")}</span>
+                </label>
                 <button
                   className="production-track-vst3-select"
                   type="button"

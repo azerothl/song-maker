@@ -12027,6 +12027,35 @@ details[open] > summary {
   font-size: 0.74rem;
 }
 
+.production-track-vst3-scope {
+  display: grid;
+  gap: 0.22rem;
+  padding: 0.5rem 0.6rem;
+  border-left: 3px solid var(--accent-cyan);
+  border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--accent-cyan) 8%, var(--bg1));
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.production-track-vst3-scope p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.production-track-vst3-enabled {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.production-track-vst3-enabled input {
+  margin: 0;
+}
+
 .production-track-vst3-add select {
   width: min(60%, 22rem);
   min-width: 9rem;
