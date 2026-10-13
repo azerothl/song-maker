@@ -50,6 +50,8 @@ const emptyMix = { tracks: [] } as unknown as MixDoc;
 test("assistant recognizes the requested French MIDI actions", () => {
   assert.equal(detectStudioAssistantIntent("Ajoute une piste MIDI avec un beat régulier"), "beat");
   assert.equal(detectStudioAssistantIntent("Ajoute une piste avec une ligne de piano qui suit la mélodie"), "piano");
+  assert.equal(detectStudioAssistantIntent("Baisse le volume du piano de 3 dB et conserve le beat"), "mix");
+  assert.equal(detectStudioAssistantIntent("Lower the volume of the drum beat"), "mix");
 });
 
 test("assistant beat builds editable, regular MIDI for the project meter", () => {

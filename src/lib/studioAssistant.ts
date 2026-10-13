@@ -52,6 +52,9 @@ export type StudioAssistantIntent = "beat" | "piano" | "mix" | "unknown";
 
 export function detectStudioAssistantIntent(text: string): StudioAssistantIntent {
   const normalized = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  // Mentioning a beat/piano while adjusting its level is not a request to add a track.
+  if (/\b(volume|gain|pan|panoramique)\b/.test(normalized)
+    && /\b(baisse|augmente|diminue|monte|regle|ajuste|reduce|lower|raise|increase|adjust)\b/.test(normalized)) return "mix";
   if (/\b(beat|batterie|drum|percussion|percu)\b/.test(normalized)) return "beat";
   if (/\b(piano|pian[o]?|melodie|melody|ligne melodique)\b/.test(normalized)) return "piano";
   if (/\b(mix|volume|gain|pan|panoramique|basse|voix|instrument|son)\b/.test(normalized)) return "mix";
