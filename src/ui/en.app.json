@@ -631,7 +631,7 @@
   "midi.vst3.kind.instrument": "MIDI instrument",
   "midi.vst3.kind.incompatible": "Unsupported",
   "midi.vst3.selected": "{name} is assigned to this voice.",
-  "midi.vst3.assigned": "This voice’s notes will be rendered by {name}.",
+  "midi.vst3.assigned": "This voice uses {name} in Studio playback and rendering.",
   "midi.vst3.openEditor": "Open instrument interface",
   "midi.vst3.editorOpening": "Opening instrument…",
   "midi.vst3.editorSaved": "Instrument settings are in the score. Save the score to keep them.",

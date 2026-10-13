@@ -13,7 +13,11 @@ import {
   productionIsActive,
 } from "./productionState";
 import { emitPlaybackPosition } from "./playbackPosition";
-import type { MixDoc, PlaybackSources } from "./types";
+import type {
+  MixDoc,
+  PlaybackSources,
+  Vst3RealtimePlaybackConfig,
+} from "./types";
 import type { ScoreDocument } from "@song-maker/score-engine";
 import { SoftSynth, type InstrumentProgram } from "./midiInstrument";
 import { scoreTicksToSeconds } from "./scoreTiming";
@@ -161,6 +165,15 @@ export class MixPlaybackEngine {
   private bakedBuffer: AudioBuffer | null = null;
   private decodedStems: DecodedStem[] = [];
   private lastMix: MixDoc | null = null;
+  private lastSources: PlaybackSources | null = null;
+  private projectId: string | null = null;
+  private nativeRealtimeActive = false;
+  private nativeTrackIds = new Set<string>();
+  private nativeMidiTrackIds = new Set<string>();
+  private nativeConfigKey = "";
+  private nativeClockSeconds: number | null = null;
+  private nativeClockUpdatedAt = 0;
+  private nativeClockPlaying = false;
   private productionBake = false;
   private productionMixBakePending = false;
   private productionMixBakeFailed = false;
@@ -180,6 +193,7 @@ export class MixPlaybackEngine {
   private bakeTimer: ReturnType<typeof setTimeout> | null = null;
   private bakeGeneration = 0;
   private activeBakeJob: { cancel: () => void } | null = null;
+  private realtimeStatusTimer: ReturnType<typeof setInterval> | null = null;
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
@@ -219,6 +233,12 @@ export class MixPlaybackEngine {
   }
 
   getCurrentTime(): number {
+    if (this.nativeRealtimeActive && this.nativeClockSeconds != null) {
+      const elapsed = this.nativeClockPlaying
+        ? Math.max(0, performance.now() - this.nativeClockUpdatedAt) / 1000
+        : 0;
+      return Math.min(this.duration, this.nativeClockSeconds + elapsed);
+    }
     if (!this.ctx || !this.playing) return this.offset;
     return Math.min(
       this.duration,
@@ -243,7 +263,9 @@ export class MixPlaybackEngine {
     sources: PlaybackSources | null,
     mix: MixDoc | null,
     scoreDocument: ScoreDocument | null = null,
+    projectId: string | null = null,
   ) {
+    if (this.nativeConfigKey) void api.vst3RealtimeStop().catch(() => undefined);
     this.stopSources(false);
     this.tracks = [];
     this.generationBuffer = null;
@@ -254,6 +276,14 @@ export class MixPlaybackEngine {
     this.productionMixBakeFailed = false;
     this.productionMixBakeError = null;
     this.lastMix = mix;
+    this.lastSources = sources;
+    this.projectId = projectId;
+    this.nativeRealtimeActive = false;
+    this.nativeTrackIds.clear();
+    this.nativeMidiTrackIds.clear();
+    this.nativeConfigKey = "";
+    this.nativeClockSeconds = null;
+    this.nativeClockPlaying = false;
     this.scoreDocument = scoreDocument;
     this.peaks = [];
     this.mixPeaks = null;
@@ -616,6 +646,7 @@ export class MixPlaybackEngine {
       }
     }
     this.configureMidiTracks(document, mix);
+    await this.applyMix(mix);
     if (this.playing) {
       const current = this.getCurrentTime();
       for (const track of this.midiTracks.values()) track.synth.allNotesOff();
@@ -628,6 +659,7 @@ export class MixPlaybackEngine {
     if (!this.ctx || !this.scoreDocument) return;
     const whenNow = this.ctx.currentTime;
     for (const voice of this.scoreDocument.voices) {
+      if (this.nativeMidiTrackIds.has(voice.id)) continue;
       const nodes = this.midiTracks.get(voice.id);
       if (!nodes) continue;
       for (const note of voice.notes) {
@@ -650,7 +682,8 @@ export class MixPlaybackEngine {
     this.configureMidiTracks(this.scoreDocument, mix);
     if (!this.master) return;
     this.lastMix = mix;
-    if (this.mode === "generation" || !mix) {
+    const nativeRealtimeReady = await this.configureNativeRealtime(mix);
+    if (this.mode === "generation") {
       this.activeBakeJob?.cancel();
       this.bakeGeneration++;
       this.productionMixBakePending = false;
@@ -663,10 +696,22 @@ export class MixPlaybackEngine {
       this.notify();
       return;
     }
+    if (!mix) {
+      this.activeBakeJob?.cancel();
+      this.bakeGeneration++;
+      this.productionMixBakePending = false;
+      this.productionMixBakeFailed = false;
+      this.productionMixBakeError = null;
+      this.master.gain.value = 1;
+      this.productionBake = false;
+      this.bakedBuffer = null;
+      this.notify();
+      return;
+    }
 
     // Production overlay or clip stretch/takes → same bake as export (hors thread UI).
     const vst3Enabled = mix.vst3MasterInsert?.enabled === true;
-    const vst3TrackEnabled = mix.tracks.some((track) =>
+    const vst3TrackEnabled = !nativeRealtimeReady && mix.tracks.some((track) =>
       track.vst3Effects?.some((effect) => effect.enabled),
     );
     if ((vst3Enabled || vst3TrackEnabled) && this.decodedStems.length === 0) {
@@ -741,6 +786,7 @@ export class MixPlaybackEngine {
     }
     this.startSources(this.offset);
     this.playing = true;
+    if (this.nativeRealtimeActive) this.startRealtimeStatusPoll();
     this.startRaf();
     this.notify();
   }
@@ -748,6 +794,13 @@ export class MixPlaybackEngine {
   pause() {
     if (!this.playing) return;
     this.offset = this.getCurrentTime();
+    this.nativeClockSeconds = this.offset;
+    this.nativeClockUpdatedAt = performance.now();
+    this.nativeClockPlaying = false;
+    if (this.nativeRealtimeActive) {
+      void api.vst3RealtimePause().catch(() => undefined);
+    }
+    this.stopRealtimeStatusPoll();
     this.stopSources(false);
     this.playing = false;
     this.stopRaf();
@@ -764,6 +817,12 @@ export class MixPlaybackEngine {
     const wasPlaying = this.playing;
     this.stopSources(false);
     this.offset = t;
+    this.nativeClockSeconds = t;
+    this.nativeClockUpdatedAt = performance.now();
+    this.nativeClockPlaying = wasPlaying && this.nativeRealtimeActive;
+    if (this.nativeRealtimeActive) {
+      void api.vst3RealtimeSeek(t).catch(() => undefined);
+    }
     this.playing = false;
     if (wasPlaying) {
       this.startSources(t);
@@ -778,6 +837,16 @@ export class MixPlaybackEngine {
     this.sources = [];
     this.startedAt = this.ctx.currentTime;
     this.offset = offset;
+    if (this.nativeRealtimeActive) {
+      this.nativeClockSeconds = offset;
+      this.nativeClockUpdatedAt = performance.now();
+      this.nativeClockPlaying = true;
+      void api.vst3RealtimePlay(offset).catch((error) => {
+        this.productionMixBakeFailed = true;
+        this.productionMixBakeError = error instanceof Error ? error.message : String(error);
+        this.notify();
+      });
+    }
     this.startMidiSources(offset);
 
     if (this.productionBake && this.bakedBuffer) {
@@ -795,6 +864,7 @@ export class MixPlaybackEngine {
 
     if (this.mode === "stems") {
       for (const track of this.tracks) {
+        if (this.nativeTrackIds.has(track.trackId)) continue;
         for (const clip of track.clips) {
           const clipStartSec = clip.startMs / 1000;
           const clipDurSec = Math.max(0.001, clip.durationMs / 1000);
@@ -902,6 +972,8 @@ export class MixPlaybackEngine {
 
   dispose() {
     this.pause();
+    this.stopRealtimeStatusPoll();
+    if (this.nativeConfigKey) void api.vst3RealtimeStop().catch(() => undefined);
     this.stopRaf();
     this.activeBakeJob?.cancel();
     this.bakeGeneration++;
@@ -924,5 +996,181 @@ export class MixPlaybackEngine {
     this.bakedBuffer = null;
     this.listeners.clear();
     disposeMixBakeWorker();
+  }
+
+  private async configureNativeRealtime(mix: MixDoc | null): Promise<boolean> {
+    const score = this.scoreDocument;
+    const canUseNative = Boolean(
+      (mix?.tracks.some((track) => track.vst3Effects?.some((effect) => effect.enabled)) ||
+        score?.voices.some((voice) => voice.vst3Instrument && voice.notes.length > 0)) &&
+        !mix?.vst3MasterInsert?.enabled &&
+        !productionIsActive() &&
+        !(mix && mixNeedsClipProcessingBake(mix)),
+    );
+    if (!canUseNative) {
+      if (this.nativeConfigKey) void api.vst3RealtimeStop().catch(() => undefined);
+      this.nativeRealtimeActive = false;
+      this.nativeTrackIds.clear();
+      this.nativeMidiTrackIds.clear();
+      this.nativeConfigKey = "";
+      this.nativeClockSeconds = null;
+      this.nativeClockPlaying = false;
+      return false;
+    }
+
+    const tracks: Vst3RealtimePlaybackConfig["tracks"] = [];
+    const sourceByTrack = new Map(
+      (this.lastSources?.stems ?? []).map((stem) => [stem.trackId, stem]),
+    );
+    const mixTracks = mix?.tracks ?? [];
+    const anySolo = mixTracks.some((track) => track.solo);
+    for (const track of mixTracks) {
+      const effects = track.vst3Effects ?? [];
+      if (!effects.some((effect) => effect.enabled)) continue;
+      if (track.mute || (anySolo && !track.solo)) continue;
+      const stem = sourceByTrack.get(track.id);
+      const isMidi = track.role.toLowerCase() === "midi";
+      if (isMidi) continue;
+      if (!isMidi && !stem) continue;
+      tracks.push({
+        id: track.id,
+        name: track.name,
+        role: track.role,
+        path: stem?.path ?? null,
+        gainDb: track.gainDb,
+        pan: track.pan,
+        mute: track.mute,
+        solo: track.solo,
+        clips: track.clips,
+        effects,
+        instrument: null,
+        notes: [],
+      });
+    }
+
+    for (const voice of score?.voices ?? []) {
+      if (voice.notes.length === 0) continue;
+      const track = mixTracks.find((candidate) => candidate.id === voice.id);
+      const instrument = voice.vst3Instrument;
+      const effects = track?.vst3Effects ?? [];
+      if (!instrument && !effects.some((effect) => effect.enabled)) continue;
+      if (track?.mute || (anySolo && !track?.solo)) continue;
+      if (tracks.some((candidate) => candidate.id === voice.id)) continue;
+      tracks.push({
+        id: voice.id,
+        name: track?.name ?? voice.name,
+        role: "midi",
+        path: null,
+        gainDb: track?.gainDb ?? 0,
+        pan: track?.pan ?? 0,
+        mute: track?.mute ?? false,
+        solo: track?.solo ?? false,
+        clips: [],
+        effects,
+        instrument: instrument
+          ? {
+              pluginPath: instrument.pluginPath,
+              pluginName: instrument.pluginName,
+              parameters: instrument.parameters,
+              stateB64: instrument.stateB64,
+            }
+          : null,
+        notes: voice.notes.map((note) => ({
+          startSeconds: scoreTicksToSeconds(score!, note.startTick),
+          endSeconds: scoreTicksToSeconds(
+            score!,
+            note.startTick + note.durationTick,
+          ),
+          pitch: note.pitch,
+          velocity: note.velocity,
+        })),
+      });
+    }
+
+    if (tracks.length === 0) {
+      if (this.nativeConfigKey) void api.vst3RealtimeStop().catch(() => undefined);
+      this.nativeRealtimeActive = false;
+      this.nativeTrackIds.clear();
+      this.nativeMidiTrackIds.clear();
+      this.nativeConfigKey = "";
+      this.nativeClockSeconds = null;
+      this.nativeClockPlaying = false;
+      return false;
+    }
+
+    const config: Vst3RealtimePlaybackConfig = {
+      masterGainDb: mix?.masterGainDb ?? 0,
+      anySolo,
+      tracks,
+    };
+    const key = `${this.projectId ?? ""}:${JSON.stringify(config)}`;
+    if (key === this.nativeConfigKey && this.nativeRealtimeActive) return true;
+    const wasPlaying = this.playing;
+    const current = this.getCurrentTime();
+    try {
+      const status = await api.vst3RealtimeConfigure(config);
+      this.nativeTrackIds = new Set(status.activeTrackIds);
+      this.nativeMidiTrackIds = new Set(status.activeMidiTrackIds);
+      this.nativeRealtimeActive =
+        this.nativeTrackIds.size > 0 || this.nativeMidiTrackIds.size > 0;
+      this.nativeConfigKey = this.nativeRealtimeActive ? key : "";
+      this.duration = Math.max(this.duration, status.durationSeconds);
+      this.nativeClockSeconds = current;
+      this.nativeClockUpdatedAt = performance.now();
+      this.nativeClockPlaying = false;
+      if (wasPlaying && this.nativeRealtimeActive) {
+        this.nativeClockPlaying = true;
+        void api.vst3RealtimePlay(current).catch(() => undefined);
+        this.startRealtimeStatusPoll();
+      }
+      return this.nativeRealtimeActive;
+    } catch (error) {
+      void api.vst3RealtimeStop().catch(() => undefined);
+      this.nativeRealtimeActive = false;
+      this.nativeTrackIds.clear();
+      this.nativeMidiTrackIds.clear();
+      this.nativeConfigKey = "";
+      this.nativeClockSeconds = null;
+      this.nativeClockPlaying = false;
+      this.productionMixBakeFailed = true;
+      this.productionMixBakeError =
+        error instanceof Error ? error.message : String(error);
+      this.notify();
+      return false;
+    }
+  }
+
+  private startRealtimeStatusPoll() {
+    this.stopRealtimeStatusPoll();
+    this.realtimeStatusTimer = setInterval(() => {
+      void api.vst3RealtimeStatus().then((status) => {
+        if (!status) return;
+        this.nativeClockSeconds = status.currentSeconds;
+        this.nativeClockUpdatedAt = performance.now();
+        this.nativeClockPlaying = status.playing;
+        if (status.renderError) {
+          this.productionMixBakeFailed = true;
+          this.productionMixBakeError = t("production.vst3.realtimeFailed");
+          this.pause();
+          this.notify();
+          return;
+        }
+        if (this.playing && !status.playing && status.currentSeconds >= this.duration - 0.05) {
+          this.playing = false;
+          this.offset = 0;
+          this.nativeClockSeconds = 0;
+          this.nativeClockUpdatedAt = performance.now();
+          this.stopSources(false);
+          this.stopRaf();
+          this.stopRealtimeStatusPoll();
+          this.notify();
+        }
+      }).catch(() => undefined);
+    }, 250);
+  }
+
+  private stopRealtimeStatusPoll() {
+    if (this.realtimeStatusTimer) clearInterval(this.realtimeStatusTimer);
+    this.realtimeStatusTimer = null;
   }
 }

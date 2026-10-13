@@ -24,6 +24,7 @@ mod mel_band_roformer;
 mod mix;
 mod models;
 mod native_capture;
+mod native_vst3_realtime;
 mod paths;
 mod pins;
 mod process_utils;
@@ -72,6 +73,7 @@ pub fn run() {
         .manage(state)
         .manage(commands::midi_output::MidiOutputState::default())
         .manage(native_capture::NativeCaptureState::default())
+        .manage(native_vst3_realtime::NativeVst3RealtimeState::default())
         .manage(declui_host::EmbeddedDeclUiState::default())
         .setup(|app| {
             // The configured asset scope covers the standard Documents folder. Profiles can also
@@ -141,6 +143,12 @@ pub fn run() {
             vst3_host::vst3_plugin_parameters,
             vst3_host::vst3_process_pcm,
             vst3_host::vst3_open_plugin_editor,
+            native_vst3_realtime::vst3_realtime_configure,
+            native_vst3_realtime::vst3_realtime_play,
+            native_vst3_realtime::vst3_realtime_pause,
+            native_vst3_realtime::vst3_realtime_seek,
+            native_vst3_realtime::vst3_realtime_stop,
+            native_vst3_realtime::vst3_realtime_status,
             commands::capture::vst3_render_midi_preview,
             commands::capture::vst3_render_midi_to_mix_track,
             // Profils (#201)

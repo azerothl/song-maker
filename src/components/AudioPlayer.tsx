@@ -193,7 +193,7 @@ export function AudioPlayer({
     let cancelled = false;
     void (async () => {
       try {
-        await engine.load(sourcesRef.current, mixRef.current, scoreRef.current);
+        await engine.load(sourcesRef.current, mixRef.current, scoreRef.current, projectId ?? null);
       } catch (e) {
         if (!cancelled) onErrorRef.current?.(String(e));
       }

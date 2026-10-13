@@ -31,6 +31,8 @@ import type {
   Vst3PluginDescription,
   Vst3MidiNote,
   Vst3ProcessedPcm,
+  Vst3RealtimePlaybackConfig,
+  Vst3RealtimePlaybackStatus,
 } from "./types";
 
 export const api = {
@@ -155,6 +157,16 @@ export const api = {
       peakCeilingDb: request.peakCeilingDb,
       pcmLe: request.pcmLe,
     }),
+  vst3RealtimeConfigure: (config: Vst3RealtimePlaybackConfig) =>
+    invoke<Vst3RealtimePlaybackStatus>("vst3_realtime_configure", { config }),
+  vst3RealtimePlay: (offsetSeconds: number) =>
+    invoke<void>("vst3_realtime_play", { offsetSeconds }),
+  vst3RealtimePause: () => invoke<void>("vst3_realtime_pause"),
+  vst3RealtimeSeek: (offsetSeconds: number) =>
+    invoke<void>("vst3_realtime_seek", { offsetSeconds }),
+  vst3RealtimeStop: () => invoke<void>("vst3_realtime_stop"),
+  vst3RealtimeStatus: () =>
+    invoke<Vst3RealtimePlaybackStatus | null>("vst3_realtime_status"),
   getPhase3Status: () => invoke<Phase3Status>("get_phase3_status"),
   installHtDemucs6sRuntime: () =>
     invoke<string>("install_htdemucs_6s_runtime"),

@@ -132,6 +132,43 @@ export type Vst3TrackEffect = {
   stateB64?: string;
 };
 
+/** Per-track VST3 graph sent to the persistent Windows audio engine for live playback. */
+export type Vst3RealtimePlaybackTrack = {
+  id: string;
+  name: string;
+  role: string;
+  path?: string | null;
+  gainDb: number;
+  pan: number;
+  mute: boolean;
+  solo: boolean;
+  clips: MixClip[];
+  effects: Vst3TrackEffect[];
+  instrument?: {
+    pluginPath: string;
+    pluginName: string;
+    parameters: Record<string, number>;
+    stateB64?: string;
+  } | null;
+  notes: { startSeconds: number; endSeconds: number; pitch: number; velocity: number }[];
+};
+
+export type Vst3RealtimePlaybackConfig = {
+  masterGainDb: number;
+  anySolo: boolean;
+  tracks: Vst3RealtimePlaybackTrack[];
+};
+
+export type Vst3RealtimePlaybackStatus = {
+  activeTrackIds: string[];
+  activeMidiTrackIds: string[];
+  sampleRate: number;
+  durationSeconds: number;
+  renderError: boolean;
+  currentSeconds: number;
+  playing: boolean;
+};
+
 /** Arrangement tempo change (ms timeline). Clip storage stays in ms (#94). */
 export type MixTempoEvent = {
   startMs: number;

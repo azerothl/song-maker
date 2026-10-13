@@ -210,7 +210,7 @@ export function ProductionTrackVst3Chain({
 
       <div className="production-track-vst3-scope">
         <strong>{t("production.track.vst3.scope", { track: trackName })}</strong>
-        <p>{t("production.track.vst3.offline")}</p>
+        <p>{t("production.track.vst3.realtime")}</p>
         <p>{t("production.track.vst3.catalogHint")}</p>
       </div>
 
