@@ -119,7 +119,7 @@ type ProductionWorkspaceProps = {
   onExport: (format: "wav" | "flac" | "mp3") => Promise<void>;
   onImportUserAudio: () => Promise<void>;
   onAddMidiTrack?: () => void;
-  onEditMidiTrack?: (trackId: string, trackName: string) => void;
+  onEditMidiTrack?: (trackId: string, trackName: string, openVst3Settings?: boolean) => void;
   onSeparate: () => Promise<void>;
   onRevertSeparation?: () => void;
   onUserTrackAdded: (next: MixDoc) => Promise<void>;
@@ -1330,6 +1330,9 @@ export function ProductionWorkspace({
                                 : undefined
                             }
                             transcribing={transcribingTrackId === tr.id}
+                            onOpenMidiInstrument={tr.role === "midi" && onEditMidiTrack
+                              ? () => onEditMidiTrack(tr.id, tr.name, true)
+                              : undefined}
                           />
                         </div>
                         <div className="track-wave production-mix-wave">

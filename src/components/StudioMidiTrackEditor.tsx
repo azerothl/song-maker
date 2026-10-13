@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import type { ScoreDocument } from "../lib/score";
 import { MidiInstrumentPanel } from "./MidiInstrumentPanel";
@@ -14,6 +14,7 @@ export function StudioMidiTrackEditor({
   onProjectRefresh,
   onError,
   instrumentInspectorPosition = "below",
+  vst3SettingsRequest = 0,
 }: {
   projectId: string;
   document: ScoreDocument;
@@ -22,10 +23,18 @@ export function StudioMidiTrackEditor({
   onProjectRefresh: () => Promise<void>;
   onError: (message: string | null) => void;
   instrumentInspectorPosition?: "below" | "side";
+  vst3SettingsRequest?: number;
 }) {
   const settings = useAppStore((state) => state.settings);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const instrumentSettingsRef = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    if (vst3SettingsRequest > 0 && instrumentSettingsRef.current) {
+      instrumentSettingsRef.current.open = true;
+    }
+  }, [vst3SettingsRequest]);
 
   async function save() {
     if (saving) return;
@@ -64,6 +73,7 @@ export function StudioMidiTrackEditor({
         onError={onError}
       />
       <details
+        ref={instrumentSettingsRef}
         className="studio-midi-instrument-settings"
       >
         <summary>{t("production.midi.instrumentSettings")}</summary>
@@ -84,6 +94,7 @@ export function StudioMidiTrackEditor({
             }
           }}
           onError={onError}
+          vst3SettingsRequest={vst3SettingsRequest}
         />
       </details>
     </div>

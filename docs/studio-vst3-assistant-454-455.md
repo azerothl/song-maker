@@ -5,6 +5,7 @@
 ## Utilisation
 
 - Ouvrir les réglages d’une piste : l’onglet **Effets** affiche la chaîne VST3. Le catalogue présente uniquement les effets audio compatibles. Les instruments VST3 restent dans le panneau d’instrument du piano roll.
+- Pour une piste MIDI, **Choisir un instrument VST3** dans les réglages de piste ouvre directement l’onglet **Plug-in** du piano roll, déploie l’inspecteur et met le sélecteur à portée. Le catalogue se charge automatiquement ; **Rechercher les instruments installés** permet de l’actualiser.
 - Ajouter un insert, régler ses paramètres ou ouvrir son éditeur, le désactiver, le déplacer dans la chaîne ou le retirer. Les réglages et l’état du plugin sont sauvegardés avec le mix.
 - Les inserts des pistes audio et MIDI utilisent le moteur Windows persistant pendant la lecture. Le monitoring d’entrée en mode natif partagé peut utiliser la chaîne d’une piste équipée d’inserts ; la prise enregistrée reste sèche. Le mode exclusif n’active pas ce monitoring.
 - Le rendu du mix et des pistes alignées contient désormais les instruments MIDI intégrés ou VST3, les inserts de piste et l’effet master. Un projet MIDI seul peut être exporté. L’option « Pistes séparées (WAV) » conserve sa fonction de copie des sources séparées ; l’export des pistes alignées est le parcours de rendu de l’arrangement.
@@ -27,6 +28,8 @@
 | Sauvegarde et erreurs | Test Rust de publication de mix/partition/annulation et d’échec forcé de sauvegarde : le projet conserve ses anciens pointeurs et son historique en cas d’échec. Actions et notes invalides rejetées. |
 
 TR5 Classic EQ a pu être inspecté, mais a produit une sortie silencieuse hors bypass sur cette machine. Il n’est pas utilisé comme preuve d’un effet audible. MixBox et Odin2 constituent les preuves audio réelles.
+
+Après le signalement des instruments absents, le catalogue du piano roll a été vérifié dans la candidate Windows : MODO DRUM, MODO BASS 2 et SampleTank 4 sont présents après recherche. Leur inspection isolée réussit, avec respectivement 2 081, 2 081 et 3 681 paramètres. Le problème de visibilité a conduit à ajouter la recherche automatique et l’accès direct depuis la piste ; ce constat ne constitue pas une validation audio de ces trois instruments.
 
 Ces essais concernent une candidate avec interface embarquée, pas une release publique. La validation du ticket #454 sur une installation publiée reste à effectuer après intégration et publication. La mesure physique de latence WASAPI/punch (#330/#342) requiert toujours un câble de bouclage adapté et ne fait pas partie de ces preuves.
 

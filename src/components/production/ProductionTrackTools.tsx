@@ -21,6 +21,7 @@ type Props = {
   tempoBpm?: number | null;
   onTranscribeBasicPitch?: () => void;
   transcribing?: boolean;
+  onOpenMidiInstrument?: () => void;
 };
 
 /**
@@ -37,6 +38,7 @@ export function ProductionTrackTools({
   tempoBpm,
   onTranscribeBasicPitch,
   transcribing,
+  onOpenMidiInstrument,
 }: Props) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
@@ -139,6 +141,20 @@ export function ProductionTrackTools({
           aria-labelledby={`${tablistId}-fx`}
           hidden={tab !== "fx"}
         >
+          {tab === "fx" && onOpenMidiInstrument && (
+            <section className="production-track-vst3" aria-label={t("production.midi.instrumentTitle")}>
+              <div className="production-track-vst3-header">
+                <div>
+                  <h4>{t("production.midi.instrumentTitle")}</h4>
+                  <p className="hint">{t("production.midi.instrumentChooseHint")}</p>
+                </div>
+                <button className="btn" type="button" onClick={() => {
+                  closeAll();
+                  onOpenMidiInstrument();
+                }}>{t("production.midi.chooseVst3")}</button>
+              </div>
+            </section>
+          )}
           {tab === "fx" ? (
             <ProductionTrackFxLinePopin
               open

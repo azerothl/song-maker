@@ -161,6 +161,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     useState<AdvancedSettingsPage>(null);
   const [workspace, setWorkspace] = useState<SongWorkspace>(initialWorkspace);
   const [midiEditorVoiceId, setMidiEditorVoiceId] = useState<string | null>(null);
+  const [midiEditorVst3Request, setMidiEditorVst3Request] = useState(0);
   const [midiEditorExpanded, setMidiEditorExpanded] = useState(false);
   const [midiEditorTrackName, setMidiEditorTrackName] = useState<string | null>(null);
   const midiEditorCloseRef = useRef<HTMLButtonElement>(null);
@@ -343,6 +344,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
       setWorkspace("production");
       setMidiEditorExpanded(false);
       setMidiEditorVoiceId(voiceId);
+      setMidiEditorVst3Request(0);
       setMidiEditorTrackName(name);
       setMidiTrackMix(activeMix);
     } catch (error) {
@@ -363,11 +365,13 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     if (project) await refreshStudioProject();
   }
 
-  function onEditMidiTrack(trackId: string, trackName: string) {
+  function onEditMidiTrack(trackId: string, trackName: string, openVst3Settings = false) {
     midiEditorReturnFocusRef.current = document.activeElement as HTMLElement | null;
     setMidiEditorExpanded(false);
     setMidiEditorVoiceId(trackId);
     setMidiEditorTrackName(trackName);
+    if (openVst3Settings) setMidiEditorVst3Request((request) => request + 1);
+    else setMidiEditorVst3Request(0);
   }
 
   async function onTranscribeBasicPitch(track: MixTrack) {
@@ -531,6 +535,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
 
   const closeMidiEditor = () => {
     setMidiEditorVoiceId(null);
+    setMidiEditorVst3Request(0);
     setMidiEditorExpanded(false);
   };
 
@@ -1480,6 +1485,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
               onProjectRefresh={refreshStudioProject}
               onError={setError}
               instrumentInspectorPosition="side"
+              vst3SettingsRequest={midiEditorVst3Request}
             />
           </div>
         </section>
@@ -1530,6 +1536,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
                 onProjectRefresh={refreshStudioProject}
                 onError={setError}
                 instrumentInspectorPosition="side"
+                vst3SettingsRequest={midiEditorVst3Request}
               />
             </div>
           </section>
