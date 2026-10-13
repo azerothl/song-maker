@@ -129,6 +129,7 @@ export function RecordTrackPanel({
   const [devices, setDevices] = useState<InputDevice[]>([]);
   const [deviceId, setDeviceId] = useState<string>("");
   const [monitoring, setMonitoring] = useState(false);
+  const [nativeMonitorTrackId, setNativeMonitorTrackId] = useState("");
   const [monitorCompensate, setMonitorCompensate] = useState(true);
   const [latencyPref, setLatencyPref] =
     useState<CaptureLatencyPreference>("balanced");
@@ -202,6 +203,7 @@ export function RecordTrackPanel({
   const engineRef = useRef<CaptureEngine>("webview");
   const nativeStopInFlightRef = useRef(false);
   const nativeControlBusyRef = useRef(false);
+  const nativeMonitorKeyRef = useRef("");
   const takeIndexRef = useRef(0);
   const rollingTakesRef = useRef(false);
   const countdownTimerRef = useRef<number | null>(null);
@@ -235,6 +237,8 @@ export function RecordTrackPanel({
     analyserRef.current = null;
     monitorGainRef.current = null;
     monitorDelayRef.current = null;
+    nativeMonitorKeyRef.current = "";
+    void api.vst3MonitorStop().catch(() => undefined);
   });
 
   const clearPendingTakes = useEffectEvent(() => {
@@ -332,12 +336,34 @@ export function RecordTrackPanel({
 
   const selectedNativeDevice = nativeDevices.find((device) => device.id === deviceId);
   const exclusiveAvailable = Boolean(selectedNativeDevice?.wasapiDeviceId);
+  const nativeMonitorTracks = (mix?.tracks ?? []).filter((track) =>
+    track.vst3Effects?.some((effect) => effect.enabled),
+  );
+  const nativeMonitorTrack = nativeMonitorTracks.find(
+    (track) => track.id === nativeMonitorTrackId,
+  );
+
+  useEffect(() => {
+    if (
+      nativeMonitorTrackId &&
+      nativeMonitorTracks.some((track) => track.id === nativeMonitorTrackId)
+    ) {
+      return;
+    }
+    setNativeMonitorTrackId(nativeMonitorTracks[0]?.id ?? "");
+  }, [nativeMonitorTrackId, mix]);
 
   useEffect(() => {
     if (nativeBackend === "exclusive" && !exclusiveAvailable) {
       setNativeBackend("shared");
     }
   }, [exclusiveAvailable, nativeBackend]);
+
+  useEffect(() => {
+    if (engine === "native" && nativeBackend === "exclusive" && monitoring) {
+      setMonitoring(false);
+    }
+  }, [engine, nativeBackend, monitoring]);
 
   useEffect(() => {
     loopEnabledRef.current = loopEnabled;
@@ -442,6 +468,102 @@ export function RecordTrackPanel({
       monitorGainRef.current.gain.value = monitoring ? 1 : 0;
     }
   }, [monitoring]);
+
+  useEffect(() => {
+    const monitorPhase =
+      phase === "armed" ||
+      phase === "countdown" ||
+      phase === "recording" ||
+      phase === "paused";
+    const effects = nativeMonitorTrack?.vst3Effects?.filter(
+      (effect) => effect.enabled,
+    );
+    const shouldRun =
+      open &&
+      engine === "native" &&
+      nativeBackend === "shared" &&
+      monitoring &&
+      monitorPhase &&
+      Boolean(deviceId) &&
+      Boolean(effects?.length);
+    if (!shouldRun || !effects) {
+      if (nativeMonitorKeyRef.current) {
+        nativeMonitorKeyRef.current = "";
+        void api.vst3MonitorStop().catch(() => undefined);
+      }
+      return;
+    }
+    const key = JSON.stringify({ deviceId, effects });
+    if (key === nativeMonitorKeyRef.current) return;
+    nativeMonitorKeyRef.current = key;
+    void api
+      .vst3MonitorConfigure({ deviceId, effects })
+      .then((status) => {
+        if (nativeMonitorKeyRef.current !== key) return;
+        if (status.renderError) {
+          throw new Error(t("record.monitor.vst3RuntimeError"));
+        }
+      })
+      .catch((error) => {
+        if (nativeMonitorKeyRef.current !== key) return;
+        nativeMonitorKeyRef.current = "";
+        setMonitoring(false);
+        const message = t("record.monitor.vst3StartError", {
+          detail: error instanceof Error ? error.message : String(error),
+        });
+        setStatusMsg(message);
+        onError(message);
+      });
+  }, [
+    deviceId,
+    engine,
+    monitoring,
+    nativeBackend,
+    nativeMonitorTrack,
+    open,
+    phase,
+  ]);
+
+  useEffect(
+    () => () => {
+      nativeMonitorKeyRef.current = "";
+      void api.vst3MonitorStop().catch(() => undefined);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (
+      engine !== "native" ||
+      !monitoring ||
+      nativeBackend !== "shared" ||
+      !nativeMonitorKeyRef.current
+    ) {
+      return;
+    }
+    let stopped = false;
+    const timer = window.setInterval(() => {
+      void api
+        .vst3MonitorStatus()
+        .then((status) => {
+          if (stopped || !status) return;
+          if (!status.renderError && status.droppedInputFrames < 2_048) return;
+          nativeMonitorKeyRef.current = "";
+          setMonitoring(false);
+          void api.vst3MonitorStop().catch(() => undefined);
+          const message = status.renderError
+            ? t("record.monitor.vst3RuntimeError")
+            : t("record.monitor.vst3Overflow");
+          setStatusMsg(message);
+          onError(message);
+        })
+        .catch(() => undefined);
+    }, 250);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [engine, monitoring, nativeBackend, phase]);
 
   useEffect(() => {
     refreshLatency();
@@ -1163,7 +1285,7 @@ export function RecordTrackPanel({
               type="radio"
               name="record-native-backend"
               checked={nativeBackend === "exclusive"}
-              disabled={!exclusiveAvailable}
+              disabled={!exclusiveAvailable || monitoring}
               onChange={() => setNativeBackend("exclusive")}
             />
             <span>{t("record.nativeBackend.exclusive")}</span>
@@ -1260,25 +1382,54 @@ export function RecordTrackPanel({
         <input
           type="checkbox"
           checked={monitoring}
-          disabled={engine === "native"}
+          disabled={
+            engine === "native" &&
+            (nativeBackend === "exclusive" || nativeMonitorTracks.length === 0)
+          }
           onChange={(e) => setMonitoring(e.target.checked)}
         />
         <span>{t("record.monitor")}</span>
       </label>
-      {engine === "native" && (
-        <p className="hint">{t("record.monitor.nativeOff")}</p>
+      {engine === "native" && nativeMonitorTracks.length > 0 && (
+        <label className="record-device">
+          <span>{t("record.monitor.vst3Track")}</span>
+          <select
+            value={nativeMonitorTrackId}
+            disabled={!canPickDevice || monitoring}
+            onChange={(event) => setNativeMonitorTrackId(event.target.value)}
+          >
+            {nativeMonitorTracks.map((track) => (
+              <option key={track.id} value={track.id}>
+                {track.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {engine === "native" && nativeMonitorTracks.length === 0 && (
+        <p className="hint">{t("record.monitor.vst3NoTrack")}</p>
+      )}
+      {engine === "native" && nativeBackend === "exclusive" && (
+        <p className="hint">{t("record.monitor.vst3SharedOnly")}</p>
+      )}
+      {engine === "native" && monitoring && nativeMonitorTrack && (
+        <p className="hint">
+          {t("record.monitor.vst3Active", { track: nativeMonitorTrack.name })}
+        </p>
       )}
       {monitoring && (
         <>
           <p className="hint warn">{t("record.monitor.warn")}</p>
-          <label className="record-monitor">
-            <input
-              type="checkbox"
-              checked={monitorCompensate}
-              onChange={(e) => setMonitorCompensate(e.target.checked)}
-            />
-            <span>{t("record.monitor.compensate")}</span>
-          </label>
+          {engine === "webview" && (
+            <label className="record-monitor">
+              <input
+                type="checkbox"
+                checked={monitorCompensate}
+                onChange={(e) => setMonitorCompensate(e.target.checked)}
+              />
+              <span>{t("record.monitor.compensate")}</span>
+            </label>
+          )}
         </>
       )}
 

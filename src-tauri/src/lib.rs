@@ -24,6 +24,7 @@ mod mel_band_roformer;
 mod mix;
 mod models;
 mod native_capture;
+mod native_vst3_realtime;
 mod paths;
 mod pins;
 mod process_utils;
@@ -72,6 +73,7 @@ pub fn run() {
         .manage(state)
         .manage(commands::midi_output::MidiOutputState::default())
         .manage(native_capture::NativeCaptureState::default())
+        .manage(native_vst3_realtime::NativeVst3RealtimeState::default())
         .manage(declui_host::EmbeddedDeclUiState::default())
         .setup(|app| {
             // The configured asset scope covers the standard Documents folder. Profiles can also
@@ -93,6 +95,8 @@ pub fn run() {
             commands::midi_output::panic_midi_output,
             commands::midi_output::disconnect_midi_output,
             commands::mix_assistant::propose_qwen_mix,
+            commands::mix_assistant::load_studio_assistant_history,
+            commands::mix_assistant::save_studio_assistant_history,
             commands::rbitnet_cmds::rbitnet_status,
             commands::rbitnet_cmds::rbitnet_install_info,
             commands::rbitnet_cmds::install_rbitnet_binary,
@@ -135,9 +139,19 @@ pub fn run() {
             vst3_spike::vst3_spike_load,
             vst3_spike::vst3_spike_attach,
             vst3_host::vst3_list_plugins,
+            vst3_host::vst3_list_effect_plugins,
             vst3_host::vst3_plugin_parameters,
             vst3_host::vst3_process_pcm,
             vst3_host::vst3_open_plugin_editor,
+            native_vst3_realtime::vst3_realtime_configure,
+            native_vst3_realtime::vst3_realtime_play,
+            native_vst3_realtime::vst3_realtime_pause,
+            native_vst3_realtime::vst3_realtime_seek,
+            native_vst3_realtime::vst3_realtime_stop,
+            native_vst3_realtime::vst3_realtime_status,
+            native_vst3_realtime::vst3_monitor_configure,
+            native_vst3_realtime::vst3_monitor_stop,
+            native_vst3_realtime::vst3_monitor_status,
             commands::capture::vst3_render_midi_preview,
             commands::capture::vst3_render_midi_to_mix_track,
             // Profils (#201)
@@ -190,6 +204,7 @@ pub fn run() {
             // Mixage, rendu, export
             commands::mix::load_mix,
             commands::mix::add_empty_midi_track,
+            commands::mix::remove_empty_midi_track,
             commands::mix::update_mix,
             commands::mix::undo_mix,
             commands::mix::redo_mix,

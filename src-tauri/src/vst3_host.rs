@@ -26,6 +26,8 @@ const MAX_PCM_BYTES: usize = 512 * 1024 * 1024;
 #[cfg(windows)]
 const WORKER_TIMEOUT: Duration = Duration::from_secs(300);
 #[cfg(windows)]
+const INSPECT_TIMEOUT: Duration = Duration::from_secs(8);
+#[cfg(windows)]
 const EDITOR_START_TIMEOUT: Duration = Duration::from_secs(45);
 #[cfg(windows)]
 const EDITOR_MAX_DURATION: Duration = Duration::from_secs(60 * 60 * 8);
@@ -217,6 +219,38 @@ pub fn vst3_list_plugins() -> Result<Vec<Vst3CatalogEntry>, String> {
         plugins.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         plugins.dedup_by(|a, b| a.path.eq_ignore_ascii_case(&b.path));
         Ok(plugins)
+    }
+}
+
+/// Return only inspectable VST3 audio effects. Instruments and generators are deliberately
+/// excluded so they cannot be mistaken for inserts in the track mixer.
+#[tauri::command]
+pub fn vst3_list_effect_plugins() -> Result<Vec<Vst3CatalogEntry>, String> {
+    #[cfg(not(windows))]
+    {
+        Err("L’hôte VST3 est actuellement disponible dans la version Windows.".into())
+    }
+
+    #[cfg(windows)]
+    {
+        let mut plugins = vst3_list_plugins()?;
+        let mut effects = Vec::new();
+        for plugin in plugins.drain(..) {
+            let Ok(description) =
+                vst3_plugin_parameters(plugin.path.clone(), BTreeMap::new(), None)
+            else {
+                continue;
+            };
+            let category = description.category.to_lowercase();
+            if description.audio_inputs > 0
+                && description.audio_outputs > 0
+                && !category.contains("instrument")
+                && !category.contains("generator")
+            {
+                effects.push(plugin);
+            }
+        }
+        Ok(effects)
     }
 }
 
@@ -418,6 +452,7 @@ fn run_worker_in_dir(
     input: Option<&[u8]>,
     work_dir: &Path,
 ) -> Result<WorkerExecution, String> {
+    let timeout = worker_timeout(&request.operation);
     if let Some(input) = input {
         let input_path = work_dir.join("input.pcm");
         std::fs::write(&input_path, input).map_err(|e| format!("Préparation de l’audio : {e}"))?;
@@ -446,7 +481,7 @@ fn run_worker_in_dir(
     let mut child = command
         .spawn()
         .map_err(|e| format!("Impossible de démarrer l’hôte VST3 isolé : {e}"))?;
-    let status = wait_for_worker_child(&mut child, WORKER_TIMEOUT)?;
+    let status = wait_for_worker_child(&mut child, timeout)?;
     let response_bytes = std::fs::read(&response_path).map_err(|_| {
         format!(
             "Le processus VST3 isolé s’est arrêté sans résultat (code {}). Song Maker est resté actif.",
@@ -474,6 +509,15 @@ fn run_worker_in_dir(
 }
 
 #[cfg(windows)]
+fn worker_timeout(operation: &str) -> Duration {
+    if operation == "inspect" {
+        INSPECT_TIMEOUT
+    } else {
+        WORKER_TIMEOUT
+    }
+}
+
+#[cfg(windows)]
 fn wait_for_worker_child(child: &mut Child, timeout: Duration) -> Result<ExitStatus, String> {
     let started = Instant::now();
     loop {
@@ -484,7 +528,7 @@ fn wait_for_worker_child(child: &mut Child, timeout: Duration) -> Result<ExitSta
             let _ = child.kill();
             let _ = child.wait();
             return Err(
-                "Le plugin VST3 a dépassé le délai de rendu; Song Maker est resté actif.".into(),
+                "Le plugin VST3 a dépassé le délai de réponse; Song Maker est resté actif.".into(),
             );
         }
         std::thread::sleep(Duration::from_millis(100));
@@ -493,7 +537,7 @@ fn wait_for_worker_child(child: &mut Child, timeout: Duration) -> Result<ExitSta
 
 #[cfg(all(test, windows))]
 mod worker_timeout_tests {
-    use super::wait_for_worker_child;
+    use super::{wait_for_worker_child, worker_timeout};
     use std::os::windows::process::CommandExt;
     use std::process::{Command, Stdio};
     use std::time::{Duration, Instant};
@@ -502,6 +546,12 @@ mod worker_timeout_tests {
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     const TEST_NAME: &str =
         "vst3_host::worker_timeout_tests::wait_for_worker_child_kills_hung_child";
+
+    #[test]
+    fn plugin_inspection_uses_a_short_timeout() {
+        assert_eq!(worker_timeout("inspect"), Duration::from_secs(8));
+        assert_eq!(worker_timeout("process"), Duration::from_secs(300));
+    }
 
     #[test]
     fn wait_for_worker_child_kills_hung_child() {
@@ -526,7 +576,7 @@ mod worker_timeout_tests {
         let error = wait_for_worker_child(&mut child, Duration::from_millis(250))
             .expect_err("hung child should hit the timeout");
 
-        assert!(error.contains("dépassé le délai de rendu"));
+        assert!(error.contains("dépassé le délai de réponse"));
         assert!(started.elapsed() < Duration::from_secs(5));
         assert!(
             child.try_wait().expect("check child exit status").is_some(),

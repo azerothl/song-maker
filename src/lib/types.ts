@@ -111,6 +111,8 @@ export type MixTrack = {
   locked: boolean;
   aiSeparated: boolean;
   clips: MixClip[];
+  /** VST3 audio effects in signal order. Empty on legacy projects. */
+  vst3Effects?: Vst3TrackEffect[];
   /** Spike VST3 (#326) — metadata only, not processed. */
   experimentalVst3Insert?: {
     pluginPath: string;
@@ -118,6 +120,66 @@ export type MixTrack = {
     stateB64?: string | null;
     notesFr: string;
   } | null;
+};
+
+/** VST3 effect inserted on an individual arrangement track. */
+export type Vst3TrackEffect = {
+  id: string;
+  pluginPath: string;
+  pluginName: string;
+  enabled: boolean;
+  parameters: Record<string, number>;
+  stateB64?: string;
+};
+
+/** Per-track VST3 graph sent to the persistent Windows audio engine for live playback. */
+export type Vst3RealtimePlaybackTrack = {
+  id: string;
+  name: string;
+  role: string;
+  path?: string | null;
+  gainDb: number;
+  pan: number;
+  mute: boolean;
+  solo: boolean;
+  clips: MixClip[];
+  effects: Vst3TrackEffect[];
+  instrument?: {
+    pluginPath: string;
+    pluginName: string;
+    parameters: Record<string, number>;
+    stateB64?: string;
+  } | null;
+  notes: { startSeconds: number; endSeconds: number; pitch: number; velocity: number }[];
+};
+
+export type Vst3RealtimePlaybackConfig = {
+  masterGainDb: number;
+  anySolo: boolean;
+  tracks: Vst3RealtimePlaybackTrack[];
+};
+
+export type Vst3RealtimePlaybackStatus = {
+  activeTrackIds: string[];
+  activeMidiTrackIds: string[];
+  sampleRate: number;
+  durationSeconds: number;
+  renderError: boolean;
+  currentSeconds: number;
+  playing: boolean;
+};
+
+export type Vst3RealtimeMonitorConfig = {
+  deviceId?: string | null;
+  effects: Vst3TrackEffect[];
+};
+
+export type Vst3RealtimeMonitorStatus = {
+  active: boolean;
+  inputSampleRate: number;
+  outputSampleRate: number;
+  renderError: boolean;
+  droppedInputFrames: number;
 };
 
 /** Arrangement tempo change (ms timeline). Clip storage stays in ms (#94). */

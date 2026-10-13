@@ -85,6 +85,8 @@ export type ScoreVoice = {
   abcVoice?: AbcVoiceTarget;
   /** Optional offline VST3 instrument assignment. */
   vst3Instrument?: ScoreVst3Instrument;
+  /** Built-in program used by the Studio transport for generated MIDI parts. */
+  instrumentProgram?: "piano" | "epiano" | "organ" | "bass" | "strings" | "lead" | "pad" | "pluck" | "drums";
 };
 
 export type ScoreDocument = {

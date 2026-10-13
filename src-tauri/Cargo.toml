@@ -45,6 +45,7 @@ tauri-plugin-dialog = "2"
 
 [target.'cfg(windows)'.dependencies]
 vst3-host = { version = "=0.9.0", default-features = false }
+rtrb = "0.3.5"
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_Security",

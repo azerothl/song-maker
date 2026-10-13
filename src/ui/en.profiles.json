@@ -153,6 +153,7 @@
   "player.mixBakePending": "Rendering mix…",
   "player.mixBakeDone": "Mix updated",
   "player.mixBakeFailed": "Mix rendering failed.",
+  "player.mixBakeErrorDetail": "Details: {error}",
   "firstLaunch.eyebrow": "First install",
   "firstLaunch.loading.lead": "Checking required components…",
   "firstLaunch.gpu.title": "Let’s set up Song Maker",

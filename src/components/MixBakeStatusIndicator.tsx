@@ -11,6 +11,7 @@ const DONE_VISIBLE_MS = 2500;
 type Props = {
   pending: boolean;
   failed: boolean;
+  errorDetail?: string | null;
   className?: string;
 };
 
@@ -31,7 +32,7 @@ function messageForPhase(phase: MixBakeStatusPhase): string {
  * Indicateur discret + annonces lecteurs d’écran pendant le rebake production.
  * Emplacement à hauteur fixe (évite le reflow) ; `role="status"` toujours monté (R3).
  */
-export function MixBakeStatusIndicator({ pending, failed, className }: Props) {
+export function MixBakeStatusIndicator({ pending, failed, errorDetail, className }: Props) {
   const [phase, setPhase] = useState<MixBakeStatusPhase>("hidden");
 
   useEffect(() => {
@@ -62,6 +63,11 @@ export function MixBakeStatusIndicator({ pending, failed, className }: Props) {
       >
         {message}
       </p>
+      {failed && errorDetail && (
+        <p className="player-mix-bake-error-detail" role="alert">
+          {t("player.mixBakeErrorDetail", { error: errorDetail })}
+        </p>
+      )}
     </div>
   );
 }

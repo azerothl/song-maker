@@ -9,6 +9,7 @@ import { AnchoredPopin } from "../AnchoredPopin";
 import { PopinCloseButton } from "../PopinCloseButton";
 import { Phase3FxParamFields } from "./Phase3FxParamFields";
 import { ParametricEqBandFields } from "./ParametricEqBandFields";
+import { ProductionTrackVst3Chain } from "./ProductionTrackVst3Chain";
 import { t } from "../../ui/i18n";
 import { useTrackEffects } from "../../lib/useTrackEffects";
 import {
@@ -96,6 +97,8 @@ type Props = {
   mixId: string;
   trackId: string;
   trackName: string;
+  mix: import("../../lib/types").MixDoc;
+  onMixChange: (mix: import("../../lib/types").MixDoc) => void;
   tempoBpm?: number | null;
   canAddVocalFx?: boolean;
   /** @deprecated Prefer canAddVocalFx. */
@@ -113,6 +116,8 @@ export function ProductionTrackFxLinePopin({
   mixId,
   trackId,
   trackName,
+  mix,
+  onMixChange,
   tempoBpm = null,
   canAddVocalFx: canAddVocalFxProp,
   canAddPitchCorrect = true,
@@ -255,6 +260,12 @@ export function ProductionTrackFxLinePopin({
 
   const body = (
     <>
+      <ProductionTrackVst3Chain
+        mix={mix}
+        trackId={trackId}
+        active={open}
+        onMixChange={onMixChange}
+      />
       {!embedded && (
         <header className="anchored-popin-header">
           <h3 id={titleId}>

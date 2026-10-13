@@ -8,6 +8,7 @@ import {
   useState,
   type CSSProperties,
   type Dispatch,
+  type PointerEvent as ReactPointerEvent,
   SetStateAction,
 } from "react";
 import { TruncatedTrackLabel } from "../../components/TruncatedTrackLabel";
@@ -126,6 +127,7 @@ type ProductionWorkspaceProps = {
     conditioning: "project_metadata" | "mix_stems";
   }) => Promise<void>;
   onOpenInstrumentalPart?: () => void;
+  onOpenAssistant?: () => void;
   legoSidecarReady?: boolean;
   legoLicenseAccepted?: boolean;
   playback: PlaybackView | null;
@@ -204,6 +206,7 @@ export function ProductionWorkspace({
   onUserTrackAdded,
   onRequestInstrumentalPart,
   onOpenInstrumentalPart,
+  onOpenAssistant,
   legoSidecarReady = false,
   legoLicenseAccepted = false,
   playback,
@@ -279,6 +282,13 @@ export function ProductionWorkspace({
   const [trackNameDraft, setTrackNameDraft] = useState("");
   const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
   const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
+  const trackPointerDragRef = useRef<{
+    pointerId: number;
+    trackId: string;
+    startX: number;
+    startY: number;
+    dragging: boolean;
+  } | null>(null);
   const trackNameInputRef = useRef<HTMLInputElement | null>(null);
   const cancelTrackRenameBlur = useRef(false);
   useEffect(() => {
@@ -397,6 +407,62 @@ export function ProductionWorkspace({
     if (tracks !== mix.tracks) scheduleMixUpdate({ ...mix, tracks });
   };
 
+  const findTrackAtPointer = (x: number, y: number) =>
+    document
+      .elementFromPoint(x, y)
+      ?.closest<HTMLElement>(".production-mix-row[data-track-id]") ?? null;
+
+  const clearTrackPointerDrag = () => {
+    trackPointerDragRef.current = null;
+    setDraggedTrackId(null);
+    setDropTargetTrackId(null);
+  };
+
+  const handleTrackReorderPointerDown = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    trackId: string,
+  ) => {
+    if (!studioMode || !mix || event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    trackPointerDragRef.current = {
+      pointerId: event.pointerId,
+      trackId,
+      startX: event.clientX,
+      startY: event.clientY,
+      dragging: false,
+    };
+  };
+
+  const handleTrackReorderPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = trackPointerDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag.dragging) {
+      if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 5) return;
+      drag.dragging = true;
+      setDraggedTrackId(drag.trackId);
+    }
+    event.preventDefault();
+    const targetId = findTrackAtPointer(event.clientX, event.clientY)?.dataset.trackId ?? null;
+    setDropTargetTrackId(targetId === drag.trackId ? null : targetId);
+  };
+
+  const handleTrackReorderPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = trackPointerDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (drag.dragging && mix) {
+      const target = findTrackAtPointer(event.clientX, event.clientY);
+      const targetId = target?.dataset.trackId;
+      if (target && targetId && targetId !== drag.trackId) {
+        const rect = target.getBoundingClientRect();
+        const after = event.clientY >= rect.top + rect.height / 2;
+        const tracks = moveTrackRelative(mix.tracks, drag.trackId, targetId, after);
+        if (tracks !== mix.tracks) scheduleMixUpdate({ ...mix, tracks });
+      }
+    }
+    clearTrackPointerDrag();
+  };
+
   const layoutMeasureKey = useMemo(
     () =>
       JSON.stringify({
@@ -501,6 +567,7 @@ export function ProductionWorkspace({
         <MixBakeStatusIndicator
           pending={playback?.mixBakePending ?? false}
           failed={playback?.mixBakeFailed ?? false}
+          errorDetail={playback?.mixBakeError}
           className="production-mix-bake-chrome"
         />
         <div
@@ -510,6 +577,11 @@ export function ProductionWorkspace({
         >
           <ClipEditToolbar editTool={editTool} onEditToolChange={setEditTool} />
           <div className="production-main-toolbar-actions">
+            {studioMode && onOpenAssistant && (
+              <button type="button" className="btn production-assistant-trigger" onClick={onOpenAssistant}>
+                {t("studio.assistant.open")}
+              </button>
+            )}
             <button
               type="button"
               className="btn production-separate-trigger"
@@ -988,26 +1060,6 @@ export function ProductionWorkspace({
                           "--track-wave-played": `color-mix(in srgb, ${trackColor} 55%, white)`,
                         } as CSSProperties}
                         role="listitem"
-                        onDragOver={(event) => {
-                          if (studioMode && draggedTrackId && draggedTrackId !== tr.id) {
-                            event.preventDefault();
-                            event.dataTransfer.dropEffect = "move";
-                            setDropTargetTrackId(tr.id);
-                          }
-                        }}
-                        onDrop={(event) => {
-                          if (!studioMode) return;
-                          event.preventDefault();
-                          const sourceId = event.dataTransfer.getData("text/plain") || draggedTrackId;
-                          if (sourceId && sourceId !== tr.id) {
-                            const rect = event.currentTarget.getBoundingClientRect();
-                            const after = event.clientY >= rect.top + rect.height / 2;
-                            const tracks = moveTrackRelative(mix.tracks, sourceId, tr.id, after);
-                            if (tracks !== mix.tracks) scheduleMixUpdate({ ...mix, tracks });
-                          }
-                          setDraggedTrackId(null);
-                          setDropTargetTrackId(null);
-                        }}
                       >
                         <div className="production-mix-name">
                           {studioMode && (
@@ -1015,18 +1067,14 @@ export function ProductionWorkspace({
                               type="button"
                               className="studio-track-reorder"
                               data-testid={`studio-track-reorder-${tr.id}`}
-                              draggable
                               aria-label={t("mix.moveTrackNamed", { track: tr.name })}
                               title={t("mix.moveTrackNamed", { track: tr.name })}
-                              onDragStart={(event) => {
-                                event.dataTransfer.effectAllowed = "move";
-                                event.dataTransfer.setData("text/plain", tr.id);
-                                setDraggedTrackId(tr.id);
-                              }}
-                              onDragEnd={() => {
-                                setDraggedTrackId(null);
-                                setDropTargetTrackId(null);
-                              }}
+                              aria-keyshortcuts="ArrowUp ArrowDown"
+                              onPointerDown={(event) => handleTrackReorderPointerDown(event, tr.id)}
+                              onPointerMove={handleTrackReorderPointerMove}
+                              onPointerUp={handleTrackReorderPointerUp}
+                              onPointerCancel={clearTrackPointerDrag}
+                              onLostPointerCapture={clearTrackPointerDrag}
                               onKeyDown={(event) => {
                                 if (event.key === "ArrowUp" || event.key === "ArrowDown") {
                                   event.preventDefault();

@@ -26,9 +26,18 @@ describe("midiInput", () => {
 });
 
 describe("midiInstrument programs", () => {
-  it("lists built-in oscillator programs and keeps SF2 optional", () => {
-    assert.ok(INSTRUMENT_PROGRAMS.includes("piano"));
-    assert.equal(INSTRUMENT_PROGRAMS.length, 8);
+  it("lists the built-in melodic and drum programs while keeping SF2 optional", () => {
+    assert.deepEqual(INSTRUMENT_PROGRAMS, [
+      "piano",
+      "epiano",
+      "organ",
+      "bass",
+      "strings",
+      "lead",
+      "pad",
+      "pluck",
+      "drums",
+    ]);
   });
 });
 

@@ -170,8 +170,42 @@ pub fn add_empty_midi_track(
         locked: false,
         ai_separated: false,
         clips: Vec::new(),
+        vst3_effects: Vec::new(),
         experimental_vst3_insert: None,
     });
+    atomic_write_json(&path, &mix)?;
+    doc.updated_at = now_iso();
+    save_project(&folder, &doc)?;
+    Ok(mix)
+}
+
+/// Remove an assistant-created MIDI lane while it is still an empty mix track.
+#[tauri::command]
+pub fn remove_empty_midi_track(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    voice_id: String,
+) -> Result<MixDoc, String> {
+    let folder = project_folder(&id);
+    let project_lock = crate::project_transaction::lock_for(&folder);
+    let _project_guard = project_lock.lock();
+    let mut doc = load_project(&folder)?;
+    let mix_id = doc
+        .active_mix_id
+        .clone()
+        .ok_or_else(|| "Aucun mix actif.".to_string())?;
+    let path = folder.join("mixes").join(format!("{mix_id}.json"));
+    let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut mix: MixDoc = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    let Some(index) = mix.tracks.iter().position(|track| track.id == voice_id) else {
+        return Ok(mix);
+    };
+    let track = &mix.tracks[index];
+    if track.role != "midi" || !track.clips.is_empty() {
+        return Err("Seule une piste MIDI sans clip peut être retirée par l’assistant.".into());
+    }
+    push_undo(&state, &id, serde_json::to_value(&mix).unwrap());
+    mix.tracks.remove(index);
     atomic_write_json(&path, &mix)?;
     doc.updated_at = now_iso();
     save_project(&folder, &doc)?;
@@ -258,6 +292,17 @@ fn apply_track_updates(
     updates: Vec<MixTrackUpdate>,
     track_order: Option<Vec<String>>,
 ) -> Result<(), String> {
+    let mut candidate = mix.clone();
+    apply_track_updates_inner(&mut candidate, updates, track_order)?;
+    *mix = candidate;
+    Ok(())
+}
+
+fn apply_track_updates_inner(
+    mix: &mut MixDoc,
+    updates: Vec<MixTrackUpdate>,
+    track_order: Option<Vec<String>>,
+) -> Result<(), String> {
     let ordered_ids = validate_track_order(&mix.tracks, track_order.as_deref())?;
 
     for update in &updates {
@@ -311,6 +356,10 @@ fn apply_track_updates(
                 }
                 track.clips = clips;
             }
+            if let Some(effects) = update.vst3_effects {
+                validate_track_vst3_effects(&effects)?;
+                track.vst3_effects = effects;
+            }
         }
     }
 
@@ -322,6 +371,43 @@ fn apply_track_updates(
             .collect();
         mix.tracks
             .sort_by_key(|track| order_index.get(&track.id).copied().unwrap_or(usize::MAX));
+    }
+    Ok(())
+}
+
+fn validate_track_vst3_effects(effects: &[crate::models::Vst3TrackEffect]) -> Result<(), String> {
+    if effects.len() > 16 {
+        return Err("Une piste ne peut contenir que 16 effets VST3 au maximum.".into());
+    }
+    let mut ids = std::collections::HashSet::new();
+    for effect in effects {
+        if effect.id.trim().is_empty()
+            || effect.id.chars().count() > 128
+            || !ids.insert(effect.id.as_str())
+            || effect.plugin_path.trim().is_empty()
+            || effect.plugin_path.chars().count() > 2048
+            || effect.plugin_name.trim().is_empty()
+            || effect.plugin_name.chars().count() > 256
+        {
+            return Err("Chaîne d’effets VST3 invalide.".into());
+        }
+        if effect.parameters.len() > 512
+            || effect
+                .parameters
+                .values()
+                .any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
+        {
+            return Err("Réglages d’un effet VST3 invalides.".into());
+        }
+        if let Some(state_b64) = effect.state_b64.as_deref() {
+            use base64::Engine as _;
+            let state = base64::engine::general_purpose::STANDARD
+                .decode(state_b64)
+                .map_err(|error| format!("État d’un effet VST3 invalide : {error}"))?;
+            if state.len() > 24 * 1024 * 1024 {
+                return Err("L’état d’un effet VST3 dépasse la taille maximale autorisée.".into());
+            }
+        }
     }
     Ok(())
 }
@@ -857,7 +943,7 @@ pub fn redo_mix(state: tauri::State<'_, AppState>, id: String) -> Result<Option<
 mod track_update_tests {
     use super::apply_track_updates;
     use crate::mix::empty_mix;
-    use crate::models::{MixTrack, MixTrackUpdate};
+    use crate::models::{MixTrack, MixTrackUpdate, Vst3TrackEffect};
     use crate::paths::atomic_write_json;
 
     fn track(id: &str, name: &str) -> MixTrack {
@@ -872,6 +958,7 @@ mod track_update_tests {
             locked: false,
             ai_separated: false,
             clips: Vec::new(),
+            vst3_effects: Vec::new(),
             experimental_vst3_insert: None,
         }
     }
@@ -885,6 +972,7 @@ mod track_update_tests {
             mute: false,
             solo: false,
             clips: None,
+            vst3_effects: None,
         }
     }
 
@@ -893,12 +981,18 @@ mod track_update_tests {
         let mut mix = empty_mix("mix-1");
         mix.tracks = vec![track("a", "Audio 1"), track("b", "Audio 2")];
 
+        let mut main = update("a", "Voix principale", -3.0);
+        main.vst3_effects = Some(vec![Vst3TrackEffect {
+            id: "fx-1".into(),
+            plugin_path: "C:/VST3/Reverb.vst3".into(),
+            plugin_name: "Reverb".into(),
+            enabled: true,
+            parameters: std::collections::BTreeMap::from([(7, 0.625)]),
+            state_b64: Some("c3RhdGU=".into()),
+        }]);
         apply_track_updates(
             &mut mix,
-            vec![
-                update("a", "Voix principale", -3.0),
-                update("b", "Basse", -6.0),
-            ],
+            vec![main, update("b", "Basse", -6.0)],
             Some(vec!["b".into(), "a".into()]),
         )
         .unwrap();
@@ -917,7 +1011,30 @@ mod track_update_tests {
                 .collect::<Vec<_>>(),
             vec![("b", "Basse", -6.0), ("a", "Voix principale", -3.0)]
         );
+        let effect = &reloaded.tracks[1].vst3_effects[0];
+        assert_eq!(effect.id, "fx-1");
+        assert_eq!(effect.parameters.get(&7), Some(&0.625));
+        assert_eq!(effect.state_b64.as_deref(), Some("c3RhdGU="));
         std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn invalid_effect_chain_does_not_change_any_mix_data() {
+        let mut mix = empty_mix("mix-1");
+        mix.tracks = vec![track("a", "Audio 1")];
+        let before = serde_json::to_value(&mix).unwrap();
+        let mut invalid = update("a", "Renommée", -3.0);
+        invalid.vst3_effects = Some(vec![Vst3TrackEffect {
+            id: "fx-invalid".into(),
+            plugin_path: "C:/VST3/Reverb.vst3".into(),
+            plugin_name: "Reverb".into(),
+            enabled: true,
+            parameters: std::collections::BTreeMap::from([(1, 1.5)]),
+            state_b64: None,
+        }]);
+
+        assert!(apply_track_updates(&mut mix, vec![invalid], None).is_err());
+        assert_eq!(serde_json::to_value(&mix).unwrap(), before);
     }
 
     #[test]

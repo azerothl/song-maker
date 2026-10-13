@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { MixDoc, PlaybackSources } from "../lib/types";
+import type { ScoreDocument } from "../lib/score";
 import { MixPlaybackEngine, type PlaybackSnapshot } from "../lib/playback";
 import { subscribeProduction } from "../lib/productionState";
 import { t } from "../ui/i18n";
@@ -31,12 +32,14 @@ export type PlaybackView = {
   ready: boolean;
   mixBakePending: boolean;
   mixBakeFailed: boolean;
+  mixBakeError: string | null;
 };
 
 type Props = {
   projectId?: string;
   sources: PlaybackSources | null;
   mix: MixDoc | null;
+  scoreDocument?: ScoreDocument | null;
   /** Vue split : le master porte lecture et temps (#132). */
   delegateTransport?: boolean;
   /** Onglet Production : indicateur porté par ProductionWorkspace. */
@@ -63,6 +66,7 @@ const emptySnap: PlaybackSnapshot = {
   productionBake: false,
   productionMixBakePending: false,
   productionMixBakeFailed: false,
+  productionMixBakeError: null,
 };
 
 function sourcesKey(sources: PlaybackSources | null): string {
@@ -76,6 +80,7 @@ export function AudioPlayer({
   projectId,
   sources,
   mix,
+  scoreDocument = null,
   delegateTransport = false,
   hideMixBakeStatus = false,
   studioMode = false,
@@ -98,6 +103,7 @@ export function AudioPlayer({
   }
   const [snap, setSnap] = useState<PlaybackSnapshot>(emptySnap);
   const hasAudioSource = Boolean(sources?.generationWav || sources?.stems?.length);
+  const hasMidiSource = Boolean(scoreDocument?.voices.some((voice) => voice.notes.length > 0));
   const effectiveSources = hasAudioSource ? sources : null;
   const key = sourcesKey(effectiveSources);
   const sourcesRef = useRef(effectiveSources);
@@ -106,6 +112,8 @@ export function AudioPlayer({
   onErrorRef.current = onError;
   const mixRef = useRef(mix);
   mixRef.current = mix;
+  const scoreRef = useRef(scoreDocument);
+  scoreRef.current = scoreDocument;
   const onPlaybackChangeRef = useRef(onPlaybackChange);
   onPlaybackChangeRef.current = onPlaybackChange;
   const playbackKeyRef = useRef(playbackKey ?? projectId);
@@ -149,6 +157,7 @@ export function AudioPlayer({
         ready: next.ready,
         mixBakePending: next.productionMixBakePending,
         mixBakeFailed: next.productionMixBakeFailed,
+        mixBakeError: next.productionMixBakeError,
       });
     });
   }, [engine]);
@@ -176,6 +185,7 @@ export function AudioPlayer({
       ready: next.ready,
       mixBakePending: next.productionMixBakePending,
       mixBakeFailed: next.productionMixBakeFailed,
+      mixBakeError: next.productionMixBakeError,
     });
   }, [engine, playbackKey]);
 
@@ -183,7 +193,7 @@ export function AudioPlayer({
     let cancelled = false;
     void (async () => {
       try {
-        await engine.load(sourcesRef.current, mixRef.current);
+        await engine.load(sourcesRef.current, mixRef.current, scoreRef.current, projectId ?? null);
       } catch (e) {
         if (!cancelled) onErrorRef.current?.(String(e));
       }
@@ -192,6 +202,12 @@ export function AudioPlayer({
       cancelled = true;
     };
   }, [engine, key, projectId]);
+
+  useEffect(() => {
+    void engine
+      .setScoreDocument(scoreDocument, mixRef.current)
+      .catch((e) => onErrorRef.current?.(String(e)));
+  }, [engine, scoreDocument, mix]);
 
   useEffect(() => {
     engine.applyMix(mix);
@@ -248,6 +264,7 @@ export function AudioPlayer({
         <MixBakeStatusIndicator
           pending={snap.productionMixBakePending}
           failed={snap.productionMixBakeFailed}
+          errorDetail={snap.productionMixBakeError}
         />
       )}
 
@@ -267,7 +284,7 @@ export function AudioPlayer({
         />
       )}
 
-      {!delegateTransport && !hasAudioSource && (
+      {!delegateTransport && !hasAudioSource && !hasMidiSource && (
         <div className="player-empty-wave" aria-live="polite">
           {t("player.emptyHint")}
         </div>

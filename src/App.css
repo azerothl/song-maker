@@ -2679,8 +2679,11 @@ option {
 .production-fx-line-popin,
 .production-eq-popin,
 .production-track-detail-popin {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: calc(100vw - 16px);
   overflow-y: auto;
-  max-height: calc(100vh - 16px);
+  max-height: calc(100dvh - 16px);
 }
 
 .production-fx-line-columns {
@@ -2742,12 +2745,24 @@ option {
 }
 
 .production-track-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
   margin: 0 0 0.65rem;
   padding-bottom: 0.35rem;
   border-bottom: 1px solid var(--line);
+}
+
+.production-track-tabs .production-track-tab {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0.4rem 0.25rem;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .production-track-tab[aria-selected="true"] {
@@ -2757,6 +2772,13 @@ option {
 
 .production-track-tabpanel {
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .production-track-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .production-track-routing {
@@ -11973,6 +11995,331 @@ details[open] > summary {
   outline-offset: -2px;
 }
 
+.production-track-vst3 {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+  margin: 0 0 0.8rem;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg0) 35%, transparent);
+}
+
+.production-track-vst3-header,
+.production-track-vst3-item,
+.production-track-vst3-toggle,
+.production-track-vst3-add {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.production-track-vst3-header h4 {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.production-track-vst3-header .hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.74rem;
+}
+
+.production-track-vst3-scope {
+  display: grid;
+  gap: 0.22rem;
+  padding: 0.5rem 0.6rem;
+  border-left: 3px solid var(--accent-cyan);
+  border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--accent-cyan) 8%, var(--bg1));
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.production-track-vst3-scope p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.production-track-vst3-enabled {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.production-track-vst3-enabled input {
+  margin: 0;
+}
+
+.production-track-vst3-add select {
+  width: min(60%, 22rem);
+  min-width: 9rem;
+}
+
+.production-track-vst3-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.production-track-vst3-item {
+  flex-wrap: wrap;
+  padding: 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg1);
+}
+
+.production-track-vst3-toggle {
+  justify-content: flex-start;
+  flex: 1 1 12rem;
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+.production-track-vst3-item .btn-row {
+  flex-wrap: wrap;
+}
+
+.production-track-vst3-parameters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.5rem 0.75rem;
+  width: 100%;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--line);
+}
+
+.production-track-vst3-parameters label {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+  font-size: 0.76rem;
+}
+
+.production-track-vst3-parameters input[type="range"] {
+  width: 100%;
+}
+
+.production-track-vst3 .error {
+  margin: 0;
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
+
+.song-layout-assistant {
+  height: 100%;
+  min-height: 0;
+}
+
+.main:has(.song-layout-assistant) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.song-layout-assistant .song-workspace-chrome {
+  gap: 0.25rem;
+  padding: 0.45rem 1rem;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--line);
+}
+
+.song-layout-assistant .song-workspace-body {
+  min-height: 0;
+  overflow: hidden;
+  padding: 0.75rem 1rem;
+}
+
+.studio-assistant-workspace {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: min(100%, 68rem);
+  min-width: 0;
+  min-height: 0;
+  margin-inline: auto;
+}
+
+.studio-assistant-header,
+.studio-assistant-header-actions,
+.studio-assistant-composer-footer,
+.studio-assistant-proposal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.studio-assistant-header h2 {
+  margin: 0;
+  font-size: 1.18rem;
+}
+
+.studio-assistant-header p {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+}
+
+.studio-assistant-eyebrow {
+  color: var(--accent-cyan) !important;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.studio-assistant-local {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.studio-assistant-messages {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-height: 9rem;
+  overflow: auto;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg0) 78%, transparent);
+}
+
+.studio-assistant-message {
+  max-width: min(88%, 48rem);
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg1);
+}
+
+.studio-assistant-message.is-user {
+  align-self: flex-end;
+  border-color: color-mix(in srgb, var(--accent-2) 50%, var(--line));
+  background: color-mix(in srgb, var(--accent-2) 12%, var(--bg1));
+}
+
+.studio-assistant-message-role {
+  color: var(--accent-cyan);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.studio-assistant-message p {
+  margin: 0.2rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.studio-assistant-source,
+.studio-assistant-proposal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.7rem;
+  border: 1px solid var(--line2);
+  border-radius: 9px;
+  background: var(--bg2);
+}
+
+.studio-assistant-source p,
+.studio-assistant-proposal p {
+  margin: 0;
+}
+
+.studio-assistant-source label {
+  display: flex;
+  flex: 1 1 18rem;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.studio-assistant-source select {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.studio-assistant-proposal-copy {
+  display: grid;
+  flex: 1 1 18rem;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.studio-assistant-proposal-copy h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.studio-assistant-proposal-copy p {
+  overflow-wrap: anywhere;
+}
+
+.studio-assistant-proposal-badge {
+  color: var(--accent-cyan);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.studio-assistant-composer {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg1);
+}
+
+.studio-assistant-composer label {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.studio-assistant-composer textarea {
+  width: 100%;
+  min-height: 4rem;
+  resize: vertical;
+}
+
+.studio-assistant-composer-footer .hint {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .production-track-vst3-header,
+  .studio-assistant-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .studio-assistant-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .studio-assistant-message {
+    max-width: 100%;
+  }
+
+  .song-layout-assistant .song-workspace-body {
+    padding: 0.5rem;
+  }
+}
+
 .production-workspace-studio .production-mix-row:has(.studio-track-reorder:active) {
   cursor: grabbing;
 }
@@ -12038,4 +12385,88 @@ details[open] > summary {
     grid-row: 2;
     width: 100%;
   }
+}
+
+/* Keep the four track-tool sections readable inside the anchored panel. */
+.production-track-detail-popin {
+  width: min(56rem, calc(100vw - 1rem));
+  min-width: min(36rem, calc(100vw - 1rem));
+}
+
+.production-track-detail-popin .production-track-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+}
+
+.production-track-detail-popin .production-track-tabs .production-track-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0.45rem 0.35rem;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.production-track-detail-popin .production-track-tabpanel[hidden] {
+  display: none !important;
+}
+
+.production-track-detail-popin .production-track-tabpanel {
+  width: 100%;
+  min-width: 0;
+}
+
+.production-track-vst3-select {
+  min-width: 0;
+  padding: 0.25rem 0.4rem;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+.production-track-vst3-select[aria-pressed="true"] {
+  border-color: var(--line2);
+  background: var(--bg2);
+}
+
+.production-track-vst3-item > .production-track-vst3-parameters {
+  margin-top: 0.5rem;
+}
+
+.player-mix-bake-error-detail {
+  margin: 0.2rem 0 0;
+  color: var(--danger, #ff8a8a);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .production-track-detail-popin {
+    min-width: min(100%, calc(100vw - 1rem));
+  }
+
+  .production-track-detail-popin .production-track-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* The compact Studio row sizes every descendant button; reset controls inside its popup. */
+.production-workspace-studio .production-mix-row > .production-mix-track-tools .production-track-detail-popin .btn {
+  width: auto;
+  min-width: 44px;
+  min-height: 40px;
+  height: auto;
+}
+
+.production-workspace-studio .production-mix-row > .production-mix-track-tools .production-track-detail-popin .production-track-tabs .production-track-tab {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  height: auto;
 }
