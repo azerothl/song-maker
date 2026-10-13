@@ -9,6 +9,7 @@ import {
   usableMelodyVoices,
   assistantStateFingerprint,
   placeTranscribedMelody,
+  describeAssistantMixChanges,
 } from "./studioAssistant";
 import type { ScoreVoice } from "@song-maker/score-engine";
 import { createEmptyScoreDocument } from "./score";
@@ -46,6 +47,13 @@ test("durable undo ignores saved version ids but detects manual note and gain ed
 });
 
 const emptyMix = { tracks: [] } as unknown as MixDoc;
+
+test("mix preview shows verified changes and track names without claiming application", () => {
+  const before = { tracks: [{ id: "private-id", name: "Piano", gainDb: 0, pan: 0 }] } as unknown as MixDoc;
+  const after = { ...before, tracks: [{ ...before.tracks[0], gainDb: -3 }] };
+  assert.equal(describeAssistantMixChanges(before, after, "fr"), "Piano : Gain 0,0 → -3,0 dB");
+  assert.doesNotMatch(describeAssistantMixChanges(before, after, "en"), /private-id|applied/);
+});
 
 test("assistant recognizes the requested French MIDI actions", () => {
   assert.equal(detectStudioAssistantIntent("Ajoute une piste MIDI avec un beat régulier"), "beat");

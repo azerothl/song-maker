@@ -10,6 +10,7 @@ import {
   audioSourceTracks,
   assistantStateFingerprint,
   detectStudioAssistantIntent,
+  describeAssistantMixChanges,
   makePianoFollowVoice,
   makeRegularBeatVoice,
   placeTranscribedMelody,
@@ -265,11 +266,12 @@ export function StudioAssistantWorkspace({
       return;
     }
     const nextMix = applyQwenAdjustments(mix, filtered.adjustments);
-    setProposal({ kind: "mix", mix: nextMix, explanation: response.explanation,
+    const explanation = `${t("studio.assistant.mixPreview")}\n${describeAssistantMixChanges(mix, nextMix, profileLocale())}`;
+    setProposal({ kind: "mix", mix: nextMix, explanation,
       baseFingerprint: assistantStateFingerprint(mix, scoreDocument) });
     onPreviewMix(nextMix);
     onPreviewScore(scoreDocument);
-    appendMessage("assistant", response.explanation || t("studio.assistant.mixPreview"));
+    appendMessage("assistant", explanation);
   };
 
   const submit = async (event: FormEvent) => {

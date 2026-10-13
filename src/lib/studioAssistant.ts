@@ -50,6 +50,18 @@ export type StudioAssistantMidiAction = {
 
 export type StudioAssistantIntent = "beat" | "piano" | "mix" | "unknown";
 
+export function describeAssistantMixChanges(before: MixDoc, after: MixDoc, locale: "fr" | "en"): string {
+  const number = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return after.tracks.flatMap(track => {
+    const old = before.tracks.find(candidate => candidate.id === track.id);
+    if (!old) return [];
+    const changes: string[] = [];
+    if (Math.abs(old.gainDb - track.gainDb) > 0.01) changes.push(`Gain ${number.format(old.gainDb)} → ${number.format(track.gainDb)} dB`);
+    if (Math.abs(old.pan - track.pan) > 0.01) changes.push(`${locale === "fr" ? "Panoramique" : "Pan"} ${number.format(old.pan)} → ${number.format(track.pan)}`);
+    return changes.length ? [`${track.name} : ${changes.join(" · ")}`] : [];
+  }).join("\n");
+}
+
 export function detectStudioAssistantIntent(text: string): StudioAssistantIntent {
   const normalized = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   // Mentioning a beat/piano while adjusting its level is not a request to add a track.
