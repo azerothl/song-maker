@@ -1,4 +1,7 @@
 {
+  "production.midi.instrumentTitle": "MIDI instrument",
+  "production.midi.instrumentChooseHint": "Choose the sound played by this track’s notes.",
+  "production.midi.chooseVst3": "Choose a VST3 instrument",
   "separate.recommend.licenseDetails": "Read license details and sources",
   "production.common.intro": "Mix tracks, edit clips and open advanced settings on this page.",
   "production.common.timelineNamed": "Tracks, tempo and markers on the shared ruler",
