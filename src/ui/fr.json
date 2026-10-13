@@ -1925,6 +1925,8 @@
   "studio.assistant.beatName": "Beat MIDI",
   "studio.assistant.pianoName": "Piano mélodique",
   "studio.assistant.midiContext": "{count} notes MIDI · {bpm} BPM · {meter} · Source : {source}",
+  "studio.assistant.midiContextOne": "1 note MIDI · {bpm} BPM · {meter} · Source : {source}",
+  "studio.assistant.source": "Source de la mélodie",
   "studio.assistant.staleUndo": "Le projet a été modifié depuis cette application. Cette annulation écraserait ces modifications ; elle est donc indisponible.",
   "production.mixSettings.tracks": "Pistes",
   "production.settings.master": "Master",

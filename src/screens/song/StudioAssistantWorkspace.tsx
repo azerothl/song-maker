@@ -418,7 +418,7 @@ export function StudioAssistantWorkspace({
         <section className="studio-assistant-source" aria-label={sourceChoice.question}>
           <p>{sourceChoice.question}</p>
           <label>
-            {sourceChoice.kind === "voice" ? t("studio.assistant.chooseMelody") : t("studio.assistant.chooseAudio")}
+            {t("studio.assistant.source")}
             <select value={selectedSourceId} onChange={(event) => setSelectedSourceId(event.target.value)}>
               <option value="">—</option>
               {sourceChoice.kind === "voice"
@@ -462,7 +462,7 @@ export function StudioAssistantWorkspace({
                 ? t("studio.assistant.beatPreview")
                 : t("studio.assistant.pianoPreview")
               : proposal.explanation || t("studio.assistant.mixPreview")}</p>
-            {proposal.kind === "midi" && <p className="hint">{t("studio.assistant.midiContext", {
+            {proposal.kind === "midi" && <p className="hint">{t(proposal.action.voice.notes.length === 1 ? "studio.assistant.midiContextOne" : "studio.assistant.midiContext", {
               count: proposal.action.voice.notes.length,
               bpm: proposal.score.tempoMap[0]?.quarterBpm ?? tempoBpm,
               meter: `${proposal.score.timeSignatures[0]?.numerator ?? 4}/${proposal.score.timeSignatures[0]?.denominator ?? 4}`,

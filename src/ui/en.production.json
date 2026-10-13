@@ -322,6 +322,8 @@
   "studio.assistant.beatName": "MIDI beat",
   "studio.assistant.pianoName": "Melodic piano",
   "studio.assistant.midiContext": "{count} MIDI notes · {bpm} BPM · {meter} · Source: {source}",
+  "studio.assistant.midiContextOne": "1 MIDI note · {bpm} BPM · {meter} · Source: {source}",
+  "studio.assistant.source": "Melody source",
   "studio.assistant.staleUndo": "The project was edited after this application. Undo is unavailable because it would overwrite those edits.",
   "production.mixSettings.title": "Mix settings",
   "production.mixSettings.toolsMenu": "Mix assistant or production copilot",
