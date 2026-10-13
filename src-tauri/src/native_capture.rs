@@ -204,7 +204,7 @@ pub fn list_input_devices() -> Result<Vec<NativeInputDevice>, String> {
     Ok(out)
 }
 
-fn pick_device(wanted_id: Option<&str>) -> Result<(cpal::Device, String), String> {
+pub(crate) fn pick_device(wanted_id: Option<&str>) -> Result<(cpal::Device, String), String> {
     let host = cpal::default_host();
     if let Some(id) = wanted_id.map(str::trim).filter(|s| !s.is_empty()) {
         let devices: Vec<cpal::Device> = host

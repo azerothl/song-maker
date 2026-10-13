@@ -169,6 +169,19 @@ export type Vst3RealtimePlaybackStatus = {
   playing: boolean;
 };
 
+export type Vst3RealtimeMonitorConfig = {
+  deviceId?: string | null;
+  effects: Vst3TrackEffect[];
+};
+
+export type Vst3RealtimeMonitorStatus = {
+  active: boolean;
+  inputSampleRate: number;
+  outputSampleRate: number;
+  renderError: boolean;
+  droppedInputFrames: number;
+};
+
 /** Arrangement tempo change (ms timeline). Clip storage stays in ms (#94). */
 export type MixTempoEvent = {
   startMs: number;

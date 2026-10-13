@@ -33,6 +33,8 @@ import type {
   Vst3ProcessedPcm,
   Vst3RealtimePlaybackConfig,
   Vst3RealtimePlaybackStatus,
+  Vst3RealtimeMonitorConfig,
+  Vst3RealtimeMonitorStatus,
 } from "./types";
 
 export const api = {
@@ -167,6 +169,11 @@ export const api = {
   vst3RealtimeStop: () => invoke<void>("vst3_realtime_stop"),
   vst3RealtimeStatus: () =>
     invoke<Vst3RealtimePlaybackStatus | null>("vst3_realtime_status"),
+  vst3MonitorConfigure: (config: Vst3RealtimeMonitorConfig) =>
+    invoke<Vst3RealtimeMonitorStatus>("vst3_monitor_configure", { config }),
+  vst3MonitorStop: () => invoke<void>("vst3_monitor_stop"),
+  vst3MonitorStatus: () =>
+    invoke<Vst3RealtimeMonitorStatus | null>("vst3_monitor_status"),
   getPhase3Status: () => invoke<Phase3Status>("get_phase3_status"),
   installHtDemucs6sRuntime: () =>
     invoke<string>("install_htdemucs_6s_runtime"),

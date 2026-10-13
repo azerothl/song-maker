@@ -149,6 +149,9 @@ pub fn run() {
             native_vst3_realtime::vst3_realtime_seek,
             native_vst3_realtime::vst3_realtime_stop,
             native_vst3_realtime::vst3_realtime_status,
+            native_vst3_realtime::vst3_monitor_configure,
+            native_vst3_realtime::vst3_monitor_stop,
+            native_vst3_realtime::vst3_monitor_status,
             commands::capture::vst3_render_midi_preview,
             commands::capture::vst3_render_midi_to_mix_track,
             // Profils (#201)

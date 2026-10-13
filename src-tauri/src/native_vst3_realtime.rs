@@ -91,6 +91,24 @@ pub struct RealtimePlaybackStatus {
     pub playing: bool,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RealtimeMonitorConfig {
+    pub device_id: Option<String>,
+    #[serde(default)]
+    pub effects: Vec<RealtimeEffect>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RealtimeMonitorStatus {
+    pub active: bool,
+    pub input_sample_rate: u32,
+    pub output_sample_rate: u32,
+    pub render_error: bool,
+    pub dropped_input_frames: u64,
+}
+
 enum WorkerCommand {
     Configure(
         RealtimePlaybackConfig,
@@ -101,6 +119,12 @@ enum WorkerCommand {
     Seek(f64),
     Stop,
     Status(mpsc::SyncSender<Option<RealtimePlaybackStatus>>),
+    ConfigureMonitor(
+        RealtimeMonitorConfig,
+        mpsc::SyncSender<Result<RealtimeMonitorStatus, String>>,
+    ),
+    StopMonitor,
+    MonitorStatus(mpsc::SyncSender<Option<RealtimeMonitorStatus>>),
 }
 
 #[derive(Default)]
@@ -130,6 +154,8 @@ impl NativeVst3RealtimeState {
 fn worker_loop(receiver: mpsc::Receiver<WorkerCommand>) {
     #[cfg(windows)]
     let mut runtime: Option<WindowsRuntime> = None;
+    #[cfg(windows)]
+    let mut monitor_runtime: Option<WindowsMonitorRuntime> = None;
 
     while let Ok(command) = receiver.recv() {
         match command {
@@ -219,6 +245,44 @@ fn worker_loop(receiver: mpsc::Receiver<WorkerCommand>) {
                 let status: Option<RealtimePlaybackStatus> = None;
                 let _ = reply.send(status);
             }
+            WorkerCommand::ConfigureMonitor(config, reply) => {
+                #[cfg(windows)]
+                {
+                    monitor_runtime = None;
+                    match WindowsMonitorRuntime::create(config) {
+                        Ok(next) => {
+                            let status = next.snapshot();
+                            monitor_runtime = Some(next);
+                            let _ = reply.send(Ok(status));
+                        }
+                        Err(error) => {
+                            let _ = reply.send(Err(error));
+                        }
+                    }
+                }
+                #[cfg(not(windows))]
+                {
+                    let _ = config;
+                    let _ = reply.send(Err(
+                        "Le monitoring VST3 natif est disponible dans la version Windows.".into(),
+                    ));
+                }
+            }
+            WorkerCommand::StopMonitor => {
+                #[cfg(windows)]
+                {
+                    monitor_runtime = None;
+                }
+            }
+            WorkerCommand::MonitorStatus(reply) => {
+                #[cfg(windows)]
+                let status = monitor_runtime
+                    .as_ref()
+                    .map(WindowsMonitorRuntime::snapshot);
+                #[cfg(not(windows))]
+                let status: Option<RealtimeMonitorStatus> = None;
+                let _ = reply.send(status);
+            }
         }
     }
 }
@@ -292,6 +356,47 @@ pub fn vst3_realtime_status(
     response
         .recv()
         .map_err(|_| "Le moteur audio natif n’a pas répondu.".into())
+}
+
+#[tauri::command]
+pub async fn vst3_monitor_configure(
+    state: tauri::State<'_, NativeVst3RealtimeState>,
+    config: RealtimeMonitorConfig,
+) -> Result<RealtimeMonitorStatus, String> {
+    let sender = state.sender()?;
+    tokio::task::spawn_blocking(move || {
+        let (reply, response) = mpsc::sync_channel(1);
+        sender
+            .send(WorkerCommand::ConfigureMonitor(config, reply))
+            .map_err(|_| "Le moteur audio natif s’est arrêté.".to_string())?;
+        response
+            .recv()
+            .map_err(|_| "Le moteur de monitoring VST3 n’a pas répondu.".to_string())?
+    })
+    .await
+    .map_err(|error| format!("Configuration du monitoring VST3 interrompue : {error}"))?
+}
+
+#[tauri::command]
+pub fn vst3_monitor_stop(state: tauri::State<'_, NativeVst3RealtimeState>) -> Result<(), String> {
+    let sender = state.sender()?;
+    sender
+        .send(WorkerCommand::StopMonitor)
+        .map_err(|_| "Le moteur audio natif s’est arrêté.".into())
+}
+
+#[tauri::command]
+pub fn vst3_monitor_status(
+    state: tauri::State<'_, NativeVst3RealtimeState>,
+) -> Result<Option<RealtimeMonitorStatus>, String> {
+    let sender = state.sender()?;
+    let (reply, response) = mpsc::sync_channel(1);
+    sender
+        .send(WorkerCommand::MonitorStatus(reply))
+        .map_err(|_| "Le moteur audio natif s’est arrêté.".to_string())?;
+    response
+        .recv()
+        .map_err(|_| "Le moteur de monitoring VST3 n’a pas répondu.".into())
 }
 
 #[cfg(windows)]
@@ -953,6 +1058,412 @@ mod windows_engine {
         Ok(stereo)
     }
 
+    struct MonitorShared {
+        render_error: AtomicBool,
+        dropped_input_frames: AtomicU64,
+    }
+
+    pub(super) struct WindowsMonitorRuntime {
+        input_sample_rate: u32,
+        output_sample_rate: u32,
+        shared: std::sync::Arc<MonitorShared>,
+        _input_stream: cpal::Stream,
+        _output_stream: cpal::Stream,
+    }
+
+    impl WindowsMonitorRuntime {
+        pub(super) fn snapshot(&self) -> RealtimeMonitorStatus {
+            RealtimeMonitorStatus {
+                active: true,
+                input_sample_rate: self.input_sample_rate,
+                output_sample_rate: self.output_sample_rate,
+                render_error: self.shared.render_error.load(Ordering::Acquire),
+                dropped_input_frames: self.shared.dropped_input_frames.load(Ordering::Acquire),
+            }
+        }
+
+        pub(super) fn create(config: RealtimeMonitorConfig) -> Result<Self, String> {
+            let effects: Vec<_> = config
+                .effects
+                .into_iter()
+                .filter(|effect| effect.enabled)
+                .collect();
+            if effects.is_empty() {
+                return Err("La piste choisie ne possède aucun insert VST3 actif.".into());
+            }
+
+            let (input_device, _) =
+                crate::native_capture::pick_device(config.device_id.as_deref())?;
+            let input_supported = input_device.default_input_config().map_err(|error| {
+                format!("Configuration de l’entrée de monitoring inaccessible : {error}")
+            })?;
+            let input_rate = input_supported.sample_rate().0;
+            let input_channels = usize::from(input_supported.channels());
+            if input_channels == 0 {
+                return Err("L’entrée de monitoring ne fournit aucun canal audio.".into());
+            }
+
+            let output_device = cpal::default_host()
+                .default_output_device()
+                .ok_or_else(|| {
+                    "Aucune sortie audio native n’est disponible pour le monitoring VST3."
+                        .to_string()
+                })?;
+            let output_supported = output_device.default_output_config().map_err(|error| {
+                format!("Configuration de la sortie de monitoring inaccessible : {error}")
+            })?;
+            let output_rate = output_supported.sample_rate().0;
+            let output_channels = usize::from(output_supported.channels());
+            if output_channels == 0 || output_channels > 8 {
+                return Err(format!(
+                    "La sortie de monitoring expose un nombre de canaux non pris en charge : {output_channels}."
+                ));
+            }
+
+            let mut processors = Vec::with_capacity(effects.len());
+            for effect in effects {
+                processors.push(
+                    load_processor(
+                        &effect.plugin_path,
+                        &effect.parameters,
+                        effect.state_b64.as_deref(),
+                        2,
+                        output_rate,
+                    )
+                    .map_err(|error| {
+                        format!(
+                            "Monitoring · {} ({}) : {error}",
+                            effect.plugin_name, effect.id
+                        )
+                    })?,
+                );
+            }
+
+            let capacity = usize::try_from(input_rate)
+                .unwrap_or(48_000)
+                .clamp(8_192, 192_000);
+            let (producer, consumer) = rtrb::RingBuffer::<[f32; 2]>::new(capacity);
+            let shared = std::sync::Arc::new(MonitorShared {
+                render_error: AtomicBool::new(false),
+                dropped_input_frames: AtomicU64::new(0),
+            });
+            let input_config: StreamConfig = input_supported.clone().into();
+            let input_stream = match input_supported.sample_format() {
+                SampleFormat::F32 => build_monitor_input::<f32>(
+                    &input_device,
+                    &input_config,
+                    input_channels,
+                    producer,
+                    shared.clone(),
+                )?,
+                SampleFormat::F64 => build_monitor_input::<f64>(
+                    &input_device,
+                    &input_config,
+                    input_channels,
+                    producer,
+                    shared.clone(),
+                )?,
+                SampleFormat::I8 => build_monitor_input::<i8>(
+                    &input_device,
+                    &input_config,
+                    input_channels,
+                    producer,
+                    shared.clone(),
+                )?,
+                SampleFormat::I16 => build_monitor_input::<i16>(
+                    &input_device,
+                    &input_config,
+                    input_channels,
+                    producer,
+                    shared.clone(),
+                )?,
+                SampleFormat::I32 => build_monitor_input::<i32>(
+                    &input_device,
+                    &input_config,
+                    input_channels,
+                    producer,
+                    shared.clone(),
+                )?,
+                SampleFormat::I64 => build_monitor_input::<i64>(
+                    &input_device,
+                    &input_config,
+                    input_channels,
+                    producer,
+                    shared.clone(),
+                )?,
+                SampleFormat::U8 => build_monitor_input::<u8>(
+                    &input_device,
+                    &input_config,
+                    input_channels,
+                    producer,
+                    shared.clone(),
+                )?,
+                SampleFormat::U16 => build_monitor_input::<u16>(
+                    &input_device,
+                    &input_config,
+                    input_channels,
+                    producer,
+                    shared.clone(),
+                )?,
+                SampleFormat::U32 => build_monitor_input::<u32>(
+                    &input_device,
+                    &input_config,
+                    input_channels,
+                    producer,
+                    shared.clone(),
+                )?,
+                other => {
+                    return Err(format!(
+                        "Format d’entrée de monitoring non pris en charge : {other}."
+                    ))
+                }
+            };
+
+            let monitor = MonitorGraph {
+                effects: processors,
+                consumer,
+                input_rate,
+                output_rate,
+                phase: 0.0,
+                current: [0.0; 2],
+                next: [0.0; 2],
+                primed: false,
+                scratch: [[0.0; 2]; REALTIME_BLOCK_SIZE],
+            };
+            let output_config: StreamConfig = output_supported.clone().into();
+            let output_stream = match output_supported.sample_format() {
+                SampleFormat::F32 => build_monitor_output::<f32>(
+                    &output_device,
+                    &output_config,
+                    output_channels,
+                    monitor,
+                    shared.clone(),
+                )?,
+                SampleFormat::F64 => build_monitor_output::<f64>(
+                    &output_device,
+                    &output_config,
+                    output_channels,
+                    monitor,
+                    shared.clone(),
+                )?,
+                SampleFormat::I8 => build_monitor_output::<i8>(
+                    &output_device,
+                    &output_config,
+                    output_channels,
+                    monitor,
+                    shared.clone(),
+                )?,
+                SampleFormat::I16 => build_monitor_output::<i16>(
+                    &output_device,
+                    &output_config,
+                    output_channels,
+                    monitor,
+                    shared.clone(),
+                )?,
+                SampleFormat::I32 => build_monitor_output::<i32>(
+                    &output_device,
+                    &output_config,
+                    output_channels,
+                    monitor,
+                    shared.clone(),
+                )?,
+                SampleFormat::I64 => build_monitor_output::<i64>(
+                    &output_device,
+                    &output_config,
+                    output_channels,
+                    monitor,
+                    shared.clone(),
+                )?,
+                SampleFormat::U8 => build_monitor_output::<u8>(
+                    &output_device,
+                    &output_config,
+                    output_channels,
+                    monitor,
+                    shared.clone(),
+                )?,
+                SampleFormat::U16 => build_monitor_output::<u16>(
+                    &output_device,
+                    &output_config,
+                    output_channels,
+                    monitor,
+                    shared.clone(),
+                )?,
+                SampleFormat::U32 => build_monitor_output::<u32>(
+                    &output_device,
+                    &output_config,
+                    output_channels,
+                    monitor,
+                    shared.clone(),
+                )?,
+                other => {
+                    return Err(format!(
+                        "Format de sortie de monitoring non pris en charge : {other}."
+                    ))
+                }
+            };
+
+            output_stream.play().map_err(|error| {
+                format!("Impossible de démarrer la sortie de monitoring VST3 : {error}")
+            })?;
+            input_stream.play().map_err(|error| {
+                format!("Impossible de démarrer l’entrée de monitoring VST3 : {error}")
+            })?;
+            Ok(Self {
+                input_sample_rate: input_rate,
+                output_sample_rate: output_rate,
+                shared,
+                _input_stream: input_stream,
+                _output_stream: output_stream,
+            })
+        }
+    }
+
+    fn build_monitor_input<T>(
+        device: &cpal::Device,
+        config: &StreamConfig,
+        channels: usize,
+        mut producer: rtrb::Producer<[f32; 2]>,
+        shared: std::sync::Arc<MonitorShared>,
+    ) -> Result<cpal::Stream, String>
+    where
+        T: Sample + cpal::SizedSample + Send + 'static,
+        f32: FromSample<T>,
+    {
+        let input_error = shared.clone();
+        device
+            .build_input_stream(
+                config,
+                move |data: &[T], _| {
+                    for frame in data.chunks(channels) {
+                        let left = frame.first().copied().map(f32::from_sample).unwrap_or(0.0);
+                        let right = frame.get(1).copied().map(f32::from_sample).unwrap_or(left);
+                        if producer.push([left, right]).is_err() {
+                            shared.dropped_input_frames.fetch_add(1, Ordering::Relaxed);
+                        }
+                    }
+                },
+                move |_error| {
+                    input_error.render_error.store(true, Ordering::Release);
+                },
+                None,
+            )
+            .map_err(|error| format!("Impossible d’ouvrir l’entrée de monitoring : {error}"))
+    }
+
+    struct MonitorGraph {
+        effects: Vec<Processor>,
+        consumer: rtrb::Consumer<[f32; 2]>,
+        input_rate: u32,
+        output_rate: u32,
+        phase: f64,
+        current: [f32; 2],
+        next: [f32; 2],
+        primed: bool,
+        scratch: [[f32; 2]; REALTIME_BLOCK_SIZE],
+    }
+
+    impl MonitorGraph {
+        fn source_frame(&mut self) -> [f32; 2] {
+            if !self.primed {
+                let prebuffer = REALTIME_BLOCK_SIZE.saturating_mul(2);
+                if self.consumer.slots() < prebuffer {
+                    return [0.0; 2];
+                }
+                self.current = self.consumer.pop().unwrap_or([0.0; 2]);
+                self.next = self.consumer.pop().unwrap_or(self.current);
+                self.phase = 0.0;
+                self.primed = true;
+            }
+            let blend = self.phase as f32;
+            let frame = [
+                self.current[0] + (self.next[0] - self.current[0]) * blend,
+                self.current[1] + (self.next[1] - self.current[1]) * blend,
+            ];
+            self.phase += f64::from(self.input_rate) / f64::from(self.output_rate.max(1));
+            while self.phase >= 1.0 {
+                self.current = self.next;
+                match self.consumer.pop() {
+                    Ok(next) => self.next = next,
+                    Err(_) => {
+                        self.next = [0.0; 2];
+                        self.primed = false;
+                    }
+                }
+                self.phase -= 1.0;
+            }
+            frame
+        }
+
+        fn render(&mut self, output: &mut [f32], channels: usize) -> bool {
+            output.fill(0.0);
+            if channels == 0 {
+                return true;
+            }
+            let frames = output.len() / channels;
+            let mut processed = 0usize;
+            while processed < frames {
+                let count = (frames - processed).min(REALTIME_BLOCK_SIZE);
+                for frame in 0..count {
+                    self.scratch[frame] = self.source_frame();
+                }
+                for effect in &mut self.effects {
+                    if !effect.apply(&mut self.scratch, count) {
+                        return false;
+                    }
+                }
+                for frame in 0..count {
+                    let dest = (processed + frame) * channels;
+                    if channels == 1 {
+                        output[dest] = (self.scratch[frame][0] + self.scratch[frame][1]) * 0.5;
+                    } else {
+                        output[dest] = self.scratch[frame][0];
+                        output[dest + 1] = self.scratch[frame][1];
+                    }
+                }
+                processed += count;
+            }
+            true
+        }
+    }
+
+    fn build_monitor_output<T>(
+        device: &cpal::Device,
+        config: &StreamConfig,
+        channels: usize,
+        mut monitor: MonitorGraph,
+        shared: std::sync::Arc<MonitorShared>,
+    ) -> Result<cpal::Stream, String>
+    where
+        T: Sample + cpal::SizedSample + FromSample<f32> + Send + 'static,
+    {
+        let output_error = shared.clone();
+        let mut float_output = vec![0.0f32; channels.saturating_mul(8192)];
+        device
+            .build_output_stream(
+                config,
+                move |data: &mut [T], _| {
+                    if data.len() > float_output.len() {
+                        data.fill(T::from_sample(0.0));
+                        shared.render_error.store(true, Ordering::Release);
+                        return;
+                    }
+                    let scratch = &mut float_output[..data.len()];
+                    if !monitor.render(scratch, channels) {
+                        scratch.fill(0.0);
+                        shared.render_error.store(true, Ordering::Release);
+                    }
+                    for (target, value) in data.iter_mut().zip(scratch.iter().copied()) {
+                        *target = T::from_sample(value);
+                    }
+                },
+                move |_error| {
+                    output_error.render_error.store(true, Ordering::Release);
+                },
+                None,
+            )
+            .map_err(|error| format!("Impossible d’ouvrir la sortie de monitoring : {error}"))
+    }
+
     impl WindowsRuntime {
         pub(super) fn update_controls_if_same(&mut self, config: &RealtimePlaybackConfig) -> bool {
             if !same_graph_structure(&self.config, config) {
@@ -1323,4 +1834,4 @@ mod windows_engine {
 }
 
 #[cfg(windows)]
-use windows_engine::WindowsRuntime;
+use windows_engine::{WindowsMonitorRuntime, WindowsRuntime};
