@@ -21,6 +21,10 @@ import type {
 import type { ScoreDocument } from "@song-maker/score-engine";
 import { SoftSynth, type InstrumentProgram } from "./midiInstrument";
 import { scoreTicksToSeconds } from "./scoreTiming";
+import {
+  hasNativeMidiVst3Request,
+  needsOfflineTrackVst3Bake,
+} from "./vst3RealtimePolicy";
 
 export type TrackPeaks = {
   trackId: string;
@@ -711,9 +715,14 @@ export class MixPlaybackEngine {
 
     // Production overlay or clip stretch/takes → same bake as export (hors thread UI).
     const vst3Enabled = mix.vst3MasterInsert?.enabled === true;
-    const vst3TrackEnabled = !nativeRealtimeReady && mix.tracks.some((track) =>
-      track.vst3Effects?.some((effect) => effect.enabled),
-    );
+    const vst3TrackEnabled = needsOfflineTrackVst3Bake(mix, nativeRealtimeReady);
+    if (hasNativeMidiVst3Request(mix, this.scoreDocument) && !nativeRealtimeReady) {
+      // configureNativeRealtime already exposed the native host failure. Do not
+      // replace it with the unrelated "separate into stems" guidance.
+      this.productionMixBakePending = false;
+      this.notify();
+      return;
+    }
     if ((vst3Enabled || vst3TrackEnabled) && this.decodedStems.length === 0) {
       this.productionMixBakeFailed = true;
       this.productionMixBakeError = t("production.vst3.needsStems");

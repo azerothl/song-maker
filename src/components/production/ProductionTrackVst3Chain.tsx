@@ -15,6 +15,30 @@ type Props = {
   onMixChange: (mix: MixDoc) => void;
 };
 
+let effectCatalogCache: Vst3CatalogEntry[] | null = null;
+let effectCatalogPromise: Promise<Vst3CatalogEntry[]> | null = null;
+
+function loadEffectCatalog(force = false): Promise<Vst3CatalogEntry[]> {
+  if (force) {
+    effectCatalogCache = null;
+    effectCatalogPromise = null;
+  }
+  if (effectCatalogCache) return Promise.resolve(effectCatalogCache);
+  if (!effectCatalogPromise) {
+    effectCatalogPromise = api
+      .vst3ListEffectPlugins()
+      .then((catalog) => {
+        effectCatalogCache = catalog;
+        return catalog;
+      })
+      .catch((reason) => {
+        effectCatalogPromise = null;
+        throw reason;
+      });
+  }
+  return effectCatalogPromise;
+}
+
 function replaceTrackEffects(
   mix: MixDoc,
   trackId: string,
@@ -69,12 +93,12 @@ export function ProductionTrackVst3Chain({
     ? descriptionById[selectedPlugin.id]
     : undefined;
 
-  const scan = async () => {
+  const scan = async (force = false) => {
     if (loadingCatalog) return;
     setLoadingCatalog(true);
     setError(null);
     try {
-      setCatalog(await api.vst3ListEffectPlugins());
+      setCatalog(await loadEffectCatalog(force));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -202,7 +226,7 @@ export function ProductionTrackVst3Chain({
           className="btn"
           type="button"
           disabled={loadingCatalog}
-          onClick={() => void scan()}
+          onClick={() => void scan(true)}
         >
           {t(loadingCatalog ? "production.vst3.scanning" : "production.vst3.scan")}
         </button>

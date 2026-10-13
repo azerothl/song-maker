@@ -2,9 +2,14 @@
 //! transport is mounted; project inserts are hosted by `RealtimePluginRunner` on its audio
 //! callback instead of spawning an offline worker for each playback bake.
 
+// The command payloads stay available on every platform so Tauri keeps the same API surface,
+// while their fields are consumed only by the Windows audio implementation for now.
+#![cfg_attr(not(windows), allow(dead_code))]
+
 use serde::{Deserialize, Serialize};
 use std::sync::{mpsc, Mutex};
 
+#[cfg(windows)]
 const REALTIME_BLOCK_SIZE: usize = 512;
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -585,9 +590,9 @@ mod windows_engine {
             self.apply_parameter_updates();
             let buffers = &mut self.buffers;
             if !buffers.inputs.is_empty() {
-                for frame in 0..frames {
-                    buffers.inputs[0][frame] = audio[frame][0];
-                    buffers.inputs[1][frame] = audio[frame][1];
+                for (frame, sample) in audio.iter().take(frames).enumerate() {
+                    buffers.inputs[0][frame] = sample[0];
+                    buffers.inputs[1][frame] = sample[1];
                 }
             }
             for channel in &mut buffers.outputs {
@@ -597,12 +602,13 @@ mod windows_engine {
             let Some(runner) = self.runner.as_mut() else {
                 return false;
             };
-            if runner.process(buffers).is_err() {
+            if let Err(error) = runner.process(buffers) {
+                eprintln!("VST3 realtime effect processing failed: {error}");
                 return false;
             }
-            for frame in 0..frames {
-                audio[frame][0] = buffers.outputs[0][frame];
-                audio[frame][1] = buffers.outputs[1][frame];
+            for (frame, sample) in audio.iter_mut().take(frames).enumerate() {
+                sample[0] = buffers.outputs[0][frame];
+                sample[1] = buffers.outputs[1][frame];
             }
             true
         }
@@ -636,7 +642,8 @@ mod windows_engine {
                 channel[..frames].fill(0.0);
             }
             self.buffers.block_size = frames;
-            if runner.process(&mut self.buffers).is_err() {
+            if let Err(error) = runner.process(&mut self.buffers) {
+                eprintln!("VST3 realtime instrument processing failed: {error}");
                 return false;
             }
             true
@@ -741,9 +748,9 @@ mod windows_engine {
                     if !instrument.render_instrument(frames) {
                         return false;
                     }
-                    for frame in 0..frames {
-                        out[frame][0] = instrument.buffers.outputs[0][frame];
-                        out[frame][1] = instrument.buffers.outputs[1][frame];
+                    for (frame, sample) in out.iter_mut().take(frames).enumerate() {
+                        sample[0] = instrument.buffers.outputs[0][frame];
+                        sample[1] = instrument.buffers.outputs[1][frame];
                     }
                 } else {
                     self.render_basic_midi(start, frames, sample_rate, seek_generation, out);
@@ -751,7 +758,7 @@ mod windows_engine {
             } else {
                 for clip in &self.clips {
                     let clip_end = clip.start.saturating_add(clip.duration);
-                    for frame in 0..frames {
+                    for (frame, output) in out.iter_mut().take(frames).enumerate() {
                         let timeline = start.saturating_add(frame as u64);
                         if timeline < clip.start || timeline >= clip_end {
                             continue;
@@ -770,8 +777,8 @@ mod windows_engine {
                             gain *=
                                 clip.duration.saturating_sub(within) as f32 / clip.fade_out as f32;
                         }
-                        out[frame][0] += sample[0] * gain;
-                        out[frame][1] += sample[1] * gain;
+                        output[0] += sample[0] * gain;
+                        output[1] += sample[1] * gain;
                     }
                 }
             }
@@ -1502,10 +1509,10 @@ mod windows_engine {
             let eligible: Vec<_> = config
                 .tracks
                 .iter()
-                .cloned()
                 .filter(|track| {
                     track.effects.iter().any(|effect| effect.enabled) || track.instrument.is_some()
                 })
+                .cloned()
                 .collect();
             if eligible.is_empty() {
                 return Err("Aucune piste MIDI ou audio ne possède d’insert VST3 actif.".into());
