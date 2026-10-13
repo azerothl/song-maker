@@ -683,7 +683,7 @@
   "mix.balance.honesty": "Écoutez la proposition, ajustez-la si besoin ou annulez-la avec Ctrl+Z après application.",
   "record.title": "Enregistrer une piste",
   "record.close": "Fermer",
-  "record.intro": "Choisissez votre micro ou une entrée audio. En mode application, utilisez l’écoute directe de votre matériel pour vous entendre.",
+  "record.intro": "Choisissez votre micro ou une entrée audio. Pour vous entendre avec les effets de piste, utilisez le mode Standard, choisissez une chaîne VST3 et activez l’écoute du micro.",
   "record.engine": "Mode d’enregistrement",
   "record.engine.native": "Dans l’application",
   "record.engine.webview": "Mode navigateur de Song Maker",
