@@ -225,7 +225,13 @@ pub fn vst3_list_plugins() -> Result<Vec<Vst3CatalogEntry>, String> {
 /// Return only inspectable VST3 audio effects. Instruments and generators are deliberately
 /// excluded so they cannot be mistaken for inserts in the track mixer.
 #[tauri::command]
-pub fn vst3_list_effect_plugins() -> Result<Vec<Vst3CatalogEntry>, String> {
+pub async fn vst3_list_effect_plugins() -> Result<Vec<Vst3CatalogEntry>, String> {
+    tauri::async_runtime::spawn_blocking(list_effect_plugins)
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+fn list_effect_plugins() -> Result<Vec<Vst3CatalogEntry>, String> {
     #[cfg(not(windows))]
     {
         Err("L’hôte VST3 est actuellement disponible dans la version Windows.".into())
@@ -236,8 +242,7 @@ pub fn vst3_list_effect_plugins() -> Result<Vec<Vst3CatalogEntry>, String> {
         let mut plugins = vst3_list_plugins()?;
         let mut effects = Vec::new();
         for plugin in plugins.drain(..) {
-            let Ok(description) =
-                vst3_plugin_parameters(plugin.path.clone(), BTreeMap::new(), None)
+            let Ok(description) = plugin_parameters(plugin.path.clone(), BTreeMap::new(), None)
             else {
                 continue;
             };
@@ -255,7 +260,19 @@ pub fn vst3_list_effect_plugins() -> Result<Vec<Vst3CatalogEntry>, String> {
 }
 
 #[tauri::command]
-pub fn vst3_plugin_parameters(
+pub async fn vst3_plugin_parameters(
+    path: String,
+    parameters: BTreeMap<u32, f64>,
+    plugin_state_b64: Option<String>,
+) -> Result<Vst3PluginDescription, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        plugin_parameters(path, parameters, plugin_state_b64)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+fn plugin_parameters(
     path: String,
     parameters: BTreeMap<u32, f64>,
     plugin_state_b64: Option<String>,
@@ -293,7 +310,29 @@ pub fn vst3_plugin_parameters(
 }
 
 #[tauri::command]
-pub fn vst3_process_pcm(
+pub async fn vst3_process_pcm(
+    path: String,
+    parameters: BTreeMap<u32, f64>,
+    plugin_state_b64: Option<String>,
+    sample_rate: u32,
+    peak_ceiling_db: f32,
+    pcm_le: Vec<u8>,
+) -> Result<Vst3ProcessedPcm, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        process_pcm(
+            path,
+            parameters,
+            plugin_state_b64,
+            sample_rate,
+            peak_ceiling_db,
+            pcm_le,
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+fn process_pcm(
     path: String,
     parameters: BTreeMap<u32, f64>,
     plugin_state_b64: Option<String>,
@@ -411,6 +450,29 @@ pub fn render_midi_pcm(
             .output_pcm
             .ok_or_else(|| "Le rendu de l’instrument VST3 n’a produit aucun audio.".into())
     }
+}
+
+#[tauri::command]
+pub async fn vst3_render_midi_pcm(
+    plugin_path: String,
+    parameters: BTreeMap<u32, f64>,
+    plugin_state_b64: Option<String>,
+    sample_rate: u32,
+    render_frames: usize,
+    midi_notes: Vec<Vst3MidiNote>,
+) -> Result<Vec<u8>, String> {
+    tokio::task::spawn_blocking(move || {
+        render_midi_pcm(
+            plugin_path,
+            parameters,
+            plugin_state_b64,
+            sample_rate,
+            render_frames,
+            midi_notes,
+        )
+    })
+    .await
+    .map_err(|error| format!("Le rendu MIDI s’est arrêté : {error}"))?
 }
 
 #[tauri::command]
@@ -1300,11 +1362,11 @@ fn process_blocks(
 }
 
 #[cfg(windows)]
-fn configure_audio_buses(
+pub(crate) fn configure_audio_buses(
     plugin: &mut vst3_host::Plugin,
     requires_input: bool,
 ) -> Result<(AudioBusSelection, AudioBusSelection), String> {
-    use vst3_host::audio::SpeakerArrangement;
+    use vst3_host::audio::{BusDirection, MediaType, SpeakerArrangement};
 
     let arrangements = plugin
         .bus_arrangements()
@@ -1320,6 +1382,18 @@ fn configure_audio_buses(
     // Some plugins reject the preferred stereo layout. Keep their actual layout and
     // validate it below rather than failing to load a plugin that can still run mono.
     let _ = plugin.set_bus_arrangements(&inputs, &outputs);
+    // DEFAULT_ACTIVE is a plugin preference, not a substitute for the host
+    // activating the primary buses it will process (TR5 leaves them inactive).
+    if requires_input && !inputs.is_empty() {
+        plugin
+            .set_bus_active(MediaType::Audio, BusDirection::Input, 0, true)
+            .map_err(|error| format!("Activation de l’entrée audio VST3 impossible : {error}"))?;
+    }
+    if !outputs.is_empty() {
+        plugin
+            .set_bus_active(MediaType::Audio, BusDirection::Output, 0, true)
+            .map_err(|error| format!("Activation de la sortie audio VST3 impossible : {error}"))?;
+    }
     let layout = plugin
         .audio_bus_layout()
         .map_err(|e| format!("Lecture de la disposition audio VST3 impossible : {e}"))?;

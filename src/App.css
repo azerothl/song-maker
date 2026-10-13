@@ -12464,6 +12464,11 @@ details[open] > summary {
   height: auto;
 }
 
+.production-track-detail-popin .track-ms-btn {
+  padding-inline: 0.65rem;
+  white-space: nowrap;
+}
+
 .production-workspace-studio .production-mix-row > .production-mix-track-tools .production-track-detail-popin .production-track-tabs .production-track-tab {
   width: 100%;
   min-width: 0;

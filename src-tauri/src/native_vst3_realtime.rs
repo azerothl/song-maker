@@ -12,6 +12,41 @@ use std::sync::{mpsc, Mutex};
 #[cfg(windows)]
 const REALTIME_BLOCK_SIZE: usize = 512;
 
+/// Allocation-free built-in voice used before a MIDI track's audio inserts.
+#[cfg(any(windows, test))]
+fn builtin_sample(program: &str, pitch: u8, seconds: f64, phase: f64) -> f32 {
+    let sine = phase.sin();
+    let triangle = 2.0 / std::f64::consts::PI * sine.asin();
+    match program {
+        "drums" => {
+            if matches!(pitch, 35 | 36) {
+                let phase = std::f64::consts::TAU
+                    * (42.0 * seconds + 103.0 * 0.045 * (1.0 - (-seconds / 0.045).exp()));
+                (phase.sin() * (-seconds / 0.09).exp()) as f32
+            } else {
+                let seed = ((seconds * 192_000.0) as u64)
+                    .wrapping_mul(6_364_136_223_846_793_005)
+                    .wrapping_add(u64::from(pitch) * 144_269_504_088_896_341);
+                let noise = ((seed >> 32) as u32) as f64 / f64::from(u32::MAX) * 2.0 - 1.0;
+                (noise
+                    * (-seconds
+                        / if matches!(pitch, 42 | 44 | 46) {
+                            0.025
+                        } else {
+                            0.065
+                        })
+                    .exp()) as f32
+            }
+        }
+        "piano" | "pluck" => (triangle * (0.35 + 0.65 * (-seconds / 0.25).exp())) as f32,
+        "epiano" => triangle as f32,
+        "organ" => ((sine + (phase * 2.0).sin() * 0.4 + (phase * 3.0).sin() * 0.2) / 1.6) as f32,
+        "bass" | "lead" => (sine * 0.8 + (phase * 2.0).sin() * 0.2) as f32,
+        "strings" => (sine * 0.7 + (phase * 1.002).sin() * 0.3) as f32,
+        _ => sine as f32,
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RealtimeClip {
@@ -57,6 +92,8 @@ pub struct RealtimeEffect {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RealtimeTrack {
+    #[serde(default)]
+    pub program: Option<String>,
     pub id: String,
     pub name: String,
     pub role: String,
@@ -78,10 +115,45 @@ pub struct RealtimeTrack {
 #[serde(rename_all = "camelCase")]
 pub struct RealtimePlaybackConfig {
     pub master_gain_db: f32,
+    /// Full arrangement duration, including tracks rendered by Web Audio.
+    #[serde(default)]
+    pub duration_seconds: f64,
     #[serde(default)]
     pub any_solo: bool,
     #[serde(default)]
     pub tracks: Vec<RealtimeTrack>,
+}
+
+#[cfg(test)]
+mod midi_program_tests {
+    use super::*;
+
+    #[test]
+    fn legacy_graphs_default_duration_and_new_graphs_keep_the_full_arrangement() {
+        let legacy: RealtimePlaybackConfig =
+            serde_json::from_value(serde_json::json!({"masterGainDb":0,"tracks":[]})).unwrap();
+        assert_eq!(legacy.duration_seconds, 0.0);
+        let full: RealtimePlaybackConfig = serde_json::from_value(
+            serde_json::json!({"masterGainDb":0,"durationSeconds":8,"tracks":[]}),
+        )
+        .unwrap();
+        assert_eq!(full.duration_seconds, 8.0);
+    }
+
+    #[test]
+    fn drums_use_percussive_samples_and_every_builtin_program_is_finite() {
+        let drum = builtin_sample("drums", 36, 0.03, 0.8);
+        let piano = builtin_sample("piano", 36, 0.03, 0.8);
+        assert!((drum - piano).abs() > 0.01);
+        assert!(builtin_sample("drums", 42, 0.5, 0.8).abs() < 0.001);
+        for program in [
+            "piano", "epiano", "organ", "bass", "strings", "lead", "pad", "pluck", "drums",
+        ] {
+            for pitch in 0..128 {
+                assert!(builtin_sample(program, pitch, 0.03, 0.8).is_finite());
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -543,6 +615,7 @@ mod windows_engine {
         fn new(
             plugin: vst3_host::Plugin,
             input_channels: usize,
+            output_channels: usize,
             sample_rate: u32,
             parameters: &std::collections::BTreeMap<u32, f64>,
         ) -> Result<Self, String> {
@@ -555,7 +628,7 @@ mod windows_engine {
                 control: Some(control),
                 buffers: AudioBuffers::new(
                     input_channels,
-                    2,
+                    output_channels,
                     REALTIME_BLOCK_SIZE,
                     f64::from(sample_rate),
                 ),
@@ -592,7 +665,11 @@ mod windows_engine {
             if !buffers.inputs.is_empty() {
                 for (frame, sample) in audio.iter().take(frames).enumerate() {
                     buffers.inputs[0][frame] = sample[0];
-                    buffers.inputs[1][frame] = sample[1];
+                    if buffers.inputs.len() > 1 {
+                        buffers.inputs[1][frame] = sample[1];
+                    } else {
+                        buffers.inputs[0][frame] = (sample[0] + sample[1]) * 0.5;
+                    }
                 }
             }
             for channel in &mut buffers.outputs {
@@ -608,7 +685,10 @@ mod windows_engine {
             }
             for (frame, sample) in audio.iter_mut().take(frames).enumerate() {
                 sample[0] = buffers.outputs[0][frame];
-                sample[1] = buffers.outputs[1][frame];
+                sample[1] = buffers
+                    .outputs
+                    .get(1)
+                    .map_or(sample[0], |channel| channel[frame]);
             }
             true
         }
@@ -671,6 +751,7 @@ mod windows_engine {
     }
 
     struct TrackRuntime {
+        program: String,
         is_midi: bool,
         pcm: Vec<[f32; 2]>,
         clips: Vec<ClipFrames>,
@@ -750,7 +831,11 @@ mod windows_engine {
                     }
                     for (frame, sample) in out.iter_mut().take(frames).enumerate() {
                         sample[0] = instrument.buffers.outputs[0][frame];
-                        sample[1] = instrument.buffers.outputs[1][frame];
+                        sample[1] = instrument
+                            .buffers
+                            .outputs
+                            .get(1)
+                            .map_or(sample[0], |channel| channel[frame]);
                     }
                 } else {
                     self.render_basic_midi(start, frames, sample_rate, seek_generation, out);
@@ -858,10 +943,9 @@ mod windows_engine {
                         / f64::from(sample_rate);
                     let remaining = end.saturating_sub(frame) as f64 / f64::from(sample_rate);
                     let envelope = (local / 0.012).min(1.0).min((remaining / 0.045).max(0.0));
-                    value += (self.midi_phases[pitch].sin() as f32)
-                        * envelope as f32
-                        * (f32::from(velocity) / 127.0)
-                        * 0.18;
+                    let tone =
+                        builtin_sample(&self.program, pitch as u8, local, self.midi_phases[pitch]);
+                    value += tone * envelope as f32 * (f32::from(velocity) / 127.0) * 0.18;
                     self.midi_phases[pitch] += self.midi_phase_steps[pitch];
                     if self.midi_phases[pitch] >= std::f64::consts::TAU {
                         self.midi_phases[pitch] -= std::f64::consts::TAU;
@@ -985,7 +1069,9 @@ mod windows_engine {
                 .set_parameter(*id, *value)
                 .map_err(|error| format!("Réglage VST3 impossible : {error}"))?;
         }
-        Processor::new(plugin, input_channels, rate, params)
+        let (input_bus, output_bus) =
+            crate::vst3_host::configure_audio_buses(&mut plugin, input_channels > 0)?;
+        Processor::new(plugin, input_bus.1, output_bus.1, rate, params)
     }
 
     fn validated_plugin_path(path: &str) -> Result<PathBuf, String> {
@@ -1518,7 +1604,13 @@ mod windows_engine {
                 return Err("Aucune piste MIDI ou audio ne possède d’insert VST3 actif.".into());
             }
             let any_solo = config.any_solo;
-            let mut duration_frames = 0u64;
+            if !config.duration_seconds.is_finite()
+                || !(0.0..=86_400.0).contains(&config.duration_seconds)
+            {
+                return Err("Durée du projet invalide pour la lecture native.".into());
+            }
+            let mut duration_frames =
+                (config.duration_seconds * f64::from(sample_rate)).ceil() as u64;
             let mut active_track_ids = Vec::new();
             let mut active_midi_track_ids = Vec::new();
             let mut tracks = Vec::with_capacity(eligible.len());
@@ -1657,6 +1749,7 @@ mod windows_engine {
                 }
                 midi_events.sort_by_key(|event| (event.frame, event.on));
                 tracks.push(TrackRuntime {
+                    program: track.program.unwrap_or_else(|| "piano".into()),
                     is_midi,
                     pcm,
                     clips,
@@ -1762,7 +1855,9 @@ mod windows_engine {
         current: &RealtimePlaybackConfig,
         next: &RealtimePlaybackConfig,
     ) -> bool {
-        if current.tracks.len() != next.tracks.len() {
+        if current.tracks.len() != next.tracks.len()
+            || current.duration_seconds != next.duration_seconds
+        {
             return false;
         }
         current.tracks.iter().zip(&next.tracks).all(|(a, b)| {
@@ -1784,6 +1879,7 @@ mod windows_engine {
                         && a.state_b64 == b.state_b64
                 });
             a.id == b.id
+                && a.program == b.program
                 && a.role == b.role
                 && a.path == b.path
                 && a.clips == b.clips

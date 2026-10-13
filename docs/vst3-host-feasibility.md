@@ -4,9 +4,9 @@
 **Dépendance :** [#93](https://github.com/azerothl/song-maker/issues/93) (moteur audio temps réel / capture basse latence)  
 **Date :** 2026-09-28 ; état de la pile actualisé le 2026-10-09
 
-## État actuel — 9 octobre 2026
+## État de la candidate — 13 octobre 2026
 
-Les PR #402 et #406 ont intégré l’hôte VST3 Windows dans Production : effets master rendus hors ligne pour aperçu et export, éditeurs natifs de plugins et instruments MIDI VST3. Les plugins ne sont pas redistribués par Song Maker. L’issue #326 reste ouverte pour la validation de bout en bout dans l’application Windows avec un plugin réel et pour les vérifications de persistance/packaging. AU/macOS et le monitoring VST3 en temps réel restent différés.
+La pile Windows comprend les effets master hors ligne, les éditeurs natifs, les instruments MIDI VST3 et un moteur persistant pour les inserts de piste et le monitoring d’entrée partagé. La candidate #454/#455 complète le rendu/export MIDI et l’activation des bus audio. Les plugins ne sont pas redistribués. Voir les [parcours, dépendances et preuves de validation](studio-vst3-assistant-454-455.md) ; la validation sur une release publique reste distincte. AU/macOS reste différé.
 
 Les sections suivantes conservent l’étude de faisabilité et le statut antérieur à l’implémentation ; elles ne décrivent pas l’état courant du produit.
 ## Décision

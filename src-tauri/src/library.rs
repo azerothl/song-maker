@@ -58,6 +58,54 @@ fn active_mix_duration(folder: &Path, doc: &ProjectDoc) -> Option<i64> {
             }
         }
     }
+    if let Some(score_id) = doc.active_score_id.as_deref() {
+        if let Ok(text) = fs::read_to_string(folder.join("scores").join(format!("{score_id}.json")))
+        {
+            if let Ok(score) = serde_json::from_str::<Value>(&text) {
+                let ppq = score
+                    .get("ppq")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(960.0)
+                    .max(1.0);
+                let bpm = score
+                    .pointer("/tempoMap/0/quarterBpm")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(120.0)
+                    .max(1.0);
+                for voice in score
+                    .get("voices")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                {
+                    if !mix.tracks.iter().any(|track| {
+                        track.role == "midi"
+                            && Some(track.id.as_str()) == voice.get("id").and_then(Value::as_str)
+                    }) {
+                        continue;
+                    }
+                    for note in voice
+                        .get("notes")
+                        .and_then(Value::as_array)
+                        .into_iter()
+                        .flatten()
+                    {
+                        let tick = note
+                            .get("startTick")
+                            .and_then(Value::as_u64)
+                            .unwrap_or(0)
+                            .saturating_add(
+                                note.get("durationTick")
+                                    .and_then(Value::as_u64)
+                                    .unwrap_or(0),
+                            );
+                        max_ms = max_ms.max((tick as f64 / ppq * 60_000.0 / bpm).round() as i64);
+                        has_audio_clips |= tick > 0;
+                    }
+                }
+            }
+        }
+    }
     (has_audio_clips && max_ms > 0).then_some(max_ms)
 }
 
@@ -690,6 +738,36 @@ mod library_snapshot_tests {
         doc.active_mix_id = Some("mix-v001".into());
 
         assert_eq!(library_snapshot(&temp.0, &doc), (None, "empty".into()));
+    }
+
+    #[test]
+    fn linked_midi_arrangement_is_not_reported_as_empty() {
+        let temp = TempProject::new();
+        write_mix(
+            &temp.0,
+            serde_json::json!([{
+                "id":"midi-assistant-beat", "role":"midi", "name":"Beat", "gainDb":0, "pan":0,
+                "mute":false, "solo":false, "locked":false, "aiSeparated":false, "clips":[]
+            }]),
+        );
+        std::fs::create_dir_all(temp.0.join("scores")).unwrap();
+        crate::paths::atomic_write_json(
+            &temp.0.join("scores/score-v001.json"),
+            &serde_json::json!({
+                "ppq":960, "tempoMap":[{"quarterBpm":120}], "voices":[
+                    {"id":"midi-assistant-beat", "notes":[{"startTick":0,"durationTick":3840}]},
+                    {"id":"unlinked-reference", "notes":[{"startTick":0,"durationTick":96000}]}
+                ]
+            }),
+        )
+        .unwrap();
+        let mut doc = project();
+        doc.active_mix_id = Some("mix-v001".into());
+        doc.active_score_id = Some("score-v001".into());
+        assert_eq!(
+            library_snapshot(&temp.0, &doc),
+            (Some(2000), "arranged".into())
+        );
     }
 
     #[test]

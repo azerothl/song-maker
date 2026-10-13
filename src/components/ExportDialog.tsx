@@ -14,6 +14,8 @@ import {
   type ExportPack,
 } from "../lib/exportOptions";
 import { t } from "../ui/i18n";
+import type { ScoreDocument } from "../lib/score";
+import { hasArrangementMidi } from "../lib/midiMixRender";
 import { AnchoredPopin } from "./AnchoredPopin";
 import { ExportWizard } from "./ExportWizard";
 
@@ -21,6 +23,7 @@ type Props = {
   project: ProjectDoc;
   mix: MixDoc | null;
   sources: PlaybackSources | null;
+  scoreDocument?: ScoreDocument | null;
   busy: boolean;
   onBusy: (busy: boolean) => void;
   onError: (message: string | null) => void;
@@ -39,6 +42,7 @@ export function ExportDialog({
   project,
   mix,
   sources,
+  scoreDocument = null,
   busy,
   onBusy,
   onError,
@@ -81,7 +85,7 @@ export function ExportDialog({
   }, [mix?.id, opts.mode, aiTracks]);
 
   const controls = visibleExportControls(opts.format);
-  const hasExportAudio = Boolean(project.activeGenerationId) || Boolean(
+  const hasExportAudio = hasArrangementMidi(mix, scoreDocument) || Boolean(project.activeGenerationId) || Boolean(
     project.activeMixId && mix?.tracks.some(track =>
       track.clips.some(clip => clip.sourcePath && Number.isFinite(clip.durationMs) && clip.durationMs > 0)),
   );
@@ -139,6 +143,7 @@ export function ExportDialog({
             bitDepth: controls.showBitDepth ? opts.bitDepth : undefined,
             bitrateKbps: controls.showBitrate ? opts.bitrateKbps : undefined,
             pack: opts.pack,
+            score: scoreDocument,
           },
         );
         if (path) {
@@ -165,6 +170,7 @@ export function ExportDialog({
     setResultMessage(null);
     try {
       const paths = await exportAlignedStems(project.id, mix, sources, {
+        score: scoreDocument,
         format: opts.format,
         selectedTrackIds: selected,
         includeMaster: true,

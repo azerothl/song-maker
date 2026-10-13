@@ -17,6 +17,8 @@ import {
   getProductionToolkit,
 } from "./productionState";
 import type { MixDoc, PlaybackSources, ProjectDoc } from "./types";
+import type { ScoreDocument } from "./score";
+import { hasArrangementMidi, renderMidiMixStems } from "./midiMixRender";
 import {
   buildPortablePackagePlan,
   formatBytes,
@@ -36,30 +38,33 @@ export async function exportProjectAudio(
     bitDepth?: 16 | 24;
     bitrateKbps?: 128 | 192 | 320;
     pack?: "folder" | "zip";
+    score?: ScoreDocument | null;
   },
 ): Promise<string> {
+  const score = options?.score === undefined && mix?.tracks.some(track => track.role === "midi")
+    ? await api.loadScore(projectId) as ScoreDocument | null
+    : options?.score ?? null;
+  const midiEnabled = hasArrangementMidi(mix, score);
   const vst3Enabled = mix?.vst3MasterInsert?.enabled === true;
   const vst3TrackEnabled = Boolean(
     mix?.tracks.some((track) => track.vst3Effects?.some((effect) => effect.enabled)),
   );
   if (
     (vst3Enabled || vst3TrackEnabled) &&
-    (!mix || !sources || sources.mode !== "stems" || sources.stems.length === 0)
+    (!mix || (!midiEnabled && (!sources || sources.mode !== "stems" || sources.stems.length === 0)))
   ) {
     throw new Error(
       "Pour appliquer l’effet VST3, séparez d’abord la prise en pistes dans Production.",
     );
   }
   if (
-    (shouldUseProductionExport() || vst3Enabled || vst3TrackEnabled) &&
+    (shouldUseProductionExport() || vst3Enabled || vst3TrackEnabled || midiEnabled) &&
     mix &&
-    sources &&
-    sources.mode === "stems" &&
-    sources.stems.length > 0
+    (midiEnabled || (sources?.mode === "stems" && sources.stems.length > 0))
   ) {
-    const { stems, sampleRate } = await decodeMixStems(sources, mix);
-    const processedStems = await processTrackVst3Effects(mix, stems);
-    const baked = bakeMixPcm(mix, processedStems);
+    const { stems, sampleRate, renderMix } = await prepareMixRenderSources(mix, sources, score);
+    const processedStems = await processTrackVst3Effects(renderMix, stems);
+    const baked = bakeMixPcm(renderMix, processedStems);
     const renderSampleRate = mix.sampleRate || sampleRate;
     const vst3Processed = vst3Enabled
       ? await api.vst3ProcessPcm({
@@ -93,7 +98,30 @@ export async function exportProjectAudio(
   });
 }
 
-async function processTrackVst3Effects(
+/** Shared audio/MIDI input for exports and the assistant's measured summaries. */
+export async function prepareMixRenderSources(
+  mix: MixDoc, sources: PlaybackSources | null, score: ScoreDocument | null,
+): Promise<{ stems: DecodedStem[]; sampleRate: number; renderMix: MixDoc }> {
+  let renderMix = mix;
+  let stems: DecodedStem[] = [];
+  if (sources?.mode === "stems" && sources.stems.length) {
+    stems = (await decodeMixStems(sources, mix)).stems;
+  } else if (sources?.mode === "generation" && sources.generationWav) {
+    const id = "generation-mix-source";
+    renderMix = { ...mix, tracks: [...mix.tracks, {
+      id, role: "mix", name: sources.label, gainDb: 0, pan: 0,
+      mute: false, solo: false, locked: false, aiSeparated: false, clips: [],
+    }] };
+    stems = (await decodeMixStems({ ...sources, mode: "stems", stems: [{
+      trackId: id, name: sources.label, role: "mix", path: sources.generationWav,
+    }] }, mix)).stems;
+  }
+  stems.push(...await renderMidiMixStems(mix, score));
+  if (!stems.length) throw new Error("Ajoutez une piste audio ou des notes MIDI avant d’exporter.");
+  return { stems, sampleRate: mix.sampleRate || 48_000, renderMix };
+}
+
+export async function processTrackVst3Effects(
   mix: MixDoc,
   stems: DecodedStem[],
 ): Promise<DecodedStem[]> {
@@ -185,6 +213,7 @@ export type StemExportOptions = {
   includeMaster?: boolean;
   sampleRate?: number;
   bitDepth?: 16 | 24;
+  score?: ScoreDocument | null;
 };
 
 /**
@@ -196,10 +225,12 @@ export async function exportAlignedStems(
   sources: PlaybackSources,
   opts: StemExportOptions,
 ): Promise<string[]> {
-  if (sources.mode !== "stems" || sources.stems.length === 0) {
-    throw new Error("Pas de stems à exporter.");
+  const score = opts.score === undefined ? await api.loadScore(projectId) as ScoreDocument | null : opts.score;
+  if ((sources.mode !== "stems" || sources.stems.length === 0) && !hasArrangementMidi(mix, score)) {
+    throw new Error("Pas de pistes à exporter.");
   }
-  const { stems, sampleRate } = await decodeMixStems(sources, mix);
+  const { stems, sampleRate } = await prepareMixRenderSources(mix, sources, score);
+  const processedStems = await processTrackVst3Effects(mix, stems);
   const toolkit = getProductionToolkit();
   const overlay = getProductionOverlay();
   const baked = bakeAlignedStems({
@@ -207,7 +238,7 @@ export async function exportAlignedStems(
     sampleRate: opts.sampleRate || mix.sampleRate || sampleRate,
     masterGainDb: mix.masterGainDb,
     peakCeilingDb: mix.peakCeilingDb,
-    tracks: tracksToRenderInput(mix, stems),
+    tracks: tracksToRenderInput(mix, processedStems),
     trackMeta: mix.tracks.map((t) => ({
       trackId: t.id,
       role: t.role,

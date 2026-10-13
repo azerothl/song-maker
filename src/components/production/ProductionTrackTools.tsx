@@ -41,10 +41,10 @@ export function ProductionTrackTools({
   const btnRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const tablistId = useId();
-  const [tab, setTab] = useState<TrackTab>("settings");
+  const [tab, setTab] = useState<TrackTab>("fx");
 
   useEffect(() => {
-    if (!isOpen) setTab("settings");
+    if (!isOpen) setTab("fx");
   }, [isOpen]);
 
   const closeAll = () => onOpenChange(false);

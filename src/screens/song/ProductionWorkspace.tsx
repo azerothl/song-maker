@@ -90,6 +90,7 @@ import {
 import { MixAssistPanel } from "../../components/MixAssistPanel";
 import { PopinCloseButton } from "../../components/PopinCloseButton";
 import type { ScoreGate } from "../../lib/score";
+import type { ScoreDocument } from "../../lib/score";
 import type { PlaybackView } from "../../components/AudioPlayer";
 import { separationAudioDurationSec } from "../../lib/separationDuration";
 import {
@@ -137,6 +138,7 @@ type ProductionWorkspaceProps = {
   roleByTrack: Record<string, string>;
   scheduleMixUpdate: (next: MixDoc | null, opts?: MixUpdateOpts) => void;
   scoreGate: ScoreGate;
+  scoreDocument?: ScoreDocument | null;
   separationInfo: SeparationInfo | null;
   setBusy: Dispatch<SetStateAction<boolean>>;
   setError: (e: string | null) => void;
@@ -216,6 +218,7 @@ export function ProductionWorkspace({
   roleByTrack,
   scheduleMixUpdate,
   scoreGate,
+  scoreDocument,
   separationInfo,
   setBusy,
   setError,
@@ -614,6 +617,7 @@ export function ProductionWorkspace({
                 project={project}
                 mix={mix}
                 sources={playbackSources}
+                scoreDocument={scoreDocument}
                 busy={busy}
                 onBusy={setBusy}
                 onError={setError}
@@ -1022,6 +1026,8 @@ export function ProductionWorkspace({
                       ]))
                     : undefined}
                   sourceDurationMsByTrack={sourceDurationMsByTrack}
+                  scoreDocument={scoreDocument}
+                  onEditMidiTrack={onEditMidiTrack}
                   projectTempoBpm={project.tempoBpm} projectMeter={project.meter ?? null}
                   currentTimeMs={(playback?.current ?? 0)*1000} onSeek={playback?.seek}
                   clipViewPrefs={clipViewPrefs} onClipViewPrefsChange={patchClipViewPrefs}
