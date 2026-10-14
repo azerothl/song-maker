@@ -308,7 +308,7 @@ fn validate_assistant_change(
     after_score: Option<&serde_json::Value>,
 ) -> Result<(), String> {
     let invalid = || {
-        "Action de l’assistant invalide : seuls les niveaux, panoramiques et pistes MIDI proposées sont autorisés.".to_string()
+        "Action Studio invalide : seuls les niveaux, panoramiques et ajouts MIDI validés sont autorisés ; une source audio ne peut être mise en sourdine qu’avec la piste MIDI convertie.".to_string()
     };
     if !after_mix.master_gain_db.is_finite()
         || !(-60.0..=12.0).contains(&after_mix.master_gain_db)
@@ -324,6 +324,43 @@ fn validate_assistant_change(
         != serde_json::to_value(after_mix).map_err(|error| error.to_string())?
     {
         return Err(invalid());
+    }
+    let assistant_voice = |voice: &serde_json::Value| {
+        voice
+            .get("id")
+            .and_then(|id| id.as_str())
+            .is_some_and(|id| id.starts_with("midi-assistant-"))
+    };
+    let voices = |score: Option<&serde_json::Value>| -> Vec<serde_json::Value> {
+        score
+            .and_then(|score| score.get("voices"))
+            .and_then(|voices| voices.as_array())
+            .cloned()
+            .unwrap_or_default()
+    };
+    let mut conversion_sources = std::collections::HashSet::new();
+    for (changed, comparison) in [(before_score, after_score), (after_score, before_score)] {
+        let comparison_voices = voices(comparison);
+        for voice in voices(changed)
+            .iter()
+            .filter(|voice| assistant_voice(voice))
+        {
+            let id = voice.get("id").and_then(|value| value.as_str());
+            let unchanged = id.is_some_and(|id| {
+                comparison_voices.iter().any(|candidate| {
+                    candidate.get("id").and_then(|value| value.as_str()) == Some(id)
+                        && candidate == voice
+                })
+            });
+            if !unchanged {
+                if let Some(source_id) = voice
+                    .get("audioSourceTrackId")
+                    .and_then(|value| value.as_str())
+                {
+                    conversion_sources.insert(source_id.to_string());
+                }
+            }
+        }
     }
     let old_ids: Vec<_> = before_mix
         .tracks
@@ -354,6 +391,9 @@ fn validate_assistant_change(
             let mut allowed = old.clone();
             allowed.gain_db = track.gain_db;
             allowed.pan = track.pan;
+            if old.role != "midi" && conversion_sources.contains(&old.id) {
+                allowed.mute = track.mute;
+            }
             if serde_json::to_value(allowed).map_err(|error| error.to_string())?
                 != serde_json::to_value(track).map_err(|error| error.to_string())?
             {
@@ -368,13 +408,6 @@ fn validate_assistant_change(
             return Err(invalid());
         }
     }
-    let voices = |score: Option<&serde_json::Value>| -> Vec<serde_json::Value> {
-        score
-            .and_then(|score| score.get("voices"))
-            .and_then(|voices| voices.as_array())
-            .cloned()
-            .unwrap_or_default()
-    };
     let before = voices(before_score);
     let after = voices(after_score);
     let populated = |voice: &&serde_json::Value| {
@@ -389,6 +422,7 @@ fn validate_assistant_change(
             if let Some(object) = value.as_object_mut() {
                 object.remove("voices");
                 object.remove("source");
+                object.remove("noteExtraction");
             }
             value
         };
@@ -396,26 +430,20 @@ fn validate_assistant_change(
             return Err(invalid());
         }
     }
-    let is_assistant = |voice: &serde_json::Value| {
-        voice
-            .get("id")
-            .and_then(|id| id.as_str())
-            .is_some_and(|id| id.starts_with("midi-assistant-"))
-    };
     if before
         .iter()
         .filter(populated)
-        .filter(|voice| !is_assistant(voice))
+        .filter(|voice| !assistant_voice(voice))
         .collect::<Vec<_>>()
         != after
             .iter()
             .filter(populated)
-            .filter(|voice| !is_assistant(voice))
+            .filter(|voice| !assistant_voice(voice))
             .collect::<Vec<_>>()
     {
         return Err(invalid());
     }
-    for voice in after.iter().filter(|voice| is_assistant(voice)) {
+    for voice in after.iter().filter(|voice| assistant_voice(voice)) {
         if before.iter().any(|old| old == voice) {
             continue;
         }

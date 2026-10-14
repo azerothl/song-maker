@@ -45,6 +45,7 @@ type ScoreWorkspaceProps = {
   setScoreDocument: (doc: ScoreDocument | null) => void;
   setScoreMode: Dispatch<SetStateAction<ScoreMode>>;
   setScoreOpen: (v: boolean) => void;
+  onUndoExtraction?: () => Promise<void>;
 };
 
 export function ScoreWorkspace({
@@ -72,6 +73,7 @@ export function ScoreWorkspace({
   setScoreDocument,
   setScoreMode,
   setScoreOpen,
+  onUndoExtraction,
 }: ScoreWorkspaceProps) {
   return (
     <section
@@ -80,10 +82,10 @@ export function ScoreWorkspace({
       id="song-panel-score"
       aria-labelledby="song-tab-score"
     >
-      <header className="song-workspace-heading">
+      {!scoreDocument && <header className="song-workspace-heading">
         <h2>{workspaceTitle("score")}</h2>
         <p className="hint">{workspaceIntro("score")}</p>
-      </header>
+      </header>}
 
       <nav
         className="song-subnav"
@@ -128,6 +130,7 @@ export function ScoreWorkspace({
             playbackSeconds={playback?.current ?? 0}
             playbackReady={Boolean(playback?.ready)}
             onSeekPlayback={playback?.seek}
+            onUndoExtraction={onUndoExtraction}
           />
         </div>
 

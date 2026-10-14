@@ -83,6 +83,8 @@ export type ScoreVoice = {
   notes: NoteEvent[];
   /** Explicit Ins/Vocal (or extra ABC name) for export (§7.6, #340). */
   abcVoice?: AbcVoiceTarget;
+  /** Audio arrangement track this editable transcription came from. */
+  audioSourceTrackId?: string;
   /** Optional offline VST3 instrument assignment. */
   vst3Instrument?: ScoreVst3Instrument;
   /** Built-in program used by the Studio transport for generated MIDI parts. */
@@ -106,6 +108,19 @@ export type ScoreDocument = {
   parentScoreId?: string | null;
   /** User-facing branch label (e.g. score-v1 / alternate-bridge). */
   branchName?: string | null;
+  /** Last applied extraction; prior score stays as an immutable undo version. */
+  noteExtraction?: {
+    trackId: string;
+    mode: "voice" | "bass" | "polyphonic";
+    sensitivity: "conservative" | "balanced" | "detailed";
+    minimumPitch: number;
+    maximumPitch: number;
+    minimumNoteMs: number;
+    previousScoreId: string | null;
+    /** Arrangement MIDI lane created from this extraction, when converted in Studio. */
+    arrangementTrackId?: string;
+    arrangementSourceTrackId?: string;
+  };
 };
 
 export type CotProfile = "full" | "melody" | "off";

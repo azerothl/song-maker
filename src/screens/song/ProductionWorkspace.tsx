@@ -153,6 +153,8 @@ type ProductionWorkspaceProps = {
   onClipViewPrefsChange?: (patch: Partial<ProductionClipViewPrefs>) => void;
   onTranscribeBasicPitch?: (track: MixTrack) => void;
   transcribingTrackId?: string | null;
+  onConvertMidiTrackToAudio?: (trackId: string) => void;
+  convertingMidiTrackId?: string | null;
 };
 
 function formatSavedClock(at: Date): string {
@@ -232,6 +234,8 @@ export function ProductionWorkspace({
   onClipViewPrefsChange,
   onTranscribeBasicPitch,
   transcribingTrackId = null,
+  onConvertMidiTrackToAudio,
+  convertingMidiTrackId = null,
 }: ProductionWorkspaceProps) {
   const hasAiStems = mix?.tracks.some((tr) => tr.aiSeparated) ?? false;
   const separationAudioSec = useMemo(
@@ -1167,6 +1171,19 @@ export function ProductionWorkspace({
                               <span aria-hidden="true">✎</span>
                             </button>
                           )}
+                          {studioMode && tr.role.toLowerCase() !== "midi" && onTranscribeBasicPitch
+                            && tr.clips.some(clip => clip.takeActive !== false && clip.durationMs > 0 && Boolean(clip.sourcePath)) && (
+                            <button
+                              type="button"
+                              className="btn studio-track-convert"
+                              disabled={busy || transcribingTrackId === tr.id || tr.locked}
+                              aria-label={t("production.convert.audioToMidiNamed", { track: tr.name })}
+                              title={t("production.convert.audioToMidiNamed", { track: tr.name })}
+                              onClick={() => onTranscribeBasicPitch(tr)}
+                            >
+                              {transcribingTrackId === tr.id ? "…" : "M"}
+                            </button>
+                          )}
                           {tr.role === "midi" && onEditMidiTrack && (
                             <button
                               type="button"
@@ -1176,6 +1193,19 @@ export function ProductionWorkspace({
                               title={t("production.midi.openPianoRoll")}
                             >
                               <span aria-hidden="true">♬</span>
+                            </button>
+                          )}
+                          {studioMode && tr.role.toLowerCase() === "midi" && onConvertMidiTrackToAudio
+                            && scoreDocument?.voices.some(voice => voice.id === tr.id && voice.notes.length > 0) && (
+                            <button
+                              type="button"
+                              className="btn studio-track-convert"
+                              disabled={busy || convertingMidiTrackId === tr.id || tr.locked}
+                              aria-label={t("production.convert.midiToAudioNamed", { track: tr.name })}
+                              title={t("production.convert.midiToAudioNamed", { track: tr.name })}
+                              onClick={() => onConvertMidiTrackToAudio(tr.id)}
+                            >
+                              {convertingMidiTrackId === tr.id ? "…" : "A"}
                             </button>
                           )}
                         </div>
@@ -1324,12 +1354,6 @@ export function ProductionWorkspace({
                               }
                             }}
                             tempoBpm={form.tempoBpm}
-                            onTranscribeBasicPitch={
-                              onTranscribeBasicPitch
-                                ? () => onTranscribeBasicPitch(tr)
-                                : undefined
-                            }
-                            transcribing={transcribingTrackId === tr.id}
                             onOpenMidiInstrument={tr.role === "midi" && onEditMidiTrack
                               ? () => onEditMidiTrack(tr.id, tr.name, true)
                               : undefined}

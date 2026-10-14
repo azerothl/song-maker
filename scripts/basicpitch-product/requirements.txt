@@ -1,16 +1,16 @@
-# Product BasicPitch (#346) — ONNX runtime, no TensorFlow.
-#   python3 -m venv .venv && source .venv/bin/activate
-#   pip install -U 'pip' 'setuptools<81' wheel
-#   pip install basic-pitch==0.4.0 --no-deps
-#   pip install -r requirements.txt
-basic-pitch==0.4.0
-onnxruntime>=1.16
-librosa>=0.8.0
-numpy>=1.18
-pretty-midi>=0.2.9
+# BasicPitch itself MUST be installed separately with --no-deps. Resolving its
+# default dependencies installs TensorFlow on Python 3.11+ instead of ONNX.
+#   python -m pip install basic-pitch==0.4.0 --no-deps
+#   python -m pip install -r requirements.txt
+onnxruntime==1.23.2; python_version < '3.11'
+onnxruntime==1.31.0; python_version >= '3.11'
+librosa>=0.10,<2
+numpy>=1.24,<3
+pretty-midi>=0.2.9,<1
 resampy>=0.2.2,<0.4.3
-scikit-learn
-scipy>=1.4.1
+mir-eval>=0.8,<1
+scikit-learn>=1.3,<2
+scipy>=1.10,<2
 typing-extensions
 soundfile
 setuptools<81

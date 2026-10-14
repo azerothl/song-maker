@@ -7,6 +7,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
+  type CSSProperties,
 } from "react";
 import {
   filterNotesInPianoViewportIndexed,
@@ -69,7 +70,6 @@ const NOTE_HIT_PX = 44;
 const QUANTIZE_TICKS = 120;
 const PIANO_KEYBOARD_WIDTH = 56;
 const PIANO_RULER_HEIGHT = 28;
-const TICKS_PER_QUARTER = 480;
 
 type Props = {
   document: ScoreDocument;
@@ -78,17 +78,37 @@ type Props = {
   initialVoiceId?: string;
   /** Compact, desktop-only pitch rows for the Studio dock. */
   compactRows?: boolean;
+  activeVoiceId?: string | null;
+  onVoiceChange?: (voiceId: string | null) => void;
 };
 
-export function PianoRoll({ document, onChange, onError, initialVoiceId, compactRows = false }: Props) {
-  const useCompactRows =
-    compactRows &&
-    !(typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
-  const ROW_H = useCompactRows ? 7 : NOTE_HIT_PX;
+export function PianoRoll({ document, onChange, onError, initialVoiceId, compactRows = false, activeVoiceId, onVoiceChange }: Props) {
+  const coarsePointer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+  const useCompactRows = compactRows && !coarsePointer;
+  const ROW_H = coarsePointer ? NOTE_HIT_PX : useCompactRows ? 7 : 14;
   const noteHitHeightPx = ROW_H;
   const defaultVoice = primaryVoiceId(document);
-  const [voiceId, setVoiceId] = useState<string | null>(initialVoiceId ?? defaultVoice);
+  const [internalVoiceId, setInternalVoiceId] = useState<string | null>(initialVoiceId ?? defaultVoice);
+  const voiceId = activeVoiceId === undefined ? internalVoiceId : activeVoiceId;
+  const setVoiceId = useCallback((id: string | null) => {
+    setInternalVoiceId(id);
+    onVoiceChange?.(id);
+  }, [onVoiceChange]);
   const voice = document.voices.find((v) => v.id === voiceId) ?? null;
+  const pitchBounds = useMemo(() => {
+    let min = PITCH_MIN;
+    let max = PITCH_MAX;
+    let noteMin = Infinity;
+    let noteMax = -Infinity;
+    for (const note of voice?.notes ?? []) {
+      if (!Number.isFinite(note.pitch) || note.pitch < 0 || note.pitch > 127) continue;
+      min = Math.min(min, Math.max(0, Math.floor(note.pitch) - 3));
+      max = Math.max(max, Math.min(127, Math.ceil(note.pitch) + 3));
+      noteMin = Math.min(noteMin, note.pitch);
+      noteMax = Math.max(noteMax, note.pitch);
+    }
+    return { min, max, center: Number.isFinite(noteMin) ? (noteMin + noteMax) / 2 : (min + max) / 2 };
+  }, [voice?.notes]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [transposeOffset, setTransposeOffset] = useState(0);
   const [focusedNoteId, setFocusedNoteId] = useState<string | null>(null);
@@ -171,28 +191,22 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
     if (!voiceId || !document.voices.some((v) => v.id === voiceId)) {
       setVoiceId(primaryVoiceId(document));
     }
-  }, [document, voiceId]);
+  }, [document, voiceId, setVoiceId]);
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el || !voice || centeredVoiceIdRef.current === voice.id) return;
-    const pitches = voice.notes
-      .map((note) => note.pitch)
-      .filter((pitch) => pitch >= PITCH_MIN && pitch <= PITCH_MAX);
-
-    centeredVoiceIdRef.current = voice.id;
-    const centerPitch = pitches.length > 0
-      ? (Math.min(...pitches) + Math.max(...pitches)) / 2
-      : (PITCH_MIN + PITCH_MAX) / 2;
+    const centerKey = `${voice?.id}:${pitchBounds.min}:${pitchBounds.max}:${ROW_H}`;
+    if (!el || !voice || centeredVoiceIdRef.current === centerKey) return;
+    centeredVoiceIdRef.current = centerKey;
     const targetTop =
-      (PITCH_MAX - centerPitch) * ROW_H +
+      (pitchBounds.max - pitchBounds.center) * ROW_H +
       PIANO_RULER_HEIGHT -
       el.clientHeight / 2;
     el.scrollTop = Math.min(
       Math.max(0, el.scrollHeight - el.clientHeight),
       Math.max(0, targetTop),
     );
-  }, [voice]);
+  }, [voice, pitchBounds, ROW_H]);
 
   useEffect(() => {
     clearFocusedNote();
@@ -279,13 +293,13 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
   }, [voice, document.sections]);
 
   const ticksPerMeasure =
-    meter.numerator * (TICKS_PER_QUARTER * (4 / meter.denominator));
+    meter.numerator * (document.ppq * (4 / meter.denominator));
   const pxPerTick = Math.max(PX_PER_TICK, hScroll.width / (ticksPerMeasure * 8));
   const width = Math.max(640, maxTick * pxPerTick, hScroll.width);
-  const height = (PITCH_MAX - PITCH_MIN + 1) * ROW_H;
+  const height = (pitchBounds.max - pitchBounds.min + 1) * ROW_H;
   const measureWidth = ticksPerMeasure * pxPerTick;
   const measureCount = Math.ceil(width / measureWidth);
-  const beatWidth = (TICKS_PER_QUARTER * (4 / meter.denominator)) * pxPerTick;
+  const beatWidth = (document.ppq * (4 / meter.denominator)) * pxPerTick;
 
   const notesIndex = useMemo(
     () => buildPianoNotesIndex(voice?.notes ?? [], pxPerTick),
@@ -313,12 +327,12 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
   );
 
   function pitchToY(pitch: number): number {
-    return (PITCH_MAX - pitch) * ROW_H;
+    return (pitchBounds.max - pitch) * ROW_H;
   }
 
   function yToPitch(y: number): number {
-    const p = PITCH_MAX - Math.floor(y / ROW_H);
-    return Math.min(PITCH_MAX, Math.max(PITCH_MIN, p));
+    const p = pitchBounds.max - Math.floor(y / ROW_H);
+    return Math.min(pitchBounds.max, Math.max(pitchBounds.min, p));
   }
 
   function onCanvasClick(e: MouseEvent<HTMLDivElement>) {
@@ -375,8 +389,8 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
         Math.round((startTick + dx / pxPerTick) / 120) * 120,
       );
       const nextPitch = Math.min(
-        PITCH_MAX,
-        Math.max(PITCH_MIN, pitch - Math.round(dy / ROW_H)),
+        pitchBounds.max,
+        Math.max(pitchBounds.min, pitch - Math.round(dy / ROW_H)),
       );
       onChange(
         updateNote(document, voiceId, noteId, {
@@ -499,7 +513,8 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
 
   return (
     <div
-      className={useCompactRows ? "piano-roll piano-roll-compact-rows" : "piano-roll"}
+      className={`piano-roll${!coarsePointer ? " piano-roll-desktop-rows" : ""}${useCompactRows ? " piano-roll-compact-rows" : ""}`}
+      style={{ "--piano-note-hit-height": `${ROW_H}px` } as CSSProperties}
       tabIndex={0}
       onKeyDown={onKeyDown}
       role="application"
@@ -844,8 +859,8 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
             ))}
           </div>
           <div className="piano-keyboard" role="group" aria-label={t("score.piano.keyboardAria")}>
-            {Array.from({ length: PITCH_MAX - PITCH_MIN + 1 }, (_, i) => {
-              const pitch = PITCH_MAX - i;
+            {Array.from({ length: pitchBounds.max - pitchBounds.min + 1 }, (_, i) => {
+              const pitch = pitchBounds.max - i;
               const black = [1, 3, 6, 8, 10].includes(pitch % 12);
               const pitchName = midiPitchName(pitch);
               return (
@@ -871,8 +886,8 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
             style={{ width, height }}
             onClick={onCanvasClick}
           >
-          {Array.from({ length: PITCH_MAX - PITCH_MIN + 1 }, (_, i) => {
-            const pitch = PITCH_MAX - i;
+          {Array.from({ length: pitchBounds.max - pitchBounds.min + 1 }, (_, i) => {
+            const pitch = pitchBounds.max - i;
             const black = [1, 3, 6, 8, 10].includes(pitch % 12);
             return (
               <div
@@ -923,7 +938,7 @@ export function PianoRoll({ document, onChange, onError, initialVoiceId, compact
                 style={{
                   left: n.startTick * pxPerTick,
                   top: pitchToY(n.pitch) - (noteHitHeightPx - ROW_H) / 2,
-                  width: Math.max(44, n.durationTick * pxPerTick),
+                  width: Math.max(coarsePointer ? 44 : 6, n.durationTick * pxPerTick),
                   height: noteHitHeightPx,
                   opacity: 0.55 + (n.velocity / 127) * 0.45,
                 }}

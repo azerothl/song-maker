@@ -29,10 +29,6 @@ import { isMixMsActivationKey } from "../../lib/productionMixA11y";
 import type { MixDoc, MixTrack } from "../../lib/types";
 import { formatMs } from "../../lib/productionTimeFormat";
 import {
-  basicPitchQualityKey,
-  trackHasAudioClip,
-} from "../../lib/basicPitchProduct";
-import {
   formatGainDb,
   parseGainDb,
 } from "../../screens/song/shared";
@@ -47,8 +43,6 @@ type Props = {
   mix: MixDoc;
   onMixChange: (next: MixDoc, opts?: { persist?: boolean }) => void;
   onOpenFxLine: () => void;
-  onTranscribeBasicPitch?: () => void;
-  transcribing?: boolean;
   /** When true, render body only (parent owns the AnchoredPopin shell / tabs). */
   embedded?: boolean;
 };
@@ -69,8 +63,6 @@ export function ProductionTrackSettingsPopin({
   mix,
   onMixChange,
   onOpenFxLine,
-  onTranscribeBasicPitch,
-  transcribing = false,
   embedded = false,
 }: Props) {
   const titleId = useId();
@@ -317,23 +309,6 @@ export function ProductionTrackSettingsPopin({
         {track.locked && <p className="hint">{t("production.auto.locked")}</p>}
         </>
       )}
-        {onTranscribeBasicPitch ? (
-          <div className="production-track-settings-basicpitch">
-            <button
-              type="button"
-              className="btn"
-              disabled={transcribing || track.locked || !trackHasAudioClip(track)}
-              onClick={onTranscribeBasicPitch}
-            >
-              {transcribing ? t("basicPitch.busy") : t("basicPitch.action")}
-            </button>
-            <p className="hint">{t("basicPitch.hint")}</p>
-            <p className="hint">{t(basicPitchQualityKey(track.role))}</p>
-            {!trackHasAudioClip(track) ? (
-              <p className="hint">{t("basicPitch.noAudio")}</p>
-            ) : null}
-          </div>
-        ) : null}
     </>
   );
 

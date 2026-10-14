@@ -5,6 +5,7 @@ import {
   exportScoreAbc,
   exportScoreMidi,
   importMidiBytes,
+  primaryVoiceId,
   validateScoreForGeneration,
   vocalToInsAbc,
 } from "../lib/score";
@@ -18,6 +19,7 @@ import { MidiInstrumentPanel } from "./MidiInstrumentPanel";
 import { PianoRoll } from "./PianoRoll";
 import { ScoreAssistantPanel } from "./ScoreAssistantPanel";
 import { ScoreBranchPanel } from "./ScoreBranchPanel";
+import { ScoreIssueSummary } from "./ScoreIssueSummary";
 import { useAppStore } from "../store/appStore";
 import { t } from "../ui/i18n";
 import { ErrorNotice } from "./ErrorNotice";
@@ -42,6 +44,7 @@ type Props = {
   onSeekPlayback?: (seconds: number) => void;
   initialViewMode?: ScoreViewMode;
   initialVoiceId?: string;
+  onUndoExtraction?: () => Promise<void>;
 };
 
 function scoreViewLabel(mode: ScoreViewMode): string {
@@ -106,14 +109,24 @@ export function ScorePanel({
   playbackSeconds = 0,
   playbackReady = false,
   onSeekPlayback,
-  initialViewMode = "staff",
+  initialViewMode,
   initialVoiceId,
+  onUndoExtraction,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const vocalToInsHelpId = useId();
   const [issues, setIssues] = useState<ScoreIssue[]>([]);
   const [abcPreview, setAbcPreview] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ScoreViewMode>(initialViewMode);
+  const [viewMode, setViewMode] = useState<ScoreViewMode>(initialViewMode ?? (document?.source === "midi" ? "piano" : "staff"));
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(initialVoiceId ?? null);
+  const [playbackToolbarTarget, setPlaybackToolbarTarget] = useState<HTMLDivElement | null>(null);
+  const preferredVoiceId = document?.voices.find(voice => voice.audioSourceTrackId === document.noteExtraction?.trackId)?.id
+    ?? (document ? primaryVoiceId(document) : null);
+  const activeVoiceId = document?.voices.some((voice) => voice.id === selectedVoiceId)
+    ? selectedVoiceId
+    : document?.voices.find((voice) => voice.id === preferredVoiceId && voice.notes.length > 0)?.id
+      ?? document?.voices.find((voice) => voice.notes.length > 0)?.id
+      ?? preferredVoiceId;
   const [busy, setBusy] = useState(false);
   const [pendingImport, setPendingImport] = useState<{
     bytes: Uint8Array;
@@ -211,6 +224,11 @@ export function ScorePanel({
     if (!quarterBpm || !ts?.numerator || !ts.denominator) return undefined;
     return ((ts.numerator * 4) / ts.denominator) * (60 / quarterBpm);
   }, [document]);
+  const diagnosticIssues = useMemo(() => [
+    ...(validation?.issues ?? []),
+    ...issues,
+    ...(viewMode === "abc" && staffAbc && !staffAbc.ok ? staffAbc.issues : []),
+  ], [validation, issues, viewMode, staffAbc]);
 
   async function persist(doc: ScoreDocument) {
     setBusy(true);
@@ -242,6 +260,7 @@ export function ScorePanel({
         return;
       }
       await persist(result.document);
+      setViewMode("piano");
       setIssues(result.issues);
       setAbcPreview(null);
     } catch (e) {
@@ -257,6 +276,7 @@ export function ScorePanel({
         quantizeTicks: pendingImport.suggestedQuantizeTicks,
       });
       await persist(result.document);
+      setViewMode("piano");
       setIssues(result.issues);
       setPendingImport(null);
       setAbcPreview(null);
@@ -283,7 +303,7 @@ export function ScorePanel({
     const check = validateScoreForGeneration(document, cot as CotProfile);
     setIssues(check.issues);
     if (!check.ok) {
-      onError(check.issues[0]?.message ?? t("score.validationFailed"));
+      onError(t("score.validationFailed"));
       setAbcPreview(null);
       return;
     }
@@ -427,6 +447,10 @@ export function ScorePanel({
               role="group"
               aria-label={t("score.editActions")}
             >
+              {document.noteExtraction && onUndoExtraction && <button type="button" className="btn ghost" disabled={busy}
+                onClick={() => { setBusy(true); void onUndoExtraction().finally(() => setBusy(false)); }}>
+                {t("extraction.undo")}
+              </button>}
               <button
                 type="button"
                 className="btn"
@@ -497,6 +521,8 @@ export function ScorePanel({
             ))}
           </nav>
 
+          <div className="score-midi-transport" ref={setPlaybackToolbarTarget} hidden={viewMode !== "piano"} />
+
           <div
             id="score-view-panel-staff"
             role="tabpanel"
@@ -547,6 +573,8 @@ export function ScorePanel({
                 <PianoRoll
                   document={document}
                   initialVoiceId={initialVoiceId}
+                  activeVoiceId={activeVoiceId}
+                  onVoiceChange={setSelectedVoiceId}
                   onChange={(doc) => {
                     onDocumentChange(doc);
                     setAbcPreview(null);
@@ -557,6 +585,9 @@ export function ScorePanel({
                   projectId={projectId}
                   onProjectRefresh={onProjectRefresh}
                   document={document}
+                  voiceId={activeVoiceId}
+                  onVoiceChange={setSelectedVoiceId}
+                  playbackToolbarTarget={playbackToolbarTarget}
                   onDocumentChange={(doc) => {
                     onDocumentChange(doc);
                     setAbcPreview(null);
@@ -587,46 +618,13 @@ export function ScorePanel({
               ) : (
                 <p className="hint">{t("score.view.abcEmpty")}</p>
               ))}
-            {viewMode === "abc" &&
-              staffAbc &&
-              !staffAbc.ok &&
-              staffAbc.issues.length > 0 && (
-                <ul className="score-issues">
-                  {staffAbc.issues.map((issue, i) => (
-                    <li key={`staff-i-${i}`} className={issue.severity}>
-                      {issue.message}
-                    </li>
-                  ))}
-                </ul>
-              )}
           </div>
 
-          {validation && !validation.ok && (
-            <ul className="score-issues">
-              {validation.issues.map((issue, i) => (
-                <li key={`${issue.code}-${i}`} className={issue.severity}>
-                  {issue.message}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {issues.length > 0 && (
-            <ul className="score-issues">
-              {issues.map((issue, i) => (
-                <li key={`i-${i}`} className={issue.severity}>
-                  {issue.message}
-                </li>
-              ))}
-            </ul>
-          )}
+          <ScoreIssueSummary document={document} issues={diagnosticIssues} />
 
           <ScoreAssistantPanel
             document={document}
-            issues={[
-              ...(validation && !validation.ok ? validation.issues : []),
-              ...issues,
-            ]}
+            issues={diagnosticIssues}
             onApplyDocument={(doc, messageFr) => {
               onDocumentChange(doc);
               setAbcPreview(null);

@@ -142,7 +142,7 @@ export function applyScoreFix(
     case "quantize_120":
       return {
         document: quantizeScore(document, TICKS_THIRTY_SECOND),
-        messageFr: "Partition quantifiée sur 120 ticks.",
+        messageFr: "Notes alignées sur une grille de triples croches.",
       };
     case "clamp_pitches": {
       const next: ScoreDocument = {
@@ -158,7 +158,7 @@ export function applyScoreFix(
       };
       return {
         document: next,
-        messageFr: "Hauteurs ramenées dans la plage 36–84.",
+        messageFr: "Notes ramenées entre C2 et C6.",
       };
     }
     case "add_tempo": {

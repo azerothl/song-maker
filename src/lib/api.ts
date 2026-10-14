@@ -3,6 +3,7 @@ import type { PortablePackagePlan } from "./projectPackage";
 import type { ProfilesState, ProfileSummary } from "./profilesTypes";
 import type { UserLibrary } from "./userLibrary";
 import type { StudioAssistantHistory } from "./studioAssistant";
+import type { ExtractionOptions, ExtractionResult } from "./basicPitchExtraction";
 import type {
   NativeCaptureBackend,
   NativeCapturePoll,
@@ -339,6 +340,10 @@ export const api = {
   ) => invoke<MixDoc>("update_mix", { id, update }),
   addEmptyMidiTrack: (id: string, voiceId: string, name: string) =>
     invoke<MixDoc>("add_empty_midi_track", { id, voiceId, name }),
+  persistRenderedMidiTrack: (id: string, sourceTrackId: string, displayName: string, pcmLe: number[]) =>
+    invoke<MixDoc>("persist_rendered_midi_track", {
+      id, sourceTrackId, displayName, pcmLe,
+    }),
   removeEmptyMidiTrack: (id: string, voiceId: string) =>
     invoke<MixDoc>("remove_empty_midi_track", { id, voiceId }),
   /** Native dialog → copy + normalize → append user MixTrack (#40). Null if cancelled. */
@@ -516,14 +521,15 @@ export const api = {
     invoke<unknown | null>("load_score_version", { id, scoreId }),
   setActiveScore: (id: string, scoreId: string) =>
     invoke<ProjectDoc>("set_active_score", { id, scoreId }),
-  transcribeBasicpitch: (id: string, trackId: string) =>
-    invoke<{
-      midiBytes: number[];
-      noteCount: number;
-      backend: string;
-      tensorflowInstalled: boolean;
-      model: string;
-    }>("transcribe_basicpitch", { id, trackId }),
+  transcribeBasicpitch: (id: string, trackId: string, options?: ExtractionOptions, mixSnapshot?: MixDoc) =>
+    invoke<ExtractionResult>("transcribe_basicpitch", { id, trackId, options: options ?? null, mixSnapshot: mixSnapshot ?? null }),
+  discardBasicpitchPreview: (id: string, previewId: string) =>
+    invoke<void>("discard_basicpitch_preview", { id, previewId }),
+  applyBasicpitchScore: (id: string, expectedScoreId: string | null, beforeDocument: unknown, afterDocument: unknown) =>
+    invoke<[ProjectDoc, string, string | null]>("apply_basicpitch_score", { id, expectedScoreId, beforeDocument, afterDocument })
+      .then(([project, scoreId, previousScoreId]) => ({ project, scoreId, previousScoreId })),
+  undoBasicpitchScore: (id: string, expectedScoreId: string) =>
+    invoke<ProjectDoc>("undo_basicpitch_score", { id, expectedScoreId }),
   useGeneration: (id: string, genId: string) =>
     invoke<ProjectDoc>("use_generation", { id, genId }),
   renameGeneration: (id: string, genId: string, name: string) =>

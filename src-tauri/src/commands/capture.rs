@@ -201,6 +201,7 @@ fn rollback_ingested_asset(folder: &Path, asset: &IngestedUserAudio) {
 struct AudioPlacement {
     start_ms: i64,
     mute_existing: bool,
+    insert_after_track_id: Option<String>,
 }
 
 fn mute_existing_tracks(mix: &mut MixDoc) {
@@ -226,6 +227,22 @@ fn persist_prepared_user_audio_asset(
     if placement.mute_existing {
         mute_existing_tracks(&mut mix);
     }
+    let insert_after = if let Some(source_id) = placement.insert_after_track_id.as_deref() {
+        let Some(index) = mix.tracks.iter().position(|track| track.id == source_id) else {
+            return Err("La piste MIDI source n’existe plus dans l’arrangement.".into());
+        };
+        if !mix.tracks[index].role.eq_ignore_ascii_case("midi") {
+            return Err("La piste source n’est pas une piste MIDI.".into());
+        }
+        Some((
+            index,
+            mix.tracks[index].gain_db,
+            mix.tracks[index].pan,
+            mix.tracks[index].solo,
+        ))
+    } else {
+        None
+    };
     append_user_audio_track(
         &mut mix,
         &asset.normalized_rel,
@@ -234,6 +251,17 @@ fn persist_prepared_user_audio_asset(
         display_name,
         placement.start_ms.max(0),
     );
+    if let Some((source_index, gain_db, pan, solo)) = insert_after {
+        let Some(mut rendered_track) = mix.tracks.pop() else {
+            return Err("La piste audio rendue n’a pas été créée.".into());
+        };
+        rendered_track.gain_db = gain_db;
+        rendered_track.pan = pan;
+        rendered_track.solo = solo;
+        mix.tracks[source_index].mute = true;
+        mix.tracks[source_index].solo = false;
+        mix.tracks.insert(source_index + 1, rendered_track);
+    }
     if let Err(e) = atomic_write_json(&mix_path, &mix) {
         mix.tracks.truncate(track_count_before);
         return Err(e);
@@ -304,6 +332,7 @@ pub async fn import_user_audio_track(
             AudioPlacement {
                 start_ms: 0,
                 mute_existing: false,
+                insert_after_track_id: None,
             },
         )
         .map(Some)
@@ -341,11 +370,67 @@ pub async fn import_generation_as_user_track(
             AudioPlacement {
                 start_ms: 0,
                 mute_existing: mute_existing.unwrap_or(false),
+                insert_after_track_id: None,
             },
         )
     })
     .await
     .map_err(|e| format!("Import génération interrompu : {e}"))?
+}
+
+/// Persist an offline MIDI render as audio immediately below its source MIDI lane.
+#[tauri::command]
+pub async fn persist_rendered_midi_track(
+    id: String,
+    source_track_id: String,
+    display_name: String,
+    pcm_le: Vec<u8>,
+) -> Result<MixDoc, String> {
+    tokio::task::spawn_blocking(move || {
+        if pcm_le.is_empty() || pcm_le.len() % 8 != 0 || pcm_le.len() > 512 * 1024 * 1024 {
+            return Err("Audio MIDI invalide ou trop volumineux pour être enregistré.".into());
+        }
+        for sample in pcm_le.chunks_exact(4) {
+            let value = f32::from_le_bytes([sample[0], sample[1], sample[2], sample[3]]);
+            if !value.is_finite() {
+                return Err("Le rendu MIDI contient des échantillons audio invalides.".into());
+            }
+        }
+        let display_name = display_name.trim();
+        if display_name.is_empty() || display_name.chars().count() > 120 {
+            return Err("Nom de la piste audio invalide.".into());
+        }
+        let folder = project_folder(&id);
+        let staging = folder.join("user-audio").join("staging");
+        ensure_dir(&staging).map_err(|e| e.to_string())?;
+        let output = staging.join(format!("midi-render-{}.wav", Uuid::new_v4()));
+        crate::mix::write_interleaved_f32_wav(
+            &pcm_le,
+            crate::pins::SAMPLE_RATE,
+            crate::pins::CHANNELS,
+            &output,
+        )?;
+        let result = (|| {
+            let mut doc = load_project(&folder)?;
+            ingest_user_audio_file(
+                &folder,
+                &mut doc,
+                &output,
+                display_name,
+                true,
+                Some("wav"),
+                AudioPlacement {
+                    start_ms: 0,
+                    mute_existing: false,
+                    insert_after_track_id: Some(source_track_id),
+                },
+            )
+        })();
+        let _ = std::fs::remove_file(&output);
+        result
+    })
+    .await
+    .map_err(|error| format!("Enregistrement du rendu MIDI interrompu : {error}"))?
 }
 
 fn render_vst3_midi_wav(
@@ -472,6 +557,7 @@ pub async fn vst3_render_midi_to_mix_track(
                 AudioPlacement {
                     start_ms: 0,
                     mute_existing: false,
+                    insert_after_track_id: None,
                 },
             )
         })();
@@ -599,6 +685,7 @@ pub fn finalize_user_audio_capture(
         AudioPlacement {
             start_ms: start_ms.unwrap_or(0).max(0),
             mute_existing: false,
+            insert_after_track_id: None,
         },
     ) {
         Ok(mix) => {
@@ -808,6 +895,7 @@ mod tests {
             AudioPlacement {
                 start_ms: 0,
                 mute_existing: true,
+                insert_after_track_id: None,
             },
         )
         .unwrap();
@@ -883,6 +971,7 @@ mod tests {
             AudioPlacement {
                 start_ms: 0,
                 mute_existing: true,
+                insert_after_track_id: None,
             },
         )
         .unwrap();

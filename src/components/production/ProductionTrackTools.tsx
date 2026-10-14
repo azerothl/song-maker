@@ -19,8 +19,6 @@ type Props = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   tempoBpm?: number | null;
-  onTranscribeBasicPitch?: () => void;
-  transcribing?: boolean;
   onOpenMidiInstrument?: () => void;
 };
 
@@ -36,8 +34,6 @@ export function ProductionTrackTools({
   isOpen,
   onOpenChange,
   tempoBpm,
-  onTranscribeBasicPitch,
-  transcribing,
   onOpenMidiInstrument,
 }: Props) {
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -196,8 +192,6 @@ export function ProductionTrackTools({
               mix={mix}
               onMixChange={scheduleMixUpdate}
               onOpenFxLine={() => setTab("fx")}
-              onTranscribeBasicPitch={onTranscribeBasicPitch}
-              transcribing={transcribing}
               embedded
             />
           ) : null}

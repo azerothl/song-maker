@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { api } from "../lib/api";
 import {
@@ -29,6 +30,7 @@ import { scoreTicksToSeconds } from "../lib/scoreTiming";
 import type { Vst3CatalogEntry } from "../lib/types";
 import { t } from "../ui/i18n";
 import { MidiOutputPanel } from "./MidiOutputPanel";
+import { TAKE_PREVIEW_PLAY_EVENT } from "./TakePreviewPlayer";
 
 const DEFAULT_NOTE_TICKS = 240;
 const QUANTIZE_TICKS = 120;
@@ -81,6 +83,11 @@ type Props = {
   onLatencyChange?: (ms: number) => void;
   onError?: (msg: string | null) => void;
   vst3SettingsRequest?: number;
+  playbackToolbarTarget?: HTMLElement | null;
+  onVoiceChange?: (voiceId: string) => void;
+  playbackRange?: { startSeconds: number; endSeconds: number; loop: boolean };
+  /** Extraction preview has no project writes or external instrument assignment. */
+  auditionOnly?: boolean;
 };
 
 function programLabel(program: InstrumentProgram): string {
@@ -124,6 +131,10 @@ export function MidiInstrumentPanel({
   onLatencyChange,
   onError,
   vst3SettingsRequest = 0,
+  playbackToolbarTarget,
+  onVoiceChange,
+  playbackRange,
+  auditionOnly = false,
 }: Props) {
   const settingsTabId = useId();
   const [settingsTab, setSettingsTab] = useState<MidiSettingsTab>(
@@ -134,6 +145,7 @@ export function MidiInstrumentPanel({
   const vst3AudioRef = useRef<HTMLAudioElement | null>(null);
   const vst3SelectRef = useRef<HTMLSelectElement>(null);
   const vst3PreviewTokenRef = useRef(0);
+  const previewSourceRef = useRef({});
   const recordStartRef = useRef<number | null>(null);
   const activeNotesRef = useRef(
     new Map<number, { startTick: number; velocity: number }>(),
@@ -145,7 +157,9 @@ export function MidiInstrumentPanel({
   onChangeRef.current = onDocumentChange;
   onErrorRef.current = onError;
 
-  const [program, setProgram] = useState<InstrumentProgram>("piano");
+  const [program, setProgram] = useState<InstrumentProgram>(() =>
+    document.voices.find(voice => voice.id === voiceId)?.instrumentProgram
+      ?? document.voices.find(voice => voice.notes.length)?.instrumentProgram ?? "piano");
   const [gainDb, setGainDb] = useState(0);
   const [mute, setMute] = useState(false);
   const [solo, setSolo] = useState(false);
@@ -167,7 +181,7 @@ export function MidiInstrumentPanel({
   const [vst3Scanning, setVst3Scanning] = useState(false);
   const [vst3Busy, setVst3Busy] = useState(false);
   const [panelVoiceId, setPanelVoiceId] = useState(
-    voiceId ?? document.voices[0]?.id ?? "",
+    voiceId ?? document.voices.find((voice) => voice.notes.length > 0)?.id ?? document.voices[0]?.id ?? "",
   );
 
   useEffect(() => {
@@ -245,6 +259,7 @@ export function MidiInstrumentPanel({
     const synth = new SoftSynth({ latencySec: latencyMs / 1000 });
     synthRef.current = synth;
     return () => {
+      vst3PreviewTokenRef.current += 1;
       playbackRef.current?.stop();
       if (vst3AudioRef.current) {
         vst3AudioRef.current.pause();
@@ -277,6 +292,7 @@ export function MidiInstrumentPanel({
   }, [sf2Preset]);
 
   useEffect(() => {
+    if (settingsTab !== "midi") return;
     let cancelled = false;
     let access: Awaited<ReturnType<typeof requestMidiAccess>> = null;
 
@@ -306,9 +322,10 @@ export function MidiInstrumentPanel({
       cancelled = true;
       if (access) access.onstatechange = null;
     };
-  }, []);
+  }, [settingsTab]);
 
   useEffect(() => {
+    if (!deviceId) return;
     let cancelled = false;
     let sub: { disconnect: () => void } | null = null;
 
@@ -371,7 +388,7 @@ export function MidiInstrumentPanel({
     };
   }, [deviceId]);
 
-  function stopPlayback() {
+  const stopPlayback = useCallback(() => {
     vst3PreviewTokenRef.current += 1;
     if (vst3AudioRef.current) {
       vst3AudioRef.current.pause();
@@ -381,10 +398,28 @@ export function MidiInstrumentPanel({
     playbackRef.current?.stop();
     playbackRef.current = null;
     setPlaying(false);
-  }
+  }, []);
+
+  useEffect(() => {
+    stopPlayback();
+    setStatus(null);
+  }, [resolvedVoiceId, stopPlayback]);
+
+  useEffect(() => { stopPlayback(); }, [playbackRange?.startSeconds, playbackRange?.endSeconds, playbackRange?.loop, stopPlayback]);
+
+  useEffect(() => {
+    const stopOtherPreview = (event: Event) => {
+      if ((event as CustomEvent).detail === previewSourceRef.current) return;
+      stopPlayback();
+      setStatus(null);
+    };
+    window.addEventListener(TAKE_PREVIEW_PLAY_EVENT, stopOtherPreview);
+    return () => window.removeEventListener(TAKE_PREVIEW_PLAY_EVENT, stopOtherPreview);
+  }, [stopPlayback]);
 
   function onPlay() {
     onError?.(null);
+    window.dispatchEvent(new CustomEvent(TAKE_PREVIEW_PLAY_EVENT, { detail: previewSourceRef.current }));
     if (vst3Instrument && selectedVoice && projectId) {
       stopPlayback();
       const token = ++vst3PreviewTokenRef.current;
@@ -429,6 +464,7 @@ export function MidiInstrumentPanel({
     setStatus(t("midi.playing"));
     playbackRef.current = playScoreDocument(synth, document, {
       voiceId: resolvedVoiceId,
+      ...playbackRange,
       onEnded: () => {
         setPlaying(false);
         setStatus(null);
@@ -642,6 +678,7 @@ export function MidiInstrumentPanel({
   }
 
   function handleSettingsTabKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (auditionOnly) return;
     const currentIndex = MIDI_SETTINGS_TABS.indexOf(settingsTab);
     const nextIndex = event.key === "ArrowRight"
       ? (currentIndex + 1) % MIDI_SETTINGS_TABS.length
@@ -661,8 +698,30 @@ export function MidiInstrumentPanel({
     });
   }
 
+  const playbackControls = (
+    <div className="midi-score-playback" role="group" aria-label={t("score.listenNotes")}>
+      <button
+        type="button"
+        className="btn primary midi-score-play"
+        disabled={playing || !selectedVoice?.notes.length}
+        onClick={onPlay}
+      >
+        <span aria-hidden="true">▶</span> {t("score.listenNotes")}
+      </button>
+      <button type="button" className="btn" disabled={!playing} onClick={onStop}>
+        <span aria-hidden="true">■</span> {t("midi.stop")}
+      </button>
+      <span className="midi-score-playback-source">
+        <strong>{selectedVoice?.name}</strong>
+        <span className="hint">{t("score.listenNotesHint")}</span>
+      </span>
+      {playing && status && <span role="status" aria-live="polite">{status}</span>}
+    </div>
+  );
+
   return (
     <div className="midi-instrument-panel">
+      {playbackToolbarTarget ? createPortal(playbackControls, playbackToolbarTarget) : playbackControls}
       <div className="midi-instrument-header">
         <h4>{t("midi.title")}</h4>
         <span className="hint">{t("midi.hint")}</span>
@@ -674,7 +733,7 @@ export function MidiInstrumentPanel({
         aria-label={t("midi.settingsTabs")}
         onKeyDown={handleSettingsTabKeyDown}
       >
-        {MIDI_SETTINGS_TABS.map((tab) => (
+        {(auditionOnly ? ["instrument"] as const : MIDI_SETTINGS_TABS).map((tab) => (
           <button
             key={tab}
             id={`${settingsTabId}-tab-${tab}`}
@@ -835,7 +894,10 @@ export function MidiInstrumentPanel({
             <span>{t("midi.voice")}</span>
             <select
               value={resolvedVoiceId ?? ""}
-              onChange={(event) => setPanelVoiceId(event.target.value)}
+              onChange={(event) => {
+                setPanelVoiceId(event.target.value);
+                onVoiceChange?.(event.target.value);
+              }}
             >
               {document.voices.map((voice) => (
                 <option key={voice.id} value={voice.id}>
@@ -929,22 +991,6 @@ export function MidiInstrumentPanel({
       </section>
 
       <div className="btn-row">
-        <button
-          type="button"
-          className="btn primary"
-          disabled={
-            playing ||
-            (vst3Instrument
-              ? selectedVoice?.notes.length === 0
-              : document.voices.every((v) => v.notes.length === 0))
-          }
-          onClick={onPlay}
-        >
-          {t("midi.play")}
-        </button>
-        <button type="button" className="btn" onClick={onStop}>
-          {t("midi.stop")}
-        </button>
         <button
           type="button"
           className="btn"

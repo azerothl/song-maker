@@ -13,7 +13,6 @@ import {
   describeAssistantMixChanges,
   makePianoFollowVoice,
   makeRegularBeatVoice,
-  placeTranscribedMelody,
   usableMelodyVoices,
   validateStudioAssistantMidiAction,
   withAssistantVoice,
@@ -23,7 +22,9 @@ import {
   type StudioAssistantUndoRecord,
 } from "../../lib/studioAssistant";
 import { prepareMixRenderSources } from "../../lib/exportMix";
-import { createEmptyScoreDocument, importMidiBytes, type ScoreDocument, type ScoreVoice } from "../../lib/score";
+import { createEmptyScoreDocument, type ScoreDocument, type ScoreVoice } from "../../lib/score";
+import { extractedScore } from "../../lib/basicPitchExtraction";
+import { scoreSecondsToTicks, scoreTicksToSeconds } from "../../lib/scoreTiming";
 import type { MixDoc, MixTrack, PlaybackSources, ProjectDoc } from "../../lib/types";
 import { profileLocale, t } from "../../ui/i18n";
 
@@ -211,16 +212,22 @@ export function StudioAssistantWorkspace({
     setBusy(true);
     setSourceChoice(null);
     try {
-      const transcription = await api.transcribeBasicpitch(projectId, track.id);
-      const imported = importMidiBytes(Uint8Array.from(transcription.midiBytes));
-      const source = imported.document.voices.find((voice) => voice.notes.length > 0);
+      const transcription = await api.transcribeBasicpitch(projectId, track.id, undefined, mix ?? undefined);
+      const imported = extractedScore(transcription, track);
+      await api.discardBasicpitchPreview(projectId, transcription.previewId).catch(() => undefined);
+      const source = imported.voices.find((voice) => voice.notes.length > 0);
       if (!source) {
         appendMessage("assistant", t("studio.assistant.noChanges"));
         return;
       }
       const base = scoreDocument ?? createEmptyScoreDocument({ tempoBpm, branchName: "assistant" });
       const sourceVoice: ScoreVoice = {
-        ...placeTranscribedMelody(source, imported.document, base, track),
+        ...source,
+        notes: source.notes.map(note => {
+          const startTick = scoreSecondsToTicks(base, scoreTicksToSeconds(imported, note.startTick));
+          const endTick = scoreSecondsToTicks(base, scoreTicksToSeconds(imported, note.startTick + note.durationTick));
+          return { ...note, startTick, durationTick: Math.max(1, endTick - startTick) };
+        }),
         id: `assistant-source-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
         name: `Mélodie transcrite — ${track.name}`,
         role: "melody",
