@@ -2,7 +2,7 @@ import { INTERNAL_PPQ, type ScoreDocument } from "@song-maker/score-engine";
 
 /**
  * Convert absolute score ticks to seconds using the document tempo map.
- * Only the first TempoEvent at tick 0 is used (YuE2 dialect: no mid-song stretch).
+ * Absolute timing follows every tempo event, independently of ABC restrictions.
  */
 export function ticksToSeconds(
   ticks: number,
@@ -33,12 +33,43 @@ export function scoreTicksToSeconds(
   document: ScoreDocument,
   ticks: number,
 ): number {
-  return ticksToSeconds(ticks, scoreTempoBpm(document), document.ppq);
+  if (!Number.isFinite(ticks) || ticks <= 0) return 0;
+  let seconds = 0;
+  let previousTick = 0;
+  let bpm = 120;
+  for (const event of orderedTempos(document)) {
+    if (event.tick > ticks) break;
+    seconds += ticksToSeconds(event.tick - previousTick, bpm, document.ppq);
+    previousTick = event.tick;
+    bpm = event.quarterBpm;
+  }
+  return seconds + ticksToSeconds(ticks - previousTick, bpm, document.ppq);
 }
 
 export function scoreSecondsToTicks(
   document: ScoreDocument,
   seconds: number,
 ): number {
-  return secondsToTicks(seconds, scoreTempoBpm(document), document.ppq);
+  if (!Number.isFinite(seconds) || seconds <= 0) return 0;
+  let elapsed = 0;
+  let previousTick = 0;
+  let bpm = 120;
+  for (const event of orderedTempos(document)) {
+    const duration = ticksToSeconds(event.tick - previousTick, bpm, document.ppq);
+    if (elapsed + duration > seconds) break;
+    elapsed += duration;
+    previousTick = event.tick;
+    bpm = event.quarterBpm;
+  }
+  return previousTick + secondsToTicks(seconds - elapsed, bpm, document.ppq);
+}
+
+const tempoCache = new WeakMap<ScoreDocument["tempoMap"], ScoreDocument["tempoMap"]>();
+function orderedTempos(document: ScoreDocument) {
+  const cached = tempoCache.get(document.tempoMap);
+  if (cached) return cached;
+  const ordered = document.tempoMap.filter(event => Number.isFinite(event.tick) && event.tick >= 0
+    && Number.isFinite(event.quarterBpm) && event.quarterBpm > 0).slice().sort((a, b) => a.tick - b.tick);
+  tempoCache.set(document.tempoMap, ordered);
+  return ordered;
 }

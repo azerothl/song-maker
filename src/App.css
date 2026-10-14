@@ -2211,6 +2211,27 @@ option {
   font-size: 1rem;
 }
 
+.studio-track-convert {
+  display: grid;
+  flex: 0 0 24px;
+  width: 24px;
+  min-height: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  color: var(--accent-cyan);
+  border-color: color-mix(in srgb, var(--accent-cyan) 38%, var(--line));
+  background: color-mix(in srgb, var(--accent-cyan) 8%, var(--bg1));
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.studio-track-convert:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent-cyan);
+  background: color-mix(in srgb, var(--accent-cyan) 16%, var(--bg1));
+}
+
 .studio-midi-editor-backdrop {
   position: fixed;
   inset: 0;
@@ -7060,6 +7081,7 @@ details[open] > summary {
 
 .piano-scroll {
   overflow: auto;
+  isolation: isolate;
   max-height: 280px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -7179,6 +7201,7 @@ details[open] > summary {
 
 .piano-row {
   position: absolute;
+  box-sizing: border-box;
   left: 0;
   right: 0;
   border-bottom: 1px solid #1a2030;
@@ -7236,6 +7259,177 @@ details[open] > summary {
   outline-offset: -2px;
   z-index: 2;
   background-image: linear-gradient(180deg, var(--accent-cyan), var(--accent));
+}
+
+/* One pitch row is one key and one note on desktop; touch retains 44px targets. */
+.piano-roll-desktop-rows .piano-note {
+  min-width: 6px;
+  min-height: var(--piano-note-hit-height);
+  background-size: 100% 100%;
+}
+
+.piano-roll-desktop-rows:not(.piano-roll-compact-rows) .piano-scroll {
+  max-height: min(420px, 48vh);
+}
+
+:is(.score-panel, .note-extraction-review) .piano-roll-desktop-rows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+:is(.score-panel, .note-extraction-review) .piano-roll-desktop-rows > .piano-toolbar {
+  display: contents;
+}
+
+:is(.score-panel, .note-extraction-review) .piano-roll-desktop-rows .piano-toolbar-main,
+:is(.score-panel, .note-extraction-review) .piano-roll-desktop-rows > .piano-scroll,
+:is(.score-panel, .note-extraction-review) .piano-roll-desktop-rows > .section-list,
+:is(.score-panel, .note-extraction-review) .piano-roll-desktop-rows > .banner {
+  grid-column: 1 / -1;
+}
+
+:is(.score-panel, .note-extraction-review) .piano-roll-desktop-rows .piano-advanced-settings {
+  min-width: 0;
+  margin: 0;
+}
+
+.score-midi-transport {
+  margin-block: 0.4rem 0.65rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  background: var(--bg2);
+}
+
+.note-extraction-dialog {
+  width: min(1200px, calc(100vw - 2rem));
+  max-width: none;
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--bg0);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 45%);
+}
+.note-extraction-dialog[open] { display: flex; flex-direction: column; }
+.note-extraction-dialog::backdrop { background: rgb(5 7 13 / 78%); }
+.note-extraction-header, .note-extraction-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg1);
+}
+.note-extraction-header h2, .note-extraction-header p, .note-extraction-footer p { margin: 0; }
+.note-extraction-header h2 { font-size: 1.15rem; overflow-wrap: anywhere; }
+.note-extraction-header > div { flex: 1; min-width: 0; }
+.note-extraction-header .hint { margin-top: 0.3rem; }
+.note-extraction-body { min-height: 0; overflow: auto; padding: 1rem; }
+.note-extraction-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem 0.75rem;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.note-extraction-options > legend { padding: 0; margin-block-end: 0.5rem; font-weight: 600; }
+.note-extraction-options label { display: flex; flex: 1 1 12rem; flex-direction: column; gap: 0.3rem; min-width: 0; font-size: 0.8125rem; }
+.note-extraction-options select, .note-extraction-options input[type="number"] { width: 100%; min-width: 0; }
+.note-extraction-options .note-extraction-loop { flex-direction: row; align-items: center; flex: 0 1 auto; min-height: 38px; }
+.note-extraction-loop input { flex: 0 0 auto; }
+.note-extraction-advanced { margin-block: 0.75rem; }
+.note-extraction-analysis > summary { cursor: pointer; padding-block: 0.4rem; margin-block-end: 0.65rem; font-weight: 600; }
+.note-extraction-advanced > summary, .note-extraction-instrument > summary { padding: 0.5rem; border-radius: 5px; background: var(--bg1); cursor: pointer; }
+.note-extraction-advanced fieldset { margin-block-start: 0.75rem; }
+.note-extraction-review { padding: 0; border: 0; min-width: 0; margin: 1.25rem 0 0; }
+.note-extraction-review h3 { margin-block: 0 0.75rem; font-size: 1rem; }
+.note-extraction-review .piano-roll-desktop-rows .piano-scroll { max-height: min(240px, 32vh); }
+.note-extraction-destination { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-block-end: 0.75rem; font-size: 0.8125rem; }
+.note-extraction-destination select { width: min(24rem, 100%); }
+.note-extraction-comparison { padding: 0.75rem; background: var(--bg1); border-radius: 8px; margin-block-end: 1rem; }
+.note-extraction-comparison > .hint { margin-block: 0 0.5rem; }
+.note-extraction-comparison .note-extraction-options label { flex: 0 1 12rem; }
+.note-extraction-source-controls { display: inline-flex; vertical-align: top; flex-wrap: wrap; gap: 0.5rem; margin-block: 0.75rem 0; margin-inline-end: 1rem; }
+.note-extraction-note-controls { display: inline-flex; vertical-align: top; margin-block-start: 0.75rem; max-width: 100%; }
+.note-extraction-note-controls .midi-score-playback { gap: 0.5rem; }
+.note-extraction-comparison .midi-score-playback-source .hint { display: none; }
+.note-extraction-instrument { margin-block-start: 1rem; }
+.note-extraction-instrument .midi-instrument-panel { margin-block-start: 0.5rem; }
+.note-extraction-footer .hint { flex: 1 1 18rem; max-width: 40rem; }
+@media (max-width: 600px) {
+  .note-extraction-dialog { width: calc(100vw - 1rem); max-height: calc(100dvh - 1rem); }
+  .note-extraction-header, .note-extraction-footer, .note-extraction-body { padding: 0.65rem; }
+  .note-extraction-footer .btn-row { width: 100%; }
+  .note-extraction-footer .btn { flex: 1; }
+}
+
+.midi-score-playback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.midi-score-playback-source {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  font-size: 0.82rem;
+}
+
+.midi-score-playback-source .hint {
+  font-size: 0.75rem;
+}
+
+.midi-score-play > span {
+  margin-inline-end: 0.35rem;
+}
+
+.score-issue-summary {
+  margin-block: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg1);
+}
+
+.score-issue-summary > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.score-issue-summary > summary > span {
+  margin-inline-start: 0.7rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.score-issue-groups {
+  display: grid;
+  gap: 0.9rem;
+  max-height: 22rem;
+  overflow: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.score-issue-groups p {
+  margin-block: 0.3rem 0;
+  max-width: 75ch;
+}
+
+.score-issue-count {
+  margin-inline-start: 0.5rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .section-marker {

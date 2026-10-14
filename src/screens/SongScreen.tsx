@@ -10,8 +10,12 @@ import { matchesGenerateShortcut } from "./song/createWorkspaceLayout";
 import { ensureProductionOverlay, normalizeProductionOverlay, setProductionDiskPersist, setProductionOverlay, setProductionProjectScope, setProductionTempoBpm, undoProductionOverlay, redoProductionOverlay } from "../lib/productionState";
 import { exportProjectAudio } from "../lib/exportMix";
 import { generateInstrumentalComparisonTake, generateInstrumentalTake, generateScoreOnly, renderNFromScore } from "../lib/scoreOnlyApi";
-import { createEmptyScoreDocument, importAbcText, importMidiBytes, prepareAbcForGeneration, type ScoreDocument } from "../lib/score";
-import { midiBytesToUint8Array } from "../lib/basicPitchProduct";
+import { createEmptyScoreDocument, importAbcText, prepareAbcForGeneration, type ScoreDocument } from "../lib/score";
+import { buildArrangementMidiConversion } from "../lib/basicPitchExtraction";
+import { renderMidiTrackToPcm } from "../lib/midiConversion";
+import { assistantStateFingerprint } from "../lib/studioAssistant";
+import { getProductionClipSelection } from "../lib/productionClipSelection";
+import { NoteExtractionDialog } from "../components/NoteExtractionDialog";
 import {
   DEFAULT_PRODUCTION_CLIP_VIEW_PREFS,
   type ProductionClipViewPrefs,
@@ -183,14 +187,15 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
   const [separationAgainConfirmOpen, setSeparationAgainConfirmOpen] =
     useState(false);
   const [importingAudio, setImportingAudio] = useState(false);
-  const [transcribingTrackId, setTranscribingTrackId] = useState<string | null>(
-    null,
-  );
+  const [extractionRequest, setExtractionRequest] = useState<{
+    projectId: string; track: MixTrack; mix: MixDoc; clipId: string | null;
+  } | null>(null);
   const [mixPreview, setMixPreview] = useState<MixDoc | null>(null);
   useEffect(() => {
     setPlayerMixPreview(mixPreview);
   }, [mixPreview, setPlayerMixPreview]);
   const [midiTrackMix, setMidiTrackMix] = useState<MixDoc | null>(null);
+  const [convertingMidiTrackId, setConvertingMidiTrackId] = useState<string | null>(null);
   const scoreMidiFallbackMix = useMemo(() => {
     if (!project || !scoreDocument) return null;
     const midiVoices = scoreDocument.voices.filter((voice) => voice.id.startsWith("midi-"));
@@ -374,27 +379,101 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
     else setMidiEditorVst3Request(0);
   }
 
-  async function onTranscribeBasicPitch(track: MixTrack) {
-    if (!project || transcribingTrackId) return;
-    setTranscribingTrackId(track.id);
+  function onTranscribeBasicPitch(track: MixTrack) {
+    if (!project || !displayedMix || busy) return;
+    const selection = getProductionClipSelection();
+    const clipId = selection?.trackId === track.id && track.clips.some(clip => clip.id === selection.clipId && clip.takeActive !== false)
+      ? selection.clipId : null;
+    setExtractionRequest({ projectId: project.id, track, mix: displayedMix, clipId });
+  }
+
+  async function applyExtraction(draft: ScoreDocument, replaceVoiceId: string | null) {
+    if (!extractionRequest) return;
+    const current = useAppStore.getState();
+    if (current.project?.id !== extractionRequest.projectId) throw new Error(t("extraction.projectChanged"));
+    const activeMix = current.mix ?? displayedMix;
+    if (!activeMix) throw new Error("Aucun arrangement actif pour créer la piste MIDI.");
+    const conversion = buildArrangementMidiConversion(activeMix, current.scoreDocument, draft, extractionRequest.track.id, replaceVoiceId);
+    const saved = await api.applyStudioAssistantState(
+      extractionRequest.projectId,
+      activeMix,
+      current.scoreDocument,
+      conversion.mix,
+      conversion.score,
+    );
+    useAppStore.setState({ project: saved.project, mix: saved.mix, scoreDocument: saved.score });
+    setMidiTrackMix(null);
+    setMixPreview(null);
+    setPlayerMixPreview(null);
+    setExtractionRequest(null);
+    setWorkspace("production");
+  }
+
+  async function onConvertMidiTrackToAudio(trackId: string) {
+    const current = useAppStore.getState();
+    const activeMix = current.mix ?? displayedMix;
+    const activeProject = current.project;
+    const activeScore = current.scoreDocument;
+    if (!activeProject || !activeMix || !activeScore || busy) return;
+    const source = activeMix.tracks.find(track => track.id === trackId);
+    if (!source || source.role.toLowerCase() !== "midi") return;
     setBusy(true);
+    setConvertingMidiTrackId(trackId);
     setError(null);
     try {
-      const result = await api.transcribeBasicpitch(project.id, track.id);
-      const { document } = importMidiBytes(midiBytesToUint8Array(result.midiBytes), {
-        id: `basicpitch-${track.id}`,
-      });
-      await api.saveScore(project.id, document);
-      setScoreDocument(document);
-      setScoreOpen(true);
-      setWorkspace("score");
-      await openProject(project.id);
-    } catch (e) {
-      setError(String(e));
+      const pcmLe = await renderMidiTrackToPcm(activeMix, activeScore, trackId);
+      const nextMix = await api.persistRenderedMidiTrack(
+        activeProject.id,
+        trackId,
+        `${source.name.slice(0, 72).trim()} Audio`,
+        pcmLe,
+      );
+      useAppStore.setState({ mix: nextMix });
+      setMidiTrackMix(null);
+      setMixPreview(null);
+      setPlayerMixPreview(null);
+      await openProject(activeProject.id, { preserveForm: true });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
+      setConvertingMidiTrackId(null);
       setBusy(false);
-      setTranscribingTrackId(null);
     }
+  }
+
+  async function undoExtraction() {
+    if (!project?.activeScoreId || busy) return;
+    setBusy(true); setError(null);
+    try {
+      const extraction = scoreDocument?.noteExtraction;
+      if (extraction?.arrangementTrackId) {
+        const history = await api.loadStudioAssistantHistory(project.id);
+        const record = history.undoRecords?.at(-1);
+        if (record?.afterScore?.noteExtraction?.arrangementTrackId !== extraction.arrangementTrackId) {
+          throw new Error("Cette conversion n’est plus la dernière action annulable de l’assistant Studio.");
+        }
+        const [activeMix, activeScore] = await Promise.all([
+          api.loadMix(project.id),
+          api.loadScore(project.id) as Promise<ScoreDocument | null>,
+        ]);
+        if (!activeMix) throw new Error("Aucun arrangement actif à restaurer.");
+        if (!record.afterMix || assistantStateFingerprint(activeMix, activeScore)
+          !== assistantStateFingerprint(record.afterMix, record.afterScore ?? null)) {
+          throw new Error("Le projet a changé depuis cette conversion. L’annulation n’a pas été appliquée.");
+        }
+        const restored = await api.applyStudioAssistantState(
+          project.id, activeMix, activeScore, record.beforeMix, record.beforeScore, true,
+        );
+        useAppStore.setState({ project: restored.project, mix: restored.mix, scoreDocument: restored.score });
+        setMidiTrackMix(null);
+        setMixPreview(null);
+        setPlayerMixPreview(null);
+        return;
+      }
+      await api.undoBasicpitchScore(project.id, project.activeScoreId);
+      await openProject(project.id);
+    } catch (cause) { setError(String(cause)); }
+    finally { setBusy(false); }
   }
 
   async function onRequestInstrumentalPart(input: {
@@ -1184,6 +1263,15 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
                 {project.title || t("form.createTitle")}
                 <ProfileKindBadge />
               </h1>
+              {screen === "studio" && workspace === "production" && scoreDocument && (
+                <button
+                  type="button"
+                  className="btn ghost song-studio-versions-trigger"
+                  onClick={() => selectWorkspace("score")}
+                >
+                  {t("workspace.score")}
+                </button>
+              )}
               {screen === "studio" &&
                 workspace === "production" &&
                 generations.length > 0 && (
@@ -1344,6 +1432,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
             setScoreDocument={setScoreDocument}
             setScoreMode={setScoreMode}
             setScoreOpen={setScoreOpen}
+            onUndoExtraction={undoExtraction}
           />
         )}
 
@@ -1359,6 +1448,8 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
             onImportUserAudio={onImportUserAudio}
             onAddMidiTrack={() => void onAddMidiTrack()}
             onEditMidiTrack={onEditMidiTrack}
+            onConvertMidiTrackToAudio={(trackId) => void onConvertMidiTrackToAudio(trackId)}
+            convertingMidiTrackId={convertingMidiTrackId}
             onSeparate={onSeparate}
             onRevertSeparation={
               separationUndo ? () => void onRevertSeparation() : undefined
@@ -1389,7 +1480,7 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
             clipViewPrefs={productionClipViewPrefs}
             onClipViewPrefsChange={patchProductionClipViewPrefs}
             onTranscribeBasicPitch={onTranscribeBasicPitch}
-            transcribingTrackId={transcribingTrackId}
+            transcribingTrackId={busy ? extractionRequest?.track.id : null}
           />
         )}
 
@@ -1555,6 +1646,17 @@ export function SongScreen({ initialWorkspace = "create" }: { initialWorkspace?:
           }}
           onConfirm={onConfirmRemoteGenerate}
         />
+      )}
+
+      {extractionRequest && project?.id === extractionRequest.projectId && (
+        <NoteExtractionDialog key={`${extractionRequest.projectId}:${extractionRequest.track.id}`}
+          projectId={extractionRequest.projectId} track={extractionRequest.track} mix={extractionRequest.mix}
+          initialClipId={extractionRequest.clipId}
+          previousOptions={scoreDocument?.noteExtraction?.trackId === extractionRequest.track.id
+            ? scoreDocument.noteExtraction : undefined}
+          existingVoices={scoreDocument?.voices.filter(voice => voice.audioSourceTrackId === extractionRequest.track.id
+            && displayedMix?.tracks.some(track => track.id === voice.id && track.role.toLowerCase() === "midi"))}
+          onClose={() => setExtractionRequest(null)} onBusyChange={setBusy} onApply={applyExtraction} />
       )}
 
       <SeparationAgainConfirmDialog

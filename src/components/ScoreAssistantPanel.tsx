@@ -6,6 +6,7 @@ import {
   type ScoreFixSuggestion,
 } from "../lib/scoreAssistant";
 import { t } from "../ui/i18n";
+import { scoreIssueKind } from "../lib/scoreIssueSummary";
 
 type Props = {
   document: ScoreDocument | null;
@@ -46,9 +47,13 @@ export function ScoreAssistantPanel({
         {suggestions.map((s) => (
           <li key={s.issueCode}>
             <div>
-              <strong>{s.titleFr}</strong>
+              <strong>{t(`score.issues.${scoreIssueKind(s.issueCode as ScoreIssue["code"])}.title`)}</strong>
               <br />
-              <span className="hint">{s.detailFr}</span>
+              <span className="hint">{s.actionId === "clamp_pitches"
+                ? t("score.issues.pitch.applyHelp")
+                : s.actionId === "quantize_120"
+                  ? t("score.issues.rhythm.applyHelp")
+                  : t(`score.issues.${scoreIssueKind(s.issueCode as ScoreIssue["code"])}.help`)}</span>
             </div>
             {(s.autoApplicable || s.actionId === "set_cot_full") && (
               <button

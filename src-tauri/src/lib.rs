@@ -220,6 +220,7 @@ pub fn run() {
             // Capture et import audio utilisateur
             commands::capture::import_user_audio_track,
             commands::capture::import_generation_as_user_track,
+            commands::capture::persist_rendered_midi_track,
             commands::capture::begin_user_audio_capture,
             commands::capture::append_user_audio_chunk,
             commands::capture::discard_user_audio_capture,
@@ -245,6 +246,9 @@ pub fn run() {
             commands::score::load_score_version,
             commands::score::set_active_score,
             commands::basicpitch_cmds::transcribe_basicpitch,
+            commands::basicpitch_cmds::discard_basicpitch_preview,
+            commands::basicpitch_cmds::apply_basicpitch_score,
+            commands::basicpitch_cmds::undo_basicpitch_score,
             // Versions
             commands::versions::use_generation,
             commands::versions::rename_generation,
