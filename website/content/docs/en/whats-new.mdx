@@ -1,33 +1,22 @@
 ---
-title: What’s new in v0.4.2
-description: Windows track VST3 effects, MIDI export and the Studio conversational assistant.
+title: What’s new in v0.4.3
+description: Clearer note extraction and direct audio/MIDI conversion in the Studio arrangement.
 order: 2
 ---
 
-# What’s new — v0.4.2
+# What’s new — v0.4.3
 
-This release brings together Studio fixes and the new mix assistant.
+This patch improves note extraction and moves audio/MIDI conversion into the arrangement.
 
-## VST3 effects and instruments
+## Note extraction
 
-- On Windows, each audio or MIDI track can have a VST3 effects chain with add, parameter, enable, order and removal controls. Inserts run in realtime during Studio playback and are included in rendered exports.
-- **MIDI track settings → Choose a VST3 instrument** opens the piano-roll selector directly. Installed plugins are discovered automatically; manual search refreshes the list.
-- During native recording in **Standard** mode, input monitoring can use a selected track’s inserts. The recorded take stays dry. This monitoring is unavailable in exclusive mode.
-- The existing master effect keeps its offline preview/export rendering. Plugins and sound banks are installed separately; the VST3 host remains Windows only.
+- Basic Pitch setup and extraction diagnostics are easier to understand.
+- The generated score has a clearer issue summary and a more usable note editor, including an obvious control to play the notes.
 
-## Studio assistant
+## Audio and MIDI in the arrangement
 
-From **Studio → Mix assistant**, describe a gain or pan change, request a regular MIDI beat or ask for a piano line following an available melody.
+- Convert an audio track to an editable MIDI track directly from the arrangement. The new MIDI lane appears below its source audio track.
+- Render a MIDI track to audio using its selected instrument and track effects. The rendered audio lane appears below its MIDI source.
+- Source tracks remain in the project, and the conversions can be undone through project history.
 
-The assistant shows a preview before **Apply to project**. Added tracks remain editable in the piano roll and appear immediately in the arrangement. History and undo are kept per project, including after restart. Stale proposals are rejected to preserve manual changes.
-
-To follow a melody, select a MIDI voice or an audio track to transcribe. Without a usable source, the assistant explains what is missing. Audio transcription uses a Python environment with `basic-pitch==0.4.0` and `onnxruntime`; the script is embedded in the app.
-
-## Playback, export and track settings
-
-- Built-in or VST3 MIDI instruments and their inserts are included in mix and aligned-track exports. MIDI-only projects can be exported.
-- Playback covers the whole arrangement even when a VST3 track is shorter; Pause also stops already scheduled MIDI notes.
-- MIDI notes appear in Studio lanes. MIDI projects are recognized as arrangements.
-- Track settings tabs stay readable, and track reordering offers a drag handle as well as keyboard arrows.
-
-[Download version 0.4.2](/en/downloads) · [Installation guide](/en/docs/install)
+[Download version 0.4.3](/en/downloads) · [Installation guide](/en/docs/install)

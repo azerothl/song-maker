@@ -387,7 +387,8 @@ pub async fn persist_rendered_midi_track(
     pcm_le: Vec<u8>,
 ) -> Result<MixDoc, String> {
     tokio::task::spawn_blocking(move || {
-        if pcm_le.is_empty() || pcm_le.len() % 8 != 0 || pcm_le.len() > 512 * 1024 * 1024 {
+        if pcm_le.is_empty() || !pcm_le.len().is_multiple_of(8) || pcm_le.len() > 512 * 1024 * 1024
+        {
             return Err("Audio MIDI invalide ou trop volumineux pour être enregistré.".into());
         }
         for sample in pcm_le.chunks_exact(4) {
