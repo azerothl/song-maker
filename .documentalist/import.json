@@ -1,0 +1,9 @@
+{
+  "repository": "azerothl/song-maker",
+  "branch": "main",
+  "path": "docs/documentalist/reference",
+  "format": "auto",
+  "locale": "fr",
+  "learnPath": "docs/documentalist/learn",
+  "blogPath": "docs/documentalist/blog"
+}
